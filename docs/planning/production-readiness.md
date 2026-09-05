@@ -27,7 +27,7 @@ service providers are selected.
 - [ ] Configure log retention and error reporting
 - [ ] Run production boot and asset-precompilation checks
 
-Foundation 1C does not select the hosting platform, Active Storage service,
+Foundation 1 does not select the hosting platform, Active Storage service,
 Action Cable adapter, or shared-cache adapter. Invitation onboarding cannot
 launch until host/mailer URLs, the email provider, the verified from-address,
 an invitation delivery test, protected command access, failed-invitation

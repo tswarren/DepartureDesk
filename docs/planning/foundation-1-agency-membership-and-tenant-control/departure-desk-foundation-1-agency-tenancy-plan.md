@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft implementation plan for the first post-bootstrap feature slice.
+Shipped on `main` (PR #6).
 
 ## Purpose
 

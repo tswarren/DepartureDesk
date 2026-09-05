@@ -10,9 +10,9 @@ The application should feel operationally calm, financially trustworthy, and tra
 
 ## Current boundary
 
-DepartureDesk is in its foundation stage. The repository currently contains authentication, an Agency foundation model, PostgreSQL/Solid Queue infrastructure, Docker development, and the initial theme/dashboard.
+Foundation 1 (agency membership, derived tenant context, profile administration, team invitations, and privileged provisioning/recovery) is shipped on `main`.
 
-Do not assume that planned domain objects already exist. Before changing behavior, inspect routes, models, migrations, schema dumps, controllers, views, jobs, and tests. Describe planned features as planned until code and tests ship them.
+The travel and financial domain is not. Do not assume that departures, suppliers, travelers, reservations, or money objects already exist. Before changing behavior, inspect routes, models, migrations, schema dumps, controllers, views, jobs, and tests. Describe planned features as planned until code and tests ship them.
 
 ## Architecture decisions
 

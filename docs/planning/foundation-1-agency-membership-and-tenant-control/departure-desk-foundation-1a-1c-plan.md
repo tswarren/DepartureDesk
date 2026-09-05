@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed follow-on planning packet after completion of `foundation-1-agency-membership-tenant-control`.
+Shipped on `main` (PR #6).
 
 ## Purpose
 
