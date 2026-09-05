@@ -31,13 +31,15 @@ module Administration
     private
 
     def invitation_params
-      params.require(:invitation_form).permit(
-        :email_address,
-        :role,
-        :first_name,
-        :last_name,
-        :preferred_name
-      )
+      form = params.require(:invitation_form)
+
+      {
+        email_address: form[:email_address],
+        role: form[:role],
+        first_name: form[:first_name],
+        last_name: form[:last_name],
+        preferred_name: form[:preferred_name]
+      }
     end
   end
 end

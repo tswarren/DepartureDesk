@@ -239,7 +239,7 @@ Run:
 ./dev/rails-docker bin/rails test
 ```
 
-Also run system tests for browser-visible workflows when present.
+Also run system tests for browser-visible workflows when a browser is available. They run in GitHub CI. The local Docker image does not include Chrome, so `bin/ci` skips that step there.
 
 Testing rules:
 
