@@ -11,6 +11,8 @@ The application is intended to connect four views of the same departure without 
 
 DepartureDesk is in its foundation stage. Authentication, agencies, PostgreSQL, Solid Queue, Docker development, UUIDv7 support, and the initial application theme are present. The business-domain model described below is the product direction, not a claim that every feature is implemented.
 
+Architecture decisions are recorded in [`docs/adr`](docs/adr). [ADR 0001](docs/adr/0001-money-and-currency.md) accepts `money-rails` and the application’s money/currency persistence contract; installation remains a pending implementation step.
+
 ## Product model
 
 A **departure** is the agency-managed operational container for one group trip, such as the *Smith Family Reunion Cruise* or a packaged wine-country tour. A departure is not merely a supplier confirmation or a collection of invoices. It brings together supplier arrangements, client reservations, travelers, inventory or capacity, deadlines, and financial exposure.
@@ -105,6 +107,7 @@ The repository currently provides:
 | Styling | Tailwind CSS 4 plus DepartureDesk design tokens |
 | Assets | Propshaft |
 | Authentication | Rails authentication generator, bcrypt |
+| Money values | MoneyRails (accepted; installation pending) |
 | Development | Docker Compose |
 
 ## Local development
@@ -242,6 +245,30 @@ The application uses `db/structure.sql` rather than `db/schema.rb`. Queue tables
 - Rails timestamps are handled in UTC and domain tables use PostgreSQL `timestamptz`.
 - Database constraints enforce durable invariants in addition to model validations.
 - Currency codes use uppercase ISO-style three-character values such as `USD`.
+
+### Money and currency
+
+[ADR 0001](docs/adr/0001-money-and-currency.md) is authoritative for money representation.
+
+- Persist amounts in `bigint` columns named with the `_minor_units` suffix.
+- Persist an explicit uppercase three-character currency with every independently meaningful monetary fact.
+- Use `money-rails` to expose currency-aware `Money` values in Ruby; do not let gem defaults define the database schema.
+- Disable implicit cross-currency conversion.
+- Store durable exchange-rate and rounding facts when explicit conversion is introduced.
+- Continue to model charges, receipts, receipt applications, supplier obligations, supplier payments, and payment applications separately.
+
+Example persistence and model mapping:
+
+```ruby
+table.bigint :amount_minor_units, null: false
+table.string :currency, null: false, limit: 3
+
+monetize :amount_minor_units,
+  as: :amount,
+  with_model_currency: :currency
+```
+
+An agency’s default currency is a data-entry default and reporting preference. It does not determine or rewrite the currency of an existing financial record.
 
 ### Rebuilding disposable local databases
 
