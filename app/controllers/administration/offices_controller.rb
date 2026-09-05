@@ -25,6 +25,8 @@ module Administration
       redirect_to administration_office_path(result.office), notice: "Office created."
     rescue MembershipCommand::Error => error
       @office = Current.agency.offices.new(office_params)
+      @office.validate
+      @office.errors.add(:code, "is already used") if error.code == :conflict && @office.errors[:code].empty?
       flash.now[:alert] = error.message
       render :new, status: :unprocessable_entity
     end
@@ -43,6 +45,8 @@ module Administration
       ).call
       redirect_to administration_office_path(@office), notice: "Office updated."
     rescue MembershipCommand::Error => error
+      @office.assign_attributes(office_params.except(:code, :lock_version))
+      @office.validate
       flash.now[:alert] = error.message
       render :edit, status: error.code == :conflict ? :conflict : :unprocessable_entity
     end

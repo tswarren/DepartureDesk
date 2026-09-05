@@ -1,41 +1,55 @@
 <% content_for :title, "Offices · DepartureDesk" %>
 
 <header class="dd-page-header">
-  <div>
+  <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title">Offices</h1>
     <p class="dd-page-description">Operating locations for <%= Current.agency.name %>.</p>
   </div>
 
-  <%= link_to "New office", new_administration_office_path, class: "dd-button" %>
+  <div class="dd-page-actions">
+    <%= link_to "New office", new_administration_office_path, class: "dd-button" %>
+  </div>
 </header>
 
-<p>
-  <%= link_to "Agency profile", administration_agency_path, class: "dd-auth-link" %>
-  <%= link_to "Team", administration_team_members_path, class: "dd-auth-link" %>
-</p>
+<%= render "administration/shared/subnav", current: :offices %>
 
 <article class="dd-panel">
-  <table class="dd-table">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Code</th>
-        <th>Timezone</th>
-        <th>Status</th>
-        <th>Assigned staff</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% @offices.each do |office| %>
-        <tr>
-          <td><%= link_to office.name, administration_office_path(office) %></td>
-          <td><%= office.code %></td>
-          <td><%= office.default_timezone %></td>
-          <td><%= office_status_badge(office) %></td>
-          <td><%= office.assigned_staff_count %></td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Offices</h2>
+  </header>
+
+  <div class="dd-panel-body">
+    <% if @offices.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Code</th>
+              <th>Timezone</th>
+              <th>Status</th>
+              <th>Assigned staff</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @offices.each do |office| %>
+              <tr>
+                <td><%= link_to office.name, administration_office_path(office) %></td>
+                <td><%= office.code %></td>
+                <td><%= office.default_timezone %></td>
+                <td><%= office_status_badge(office) %></td>
+                <td><%= office.assigned_staff_count %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No offices</h3>
+        <p class="dd-empty-copy">Create an office before assigning operational access.</p>
+      </div>
+    <% end %>
+  </div>
 </article>

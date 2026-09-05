@@ -23,6 +23,26 @@ module Administration
       assert_response :success
       assert_includes response.body, users(:one).email_address
       assert_not_includes response.body, users(:two).email_address
+      assert_select "nav[aria-label=Administration]" do
+        assert_select "a[href=?]", administration_agency_path
+        assert_select "a[href=?][aria-current=page]", administration_team_members_path
+        assert_select "a[href=?]", administration_offices_path
+      end
+    end
+
+    test "show splits membership into summary, office access, role, and lifecycle" do
+      sign_in_as(users(:one))
+
+      get administration_team_member_path(agency_memberships(:one))
+
+      assert_response :success
+      assert_select "h2", "Membership summary"
+      assert_select "h2", "Office access"
+      assert_select "h2", "Role"
+      assert_select "h2", "Membership lifecycle"
+      assert_select "[data-turbo-confirm=?]", "Suspend access for #{users(:one).display_name}?"
+      assert_select "input[type=submit][value='Suspend access']"
+      assert_select "nav[aria-label=Administration] a[aria-current=page]", text: "Team"
     end
 
     test "another agency membership UUID is not found on show" do
@@ -60,6 +80,25 @@ module Administration
       assert_redirected_to administration_team_member_path(staff)
       assert_equal "That role is not valid.", flash[:alert]
       assert_equal "staff", staff.reload.role
+    end
+
+    test "invited membership keeps the revoke invitation confirm" do
+      sign_in_as(users(:one))
+      membership = InviteTeamMember.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        email: "controller-invite@example.com",
+        role: "staff",
+        first_name: "Pat",
+        last_name: "Ng",
+        **invite_offices
+      ).call.membership
+
+      get administration_team_member_path(membership)
+
+      assert_response :success
+      assert_select "input[type=submit][value='Revoke invitation']"
+      assert_select "[data-turbo-confirm=?]", "Revoke this invitation?"
     end
 
     test "staff cannot view the team" do

@@ -34,4 +34,20 @@ class AgencyProfileTest < ApplicationSystemTestCase
     assert_current_path root_path
     assert_text "You are not authorized to do that."
   end
+
+  test "skip link remains available and administration fields stay labeled" do
+    visit new_session_path
+    fill_in "Email address", with: users(:one).email_address
+    fill_in "Password", with: "password"
+    click_button "Sign in"
+
+    click_link "Administration"
+    assert_selector "a[href='#main-content']", text: "Skip to main content", visible: :all
+    page.execute_script("document.querySelector(\"a[href='#main-content']\").focus()")
+    assert_selector "a[href='#main-content']", text: "Skip to main content"
+    assert_selector "nav[aria-label=Administration]"
+    click_link "Edit profile"
+    assert_field "Display name"
+    assert_field "Default currency"
+  end
 end

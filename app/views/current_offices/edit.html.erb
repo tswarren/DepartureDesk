@@ -1,7 +1,7 @@
 <% content_for :title, "Choose office · DepartureDesk" %>
 
 <header class="dd-page-header">
-  <div>
+  <div class="dd-page-heading">
     <p class="dd-eyebrow">Workspace</p>
     <h1 class="dd-page-title">Choose office</h1>
     <p class="dd-page-description">Select the office you are working in. This does not change your agency.</p>
@@ -9,21 +9,40 @@
 </header>
 
 <article class="dd-panel">
-  <% if @offices.empty? %>
-    <p>No office access is assigned.</p>
-  <% else %>
-    <%= form_with url: current_office_path, method: :patch, class: "dd-form" do %>
-      <% @offices.each do |office| %>
-        <div class="dd-field-group">
-          <label class="dd-label">
-            <input type="radio" name="office_id" value="<%= office.id %>" <%= "checked" if Current.office&.id == office.id %> required>
-            <%= office.name %> (<%= office.code %>)
-          </label>
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Working office</h2>
+  </header>
+
+  <div class="dd-panel-body">
+    <% if @offices.empty? %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No office access is assigned</h3>
+        <p class="dd-empty-copy">Ask an administrator to grant access to an active office.</p>
+      </div>
+    <% else %>
+      <%= form_with url: current_office_path, method: :patch, class: "dd-form" do %>
+        <fieldset class="dd-form-section">
+          <legend class="dd-label">Office</legend>
+          <div class="dd-choice-group">
+            <% @offices.each do |office| %>
+              <label class="dd-choice" for="office_id_<%= office.id %>">
+                <input type="radio"
+                  name="office_id"
+                  id="office_id_<%= office.id %>"
+                  value="<%= office.id %>"
+                  <%= "checked" if Current.office&.id == office.id %>
+                  required>
+                <%= office.name %> (<%= office.code %>)
+              </label>
+            <% end %>
+          </div>
+        </fieldset>
+
+        <div class="dd-form-actions">
+          <%= submit_tag "Use this office", class: "dd-button" %>
+          <%= link_to "Cancel", root_path, class: "dd-button dd-button--quiet" %>
         </div>
       <% end %>
-      <div class="dd-form-actions">
-        <%= submit_tag "Use this office", class: "dd-button" %>
-      </div>
     <% end %>
-  <% end %>
+  </div>
 </article>

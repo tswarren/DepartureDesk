@@ -1,75 +1,102 @@
 <% content_for :title, "Invite someone · DepartureDesk" %>
 
 <header class="dd-page-header">
-  <div>
+  <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title">Invite someone</h1>
     <p class="dd-page-description">
       They will choose their own password. You will not be shown whether this
       address belongs to another agency.
     </p>
+    <%= link_to "Back to team", administration_team_members_path, class: "dd-button dd-button--quiet dd-button--small" %>
   </div>
 </header>
 
-<p><%= link_to "Back to team", administration_team_members_path, class: "dd-auth-link" %></p>
+<%= render "administration/shared/subnav", current: :team %>
 
 <article class="dd-panel">
-  <% if @invitation.errors.any? %>
-    <div class="dd-alert dd-alert--danger" role="alert">
-      <p>Please correct the following:</p>
-      <ul>
-        <% @invitation.errors.full_messages.each do |message| %>
-          <li><%= message %></li>
-        <% end %>
-      </ul>
-    </div>
-  <% end %>
-
-  <%= form_with model: @invitation,
-    url: administration_invitations_path,
-    method: :post,
-    class: "dd-form" do |form| %>
-    <div class="dd-field-group">
-      <%= form.label :email_address, "Email address", class: "dd-label" %>
-      <%= form.email_field :email_address, required: true, class: "dd-field" %>
-    </div>
-    <div class="dd-field-group">
-      <%= form.label :first_name, class: "dd-label" %>
-      <%= form.text_field :first_name, required: true, class: "dd-field" %>
-    </div>
-    <div class="dd-field-group">
-      <%= form.label :last_name, class: "dd-label" %>
-      <%= form.text_field :last_name, required: true, class: "dd-field" %>
-    </div>
-    <div class="dd-field-group">
-      <%= form.label :preferred_name, class: "dd-label" %>
-      <%= form.text_field :preferred_name, class: "dd-field" %>
-    </div>
-    <div class="dd-field-group">
-      <%= form.label :role, class: "dd-label" %>
-      <%= form.select :role, AgencyMembership::ROLES, {}, class: "dd-field" %>
-    </div>
-    <% if @offices.any? %>
-      <fieldset class="dd-field-group">
-        <legend class="dd-label">Offices</legend>
-        <p>Staff need at least one office and a default. Administrators need a default when an office exists.</p>
-        <% @offices.each do |office| %>
-          <label class="dd-label">
-            <%= check_box_tag "invitation_form[office_ids][]", office.id, Array(@invitation.office_ids).include?(office.id), id: "invitation_form_office_ids_#{office.id}" %>
-            <%= office.name %> (<%= office.code %>)
-          </label>
-        <% end %>
-      </fieldset>
-      <div class="dd-field-group">
-        <%= form.label :default_office_id, "Default office", class: "dd-label" %>
-        <%= form.select :default_office_id,
-          @offices.map { |office| [ "#{office.name} (#{office.code})", office.id ] },
-          { include_blank: true },
-          class: "dd-field" %>
+  <div class="dd-panel-body">
+    <% if @invitation.errors.any? %>
+      <div class="dd-alert dd-alert--danger" role="alert">
+        <p>Please correct the following:</p>
+        <ul>
+          <% @invitation.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
       </div>
     <% end %>
-    <div class="dd-form-actions">
-      <%= form.submit "Send invitation", class: "dd-button" %>
-    </div>
-  <% end %>
+
+    <%= form_with model: @invitation,
+      url: administration_invitations_path,
+      method: :post,
+      class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :email_address, "Email address", class: "dd-label" %>
+        <%= form.email_field :email_address, required: true, class: "dd-field", aria: field_aria(@invitation, :email_address) %>
+        <%= field_error @invitation, :email_address %>
+      </div>
+
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :first_name, class: "dd-label" %>
+          <%= form.text_field :first_name, required: true, class: "dd-field", aria: field_aria(@invitation, :first_name) %>
+          <%= field_error @invitation, :first_name %>
+        </div>
+
+        <div class="dd-field-group">
+          <%= form.label :last_name, class: "dd-label" %>
+          <%= form.text_field :last_name, required: true, class: "dd-field", aria: field_aria(@invitation, :last_name) %>
+          <%= field_error @invitation, :last_name %>
+        </div>
+      </div>
+
+      <div class="dd-field-group">
+        <%= form.label :preferred_name, class: "dd-label" %>
+        <%= form.text_field :preferred_name, class: "dd-field", aria: field_aria(@invitation, :preferred_name) %>
+        <%= field_error @invitation, :preferred_name %>
+      </div>
+
+      <div class="dd-field-group">
+        <%= form.label :role, class: "dd-label" %>
+        <%= form.select :role, AgencyMembership::ROLES, {}, class: "dd-field", aria: field_aria(@invitation, :role) %>
+        <%= field_error @invitation, :role %>
+      </div>
+
+      <% if @offices.any? %>
+        <fieldset class="dd-form-section"
+          aria-invalid="<%= @invitation.errors[:office_ids].any? %>"
+          <% if @invitation.errors[:office_ids].any? %>
+            aria-describedby="<%= field_error_id(@invitation, :office_ids) %>"
+          <% end %>>
+          <legend class="dd-label">Offices</legend>
+          <p class="dd-field-hint">Staff need at least one office and a default. Administrators need a default when an office exists.</p>
+          <div class="dd-choice-group">
+            <% @offices.each do |office| %>
+              <label class="dd-choice" for="invitation_form_office_ids_<%= office.id %>">
+                <%= check_box_tag "invitation_form[office_ids][]", office.id, Array(@invitation.office_ids).include?(office.id), id: "invitation_form_office_ids_#{office.id}" %>
+                <%= office.name %> (<%= office.code %>)
+              </label>
+            <% end %>
+          </div>
+          <%= field_error @invitation, :office_ids %>
+        </fieldset>
+
+        <div class="dd-field-group">
+          <%= form.label :default_office_id, "Default office", class: "dd-label" %>
+          <%= form.select :default_office_id,
+            @offices.map { |office| [ "#{office.name} (#{office.code})", office.id ] },
+            { include_blank: true },
+            class: "dd-field",
+            aria: field_aria(@invitation, :default_office_id) %>
+          <%= field_error @invitation, :default_office_id %>
+        </div>
+      <% end %>
+
+      <div class="dd-form-actions">
+        <%= form.submit "Send invitation", class: "dd-button" %>
+        <%= link_to "Cancel", administration_team_members_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
 </article>

@@ -1,39 +1,53 @@
 <% content_for :title, "Team · DepartureDesk" %>
 
 <header class="dd-page-header">
-  <div>
+  <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title">Team</h1>
     <p class="dd-page-description">People with membership in <%= Current.agency.name %>.</p>
   </div>
 
-  <%= link_to "Invite someone", new_administration_invitation_path, class: "dd-button" %>
+  <div class="dd-page-actions">
+    <%= link_to "Invite someone", new_administration_invitation_path, class: "dd-button" %>
+  </div>
 </header>
 
-<p>
-  <%= link_to "Agency profile", administration_agency_path, class: "dd-auth-link" %>
-  <%= link_to "Offices", administration_offices_path, class: "dd-auth-link" %>
-</p>
+<%= render "administration/shared/subnav", current: :team %>
 
 <article class="dd-panel">
-  <table class="dd-table">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Role</th>
-        <th>Access</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% @memberships.each do |membership| %>
-        <tr>
-          <td><%= link_to membership.user.display_name, administration_team_member_path(membership) %></td>
-          <td><%= membership.user.email_address %></td>
-          <td><%= membership.role %></td>
-          <td><%= membership.status %></td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Team members</h2>
+  </header>
+
+  <div class="dd-panel-body">
+    <% if @memberships.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Access</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @memberships.each do |membership| %>
+              <tr>
+                <td><%= link_to membership.user.display_name, administration_team_member_path(membership) %></td>
+                <td><%= membership.user.email_address %></td>
+                <td><%= membership_role_badge(membership) %></td>
+                <td><%= membership_status_badge(membership) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No team members</h3>
+        <p class="dd-empty-copy">Invite someone to give them membership in this agency.</p>
+      </div>
+    <% end %>
+  </div>
 </article>

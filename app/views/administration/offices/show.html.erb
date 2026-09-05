@@ -1,62 +1,80 @@
 <% content_for :title, "#{@office.name} · Offices · DepartureDesk" %>
 
 <header class="dd-page-header">
-  <div>
+  <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title"><%= @office.name %></h1>
     <p class="dd-page-description">Office code <%= @office.code %>. The code cannot be changed.</p>
+    <%= link_to "Back to offices", administration_offices_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+
+  <div class="dd-page-actions">
+    <%= link_to "Edit office", edit_administration_office_path(@office), class: "dd-button" %>
   </div>
 </header>
 
-<p>
-  <%= link_to "Back to offices", administration_offices_path, class: "dd-auth-link" %>
-  <%= link_to "Edit office", edit_administration_office_path(@office), class: "dd-auth-link" %>
-</p>
+<%= render "administration/shared/subnav", current: :offices %>
 
 <article class="dd-panel">
-  <dl class="dd-definition-list">
-    <div>
-      <dt>Name</dt>
-      <dd><%= @office.name %></dd>
-    </div>
-    <div>
-      <dt>Code</dt>
-      <dd><%= @office.code %></dd>
-    </div>
-    <div>
-      <dt>Timezone</dt>
-      <dd><%= @office.default_timezone %></dd>
-    </div>
-    <div>
-      <dt>Status</dt>
-      <dd><%= office_status_badge(@office) %></dd>
-    </div>
-    <div>
-      <dt>Assigned staff</dt>
-      <dd><%= @office.assigned_staff_count %></dd>
-    </div>
-  </dl>
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Office details</h2>
+  </header>
+
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Name</dt>
+        <dd><%= @office.name %></dd>
+      </div>
+      <div>
+        <dt>Code</dt>
+        <dd><%= @office.code %></dd>
+      </div>
+      <div>
+        <dt>Timezone</dt>
+        <dd><%= @office.default_timezone %></dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd><%= office_status_badge(@office) %></dd>
+      </div>
+      <div>
+        <dt>Assigned staff</dt>
+        <dd><%= @office.assigned_staff_count %></dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Office lifecycle</h2>
+  </header>
 
   <% if @office.active? %>
     <%= form_with url: deactivate_administration_office_path(@office), method: :post, class: "dd-form" do %>
-      <p>Deactivating this office prevents it from being selected or receiving new assignments. Historical records stay in place. The last active office cannot be deactivated.</p>
-      <div class="dd-field-group">
-        <label class="dd-label" for="reason">Reason</label>
-        <input class="dd-field" type="text" name="reason" id="reason" required>
+      <div class="dd-panel-body">
+        <p class="dd-field-hint">Deactivating this office prevents it from being selected or receiving new assignments. Historical records stay in place. The last active office cannot be deactivated.</p>
+        <div class="dd-field-group">
+          <label class="dd-label" for="reason">Reason</label>
+          <input class="dd-field" type="text" name="reason" id="reason" required>
+        </div>
       </div>
-      <div class="dd-form-actions">
-        <%= submit_tag "Deactivate office", class: "dd-button", data: { turbo_confirm: "Deactivate #{@office.name}?" } %>
+      <div class="dd-panel-footer dd-form-actions">
+        <%= submit_tag "Deactivate office", class: "dd-button dd-button--danger", data: { turbo_confirm: "Deactivate #{@office.name}?" } %>
       </div>
     <% end %>
   <% else %>
     <%= form_with url: reactivate_administration_office_path(@office), method: :post, class: "dd-form" do %>
-      <p>Reactivation makes the office available for selection and assignment. It does not restore revoked assignments or select the office for users.</p>
-      <div class="dd-field-group">
-        <label class="dd-label" for="reason">Reason</label>
-        <input class="dd-field" type="text" name="reason" id="reason" required>
+      <div class="dd-panel-body">
+        <p class="dd-field-hint">Reactivation makes the office available for selection and assignment. It does not restore revoked assignments or select the office for users.</p>
+        <div class="dd-field-group">
+          <label class="dd-label" for="reason">Reason</label>
+          <input class="dd-field" type="text" name="reason" id="reason" required>
+        </div>
       </div>
-      <div class="dd-form-actions">
-        <%= submit_tag "Reactivate office", class: "dd-button" %>
+      <div class="dd-panel-footer dd-form-actions">
+        <%= submit_tag "Reactivate office", class: "dd-button dd-button--secondary" %>
       </div>
     <% end %>
   <% end %>
