@@ -14,6 +14,12 @@ DepartureDesk is in its foundation stage. The repository currently contains auth
 
 Do not assume that planned domain objects already exist. Before changing behavior, inspect routes, models, migrations, schema dumps, controllers, views, jobs, and tests. Describe planned features as planned until code and tests ship them.
 
+## Architecture decisions
+
+Accepted ADRs under `docs/adr` are authoritative. Read the relevant ADR before designing or changing its domain.
+
+- [ADR 0001: Money and currency representation](docs/adr/0001-money-and-currency.md) accepts `money-rails`, `bigint` minor-unit persistence, explicit currencies, strict parsing, and explicit historical conversion facts. The dependency is not considered installed until `Gemfile`, the lockfile, initializer, and tests contain the implementation.
+
 ## Canonical domain language
 
 Use these terms consistently in code, migrations, UI labels, tests, and documentation.
@@ -112,6 +118,7 @@ When diagnosing a container failure, identify the first application error. Do no
 - Use optimistic locking on mutable operational aggregates where concurrent edits matter.
 - Prefer explicit enums or constrained string states whose values remain readable in SQL.
 - Do not add gems when Rails or an existing dependency reasonably handles the need.
+- `money-rails` is an explicitly accepted exception governed by ADR 0001; do not substitute a different money library without superseding that ADR.
 
 ## PostgreSQL and Active Record
 
@@ -125,7 +132,7 @@ When diagnosing a container failure, identify the first application error. Do no
 - Rails operates timestamps in UTC; domain timestamps use PostgreSQL `timestamptz`.
 - Store an agency’s display/business timezone as a recognized IANA timezone.
 - Currency codes are uppercase three-character values.
-- Store money in integer minor units with an accompanying currency where currency is not unambiguously inherited.
+- Store money in `bigint` integer minor-unit columns using the `_minor_units` suffix, with an explicit currency for every independently meaningful monetary fact.
 - Never use floating-point columns for money, rates that post money, or allocations.
 - Use decimal/numeric values only where fractional quantities or exchange rates require them, with explicit precision and scale.
 - Add `null`, foreign-key, unique, check, and exclusion constraints as appropriate. Model validation alone is insufficient.
@@ -195,6 +202,12 @@ The exact implementation will evolve, but agents must not collapse these into on
 - Estimates, commitments, actuals, commissions, service fees, and margin require explicit provenance.
 - Posted financial facts should be immutable; correct them through linked reversal/adjustment facts.
 - Preserve original currency, applicable exchange-rate facts, and agency reporting currency when multi-currency support is introduced.
+- Use `money-rails` as a value-object and Rails-integration layer only. It is not a ledger, settlement engine, or accounting model.
+- Use `with_model_currency` (or an equally explicit immutable owner) for persisted amounts; never rely on a global default currency to interpret stored financial facts.
+- Disable implicit currency conversion. Mismatched-currency arithmetic must fail unless an explicit workflow supplies and persists the conversion facts required by ADR 0001.
+- Do not use MoneyRails migration helpers without reviewing and overriding their amount type, names, defaults, nullability, and constraints. Explicit migrations are preferred.
+- Formatting and parsing helpers are boundary concerns. Never persist a formatted string as the authoritative amount.
+- Document and test precision, rounding mode, rounding boundary, and remainder allocation for every calculation that can produce fractional minor units.
 
 ## Authentication and tenancy
 
@@ -305,6 +318,8 @@ Do not:
 - Use a single `paid` boolean for client and supplier accounting.
 - Hide agency guarantees or unsold exposure inside estimated margin.
 - Use floating point for money.
+- Use `_cents` as the general persistence suffix; DepartureDesk uses `_minor_units` because supported currencies do not all have cents.
+- Enable automatic currency conversion or use a current exchange-rate bank as historical accounting authority.
 - rely only on model validations for durable financial invariants.
 - Put Solid Queue domain tables in the primary database to mask a connection error.
 - Commit generated Tailwind output, `.env` files, secrets, or real personal data.
