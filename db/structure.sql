@@ -38,6 +38,19 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
 
 
+--
+-- Name: prevent_audit_event_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.prevent_audit_event_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'audit_events are append-only';
+END;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -97,7 +110,11 @@ CREATE TABLE public.agencies (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    legal_name character varying,
+    country_code character varying(2) DEFAULT 'US'::character varying NOT NULL,
+    CONSTRAINT agencies_country_code_format CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
     CONSTRAINT agencies_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT agencies_legal_name_null_or_not_blank CHECK (((legal_name IS NULL) OR (btrim((legal_name)::text) <> ''::text))),
     CONSTRAINT agencies_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT agencies_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
     CONSTRAINT agencies_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text]))),
@@ -118,9 +135,25 @@ CREATE TABLE public.agency_memberships (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    invitation_version integer DEFAULT 0 NOT NULL,
+    invitation_sent_at timestamp with time zone,
+    CONSTRAINT agency_memberships_invitation_version_nonnegative CHECK ((invitation_version >= 0)),
     CONSTRAINT agency_memberships_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT agency_memberships_role_valid CHECK (((role)::text = ANY ((ARRAY['staff'::character varying, 'administrator'::character varying])::text[]))),
-    CONSTRAINT agency_memberships_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'suspended'::character varying])::text[])))
+    CONSTRAINT agency_memberships_role_valid CHECK (((role)::text = ANY (ARRAY[('staff'::character varying)::text, ('administrator'::character varying)::text]))),
+    CONSTRAINT agency_memberships_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('revoked'::character varying)::text])))
+);
+
+
+--
+-- Name: agency_provisioning_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agency_provisioning_requests (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    idempotency_key_digest character varying NOT NULL,
+    intent_digest character varying NOT NULL,
+    agency_id uuid NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL
 );
 
 
@@ -133,6 +166,27 @@ CREATE TABLE public.ar_internal_metadata (
     value character varying,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: audit_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.audit_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    actor_kind character varying NOT NULL,
+    actor_user_id uuid,
+    actor_identifier character varying,
+    action character varying NOT NULL,
+    subject_type character varying,
+    subject_id uuid,
+    details jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT audit_events_action_format CHECK (((action)::text ~ '^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$'::text)),
+    CONSTRAINT audit_events_actor_consistency CHECK (((((actor_kind)::text = 'user'::text) AND (actor_user_id IS NOT NULL) AND (actor_identifier IS NULL)) OR (((actor_kind)::text = 'system'::text) AND (actor_user_id IS NULL) AND (btrim((actor_identifier)::text) <> ''::text)))),
+    CONSTRAINT audit_events_subject_consistency CHECK (((subject_type IS NULL) = (subject_id IS NULL)))
 );
 
 
@@ -168,7 +222,13 @@ CREATE TABLE public.users (
     email_address character varying NOT NULL,
     password_digest character varying NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
-    updated_at timestamp(6) with time zone NOT NULL
+    updated_at timestamp(6) with time zone NOT NULL,
+    first_name character varying NOT NULL,
+    last_name character varying NOT NULL,
+    preferred_name character varying,
+    CONSTRAINT users_first_name_not_blank CHECK ((btrim((first_name)::text) <> ''::text)),
+    CONSTRAINT users_last_name_not_blank CHECK ((btrim((last_name)::text) <> ''::text)),
+    CONSTRAINT users_preferred_name_null_or_not_blank CHECK (((preferred_name IS NULL) OR (btrim((preferred_name)::text) <> ''::text)))
 );
 
 
@@ -213,11 +273,27 @@ ALTER TABLE ONLY public.agency_memberships
 
 
 --
+-- Name: agency_provisioning_requests agency_provisioning_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_provisioning_requests
+    ADD CONSTRAINT agency_provisioning_requests_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: ar_internal_metadata ar_internal_metadata_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.ar_internal_metadata
     ADD CONSTRAINT ar_internal_metadata_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: audit_events audit_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events
+    ADD CONSTRAINT audit_events_pkey PRIMARY KEY (id);
 
 
 --
@@ -308,6 +384,48 @@ CREATE UNIQUE INDEX index_agency_memberships_one_active_per_user ON public.agenc
 
 
 --
+-- Name: index_agency_provisioning_requests_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_agency_provisioning_requests_on_agency_id ON public.agency_provisioning_requests USING btree (agency_id);
+
+
+--
+-- Name: index_agency_provisioning_requests_on_idempotency_key_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_provisioning_requests_on_idempotency_key_digest ON public.agency_provisioning_requests USING btree (idempotency_key_digest);
+
+
+--
+-- Name: index_agency_provisioning_requests_on_intent_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_provisioning_requests_on_intent_digest ON public.agency_provisioning_requests USING btree (intent_digest);
+
+
+--
+-- Name: index_audit_events_on_actor_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_audit_events_on_actor_user_id ON public.audit_events USING btree (actor_user_id);
+
+
+--
+-- Name: index_audit_events_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_audit_events_on_agency_id ON public.audit_events USING btree (agency_id);
+
+
+--
+-- Name: index_audit_events_on_agency_id_and_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_events USING btree (agency_id, created_at);
+
+
+--
 -- Name: index_sessions_on_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -322,11 +440,33 @@ CREATE UNIQUE INDEX index_users_on_email_address ON public.users USING btree (em
 
 
 --
+-- Name: audit_events audit_events_prevent_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_events_prevent_delete BEFORE DELETE ON public.audit_events FOR EACH ROW EXECUTE FUNCTION public.prevent_audit_event_mutation();
+
+
+--
+-- Name: audit_events audit_events_prevent_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_events_prevent_update BEFORE UPDATE ON public.audit_events FOR EACH ROW EXECUTE FUNCTION public.prevent_audit_event_mutation();
+
+
+--
 -- Name: agency_memberships fk_rails_273f2f9052; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.agency_memberships
     ADD CONSTRAINT fk_rails_273f2f9052 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: audit_events fk_rails_2e3720791c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events
+    ADD CONSTRAINT fk_rails_2e3720791c FOREIGN KEY (actor_user_id) REFERENCES public.users(id);
 
 
 --
@@ -338,11 +478,27 @@ ALTER TABLE ONLY public.agency_memberships
 
 
 --
+-- Name: agency_provisioning_requests fk_rails_427be59e8d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_provisioning_requests
+    ADD CONSTRAINT fk_rails_427be59e8d FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: sessions fk_rails_758836b4f0; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT fk_rails_758836b4f0 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: audit_events fk_rails_8512cd9707; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events
+    ADD CONSTRAINT fk_rails_8512cd9707 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -368,6 +524,9 @@ ALTER TABLE ONLY public.active_storage_attachments
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260905210000'),
+('20260905200000'),
+('20260905190000'),
 ('20260905180000'),
 ('20260905034356'),
 ('20260905034233'),

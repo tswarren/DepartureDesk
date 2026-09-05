@@ -220,6 +220,11 @@ The exact implementation will evolve, but agents must not collapse these into on
 - Do not expose whether an email address exists during password-reset flows.
 - Never log plaintext passwords, tokens, payment credentials, passport data, or other sensitive traveler information.
 - The current seed credential is development-only.
+- Administrator capabilities are membership-scoped (`Current.agency_membership.administrator?`), not a property on `User`.
+- Tenant administrators may edit the current agency profile. They may not create agencies, change lifecycle status, or delete an agency.
+- Team administration manages `AgencyMembership` through explicit commands. Invitations are distinct from password resets and never disclose whether an email exists in another agency.
+- Agency provisioning, lifecycle, and administrator recovery are privileged commands (`ProvisionAgency`, `ChangeAgencyStatus`, `RecoverAgencyAdministrator`), not tenant-facing routes. System audit events require `actor_identifier` and must not invent a platform user. Command output may print identifiers only—never passwords or invitation tokens.
+- Administrative mutations write append-only `AuditEvent` records in the same transaction. Audit events reject update and destroy in the application and in PostgreSQL.
 - Business records must be loaded through `Current.agency`. Do not use a tenant `default_scope`. Do not rely on a client-supplied agency ID without authorization against the current user/session.
 - Action Cable identifies `current_user` and `current_agency` from the same resolver. It must not copy request `Current` onto a long-lived connection.
 - Treat passenger identity documents and payment information as sensitive data requiring explicit retention, access, and audit rules before implementation.

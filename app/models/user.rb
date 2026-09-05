@@ -8,6 +8,14 @@ class User < ApplicationRecord
     class_name: "AgencyMembership"
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
+  normalizes :first_name, :last_name, with: ->(value) { value&.strip }
+  normalizes :preferred_name, with: ->(value) { value&.strip.presence }
+
+  validates :first_name, :last_name, presence: true
+
+  def display_name
+    preferred_name.presence || "#{first_name} #{last_name}".squish
+  end
 
   def usable_agency_membership
     memberships = active_agency_memberships

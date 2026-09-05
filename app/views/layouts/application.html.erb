@@ -36,11 +36,17 @@
           <% end %>
 
           <nav class="dd-primary-nav" aria-label="Primary navigation">
-            <%= link_to "Dashboard", root_path, class: "dd-nav-item", aria: { current: "page" } %>
+            <%= link_to "Dashboard", root_path, class: "dd-nav-item", aria: { current: ("page" if controller_name == "dashboard") } %>
             <span class="dd-nav-item" aria-disabled="true">Departures</span>
             <span class="dd-nav-item" aria-disabled="true">Travelers</span>
             <span class="dd-nav-item" aria-disabled="true">Suppliers</span>
             <span class="dd-nav-item" aria-disabled="true">Accounting</span>
+            <% if Current.agency_membership&.administrator? %>
+              <%= link_to "Administration",
+                administration_agency_path,
+                class: "dd-nav-item",
+                aria: { current: ("page" if controller_path.start_with?("administration/")) } %>
+            <% end %>
           </nav>
 
           <div class="dd-header-account">

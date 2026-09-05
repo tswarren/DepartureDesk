@@ -1,0 +1,36 @@
+<% content_for :title, "Team · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div>
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">Team</h1>
+    <p class="dd-page-description">People with membership in <%= Current.agency.name %>.</p>
+  </div>
+
+  <%= link_to "Invite someone", new_administration_invitation_path, class: "dd-button" %>
+</header>
+
+<p><%= link_to "Agency profile", administration_agency_path, class: "dd-auth-link" %></p>
+
+<article class="dd-panel">
+  <table class="dd-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Access</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @memberships.each do |membership| %>
+        <tr>
+          <td><%= link_to membership.user.display_name, administration_team_member_path(membership) %></td>
+          <td><%= membership.user.email_address %></td>
+          <td><%= membership.role %></td>
+          <td><%= membership.status %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</article>

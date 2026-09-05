@@ -44,6 +44,73 @@ class AgencyTest < ActiveSupport::TestCase
     end
   end
 
+  test "normalizes a blank legal name to nil" do
+    agency = agencies(:one)
+    agency.update!(legal_name: "  ")
+
+    assert_nil agency.reload.legal_name
+  end
+
+  test "rejects a whitespace-only legal name in the database" do
+    agency = agencies(:one)
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      Agency.transaction(requires_new: true) do
+        Agency.connection.execute(
+          "UPDATE agencies SET legal_name = '   ' WHERE id = '#{agency.id}'"
+        )
+      end
+    end
+  end
+
+  test "formal_name uses legal_name when present" do
+    agency = agencies(:one)
+    agency.update!(legal_name: "Sunrise Travel LLC")
+
+    assert_equal "Sunrise Travel LLC", agency.formal_name
+  end
+
+  test "formal_name falls back to the display name" do
+    assert_equal "Sunrise Travel", agencies(:one).formal_name
+  end
+
+  test "normalizes country_code to uppercase" do
+    agency = agencies(:one)
+    agency.update!(country_code: "ca")
+
+    assert_equal "CA", agency.reload.country_code
+  end
+
+  test "rejects an invalid country_code in the model" do
+    agency = agencies(:one)
+    agency.country_code = "USA"
+
+    assert_not agency.valid?
+  end
+
+  test "rejects an invalid country_code in the database" do
+    agency = agencies(:one)
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      Agency.transaction(requires_new: true) do
+        Agency.connection.execute(
+          "UPDATE agencies SET country_code = 'us' WHERE id = '#{agency.id}'"
+        )
+      end
+    end
+  end
+
+  test "raises on a stale agency update" do
+    agency = agencies(:one)
+    stale = Agency.find(agency.id)
+
+    agency.update!(name: "Sunrise Travel Group")
+
+    assert_raises(ActiveRecord::StaleObjectError) do
+      stale.update!(legal_name: "Sunrise Travel LLC")
+    end
+  end
+
   test "requires an uppercase three-letter currency" do
     agency = Agency.new(
       name: "Sunrise Travel",

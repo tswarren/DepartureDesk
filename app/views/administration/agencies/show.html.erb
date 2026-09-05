@@ -1,0 +1,50 @@
+<% content_for :title, "Agency profile · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div>
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">Agency profile</h1>
+    <p class="dd-page-description">
+      Identity and defaults for <%= @agency.name %>. Timezone and currency
+      apply to future data entry only.
+    </p>
+  </div>
+
+  <div class="dd-form-actions">
+    <%= link_to "Edit profile", edit_administration_agency_path, class: "dd-button" %>
+    <%= link_to "Team", administration_team_members_path, class: "dd-auth-link" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <dl class="dd-definition-list">
+    <div>
+      <dt>Display name</dt>
+      <dd><%= @agency.name %></dd>
+    </div>
+    <div>
+      <dt>Legal name</dt>
+      <dd><%= @agency.legal_name.presence || "Not provided" %></dd>
+    </div>
+    <div>
+      <dt>Formal name</dt>
+      <dd><%= @agency.formal_name %></dd>
+    </div>
+    <div>
+      <dt>Country code</dt>
+      <dd><%= @agency.country_code %></dd>
+    </div>
+    <div>
+      <dt>Default timezone</dt>
+      <dd><%= @agency.default_timezone %></dd>
+    </div>
+    <div>
+      <dt>Default currency</dt>
+      <dd><%= @agency.default_currency %></dd>
+    </div>
+    <div>
+      <dt>Status</dt>
+      <dd><%= @agency.status %></dd>
+    </div>
+  </dl>
+</article>

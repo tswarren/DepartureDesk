@@ -3,6 +3,7 @@ if Rails.env.development?
     seed_agency.assign_attributes(
       default_timezone: "UTC",
       default_currency: "USD",
+      country_code: "US",
       status: "active"
     )
     seed_agency.save!
@@ -12,6 +13,8 @@ if Rails.env.development?
     )
 
     seed_user.assign_attributes(
+      first_name: "Alex",
+      last_name: "Mariner",
       password: "ChangeMe123!",
       password_confirmation: "ChangeMe123!"
     )

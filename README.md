@@ -11,7 +11,7 @@ The application is intended to connect four views of the same departure without 
 
 DepartureDesk is in its foundation stage. Authentication, agency membership, tenant context, PostgreSQL, Solid Queue, Docker development, UUIDv7 support, and the initial application theme are present. The business-domain model described below is the product direction, not a claim that every feature is implemented.
 
-Architecture decisions are recorded in [`docs/adr`](docs/adr). [ADR 0001](docs/adr/0001-money-and-currency.md) accepts `money-rails` and the application’s money/currency persistence contract; installation remains a pending implementation step. [ADR 0002](docs/adr/0002-agency-tenancy-and-membership.md) accepts agency memberships and derived tenant context.
+Architecture decisions are recorded in [`docs/adr`](docs/adr). [ADR 0001](docs/adr/0001-money-and-currency.md) accepts `money-rails` and the application’s money/currency persistence contract; installation remains a pending implementation step. [ADR 0002](docs/adr/0002-agency-tenancy-and-membership.md) accepts agency memberships and derived tenant context. [ADR 0003](docs/adr/0003-membership-lifecycle-and-invitations.md) accepts invited/active/suspended/revoked memberships and invitation onboarding.
 
 ## Product model
 
@@ -91,6 +91,9 @@ The repository currently provides:
 - UUIDv7 defaults for application-owned domain records.
 - Password authentication using Rails’ authentication generator and `has_secure_password`.
 - Agency memberships that derive one trusted current agency from the authenticated user.
+- Current-agency profile administration for administrators, with an append-only administrative audit trail.
+- Team invitations and membership administration for the current agency.
+- Privileged agency provisioning, lifecycle, and administrator-recovery commands. See [agency-provisioning-and-recovery.md](docs/planning/agency-provisioning-and-recovery.md).
 - A separate Solid Queue database and worker process.
 - Tailwind CSS 4 with the DepartureDesk “Harbor and Waypoint” theme.
 - A Docker-only local development workflow.

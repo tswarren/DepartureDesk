@@ -6,6 +6,17 @@ class UserTest < ActiveSupport::TestCase
     assert_equal("downcased@example.com", user.email_address)
   end
 
+  test "display_name prefers preferred_name" do
+    user = users(:one)
+    user.update!(preferred_name: "Jo")
+
+    assert_equal "Jo", user.display_name
+  end
+
+  test "display_name uses first and last name" do
+    assert_equal "Jordan Blake", users(:one).display_name
+  end
+
   test "resolves exactly one usable membership" do
     user = users(:one)
 
@@ -16,6 +27,8 @@ class UserTest < ActiveSupport::TestCase
   test "usable_agency_membership is nil without an active membership" do
     user = User.create!(
       email_address: "no-membership@example.com",
+      first_name: "No",
+      last_name: "Membership",
       password: "password",
       password_confirmation: "password"
     )

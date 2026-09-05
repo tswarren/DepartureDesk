@@ -37,6 +37,8 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   test "create with no active membership fails generically" do
     user = User.create!(
       email_address: "no-membership@example.com",
+      first_name: "No",
+      last_name: "Membership",
       password: "password",
       password_confirmation: "password"
     )

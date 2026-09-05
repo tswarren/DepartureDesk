@@ -172,6 +172,8 @@ class AgencyMembershipTest < ActiveSupport::TestCase
   test "allows multiple suspended memberships for different agencies" do
     user = User.create!(
       email_address: "suspended-history@example.com",
+      first_name: "Sam",
+      last_name: "Patel",
       password: "password",
       password_confirmation: "password"
     )

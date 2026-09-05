@@ -15,6 +15,8 @@ module ApplicationCable
     test "rejects a missing membership" do
       user = User.create!(
         email_address: "cable-none@example.com",
+        first_name: "Cable",
+        last_name: "None",
         password: "password",
         password_confirmation: "password"
       )
