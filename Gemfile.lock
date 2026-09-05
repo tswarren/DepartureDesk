@@ -170,11 +170,11 @@ GEM
     money (7.1.1)
       bigdecimal
       i18n (~> 1.9)
-    money-rails (2.0.0)
-      activesupport (>= 6.1)
+    money-rails (3.0.0)
+      activesupport (>= 7.0)
       monetize (~> 2.0)
       money (~> 7.0)
-      railties (>= 6.1)
+      railties (>= 7.0)
     msgpack (1.8.4)
     net-imap (0.6.6)
       date
@@ -398,7 +398,7 @@ DEPENDENCIES
   importmap-rails
   jbuilder
   kamal
-  money-rails (~> 2.0)
+  money-rails (~> 3.0)
   pg (~> 1.1)
   propshaft
   puma (>= 5.0)

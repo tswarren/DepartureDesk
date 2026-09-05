@@ -43,7 +43,7 @@ gem "thruster", require: false
 gem "image_processing", "~> 2.1"
 
 # Use Money-rails for currency calculations [https://github.com/RubyMoney/money-rails]
-gem "money-rails", "~> 2.0"
+gem "money-rails", "~> 3.0"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
