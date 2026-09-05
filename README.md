@@ -249,7 +249,7 @@ Only use this when development data can be discarded:
 
 ```bash
 docker compose stop jobs
-./dev/rails-docker bin/rails db:drop db:create db:prepare
+./dev/rails-docker bin/rails db:drop db:create db:schema:load
 ./dev/rails-docker bin/rails db:seed
 docker compose up -d jobs
 ```
@@ -365,4 +365,3 @@ The target database is partially initialized. For a disposable development queue
 ## Project status
 
 DepartureDesk is pre-production and under active domain design. Keep implementation claims in this README synchronized with shipped code. Place detailed requirements and architectural decisions in version-controlled planning documents as the model matures.
-
