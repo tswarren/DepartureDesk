@@ -8,7 +8,7 @@ class DeliveryIntentTest < ActiveSupport::TestCase
       AgencyMembership.transaction do
         InviteTeamMember.new(
           agency: agencies(:one), actor: users(:one), email: "rollback@example.com",
-          role: "staff", first_name: "Roll", last_name: "Back"
+          role: "staff", first_name: "Roll", last_name: "Back", **invite_offices
         ).call
         raise ActiveRecord::Rollback
       end
@@ -22,7 +22,7 @@ class DeliveryIntentTest < ActiveSupport::TestCase
     assert_difference("DeliveryIntent.pending.count", 1) do
       InviteTeamMember.new(
         agency: agencies(:one), actor: users(:one), email: "recover@example.com",
-        role: "staff", first_name: "Process", last_name: "Recovery"
+        role: "staff", first_name: "Process", last_name: "Recovery", **invite_offices
       ).call
     end
   ensure
@@ -32,7 +32,7 @@ class DeliveryIntentTest < ActiveSupport::TestCase
   test "replacement invitation versions have distinct idempotency keys" do
     membership = InviteTeamMember.new(
       agency: agencies(:one), actor: users(:one), email: "versions@example.com",
-      role: "staff", first_name: "Version", last_name: "Test"
+      role: "staff", first_name: "Version", last_name: "Test", **invite_offices
     ).call.membership
     first = DeliveryIntent.find_by!(subject: membership)
 

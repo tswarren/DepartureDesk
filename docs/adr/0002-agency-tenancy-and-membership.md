@@ -46,6 +46,10 @@ Memberships are authorization history. Agency and user associations use `depende
 - valid session plus exactly one usable membership → user, membership, and agency available;
 - no active membership, more than one active membership, a suspended membership, or a non-active agency → no usable tenant context.
 
+`Current.office` is subordinate to that trusted agency context. Resolution does not write the session. It uses, in order: a stored `office_id` that is active, owned by `Current.agency`, and operationally accessible; otherwise the membership’s active accessible default office; otherwise the sole accessible active office in memory. An invalid stored selection is ignored and left in place until login, invitation acceptance, `SelectCurrentOffice`, or a deactivation/revocation cleanup writes the session. It is never established from `params[:office_id]`, an unsigned cookie, or a GET side effect.
+
+An office is not a tenant. Later office-owned records must still carry a direct `agency_id` and enforce matching `(office_id, agency_id)` through a composite foreign key.
+
 Controllers must not establish tenant context from `params[:agency_id]`, headers, cookies other than the signed session identifier, or form input.
 
 Treat only an `active` agency as operationally accessible. A suspended or closed agency uses the same generic denial as a missing membership.
@@ -94,13 +98,13 @@ Do not add a granular permission system, policy gem, field-level permissions, or
 
 ## Background jobs
 
-Jobs must accept an explicit `agency_id` or an agency-owned record identifier. At execution they must reload the agency, verify it is still usable, and scope reads and writes through it.
+Jobs must accept an explicit `agency_id` or an agency-owned record identifier. At execution they must reload the agency, verify it is still usable, and scope reads and writes through it. When a job needs office scope it must accept an `office_id`, reload that office through the agency, and re-check operational access.
 
 Do not serialize `Current` or assume request-local state carries into a job. `Current.set` may wrap a job only for that job’s duration.
 
 ## Action Cable
 
-Action Cable connections identify `current_user` and `current_agency` from `User#usable_agency_membership`. They must not copy request `Current` onto a long-lived WebSocket connection. Channel actions added later must re-check usability; connection identifiers are established at connect time only.
+Action Cable connections identify `current_user` and `current_agency` from `User#usable_agency_membership`. They must not copy request `Current` onto a long-lived WebSocket connection, and they must not persist `Current.office` on the connection. Channel actions added later must re-check usability; connection identifiers are established at connect time only. Future office-scoped channel actions must reload the current session selection and reapply office authorization for each action. Connection-time `current_agency` identification is not sufficient for office-scoped broadcasts.
 
 ## Later resource test contract
 

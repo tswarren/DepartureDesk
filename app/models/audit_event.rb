@@ -13,6 +13,13 @@ class AuditEvent < ApplicationRecord
     team.membership_suspended
     team.membership_reactivated
     team.administrator_recovery_started
+    office.created
+    office.updated
+    office.deactivated
+    office.reactivated
+    office_access.granted
+    office_access.revoked
+    office_access.default_changed
   ].freeze
 
   ACTOR_KINDS = %w[

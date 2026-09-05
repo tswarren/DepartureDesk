@@ -640,6 +640,18 @@
     color: var(--dd-success-text);
   }
 
+  .dd-alert--warning {
+    border-color: #e6c980;
+    background: var(--dd-warning-surface);
+    color: var(--dd-warning-text);
+  }
+
+  .dd-alert--info {
+    border-color: #b5cddb;
+    background: var(--dd-info-surface);
+    color: var(--dd-info-text);
+  }
+
   .dd-auth-shell {
     display: grid;
     min-height: 100vh;

@@ -1,0 +1,17 @@
+one:
+  agency: one
+  agency_membership: one
+  office: one
+  status: active
+  is_default: true
+  granted_at: <%= Time.current %>
+  lock_version: 0
+
+two:
+  agency: two
+  agency_membership: two
+  office: two
+  status: active
+  is_default: true
+  granted_at: <%= Time.current %>
+  lock_version: 0

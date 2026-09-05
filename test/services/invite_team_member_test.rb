@@ -11,13 +11,14 @@ class InviteTeamMemberTest < ActiveSupport::TestCase
         email: "new.colleague@example.com",
         role: "staff",
         first_name: "Riley",
-        last_name: "Chen"
+        last_name: "Chen",
+        **invite_offices
       ).call
 
       assert result.ok?
       assert result.membership.invited?
       assert_equal "staff", result.membership.role
-      assert_equal "team.invitation_created", AuditEvent.last.action
+      assert_includes agencies(:one).audit_events.pluck(:action), "team.invitation_created"
     end
   end
 
@@ -30,7 +31,8 @@ class InviteTeamMemberTest < ActiveSupport::TestCase
           email: users(:two).email_address,
           role: "staff",
           first_name: "Casey",
-          last_name: "Nguyen"
+          last_name: "Nguyen",
+          **invite_offices
         ).call
 
         assert_equal :silent, result.status
@@ -47,7 +49,8 @@ class InviteTeamMemberTest < ActiveSupport::TestCase
         email: users(:one).email_address,
         role: "staff",
         first_name: "Jordan",
-        last_name: "Blake"
+        last_name: "Blake",
+        **invite_offices
       ).call
 
       assert_equal :already_member, result.status
@@ -61,7 +64,8 @@ class InviteTeamMemberTest < ActiveSupport::TestCase
       email: "revoked@example.com",
       role: "staff",
       first_name: "River",
-      last_name: "Adeyemi"
+      last_name: "Adeyemi",
+      **invite_offices
     ).call.membership
     RevokeInvitation.new(agency: agencies(:one), actor: users(:one), membership: membership).call
 
@@ -72,7 +76,8 @@ class InviteTeamMemberTest < ActiveSupport::TestCase
         email: "revoked@example.com",
         role: "administrator",
         first_name: "River",
-        last_name: "Adeyemi"
+        last_name: "Adeyemi",
+        **invite_offices
       ).call
 
       assert_equal :replaced, result.status

@@ -15,6 +15,28 @@ DepartureDesk terminology should follow these rules:
 
 # 2\. Primary operating concepts
 
+## Office
+
+An **office** is an agency-owned operating location or business unit. It is a scope for access, defaults, attribution, and later operational ownership. It is not the tenant.
+
+“Branch” may appear as an imported label. It must not produce a second model or a parallel authorization concept.
+
+An office:
+
+* belongs to exactly one agency;
+* cannot contain another agency’s records;
+* does not replace the current agency;
+* may be assigned to staff explicitly;
+* may supply a current operating context for a session.
+
+People, clients, households, and suppliers remain agency-wide identities. Later departures and office-originated financial records may be owned by one office and must still carry a direct agency identifier.
+
+### Usage
+
+* “Assign Casey to the Harbor office.”
+* “Create this departure in the MAIN office.”
+* “Switch your current office.”
+
 ## Travel program
 
 A **travel program** is a reusable concept, series, or umbrella under which one or more departures may be operated.

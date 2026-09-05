@@ -1,0 +1,15 @@
+one:
+  agency: one
+  name: Sunrise Travel
+  code: MAIN
+  status: active
+  default_timezone: America/New_York
+  lock_version: 0
+
+two:
+  agency: two
+  name: Pacific Travel
+  code: MAIN
+  status: active
+  default_timezone: America/Los_Angeles
+  lock_version: 0

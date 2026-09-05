@@ -218,6 +218,51 @@ CREATE TABLE public.delivery_intents (
 
 
 --
+-- Name: office_assignments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.office_assignments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    agency_membership_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    is_default boolean DEFAULT false NOT NULL,
+    granted_at timestamp with time zone NOT NULL,
+    revoked_at timestamp with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT office_assignments_default_only_when_active CHECK (((is_default = false) OR ((status)::text = 'active'::text))),
+    CONSTRAINT office_assignments_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT office_assignments_revoked_at_matches_status CHECK (((((status)::text = 'active'::text) AND (revoked_at IS NULL)) OR (((status)::text = 'revoked'::text) AND (revoked_at IS NOT NULL)))),
+    CONSTRAINT office_assignments_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'revoked'::character varying])::text[])))
+);
+
+
+--
+-- Name: offices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.offices (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    name character varying NOT NULL,
+    code character varying(10) NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    default_timezone character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT offices_code_format CHECK (((code)::text ~ '^[A-Z][A-Z0-9]{1,9}$'::text)),
+    CONSTRAINT offices_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT offices_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT offices_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT offices_timezone_not_blank CHECK ((btrim((default_timezone)::text) <> ''::text))
+);
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -236,7 +281,8 @@ CREATE TABLE public.sessions (
     ip_address character varying,
     user_agent character varying,
     created_at timestamp(6) with time zone NOT NULL,
-    updated_at timestamp(6) with time zone NOT NULL
+    updated_at timestamp(6) with time zone NOT NULL,
+    office_id uuid
 );
 
 
@@ -334,6 +380,22 @@ ALTER TABLE ONLY public.delivery_intents
 
 
 --
+-- Name: office_assignments office_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.office_assignments
+    ADD CONSTRAINT office_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: offices offices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offices
+    ADD CONSTRAINT offices_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -397,6 +459,13 @@ CREATE INDEX index_agency_memberships_on_agency_id ON public.agency_memberships 
 --
 
 CREATE INDEX index_agency_memberships_on_agency_id_and_status ON public.agency_memberships USING btree (agency_id, status);
+
+
+--
+-- Name: index_agency_memberships_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_memberships_on_id_and_agency_id ON public.agency_memberships USING btree (id, agency_id);
 
 
 --
@@ -491,6 +560,69 @@ CREATE INDEX index_delivery_intents_on_subject ON public.delivery_intents USING 
 
 
 --
+-- Name: index_office_assignments_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_office_assignments_on_agency_id ON public.office_assignments USING btree (agency_id);
+
+
+--
+-- Name: index_office_assignments_on_agency_membership_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_office_assignments_on_agency_membership_id ON public.office_assignments USING btree (agency_membership_id);
+
+
+--
+-- Name: index_office_assignments_on_membership_and_office; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_office_assignments_on_membership_and_office ON public.office_assignments USING btree (agency_membership_id, office_id);
+
+
+--
+-- Name: index_office_assignments_on_office_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_office_assignments_on_office_id ON public.office_assignments USING btree (office_id);
+
+
+--
+-- Name: index_office_assignments_one_default_per_membership; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_office_assignments_one_default_per_membership ON public.office_assignments USING btree (agency_membership_id) WHERE ((is_default = true) AND ((status)::text = 'active'::text));
+
+
+--
+-- Name: index_offices_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_offices_on_agency_id ON public.offices USING btree (agency_id);
+
+
+--
+-- Name: index_offices_on_agency_id_and_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offices_on_agency_id_and_code ON public.offices USING btree (agency_id, code);
+
+
+--
+-- Name: index_offices_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offices_on_id_and_agency_id ON public.offices USING btree (id, agency_id);
+
+
+--
+-- Name: index_sessions_on_office_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sessions_on_office_id ON public.sessions USING btree (office_id);
+
+
+--
 -- Name: index_sessions_on_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -527,11 +659,27 @@ ALTER TABLE ONLY public.agency_memberships
 
 
 --
+-- Name: offices fk_rails_29d71841aa; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offices
+    ADD CONSTRAINT fk_rails_29d71841aa FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: audit_events fk_rails_2e3720791c; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.audit_events
     ADD CONSTRAINT fk_rails_2e3720791c FOREIGN KEY (actor_user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: office_assignments fk_rails_317cda774f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.office_assignments
+    ADD CONSTRAINT fk_rails_317cda774f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -567,6 +715,14 @@ ALTER TABLE ONLY public.audit_events
 
 
 --
+-- Name: sessions fk_rails_9866443dac; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT fk_rails_9866443dac FOREIGN KEY (office_id) REFERENCES public.offices(id);
+
+
+--
 -- Name: active_storage_variant_records fk_rails_993965df05; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -591,12 +747,30 @@ ALTER TABLE ONLY public.delivery_intents
 
 
 --
+-- Name: office_assignments office_assignments_membership_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.office_assignments
+    ADD CONSTRAINT office_assignments_membership_same_agency_fk FOREIGN KEY (agency_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: office_assignments office_assignments_office_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.office_assignments
+    ADD CONSTRAINT office_assignments_office_same_agency_fk FOREIGN KEY (office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260905234500'),
+('20260905230000'),
 ('20260905220000'),
 ('20260905210000'),
 ('20260905200000'),

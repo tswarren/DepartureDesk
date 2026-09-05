@@ -49,6 +49,25 @@
       <%= form.label :role, class: "dd-label" %>
       <%= form.select :role, AgencyMembership::ROLES, {}, class: "dd-field" %>
     </div>
+    <% if @offices.any? %>
+      <fieldset class="dd-field-group">
+        <legend class="dd-label">Offices</legend>
+        <p>Staff need at least one office and a default. Administrators need a default when an office exists.</p>
+        <% @offices.each do |office| %>
+          <label class="dd-label">
+            <%= check_box_tag "invitation_form[office_ids][]", office.id, Array(@invitation.office_ids).include?(office.id), id: "invitation_form_office_ids_#{office.id}" %>
+            <%= office.name %> (<%= office.code %>)
+          </label>
+        <% end %>
+      </fieldset>
+      <div class="dd-field-group">
+        <%= form.label :default_office_id, "Default office", class: "dd-label" %>
+        <%= form.select :default_office_id,
+          @offices.map { |office| [ "#{office.name} (#{office.code})", office.id ] },
+          { include_blank: true },
+          class: "dd-field" %>
+      </div>
+    <% end %>
     <div class="dd-form-actions">
       <%= form.submit "Send invitation", class: "dd-button" %>
     </div>

@@ -7,6 +7,8 @@ module Administration
     end
 
     def show
+      @assigned_offices = @membership.assigned_offices.order(:name)
+      @available_offices = Current.agency.offices.active.where.not(id: @assigned_offices.select(:id)).order(:name)
     end
 
     def role
@@ -51,6 +53,44 @@ module Administration
       ).call
       redirect_to administration_team_member_path(@membership),
         notice: MembershipCommand::ELIGIBLE_INVITE_NOTICE
+    rescue MembershipCommand::Error => error
+      redirect_to administration_team_member_path(@membership), alert: error.message
+    end
+
+    def grant_office
+      GrantOfficeAccess.new(
+        agency: Current.agency,
+        actor: Current.user,
+        membership: @membership,
+        office: Current.agency.offices.active.find(params.require(:office_id)),
+        make_default: params[:make_default] == "1"
+      ).call
+      redirect_to administration_team_member_path(@membership), notice: "Office access granted."
+    rescue MembershipCommand::Error => error
+      redirect_to administration_team_member_path(@membership), alert: error.message
+    end
+
+    def revoke_office
+      RevokeOfficeAccess.new(
+        agency: Current.agency,
+        actor: Current.user,
+        membership: @membership,
+        office: Current.agency.offices.find(params.require(:office_id)),
+        replacement_office: params[:replacement_office_id].presence && Current.agency.offices.active.find(params[:replacement_office_id])
+      ).call
+      redirect_to administration_team_member_path(@membership), notice: "Office access revoked."
+    rescue MembershipCommand::Error => error
+      redirect_to administration_team_member_path(@membership), alert: error.message
+    end
+
+    def set_default_office
+      SetDefaultOffice.new(
+        agency: Current.agency,
+        actor: Current.user,
+        membership: @membership,
+        office: Current.agency.offices.active.find(params.require(:office_id))
+      ).call
+      redirect_to administration_team_member_path(@membership), notice: "Default office updated."
     rescue MembershipCommand::Error => error
       redirect_to administration_team_member_path(@membership), alert: error.message
     end

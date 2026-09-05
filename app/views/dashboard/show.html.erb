@@ -1,5 +1,11 @@
 <% content_for :title, "Dashboard · DepartureDesk" %>
 
+<% if Current.agency_membership.accessible_offices.many? && Current.session.office_id.blank? %>
+  <p class="dd-alert dd-alert--info" role="status">
+    <%= link_to "Choose the office you are working in", edit_current_office_path, class: "dd-auth-link" %>
+  </p>
+<% end %>
+
 <header class="dd-page-header">
   <div>
     <p class="dd-eyebrow">Operations</p>

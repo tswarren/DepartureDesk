@@ -11,7 +11,10 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
-    # Add more helper methods to be used by all tests here...
+    def invite_offices(agency = agencies(:one))
+      office = agency.offices.active.order(:created_at).first
+      { office_ids: [ office.id ], default_office_id: office.id }
+    end
   end
 end
 

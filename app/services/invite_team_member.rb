@@ -1,11 +1,13 @@
 class InviteTeamMember < MembershipCommand
-  def initialize(agency:, email:, role:, first_name:, last_name:, preferred_name: nil, actor: nil, actor_identifier: nil, privileged: false)
+  def initialize(agency:, email:, role:, first_name:, last_name:, preferred_name: nil, office_ids: [], default_office_id: nil, actor: nil, actor_identifier: nil, privileged: false)
     @agency = agency
     @email = email.to_s.strip.downcase
     @role = role
     @first_name = first_name
     @last_name = last_name
     @preferred_name = preferred_name
+    @office_ids = Array(office_ids).compact_blank.uniq
+    @default_office_id = default_office_id
     assign_command_actors(actor:, actor_identifier:, privileged:)
   end
 
@@ -64,8 +66,9 @@ class InviteTeamMember < MembershipCommand
   end
 
   def replace_invitation(membership)
+    membership.update!(role: @role)
+    assign_offices!(membership)
     membership.update!(
-      role: @role,
       status: "invited",
       invitation_version: membership.invitation_version + 1,
       invitation_sent_at: Time.current
@@ -87,7 +90,58 @@ class InviteTeamMember < MembershipCommand
       status: "invited",
       invitation_sent_at: Time.current
     )
+    assign_offices!(membership)
     record_created(membership)
+  end
+
+  def assign_offices!(membership)
+    active_offices = @agency.offices.active
+    intended_ids = @office_ids.map(&:to_s)
+    intended_ids |= [ @default_office_id.to_s ] if @default_office_id.present?
+
+    if active_offices.exists?
+      if membership.staff? && (intended_ids.empty? || @default_office_id.blank?)
+        raise Error.new("Choose at least one office and a default.", code: :invalid)
+      end
+      if membership.administrator? && @default_office_id.blank?
+        raise Error.new("Choose a default office.", code: :invalid)
+      end
+    elsif membership.staff?
+      raise Error.new("Staff cannot be invited until an office exists.", code: :invalid)
+    else
+      return
+    end
+
+    intended_offices = intended_ids.map do |office_id|
+      office = active_offices.find_by(id: office_id)
+      raise Error.new("That office is not part of this agency.", code: :invalid) unless office
+
+      office
+    end
+
+    intended_offices.each do |office|
+      GrantOfficeAccess.new(
+        agency: @agency,
+        membership: membership,
+        office: office,
+        make_default: office.id.to_s == @default_office_id.to_s,
+        actor: @actor,
+        actor_identifier: @actor_identifier,
+        privileged: @privileged
+      ).call
+    end
+
+    membership.office_assignments.active.where.not(office_id: intended_ids).order(:id).find_each do |assignment|
+      RevokeOfficeAccess.new(
+        agency: @agency,
+        membership: membership,
+        office: assignment.office,
+        replacement_office: intended_offices.find { |office| office.id.to_s == @default_office_id.to_s },
+        actor: @actor,
+        actor_identifier: @actor_identifier,
+        privileged: @privileged
+      ).call
+    end
   end
 
   def create_user_and_membership

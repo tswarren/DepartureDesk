@@ -1,5 +1,7 @@
 module Administration
   class InvitationsController < BaseController
+    before_action :set_offices
+
     def new
       @invitation = InvitationForm.new
     end
@@ -18,7 +20,9 @@ module Administration
         role: @invitation.role,
         first_name: @invitation.first_name,
         last_name: @invitation.last_name,
-        preferred_name: @invitation.preferred_name
+        preferred_name: @invitation.preferred_name,
+        office_ids: @invitation.office_ids,
+        default_office_id: @invitation.default_office_id
       ).call
 
       if result.status == :already_member
@@ -30,6 +34,10 @@ module Administration
 
     private
 
+    def set_offices
+      @offices = Current.agency.offices.active.order(:name)
+    end
+
     def invitation_params
       form = params.require(:invitation_form)
 
@@ -38,7 +46,9 @@ module Administration
         role: form[:role],
         first_name: form[:first_name],
         last_name: form[:last_name],
-        preferred_name: form[:preferred_name]
+        preferred_name: form[:preferred_name],
+        office_ids: Array(form[:office_ids]).compact_blank,
+        default_office_id: form[:default_office_id]
       }
     end
   end

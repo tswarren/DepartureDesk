@@ -1,6 +1,8 @@
 class Agency < ApplicationRecord
     has_many :agency_memberships, dependent: :restrict_with_exception
     has_many :users, through: :agency_memberships
+    has_many :offices, dependent: :restrict_with_exception
+    has_many :office_assignments, dependent: :restrict_with_exception
     has_many :audit_events, dependent: :restrict_with_exception
     has_many :agency_provisioning_requests, dependent: :restrict_with_exception
 

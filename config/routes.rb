@@ -14,6 +14,12 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   namespace :administration do
     resource :agency, only: %i[show edit update]
+    resources :offices, only: %i[index show new create edit update] do
+      member do
+        post :deactivate
+        post :reactivate
+      end
+    end
     resources :team_members, only: %i[index show] do
       member do
         patch :role
@@ -21,10 +27,15 @@ Rails.application.routes.draw do
         post :reactivate
         post :replace_invitation
         post :revoke_invitation
+        post :grant_office
+        post :revoke_office
+        post :set_default_office
       end
     end
     resources :invitations, only: %i[new create]
   end
+
+  resource :current_office, only: %i[edit update]
 
   resources :invitation_acceptances, param: :token, only: %i[edit update]
 

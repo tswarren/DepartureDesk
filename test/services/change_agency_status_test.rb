@@ -123,7 +123,8 @@ class ChangeAgencyStatusTest < ActiveSupport::TestCase
       email: "status-staff@example.com",
       role: "staff",
       first_name: "Sam",
-      last_name: "River"
+      last_name: "River",
+      **invite_offices
     ).call.membership
 
     AcceptInvitation.new(

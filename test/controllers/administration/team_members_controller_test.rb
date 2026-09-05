@@ -9,7 +9,10 @@ module Administration
       [ :post, :suspend_administration_team_member_path, {} ],
       [ :post, :reactivate_administration_team_member_path, {} ],
       [ :post, :replace_invitation_administration_team_member_path, {} ],
-      [ :post, :revoke_invitation_administration_team_member_path, {} ]
+      [ :post, :revoke_invitation_administration_team_member_path, {} ],
+      [ :post, :grant_office_administration_team_member_path, { office_id: "00000000-0000-0000-0000-000000000001" } ],
+      [ :post, :revoke_office_administration_team_member_path, { office_id: "00000000-0000-0000-0000-000000000001" } ],
+      [ :post, :set_default_office_administration_team_member_path, { office_id: "00000000-0000-0000-0000-000000000001" } ]
     ].freeze
 
     test "index contains only the current agency" do
@@ -30,7 +33,7 @@ module Administration
     end
 
     FOREIGN_MUTATIONS.each do |http_method, path_helper, params|
-      test "foreign membership UUID #{path_helper} returns 404 with no side effects" do
+      test "foreign membership UUID #{http_method} #{path_helper} returns 404 with no side effects" do
         sign_in_as(users(:one))
         membership = agency_memberships(:two)
         snapshot = membership.attributes.slice("status", "role", "invitation_version", "lock_version")
@@ -75,7 +78,8 @@ module Administration
         email: "controller-role@example.com",
         role: "staff",
         first_name: "Pat",
-        last_name: "Ng"
+        last_name: "Ng",
+        **invite_offices
       ).call.membership
 
       AcceptInvitation.new(

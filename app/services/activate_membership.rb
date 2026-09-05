@@ -55,6 +55,7 @@ class ActivateMembership < MembershipCommand
     end
     ensure_no_other_active_membership!(generic: true)
     run_after_lock!
+    ensure_office_eligibility!(generic: true)
 
     @user.update!(
       password: @password,
@@ -85,6 +86,7 @@ class ActivateMembership < MembershipCommand
     end
     ensure_no_other_active_membership!(generic: false)
     run_after_lock!
+    ensure_office_eligibility!(generic: false)
 
     @membership.update!(status: "active")
     audit!(
@@ -99,6 +101,21 @@ class ActivateMembership < MembershipCommand
       },
       **actor_audit_args
     )
+  end
+
+  def ensure_office_eligibility!(generic:)
+    return if @membership.activation_office_ready?
+
+    if generic
+      raise Error.new(AcceptInvitation::GENERIC_FAILURE, code: :invalid_token)
+    end
+
+    message = if @membership.staff?
+      "This person cannot be reactivated until they have access to an active office."
+    else
+      "This person cannot be reactivated until they have a default office."
+    end
+    raise Error.new(message, code: :no_office_access)
   end
 
   def revalidate_invitation_token!

@@ -10,7 +10,10 @@
   <%= link_to "Invite someone", new_administration_invitation_path, class: "dd-button" %>
 </header>
 
-<p><%= link_to "Agency profile", administration_agency_path, class: "dd-auth-link" %></p>
+<p>
+  <%= link_to "Agency profile", administration_agency_path, class: "dd-auth-link" %>
+  <%= link_to "Offices", administration_offices_path, class: "dd-auth-link" %>
+</p>
 
 <article class="dd-panel">
   <table class="dd-table">
