@@ -44,6 +44,18 @@ class AgencyTest < ActiveSupport::TestCase
     end
   end
 
+  test "strips agency name and rejects a blank name" do
+    agency = agencies(:one)
+    agency.name = "  Harbor Travel  "
+
+    assert agency.valid?
+    assert_equal "Harbor Travel", agency.name
+
+    agency.name = "   "
+    assert_not agency.valid?
+    assert_includes agency.errors[:name], "can't be blank"
+  end
+
   test "normalizes a blank legal name to nil" do
     agency = agencies(:one)
     agency.update!(legal_name: "  ")

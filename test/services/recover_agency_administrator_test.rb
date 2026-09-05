@@ -47,7 +47,8 @@ class RecoverAgencyAdministratorTest < ActiveSupport::TestCase
 
     assert extra.reload.active?
     assert extra.user.reload.usable_agency_membership
-    assert_equal "team.membership_reactivated", agency.audit_events.order(:created_at).last.action
+    assert_equal %w[team.administrator_recovery_started team.membership_reactivated],
+      agency.audit_events.where(action: %w[team.administrator_recovery_started team.membership_reactivated]).order(:created_at).pluck(:action)
   end
 
   test "invites a replacement administrator when none is usable" do
@@ -55,6 +56,7 @@ class RecoverAgencyAdministratorTest < ActiveSupport::TestCase
     RevokeInvitation.new(
       agency: provisioned.agency,
       actor_identifier: "ops:recovery",
+      privileged: true,
       membership: provisioned.membership
     ).call
 

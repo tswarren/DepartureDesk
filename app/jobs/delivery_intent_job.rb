@@ -15,7 +15,7 @@ class DeliveryIntentJob < ApplicationJob
     return unless intent
 
     unless current_version?(intent)
-      intent.update!(status: "discarded", claimed_at: nil, last_error: "Subject version is no longer current")
+      discard!(intent, "Subject version is no longer current")
       return
     end
 
@@ -41,18 +41,43 @@ class DeliveryIntentJob < ApplicationJob
       intent = DeliveryIntent.lock.find_by(id: intent_id)
       return unless intent&.pending? && intent.available_at <= Time.current
 
+      unless current_version?(intent)
+        discard!(intent, "Subject version is no longer current")
+        return
+      end
+
       intent.update!(status: "processing", claimed_at: Time.current, attempt_count: intent.attempt_count + 1)
       intent
     end
   end
 
+  def discard!(intent, message)
+    intent.update_columns(
+      status: "discarded",
+      claimed_at: nil,
+      last_error: message,
+      updated_at: Time.current
+    )
+  end
+
   def current_version?(intent)
     case intent.purpose
     when "team_invitation"
-      intent.subject.invited? && intent.subject.invitation_version == intent.subject_version
+      team_invitation_current?(intent)
     when "password_reset"
-      intent.subject.password_reset_version == intent.subject_version
+      intent.subject&.password_reset_version == intent.subject_version
     end
+  end
+
+  def team_invitation_current?(intent)
+    return false if intent.agency_id.blank?
+    return false unless intent.agency&.active?
+
+    subject = intent.subject
+    return false unless subject.is_a?(AgencyMembership)
+    return false unless intent.agency_id == subject.agency_id
+
+    subject.invited? && subject.invitation_version == intent.subject_version
   end
 
   def deliver(intent)

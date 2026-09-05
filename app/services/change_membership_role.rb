@@ -1,10 +1,9 @@
 class ChangeMembershipRole < MembershipCommand
-  def initialize(agency:, membership:, role:, actor: nil, actor_identifier: nil)
+  def initialize(agency:, membership:, role:, actor: nil, actor_identifier: nil, privileged: false)
     @agency = agency
-    @actor = actor
-    @actor_identifier = actor_identifier
     @membership = membership
     @role = role
+    assign_command_actors(actor:, actor_identifier:, privileged:)
   end
 
   def call
@@ -16,22 +15,26 @@ class ChangeMembershipRole < MembershipCommand
   private
 
   def perform
+    role = @role.to_s
+    unless AgencyMembership::ROLES.include?(role)
+      raise Error.new("That role is not valid.", code: :invalid_role)
+    end
+
     unless @membership.active? || @membership.suspended?
       raise Error.new("Only an accepted membership can change role.", code: :invalid_state)
     end
 
     previous_role = @membership.role
-    return CommandResult.new(status: :accepted, membership: @membership) if previous_role == @role
+    return CommandResult.new(status: :accepted, membership: @membership) if previous_role == role
 
-    if previous_role == "administrator" && @role != "administrator"
+    if previous_role == "administrator" && role != "administrator"
       ensure_not_last_administrator!(@agency, @membership)
     end
 
-    @membership.update!(role: @role)
+    @membership.update!(role: role)
     audit!(
       agency: @agency,
       action: "team.role_changed",
-      actor: @actor,
       subject: @membership,
       details: {
         "membership_id" => @membership.id,

@@ -1,42 +1,26 @@
 class ReactivateMembership < MembershipCommand
-  def initialize(agency:, membership:, actor: nil, actor_identifier: nil)
+  def initialize(agency:, membership:, actor: nil, actor_identifier: nil, privileged: false, after_lock: nil)
     @agency = agency
-    @actor = actor
-    @actor_identifier = actor_identifier
     @membership = membership
+    @after_lock = after_lock
+    assign_command_actors(actor:, actor_identifier:, privileged:)
   end
 
   def call
-    ActiveRecord::Base.transaction do
-      with_agency_membership_lock(@agency, @membership) { perform }
-    end
+    before_activation
+    ActivateMembership.new(
+      agency: @agency,
+      membership: @membership,
+      mode: :reactivate,
+      actor: @actor,
+      actor_identifier: @actor_identifier,
+      privileged: @privileged,
+      after_lock: @after_lock
+    ).call
   end
 
   private
 
-  def perform
-    unless @membership.suspended?
-      raise Error.new("Only a suspended membership can be reactivated.", code: :invalid_state)
-    end
-
-    if @membership.user.active_agency_memberships.where.not(id: @membership.id).exists?
-      raise Error.new("This person cannot be reactivated while they have another active membership.", code: :conflict)
-    end
-
-    @membership.update!(status: "active")
-    audit!(
-      agency: @agency,
-      action: "team.membership_reactivated",
-      actor: @actor,
-      subject: @membership,
-      details: {
-        "membership_id" => @membership.id,
-        "user_id" => @membership.user_id,
-        "previous_status" => "suspended",
-        "status" => "active"
-      },
-      **actor_audit_args
-    )
-    CommandResult.new(status: :accepted, membership: @membership)
+  def before_activation
   end
 end

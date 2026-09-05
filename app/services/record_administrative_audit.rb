@@ -12,6 +12,17 @@ class RecordAdministrativeAudit
   end
 
   def record(agency:, action:, actor_user: nil, actor_identifier: nil, subject: nil, details: {})
+    actor_identifier = actor_identifier.to_s.strip.presence
+
+    if actor_user && actor_identifier
+      raise ArgumentError, "Provide exactly one of actor_user or actor_identifier."
+    end
+    if actor_user.nil? && actor_identifier.nil?
+      raise ArgumentError, "An actor is required."
+    end
+
+    ensure_subject_belongs_to_agency!(agency, subject)
+
     attributes = {
       agency: agency,
       action: action,
@@ -49,5 +60,20 @@ class RecordAdministrativeAudit
         "after" => after.slice(*changed_fields)
       }
     )
+  end
+
+  private
+
+  def ensure_subject_belongs_to_agency!(agency, subject)
+    case subject
+    when Agency
+      return if subject.id == agency.id
+
+      raise ArgumentError, "Agency subject must equal the event agency."
+    when AgencyMembership
+      return if subject.agency_id == agency.id
+
+      raise ArgumentError, "Membership subject must belong to the event agency."
+    end
   end
 end

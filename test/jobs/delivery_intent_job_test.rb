@@ -53,6 +53,52 @@ class DeliveryIntentJobTest < ActiveJob::TestCase
     assert_match "version", @intent.last_error
   end
 
+  test "discards a team invitation after the agency is suspended" do
+    ChangeAgencyStatus.new(
+      agency: @membership.agency,
+      to: "suspended",
+      reason: "Pause mail",
+      actor_identifier: "ops:lifecycle"
+    ).call
+
+    assert_no_emails { DeliveryIntentJob.new.perform(@intent.id) }
+
+    assert_predicate @intent.reload, :discarded?
+    assert_not ActionMailer::Base.deliveries.any?
+  end
+
+  test "discards a team invitation when the intent agency does not own the membership" do
+    @intent.update_columns(agency_id: agencies(:two).id)
+
+    assert_no_emails { DeliveryIntentJob.new.perform(@intent.id) }
+
+    assert_predicate @intent.reload, :discarded?
+  end
+
+  test "discards a team invitation when the subject is missing" do
+    @intent.update_columns(subject_id: SecureRandom.uuid)
+
+    assert_no_emails { DeliveryIntentJob.new.perform(@intent.id) }
+
+    assert_predicate @intent.reload, :discarded?
+  end
+
+  test "discards a team invitation when the subject is not a membership" do
+    @intent.update_columns(subject_type: "User", subject_id: @membership.user_id)
+
+    assert_no_emails { DeliveryIntentJob.new.perform(@intent.id) }
+
+    assert_predicate @intent.reload, :discarded?
+  end
+
+  test "discards a team invitation when the intent has no agency" do
+    @intent.update_columns(agency_id: nil)
+
+    assert_no_emails { DeliveryIntentJob.new.perform(@intent.id) }
+
+    assert_predicate @intent.reload, :discarded?
+  end
+
   private
 
   def with_raising_mail_delivery

@@ -34,7 +34,9 @@ Administrators invite by email. Invitees choose their own password. The applicat
 
 A user may have at most one active membership. Inviting an address that already has an active membership in another agency does not attach a row, send mail, or disclose that fact. The tenant-facing message is: “If this address is eligible, an invitation will be sent.”
 
-An agency must retain at least one active administrator. Commands lock the agency row first, then the target membership, then any other memberships, and recalculate the administrator count after the agency lock.
+An agency must retain at least one active administrator. Last-administrator and other team mutations lock the agency row first, then the target membership, then any other memberships, and recalculate the administrator count after the agency lock.
+
+Activation is a different lock order. Invitation acceptance and membership reactivation lock the user, then the agency, then the membership. After those locks, the command reloads the rows, rechecks that the agency is eligible and that the user has no other active membership, and—when accepting an invitation—revalidates the presented token against the locked membership’s current status, invitation version, purpose, and expiration. Password changes, status transition, token-version invalidation, and the success audit occur in that same transaction. Callers must not hold an agency or membership lock before invoking the activation primitive, and must not insert an agency- or membership-referencing row before those locks. Recovery reactivation writes `team.administrator_recovery_started` through the primitive’s post-lock hook immediately before the transition, in the same transaction as the success audit.
 
 Successful invitation acceptance starts a session and lands on the dashboard. Prior sessions for that user are destroyed first.
 
@@ -43,4 +45,5 @@ Successful invitation acceptance starts a session and lands on the dashboard. Pr
 - Team administration can proceed without console access.
 - Cross-agency email existence is not disclosed on the tenant invitation surface.
 - Last-administrator protection is serialized on the agency row.
+- Competing activations serialize on the user row; an obsolete invitation token cannot activate after replacement, revocation, or a prior acceptance.
 - Password reset cannot activate an invited membership.

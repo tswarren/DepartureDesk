@@ -11,14 +11,19 @@ class AcceptInvitation < MembershipCommand
     membership = locate_membership
     raise Error.new(GENERIC_FAILURE, code: :invalid_token) unless membership
 
-    ActiveRecord::Base.transaction do
-      with_agency_membership_lock(membership.agency, membership) do
-        accept!(membership)
-      end
-    end
+    after_locate(membership)
+
+    result = ActivateMembership.new(
+      agency: membership.agency,
+      membership: membership,
+      mode: :accept,
+      invitation_token: @token,
+      password: @password,
+      password_confirmation: @password_confirmation
+    ).call
 
     membership.user.sessions.delete_all
-    CommandResult.new(status: :accepted, membership: membership.reload)
+    result
   end
 
   private
@@ -29,32 +34,6 @@ class AcceptInvitation < MembershipCommand
     nil
   end
 
-  def accept!(membership)
-    unless membership.invitation_open? && membership.agency.active?
-      raise Error.new(GENERIC_FAILURE, code: :invalid_token)
-    end
-
-    if membership.user.active_agency_memberships.where.not(id: membership.id).exists?
-      raise Error.new(GENERIC_FAILURE, code: :invalid_token)
-    end
-
-    membership.user.update!(
-      password: @password,
-      password_confirmation: @password_confirmation
-    )
-    membership.update!(
-      status: "active",
-      invitation_version: membership.invitation_version + 1
-    )
-    audit!(
-      agency: membership.agency,
-      action: "team.invitation_accepted",
-      actor: membership.user,
-      subject: membership,
-      details: {
-        "membership_id" => membership.id,
-        "user_id" => membership.user_id
-      }
-    )
+  def after_locate(_membership)
   end
 end

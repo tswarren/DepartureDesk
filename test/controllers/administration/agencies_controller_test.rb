@@ -110,6 +110,22 @@ module Administration
       assert_response :unprocessable_entity
     end
 
+    test "whitespace-only name is rejected without an audit event" do
+      sign_in_as(users(:one))
+
+      assert_no_difference("AuditEvent.count") do
+        patch administration_agency_path, params: {
+          agency: {
+            name: "   ",
+            lock_version: agencies(:one).lock_version
+          }
+        }
+      end
+
+      assert_response :unprocessable_entity
+      assert_equal "Sunrise Travel", agencies(:one).reload.name
+    end
+
     test "stale update keeps submitted values and writes no audit" do
       sign_in_as(users(:one))
       agencies(:one).update!(name: "Sunrise Travel Group")
