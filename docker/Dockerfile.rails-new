@@ -1,0 +1,12 @@
+FROM ruby:3.4-bookworm
+
+ARG RAILS_VERSION=8.1.0
+
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+      build-essential ca-certificates curl git libpq-dev pkg-config && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+RUN gem install rails --version "${RAILS_VERSION}" --no-document
+CMD ["bash"]

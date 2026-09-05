@@ -1,0 +1,62 @@
+name: departure-desk
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+  image: departure-desk-web:dev
+  volumes:
+    - .:/app
+    - bundle:/bundle
+    - rails-storage:/app/storage
+  environment:
+    RAILS_ENV: development
+    DATABASE_HOST: db
+    DATABASE_PORT: 5432
+    DATABASE_USERNAME: departure_desk
+    DATABASE_PASSWORD: departure_desk_dev
+    DATABASE_NAME: departure_desk_development
+    TEST_DATABASE_NAME: departure_desk_test
+    QUEUE_DATABASE_NAME: departure_desk_development_queue
+    TEST_QUEUE_DATABASE_NAME: departure_desk_test_queue
+    RAILS_MAX_THREADS: 5
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  web:
+    <<: *app
+    command: bash -lc "rm -f tmp/pids/server.pid && bin/rails server -b 0.0.0.0"
+    ports:
+      - "3000:3000"
+    stdin_open: true
+    tty: true
+
+  jobs:
+    <<: *app
+    command: bin/jobs
+    restart: unless-stopped
+
+  db:
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_USER: departure_desk
+      POSTGRES_PASSWORD: departure_desk_dev
+      POSTGRES_DB: departure_desk_development
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U departure_desk -d departure_desk_development
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+volumes:
+  bundle:
+  postgres-data:
+  rails-storage:

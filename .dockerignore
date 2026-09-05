@@ -1,0 +1,14 @@
+.git
+.bundle
+.env
+.env.*
+.DS_Store
+coverage
+log/*
+node_modules
+storage/*
+tmp/*
+vendor/bundle
+!log/.keep
+!storage/.keep
+!tmp/.keep
