@@ -26,7 +26,10 @@ class AgencyProfileTest < ApplicationSystemTestCase
     fill_in "Password", with: "password"
     click_button "Sign in"
 
+    assert_text "Dashboard"
+    assert_text agencies(:two).name
     assert_no_text "Administration"
+
     visit administration_agency_path
     assert_current_path root_path
     assert_text "You are not authorized to do that."
