@@ -33,6 +33,11 @@ services:
     stdin_open: true
     tty: true
 
+  css:
+    <<: *app
+    command: bin/rails tailwindcss:watch
+    tty: true
+
   jobs:
     <<: *app
     command: bin/jobs
