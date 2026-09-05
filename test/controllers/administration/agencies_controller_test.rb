@@ -10,6 +10,11 @@ module Administration
       assert_response :success
       assert_includes response.body, agencies(:one).name
       assert_includes response.body, "Administration"
+      assert_select "nav[aria-label=Administration]" do
+        assert_select "a[href=?][aria-current=page]", administration_agency_path
+        assert_select "a[href=?]", administration_team_members_path
+        assert_select "a[href=?]", administration_offices_path
+      end
     end
 
     test "administrator can edit and update the current agency" do
@@ -124,6 +129,8 @@ module Administration
 
       assert_response :unprocessable_entity
       assert_equal "Sunrise Travel", agencies(:one).reload.name
+      assert_select "input[name='agency[name]'][aria-invalid=true]"
+      assert_select "#agency_name_error"
     end
 
     test "stale update keeps submitted values and writes no audit" do

@@ -17,6 +17,9 @@ module Administration
       end
 
       assert_response :unprocessable_entity
+      assert_select "nav[aria-label=Administration] a[aria-current=page]", text: "Team"
+      assert_select "[aria-invalid=true]"
+      assert_select "#invitation_form_office_ids_error"
     end
 
     test "staff invitation with a default office succeeds" do

@@ -1,0 +1,11 @@
+<nav class="dd-subnav" aria-label="Administration">
+  <%= link_to "Agency profile",
+    administration_agency_path,
+    aria: { current: ("page" if current == :agency) } %>
+  <%= link_to "Team",
+    administration_team_members_path,
+    aria: { current: ("page" if current == :team) } %>
+  <%= link_to "Offices",
+    administration_offices_path,
+    aria: { current: ("page" if current == :offices) } %>
+</nav>

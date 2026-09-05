@@ -63,6 +63,9 @@ class CurrentOfficesControllerTest < ActionDispatch::IntegrationTest
 
     get edit_current_office_path
     assert_response :success
+    assert_select "label", text: "#{offices(:one).name} (#{offices(:one).code})"
+    assert_select "input[type=radio][name=office_id][value=?]", extra.id
+    assert_select "input[type=radio][name=office_id][value=?]", offices(:one).id
     assert_nil users(:one).sessions.last.reload.office_id
 
     patch current_office_path, params: { office_id: extra.id }

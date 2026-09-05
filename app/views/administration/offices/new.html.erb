@@ -1,31 +1,54 @@
 <% content_for :title, "New office · DepartureDesk" %>
 
 <header class="dd-page-header">
-  <div>
+  <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title">New office</h1>
     <p class="dd-page-description">The office code is assigned now and cannot be changed later.</p>
+    <%= link_to "Back to offices", administration_offices_path, class: "dd-button dd-button--quiet dd-button--small" %>
   </div>
 </header>
 
-<p><%= link_to "Back to offices", administration_offices_path, class: "dd-auth-link" %></p>
+<%= render "administration/shared/subnav", current: :offices %>
 
 <article class="dd-panel">
-  <%= form_with model: @office, url: administration_offices_path, method: :post, class: "dd-form" do |form| %>
-    <div class="dd-field-group">
-      <%= form.label :name, class: "dd-label" %>
-      <%= form.text_field :name, required: true, class: "dd-field" %>
-    </div>
-    <div class="dd-field-group">
-      <%= form.label :code, class: "dd-label" %>
-      <%= form.text_field :code, required: true, maxlength: 10, class: "dd-field" %>
-    </div>
-    <div class="dd-field-group">
-      <%= form.label :default_timezone, "Timezone", class: "dd-label" %>
-      <%= form.select :default_timezone, agency_timezone_choices(@office.default_timezone), {}, required: true, class: "dd-field" %>
-    </div>
-    <div class="dd-form-actions">
-      <%= form.submit "Create office", class: "dd-button" %>
-    </div>
-  <% end %>
+  <div class="dd-panel-body">
+    <% if @office.errors.any? %>
+      <div class="dd-alert dd-alert--danger" role="alert">
+        <p>Please correct the following:</p>
+        <ul>
+          <% @office.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <%= form_with model: @office, url: administration_offices_path, method: :post, class: "dd-form" do |form| %>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :name, class: "dd-label" %>
+          <%= form.text_field :name, required: true, class: "dd-field", aria: field_aria(@office, :name) %>
+          <%= field_error @office, :name %>
+        </div>
+
+        <div class="dd-field-group">
+          <%= form.label :code, class: "dd-label" %>
+          <%= form.text_field :code, required: true, maxlength: 10, class: "dd-field dd-field--code", aria: field_aria(@office, :code) %>
+          <%= field_error @office, :code %>
+        </div>
+      </div>
+
+      <div class="dd-field-group">
+        <%= form.label :default_timezone, "Timezone", class: "dd-label" %>
+        <%= form.select :default_timezone, agency_timezone_choices(@office.default_timezone), {}, required: true, class: "dd-field", aria: field_aria(@office, :default_timezone) %>
+        <%= field_error @office, :default_timezone %>
+      </div>
+
+      <div class="dd-form-actions">
+        <%= form.submit "Create office", class: "dd-button" %>
+        <%= link_to "Cancel", administration_offices_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
 </article>

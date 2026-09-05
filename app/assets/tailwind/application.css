@@ -262,6 +262,43 @@
     gap: 1rem;
   }
 
+  .dd-page-heading {
+    min-width: 0;
+  }
+
+  .dd-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .dd-subnav {
+    display: flex;
+    flex-wrap: wrap;
+    margin: -0.5rem 0 1.5rem;
+    gap: 0.15rem;
+    border-bottom: 1px solid var(--dd-border);
+  }
+
+  .dd-subnav a {
+    display: inline-flex;
+    padding: 0.65rem 0.85rem;
+    border-bottom: 3px solid transparent;
+    color: var(--dd-navy);
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .dd-subnav a:hover {
+    color: var(--dd-teal);
+  }
+
+  .dd-subnav a[aria-current="page"] {
+    color: var(--dd-teal);
+    border-bottom-color: var(--dd-teal);
+  }
+
   .dd-eyebrow {
     margin: 0 0 0.2rem;
     color: var(--dd-teal);
@@ -321,6 +358,15 @@
 
   .dd-panel-body {
     padding: 1rem;
+  }
+
+  .dd-panel-footer {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 1rem;
+    align-items: center;
+    gap: 0.75rem;
+    border-top: 1px solid var(--dd-border);
   }
 
   .dd-metric {
@@ -386,8 +432,10 @@
 
   .dd-list-item {
     display: flex;
+    flex-wrap: wrap;
     padding: 0.8rem 0;
     align-items: flex-start;
+    justify-content: space-between;
     gap: 0.75rem;
     border-bottom: 1px solid var(--dd-border);
   }
@@ -456,6 +504,43 @@
     border-color: var(--dd-teal);
     background: var(--dd-surface-subtle);
     color: var(--dd-navy);
+  }
+
+  .dd-button--danger {
+    border-color: var(--dd-danger);
+    background: var(--dd-danger);
+    color: var(--dd-text-on-dark);
+  }
+
+  .dd-button--danger:hover {
+    border-color: var(--dd-danger-text);
+    background: var(--dd-danger-text);
+    color: var(--dd-text-on-dark);
+  }
+
+  .dd-button--quiet {
+    border-color: transparent;
+    background: transparent;
+    color: var(--dd-text-muted);
+    font-weight: 650;
+  }
+
+  .dd-button--quiet:hover {
+    background: var(--dd-surface-subtle);
+    color: var(--dd-navy);
+  }
+
+  .dd-button--small {
+    min-height: 2rem;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.8rem;
+  }
+
+  .dd-button-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .dd-button--on-dark {
@@ -544,7 +629,25 @@
 
   .dd-form {
     display: grid;
+    max-width: 40rem;
     gap: 1rem;
+  }
+
+  .dd-form-section {
+    display: grid;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .dd-form-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .dd-form-grid--two-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dd-field-group {
@@ -603,11 +706,42 @@
     font-size: 0.82rem;
   }
 
+  .dd-field-hint {
+    margin: 0;
+    color: var(--dd-text-muted);
+    font-size: 0.82rem;
+  }
+
+  .dd-field--code {
+    max-width: 10rem;
+  }
+
+  .dd-choice-group {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .dd-choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    color: var(--dd-text);
+    font-weight: 600;
+  }
+
+  .dd-choice input {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin-top: 0.2rem;
+    flex: none;
+    accent-color: var(--dd-teal);
+  }
+
   .dd-definition-list {
     display: grid;
     gap: 1rem;
     margin: 0;
-    padding: 1.25rem;
+    padding: 0;
   }
 
   .dd-definition-list dt {
@@ -753,6 +887,12 @@
     }
   }
 
+  @media (max-width: 768px) {
+    .dd-form-grid--two-column {
+      grid-template-columns: 1fr;
+    }
+  }
+
   @media (max-width: 600px) {
     .dd-header-inner,
     .dd-workspace {
@@ -785,13 +925,22 @@
       padding: 1.25rem;
     }
 
+    .dd-page-actions,
+    .dd-button-group,
     .dd-form-actions {
       align-items: stretch;
       flex-direction: column;
     }
 
+    .dd-page-actions .dd-button,
+    .dd-button-group .dd-button,
     .dd-form-actions .dd-button {
       width: 100%;
+    }
+
+    .dd-subnav {
+      flex-wrap: nowrap;
+      overflow-x: auto;
     }
   }
 }

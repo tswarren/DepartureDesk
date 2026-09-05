@@ -283,6 +283,7 @@ Rules:
 - Keep the skip link and meaningful focus indicators functional.
 - Disabled navigation placeholders must become real links only when corresponding authorized routes exist.
 - Do not introduce an external font, icon library, or JavaScript UI framework without an explicit product decision.
+- Administration page, panel, button, and field anatomy is defined in [docs/ui/interface-contract.md](docs/ui/interface-contract.md). Reuse that contract before adding presentation classes.
 
 ## Background jobs
 
