@@ -10,7 +10,8 @@ are allowed to run deployment or production-console commands may execute them.
 Never put passwords, invitation tokens, or mail credentials in arguments,
 environment dumps, logs, or command output.
 
-Use the Docker wrapper in development:
+Use the Docker wrapper in development. Prefix `AGENCY_*` variables on the
+host command; `./dev/rails-docker` forwards them into the container.
 
 ```bash
 ./dev/rails-docker bin/rails agency:provision
