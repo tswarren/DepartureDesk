@@ -5,7 +5,7 @@ class CreateSessions < ActiveRecord::Migration[8.1]
         null: false,
         foreign_key: true,
         type: :uuid
-    
+
       table.string :ip_address
       table.string :user_agent
       table.timestamps

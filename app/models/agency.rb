@@ -4,9 +4,9 @@ class Agency < ApplicationRecord
       suspended
       closed
     ].freeze
-  
+
     enum :status, STATUSES.index_by(&:itself)
-  
+
     validates :name, presence: true
     validates :default_timezone, presence: true
     validates :default_currency,
@@ -15,11 +15,11 @@ class Agency < ApplicationRecord
         with: /\A[A-Z]{3}\z/,
         message: "must be a three-letter uppercase currency code"
       }
-  
+
     validate :default_timezone_must_be_valid
-  
+
     private
-  
+
     def default_timezone_must_be_valid
       TZInfo::Timezone.get(default_timezone)
     rescue TZInfo::InvalidTimezoneIdentifier
@@ -28,4 +28,4 @@ class Agency < ApplicationRecord
         "is not a recognized IANA timezone"
       )
     end
-  end
+end
