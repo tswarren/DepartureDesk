@@ -2,7 +2,7 @@ require "test_helper"
 require "rake"
 
 class AgencyOperationsTaskTest < ActiveSupport::TestCase
-  include ActionMailer::TestHelper
+  include ActiveJob::TestHelper
 
   setup do
     Rails.application.load_tasks
@@ -25,7 +25,7 @@ class AgencyOperationsTaskTest < ActiveSupport::TestCase
     )
 
     output = nil
-    assert_enqueued_emails 1 do
+    assert_enqueued_with(job: DeliveryIntentJob) do
       output = capture_io { Rake::Task["agency:provision"].invoke }.first
     end
 

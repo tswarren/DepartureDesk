@@ -11,20 +11,23 @@ class ReplaceInvitation < MembershipCommand
 
     ActiveRecord::Base.transaction do
       result = with_agency_membership_lock(@agency, @membership) { perform }
+      record_delivery_intent(result)
     end
 
-    enqueue_invitation_mail(result)
     result
   end
 
   private
 
-  def enqueue_invitation_mail(result)
+  def record_delivery_intent(result)
     return unless result&.enqueue_mail?
 
-    ActiveRecord.after_all_transactions_commit do
-      InvitationsMailer.invite(result.membership).deliver_later
-    end
+    DeliveryIntent.record!(
+      agency: @agency,
+      subject: result.membership,
+      purpose: "team_invitation",
+      version: result.membership.invitation_version
+    )
   end
 
   def perform

@@ -10,7 +10,10 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
 
   test "create" do
     post passwords_path, params: { email_address: @user.email_address }
-    assert_enqueued_email_with PasswordsMailer, :reset, args: [ @user ]
+    intent = DeliveryIntent.order(:created_at).last
+    assert_equal @user, intent.subject
+    assert_equal "password_reset", intent.purpose
+    assert_enqueued_with job: DeliveryIntentJob, args: [ intent.id ]
     assert_redirected_to new_session_path
 
     follow_redirect!

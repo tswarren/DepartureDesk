@@ -1,10 +1,10 @@
 require "test_helper"
 
 class InviteTeamMemberTest < ActiveSupport::TestCase
-  include ActionMailer::TestHelper
+  include ActiveJob::TestHelper
 
   test "invites a new email and enqueues mail after commit" do
-    assert_enqueued_emails 1 do
+    assert_enqueued_with(job: DeliveryIntentJob) do
       result = InviteTeamMember.new(
         agency: agencies(:one),
         actor: users(:one),
@@ -22,7 +22,7 @@ class InviteTeamMemberTest < ActiveSupport::TestCase
   end
 
   test "does not attach or email a user active in another agency" do
-    assert_no_enqueued_emails do
+    assert_no_enqueued_jobs only: DeliveryIntentJob do
       assert_no_difference("AgencyMembership.count") do
         result = InviteTeamMember.new(
           agency: agencies(:one),
@@ -40,7 +40,7 @@ class InviteTeamMemberTest < ActiveSupport::TestCase
   end
 
   test "reports an existing same-agency member without a second row" do
-    assert_no_enqueued_emails do
+    assert_no_enqueued_jobs only: DeliveryIntentJob do
       result = InviteTeamMember.new(
         agency: agencies(:one),
         actor: users(:one),
