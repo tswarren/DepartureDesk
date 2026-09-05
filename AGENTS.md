@@ -19,6 +19,7 @@ The travel and financial domain is not. Do not assume that departures, suppliers
 Accepted ADRs under `docs/adr` are authoritative. Read the relevant ADR before designing or changing its domain.
 
 - [ADR 0001: Money and currency representation](docs/adr/0001-money-and-currency.md) accepts `money-rails`, `bigint` minor-unit persistence, explicit currencies, strict parsing, and explicit historical conversion facts. The dependency is not considered installed until `Gemfile`, the lockfile, initializer, and tests contain the implementation.
+- [ADR 0004: Human-readable references and numbering](docs/adr/0004-human-readable-references.md) keeps UUIDv7 as internal identity, requires qualified reference names, and forbids a generic numbering engine. Foundation 1E implements office codes only.
 
 ## Canonical domain language
 
@@ -26,7 +27,8 @@ Use these terms consistently in code, migrations, UI labels, tests, and document
 
 | Term | Contract |
 | --- | --- |
-| Agency | The travel agency using DepartureDesk and owning operational records. |
+| Agency | The travel agency using DepartureDesk and owning operational records. Agency is the tenant. |
+| Office | An agency-owned operating location or business unit. It is an authorization and operational-ownership scope inside one agency, not a tenant. Do not use `Branch` as a model or authorization concept. |
 | Departure | The top-level operational container for one group trip. Do not use `Group` as the primary model name; it is too ambiguous. |
 | Supplier | An external travel provider. |
 | Travel component | One supplied part of a trip. A client reservation can include multiple components and suppliers. |
@@ -213,7 +215,7 @@ The exact implementation will evolve, but agents must not collapse these into on
 
 - Authentication uses `User`, `Session`, bcrypt, and a signed permanent session cookie.
 - Tenant context is derived from `User#usable_agency_membership`. That resolver returns a membership only when exactly one active membership exists and its agency is active.
-- `Current.session` is the authentication root. `Current.user`, `Current.agency_membership`, and `Current.agency` are derived from it. Never establish tenancy from `params[:agency_id]`, headers, or extra cookies.
+- `Current.session` is the authentication root. `Current.user`, `Current.agency_membership`, and `Current.agency` are derived from it. Never establish tenancy from `params[:agency_id]`, headers, or extra cookies. `Current.office` is subordinate to `Current.agency` and is resolved, without writing the session, from a valid stored `office_id`, else the membership’s active accessible default, else the sole accessible office. Never authorize from `params[:office_id]`, and do not persist or clear a session office selection on GET.
 - Login and every authenticated request fail closed when a usable membership cannot be resolved. Do not reveal whether credentials, membership, or agency failed.
 - Membership or agency suspension destroys the current session and clears the session cookie.
 - Successful authentication redirects through the named root route; keep `root_url` available unless authentication behavior is intentionally changed.
@@ -225,12 +227,15 @@ The exact implementation will evolve, but agents must not collapse these into on
 - Team administration manages `AgencyMembership` through explicit commands. Invitations are distinct from password resets and never disclose whether an email exists in another agency.
 - Membership-target commands must confirm the membership belongs to the supplied agency after locking and before mutation. Tenant-facing team commands accept a user actor only. After the agency lock, that actor must have a usable administrator membership on the affected active agency. Do not rely on `administrator?` alone.
 - Privileged system attribution is an explicit opt-in (`privileged` plus `actor_identifier`). Recovery-owned nested calls may use it. Provisioning and agency lifecycle keep their own system-only contracts. Invitation acceptance is the documented invitee exception: the invitee is the audit actor and is not yet an administrator.
-- Last-administrator and other team mutations lock agency, then membership. Activation (accept and reactivate) locks user, then agency, then membership, reloads those rows, and rechecks eligibility. Acceptance must revalidate the presented invitation token after those locks. An obsolete token returns the generic public failure and must not change the password. Recovery `reactivate` must not insert an agency- or membership-referencing row before those locks; write `administrator_recovery_started` only after the activation primitive holds them.
+- Last-administrator and other team mutations lock agency, then membership. Activation (accept and reactivate) locks user, then agency, then membership, reloads those rows, and rechecks eligibility including office access. Staff need an active assignment to an active office. Administrators need a default assignment when any active office exists. Acceptance must revalidate the presented invitation token after those locks. An obsolete token or missing staff office returns the generic public failure and must not change the password. Administrative reactivation without office access returns `:no_office_access`. Recovery `reactivate` must not insert an agency- or membership-referencing row before those locks; write `administrator_recovery_started` and grant a default only after the activation primitive holds them.
 - Agency provisioning, lifecycle, and administrator recovery are privileged commands (`ProvisionAgency`, `ChangeAgencyStatus`, `RecoverAgencyAdministrator`), not tenant-facing routes. System audit events require `actor_identifier` and must not invent a platform user. Command output may print identifiers only—never passwords or invitation tokens.
-- Audit subjects are narrowly typed: an `Agency` subject must equal the event agency; an `AgencyMembership` subject must belong to it. Do not infer tenancy for unknown subject types.
+- Audit subjects are narrowly typed: an `Agency` subject must equal the event agency; an `AgencyMembership`, `Office`, or `OfficeAssignment` subject must belong to it. Do not infer tenancy for unknown subject types.
+- An office belongs to exactly one agency. Staff operate only in offices with an active assignment. Administrators may use every active office without an assignment per office; they still have one default assignment when any active office exists. Office access is not a role.
+- Later office-owned records must carry a direct `agency_id` and enforce matching `(office_id, agency_id)` with a composite foreign key. Do not infer tenant ownership only through `office_id`. Human-readable office codes never authorize. See [ADR 0004](docs/adr/0004-human-readable-references.md).
 - Administrative mutations write append-only `AuditEvent` records in the same transaction. Audit events reject update and destroy in the application and in PostgreSQL.
 - Business records must be loaded through `Current.agency`. Do not use a tenant `default_scope`. Do not rely on a client-supplied agency ID without authorization against the current user/session.
-- Action Cable identifies `current_user` and `current_agency` from the same resolver. It must not copy request `Current` onto a long-lived connection.
+- Action Cable identifies `current_user` and `current_agency` from the same resolver. It must not copy request `Current` onto a long-lived connection and must not persist `Current.office` on the connection. Future office-scoped channel actions must reload the current session selection and reapply office authorization for each action; connection-time `current_agency` is not sufficient.
+- Jobs that need office scope accept an office identifier, reload the office through the agency, and re-check operational access.
 - Treat passenger identity documents and payment information as sensitive data requiring explicit retention, access, and audit rules before implementation.
 
 ## Tests

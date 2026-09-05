@@ -14,6 +14,8 @@ class TeamInvitationTest < ApplicationSystemTestCase
     fill_in "First name", with: "Morgan"
     fill_in "Last name", with: "Ellis"
     select "staff", from: "Role"
+    check "Sunrise Travel (MAIN)"
+    select "Sunrise Travel (MAIN)", from: "Default office"
     click_button "Send invitation"
 
     assert_text MembershipCommand::ELIGIBLE_INVITE_NOTICE

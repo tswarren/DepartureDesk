@@ -76,6 +76,7 @@ class RecoverAgencyAdministratorTest < ActiveSupport::TestCase
     assert result.membership.invited?
     assert result.membership.administrator?
     assert_equal "replacement-admin@example.com", result.membership.user.email_address
+    assert result.membership.default_office.present?
   end
 
   test "does not attach an address that is active elsewhere" do
@@ -161,7 +162,8 @@ class RecoverAgencyAdministratorTest < ActiveSupport::TestCase
       email: "second-admin@example.com",
       role: "administrator",
       first_name: "Reese",
-      last_name: "Patel"
+      last_name: "Patel",
+      **invite_offices
     ).call.membership
 
     AcceptInvitation.new(

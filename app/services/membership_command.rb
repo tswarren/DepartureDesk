@@ -33,6 +33,25 @@ class MembershipCommand
     end
   end
 
+  def with_agency_office_lock(agency, office: nil, membership: nil)
+    ensure_actor_shape!
+    agency.with_lock do
+      agency.reload
+      if office
+        office.lock!
+        office.reload
+        ensure_office_belongs_to_agency!(agency, office)
+      end
+      if membership
+        membership.lock!
+        membership.reload
+        ensure_membership_belongs_to_agency!(agency, membership)
+      end
+      ensure_tenant_actor!(agency)
+      yield
+    end
+  end
+
   def ensure_actor_shape!
     if @privileged
       if @actor || @actor_identifier.blank?
@@ -62,6 +81,26 @@ class MembershipCommand
     return if membership.agency_id == agency.id
 
     raise Error.new("That membership is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_office_belongs_to_agency!(agency, office)
+    return if office.agency_id == agency.id
+
+    raise Error.new("That office is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_assignment_belongs_to_agency!(agency, assignment)
+    return if assignment.agency_id == agency.id
+
+    raise Error.new("That assignment is not part of this agency.", code: :invalid)
+  end
+
+  def clear_session_offices_later(office_ids)
+    Session.where(office_id: Array(office_ids)).update_all(office_id: nil, updated_at: Time.current)
+  end
+
+  def nest_office_access(command)
+    command.call
   end
 
   def active_administrator_count(agency)

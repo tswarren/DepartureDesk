@@ -84,6 +84,8 @@ class RecoverAgencyAdministrator
       raise Error.new("That membership cannot receive a replacement invitation.", code: :invalid_state)
     end
 
+    ensure_recovery_default!(membership)
+
     ReplaceInvitation.new(
       agency: @agency,
       actor_identifier: @actor_identifier,
@@ -103,7 +105,10 @@ class RecoverAgencyAdministrator
       actor_identifier: @actor_identifier,
       privileged: true,
       membership: membership,
-      after_lock: ->(agency:, **) { record_recovery_started!(agency) }
+      after_lock: ->(agency:, membership:, **) {
+        record_recovery_started!(agency)
+        ensure_recovery_default!(membership)
+      }
     ).call
   end
 
@@ -111,6 +116,7 @@ class RecoverAgencyAdministrator
     raise Error.new("An email is required.", code: :invalid) if @email.blank?
     raise Error.new("A first and last name are required.", code: :invalid) if @first_name.blank? || @last_name.blank?
 
+    default_office = @agency.offices.active.order(:created_at).first
     result = InviteTeamMember.new(
       agency: @agency,
       actor_identifier: @actor_identifier,
@@ -119,7 +125,9 @@ class RecoverAgencyAdministrator
       role: "administrator",
       first_name: @first_name,
       last_name: @last_name,
-      preferred_name: @preferred_name
+      preferred_name: @preferred_name,
+      office_ids: Array(default_office&.id),
+      default_office_id: default_office&.id
     ).call
 
     unless result.enqueue_mail?
@@ -140,6 +148,21 @@ class RecoverAgencyAdministrator
     raise Error.new("That membership is not part of this agency.", code: :invalid) unless @membership.agency_id == @agency.id
 
     @membership
+  end
+
+  def ensure_recovery_default!(membership)
+    office = @agency.offices.active.order(:created_at).first
+    return unless office
+    return if membership.has_active_default_office?
+
+    GrantOfficeAccess.new(
+      agency: @agency,
+      membership: membership,
+      office: office,
+      make_default: true,
+      actor_identifier: @actor_identifier,
+      privileged: true
+    ).call
   end
 
   def before_reactivate

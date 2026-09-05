@@ -8,7 +8,8 @@ class InvitationAcceptancesControllerTest < ActionDispatch::IntegrationTest
       email: "join@example.com",
       role: "staff",
       first_name: "Lee",
-      last_name: "Park"
+      last_name: "Park",
+      **invite_offices
     ).call.membership
 
     patch invitation_acceptance_path(membership.invitation_token), params: {
@@ -18,6 +19,8 @@ class InvitationAcceptancesControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to root_url
     assert cookies[:session_id]
+    session = membership.user.sessions.last
+    assert_equal offices(:one).id, session.office_id
     follow_redirect!
     assert_includes response.body, agencies(:one).name
   end
@@ -39,7 +42,8 @@ class InvitationAcceptancesControllerTest < ActionDispatch::IntegrationTest
       email: "reset-invite@example.com",
       role: "staff",
       first_name: "Drew",
-      last_name: "Ibarra"
+      last_name: "Ibarra",
+      **invite_offices
     ).call.membership
     user = membership.user
 

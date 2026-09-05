@@ -1,0 +1,29 @@
+<% content_for :title, "Choose office · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div>
+    <p class="dd-eyebrow">Workspace</p>
+    <h1 class="dd-page-title">Choose office</h1>
+    <p class="dd-page-description">Select the office you are working in. This does not change your agency.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <% if @offices.empty? %>
+    <p>No office access is assigned.</p>
+  <% else %>
+    <%= form_with url: current_office_path, method: :patch, class: "dd-form" do %>
+      <% @offices.each do |office| %>
+        <div class="dd-field-group">
+          <label class="dd-label">
+            <input type="radio" name="office_id" value="<%= office.id %>" <%= "checked" if Current.office&.id == office.id %> required>
+            <%= office.name %> (<%= office.code %>)
+          </label>
+        </div>
+      <% end %>
+      <div class="dd-form-actions">
+        <%= submit_tag "Use this office", class: "dd-button" %>
+      </div>
+    <% end %>
+  <% end %>
+</article>

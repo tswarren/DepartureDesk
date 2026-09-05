@@ -33,6 +33,7 @@ class ReplaceInvitation < MembershipCommand
     unless @membership.invitation_open? || @membership.revoked?
       raise Error.new("This membership cannot receive a replacement invitation.", code: :invalid_state)
     end
+    ensure_current_office_set_legal!
 
     @membership.update!(
       status: "invited",
@@ -50,5 +51,18 @@ class ReplaceInvitation < MembershipCommand
       **actor_audit_args
     )
     CommandResult.new(status: :replaced, membership: @membership.reload)
+  end
+
+  def ensure_current_office_set_legal!
+    if @agency.offices.active.exists?
+      if @membership.staff? && !@membership.has_active_office_assignment?
+        raise Error.new("This invitation has no operational office.", code: :no_office_access)
+      end
+      if @membership.administrator? && !@membership.has_active_default_office?
+        raise Error.new("This invitation has no default office.", code: :no_office_access)
+      end
+    elsif @membership.staff?
+      raise Error.new("Staff cannot be invited until an office exists.", code: :invalid)
+    end
   end
 end

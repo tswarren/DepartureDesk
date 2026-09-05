@@ -43,8 +43,32 @@ if Rails.env.development?
     puts "Seed user ready:"
     puts "  Email: #{seed_user.email_address}"
     puts "  ID: #{seed_user.id}"
+    office = seed_agency.offices.find_or_initialize_by(code: "MAIN")
+    office.assign_attributes(
+      name: seed_agency.name,
+      status: "active",
+      default_timezone: seed_agency.default_timezone
+    )
+    office.save!
+
+    assignment = OfficeAssignment.find_or_initialize_by(
+      agency: seed_agency,
+      agency_membership: membership,
+      office: office
+    )
+    assignment.assign_attributes(
+      status: "active",
+      is_default: true,
+      granted_at: assignment.granted_at || Time.current,
+      revoked_at: nil
+    )
+    assignment.save!
+
     puts "Seed membership ready:"
     puts "  ID: #{membership.id}"
     puts "  Role: #{membership.role}"
     puts "  Status: #{membership.status}"
+    puts "Seed office ready:"
+    puts "  Code: #{office.code}"
+    puts "  ID: #{office.id}"
 end

@@ -20,7 +20,87 @@
       <dt>Access</dt>
       <dd><%= @membership.status %></dd>
     </div>
+    <div>
+      <dt>Default office</dt>
+      <dd><%= @membership.default_office&.then { |office| "#{office.name} (#{office.code})" } || "None" %></dd>
+    </div>
   </dl>
+
+  <% if @membership.administrator? %>
+    <p>Administrators can use every active office in this agency. A default assignment is still stored for sign-in.</p>
+  <% end %>
+
+  <% if @membership.staff? && !@membership.has_active_office_assignment? %>
+    <div class="dd-alert dd-alert--warning" role="status">
+      This staff member has no operational office.
+    </div>
+  <% end %>
+
+  <h2 class="dd-panel-title">Intended offices</h2>
+  <% if @assigned_offices.any? %>
+    <ul class="dd-list">
+      <% @assigned_offices.each do |office| %>
+        <li class="dd-list-item">
+          <span>
+            <strong class="dd-list-title"><%= office.name %> (<%= office.code %>)</strong>
+            <span class="dd-list-detail">
+              <%= office_status_badge(office) %>
+              <%= "Default" if @membership.default_office&.id == office.id %>
+            </span>
+          </span>
+          <% remaining = @assigned_offices.reject { |other| other.id == office.id } %>
+          <%= form_with url: revoke_office_administration_team_member_path(@membership), method: :post, class: "dd-form" do %>
+            <input type="hidden" name="office_id" value="<%= office.id %>">
+            <% if @membership.default_office&.id == office.id && remaining.any? %>
+              <div class="dd-field-group">
+                <label class="dd-label" for="replacement_office_id_<%= office.id %>">Replacement default</label>
+                <select name="replacement_office_id" id="replacement_office_id_<%= office.id %>" class="dd-field" required>
+                  <% remaining.each do |other| %>
+                    <option value="<%= other.id %>"><%= other.name %> (<%= other.code %>)</option>
+                  <% end %>
+                </select>
+              </div>
+            <% end %>
+            <div class="dd-form-actions">
+              <%= submit_tag "Revoke access", class: "dd-button", data: { turbo_confirm: "Revoke access to #{office.name}?" } %>
+            </div>
+          <% end %>
+          <% unless @membership.default_office&.id == office.id %>
+            <%= form_with url: set_default_office_administration_team_member_path(@membership), method: :post, class: "dd-form" do %>
+              <input type="hidden" name="office_id" value="<%= office.id %>">
+              <div class="dd-form-actions">
+                <%= submit_tag "Set as default", class: "dd-button" %>
+              </div>
+            <% end %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p>No offices are assigned.</p>
+  <% end %>
+
+  <% if @available_offices.any? %>
+    <%= form_with url: grant_office_administration_team_member_path(@membership), method: :post, class: "dd-form" do %>
+      <div class="dd-field-group">
+        <label class="dd-label" for="office_id">Grant office access</label>
+        <select name="office_id" id="office_id" class="dd-field" required>
+          <% @available_offices.each do |office| %>
+            <option value="<%= office.id %>"><%= office.name %> (<%= office.code %>)</option>
+          <% end %>
+        </select>
+      </div>
+      <div class="dd-field-group">
+        <label class="dd-label">
+          <input type="checkbox" name="make_default" value="1">
+          Make this the default office
+        </label>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Grant access", class: "dd-button" %>
+      </div>
+    <% end %>
+  <% end %>
 
   <% if @membership.active? || @membership.suspended? %>
     <%= form_with url: role_administration_team_member_path(@membership), method: :patch, class: "dd-form" do %>

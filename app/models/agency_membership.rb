@@ -17,6 +17,7 @@ class AgencyMembership < ApplicationRecord
 
   belongs_to :user
   belongs_to :agency
+  has_many :office_assignments, dependent: :restrict_with_exception
 
   enum :role, ROLES.index_by(&:itself), validate: true
   enum :status, STATUSES.index_by(&:itself), validate: true
@@ -39,5 +40,50 @@ class AgencyMembership < ApplicationRecord
 
   def invitation_open?
     invited?
+  end
+
+  def assigned_offices
+    agency.offices.where(id: office_assignments.active.select(:office_id))
+  end
+
+  def accessible_offices
+    return Office.none unless active? && agency.active?
+
+    if administrator?
+      agency.offices.active
+    else
+      agency.offices.active.where(id: office_assignments.active.select(:office_id))
+    end
+  end
+
+  def can_access_office?(office)
+    return false unless office
+
+    accessible_offices.where(id: office.id).exists?
+  end
+
+  def default_office
+    office_assignments.active.find_by(is_default: true)&.office
+  end
+
+  def has_active_office_assignment?
+    office_assignments.active.joins(:office).where(offices: { status: "active", agency_id: agency_id }).exists?
+  end
+
+  def has_active_default_office?
+    default = default_office
+    default&.active? && default.agency_id == agency_id
+  end
+
+  def activation_office_ready?
+    if staff?
+      has_active_office_assignment?
+    elsif administrator?
+      return true unless agency.offices.active.exists?
+
+      has_active_default_office?
+    else
+      false
+    end
   end
 end

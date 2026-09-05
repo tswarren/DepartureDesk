@@ -1,0 +1,31 @@
+<% content_for :title, "New office · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div>
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">New office</h1>
+    <p class="dd-page-description">The office code is assigned now and cannot be changed later.</p>
+  </div>
+</header>
+
+<p><%= link_to "Back to offices", administration_offices_path, class: "dd-auth-link" %></p>
+
+<article class="dd-panel">
+  <%= form_with model: @office, url: administration_offices_path, method: :post, class: "dd-form" do |form| %>
+    <div class="dd-field-group">
+      <%= form.label :name, class: "dd-label" %>
+      <%= form.text_field :name, required: true, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :code, class: "dd-label" %>
+      <%= form.text_field :code, required: true, maxlength: 10, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :default_timezone, "Timezone", class: "dd-label" %>
+      <%= form.select :default_timezone, agency_timezone_choices(@office.default_timezone), {}, required: true, class: "dd-field" %>
+    </div>
+    <div class="dd-form-actions">
+      <%= form.submit "Create office", class: "dd-button" %>
+    </div>
+  <% end %>
+</article>

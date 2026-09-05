@@ -130,7 +130,8 @@ class MembershipCommandsTest < ActiveSupport::TestCase
       email: email,
       role: "staff",
       first_name: "Quinn",
-      last_name: "Okoye"
+      last_name: "Okoye",
+      **invite_offices
     ).call.membership
   end
 

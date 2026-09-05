@@ -81,6 +81,14 @@ class ProvisionAgency
         status: "active"
       )
 
+      office = CreateOffice.new(
+        agency: agency,
+        name: agency.name,
+        code: Office.next_main_code(agency),
+        actor_identifier: @actor_identifier,
+        privileged: true
+      ).call.office
+
       user ||= create_invited_user
       membership = agency.agency_memberships.create!(
         user: user,
@@ -88,6 +96,14 @@ class ProvisionAgency
         status: "invited",
         invitation_sent_at: Time.current
       )
+      GrantOfficeAccess.new(
+        agency: agency,
+        membership: membership,
+        office: office,
+        make_default: true,
+        actor_identifier: @actor_identifier,
+        privileged: true
+      ).call
 
       AgencyProvisioningRequest.create!(
         idempotency_key_digest: key_digest,

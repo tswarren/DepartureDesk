@@ -21,10 +21,13 @@ host command; `./dev/rails-docker` forwards them into the container.
 
 ## Provision an agency
 
-Creates an active agency, an invited administrator membership, provisioning and
-invitation audit events, and then enqueues the invitation email. The membership
-is never silently activated. The generated password digest is unguessable and
-is never printed.
+Creates, in one transaction, an active agency, one `MAIN` office copied from
+the agency timezone, an invited administrator membership, that membership’s
+active/default office assignment, provisioning and invitation audit events,
+and then a delivery intent for the invitation email. The assignment is not
+operationally usable until the membership becomes active. The membership is
+never silently activated. The generated password digest is unguessable and is
+never printed.
 
 Required environment:
 

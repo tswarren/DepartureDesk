@@ -74,6 +74,14 @@ class RecordAdministrativeAudit
       return if subject.agency_id == agency.id
 
       raise ArgumentError, "Membership subject must belong to the event agency."
+    when Office
+      return if subject.agency_id == agency.id
+
+      raise ArgumentError, "Office subject must belong to the event agency."
+    when OfficeAssignment
+      return if subject.agency_id == agency.id
+
+      raise ArgumentError, "Assignment subject must belong to the event agency."
     end
   end
 end

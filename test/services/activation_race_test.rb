@@ -206,6 +206,76 @@ class ActivationRaceTest < ActiveSupport::TestCase
     assert_equal AcceptInvitation::GENERIC_FAILURE, [ first, second ].filter_map { |outcome| outcome[:error]&.message }.first
   end
 
+  test "last active office cannot be deactivated under competition" do
+    agency = create_agency("Race Last Office")
+    admin = create_user("race-last-office-admin@example.com")
+    create_active_admin(admin, agency)
+    first_office = agency.offices.find_by!(code: "MAIN")
+    second_office = agency.offices.create!(
+      name: "Harbor",
+      code: "HBR",
+      status: "active",
+      default_timezone: "UTC"
+    )
+    barrier = CyclicBarrier.new(2)
+
+    first = run_on_connection do
+      deactivating_after_start(agency, first_office, admin, barrier).call
+    end
+    second = run_on_connection do
+      deactivating_after_start(agency, second_office, admin, barrier).call
+    end
+
+    join_all!(first, second)
+    first_office.reload
+    second_office.reload
+
+    outcomes = [ first, second ]
+    assert_equal 1, outcomes.count { |outcome| outcome[:result] }
+    assert_equal 1, outcomes.count { |outcome| outcome[:error] }
+    assert_equal :last_office, outcomes.filter_map { |outcome| outcome[:error]&.code }.first
+    assert_equal 1, agency.offices.active.count
+    assert_equal 1, agency.audit_events.where(action: "office.deactivated").count
+    if first[:error]
+      assert first_office.active?
+      assert second_office.inactive?
+    else
+      assert first_office.inactive?
+      assert second_office.active?
+    end
+  end
+
+  test "revoking the staff assignment before accept keeps the password unchanged" do
+    user = create_user("race-assign-accept@example.com")
+    agency = create_agency("Race Assign Accept")
+    admin = create_user("race-assign-accept-admin@example.com")
+    create_active_admin(admin, agency)
+    membership = create_invited_membership(user:, agency:)
+    assignment = membership.office_assignments.active.first
+    original_digest = user.password_digest
+    token = membership.invitation_token
+    sequence = LocateThenMutateBarrier.new
+
+    accept = run_on_connection do
+      accepting_after_locate(token, "AcceptPass123!", sequence).call
+    end
+    revoke = run_on_connection do
+      sequence.run_after_locate do
+        RevokeOfficeAccess.new(agency:, membership:, office: assignment.office, actor: admin).call
+      end
+    end
+
+    join_all!(accept, revoke)
+    assert_kind_of MembershipCommand::Error, accept[:error]
+    assert_equal :invalid_token, accept[:error].code
+    assert_equal AcceptInvitation::GENERIC_FAILURE, accept[:error].message
+    assert_nil accept[:result]
+    assert revoke[:result]
+    assert membership.reload.invited?
+    assert_equal original_digest, user.reload.password_digest
+    assert_not membership.has_active_office_assignment?
+  end
+
   private
 
   def create_agency(name)
@@ -214,6 +284,12 @@ class ActivationRaceTest < ActiveSupport::TestCase
       default_timezone: "UTC",
       default_currency: "USD",
       country_code: "US"
+    )
+    agency.offices.create!(
+      name: name,
+      code: "MAIN",
+      status: "active",
+      default_timezone: "UTC"
     )
     @created_agency_ids << agency.id
     agency
@@ -232,13 +308,25 @@ class ActivationRaceTest < ActiveSupport::TestCase
   end
 
   def create_membership(user:, agency:, status:, role:)
-    AgencyMembership.create!(
+    membership = AgencyMembership.create!(
       user:,
       agency:,
       status:,
       role:,
       invitation_sent_at: Time.current
     )
+    office = agency.offices.active.order(:created_at).first
+    if office
+      OfficeAssignment.create!(
+        agency:,
+        agency_membership: membership,
+        office:,
+        status: "active",
+        is_default: true,
+        granted_at: Time.current
+      )
+    end
+    membership
   end
 
   def create_invited_membership(user:, agency:, role: "staff")
@@ -259,6 +347,15 @@ class ActivationRaceTest < ActiveSupport::TestCase
     Class.new(ReactivateMembership) do
       define_method(:before_activation) { barrier.wait }
     end.new(agency:, membership:, actor:)
+  end
+
+  def deactivating_after_start(agency, office, actor, barrier)
+    Class.new(ChangeOfficeStatus) do
+      define_method(:call) do
+        barrier.wait
+        super()
+      end
+    end.new(agency:, office:, to: "inactive", reason: "Concurrent last office", actor:)
   end
 
   def recovering_after_prepare(agency, membership, actor_identifier, barrier)
@@ -348,6 +445,8 @@ class ActivationRaceTest < ActiveSupport::TestCase
     AuditEvent.where(agency_id: agency_ids).delete_all
     connection.execute("SET session_replication_role = DEFAULT")
 
+    OfficeAssignment.where(agency_id: agency_ids).delete_all
+    Office.where(agency_id: agency_ids).delete_all
     AgencyMembership.where(agency_id: agency_ids).delete_all
     User.where(id: user_ids).delete_all
     Agency.where(id: agency_ids).delete_all

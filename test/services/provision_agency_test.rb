@@ -16,8 +16,20 @@ class ProvisionAgencyTest < ActiveSupport::TestCase
     assert result.membership.administrator?
     assert_nil result.membership.user.usable_agency_membership
 
-    events = result.agency.audit_events.order(:created_at)
-    assert_equal %w[agency.provisioned team.invitation_created], events.map(&:action)
+    office = result.agency.offices.find_by!(code: "MAIN")
+    assert office.active?
+    assignment = result.membership.office_assignments.find_by!(office:)
+    assert assignment.active?
+    assert assignment.is_default?
+
+    events = result.agency.audit_events
+    assert_equal %w[
+      agency.provisioned
+      office.created
+      office_access.default_changed
+      office_access.granted
+      team.invitation_created
+    ], events.map(&:action).sort
     events.each do |event|
       assert_equal "system", event.actor_kind
       assert_equal "ops:test", event.actor_identifier
