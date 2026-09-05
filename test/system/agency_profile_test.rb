@@ -42,6 +42,8 @@ class AgencyProfileTest < ApplicationSystemTestCase
     click_button "Sign in"
 
     click_link "Administration"
+    assert_selector "a[href='#main-content']", text: "Skip to main content", visible: :all
+    page.execute_script("document.querySelector(\"a[href='#main-content']\").focus()")
     assert_selector "a[href='#main-content']", text: "Skip to main content"
     assert_selector "nav[aria-label=Administration]"
     click_link "Edit profile"
