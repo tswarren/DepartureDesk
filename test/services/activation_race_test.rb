@@ -127,6 +127,58 @@ class ActivationRaceTest < ActiveSupport::TestCase
     assert_equal 0, success_activation_audits(agency).count
   end
 
+  test "two recoveries of the same suspended administrator activate once" do
+    agency = create_agency("Race Recovery Same Target")
+    user = create_user("race-recovery-same@example.com")
+    membership = create_membership(user:, agency:, status: "suspended", role: "administrator")
+    barrier = CyclicBarrier.new(2)
+
+    first = run_on_connection do
+      recovering_after_prepare(agency, membership, "ops:recovery-a", barrier).call
+    end
+    second = run_on_connection do
+      recovering_after_prepare(agency, membership, "ops:recovery-b", barrier).call
+    end
+
+    join_all!(first, second)
+    assert_equal 1, [ first, second ].count { |outcome| outcome[:result] }
+    assert_equal 1, [ first, second ].count { |outcome| outcome[:error] }
+    assert_kind_of RecoverAgencyAdministrator::Error, [ first, second ].filter_map { |outcome| outcome[:error] }.first
+    assert_not [ first, second ].any? { |outcome| outcome[:error].is_a?(ActiveRecord::Deadlocked) }
+    assert_predicate membership.reload, :active?
+    assert_equal membership, user.reload.usable_agency_membership
+    assert_equal 1, agency.audit_events.where(action: "team.administrator_recovery_started").count
+    assert_equal 1, agency.audit_events.where(action: "team.membership_reactivated").count
+  end
+
+  test "two recoveries of different suspended administrators in one agency both succeed" do
+    agency = create_agency("Race Recovery Two Admins")
+    first_user = create_user("race-recovery-admin-a@example.com")
+    second_user = create_user("race-recovery-admin-b@example.com")
+    first_membership = create_membership(user: first_user, agency:, status: "suspended", role: "administrator")
+    second_membership = create_membership(user: second_user, agency:, status: "suspended", role: "administrator")
+    barrier = CyclicBarrier.new(2)
+
+    first = run_on_connection do
+      recovering_after_prepare(agency, first_membership, "ops:recovery-a", barrier).call
+    end
+    second = run_on_connection do
+      recovering_after_prepare(agency, second_membership, "ops:recovery-b", barrier).call
+    end
+
+    join_all!(first, second)
+    assert first[:result]
+    assert second[:result]
+    assert_nil first[:error]
+    assert_nil second[:error]
+    assert_predicate first_membership.reload, :active?
+    assert_predicate second_membership.reload, :active?
+    assert_equal first_membership, first_user.reload.usable_agency_membership
+    assert_equal second_membership, second_user.reload.usable_agency_membership
+    assert_equal 2, agency.audit_events.where(action: "team.administrator_recovery_started").count
+    assert_equal 2, agency.audit_events.where(action: "team.membership_reactivated").count
+  end
+
   test "two submissions of the same invitation token activate once" do
     user = create_user("race-same-token@example.com")
     agency = create_agency("Race Same Token")
@@ -207,6 +259,18 @@ class ActivationRaceTest < ActiveSupport::TestCase
     Class.new(ReactivateMembership) do
       define_method(:before_activation) { barrier.wait }
     end.new(agency:, membership:, actor:)
+  end
+
+  def recovering_after_prepare(agency, membership, actor_identifier, barrier)
+    Class.new(RecoverAgencyAdministrator) do
+      define_method(:before_reactivate) { barrier.wait }
+    end.new(
+      agency:,
+      membership:,
+      actor_identifier:,
+      reason: "Concurrent recovery",
+      mode: "reactivate"
+    )
   end
 
   def run_on_connection

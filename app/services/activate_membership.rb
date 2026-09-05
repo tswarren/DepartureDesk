@@ -1,6 +1,8 @@
 class ActivateMembership < MembershipCommand
+  MODES = %i[accept reactivate].freeze
+
   def initialize(agency:, membership:, mode:, actor: nil, actor_identifier: nil, privileged: false,
-    password: nil, password_confirmation: nil, invitation_token: nil)
+    password: nil, password_confirmation: nil, invitation_token: nil, after_lock: nil)
     @agency = agency
     @membership = membership
     @user = membership.user
@@ -8,6 +10,7 @@ class ActivateMembership < MembershipCommand
     @password = password
     @password_confirmation = password_confirmation
     @invitation_token = invitation_token
+    @after_lock = after_lock
     assign_command_actors(actor:, actor_identifier:, privileged:)
   end
 
@@ -21,6 +24,10 @@ class ActivateMembership < MembershipCommand
   private
 
   def perform
+    unless MODES.include?(@mode)
+      raise Error.new("Unknown activation mode.", code: :invalid)
+    end
+
     ensure_actor_shape! unless accept?
 
     @user.with_lock do
@@ -47,6 +54,7 @@ class ActivateMembership < MembershipCommand
       raise Error.new(AcceptInvitation::GENERIC_FAILURE, code: :invalid_token)
     end
     ensure_no_other_active_membership!(generic: true)
+    run_after_lock!
 
     @user.update!(
       password: @password,
@@ -76,6 +84,7 @@ class ActivateMembership < MembershipCommand
       raise Error.new("This person cannot be reactivated while the agency is not active.", code: :invalid_state)
     end
     ensure_no_other_active_membership!(generic: false)
+    run_after_lock!
 
     @membership.update!(status: "active")
     audit!(
@@ -107,6 +116,10 @@ class ActivateMembership < MembershipCommand
     return unless @user.active_agency_memberships.where.not(id: @membership.id).exists?
 
     raise unique_conflict_error(generic:)
+  end
+
+  def run_after_lock!
+    @after_lock&.call(agency: @agency, membership: @membership, user: @user)
   end
 
   def unique_conflict_error(generic: accept?)

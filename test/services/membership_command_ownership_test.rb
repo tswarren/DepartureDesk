@@ -129,6 +129,22 @@ class MembershipCommandOwnershipTest < ActiveSupport::TestCase
     assert_equal "ops:recovery", event.actor_identifier
   end
 
+  test "unknown activation modes are rejected before locking" do
+    membership = agency_memberships(:one)
+
+    error = assert_raises(MembershipCommand::Error) do
+      ActivateMembership.new(
+        agency: agencies(:one),
+        membership: membership,
+        mode: :typo,
+        actor: users(:one)
+      ).call
+    end
+
+    assert_equal :invalid, error.code
+    assert membership.reload.active?
+  end
+
   test "acceptance still audits the invitee" do
     membership = invite_staff
     token = membership.invitation_token

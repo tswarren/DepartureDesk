@@ -26,27 +26,14 @@ class RecoverAgencyAdministrator
     raise Error.new("Operator identifier is required.", code: :invalid) if @actor_identifier.blank?
     raise Error.new("The agency must be active to recover an administrator.", code: :invalid_state) unless @agency.active?
 
-    result = nil
-
-    ActiveRecord::Base.transaction do
-      if @mode == "reactivate"
-        ensure_agency_active!
-        record_recovery_started!
-        result = reactivate!
-      else
-        @agency.with_lock do
-          ensure_agency_active!
-          record_recovery_started!
-          result = case @mode
-          when "replace_invitation"
-            replace_invitation!
-          when "invite_replacement"
-            invite_replacement!
-          else
-            raise Error.new("Unknown recovery mode.", code: :invalid)
-          end
-        end
-      end
+    result = case @mode
+    when "reactivate"
+      before_reactivate
+      reactivate!
+    when "replace_invitation", "invite_replacement"
+      recover_with_agency_lock
+    else
+      raise Error.new("Unknown recovery mode.", code: :invalid)
     end
 
     result
@@ -56,18 +43,37 @@ class RecoverAgencyAdministrator
 
   private
 
+  def recover_with_agency_lock
+    result = nil
+
+    ActiveRecord::Base.transaction do
+      @agency.with_lock do
+        ensure_agency_active!
+        record_recovery_started!
+        result = case @mode
+        when "replace_invitation"
+          replace_invitation!
+        when "invite_replacement"
+          invite_replacement!
+        end
+      end
+    end
+
+    result
+  end
+
   def ensure_agency_active!
     unless @agency.reload.active?
       raise Error.new("The agency must be active to recover an administrator.", code: :invalid_state)
     end
   end
 
-  def record_recovery_started!
+  def record_recovery_started!(agency = @agency)
     RecordAdministrativeAudit.record(
-      agency: @agency,
+      agency: agency,
       action: "team.administrator_recovery_started",
       actor_identifier: @actor_identifier,
-      subject: @agency,
+      subject: agency,
       details: { "reason" => @reason, "mode" => @mode }
     )
   end
@@ -96,7 +102,8 @@ class RecoverAgencyAdministrator
       agency: @agency,
       actor_identifier: @actor_identifier,
       privileged: true,
-      membership: membership
+      membership: membership,
+      after_lock: ->(agency:, **) { record_recovery_started!(agency) }
     ).call
   end
 
@@ -133,5 +140,8 @@ class RecoverAgencyAdministrator
     raise Error.new("That membership is not part of this agency.", code: :invalid) unless @membership.agency_id == @agency.id
 
     @membership
+  end
+
+  def before_reactivate
   end
 end
