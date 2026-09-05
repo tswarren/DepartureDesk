@@ -1,14 +1,14 @@
 require "test_helper"
 
 class RecoverAgencyAdministratorTest < ActiveSupport::TestCase
-  include ActionMailer::TestHelper
+  include ActiveJob::TestHelper
 
   test "replaces an invited administrator invitation" do
     provisioned = provision_agency
     membership = provisioned.membership
     old_token = membership.invitation_token
 
-    assert_enqueued_emails 1 do
+    assert_enqueued_with(job: DeliveryIntentJob) do
       RecoverAgencyAdministrator.new(
         agency: provisioned.agency,
         actor_identifier: "ops:recovery",
@@ -59,7 +59,7 @@ class RecoverAgencyAdministratorTest < ActiveSupport::TestCase
     ).call
 
     result = nil
-    assert_enqueued_emails 1 do
+    assert_enqueued_with(job: DeliveryIntentJob) do
       result = RecoverAgencyAdministrator.new(
         agency: provisioned.agency,
         actor_identifier: "ops:recovery",

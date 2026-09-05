@@ -1,12 +1,12 @@
 require "test_helper"
 
 class ProvisionAgencyTest < ActiveSupport::TestCase
-  include ActionMailer::TestHelper
+  include ActiveJob::TestHelper
 
   test "creates an invited administrator and system-attributed audits" do
     result = nil
 
-    assert_enqueued_emails 1 do
+    assert_enqueued_with(job: DeliveryIntentJob) do
       result = provision
     end
 
@@ -27,7 +27,7 @@ class ProvisionAgencyTest < ActiveSupport::TestCase
 
   test "invalid input leaves no provisioning artifacts" do
     assert_no_difference %w[Agency.count AgencyProvisioningRequest.count User.count AuditEvent.count] do
-      assert_no_enqueued_emails do
+      assert_no_enqueued_jobs only: DeliveryIntentJob do
         error = assert_raises(ProvisionAgency::Error) do
           provision(name: "")
         end
@@ -40,7 +40,7 @@ class ProvisionAgencyTest < ActiveSupport::TestCase
     first = provision(key: "same-key", email: "repeat@example.com", name: "Repeat Travel")
 
     assert_no_difference %w[Agency.count AgencyProvisioningRequest.count AgencyMembership.count] do
-      assert_no_enqueued_emails do
+      assert_no_enqueued_jobs only: DeliveryIntentJob do
         second = provision(key: "same-key", email: "repeat@example.com", name: "Repeat Travel")
         assert second.reused
         assert_equal first.agency.id, second.agency.id

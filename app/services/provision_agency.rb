@@ -44,9 +44,6 @@ class ProvisionAgency
 
     result = persist!(key_digest, intent)
 
-    ActiveRecord.after_all_transactions_commit do
-      InvitationsMailer.invite(result.membership).deliver_later
-    end
     result
   rescue ActiveRecord::RecordNotUnique
     existing = AgencyProvisioningRequest.find_by(idempotency_key_digest: key_digest)
@@ -112,6 +109,13 @@ class ProvisionAgency
         actor_identifier: @actor_identifier,
         subject: membership,
         details: { "membership_id" => membership.id, "user_id" => user.id, "role" => "administrator" }
+      )
+
+      DeliveryIntent.record!(
+        agency: agency,
+        subject: membership,
+        purpose: "team_invitation",
+        version: membership.invitation_version
       )
 
       result = Result.new(agency: agency, membership: membership, reused: false)

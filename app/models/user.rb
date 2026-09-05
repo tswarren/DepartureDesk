@@ -1,5 +1,8 @@
 class User < ApplicationRecord
   has_secure_password
+  generates_token_for :password_reset, expires_in: 15.minutes do
+    [ password_salt, password_reset_version ]
+  end
   has_many :sessions, dependent: :destroy
   has_many :agency_memberships, dependent: :restrict_with_exception
   has_many :agencies, through: :agency_memberships

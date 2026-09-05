@@ -1,13 +1,4 @@
 if Rails.env.development?
-    seed_agency = Agency.find_or_initialize_by(name: "Harbor Travel")
-    seed_agency.assign_attributes(
-      default_timezone: "UTC",
-      default_currency: "USD",
-      country_code: "US",
-      status: "active"
-    )
-    seed_agency.save!
-
     seed_user = User.find_or_initialize_by(
       email_address: "email@example.com"
     )
@@ -21,17 +12,30 @@ if Rails.env.development?
 
     seed_user.save!
 
-    membership = AgencyMembership.find_or_initialize_by(
-      user: seed_user,
-      agency: seed_agency
-    )
+    membership = seed_user.active_agency_memberships.includes(:agency).first
 
-    membership.assign_attributes(
-      role: "administrator",
-      status: "active"
-    )
+    if membership
+      seed_agency = membership.agency
+    else
+      seed_agency = Agency.find_or_initialize_by(name: "Harbor Travel")
+      seed_agency.assign_attributes(
+        default_timezone: "UTC",
+        default_currency: "USD",
+        country_code: "US",
+        status: "active"
+      )
+      seed_agency.save!
 
-    membership.save!
+      membership = AgencyMembership.find_or_initialize_by(
+        user: seed_user,
+        agency: seed_agency
+      )
+      membership.assign_attributes(
+        role: "administrator",
+        status: "active"
+      )
+      membership.save!
+    end
 
     puts "Seed agency ready:"
     puts "  Name: #{seed_agency.name}"

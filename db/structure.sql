@@ -139,8 +139,8 @@ CREATE TABLE public.agency_memberships (
     invitation_sent_at timestamp with time zone,
     CONSTRAINT agency_memberships_invitation_version_nonnegative CHECK ((invitation_version >= 0)),
     CONSTRAINT agency_memberships_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT agency_memberships_role_valid CHECK (((role)::text = ANY (ARRAY[('staff'::character varying)::text, ('administrator'::character varying)::text]))),
-    CONSTRAINT agency_memberships_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('revoked'::character varying)::text])))
+    CONSTRAINT agency_memberships_role_valid CHECK (((role)::text = ANY ((ARRAY['staff'::character varying, 'administrator'::character varying])::text[]))),
+    CONSTRAINT agency_memberships_status_valid CHECK (((status)::text = ANY ((ARRAY['invited'::character varying, 'active'::character varying, 'suspended'::character varying, 'revoked'::character varying])::text[])))
 );
 
 
@@ -191,6 +191,33 @@ CREATE TABLE public.audit_events (
 
 
 --
+-- Name: delivery_intents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.delivery_intents (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid,
+    subject_type character varying NOT NULL,
+    subject_id uuid NOT NULL,
+    purpose character varying NOT NULL,
+    subject_version integer NOT NULL,
+    idempotency_key character varying NOT NULL,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    attempt_count integer DEFAULT 0 NOT NULL,
+    available_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    claimed_at timestamp with time zone,
+    delivered_at timestamp with time zone,
+    last_error text,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT delivery_intents_counts_nonnegative CHECK (((attempt_count >= 0) AND (subject_version >= 0))),
+    CONSTRAINT delivery_intents_purpose_valid CHECK (((purpose)::text = ANY ((ARRAY['team_invitation'::character varying, 'password_reset'::character varying])::text[]))),
+    CONSTRAINT delivery_intents_status_valid CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'succeeded'::character varying, 'discarded'::character varying])::text[]))),
+    CONSTRAINT delivery_intents_success_has_delivery_time CHECK (((((status)::text = 'succeeded'::text) AND (delivered_at IS NOT NULL)) OR (((status)::text <> 'succeeded'::text) AND (delivered_at IS NULL))))
+);
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -226,8 +253,10 @@ CREATE TABLE public.users (
     first_name character varying NOT NULL,
     last_name character varying NOT NULL,
     preferred_name character varying,
+    password_reset_version integer DEFAULT 0 NOT NULL,
     CONSTRAINT users_first_name_not_blank CHECK ((btrim((first_name)::text) <> ''::text)),
     CONSTRAINT users_last_name_not_blank CHECK ((btrim((last_name)::text) <> ''::text)),
+    CONSTRAINT users_password_reset_version_nonnegative CHECK ((password_reset_version >= 0)),
     CONSTRAINT users_preferred_name_null_or_not_blank CHECK (((preferred_name IS NULL) OR (btrim((preferred_name)::text) <> ''::text)))
 );
 
@@ -294,6 +323,14 @@ ALTER TABLE ONLY public.ar_internal_metadata
 
 ALTER TABLE ONLY public.audit_events
     ADD CONSTRAINT audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: delivery_intents delivery_intents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.delivery_intents
+    ADD CONSTRAINT delivery_intents_pkey PRIMARY KEY (id);
 
 
 --
@@ -426,6 +463,34 @@ CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_even
 
 
 --
+-- Name: index_delivery_intents_for_reconciliation; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_delivery_intents_for_reconciliation ON public.delivery_intents USING btree (status, available_at);
+
+
+--
+-- Name: index_delivery_intents_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_delivery_intents_on_agency_id ON public.delivery_intents USING btree (agency_id);
+
+
+--
+-- Name: index_delivery_intents_on_idempotency_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_delivery_intents_on_idempotency_key ON public.delivery_intents USING btree (idempotency_key);
+
+
+--
+-- Name: index_delivery_intents_on_subject; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_delivery_intents_on_subject ON public.delivery_intents USING btree (subject_type, subject_id);
+
+
+--
 -- Name: index_sessions_on_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -518,12 +583,21 @@ ALTER TABLE ONLY public.active_storage_attachments
 
 
 --
+-- Name: delivery_intents fk_rails_e89726e351; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.delivery_intents
+    ADD CONSTRAINT fk_rails_e89726e351 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260905220000'),
 ('20260905210000'),
 ('20260905200000'),
 ('20260905190000'),

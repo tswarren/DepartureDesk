@@ -8,10 +8,16 @@ service="${RAILS_DOCKER_SERVICE:-web}"
 forward_env=()
 while IFS= read -r name; do
   forward_env+=(-e "${name}=${!name}")
-done < <(compgen -e | grep -E '^(AGENCY_|FORCE_SYSTEM_TESTS$)')
+done < <(compgen -e | grep -E '^(AGENCY_|FORCE_SYSTEM_TESTS$)' || true)
 
 if docker compose ps --status running --services | grep -qx "$service"; then
-  exec docker compose exec "${forward_env[@]}" "$service" "$@"
+  compose_cmd=(docker compose exec)
 else
-  exec docker compose run --rm "${forward_env[@]}" "$service" "$@"
+  compose_cmd=(docker compose run --rm)
+fi
+
+if ((${#forward_env[@]} > 0)); then
+  exec "${compose_cmd[@]}" "${forward_env[@]}" "$service" "$@"
+else
+  exec "${compose_cmd[@]}" "$service" "$@"
 fi
