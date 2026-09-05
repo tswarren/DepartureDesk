@@ -1,1 +1,745 @@
 @import "tailwindcss";
+
+@theme {
+  --color-dd-navy: #002340;
+  --color-dd-teal: #007080;
+  --color-dd-action: #006270;
+  --color-dd-amber: #f49a00;
+  --color-dd-cloud: #f6f7f5;
+  --color-dd-ink: #17212b;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root {
+  color-scheme: light;
+
+  /* Brand */
+  --dd-navy: #002340;
+  --dd-teal: #007080;
+  --dd-teal-action: #006270;
+  --dd-amber: #f49a00;
+
+  /* Surfaces */
+  --dd-background: #f6f7f5;
+  --dd-surface: #ffffff;
+  --dd-surface-subtle: #eef2f1;
+  --dd-surface-emphasis: #e2ebea;
+
+  /* Text */
+  --dd-text: #17212b;
+  --dd-text-muted: #52616d;
+  --dd-text-faint: #71808a;
+  --dd-text-on-dark: #ffffff;
+
+  /* Structure */
+  --dd-border: #d4dedf;
+  --dd-border-strong: #aababd;
+
+  /* Interaction */
+  --dd-action: #006270;
+  --dd-action-hover: #004f5b;
+  --dd-action-active: #003f49;
+  --dd-focus: #f49a00;
+  --dd-selection: #d7eff0;
+  --dd-selection-text: #003c45;
+
+  /* Semantic */
+  --dd-success: #2f6b4f;
+  --dd-success-surface: #e6f3eb;
+  --dd-success-text: #24523d;
+  --dd-warning: #8a5a00;
+  --dd-warning-surface: #fff2d6;
+  --dd-warning-text: #694400;
+  --dd-danger: #b5473d;
+  --dd-danger-surface: #fbe9e7;
+  --dd-danger-text: #84332d;
+  --dd-info: #326a8a;
+  --dd-info-surface: #e7f1f7;
+  --dd-info-text: #264f67;
+
+  /* Geometry */
+  --dd-radius-sm: 4px;
+  --dd-radius-md: 7px;
+  --dd-radius-lg: 10px;
+  --dd-shadow: 0 1px 2px rgb(0 35 64 / 0.06);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    min-height: 100%;
+    background: var(--dd-background);
+    color: var(--dd-text);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--dd-background);
+    color: var(--dd-text);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--dd-navy);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  a {
+    color: var(--dd-action);
+    text-underline-offset: 0.16em;
+  }
+
+  a:hover {
+    color: var(--dd-action-hover);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  ::selection {
+    background: var(--dd-selection);
+    color: var(--dd-selection-text);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--dd-focus);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .dd-skip-link {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 100;
+    transform: translateY(-180%);
+    border-radius: var(--dd-radius-sm);
+    background: var(--dd-surface);
+    color: var(--dd-navy);
+    padding: 0.55rem 0.8rem;
+    font-weight: 700;
+    box-shadow: 0 0 0 2px var(--dd-focus);
+  }
+
+  .dd-skip-link:focus {
+    transform: translateY(0);
+  }
+
+  .dd-app-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    min-height: 4rem;
+    background: var(--dd-navy);
+    color: var(--dd-text-on-dark);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.12);
+  }
+
+  .dd-header-inner {
+    display: flex;
+    min-height: 4rem;
+    max-width: 96rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    align-items: center;
+    gap: 1.75rem;
+  }
+
+  .dd-brand {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.65rem;
+    color: var(--dd-text-on-dark);
+    text-decoration: none;
+  }
+
+  .dd-brand:hover {
+    color: var(--dd-text-on-dark);
+  }
+
+  .dd-brand-mark {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .dd-brand-name {
+    font-size: 1.05rem;
+    font-weight: 750;
+    letter-spacing: -0.01em;
+  }
+
+  .dd-primary-nav {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-self: stretch;
+    align-items: stretch;
+    gap: 0.2rem;
+  }
+
+  .dd-nav-item {
+    display: inline-flex;
+    position: relative;
+    align-items: center;
+    border-radius: var(--dd-radius-sm);
+    color: #d9e6eb;
+    padding: 0 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .dd-nav-item:hover {
+    background: rgb(255 255 255 / 0.08);
+    color: var(--dd-text-on-dark);
+  }
+
+  .dd-nav-item[aria-current="page"] {
+    color: var(--dd-text-on-dark);
+  }
+
+  .dd-nav-item[aria-current="page"]::after {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0;
+    left: 0.75rem;
+    height: 3px;
+    background: #20a0aa;
+    content: "";
+  }
+
+  .dd-nav-item[aria-disabled="true"] {
+    color: #91a8b4;
+    cursor: default;
+  }
+
+  .dd-header-account {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .dd-account-email {
+    max-width: 15rem;
+    overflow: hidden;
+    color: #d9e6eb;
+    font-size: 0.8rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dd-workspace {
+    width: min(96rem, 100%);
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3rem;
+  }
+
+  .dd-page-header {
+    display: flex;
+    margin-bottom: 1.5rem;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .dd-eyebrow {
+    margin: 0 0 0.2rem;
+    color: var(--dd-teal);
+    font-size: 0.75rem;
+    font-weight: 750;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .dd-page-title {
+    margin: 0;
+    font-size: clamp(1.7rem, 2.5vw, 2.25rem);
+    line-height: 1.15;
+  }
+
+  .dd-page-description {
+    max-width: 48rem;
+    margin: 0.45rem 0 0;
+    color: var(--dd-text-muted);
+  }
+
+  .dd-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .dd-grid--metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 1rem;
+  }
+
+  .dd-grid--main {
+    grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+  }
+
+  .dd-panel {
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-md);
+    background: var(--dd-surface);
+    box-shadow: var(--dd-shadow);
+  }
+
+  .dd-panel-header {
+    display: flex;
+    min-height: 3.5rem;
+    padding: 0.85rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--dd-border);
+  }
+
+  .dd-panel-title {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .dd-panel-body {
+    padding: 1rem;
+  }
+
+  .dd-metric {
+    padding: 1rem;
+  }
+
+  .dd-metric-label {
+    display: block;
+    color: var(--dd-text-muted);
+    font-size: 0.78rem;
+    font-weight: 650;
+  }
+
+  .dd-metric-value {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--dd-navy);
+    font-size: 1.7rem;
+    font-weight: 750;
+    letter-spacing: -0.035em;
+  }
+
+  .dd-metric-detail {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--dd-text-faint);
+    font-size: 0.78rem;
+  }
+
+  .dd-empty-state {
+    padding: 2.5rem 1.25rem;
+    text-align: center;
+  }
+
+  .dd-empty-icon {
+    display: grid;
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 0.8rem;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--dd-surface-emphasis);
+    color: var(--dd-teal);
+    font-size: 1.3rem;
+  }
+
+  .dd-empty-title {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .dd-empty-copy {
+    max-width: 30rem;
+    margin: 0.35rem auto 0;
+    color: var(--dd-text-muted);
+  }
+
+  .dd-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dd-list-item {
+    display: flex;
+    padding: 0.8rem 0;
+    align-items: flex-start;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--dd-border);
+  }
+
+  .dd-list-item:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .dd-waypoint {
+    display: block;
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-top: 0.35rem;
+    flex: none;
+    border: 2px solid var(--dd-warning);
+    border-radius: 999px;
+    background: var(--dd-warning-surface);
+  }
+
+  .dd-list-title {
+    display: block;
+    color: var(--dd-text);
+    font-weight: 650;
+  }
+
+  .dd-list-detail {
+    display: block;
+    margin-top: 0.08rem;
+    color: var(--dd-text-muted);
+    font-size: 0.8rem;
+  }
+
+  .dd-button {
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: var(--dd-radius-md);
+    background: var(--dd-action);
+    color: var(--dd-text-on-dark);
+    padding: 0.55rem 0.9rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .dd-button:hover {
+    background: var(--dd-action-hover);
+    color: var(--dd-text-on-dark);
+  }
+
+  .dd-button:active {
+    background: var(--dd-action-active);
+  }
+
+  .dd-button--secondary {
+    border-color: var(--dd-border-strong);
+    background: var(--dd-surface);
+    color: var(--dd-navy);
+  }
+
+  .dd-button--secondary:hover {
+    border-color: var(--dd-teal);
+    background: var(--dd-surface-subtle);
+    color: var(--dd-navy);
+  }
+
+  .dd-button--on-dark {
+    border-color: rgb(255 255 255 / 0.3);
+    background: transparent;
+    color: var(--dd-text-on-dark);
+    font-size: 0.8rem;
+  }
+
+  .dd-button--on-dark:hover {
+    border-color: rgb(255 255 255 / 0.55);
+    background: rgb(255 255 255 / 0.1);
+  }
+
+  .dd-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .dd-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.73rem;
+    font-weight: 750;
+    line-height: 1.4;
+  }
+
+  .dd-badge--success {
+    background: var(--dd-success-surface);
+    color: var(--dd-success-text);
+  }
+
+  .dd-badge--warning {
+    background: var(--dd-warning-surface);
+    color: var(--dd-warning-text);
+  }
+
+  .dd-badge--info {
+    background: var(--dd-info-surface);
+    color: var(--dd-info-text);
+  }
+
+  .dd-badge--neutral {
+    background: #edf0f2;
+    color: #46525a;
+  }
+
+  .dd-table-wrap {
+    overflow-x: auto;
+  }
+
+  .dd-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--dd-surface);
+    text-align: left;
+  }
+
+  .dd-table th {
+    background: var(--dd-surface-subtle);
+    color: var(--dd-navy);
+    padding: 0.65rem 0.8rem;
+    border-bottom: 1px solid var(--dd-border-strong);
+    font-size: 0.75rem;
+    font-weight: 750;
+  }
+
+  .dd-table td {
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid var(--dd-border);
+    vertical-align: top;
+  }
+
+  .dd-table tbody tr:hover {
+    background: #f1f7f6;
+  }
+
+  .dd-table tbody tr[aria-selected="true"] {
+    background: var(--dd-selection);
+    color: var(--dd-selection-text);
+  }
+
+  .dd-form {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .dd-field-group {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .dd-label {
+    color: var(--dd-navy);
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+
+  .dd-field {
+    width: 100%;
+    min-height: 2.65rem;
+    border: 1px solid var(--dd-border-strong);
+    border-radius: var(--dd-radius-md);
+    background: var(--dd-surface);
+    color: var(--dd-text);
+    padding: 0.55rem 0.7rem;
+    box-shadow: inset 0 1px 1px rgb(0 35 64 / 0.03);
+  }
+
+  .dd-field::placeholder {
+    color: var(--dd-text-faint);
+  }
+
+  .dd-field:hover {
+    border-color: #879da2;
+  }
+
+  .dd-field:focus {
+    border-color: var(--dd-teal);
+    outline: 3px solid var(--dd-focus);
+    outline-offset: 2px;
+  }
+
+  .dd-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .dd-alert {
+    margin-bottom: 1rem;
+    border: 1px solid;
+    border-radius: var(--dd-radius-md);
+    padding: 0.75rem 0.9rem;
+    font-weight: 650;
+  }
+
+  .dd-alert--danger {
+    border-color: #e2aaa5;
+    background: var(--dd-danger-surface);
+    color: var(--dd-danger-text);
+  }
+
+  .dd-alert--success {
+    border-color: #a9cfb7;
+    background: var(--dd-success-surface);
+    color: var(--dd-success-text);
+  }
+
+  .dd-auth-shell {
+    display: grid;
+    min-height: 100vh;
+    grid-template-columns: minmax(20rem, 0.9fr) minmax(24rem, 1.1fr);
+  }
+
+  .dd-auth-brand {
+    display: flex;
+    min-height: 100%;
+    padding: clamp(2rem, 7vw, 6rem);
+    flex-direction: column;
+    justify-content: center;
+    background: var(--dd-navy);
+    color: #d9e6eb;
+  }
+
+  .dd-auth-brand .dd-brand {
+    margin-bottom: 2.5rem;
+  }
+
+  .dd-auth-brand h1 {
+    max-width: 12ch;
+    margin: 0;
+    color: var(--dd-text-on-dark);
+    font-size: clamp(2.2rem, 4vw, 3.7rem);
+    line-height: 1.03;
+  }
+
+  .dd-auth-brand p {
+    max-width: 35rem;
+    margin: 1rem 0 0;
+    color: #b8ccd4;
+    font-size: 1rem;
+  }
+
+  .dd-auth-main {
+    display: grid;
+    padding: 2rem;
+    place-items: center;
+  }
+
+  .dd-auth-card {
+    width: min(28rem, 100%);
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-lg);
+    background: var(--dd-surface);
+    padding: clamp(1.5rem, 4vw, 2.25rem);
+    box-shadow: 0 18px 50px rgb(0 35 64 / 0.09);
+  }
+
+  .dd-auth-card h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.75rem;
+  }
+
+  .dd-auth-intro {
+    margin: 0 0 1.5rem;
+    color: var(--dd-text-muted);
+  }
+
+  .dd-auth-link {
+    font-size: 0.84rem;
+    font-weight: 650;
+  }
+
+  @media (max-width: 900px) {
+    .dd-grid--metrics {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dd-grid--main {
+      grid-template-columns: 1fr;
+    }
+
+    .dd-primary-nav {
+      display: none;
+    }
+
+    .dd-header-account {
+      margin-left: auto;
+    }
+
+    .dd-auth-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .dd-auth-brand {
+      min-height: auto;
+      padding: 2rem;
+    }
+
+    .dd-auth-brand h1,
+    .dd-auth-brand p {
+      display: none;
+    }
+
+    .dd-auth-brand .dd-brand {
+      margin: 0;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .dd-header-inner,
+    .dd-workspace {
+      padding-right: 1rem;
+      padding-left: 1rem;
+    }
+
+    .dd-account-email {
+      display: none;
+    }
+
+    .dd-page-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .dd-grid--metrics {
+      grid-template-columns: 1fr;
+    }
+
+    .dd-auth-main {
+      padding: 1rem;
+    }
+
+    .dd-auth-card {
+      padding: 1.25rem;
+    }
+
+    .dd-form-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .dd-form-actions .dd-button {
+      width: 100%;
+    }
+  }
+}
