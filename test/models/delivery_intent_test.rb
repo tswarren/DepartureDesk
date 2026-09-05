@@ -16,14 +16,17 @@ class DeliveryIntentTest < ActiveSupport::TestCase
   end
 
   test "enqueue failure leaves the committed intent pending for reconciliation" do
-    DeliveryIntentJob.stub(:perform_later, ->(*) { raise ActiveJob::EnqueueError, "queue unavailable" }) do
-      assert_difference("DeliveryIntent.pending.count", 1) do
-        InviteTeamMember.new(
-          agency: agencies(:one), actor: users(:one), email: "recover@example.com",
-          role: "staff", first_name: "Process", last_name: "Recovery"
-        ).call
-      end
+    previous_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = RaisingEnqueueAdapter.new
+
+    assert_difference("DeliveryIntent.pending.count", 1) do
+      InviteTeamMember.new(
+        agency: agencies(:one), actor: users(:one), email: "recover@example.com",
+        role: "staff", first_name: "Process", last_name: "Recovery"
+      ).call
     end
+  ensure
+    ActiveJob::Base.queue_adapter = previous_adapter
   end
 
   test "replacement invitation versions have distinct idempotency keys" do
@@ -50,5 +53,15 @@ class DeliveryIntentTest < ActiveSupport::TestCase
 
     assert_equal old_version + 1, user.reload.password_reset_version
     assert_equal user.password_reset_version, DeliveryIntent.password_reset.last.subject_version
+  end
+
+  class RaisingEnqueueAdapter
+    def enqueue(*)
+      raise ActiveJob::EnqueueError, "queue unavailable"
+    end
+
+    def enqueue_at(*)
+      raise ActiveJob::EnqueueError, "queue unavailable"
+    end
   end
 end
