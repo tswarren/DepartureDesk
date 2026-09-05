@@ -55,6 +55,7 @@ class RecoverAgencyAdministratorTest < ActiveSupport::TestCase
     RevokeInvitation.new(
       agency: provisioned.agency,
       actor_identifier: "ops:recovery",
+      privileged: true,
       membership: provisioned.membership
     ).call
 

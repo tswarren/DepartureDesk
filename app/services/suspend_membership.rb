@@ -1,9 +1,8 @@
 class SuspendMembership < MembershipCommand
-  def initialize(agency:, membership:, actor: nil, actor_identifier: nil)
+  def initialize(agency:, membership:, actor: nil, actor_identifier: nil, privileged: false)
     @agency = agency
-    @actor = actor
-    @actor_identifier = actor_identifier
     @membership = membership
+    assign_command_actors(actor:, actor_identifier:, privileged:)
   end
 
   def call
@@ -32,7 +31,6 @@ class SuspendMembership < MembershipCommand
     audit!(
       agency: @agency,
       action: "team.membership_suspended",
-      actor: @actor,
       subject: @membership,
       details: {
         "membership_id" => @membership.id,

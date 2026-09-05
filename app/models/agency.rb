@@ -12,6 +12,7 @@ class Agency < ApplicationRecord
 
     enum :status, STATUSES.index_by(&:itself)
 
+    normalizes :name, with: ->(value) { value&.strip }
     normalizes :legal_name, with: ->(value) { value&.strip.presence }
     normalizes :country_code, with: ->(value) { value&.strip&.upcase }
 

@@ -121,4 +121,36 @@ class AuditEventTest < ActiveSupport::TestCase
 
     assert event.valid?
   end
+
+  test "refuses a system audit without an actor identifier" do
+    assert_raises(ArgumentError) do
+      RecordAdministrativeAudit.record(
+        agency: agencies(:one),
+        action: "agency.profile_updated",
+        subject: agencies(:one)
+      )
+    end
+  end
+
+  test "rejects an agency subject that is not the event agency" do
+    assert_raises(ArgumentError) do
+      RecordAdministrativeAudit.record(
+        agency: agencies(:one),
+        action: "agency.profile_updated",
+        actor_user: users(:one),
+        subject: agencies(:two)
+      )
+    end
+  end
+
+  test "rejects a membership subject that does not belong to the event agency" do
+    assert_raises(ArgumentError) do
+      RecordAdministrativeAudit.record(
+        agency: agencies(:one),
+        action: "team.role_changed",
+        actor_user: users(:one),
+        subject: agency_memberships(:two)
+      )
+    end
+  end
 end

@@ -1,13 +1,12 @@
 class InviteTeamMember < MembershipCommand
-  def initialize(agency:, email:, role:, first_name:, last_name:, preferred_name: nil, actor: nil, actor_identifier: nil)
+  def initialize(agency:, email:, role:, first_name:, last_name:, preferred_name: nil, actor: nil, actor_identifier: nil, privileged: false)
     @agency = agency
-    @actor = actor
-    @actor_identifier = actor_identifier
     @email = email.to_s.strip.downcase
     @role = role
     @first_name = first_name
     @last_name = last_name
     @preferred_name = preferred_name
+    assign_command_actors(actor:, actor_identifier:, privileged:)
   end
 
   def call

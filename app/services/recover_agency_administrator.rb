@@ -29,28 +29,22 @@ class RecoverAgencyAdministrator
     result = nil
 
     ActiveRecord::Base.transaction do
-      @agency.with_lock do
-        unless @agency.active?
-          raise Error.new("The agency must be active to recover an administrator.", code: :invalid_state)
-        end
-
-        RecordAdministrativeAudit.record(
-          agency: @agency,
-          action: "team.administrator_recovery_started",
-          actor_identifier: @actor_identifier,
-          subject: @agency,
-          details: { "reason" => @reason, "mode" => @mode }
-        )
-
-        result = case @mode
-        when "replace_invitation"
-          replace_invitation!
-        when "reactivate"
-          reactivate!
-        when "invite_replacement"
-          invite_replacement!
-        else
-          raise Error.new("Unknown recovery mode.", code: :invalid)
+      if @mode == "reactivate"
+        ensure_agency_active!
+        record_recovery_started!
+        result = reactivate!
+      else
+        @agency.with_lock do
+          ensure_agency_active!
+          record_recovery_started!
+          result = case @mode
+          when "replace_invitation"
+            replace_invitation!
+          when "invite_replacement"
+            invite_replacement!
+          else
+            raise Error.new("Unknown recovery mode.", code: :invalid)
+          end
         end
       end
     end
@@ -62,6 +56,22 @@ class RecoverAgencyAdministrator
 
   private
 
+  def ensure_agency_active!
+    unless @agency.reload.active?
+      raise Error.new("The agency must be active to recover an administrator.", code: :invalid_state)
+    end
+  end
+
+  def record_recovery_started!
+    RecordAdministrativeAudit.record(
+      agency: @agency,
+      action: "team.administrator_recovery_started",
+      actor_identifier: @actor_identifier,
+      subject: @agency,
+      details: { "reason" => @reason, "mode" => @mode }
+    )
+  end
+
   def replace_invitation!
     membership = locked_target
     unless membership.administrator? && (membership.invited? || membership.revoked?)
@@ -71,12 +81,13 @@ class RecoverAgencyAdministrator
     ReplaceInvitation.new(
       agency: @agency,
       actor_identifier: @actor_identifier,
+      privileged: true,
       membership: membership
     ).call
   end
 
   def reactivate!
-    membership = locked_target
+    membership = unlocked_target
     unless membership.administrator? && membership.suspended?
       raise Error.new("That membership cannot be reactivated.", code: :invalid_state)
     end
@@ -84,6 +95,7 @@ class RecoverAgencyAdministrator
     ReactivateMembership.new(
       agency: @agency,
       actor_identifier: @actor_identifier,
+      privileged: true,
       membership: membership
     ).call
   end
@@ -95,6 +107,7 @@ class RecoverAgencyAdministrator
     result = InviteTeamMember.new(
       agency: @agency,
       actor_identifier: @actor_identifier,
+      privileged: true,
       email: @email,
       role: "administrator",
       first_name: @first_name,
@@ -110,10 +123,15 @@ class RecoverAgencyAdministrator
   end
 
   def locked_target
+    membership = unlocked_target
+    membership.lock!
+    membership
+  end
+
+  def unlocked_target
     raise Error.new("A target membership is required.", code: :invalid) unless @membership
     raise Error.new("That membership is not part of this agency.", code: :invalid) unless @membership.agency_id == @agency.id
 
-    @membership.lock!
     @membership
   end
 end
