@@ -1,16 +1,17 @@
 module ApplicationCable
   class Connection < ActionCable::Connection::Base
-    identified_by :current_user
+    identified_by :current_user, :current_agency
 
     def connect
-      set_current_user || reject_unauthorized_connection
-    end
+      session = Session.includes(
+        user: { active_agency_memberships: :agency }
+      ).find_by(id: cookies.signed[:session_id])
 
-    private
-      def set_current_user
-        if session = Session.find_by(id: cookies.signed[:session_id])
-          self.current_user = session.user
-        end
-      end
+      membership = session&.user&.usable_agency_membership
+      reject_unauthorized_connection unless membership
+
+      self.current_user = session.user
+      self.current_agency = membership.agency
+    end
   end
 end

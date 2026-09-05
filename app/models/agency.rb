@@ -1,4 +1,9 @@
 class Agency < ApplicationRecord
+    has_many :agency_memberships, dependent: :restrict_with_exception
+    has_many :users, through: :agency_memberships
+    has_many :audit_events, dependent: :restrict_with_exception
+    has_many :agency_provisioning_requests, dependent: :restrict_with_exception
+
     STATUSES = %w[
       active
       suspended
@@ -6,6 +11,9 @@ class Agency < ApplicationRecord
     ].freeze
 
     enum :status, STATUSES.index_by(&:itself)
+
+    normalizes :legal_name, with: ->(value) { value&.strip.presence }
+    normalizes :country_code, with: ->(value) { value&.strip&.upcase }
 
     validates :name, presence: true
     validates :default_timezone, presence: true
@@ -15,8 +23,18 @@ class Agency < ApplicationRecord
         with: /\A[A-Z]{3}\z/,
         message: "must be a three-letter uppercase currency code"
       }
+    validates :country_code,
+      presence: true,
+      format: {
+        with: /\A[A-Z]{2}\z/,
+        message: "must be a two-letter uppercase country code"
+      }
 
     validate :default_timezone_must_be_valid
+
+    def formal_name
+      legal_name.presence || name
+    end
 
     private
 

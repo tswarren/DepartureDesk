@@ -1,0 +1,119 @@
+class RecoverAgencyAdministrator
+  class Error < StandardError
+    attr_reader :code
+
+    def initialize(message, code: :invalid)
+      super(message)
+      @code = code
+    end
+  end
+
+  def initialize(agency:, actor_identifier:, reason:, mode:, membership: nil, email: nil,
+    first_name: nil, last_name: nil, preferred_name: nil)
+    @agency = agency
+    @actor_identifier = actor_identifier
+    @reason = reason.to_s.strip
+    @mode = mode.to_s
+    @membership = membership
+    @email = email
+    @first_name = first_name
+    @last_name = last_name
+    @preferred_name = preferred_name
+  end
+
+  def call
+    raise Error.new("A reason is required.", code: :invalid) if @reason.blank?
+    raise Error.new("Operator identifier is required.", code: :invalid) if @actor_identifier.blank?
+    raise Error.new("The agency must be active to recover an administrator.", code: :invalid_state) unless @agency.active?
+
+    result = nil
+
+    ActiveRecord::Base.transaction do
+      @agency.with_lock do
+        unless @agency.active?
+          raise Error.new("The agency must be active to recover an administrator.", code: :invalid_state)
+        end
+
+        RecordAdministrativeAudit.record(
+          agency: @agency,
+          action: "team.administrator_recovery_started",
+          actor_identifier: @actor_identifier,
+          subject: @agency,
+          details: { "reason" => @reason, "mode" => @mode }
+        )
+
+        result = case @mode
+        when "replace_invitation"
+          replace_invitation!
+        when "reactivate"
+          reactivate!
+        when "invite_replacement"
+          invite_replacement!
+        else
+          raise Error.new("Unknown recovery mode.", code: :invalid)
+        end
+      end
+    end
+
+    result
+  rescue MembershipCommand::Error => error
+    raise Error.new(error.message, code: error.code)
+  end
+
+  private
+
+  def replace_invitation!
+    membership = locked_target
+    unless membership.administrator? && (membership.invited? || membership.revoked?)
+      raise Error.new("That membership cannot receive a replacement invitation.", code: :invalid_state)
+    end
+
+    ReplaceInvitation.new(
+      agency: @agency,
+      actor_identifier: @actor_identifier,
+      membership: membership
+    ).call
+  end
+
+  def reactivate!
+    membership = locked_target
+    unless membership.administrator? && membership.suspended?
+      raise Error.new("That membership cannot be reactivated.", code: :invalid_state)
+    end
+
+    ReactivateMembership.new(
+      agency: @agency,
+      actor_identifier: @actor_identifier,
+      membership: membership
+    ).call
+  end
+
+  def invite_replacement!
+    raise Error.new("An email is required.", code: :invalid) if @email.blank?
+    raise Error.new("A first and last name are required.", code: :invalid) if @first_name.blank? || @last_name.blank?
+
+    result = InviteTeamMember.new(
+      agency: @agency,
+      actor_identifier: @actor_identifier,
+      email: @email,
+      role: "administrator",
+      first_name: @first_name,
+      last_name: @last_name,
+      preferred_name: @preferred_name
+    ).call
+
+    unless result.enqueue_mail?
+      raise Error.new("The replacement administrator cannot be invited.", code: :conflict)
+    end
+
+    result
+  end
+
+  def locked_target
+    raise Error.new("A target membership is required.", code: :invalid) unless @membership
+    raise Error.new("That membership is not part of this agency.", code: :invalid) unless @membership.agency_id == @agency.id
+
+    @membership.lock!
+    @membership
+  end
+end

@@ -234,6 +234,7 @@
     gap: 0.8rem;
   }
 
+  .dd-account-agency,
   .dd-account-email {
     max-width: 15rem;
     overflow: hidden;
@@ -241,6 +242,10 @@
     font-size: 0.8rem;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .dd-account-agency {
+    font-weight: 600;
   }
 
   .dd-workspace {
@@ -578,10 +583,41 @@
     outline-offset: 2px;
   }
 
+  select.dd-field {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23007080' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6.5 8 10.5 12 6.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 0.85rem;
+    padding-right: 2.25rem;
+  }
+
   .dd-form-actions {
     display: flex;
     align-items: center;
     gap: 1rem;
+  }
+
+  .dd-field-error {
+    color: var(--dd-danger-text);
+    font-size: 0.82rem;
+  }
+
+  .dd-definition-list {
+    display: grid;
+    gap: 1rem;
+    margin: 0;
+    padding: 1.25rem;
+  }
+
+  .dd-definition-list dt {
+    color: var(--dd-text-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .dd-definition-list dd {
+    margin: 0.2rem 0 0;
   }
 
   .dd-alert {
@@ -714,6 +750,10 @@
 
     .dd-account-email {
       display: none;
+    }
+
+    .dd-account-agency {
+      display: inline-block;
     }
 
     .dd-page-header {

@@ -211,12 +211,22 @@ The exact implementation will evolve, but agents must not collapse these into on
 
 ## Authentication and tenancy
 
-- Authentication currently uses `User`, `Session`, bcrypt, and a signed permanent session cookie.
+- Authentication uses `User`, `Session`, bcrypt, and a signed permanent session cookie.
+- Tenant context is derived from `User#usable_agency_membership`. That resolver returns a membership only when exactly one active membership exists and its agency is active.
+- `Current.session` is the authentication root. `Current.user`, `Current.agency_membership`, and `Current.agency` are derived from it. Never establish tenancy from `params[:agency_id]`, headers, or extra cookies.
+- Login and every authenticated request fail closed when a usable membership cannot be resolved. Do not reveal whether credentials, membership, or agency failed.
+- Membership or agency suspension destroys the current session and clears the session cookie.
 - Successful authentication redirects through the named root route; keep `root_url` available unless authentication behavior is intentionally changed.
 - Do not expose whether an email address exists during password-reset flows.
 - Never log plaintext passwords, tokens, payment credentials, passport data, or other sensitive traveler information.
 - The current seed credential is development-only.
-- Business records should be scoped to an Agency as the domain expands. Do not rely on a client-supplied agency ID without authorization against the current user/session.
+- Administrator capabilities are membership-scoped (`Current.agency_membership.administrator?`), not a property on `User`.
+- Tenant administrators may edit the current agency profile. They may not create agencies, change lifecycle status, or delete an agency.
+- Team administration manages `AgencyMembership` through explicit commands. Invitations are distinct from password resets and never disclose whether an email exists in another agency.
+- Agency provisioning, lifecycle, and administrator recovery are privileged commands (`ProvisionAgency`, `ChangeAgencyStatus`, `RecoverAgencyAdministrator`), not tenant-facing routes. System audit events require `actor_identifier` and must not invent a platform user. Command output may print identifiers only—never passwords or invitation tokens.
+- Administrative mutations write append-only `AuditEvent` records in the same transaction. Audit events reject update and destroy in the application and in PostgreSQL.
+- Business records must be loaded through `Current.agency`. Do not use a tenant `default_scope`. Do not rely on a client-supplied agency ID without authorization against the current user/session.
+- Action Cable identifies `current_user` and `current_agency` from the same resolver. It must not copy request `Current` onto a long-lived connection.
 - Treat passenger identity documents and payment information as sensitive data requiring explicit retention, access, and audit rules before implementation.
 
 ## Tests
@@ -229,7 +239,7 @@ Run:
 ./dev/rails-docker bin/rails test
 ```
 
-Also run system tests for browser-visible workflows when present.
+Also run system tests for browser-visible workflows when a browser is available. They run in GitHub CI. The local Docker image does not include Chrome, so `bin/ci` skips that step there.
 
 Testing rules:
 

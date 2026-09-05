@@ -1,0 +1,56 @@
+<% content_for :title, "Invite someone · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div>
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">Invite someone</h1>
+    <p class="dd-page-description">
+      They will choose their own password. You will not be shown whether this
+      address belongs to another agency.
+    </p>
+  </div>
+</header>
+
+<p><%= link_to "Back to team", administration_team_members_path, class: "dd-auth-link" %></p>
+
+<article class="dd-panel">
+  <% if @invitation.errors.any? %>
+    <div class="dd-alert dd-alert--danger" role="alert">
+      <p>Please correct the following:</p>
+      <ul>
+        <% @invitation.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= form_with model: @invitation,
+    url: administration_invitations_path,
+    method: :post,
+    class: "dd-form" do |form| %>
+    <div class="dd-field-group">
+      <%= form.label :email_address, "Email address", class: "dd-label" %>
+      <%= form.email_field :email_address, required: true, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :first_name, class: "dd-label" %>
+      <%= form.text_field :first_name, required: true, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :last_name, class: "dd-label" %>
+      <%= form.text_field :last_name, required: true, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :preferred_name, class: "dd-label" %>
+      <%= form.text_field :preferred_name, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :role, class: "dd-label" %>
+      <%= form.select :role, AgencyMembership::ROLES, {}, class: "dd-field" %>
+    </div>
+    <div class="dd-form-actions">
+      <%= form.submit "Send invitation", class: "dd-button" %>
+    </div>
+  <% end %>
+</article>

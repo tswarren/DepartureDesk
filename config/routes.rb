@@ -12,6 +12,22 @@ Rails.application.routes.draw do
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
   # Defines the root path route ("/")
+  namespace :administration do
+    resource :agency, only: %i[show edit update]
+    resources :team_members, only: %i[index show] do
+      member do
+        patch :role
+        post :suspend
+        post :reactivate
+        post :replace_invitation
+        post :revoke_invitation
+      end
+    end
+    resources :invitations, only: %i[new create]
+  end
+
+  resources :invitation_acceptances, param: :token, only: %i[edit update]
+
   root "dashboard#show"
 
   if Rails.env.development?

@@ -1,0 +1,74 @@
+<% content_for :title, "#{@membership.user.display_name} · Team · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div>
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title"><%= @membership.user.display_name %></h1>
+    <p class="dd-page-description"><%= @membership.user.email_address %></p>
+  </div>
+</header>
+
+<p><%= link_to "Back to team", administration_team_members_path, class: "dd-auth-link" %></p>
+
+<article class="dd-panel">
+  <dl class="dd-definition-list">
+    <div>
+      <dt>Role</dt>
+      <dd><%= @membership.role %></dd>
+    </div>
+    <div>
+      <dt>Access</dt>
+      <dd><%= @membership.status %></dd>
+    </div>
+  </dl>
+
+  <% if @membership.active? || @membership.suspended? %>
+    <%= form_with url: role_administration_team_member_path(@membership), method: :patch, class: "dd-form" do %>
+      <div class="dd-field-group">
+        <label class="dd-label" for="role">Change role</label>
+        <select name="role" id="role" class="dd-field">
+          <% AgencyMembership::ROLES.each do |role| %>
+            <option value="<%= role %>" <%= "selected" if @membership.role == role %>><%= role %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Update role", class: "dd-button" %>
+      </div>
+    <% end %>
+  <% end %>
+
+  <% if @membership.active? %>
+    <%= form_with url: suspend_administration_team_member_path(@membership), method: :post, class: "dd-form" do %>
+      <p>Suspending access signs this person out and keeps their membership history.</p>
+      <div class="dd-form-actions">
+        <%= submit_tag "Suspend access", class: "dd-button", data: { turbo_confirm: "Suspend access for #{@membership.user.display_name}?" } %>
+      </div>
+    <% end %>
+  <% end %>
+
+  <% if @membership.suspended? %>
+    <%= form_with url: reactivate_administration_team_member_path(@membership), method: :post, class: "dd-form" do %>
+      <div class="dd-form-actions">
+        <%= submit_tag "Reactivate access", class: "dd-button" %>
+      </div>
+    <% end %>
+  <% end %>
+
+  <% if @membership.invited? || @membership.revoked? %>
+    <%= form_with url: replace_invitation_administration_team_member_path(@membership), method: :post, class: "dd-form" do %>
+      <p>Replacing the invitation invalidates the previous link.</p>
+      <div class="dd-form-actions">
+        <%= submit_tag "Replace invitation", class: "dd-button" %>
+      </div>
+    <% end %>
+  <% end %>
+
+  <% if @membership.invited? %>
+    <%= form_with url: revoke_invitation_administration_team_member_path(@membership), method: :post, class: "dd-form" do %>
+      <div class="dd-form-actions">
+        <%= submit_tag "Revoke invitation", class: "dd-button", data: { turbo_confirm: "Revoke this invitation?" } %>
+      </div>
+    <% end %>
+  <% end %>
+</article>

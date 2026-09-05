@@ -1,0 +1,96 @@
+<% content_for :title, "Edit agency profile · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div>
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">Edit agency profile</h1>
+    <p class="dd-page-description">
+      Changing timezone or currency does not rewrite existing operational or
+      financial records.
+    </p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <% if @agency.errors.any? %>
+    <div class="dd-alert dd-alert--danger" role="alert">
+      <p>Please correct the following:</p>
+      <ul>
+        <% @agency.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= form_with model: @agency,
+    url: administration_agency_path,
+    method: :patch,
+    class: "dd-form" do |form| %>
+    <%= form.hidden_field :lock_version %>
+
+    <div class="dd-field-group">
+      <%= form.label :name, "Display name", class: "dd-label" %>
+      <%= form.text_field :name,
+        required: true,
+        class: "dd-field",
+        aria: { invalid: @agency.errors[:name].any?, describedby: ("agency_name_error" if @agency.errors[:name].any?) } %>
+      <% if @agency.errors[:name].any? %>
+        <p id="agency_name_error" class="dd-field-error"><%= @agency.errors[:name].to_sentence %></p>
+      <% end %>
+    </div>
+
+    <div class="dd-field-group">
+      <%= form.label :legal_name, "Legal name", class: "dd-label" %>
+      <%= form.text_field :legal_name,
+        class: "dd-field",
+        aria: { invalid: @agency.errors[:legal_name].any?, describedby: ("agency_legal_name_error" if @agency.errors[:legal_name].any?) } %>
+      <% if @agency.errors[:legal_name].any? %>
+        <p id="agency_legal_name_error" class="dd-field-error"><%= @agency.errors[:legal_name].to_sentence %></p>
+      <% end %>
+    </div>
+
+    <div class="dd-field-group">
+      <%= form.label :country_code, "Country", class: "dd-label" %>
+      <%= form.select :country_code,
+        agency_country_code_choices(@agency.country_code),
+        {},
+        required: true,
+        class: "dd-field",
+        aria: { invalid: @agency.errors[:country_code].any?, describedby: ("agency_country_code_error" if @agency.errors[:country_code].any?) } %>
+      <% if @agency.errors[:country_code].any? %>
+        <p id="agency_country_code_error" class="dd-field-error"><%= @agency.errors[:country_code].to_sentence %></p>
+      <% end %>
+    </div>
+
+    <div class="dd-field-group">
+      <%= form.label :default_timezone, "Default timezone", class: "dd-label" %>
+      <%= form.select :default_timezone,
+        agency_timezone_choices(@agency.default_timezone),
+        {},
+        required: true,
+        class: "dd-field",
+        aria: { invalid: @agency.errors[:default_timezone].any?, describedby: ("agency_default_timezone_error" if @agency.errors[:default_timezone].any?) } %>
+      <% if @agency.errors[:default_timezone].any? %>
+        <p id="agency_default_timezone_error" class="dd-field-error"><%= @agency.errors[:default_timezone].to_sentence %></p>
+      <% end %>
+    </div>
+
+    <div class="dd-field-group">
+      <%= form.label :default_currency, "Default currency", class: "dd-label" %>
+      <%= form.text_field :default_currency,
+        required: true,
+        maxlength: 3,
+        class: "dd-field",
+        aria: { invalid: @agency.errors[:default_currency].any?, describedby: ("agency_default_currency_error" if @agency.errors[:default_currency].any?) } %>
+      <% if @agency.errors[:default_currency].any? %>
+        <p id="agency_default_currency_error" class="dd-field-error"><%= @agency.errors[:default_currency].to_sentence %></p>
+      <% end %>
+    </div>
+
+    <div class="dd-form-actions">
+      <%= form.submit "Save profile", class: "dd-button" %>
+      <%= link_to "Cancel", administration_agency_path, class: "dd-auth-link" %>
+    </div>
+  <% end %>
+</article>

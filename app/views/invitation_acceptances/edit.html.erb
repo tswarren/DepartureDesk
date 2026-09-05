@@ -1,0 +1,22 @@
+<% content_for :title, "Accept invitation · DepartureDesk" %>
+
+<% if alert = flash[:alert] %>
+  <p class="dd-alert dd-alert--danger" role="alert"><%= alert %></p>
+<% end %>
+
+<h1>Set your password</h1>
+<p class="dd-auth-intro">Choose a password to join your agency workspace.</p>
+
+<%= form_with url: invitation_acceptance_path(params[:token]), method: :patch, class: "dd-form" do |form| %>
+  <div class="dd-field-group">
+    <%= form.label :password, class: "dd-label" %>
+    <%= form.password_field :password, required: true, maxlength: 72, class: "dd-field", autocomplete: "new-password" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :password_confirmation, class: "dd-label" %>
+    <%= form.password_field :password_confirmation, required: true, maxlength: 72, class: "dd-field", autocomplete: "new-password" %>
+  </div>
+  <div class="dd-form-actions">
+    <%= form.submit "Join DepartureDesk", class: "dd-button" %>
+  </div>
+<% end %>
