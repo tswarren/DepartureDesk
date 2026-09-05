@@ -1,3 +1,85 @@
-<!-- app/views/dashboard/show.html.erb -->
-<h1>DepartureDesk</h1>
-<p>Welcome to your group travel workspace.</p>
+<% content_for :title, "Dashboard · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div>
+    <p class="dd-eyebrow">Operations</p>
+    <h1 class="dd-page-title">Dashboard</h1>
+    <p class="dd-page-description">
+      Your overview of active departures, upcoming commitments, and financial exposure.
+    </p>
+  </div>
+
+  <button class="dd-button" type="button" disabled title="Available when departure management is added">
+    New departure
+  </button>
+</header>
+
+<section class="dd-grid dd-grid--metrics" aria-label="Departure summary">
+  <article class="dd-panel dd-metric">
+    <span class="dd-metric-label">Active departures</span>
+    <strong class="dd-metric-value">0</strong>
+    <span class="dd-metric-detail">No departures in operation</span>
+  </article>
+
+  <article class="dd-panel dd-metric">
+    <span class="dd-metric-label">Travelers booked</span>
+    <strong class="dd-metric-value">0</strong>
+    <span class="dd-metric-detail">Across open departures</span>
+  </article>
+
+  <article class="dd-panel dd-metric">
+    <span class="dd-metric-label">Client balance due</span>
+    <strong class="dd-metric-value">$0.00</strong>
+    <span class="dd-metric-detail">Confirmed client charges</span>
+  </article>
+
+  <article class="dd-panel dd-metric">
+    <span class="dd-metric-label">Guaranteed exposure</span>
+    <strong class="dd-metric-value">$0.00</strong>
+    <span class="dd-metric-detail">Uncovered supplier commitments</span>
+  </article>
+</section>
+
+<section class="dd-grid dd-grid--main">
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Upcoming departures</h2>
+      <span class="dd-badge dd-badge--neutral">No records</span>
+    </header>
+
+    <div class="dd-empty-state">
+      <div class="dd-empty-icon" aria-hidden="true">↗</div>
+      <h3 class="dd-empty-title">No departures yet</h3>
+      <p class="dd-empty-copy">
+        Departure records will bring supplier commitments, client reservations,
+        travelers, and payment tracking together.
+      </p>
+    </div>
+  </article>
+
+  <aside class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Waypoints</h2>
+      <span class="dd-badge dd-badge--warning">Attention</span>
+    </header>
+
+    <div class="dd-panel-body">
+      <ul class="dd-list">
+        <li class="dd-list-item">
+          <span class="dd-waypoint" aria-hidden="true"></span>
+          <span>
+            <strong class="dd-list-title">Foundation ready</strong>
+            <span class="dd-list-detail">Authentication, PostgreSQL, and background jobs are configured.</span>
+          </span>
+        </li>
+        <li class="dd-list-item">
+          <span class="dd-waypoint" aria-hidden="true"></span>
+          <span>
+            <strong class="dd-list-title">Define the first departure</strong>
+            <span class="dd-list-detail">The domain workflow will become the first operational waypoint.</span>
+          </span>
+        </li>
+      </ul>
+    </div>
+  </aside>
+</section>
