@@ -49,6 +49,7 @@ These decisions are closed for Phase 2. Implementation slices may refine persist
 - Unique `(agency_id, user_id)` already exists on membership. Add unique `(agency_id, person_party_id)` where `person_party_id` is present.
 - The linked party must have `party_kind = person` and `agency_id` matching the membership.
 - `person_party_id` may be null on an invited membership. Active memberships require a linked person.
+- The migration may add the link as nullable, backfill active memberships, validate the backfill, and then enforce the active-membership invariant at the application and database-supported lifecycle boundaries. Pending invitations remain nullable until acceptance. A column-level `NOT NULL` is not available for that lifecycle rule; do not pretend it is an ordinary non-null column. A named check such as “active memberships must have `person_party_id`” is allowed.
 - A person links to at most one membership in the agency. Resolving a user-link conflict is administrator-only.
 - Cross-agency association fails closed. Composite foreign keys must keep membership, person, and agency aligned.
 - `ProvisionAgency`, invitation acceptance, and `RecoverAgencyAdministrator` must use the same linking service.
@@ -71,13 +72,13 @@ Phase 2 does not introduce RBAC, policy gems, or record-by-record grants. It use
 | Resolve user-link conflicts | No | Yes |
 | Hard remediation or exceptional deletion | No | Yes |
 
-Restricted notes in Phase 2 are only standard internal notes and administrator-only notes. Broader classification waits for a demonstrated access requirement.
+Phase 2 supports standard internal notes visible to authorized agency staff and administrator-only notes visible to administrators. It does not implement office-scoped, user-scoped, or custom note visibility. If a later operational need justifies office-scoped notes, that must be added with an explicit authorization contract.
 
 ### Office visibility and responsibility
 
 Authorized agency staff can find agency parties regardless of responsible office. Office assignments guide responsibility, defaults, and later operational scope; they do not partition the directory.
 
-Note classification may restrict note content. The existence of a party is not hidden by office.
+Administrator-only notes may restrict note content. The existence of a party is not hidden by office.
 
 Responsible office belongs on client and supplier profiles, not on the party root. Those rows carry `agency_id` and enforce matching `(office_id, agency_id)`. Team members already have office access through `OfficeAssignment`.
 
@@ -92,6 +93,7 @@ A household is a named servicing and communication collective party.
 - Household client and person client profiles may coexist.
 - Client status is never inferred between a household and its members.
 - Household does not mean insurance household, traveling party, occupancy group, payer group, or guardian relationship.
+- A household’s primary general contact is derived from its current contact-purpose assignments. It is not stored independently on the household profile.
 
 `docs/terminology.md` must change in 2A. “Party = person or organization” must not contradict the schema.
 
@@ -103,8 +105,19 @@ A household is a named servicing and communication collective party.
 - Person display and sort names derive from structured person names.
 - Household display names derive from the household name.
 - Organization display names derive from trading name when present, otherwise legal name.
-- Every directory table that is application-owned uses UUID primary keys, `agency_id`, `timestamptz`, and `lock_version` on mutable aggregates.
+- An organization may have one current canonical trading name on its organization profile. Alternate-name records hold former trading names, additional doing-business-as names, acronyms, aliases, or imported representations. The current canonical trading name must not also be stored as an equivalent alternate-name row.
+- Every application-owned directory table uses UUID primary keys, `agency_id`, and timestamp-with-time-zone semantics. Independently editable aggregates use `lock_version`; join and assignment records use database constraints and transactional locking appropriate to their lifecycle.
 - Cross-agency controller tests are required for every new agency-owned resource, per ADR 0002.
+- Model and service tests must show that composite tenant constraints reject cross-agency membership-person links, party profiles, contacts, relationships, responsible offices, advisor memberships, external identifiers, and merge participants.
+
+### Role profiles
+
+- At most one client profile per party within an agency.
+- At most one supplier profile per eligible party within an agency.
+- Deactivated profiles are reactivated rather than recreated.
+- A party may hold both profiles simultaneously.
+- Client and supplier profiles must enforce that the profile party, responsible office, and primary advisor membership belong to the same agency.
+- A primary advisor must be an active membership of the same agency. Responsible office and advisor are independent attributes: the advisor is not required to hold an assignment to the profile’s responsible office. Later office-owned operational records still re-check Foundation 1 office access.
 
 ### References and external identifiers
 
@@ -114,20 +127,49 @@ Phase 2 defers generated `client_reference` and `supplier_reference`. Do not add
 
 If a later phase needs internal human-readable client or supplier references, that phase must complete ADR 0004’s issuance matrix. Those values are display and lookup aids, never authorization boundaries.
 
-Imported, supplier-issued, and other outside values use typed external identifier children. Uniqueness is declared by identifier type:
+An external identifier belongs to the narrowest entity whose identity it describes. General legal or directory identifiers belong to the party; client-system identifiers belong to the client profile; supplier-system identifiers belong to the supplier profile. An optional office scope may qualify an identifier’s issuer context but does not change ownership or create another identity.
+
+Each identifier contains:
+
+- Agency
+- Owning record
+- Controlled identifier type
+- Issuer or namespace
+- Original value
+- Normalized value
+- Declared uniqueness scope
+- Optional office context
+- Active state
+- Provenance or source
+
+Uniqueness is declared by identifier type:
 
 - unique per agency;
 - unique per issuer within an agency;
 - non-unique and advisory;
 - globally unique only where the real contract justifies that claim.
 
-No authorization decision may depend solely on an external identifier.
+Identifier types are controlled by code or seeded configuration in Phase 2. Users must not invent arbitrary uniqueness semantics while entering a value. No authorization decision may depend solely on an external identifier.
+
+Normalized values are derived projections, not canonical user data. Normalization rules must be versionable or safely rebuildable so future normalization changes can reindex the directory without rewriting original values.
 
 ### Advisor
 
 `ClientProfile.primary_advisor_membership_id` is the current operational advisor. It points at `AgencyMembership`, not merely the advisor’s person, because office access and active team status belong to membership.
 
 Advisor assignment history is effective-dated and owned by the client profile. Do not also create a generic `advisor_for` party relationship.
+
+A primary advisor must be an active membership of the same agency. The advisor is not required to have an assignment to the profile’s responsible office.
+
+### Merge execution
+
+A merge runs in one database transaction, locks and revalidates both parties, and fails if either party changes disposition or gains an unresolved dependency before commit. Merge execution must be idempotent for the same survivor and absorbed party.
+
+The merge participant registry is fail-closed. A registered participant must declare whether its references are reassigned, preserved as historical references, consolidated, or block the merge. An unresolved party dependency blocks merge; the merge service must never assume an unknown reference can be reassigned.
+
+A person linked to a membership may survive a merge. An absorbed person may not retain an active membership link. If only the absorbed person is linked, the merge transfers that link to the survivor after confirming the survivor is unlinked. If both are linked, merge is blocked pending administrator resolution.
+
+Require a concurrency test covering two simultaneous merges involving the same party.
 
 ### Snapshots
 
@@ -202,9 +244,10 @@ A household may contain:
 
 - Household name
 - Correspondence name or salutation
-- Primary household contact
 - Shared contact information
 - Effective-dated members
+
+A household’s primary general contact is derived from its current contact-purpose assignments. It is not stored independently on the household profile.
 
 Household membership alone does not establish:
 
@@ -232,23 +275,25 @@ An organization is a legal or informal entity, such as a:
 Initial organization information may include:
 
 - Legal name
-- Trading or common name
+- One current canonical trading or common name
 - Organization category
 - Website
+
+An organization may have one current canonical trading name on its organization profile. Alternate-name records hold former trading names, additional doing-business-as names, acronyms, aliases, or imported representations. The current canonical trading name must not also be stored as an equivalent alternate-name row.
 
 Parent organization is an effective-dated relationship, not a foreign key on the organization profile. Supplier and client are roles, not organization types.
 
 ### 2.5 Alternate names
 
-Because search and duplicate detection need former and trading names, Phase 2 includes a typed alternate-name child owned by the party:
+Because search and duplicate detection need former and additional names, Phase 2 includes a typed alternate-name child owned by the party:
 
 - Former name
 - Alias
-- Trading name
+- Additional trading or doing-business-as name
 - Acronym
 - Imported name
 
-Alternate names assist display, search, and matching. They do not replace the canonical structured name.
+Alternate names assist display, search, and matching. They do not replace the canonical structured name or the organization’s current trading name.
 
 ---
 
@@ -295,6 +340,10 @@ A client profile may contain directory-level information such as:
 
 It does not contain a generated or operator-entered client reference in Phase 2.
 
+A party has at most one client profile in the agency. A deactivated client profile is reactivated rather than recreated. A party may hold a client profile and a supplier profile at the same time.
+
+Client and supplier profiles must enforce that the profile party, responsible office, and primary advisor membership belong to the same agency. A primary advisor must be an active membership of the same agency and is not required to hold an assignment to the profile’s responsible office.
+
 Client status does not establish:
 
 - Traveler status
@@ -336,6 +385,8 @@ A supplier profile may include:
 These values are directory defaults. They are not posted money, arrangement terms, or ledger facts. Phase 2 does not install `money-rails` for supplier defaults. Arrangement-specific contacts, confirmation numbers, prices, deadlines, terms, documents, and obligations belong to future supplier arrangements.
 
 It does not contain a generated or operator-entered supplier reference in Phase 2.
+
+A party has at most one supplier profile in the agency. Households remain ineligible. A deactivated supplier profile is reactivated rather than recreated.
 
 ### Supplier versus supplier contact
 
@@ -493,6 +544,10 @@ Each contact point should support, as applicable:
 
 Names, addresses, phone numbers, and email addresses are not globally unique.
 
+Normalized comparison values are derived projections, not canonical user data. Normalization rules must be versionable or safely rebuildable so future normalization changes can reindex the directory without rewriting original values.
+
+Suppressed, deactivated, or do-not-use contact points remain historical and searchable only where authorized, are visibly marked, and cannot be selected as communication destinations by default.
+
 ### 8.1 Addresses
 
 Addresses should support international formats and include:
@@ -550,10 +605,11 @@ A party note should support:
 - Recorded timestamp
 - Body
 - Standard or administrator-only visibility
-- Office scope where applicable
 - Important or pinned status
 - Correction or edit history
 - Deactivation or removal disposition
+
+Phase 2 supports standard internal notes visible to authorized agency staff and administrator-only notes visible to administrators. It does not implement office-scoped, user-scoped, or custom note visibility.
 
 Phase 2 notes are general internal directory notes. Departure, traveler, supplier-arrangement, and financial notes remain within their owning domains.
 
@@ -691,10 +747,15 @@ A merge must identify:
 - Self-relationships and invalid duplicate relationships must be prevented.
 - Historical snapshots and issued documents are not rewritten.
 - Two people linked to different memberships cannot merge until the account conflict is resolved.
+- A person linked to a membership may survive a merge. An absorbed person may not retain an active membership link. If only the absorbed person is linked, the merge transfers that link to the survivor after confirming the survivor is unlinked. If both are linked, merge is blocked pending administrator resolution.
 - Conflicting controlled identifiers cannot be silently combined.
 - Every merge produces an audit event describing the material choices.
 
-Phase 2 merge is complete only for Phase 2-owned records: identities, kind profiles, contacts, alternate names, relationships, notes, client profiles, and supplier profiles. Every later domain that references a party must declare how its references participate in merge before that domain is considered complete.
+A merge runs in one database transaction, locks and revalidates both parties, and fails if either party changes disposition or gains an unresolved dependency before commit. Merge execution must be idempotent for the same survivor and absorbed party. Require a concurrency test covering two simultaneous merges involving the same party.
+
+The merge participant registry is fail-closed. A registered participant must declare whether its references are reassigned, preserved as historical references, consolidated, or block the merge. An unresolved party dependency blocks merge; the merge service must never assume an unknown reference can be reassigned.
+
+Phase 2 merge is complete only for Phase 2-owned records: identities, kind profiles, contacts, alternate names, relationships, notes, client profiles, supplier profiles, and external identifiers. Membership linkage follows the transfer-or-block rule above. Every later domain that references a party must declare how its references participate in merge before that domain is considered complete. An unregistered party foreign key is an unresolved dependency and blocks merge.
 
 DepartureDesk does not promise a general-purpose unmerge operation. An erroneous merge requires controlled administrative remediation based on the downstream records affected after the merge.
 
@@ -743,14 +804,15 @@ Office relationships may define:
 - Responsible office on a client or supplier profile
 - Primary advisor membership on a client profile
 - Office-specific supplier defaults that do not clone identity
-- Office-specific external identifiers
-- Note office scope
+- Optional office context on an external identifier, which qualifies issuer context without changing ownership or creating another identity
 
 Office reassignment does not clone or transfer the party identity.
 
 All directory actions apply the office and agency access rules established in Phase 1, with directory visibility remaining agency-wide for authorized staff.
 
 Agency-wide duplicate detection must not become a channel through which users discover administrator-only notes or other restricted content.
+
+Phase 2 does not implement office-scoped notes.
 
 ---
 
@@ -836,6 +898,7 @@ Phase 2 does not implement:
 - Insurance eligibility decisions
 - Granular RBAC
 - Office-partitioned directory visibility
+- Office-scoped, user-scoped, or custom note visibility
 - Universal snapshot storage
 - Cross-kind or cross-agency merge
 - General unmerge
@@ -871,9 +934,11 @@ Phase 2 establishes the identities and relationships these later domains will re
 - Party kind cannot be changed after create.
 - An active membership links to exactly one person in that agency.
 - A person links to no more than one membership in the agency.
+- The person link is nullable on invited memberships and required for active memberships. Enforcement is a lifecycle check, not a column-level `NOT NULL`.
 - Deactivating a user or membership and deactivating a person remain separate actions.
 - Creating a party never automatically assigns a client, supplier, or traveler role.
 - Cached display and sort names stay synchronized with canonical structured names.
+- The current canonical trading name is not duplicated as an equivalent alternate-name row.
 
 ### Exit demonstration
 
@@ -904,7 +969,10 @@ Create a person, household, and organization; find each through the agency direc
 - Relationship history is not destroyed when a relationship ends.
 - A household relationship does not imply financial, travel, or eligibility consequences.
 - Overlapping household membership and distinct-purpose affiliations remain valid.
+- A household’s primary general contact is derived from current purpose assignments, not stored on the household profile.
 - Prohibited sensitive information cannot intentionally use general party notes as its system of record.
+- Notes have only standard and administrator-only visibility.
+- Suppressed or do-not-use contact points cannot be selected as default communication destinations.
 
 ### Exit demonstration
 
@@ -934,8 +1002,12 @@ Relate one person to a household and a supplier organization, assign personal an
 - A supplier contact is not automatically a supplier.
 - A client is not automatically a traveler, payer, or responsible client.
 - Adding or removing a role does not create or deactivate the underlying identity.
+- A party has at most one client profile and, if eligible, at most one supplier profile. Deactivated profiles are reactivated rather than recreated.
+- Profile party, responsible office, and primary advisor membership belong to the same agency.
+- A primary advisor is an active membership of the same agency and is not required to hold an assignment to the profile’s responsible office.
 - Supplier-directory defaults do not replace arrangement-specific terms.
 - Advisor current value is the membership on the client profile, not a party relationship.
+- External identifiers belong to the party or the role profile they describe; optional office context does not change ownership.
 
 ### Exit demonstration
 
@@ -954,12 +1026,14 @@ Find an existing organization, add both client and supplier roles, and relate an
 - Access-safe duplicate warnings
 - Staff create-anyway workflow with audited reason
 - Administrator-only same-kind merge of Phase 2-owned records
+- Transactional, idempotent, fail-closed merge with a concurrency test for two simultaneous merges of the same party
 - Absorbed-party aliases and tombstones
+- Membership-link transfer or block during person merge
 - Merge conflict resolution
-- Documented merge-participant contract for later domains
+- Fail-closed merge-participant registry and documented contract for later domains
 - Party and role deactivation and reactivation
 - Extensible dependency-check interface with Phase 2 subscribers
-- Authorization, model, service, request, and system tests
+- Authorization, model, service, request, and system tests, including composite tenant-constraint rejection
 
 ### Required invariants
 
@@ -967,8 +1041,10 @@ Find an existing organization, add both client and supplier roles, and relate an
 - Contractually unique identifiers still enforce hard uniqueness.
 - Users cannot obtain administrator-only notes through duplicate warnings.
 - Merge requires same agency and same party kind.
+- Merge is transactional, idempotent for the same survivor and absorbed party, and fail-closed for unregistered party dependencies.
 - Historical snapshots and documents are not rewritten by merge.
 - An absorbed party cannot be reactivated independently.
+- An absorbed person cannot retain an active membership link.
 - Automatic unmerge is not part of the application contract.
 - Directory-owned dependency checks run before deactivation.
 
@@ -1011,8 +1087,8 @@ Phase 2 is complete when:
 8. Future domains have a written contract for contextual snapshots and merge participation.
 9. Search and role-specific selection reuse the same party directory.
 10. Strong duplicate candidates require an explicit, audited decision, which staff may make.
-11. Same-kind Phase 2 duplicates can be merged by an administrator without erasing absorbed identities or rewriting historical facts.
+11. Same-kind Phase 2 duplicates can be merged by an administrator without erasing absorbed identities or rewriting historical facts. Merge is transactional, idempotent, concurrency-tested, and fail-closed for unregistered party references.
 12. Party and role deactivation preserve retained history and enforce Phase 2 dependency checks.
-13. General notes cannot serve as storage for credentials, payment data, identity documents, or medical records.
+13. General notes cannot serve as storage for credentials, payment data, identity documents, or medical records, and they are not office-scoped.
 14. Office attributes control responsibility and defaults without partitioning the directory or cloning identities.
 15. The end-to-end demonstration proves that one identity can participate in multiple applicable directory roles without creating unrelated traveler, client, employee, or supplier-contact records.
