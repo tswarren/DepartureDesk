@@ -29,6 +29,8 @@ RUN apt-get update -qq && \
       build-essential \
       git \
       libpq-dev \
+      libvips42 \
+      nano \
       pkg-config \
       postgresql-client-18 \
       tzdata && \

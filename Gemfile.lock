@@ -114,6 +114,12 @@ GEM
     erubi (1.13.1)
     et-orbi (1.4.2)
       tzinfo
+    ffi (1.17.4-aarch64-linux-gnu)
+    ffi (1.17.4-aarch64-linux-musl)
+    ffi (1.17.4-arm-linux-gnu)
+    ffi (1.17.4-arm-linux-musl)
+    ffi (1.17.4-x86_64-linux-gnu)
+    ffi (1.17.4-x86_64-linux-musl)
     fugit (1.13.0)
       et-orbi (~> 1.4)
       raabro (~> 1.4)
@@ -170,11 +176,11 @@ GEM
     money (7.1.1)
       bigdecimal
       i18n (~> 1.9)
-    money-rails (2.0.0)
-      activesupport (>= 6.1)
+    money-rails (3.0.0)
+      activesupport (>= 7.0)
       monetize (~> 2.0)
       money (~> 7.0)
-      railties (>= 6.1)
+      railties (>= 7.0)
     msgpack (1.8.4)
     net-imap (0.6.6)
       date
@@ -308,6 +314,9 @@ GEM
       rubocop-performance (>= 1.24)
       rubocop-rails (>= 2.30)
     ruby-progressbar (1.13.0)
+    ruby-vips (2.3.0)
+      ffi (~> 1.12)
+      logger
     rubyzip (3.6.0)
     securerandom (0.4.1)
     selenium-webdriver (4.48.0)
@@ -398,12 +407,13 @@ DEPENDENCIES
   importmap-rails
   jbuilder
   kamal
-  money-rails (~> 2.0)
+  money-rails (~> 3.0)
   pg (~> 1.1)
   propshaft
   puma (>= 5.0)
   rails (~> 8.1.0)
   rubocop-rails-omakase
+  ruby-vips (~> 2.3)
   selenium-webdriver
   solid_cable
   solid_cache

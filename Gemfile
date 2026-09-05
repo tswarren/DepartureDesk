@@ -39,11 +39,14 @@ gem "kamal", require: false
 # Add HTTP asset caching/compression and X-Sendfile acceleration to Puma [https://github.com/basecamp/thruster/]
 gem "thruster", require: false
 
-# Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
+# Use Money-rails for currency calculations [https://github.com/RubyMoney/money-rails]
+gem "money-rails", "~> 3.0"
+
+# Use Image_Processing for image processing [https://github.com/janko/image_processing]
 gem "image_processing", "~> 2.1"
 
-# Use Money-rails for currency calculations [https://github.com/RubyMoney/money-rails]
-gem "money-rails", "~> 2.0"
+# Use Ruby-Vips for image processing [https://github.com/jcupitt/ruby-vips]
+gem "ruby-vips", "~> 2.3"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
