@@ -1,6 +1,27 @@
 class User < ApplicationRecord
   has_secure_password
   has_many :sessions, dependent: :destroy
+  has_many :agency_memberships, dependent: :restrict_with_exception
+  has_many :agencies, through: :agency_memberships
+  has_many :active_agency_memberships,
+    -> { active },
+    class_name: "AgencyMembership"
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
+
+  def usable_agency_membership
+    memberships = active_agency_memberships
+      .includes(:agency)
+      .limit(2)
+      .to_a
+
+    return unless memberships.one?
+
+    membership = memberships.first
+    membership if membership.agency.active?
+  end
+
+  def agency
+    usable_agency_membership&.agency
+  end
 end

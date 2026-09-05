@@ -22,11 +22,23 @@ module Authentication
     end
 
     def resume_session
+      return Current.session if Current.session && Current.agency
+
       Current.session ||= find_session_by_cookie
+      return unless Current.session
+
+      return Current.session if Current.agency
+
+      flash[:alert] = "Please sign in to continue."
+      terminate_session
+      nil
     end
 
     def find_session_by_cookie
-      Session.find_by(id: cookies.signed[:session_id]) if cookies.signed[:session_id]
+      return unless cookies.signed[:session_id]
+
+      Session.includes(user: { active_agency_memberships: :agency })
+        .find_by(id: cookies.signed[:session_id])
     end
 
     def request_authentication
@@ -46,7 +58,8 @@ module Authentication
     end
 
     def terminate_session
-      Current.session.destroy
+      Current.session&.destroy
+      Current.session = nil
       cookies.delete(:session_id)
     end
 end

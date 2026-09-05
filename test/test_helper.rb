@@ -14,3 +14,21 @@ module ActiveSupport
     # Add more helper methods to be used by all tests here...
   end
 end
+
+class AmbiguousMembershipRelation
+  def initialize(memberships)
+    @memberships = memberships
+  end
+
+  def includes(*)
+    self
+  end
+
+  def limit(*)
+    self
+  end
+
+  def to_a
+    @memberships
+  end
+end

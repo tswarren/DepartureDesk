@@ -1,4 +1,7 @@
 class Agency < ApplicationRecord
+    has_many :agency_memberships, dependent: :restrict_with_exception
+    has_many :users, through: :agency_memberships
+
     STATUSES = %w[
       active
       suspended

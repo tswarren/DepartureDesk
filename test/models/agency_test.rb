@@ -38,6 +38,12 @@ class AgencyTest < ActiveSupport::TestCase
       "is not a recognized IANA timezone"
   end
 
+  test "does not destroy an agency that still has memberships" do
+    assert_raises(ActiveRecord::DeleteRestrictionError) do
+      agencies(:one).destroy!
+    end
+  end
+
   test "requires an uppercase three-letter currency" do
     agency = Agency.new(
       name: "Sunrise Travel",

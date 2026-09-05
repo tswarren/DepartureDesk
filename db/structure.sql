@@ -106,6 +106,25 @@ CREATE TABLE public.agencies (
 
 
 --
+-- Name: agency_memberships; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agency_memberships (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id uuid NOT NULL,
+    agency_id uuid NOT NULL,
+    role character varying NOT NULL,
+    status character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT agency_memberships_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT agency_memberships_role_valid CHECK (((role)::text = ANY ((ARRAY['staff'::character varying, 'administrator'::character varying])::text[]))),
+    CONSTRAINT agency_memberships_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'suspended'::character varying])::text[])))
+);
+
+
+--
 -- Name: ar_internal_metadata; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -186,6 +205,14 @@ ALTER TABLE ONLY public.agencies
 
 
 --
+-- Name: agency_memberships agency_memberships_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_memberships
+    ADD CONSTRAINT agency_memberships_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: ar_internal_metadata ar_internal_metadata_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -246,6 +273,41 @@ CREATE UNIQUE INDEX index_active_storage_variant_records_uniqueness ON public.ac
 
 
 --
+-- Name: index_agency_memberships_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_agency_memberships_on_agency_id ON public.agency_memberships USING btree (agency_id);
+
+
+--
+-- Name: index_agency_memberships_on_agency_id_and_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_agency_memberships_on_agency_id_and_status ON public.agency_memberships USING btree (agency_id, status);
+
+
+--
+-- Name: index_agency_memberships_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_agency_memberships_on_user_id ON public.agency_memberships USING btree (user_id);
+
+
+--
+-- Name: index_agency_memberships_on_user_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_memberships_on_user_id_and_agency_id ON public.agency_memberships USING btree (user_id, agency_id);
+
+
+--
+-- Name: index_agency_memberships_one_active_per_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_memberships_one_active_per_user ON public.agency_memberships USING btree (user_id) WHERE ((status)::text = 'active'::text);
+
+
+--
 -- Name: index_sessions_on_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -257,6 +319,22 @@ CREATE INDEX index_sessions_on_user_id ON public.sessions USING btree (user_id);
 --
 
 CREATE UNIQUE INDEX index_users_on_email_address ON public.users USING btree (email_address);
+
+
+--
+-- Name: agency_memberships fk_rails_273f2f9052; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_memberships
+    ADD CONSTRAINT fk_rails_273f2f9052 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: agency_memberships fk_rails_3bdac11d3b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_memberships
+    ADD CONSTRAINT fk_rails_3bdac11d3b FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -290,6 +368,7 @@ ALTER TABLE ONLY public.active_storage_attachments
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260905180000'),
 ('20260905034356'),
 ('20260905034233'),
 ('20260905031826'),

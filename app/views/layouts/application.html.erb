@@ -44,6 +44,7 @@
           </nav>
 
           <div class="dd-header-account">
+            <span class="dd-account-agency"><%= Current.agency.name %></span>
             <span class="dd-account-email"><%= Current.user.email_address %></span>
             <%= button_to "Sign out",
               session_path,

@@ -234,6 +234,7 @@
     gap: 0.8rem;
   }
 
+  .dd-account-agency,
   .dd-account-email {
     max-width: 15rem;
     overflow: hidden;
@@ -241,6 +242,10 @@
     font-size: 0.8rem;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .dd-account-agency {
+    font-weight: 600;
   }
 
   .dd-workspace {
@@ -714,6 +719,10 @@
 
     .dd-account-email {
       display: none;
+    }
+
+    .dd-account-agency {
+      display: inline-block;
     }
 
     .dd-page-header {
