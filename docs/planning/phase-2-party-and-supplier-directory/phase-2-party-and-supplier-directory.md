@@ -8,7 +8,7 @@ Build the reusable identity and relationship layer used by future client, travel
 
 A person, household, or organization is created once and reused wherever that party participates in agency business. Client, supplier, traveler, organizer, payer, advisor, and contact are roles or contextual relationships—not separate identities.
 
-Phase 2A is also a Foundation 1 integration slice: every usable membership must link to an agency person, and `docs/terminology.md` must be updated so household is a party kind.
+Phase 2A is also a Foundation 1 integration slice: every membership must link to an agency person, and `docs/terminology.md` must be updated so household is a party kind.
 
 ## Demonstration
 
@@ -46,10 +46,10 @@ These decisions are closed for Phase 2. Implementation slices may refine persist
 - `Party` is agency-owned. Load directory records through `Current.agency`. Do not add a tenant `default_scope`. Do not authorize from `params[:agency_id]`.
 - Do not add `users.person_id`. `User` remains the global login identity.
 - The agency-scoped person link lives on `AgencyMembership`, the existing user-within-agency aggregate: `agency_memberships.person_party_id`.
-- Unique `(agency_id, user_id)` already exists on membership. Add unique `(agency_id, person_party_id)` where `person_party_id` is present.
-- The linked party must have `party_kind = person` and `agency_id` matching the membership.
-- `person_party_id` may be null on an invited membership. Active memberships require a linked person.
-- The migration may add the link as nullable, backfill active memberships, validate the backfill, and then enforce the active-membership invariant at the application and database-supported lifecycle boundaries. Pending invitations remain nullable until acceptance. A column-level `NOT NULL` is not available for that lifecycle rule; do not pretend it is an ordinary non-null column. A named check such as “active memberships must have `person_party_id`” is allowed.
+- Unique `(agency_id, user_id)` already exists on membership. Add unique `(agency_id, person_party_id)`.
+- The linked party must have `party_kind = person` and `agency_id` matching the membership. The foreign key targets `people (party_id, agency_id)`, so person kind is enforced by the referenced kind-profile row.
+- Every successful membership create—including invited—writes `person_party_id` in the same transaction. Invited memberships are not a null-person state. Acceptance only revalidates the existing link.
+- The migration may add the column nullable, backfill every existing membership (invited, active, suspended, revoked), validate, and then enforce `NOT NULL` plus the unique and composite foreign keys. Null `person_party_id` is not a normal post-2A state.
 - A person links to at most one membership in the agency. Resolving a user-link conflict is administrator-only.
 - Cross-agency association fails closed. Composite foreign keys must keep membership, person, and agency aligned.
 - `ProvisionAgency`, invitation acceptance, and `RecoverAgencyAdministrator` must use the same linking service.
@@ -299,7 +299,7 @@ Alternate names assist display, search, and matching. They do not replace the ca
 
 ## 3. Agency team identity
 
-Every active application membership must link to exactly one person party in that agency.
+Every application membership must link to exactly one person party in that agency.
 
 This allows an agency team member to use the same identity later as an advisor, departure manager, organizer, group leader, traveler, client, or supplier contact. Those later roles are not created in Phase 2.
 
@@ -307,7 +307,7 @@ Authentication, authorization, agency membership, and office access remain prope
 
 ### Lifecycle rules
 
-- An active membership requires a linked person.
+- Every membership, including invited, requires a linked person.
 - A person does not require a membership or user.
 - Disabling a user or suspending a membership does not deactivate the person.
 - Deactivating a person does not erase or rewrite user or membership audit history.
@@ -932,9 +932,9 @@ Phase 2 establishes the identities and relationships these later domains will re
 ### Required invariants
 
 - Party kind cannot be changed after create.
-- An active membership links to exactly one person in that agency.
+- Every membership, including invited, links to exactly one person in that agency.
 - A person links to no more than one membership in the agency.
-- The person link is nullable on invited memberships and required for active memberships. Enforcement is a lifecycle check, not a column-level `NOT NULL`.
+- After backfill, `person_party_id` is `NOT NULL`. Acceptance revalidates the existing link and does not create a person.
 - Deactivating a user or membership and deactivating a person remain separate actions.
 - Creating a party never automatically assigns a client, supplier, or traveler role.
 - Cached display and sort names stay synchronized with canonical structured names.
@@ -1078,7 +1078,7 @@ Then:
 Phase 2 is complete when:
 
 1. People, households, and organizations have stable agency-owned identities, and terminology matches that model.
-2. Every active membership is linked to a reusable person identity through `agency_memberships.person_party_id`.
+2. Every membership is linked to a reusable person identity through `agency_memberships.person_party_id`.
 3. Client and supplier profiles extend parties without duplicating them or issuing deferred references.
 4. People and organizations may act as suppliers; households may not.
 5. External contacts use person identities, effective-dated relationships, and purpose assignments.
