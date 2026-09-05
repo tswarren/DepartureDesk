@@ -65,6 +65,9 @@ end
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
+
+  # Use Letter Opener Web for email previews in development [https://github.com/rails/letter_opener_web]
+  gem "letter_opener_web"
 end
 
 group :test do
