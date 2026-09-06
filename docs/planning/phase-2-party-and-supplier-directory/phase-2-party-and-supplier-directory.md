@@ -987,15 +987,17 @@ Relate one person to a household and a supplier organization, assign personal an
 
 ## Phase 2C — Client and supplier roles
 
+The locked implementation contract is [phase-2c-client-and-supplier-roles.md](phase-2c-client-and-supplier-roles.md). Implement as 2C.1–2C.4.
+
 ### Deliverables
 
 - Client profiles for people, households, and organizations
 - Supplier profiles for people and organizations
 - Independent lifecycle for role profiles
-- Responsible office on role profiles
-- Current advisor membership and advisor history on client profiles
+- Responsible office on role profiles, required and active while the role is active
+- Current advisor membership and retained effective-dated advisor history on client profiles
 - Supplier service categories and non-authoritative directory defaults
-- Role-filtered client and supplier directories
+- Role-filtered client and supplier directories keyed by party UUID
 - Add-role-to-existing-party workflows
 - Reusable role-aware party selector
 - Typed external identifiers
@@ -1003,20 +1005,24 @@ Relate one person to a household and a supplier organization, assign personal an
 
 ### Required invariants
 
-- Households cannot receive supplier profiles.
-- A supplier contact is not automatically a supplier.
+- Households cannot receive supplier profiles. Kind is stored on the profile and enforced by composite FK to `parties (id, agency_id, party_kind)`.
+- Profile primary keys are distinct UUIDv7 values, not `parties.id`.
+- A supplier contact is not automatically a supplier. Supplier-contact workflows reuse 2B relationships and purposes.
 - A client is not automatically a traveler, payer, or responsible client.
 - Adding or removing a role does not create or deactivate the underlying identity.
 - A party has at most one client profile and, if eligible, at most one supplier profile. Deactivated profiles are reactivated rather than recreated.
-- Profile party, responsible office, and primary advisor membership belong to the same agency.
-- A primary advisor is an active membership of the same agency and is not required to hold an assignment to the profile’s responsible office.
+- Active profiles require an active responsible office via a state-bearing office-status projection. `responsible_office_id` is present on every profile. Inactive profiles may retain a later-inactive office.
+- Profile party, responsible office, and primary advisor membership belong to the same agency. Profile `agency_id`, `party_id`, and `party_kind` are immutable.
+- A primary advisor is an active membership of the same agency and is not required to hold an assignment to the profile’s responsible office. The current pointer uses a state-bearing membership-status FK; history does not.
+- Advisor history intervals do not overlap. 2C does not ship advisor correction.
 - Supplier-directory defaults do not replace arrangement-specific terms.
 - Advisor current value is the membership on the client profile, not a party relationship.
-- External identifiers belong to the party or the role profile they describe; optional office context does not change ownership.
+- External identifiers belong to the party or the role profile they describe. 2C identifier types do not use office context. Identity fields are immutable; a wrong value is deactivated and replaced.
+- User-facing identity and routes are party UUIDs, not profile UUIDs.
 
 ### Exit demonstration
 
-Find an existing organization, add both client and supplier roles, and relate an existing person as its booking contact without duplicating either identity. Separately assign a supplier profile to an independent person provider.
+Find an existing organization, add both client and supplier roles, and relate an existing person as its booking contact without duplicating either identity. Separately assign a supplier profile to an independent person provider. Deactivate the organization’s supplier role without affecting its client role or party UUID; reactivate the same supplier-profile row against an active office.
 
 ---
 
