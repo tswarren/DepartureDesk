@@ -735,7 +735,7 @@ Cover:
 * `no_preference` lists general primaries by kind
 * Staff cannot infer administrator-only notes
 * Keyboard, labels, focus, responsive layout
-* After Turbo Directory navigation, wait on unique content rather than `assert_current_path` immediately after a name click
+* After Turbo Directory navigation, wait on unique content and for `html[aria-busy]` to clear rather than `assert_current_path` immediately after a name click
 
 ---
 
