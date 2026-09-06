@@ -1,0 +1,115 @@
+<% content_for :title, "Clients · Directory · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title">Clients</h1>
+    <p class="dd-page-description">
+      Parties with a client role. Identity remains the directory party.
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Open directory", directory_parties_path, class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Client directory</h2>
+  </header>
+  <div class="dd-panel-body">
+    <form method="get" action="<%= directory_clients_path %>" class="dd-form" style="margin-bottom: 1rem;">
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <label class="dd-label" for="status">Status</label>
+          <select name="status" id="status" class="dd-field">
+            <option value="">All</option>
+            <% ClientProfile::STATUSES.each do |status| %>
+              <option value="<%= status %>" <%= "selected" if @status == status %>><%= status.titleize %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="party_kind">Kind</label>
+          <select name="party_kind" id="party_kind" class="dd-field">
+            <option value="">All</option>
+            <% Party::KINDS.each do |kind| %>
+              <option value="<%= kind %>" <%= "selected" if @party_kind == kind %>><%= kind.titleize %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="office_id">Responsible office</label>
+          <select name="office_id" id="office_id" class="dd-field">
+            <option value="">All</option>
+            <% @offices.each do |office| %>
+              <option value="<%= office.id %>" <%= "selected" if @office_id.to_s == office.id.to_s %>><%= office_choice_label(office) %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="advisor_id">Advisor</label>
+          <select name="advisor_id" id="advisor_id" class="dd-field">
+            <option value="">All</option>
+            <% @advisors.each do |membership| %>
+              <option value="<%= membership.id %>" <%= "selected" if @advisor_id.to_s == membership.id.to_s %>><%= advisor_membership_label(membership) %></option>
+            <% end %>
+          </select>
+        </div>
+      </div>
+      <div class="dd-form-actions">
+        <button type="submit" class="dd-button dd-button--secondary dd-button--small">Apply filter</button>
+      </div>
+    </form>
+
+    <% if @client_profiles.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Kind</th>
+              <th>Role</th>
+              <th>Office</th>
+              <th>Advisor</th>
+              <th>Preference</th>
+              <th>Primary contact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @client_profiles.each do |profile| %>
+              <tr>
+                <td><%= link_to profile.party.display_name, directory_party_path(profile.party) %></td>
+                <td><%= party_kind_badge(profile.party) %></td>
+                <td><%= role_profile_status_badge(profile) %></td>
+                <td><%= responsible_office_text(profile) %></td>
+                <td><%= advisor_membership_label(profile.primary_advisor_membership) %></td>
+                <td><%= communication_preference_label(profile.communication_preference) %></td>
+                <td>
+                  <% client_preference_contact_lines(profile.party, profile, @today).each do |line| %>
+                    <div><%= line %></div>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <% if @page > 1 || @has_next_page %>
+        <nav class="dd-button-group" aria-label="Client directory pagination">
+          <% if @page > 1 %>
+            <%= link_to "Previous", directory_clients_path(status: @status, party_kind: @party_kind, office_id: @office_id, advisor_id: @advisor_id, page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+          <% if @has_next_page %>
+            <%= link_to "Next", directory_clients_path(status: @status, party_kind: @party_kind, office_id: @office_id, advisor_id: @advisor_id, page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+        </nav>
+      <% end %>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No client roles</h3>
+        <p class="dd-empty-copy">Add a client role from a party record. The party remains the directory identity.</p>
+      </div>
+    <% end %>
+  </div>
+</article>

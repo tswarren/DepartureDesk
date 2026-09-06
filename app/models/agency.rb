@@ -16,6 +16,9 @@ class Agency < ApplicationRecord
     has_many :party_notes, dependent: :restrict_with_exception
     has_many :client_profiles, dependent: :restrict_with_exception
     has_many :supplier_profiles, dependent: :restrict_with_exception
+    has_many :client_advisor_assignments, dependent: :restrict_with_exception
+    has_many :supplier_service_category_assignments, dependent: :restrict_with_exception
+    has_many :external_identifiers, dependent: :restrict_with_exception
 
     STATUSES = %w[
       active

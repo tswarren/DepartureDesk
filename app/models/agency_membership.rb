@@ -22,6 +22,11 @@ class AgencyMembership < ApplicationRecord
     foreign_key: :person_party_id,
     inverse_of: :agency_membership
   has_many :office_assignments, dependent: :restrict_with_exception
+  has_many :advised_client_profiles,
+    class_name: "ClientProfile",
+    foreign_key: :primary_advisor_membership_id,
+    inverse_of: false,
+    dependent: :restrict_with_exception
 
   enum :role, ROLES.index_by(&:itself), validate: true
   enum :status, STATUSES.index_by(&:itself), validate: true

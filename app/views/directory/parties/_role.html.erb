@@ -1,4 +1,4 @@
-<%# locals: party:, profile:, role_noun:, param_key:, create_path:, update_path:, deactivate_path:, reactivate_path:, active_offices:, eligible: true %>
+<%# locals: party:, profile:, role_noun:, param_key:, create_path:, update_path:, deactivate_path:, reactivate_path:, active_offices:, eligible: true, assign_advisor_path: nil, clear_advisor_path: nil, advisor_memberships: [] %>
 <section>
   <h3 class="dd-list-title"><%= role_noun.titleize %></h3>
   <dl class="dd-definition-list">
@@ -17,10 +17,34 @@
         <dt>Responsible office</dt>
         <dd><%= responsible_office_text(profile) %></dd>
       </div>
+      <% if profile.respond_to?(:primary_advisor_membership) %>
+        <div>
+          <dt>Primary advisor</dt>
+          <dd><%= advisor_membership_label(profile.primary_advisor_membership) %></dd>
+        </div>
+        <div>
+          <dt>Communication preference</dt>
+          <dd><%= communication_preference_label(profile.communication_preference) %></dd>
+        </div>
+      <% end %>
       <% if profile.respond_to?(:default_currency) && profile.default_currency.present? %>
         <div>
           <dt>Default currency</dt>
           <dd><%= profile.default_currency %></dd>
+        </div>
+        <div>
+          <dt>Portal</dt>
+          <dd><%= profile.portal_url.presence || "—" %></dd>
+        </div>
+        <div>
+          <dt>Service categories</dt>
+          <dd>
+            <% if profile.category_codes.any? %>
+              <%= profile.service_category_assignments.sort_by(&:category_code).map(&:category_label).to_sentence %>
+            <% else %>
+              —
+            <% end %>
+          </dd>
         </div>
       <% end %>
     <% end %>
@@ -55,9 +79,108 @@
           <% end %>
         </select>
       </div>
+      <% if profile.respond_to?(:communication_preference) %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_communication_preference">Communication preference</label>
+          <select class="dd-field" id="<%= param_key %>_communication_preference" name="<%= param_key %>[communication_preference]">
+            <% ClientProfile::COMMUNICATION_PREFERENCES.each do |preference| %>
+              <option value="<%= preference %>" <%= "selected" if profile.communication_preference == preference %>><%= communication_preference_label(preference) %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_servicing_restrictions">Servicing restrictions</label>
+          <textarea class="dd-field" id="<%= param_key %>_servicing_restrictions" name="<%= param_key %>[servicing_restrictions]" maxlength="2000" rows="3"><%= profile.servicing_restrictions %></textarea>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_billing_restrictions">Billing restrictions</label>
+          <textarea class="dd-field" id="<%= param_key %>_billing_restrictions" name="<%= param_key %>[billing_restrictions]" maxlength="2000" rows="3"><%= profile.billing_restrictions %></textarea>
+        </div>
+      <% end %>
+      <% if profile.respond_to?(:default_currency) %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_default_currency">Default currency</label>
+          <input class="dd-field" id="<%= param_key %>_default_currency" name="<%= param_key %>[default_currency]" value="<%= profile.default_currency %>" maxlength="3" required>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_portal_url">Portal URL</label>
+          <input class="dd-field" id="<%= param_key %>_portal_url" name="<%= param_key %>[portal_url]" value="<%= profile.portal_url %>" placeholder="https://">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_booking_instructions">Booking instructions</label>
+          <textarea class="dd-field" id="<%= param_key %>_booking_instructions" name="<%= param_key %>[booking_instructions]" maxlength="2000" rows="3"><%= profile.booking_instructions %></textarea>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_payment_instructions">Payment instructions</label>
+          <textarea class="dd-field" id="<%= param_key %>_payment_instructions" name="<%= param_key %>[payment_instructions]" maxlength="2000" rows="3"><%= profile.payment_instructions %></textarea>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_payment_term_notes">Payment term notes</label>
+          <textarea class="dd-field" id="<%= param_key %>_payment_term_notes" name="<%= param_key %>[payment_term_notes]" maxlength="2000" rows="3"><%= profile.payment_term_notes %></textarea>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_commission_notes">Commission notes</label>
+          <textarea class="dd-field" id="<%= param_key %>_commission_notes" name="<%= param_key %>[commission_notes]" maxlength="2000" rows="3"><%= profile.commission_notes %></textarea>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_cancellation_policy_notes">Cancellation notes</label>
+          <textarea class="dd-field" id="<%= param_key %>_cancellation_policy_notes" name="<%= param_key %>[cancellation_policy_notes]" maxlength="2000" rows="3"><%= profile.cancellation_policy_notes %></textarea>
+        </div>
+      <% end %>
       <div class="dd-form-actions">
-        <%= submit_tag "Change office", class: "dd-button dd-button--secondary dd-button--small" %>
+        <%= submit_tag profile.respond_to?(:communication_preference) ? "Save client details" : "Save supplier details", class: "dd-button dd-button--secondary dd-button--small" %>
       </div>
+    <% end %>
+    <% if assign_advisor_path.present? %>
+      <%= form_with url: assign_advisor_path, method: :post, class: "dd-form" do %>
+        <input type="hidden" name="<%= param_key %>[lock_version]" value="<%= profile.lock_version %>">
+        <div class="dd-field-group">
+          <label class="dd-label" for="<%= param_key %>_primary_advisor_membership_id">Primary advisor</label>
+          <select class="dd-field" id="<%= param_key %>_primary_advisor_membership_id" name="<%= param_key %>[primary_advisor_membership_id]" required>
+            <% advisor_memberships.each do |membership| %>
+              <option value="<%= membership.id %>" <%= "selected" if membership.id == profile.primary_advisor_membership_id %>><%= advisor_membership_label(membership) %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-form-actions">
+          <%= submit_tag "Assign advisor", class: "dd-button dd-button--secondary dd-button--small" %>
+        </div>
+      <% end %>
+      <% if profile.primary_advisor_membership_id.present? && clear_advisor_path.present? %>
+        <%= form_with url: clear_advisor_path, method: :post, class: "dd-form" do %>
+          <input type="hidden" name="<%= param_key %>[lock_version]" value="<%= profile.lock_version %>">
+          <div class="dd-form-actions">
+            <%= submit_tag "Clear advisor", class: "dd-button dd-button--quiet dd-button--small" %>
+          </div>
+        <% end %>
+      <% end %>
+    <% end %>
+    <% if profile.respond_to?(:service_category_assignments) %>
+      <% assigned_codes = profile.category_codes %>
+      <% remaining = SupplierServiceCategoryAssignment::CATEGORY_CODES - assigned_codes %>
+      <% if remaining.any? %>
+        <%= form_with url: assign_category_directory_party_supplier_profile_path(party), method: :post, class: "dd-form" do %>
+          <div class="dd-field-group">
+            <label class="dd-label" for="supplier_profile_category_code">Service category</label>
+            <select class="dd-field" id="supplier_profile_category_code" name="supplier_profile[category_code]" required>
+              <% remaining.each do |code| %>
+                <option value="<%= code %>"><%= supplier_category_label(code) %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-form-actions">
+            <%= submit_tag "Add category", class: "dd-button dd-button--secondary dd-button--small" %>
+          </div>
+        <% end %>
+      <% end %>
+      <% profile.service_category_assignments.sort_by(&:category_code).each do |assignment| %>
+        <%= form_with url: remove_category_directory_party_supplier_profile_path(party), method: :post, class: "dd-form" do %>
+          <input type="hidden" name="supplier_profile[category_code]" value="<%= assignment.category_code %>">
+          <div class="dd-form-actions">
+            <%= submit_tag "Remove #{assignment.category_label}", class: "dd-button dd-button--quiet dd-button--small" %>
+          </div>
+        <% end %>
+      <% end %>
     <% end %>
     <%= form_with url: deactivate_path, method: :post, class: "dd-form" do %>
       <input type="hidden" name="<%= param_key %>[lock_version]" value="<%= profile.lock_version %>">

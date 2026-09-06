@@ -8,7 +8,7 @@ Do not branch until PR 12 is green and merged.
 
 ## Status
 
-Planned through 2C.4. **2C.1 is implemented** in this repository (role-profile tables, lifecycle commands, office dependency, party Roles panel, and audit). 2C.2–2C.4 remain planned. Phase 2A and Phase 2B remain authoritative for parties, kind profiles, contacts, relationships, notes, tenancy, and audit. Merge, party deactivation, fuzzy search, travelers, payers, arrangements, and posted money remain out of scope.
+**2C.1 through 2C.4 are implemented** in this repository (role profiles, advisors, client and supplier directories, supplier categories, role-aware selector, and external identifiers). Merge, party deactivation, fuzzy search, travelers, payers, arrangements, and posted money remain out of scope.
 
 ---
 

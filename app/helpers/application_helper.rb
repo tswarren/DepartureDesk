@@ -54,6 +54,86 @@ module ApplicationHelper
     "#{label} · Inactive"
   end
 
+  def advisor_membership_label(membership)
+    return "—" if membership.blank?
+
+    membership.agency_display_name
+  end
+
+  def communication_preference_label(preference)
+    {
+      "no_preference" => "No preference",
+      "email" => "Email",
+      "phone" => "Phone",
+      "postal_mail" => "Postal mail"
+    }.fetch(preference.to_s, preference.to_s.humanize)
+  end
+
+  def general_primary_assignments(party, date)
+    party.contact_point_purpose_assignments.select do |assignment|
+      assignment.general? &&
+        assignment.primary? &&
+        assignment.current_on?(date) &&
+        assignment.contact_point&.eligible_destination?
+    end
+  end
+
+  def client_preference_contact_lines(party, profile, date)
+    assignments = general_primary_assignments(party, date)
+    kind_for = { "email" => "email", "phone" => "phone", "postal_mail" => "postal_address" }
+    preferred_kind = kind_for[profile.communication_preference]
+    lines = []
+
+    if profile.no_preference? || preferred_kind.blank?
+      if assignments.empty?
+        lines << "No eligible general primary."
+      else
+        assignments.each do |assignment|
+          lines << "#{assignment.contact_kind.titleize}: #{assignment.contact_point.display_value.to_s.split("\n").first}"
+        end
+      end
+      return lines
+    end
+
+    preferred = assignments.select { |assignment| assignment.contact_kind == preferred_kind }
+    if preferred.empty?
+      lines << "Preferred contact unavailable."
+      assignments.each do |assignment|
+        lines << "#{assignment.contact_kind.titleize}: #{assignment.contact_point.display_value.to_s.split("\n").first}"
+      end
+    else
+      preferred.each do |assignment|
+        lines << assignment.contact_point.display_value.to_s.split("\n").first
+      end
+      assignments.reject { |assignment| assignment.contact_kind == preferred_kind }.each do |assignment|
+        lines << "#{assignment.contact_kind.titleize}: #{assignment.contact_point.display_value.to_s.split("\n").first}"
+      end
+    end
+    lines
+  end
+
+  def party_selector_option_label(candidate)
+    label = "#{candidate.display_name} (#{candidate.party_kind.titleize})"
+    extras = []
+    extras << "client #{candidate.client_status}" if candidate.client_status
+    extras << "supplier #{candidate.supplier_status}" if candidate.supplier_status
+    extras << "team member" if candidate.team_member
+    extras.any? ? "#{label} · #{extras.join(" · ")}" : label
+  end
+
+  def supplier_category_label(code)
+    code.to_s.tr("_", " ").titleize
+  end
+
+  def supplier_general_primary_lines(party, date)
+    assignments = general_primary_assignments(party, date)
+    return [ "No eligible general primary." ] if assignments.empty?
+
+    assignments.map do |assignment|
+      "#{assignment.contact_kind.titleize}: #{assignment.contact_point.display_value.to_s.split("\n").first}"
+    end
+  end
+
   def contact_point_status_badge(contact_point)
     if contact_point.suppressed?
       status_badge("Do not use", modifier: "danger")

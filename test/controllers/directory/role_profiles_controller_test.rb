@@ -11,7 +11,7 @@ module Directory
       assert_includes response.body, "Roles"
       assert_includes response.body, "Add client role"
       assert_includes response.body, "Add supplier role"
-      assert_select "span[aria-disabled=true]", text: "Suppliers"
+      assert_select "a[href=?]", directory_suppliers_path, text: "Suppliers"
 
       post directory_party_client_profile_path(party), params: {
         client_profile: { responsible_office_id: offices(:one).id }
@@ -164,6 +164,111 @@ module Directory
       }
       assert_response :not_found
       assert supplier.reload.inactive?
+    end
+
+    test "staff can assign an advisor from the party page" do
+      sign_in_as(users(:staff_one))
+      party = parties(:organization_one)
+      profile = assign_client_role!(party, actor: users(:staff_one))
+
+      get directory_party_path(party)
+      assert_response :success
+      assert_select "select[name='client_profile[primary_advisor_membership_id]'] option[value=?]",
+        agency_memberships(:staff_one).id,
+        text: /Riley Staff/
+      assert_select "select[name='client_profile[primary_advisor_membership_id]'] option[value=?]",
+        agency_memberships(:one).id,
+        text: /Jordan Blake/
+
+      post assign_advisor_directory_party_client_profile_path(party), params: {
+        client_profile: {
+          primary_advisor_membership_id: agency_memberships(:one).id,
+          lock_version: profile.lock_version
+        }
+      }
+      assert_redirected_to directory_party_path(party)
+      follow_redirect!
+      assert_includes response.body, "Client advisor updated."
+      assert_equal agency_memberships(:one).id, profile.reload.primary_advisor_membership_id
+
+      post clear_advisor_directory_party_client_profile_path(party), params: {
+        client_profile: { lock_version: profile.lock_version }
+      }
+      assert_redirected_to directory_party_path(party)
+      assert_nil profile.reload.primary_advisor_membership_id
+    end
+
+    test "cross-agency advisor ids return not found" do
+      sign_in_as(users(:one))
+      party = parties(:organization_one)
+      profile = assign_client_role!(party, actor: users(:one))
+
+      post assign_advisor_directory_party_client_profile_path(party), params: {
+        client_profile: {
+          primary_advisor_membership_id: agency_memberships(:two).id,
+          lock_version: profile.lock_version
+        }
+      }
+      assert_response :not_found
+      assert_nil profile.reload.primary_advisor_membership_id
+    end
+
+    test "a blank advisor id is a validation error" do
+      sign_in_as(users(:one))
+      party = parties(:organization_one)
+      profile = assign_client_role!(party, actor: users(:one))
+
+      post assign_advisor_directory_party_client_profile_path(party), params: {
+        client_profile: {
+          primary_advisor_membership_id: "",
+          lock_version: profile.lock_version
+        }
+      }
+      assert_redirected_to directory_party_path(party)
+      follow_redirect!
+      assert_includes response.body, "Choose an active team member as advisor."
+      assert_nil profile.reload.primary_advisor_membership_id
+    end
+
+    test "client update ignores status and does not copy restriction bodies into flash only through the command" do
+      sign_in_as(users(:one))
+      party = parties(:organization_one)
+      profile = assign_client_role!(party, actor: users(:one))
+
+      patch directory_party_client_profile_path(party), params: {
+        client_profile: {
+          responsible_office_id: offices(:one).id,
+          communication_preference: "phone",
+          servicing_restrictions: "Weekday calls only.",
+          status: "inactive",
+          lock_version: profile.lock_version
+        }
+      }
+      assert_redirected_to directory_party_path(party)
+      profile.reload
+      assert profile.active?
+      assert_equal "phone", profile.communication_preference
+      assert_equal "Weekday calls only.", profile.servicing_restrictions
+    end
+
+    test "staff can add a supplier category from the party page" do
+      sign_in_as(users(:staff_one))
+      party = parties(:organization_one)
+      assign_supplier_role!(party, actor: users(:staff_one))
+
+      post assign_category_directory_party_supplier_profile_path(party), params: {
+        supplier_profile: { category_code: "accommodation" }
+      }
+      assert_redirected_to directory_party_path(party)
+      follow_redirect!
+      assert_includes response.body, "Supplier category added."
+      assert_includes response.body, "Accommodation"
+
+      post remove_category_directory_party_supplier_profile_path(party), params: {
+        supplier_profile: { category_code: "accommodation" }
+      }
+      assert_redirected_to directory_party_path(party)
+      assert_equal [], party.reload.supplier_profile.category_codes
     end
 
     test "a blank office id is a validation error" do

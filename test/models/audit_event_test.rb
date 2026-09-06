@@ -218,4 +218,26 @@ class AuditEventTest < ActiveSupport::TestCase
     assert event.persisted?
     assert_equal "ClientProfile", event.subject_type
   end
+
+  test "accepts a client advisor assignment subject that belongs to the event agency" do
+    profile = assign_client_role!(parties(:unlinked), actor: users(:one))
+    AssignClientAdvisor.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      party: parties(:unlinked),
+      profile:,
+      membership: agency_memberships(:one)
+    ).call
+    assignment = profile.reload.open_advisor_assignment
+    event = RecordAdministrativeAudit.record(
+      agency: agencies(:one),
+      action: "directory.client_advisor_assigned",
+      actor_user: users(:one),
+      subject: assignment,
+      details: { "client_profile_id" => profile.id, "advisor_membership_id" => agency_memberships(:one).id }
+    )
+
+    assert event.persisted?
+    assert_equal "ClientAdvisorAssignment", event.subject_type
+  end
 end
