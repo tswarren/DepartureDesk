@@ -1,7 +1,7 @@
 class DirectoryCommand < MembershipCommand
   private
 
-  def with_directory_locks(agency, parties: [], records: [])
+  def with_directory_locks(agency, parties: [], records: [], offices: [])
     ActiveRecord::Base.transaction do
       ensure_actor_shape!
       agency.with_lock do
@@ -17,18 +17,33 @@ class DirectoryCommand < MembershipCommand
           record.lock!
           record.reload
         end
+        lock_offices!(agency, offices)
         ensure_agency_operator!(agency)
         yield
       end
     end
   rescue ActiveRecord::RecordNotUnique
     raise Error.new("That directory record already exists.", code: :conflict)
-  rescue ActiveRecord::RecordInvalid => error
-    raise Error.new(error.record.errors.full_messages.to_sentence, code: :invalid)
-  rescue ActiveRecord::StatementInvalid => error
+  rescue ActiveRecord::StaleObjectError
+    raise Error.new("This record was updated by someone else.", code: :conflict)
+  rescue ActiveRecord::InvalidForeignKey, ActiveRecord::StatementInvalid => error
+    raise Error.new("Choose an active office.", code: :invalid) if office_status_fk_violation?(error)
+    raise Error.new("An inactive party cannot receive an active role.", code: :invalid) if party_status_fk_violation?(error)
     raise Error.new("That assignment conflicts with an existing primary.", code: :conflict) if exclusion_violation?(error)
 
     raise
+  rescue ActiveRecord::RecordInvalid => error
+    raise Error.new(error.record.errors.full_messages.to_sentence, code: :invalid)
+  end
+
+  def lock_offices!(agency, offices)
+    Array(offices).compact.uniq.sort_by { |office| office.id.to_s }.each do |office|
+      office.lock!
+      office.reload
+      unless office.agency_id == agency.id
+        raise Error.new("That office is not part of this agency.", code: :not_found)
+      end
+    end
   end
 
   def actor_membership!(agency)
@@ -56,5 +71,19 @@ class DirectoryCommand < MembershipCommand
 
   def exclusion_violation?(error)
     error.cause.is_a?(PG::ExclusionViolation)
+  end
+
+  def office_status_fk_violation?(error)
+    projection_fk_violation?(error, "office_active_projection_fk")
+  end
+
+  def party_status_fk_violation?(error)
+    projection_fk_violation?(error, "party_active_projection_fk")
+  end
+
+  def projection_fk_violation?(error, constraint_name)
+    cause = error.is_a?(ActiveRecord::InvalidForeignKey) ? error : error.cause
+    message = [ error.message, cause&.message ].compact.join(" ")
+    message.include?(constraint_name)
   end
 end

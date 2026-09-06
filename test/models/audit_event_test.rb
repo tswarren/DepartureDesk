@@ -204,4 +204,18 @@ class AuditEventTest < ActiveSupport::TestCase
     payload = agencies(:one).audit_events.where(action: "directory.party_updated").order(:created_at).last.details.to_s
     assert_no_match(/date_of_birth|1990/, payload)
   end
+
+  test "accepts a client profile subject that belongs to the event agency" do
+    profile = assign_client_role!(parties(:unlinked), actor: users(:one))
+    event = RecordAdministrativeAudit.record(
+      agency: agencies(:one),
+      action: "directory.client_profile_created",
+      actor_user: users(:one),
+      subject: profile,
+      details: { "party_id" => parties(:unlinked).id, "client_profile_id" => profile.id }
+    )
+
+    assert event.persisted?
+    assert_equal "ClientProfile", event.subject_type
+  end
 end

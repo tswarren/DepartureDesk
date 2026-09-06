@@ -6,6 +6,7 @@ class DirectoryNoteFoundationTest < ApplicationSystemTestCase
     open_directory_party "Alex Morgan"
     within("nav[aria-label=Party]") { click_link "Notes" }
     assert_field "New note"
+    wait_for_turbo
     fill_in "New note", with: "Likes aisle seats on the group air."
     click_button "Add note"
     assert_text "Likes aisle seats on the group air."
@@ -29,6 +30,7 @@ class DirectoryNoteFoundationTest < ApplicationSystemTestCase
     open_directory_party "Alex Morgan"
     within("nav[aria-label=Party]") { click_link "Notes" }
     assert_field "New note"
+    wait_for_turbo
     assert_text "Prefers window seats on the group air."
     assert_no_text "Internal credit discussion."
     assert_no_text "Administrator only"

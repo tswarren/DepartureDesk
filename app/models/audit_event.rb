@@ -45,6 +45,14 @@ class AuditEvent < ApplicationRecord
     directory.note_corrected
     directory.note_removed
     directory.note_pin_changed
+    directory.client_profile_created
+    directory.client_profile_updated
+    directory.client_profile_deactivated
+    directory.client_profile_reactivated
+    directory.supplier_profile_created
+    directory.supplier_profile_updated
+    directory.supplier_profile_deactivated
+    directory.supplier_profile_reactivated
     team.person_linked
   ].freeze
 

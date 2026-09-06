@@ -1,7 +1,7 @@
 class CommandResult
-  attr_reader :status, :membership, :office, :assignment, :party, :message, :contact_point, :purpose_assignment, :relationship, :note
+  attr_reader :status, :membership, :office, :assignment, :party, :message, :contact_point, :purpose_assignment, :relationship, :note, :client_profile, :supplier_profile
 
-  def initialize(status:, membership: nil, office: nil, assignment: nil, party: nil, message: nil, contact_point: nil, purpose_assignment: nil, relationship: nil, note: nil)
+  def initialize(status:, membership: nil, office: nil, assignment: nil, party: nil, message: nil, contact_point: nil, purpose_assignment: nil, relationship: nil, note: nil, client_profile: nil, supplier_profile: nil)
     @status = status
     @membership = membership
     @office = office
@@ -12,6 +12,8 @@ class CommandResult
     @purpose_assignment = purpose_assignment
     @relationship = relationship
     @note = note
+    @client_profile = client_profile
+    @supplier_profile = supplier_profile
   end
 
   def ok?

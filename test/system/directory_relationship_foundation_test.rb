@@ -6,6 +6,7 @@ class DirectoryRelationshipFoundationTest < ApplicationSystemTestCase
     open_directory_party "Alex Morgan"
     within("nav[aria-label=Party]") { click_link "Relationships" }
     assert_link "Add relationship"
+    wait_for_turbo
     click_link "Add relationship"
     select "Household Member", from: "Relationship kind"
     select "Morgan Household (Household)", from: "Related party"
@@ -21,6 +22,7 @@ class DirectoryRelationshipFoundationTest < ApplicationSystemTestCase
     open_directory_party "Maria Ruiz"
     within("nav[aria-label=Party]") { click_link "Relationships" }
     assert_link "Add relationship"
+    wait_for_turbo
     click_link "Add relationship"
     select "Organization Contact", from: "Relationship kind"
     select "Horizon Tours (Organization)", from: "Related party"

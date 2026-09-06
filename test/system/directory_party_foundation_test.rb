@@ -8,33 +8,31 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_text "Morgan Household"
     assert_text "Horizon Tours"
 
-    click_link "Add to directory"
-    assert_current_path new_directory_party_path
+    click_link_and_expect "Add to directory", heading: "Add to directory"
     assert_text "Choose a kind. Party kind cannot be changed later."
     click_link "Person"
     assert_field "Given name"
+    wait_for_turbo
     fill_in "Given name", with: "Jamie"
     fill_in "Family name", with: "Cole"
     click_button "Create person"
     assert_text "Jamie Cole"
     jamie_id = Party.find_by!(display_name: "Jamie Cole").id
 
-    click_link "Back to directory"
-    assert_selector "h1.dd-page-title", text: "People, households, and organizations"
-    click_link "Add to directory"
-    assert_current_path new_directory_party_path
+    click_link_and_expect "Back to directory", heading: "People, households, and organizations"
+    click_link_and_expect "Add to directory", heading: "Add to directory"
     click_link "Household"
     assert_field "Household name"
+    wait_for_turbo
     fill_in "Household name", with: "Cole Household"
     click_button "Create household"
     assert_text "Cole Household"
 
-    click_link "Back to directory"
-    assert_selector "h1.dd-page-title", text: "People, households, and organizations"
-    click_link "Add to directory"
-    assert_current_path new_directory_party_path
+    click_link_and_expect "Back to directory", heading: "People, households, and organizations"
+    click_link_and_expect "Add to directory", heading: "Add to directory"
     click_link "Organization"
     assert_field "Legal name"
+    wait_for_turbo
     fill_in "Legal name", with: "Summit Travel Co"
     fill_in "Trading name", with: "Summit Travel"
     click_button "Create organization"
@@ -45,9 +43,8 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_text "Cole Household"
     assert_text "Summit Travel"
 
-    within("table.dd-table") { click_link "Jamie Cole", exact: true }
-    assert_selector "h1.dd-page-title", text: "Jamie Cole"
-    click_link "Edit"
+    open_directory_party "Jamie Cole"
+    click_link_and_expect "Edit", heading: "Edit Jamie Cole"
     assert_field "Preferred name"
     fill_in "Preferred name", with: "Jim"
     click_button "Save changes"
@@ -64,12 +61,9 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     end
     assert_text "Jim Cole"
 
-    click_link "Administration"
-    assert_current_path administration_agency_path
-    click_link "Team"
-    assert_current_path administration_team_members_path
-    click_link "Invite someone"
-    assert_current_path new_administration_invitation_path
+    open_administration
+    click_link_and_expect "Team", heading: "Team"
+    click_link_and_expect "Invite someone", heading: "Invite someone"
     fill_in "Email address", with: "alex.team@example.com"
     choose "Invite an existing person"
     select "Alex Morgan", from: "Existing person"
@@ -81,11 +75,11 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     alex_membership = AgencyMembership.joins(:user).find_by!(users: { email_address: "alex.team@example.com" })
     assert_equal people(:unlinked).party_id, alex_membership.person_party_id
 
-    click_link "Team"
+    click_link_and_expect "Team", heading: "Team"
     assert_text "Alex Morgan"
     assert_text "alex.team@example.com"
 
-    click_link "Invite someone"
+    click_link_and_expect "Invite someone", heading: "Invite someone"
     choose "Invite an existing person"
     assert_no_selector "option", text: "Jordan Blake"
     assert_no_selector "option", text: "Alex Morgan"

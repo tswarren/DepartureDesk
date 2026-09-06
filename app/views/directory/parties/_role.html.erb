@@ -1,0 +1,88 @@
+<%# locals: party:, profile:, role_noun:, param_key:, create_path:, update_path:, deactivate_path:, reactivate_path:, active_offices:, eligible: true %>
+<section>
+  <h3 class="dd-list-title"><%= role_noun.titleize %></h3>
+  <dl class="dd-definition-list">
+    <div>
+      <dt>Status</dt>
+      <dd>
+        <% if eligible %>
+          <%= role_profile_status_badge(profile) %>
+        <% else %>
+          <%= status_badge("Ineligible", modifier: "neutral") %>
+        <% end %>
+      </dd>
+    </div>
+    <% if profile %>
+      <div>
+        <dt>Responsible office</dt>
+        <dd><%= responsible_office_text(profile) %></dd>
+      </div>
+      <% if profile.respond_to?(:default_currency) && profile.default_currency.present? %>
+        <div>
+          <dt>Default currency</dt>
+          <dd><%= profile.default_currency %></dd>
+        </div>
+      <% end %>
+    <% end %>
+  </dl>
+
+  <% unless eligible %>
+    <p class="dd-field-hint">Households cannot hold a supplier role.</p>
+  <% end %>
+
+  <% if eligible && profile.nil? && party.active? && active_offices.any? %>
+    <%= form_with url: create_path, method: :post, class: "dd-form" do %>
+      <div class="dd-field-group">
+        <label class="dd-label" for="<%= param_key %>_responsible_office_id_create"><%= role_noun.titleize %> responsible office</label>
+        <select class="dd-field" id="<%= param_key %>_responsible_office_id_create" name="<%= param_key %>[responsible_office_id]" required>
+          <% active_offices.each do |office| %>
+            <option value="<%= office.id %>"><%= office_choice_label(office) %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Add #{role_noun} role", class: "dd-button dd-button--secondary dd-button--small" %>
+      </div>
+    <% end %>
+  <% elsif eligible && profile&.active? && active_offices.any? %>
+    <%= form_with url: update_path, method: :patch, class: "dd-form" do %>
+      <input type="hidden" name="<%= param_key %>[lock_version]" value="<%= profile.lock_version %>">
+      <div class="dd-field-group">
+        <label class="dd-label" for="<%= param_key %>_responsible_office_id_update"><%= role_noun.titleize %> responsible office</label>
+        <select class="dd-field" id="<%= param_key %>_responsible_office_id_update" name="<%= param_key %>[responsible_office_id]" required>
+          <% active_offices.each do |office| %>
+            <option value="<%= office.id %>" <%= "selected" if office.id == profile.responsible_office_id %>><%= office_choice_label(office) %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Change office", class: "dd-button dd-button--secondary dd-button--small" %>
+      </div>
+    <% end %>
+    <%= form_with url: deactivate_path, method: :post, class: "dd-form" do %>
+      <input type="hidden" name="<%= param_key %>[lock_version]" value="<%= profile.lock_version %>">
+      <div class="dd-field-group">
+        <label class="dd-label" for="<%= param_key %>_deactivation_reason"><%= role_noun.titleize %> deactivation reason</label>
+        <input class="dd-field" id="<%= param_key %>_deactivation_reason" name="<%= param_key %>[reason]" required>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Deactivate #{role_noun} role", class: "dd-button dd-button--danger dd-button--small", data: { turbo_confirm: "Deactivate this #{role_noun} role? The party remains in the directory." } %>
+      </div>
+    <% end %>
+  <% elsif eligible && profile&.inactive? && active_offices.any? %>
+    <%= form_with url: reactivate_path, method: :post, class: "dd-form" do %>
+      <input type="hidden" name="<%= param_key %>[lock_version]" value="<%= profile.lock_version %>">
+      <div class="dd-field-group">
+        <label class="dd-label" for="<%= param_key %>_responsible_office_id_reactivate"><%= role_noun.titleize %> responsible office</label>
+        <select class="dd-field" id="<%= param_key %>_responsible_office_id_reactivate" name="<%= param_key %>[responsible_office_id]" required>
+          <% active_offices.each do |office| %>
+            <option value="<%= office.id %>" <%= "selected" if office.id == profile.responsible_office_id && office.active? %>><%= office_choice_label(office) %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Reactivate #{role_noun} role", class: "dd-button dd-button--secondary dd-button--small" %>
+      </div>
+    <% end %>
+  <% end %>
+</section>

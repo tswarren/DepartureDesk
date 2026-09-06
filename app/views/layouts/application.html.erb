@@ -9,6 +9,9 @@
     <meta name="theme-color" content="#002340">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
+    <% if Rails.env.test? %>
+      <meta name="turbo-prefetch" content="false">
+    <% end %>
 
     <%= yield :head %>
 

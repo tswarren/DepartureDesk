@@ -2,14 +2,11 @@ require "application_system_test_case"
 
 class TeamInvitationTest < ApplicationSystemTestCase
   test "administrator invites someone who then joins" do
-    visit new_session_path
-    fill_in "Email address", with: users(:one).email_address
-    fill_in "Password", with: "password"
-    click_button "Sign in"
+    sign_in_from_browser users(:one)
 
-    click_link "Administration"
-    click_link "Team"
-    click_link "Invite someone"
+    open_administration
+    click_link_and_expect "Team", heading: "Team"
+    click_link_and_expect "Invite someone", heading: "Invite someone"
     fill_in "Email address", with: "system.join@example.com"
     fill_in "First name", with: "Morgan"
     fill_in "Last name", with: "Ellis"

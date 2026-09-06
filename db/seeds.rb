@@ -145,7 +145,45 @@ if Rails.env.development?
         privileged: true
       ).call
     end
+    demo_organization = seed_agency.parties.find_by(display_name: "Horizon Tours")
+    unless demo_organization
+      demo_organization = CreateParty.new(
+        agency: seed_agency,
+        party_kind: "organization",
+        attributes: { legal_name: "Horizon Tours" },
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call.party
+    end
+    unless demo_organization.client_profile
+      CreateClientProfile.new(
+        agency: seed_agency,
+        party: demo_organization,
+        office: office,
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call
+    end
+    unless demo_organization.supplier_profile
+      CreateSupplierProfile.new(
+        agency: seed_agency,
+        party: demo_organization,
+        office: office,
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call
+    end
+    unless demo_person.client_profile
+      CreateClientProfile.new(
+        agency: seed_agency,
+        party: demo_person,
+        office: office,
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call
+    end
     puts "Seed directory demo ready:"
     puts "  Person: #{demo_person.display_name} (#{demo_person.id})"
     puts "  Household: #{demo_household.display_name} (#{demo_household.id})"
+    puts "  Organization: #{demo_organization.display_name} (#{demo_organization.id})"
 end

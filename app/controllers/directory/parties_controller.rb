@@ -28,6 +28,9 @@ module Directory
         .includes(:origin_party, :related_party)
         .current_on(@today)
         .order(:effective_from, :id)
+      @client_profile = @party.client_profile
+      @supplier_profile = @party.supplier_profile
+      @active_offices = Current.agency.offices.active.order(:name, :code, :id)
     end
 
     def new
@@ -87,7 +90,9 @@ module Directory
     private
 
     def set_party
-      @party = Current.agency.parties.find(params[:id])
+      @party = Current.agency.parties
+        .includes(client_profile: :responsible_office, supplier_profile: :responsible_office)
+        .find(params[:id])
     end
 
     def profile_class(kind)

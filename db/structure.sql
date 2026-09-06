@@ -149,6 +149,24 @@ END;
 $$;
 
 
+--
+-- Name: role_profiles_prevent_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.role_profiles_prevent_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.party_id IS DISTINCT FROM OLD.party_id
+    OR NEW.party_kind IS DISTINCT FROM OLD.party_kind THEN
+    RAISE EXCEPTION 'agency_id, party_id, and party_kind are immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -238,8 +256,8 @@ CREATE TABLE public.agency_memberships (
     person_party_id uuid NOT NULL,
     CONSTRAINT agency_memberships_invitation_version_nonnegative CHECK ((invitation_version >= 0)),
     CONSTRAINT agency_memberships_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT agency_memberships_role_valid CHECK (((role)::text = ANY ((ARRAY['staff'::character varying, 'administrator'::character varying])::text[]))),
-    CONSTRAINT agency_memberships_status_valid CHECK (((status)::text = ANY ((ARRAY['invited'::character varying, 'active'::character varying, 'suspended'::character varying, 'revoked'::character varying])::text[])))
+    CONSTRAINT agency_memberships_role_valid CHECK (((role)::text = ANY (ARRAY[('staff'::character varying)::text, ('administrator'::character varying)::text]))),
+    CONSTRAINT agency_memberships_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('revoked'::character varying)::text])))
 );
 
 
@@ -290,6 +308,32 @@ CREATE TABLE public.audit_events (
 
 
 --
+-- Name: client_profiles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_profiles (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    party_id uuid NOT NULL,
+    party_kind character varying NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    party_status character varying,
+    responsible_office_id uuid NOT NULL,
+    responsible_office_status character varying,
+    deactivated_at timestamp with time zone,
+    deactivated_by_membership_id uuid,
+    deactivation_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT client_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
+    CONSTRAINT client_profiles_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT client_profiles_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'household'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT client_profiles_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+);
+
+
+--
 -- Name: contact_point_purpose_assignments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -316,9 +360,9 @@ CREATE TABLE public.contact_point_purpose_assignments (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT contact_point_purpose_assignments_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT contact_point_purpose_assignments_priority_positive CHECK ((priority >= 1)),
-    CONSTRAINT contact_point_purpose_assignments_purpose_valid CHECK (((purpose)::text = ANY ((ARRAY['general'::character varying, 'correspondence'::character varying, 'billing'::character varying])::text[]))),
+    CONSTRAINT contact_point_purpose_assignments_purpose_valid CHECK (((purpose)::text = ANY (ARRAY[('general'::character varying)::text, ('correspondence'::character varying)::text, ('billing'::character varying)::text]))),
     CONSTRAINT contact_point_purpose_assignments_range_order CHECK (((effective_until IS NULL) OR (effective_from IS NULL) OR (effective_until > effective_from))),
-    CONSTRAINT contact_point_purpose_assignments_record_status_valid CHECK (((record_status)::text = ANY ((ARRAY['valid'::character varying, 'superseded'::character varying, 'voided'::character varying])::text[]))),
+    CONSTRAINT contact_point_purpose_assignments_record_status_valid CHECK (((record_status)::text = ANY (ARRAY[('valid'::character varying)::text, ('superseded'::character varying)::text, ('voided'::character varying)::text]))),
     CONSTRAINT cppa_disposition_matches_status CHECK (((((record_status)::text = 'valid'::text) AND (superseded_by_assignment_id IS NULL) AND (corrected_at IS NULL) AND (corrected_by_membership_id IS NULL) AND (correction_reason IS NULL)) OR (((record_status)::text = 'superseded'::text) AND (superseded_by_assignment_id IS NOT NULL) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text)) OR (((record_status)::text = 'voided'::text) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text)))),
     CONSTRAINT cppa_ending_complete CHECK ((((ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL)) OR ((ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text) AND (effective_until IS NOT NULL))))
 );
@@ -345,8 +389,8 @@ CREATE TABLE public.delivery_intents (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT delivery_intents_counts_nonnegative CHECK (((attempt_count >= 0) AND (subject_version >= 0))),
-    CONSTRAINT delivery_intents_purpose_valid CHECK (((purpose)::text = ANY ((ARRAY['team_invitation'::character varying, 'password_reset'::character varying])::text[]))),
-    CONSTRAINT delivery_intents_status_valid CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'succeeded'::character varying, 'discarded'::character varying])::text[]))),
+    CONSTRAINT delivery_intents_purpose_valid CHECK (((purpose)::text = ANY (ARRAY[('team_invitation'::character varying)::text, ('password_reset'::character varying)::text]))),
+    CONSTRAINT delivery_intents_status_valid CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('processing'::character varying)::text, ('succeeded'::character varying)::text, ('discarded'::character varying)::text]))),
     CONSTRAINT delivery_intents_success_has_delivery_time CHECK (((((status)::text = 'succeeded'::text) AND (delivered_at IS NOT NULL)) OR (((status)::text <> 'succeeded'::text) AND (delivered_at IS NULL))))
 );
 
@@ -390,7 +434,7 @@ CREATE TABLE public.office_assignments (
     CONSTRAINT office_assignments_default_only_when_active CHECK (((is_default = false) OR ((status)::text = 'active'::text))),
     CONSTRAINT office_assignments_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT office_assignments_revoked_at_matches_status CHECK (((((status)::text = 'active'::text) AND (revoked_at IS NULL)) OR (((status)::text = 'revoked'::text) AND (revoked_at IS NOT NULL)))),
-    CONSTRAINT office_assignments_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'revoked'::character varying])::text[])))
+    CONSTRAINT office_assignments_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('revoked'::character varying)::text])))
 );
 
 
@@ -411,7 +455,7 @@ CREATE TABLE public.offices (
     CONSTRAINT offices_code_format CHECK (((code)::text ~ '^[A-Z][A-Z0-9]{1,9}$'::text)),
     CONSTRAINT offices_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT offices_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
-    CONSTRAINT offices_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT offices_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text]))),
     CONSTRAINT offices_timezone_not_blank CHECK ((btrim((default_timezone)::text) <> ''::text))
 );
 
@@ -458,9 +502,9 @@ CREATE TABLE public.parties (
     CONSTRAINT parties_deactivation_matches_status CHECK (((((status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'deactivated'::text) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT parties_display_name_not_blank CHECK ((btrim((display_name)::text) <> ''::text)),
     CONSTRAINT parties_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT parties_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'household'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT parties_party_kind_valid CHECK (((party_kind)::text = ANY (ARRAY[('person'::character varying)::text, ('household'::character varying)::text, ('organization'::character varying)::text]))),
     CONSTRAINT parties_sort_name_not_blank CHECK ((btrim((sort_name)::text) <> ''::text)),
-    CONSTRAINT parties_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'deactivated'::character varying])::text[])))
+    CONSTRAINT parties_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('deactivated'::character varying)::text])))
 );
 
 
@@ -482,11 +526,11 @@ CREATE TABLE public.party_alternate_names (
     removed_by_membership_id uuid,
     removed_at timestamp with time zone,
     CONSTRAINT party_alternate_names_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT party_alternate_names_name_kind_valid CHECK (((name_kind)::text = ANY ((ARRAY['former_name'::character varying, 'alias'::character varying, 'additional_trading_name'::character varying, 'acronym'::character varying, 'imported_name'::character varying])::text[]))),
+    CONSTRAINT party_alternate_names_name_kind_valid CHECK (((name_kind)::text = ANY (ARRAY[('former_name'::character varying)::text, ('alias'::character varying)::text, ('additional_trading_name'::character varying)::text, ('acronym'::character varying)::text, ('imported_name'::character varying)::text]))),
     CONSTRAINT party_alternate_names_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
     CONSTRAINT party_alternate_names_normalized_name_not_blank CHECK ((btrim((normalized_name)::text) <> ''::text)),
     CONSTRAINT party_alternate_names_removal_matches_status CHECK (((((status)::text = 'active'::text) AND (removed_at IS NULL) AND (removed_by_membership_id IS NULL)) OR (((status)::text = 'removed'::text) AND (removed_at IS NOT NULL) AND (removed_by_membership_id IS NOT NULL)))),
-    CONSTRAINT party_alternate_names_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'removed'::character varying])::text[])))
+    CONSTRAINT party_alternate_names_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('removed'::character varying)::text])))
 );
 
 
@@ -511,12 +555,12 @@ CREATE TABLE public.party_contact_points (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT party_contact_points_contact_kind_valid CHECK (((contact_kind)::text = ANY ((ARRAY['postal_address'::character varying, 'phone'::character varying, 'email'::character varying])::text[]))),
+    CONSTRAINT party_contact_points_contact_kind_valid CHECK (((contact_kind)::text = ANY (ARRAY[('postal_address'::character varying)::text, ('phone'::character varying)::text, ('email'::character varying)::text]))),
     CONSTRAINT party_contact_points_deactivation_matches_status CHECK (((((status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'deactivated'::text) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT party_contact_points_label_null_or_not_blank CHECK (((label IS NULL) OR (btrim((label)::text) <> ''::text))),
     CONSTRAINT party_contact_points_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT party_contact_points_normalized_value_not_blank CHECK ((btrim((normalized_value)::text) <> ''::text)),
-    CONSTRAINT party_contact_points_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'deactivated'::character varying])::text[]))),
+    CONSTRAINT party_contact_points_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('deactivated'::character varying)::text]))),
     CONSTRAINT party_contact_points_suppression_complete CHECK ((((suppressed_at IS NULL) AND (suppressed_by_membership_id IS NULL) AND (suppression_reason IS NULL)) OR ((suppressed_at IS NOT NULL) AND (suppressed_by_membership_id IS NOT NULL) AND (btrim((suppression_reason)::text) <> ''::text))))
 );
 
@@ -538,7 +582,7 @@ CREATE TABLE public.party_email_addresses (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT party_email_addresses_contact_kind_email CHECK (((contact_kind)::text = 'email'::text)),
     CONSTRAINT party_email_addresses_display_address_not_blank CHECK ((btrim((display_address)::text) <> ''::text)),
-    CONSTRAINT party_email_addresses_email_type_valid CHECK (((email_type)::text = ANY ((ARRAY['personal'::character varying, 'work'::character varying, 'general'::character varying, 'booking'::character varying, 'accounting'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT party_email_addresses_email_type_valid CHECK (((email_type)::text = ANY (ARRAY[('personal'::character varying)::text, ('work'::character varying)::text, ('general'::character varying)::text, ('booking'::character varying)::text, ('accounting'::character varying)::text, ('other'::character varying)::text]))),
     CONSTRAINT party_email_addresses_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT party_email_addresses_normalized_address_not_blank CHECK ((btrim((normalized_address)::text) <> ''::text))
 );
@@ -571,8 +615,8 @@ CREATE TABLE public.party_notes (
     CONSTRAINT party_notes_disposition_matches_status CHECK (((((record_status)::text = 'active'::text) AND (superseded_by_note_id IS NULL) AND (corrected_at IS NULL) AND (corrected_by_membership_id IS NULL) AND (correction_reason IS NULL) AND (removed_at IS NULL) AND (removed_by_membership_id IS NULL) AND (removal_reason IS NULL)) OR (((record_status)::text = 'superseded'::text) AND (superseded_by_note_id IS NOT NULL) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text) AND (removed_at IS NULL) AND (removed_by_membership_id IS NULL) AND (removal_reason IS NULL)) OR (((record_status)::text = 'removed'::text) AND (removed_at IS NOT NULL) AND (removed_by_membership_id IS NOT NULL) AND (btrim((removal_reason)::text) <> ''::text)))),
     CONSTRAINT party_notes_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT party_notes_no_self_supersession CHECK (((superseded_by_note_id IS NULL) OR (superseded_by_note_id <> id))),
-    CONSTRAINT party_notes_record_status_valid CHECK (((record_status)::text = ANY ((ARRAY['active'::character varying, 'superseded'::character varying, 'removed'::character varying])::text[]))),
-    CONSTRAINT party_notes_visibility_valid CHECK (((visibility)::text = ANY ((ARRAY['standard'::character varying, 'administrator_only'::character varying])::text[])))
+    CONSTRAINT party_notes_record_status_valid CHECK (((record_status)::text = ANY (ARRAY[('active'::character varying)::text, ('superseded'::character varying)::text, ('removed'::character varying)::text]))),
+    CONSTRAINT party_notes_visibility_valid CHECK (((visibility)::text = ANY (ARRAY[('standard'::character varying)::text, ('administrator_only'::character varying)::text])))
 );
 
 
@@ -599,9 +643,9 @@ CREATE TABLE public.party_phone_numbers (
     CONSTRAINT party_phone_numbers_display_number_not_blank CHECK ((btrim((display_number)::text) <> ''::text)),
     CONSTRAINT party_phone_numbers_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT party_phone_numbers_normalized_digits_not_blank CHECK ((btrim((normalized_digits)::text) <> ''::text)),
-    CONSTRAINT party_phone_numbers_parse_status_valid CHECK (((parse_status)::text = ANY ((ARRAY['valid'::character varying, 'possible'::character varying, 'unparsed'::character varying])::text[]))),
+    CONSTRAINT party_phone_numbers_parse_status_valid CHECK (((parse_status)::text = ANY (ARRAY[('valid'::character varying)::text, ('possible'::character varying)::text, ('unparsed'::character varying)::text]))),
     CONSTRAINT party_phone_numbers_parsed_country_code_format CHECK (((parsed_country_code IS NULL) OR ((parsed_country_code)::text ~ '^[A-Z]{2}$'::text))),
-    CONSTRAINT party_phone_numbers_phone_type_valid CHECK (((phone_type)::text = ANY ((ARRAY['mobile'::character varying, 'home'::character varying, 'work'::character varying, 'main'::character varying, 'fax'::character varying, 'other'::character varying])::text[])))
+    CONSTRAINT party_phone_numbers_phone_type_valid CHECK (((phone_type)::text = ANY (ARRAY[('mobile'::character varying)::text, ('home'::character varying)::text, ('work'::character varying)::text, ('main'::character varying)::text, ('fax'::character varying)::text, ('other'::character varying)::text])))
 );
 
 
@@ -664,13 +708,13 @@ CREATE TABLE public.party_relationships (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT party_relationships_kind_pair_valid CHECK (((((relationship_kind)::text = 'household_member'::text) AND ((origin_party_kind)::text = 'person'::text) AND ((related_party_kind)::text = 'household'::text)) OR (((relationship_kind)::text = 'family'::text) AND ((origin_party_kind)::text = 'person'::text) AND ((related_party_kind)::text = 'person'::text)) OR (((relationship_kind)::text = 'organization_affiliation'::text) AND ((origin_party_kind)::text = 'person'::text) AND ((related_party_kind)::text = 'organization'::text)) OR (((relationship_kind)::text = 'organization_contact'::text) AND ((origin_party_kind)::text = 'person'::text) AND ((related_party_kind)::text = 'organization'::text)) OR (((relationship_kind)::text = 'parent_organization'::text) AND ((origin_party_kind)::text = 'organization'::text) AND ((related_party_kind)::text = 'organization'::text)) OR (((relationship_kind)::text = 'service_provider_for'::text) AND ((origin_party_kind)::text = 'organization'::text) AND ((related_party_kind)::text = 'organization'::text)))),
-    CONSTRAINT party_relationships_kind_valid CHECK (((relationship_kind)::text = ANY ((ARRAY['household_member'::character varying, 'family'::character varying, 'organization_affiliation'::character varying, 'organization_contact'::character varying, 'parent_organization'::character varying, 'service_provider_for'::character varying])::text[]))),
-    CONSTRAINT party_relationships_label_matches_kind CHECK (((((relationship_kind)::text = 'family'::text) AND ((relationship_label)::text = ANY ((ARRAY['parent_of'::character varying, 'child_of'::character varying, 'guardian_of'::character varying, 'dependent_of'::character varying, 'spouse_of'::character varying, 'partner_of'::character varying, 'other_family'::character varying])::text[]))) OR (((relationship_kind)::text = 'organization_affiliation'::text) AND ((relationship_label)::text = ANY ((ARRAY['employee'::character varying, 'contractor'::character varying, 'owner'::character varying, 'member'::character varying, 'representative'::character varying, 'other'::character varying])::text[]))) OR (((relationship_kind)::text = ANY ((ARRAY['household_member'::character varying, 'organization_contact'::character varying, 'parent_organization'::character varying, 'service_provider_for'::character varying])::text[])) AND (relationship_label IS NULL)))),
+    CONSTRAINT party_relationships_kind_valid CHECK (((relationship_kind)::text = ANY (ARRAY[('household_member'::character varying)::text, ('family'::character varying)::text, ('organization_affiliation'::character varying)::text, ('organization_contact'::character varying)::text, ('parent_organization'::character varying)::text, ('service_provider_for'::character varying)::text]))),
+    CONSTRAINT party_relationships_label_matches_kind CHECK (((((relationship_kind)::text = 'family'::text) AND ((relationship_label)::text = ANY (ARRAY[('parent_of'::character varying)::text, ('child_of'::character varying)::text, ('guardian_of'::character varying)::text, ('dependent_of'::character varying)::text, ('spouse_of'::character varying)::text, ('partner_of'::character varying)::text, ('other_family'::character varying)::text]))) OR (((relationship_kind)::text = 'organization_affiliation'::text) AND ((relationship_label)::text = ANY (ARRAY[('employee'::character varying)::text, ('contractor'::character varying)::text, ('owner'::character varying)::text, ('member'::character varying)::text, ('representative'::character varying)::text, ('other'::character varying)::text]))) OR (((relationship_kind)::text = ANY (ARRAY[('household_member'::character varying)::text, ('organization_contact'::character varying)::text, ('parent_organization'::character varying)::text, ('service_provider_for'::character varying)::text])) AND (relationship_label IS NULL)))),
     CONSTRAINT party_relationships_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT party_relationships_no_self CHECK ((origin_party_id <> related_party_id)),
     CONSTRAINT party_relationships_range_order CHECK (((effective_until IS NULL) OR (effective_from IS NULL) OR (effective_until > effective_from))),
-    CONSTRAINT party_relationships_record_status_valid CHECK (((record_status)::text = ANY ((ARRAY['valid'::character varying, 'superseded'::character varying, 'voided'::character varying])::text[]))),
-    CONSTRAINT party_relationships_spouse_canonical_order CHECK ((((relationship_kind)::text <> 'family'::text) OR ((relationship_label)::text <> ALL ((ARRAY['spouse_of'::character varying, 'partner_of'::character varying])::text[])) OR (origin_party_id < related_party_id))),
+    CONSTRAINT party_relationships_record_status_valid CHECK (((record_status)::text = ANY (ARRAY[('valid'::character varying)::text, ('superseded'::character varying)::text, ('voided'::character varying)::text]))),
+    CONSTRAINT party_relationships_spouse_canonical_order CHECK ((((relationship_kind)::text <> 'family'::text) OR ((relationship_label)::text <> ALL (ARRAY[('spouse_of'::character varying)::text, ('partner_of'::character varying)::text])) OR (origin_party_id < related_party_id))),
     CONSTRAINT pr_disposition_matches_status CHECK (((((record_status)::text = 'valid'::text) AND (superseded_by_relationship_id IS NULL) AND (corrected_at IS NULL) AND (corrected_by_membership_id IS NULL) AND (correction_reason IS NULL)) OR (((record_status)::text = 'superseded'::text) AND (superseded_by_relationship_id IS NOT NULL) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text)) OR (((record_status)::text = 'voided'::text) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text)))),
     CONSTRAINT pr_ending_complete CHECK ((((ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL)) OR ((ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text) AND (effective_until IS NOT NULL))))
 );
@@ -738,9 +782,9 @@ CREATE TABLE public.relationship_purpose_assignments (
     CONSTRAINT rpa_ending_complete CHECK ((((ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL)) OR ((ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text) AND (effective_until IS NOT NULL)))),
     CONSTRAINT rpa_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT rpa_priority_positive CHECK ((priority >= 1)),
-    CONSTRAINT rpa_purpose_valid CHECK (((purpose)::text = ANY ((ARRAY['general'::character varying, 'booking'::character varying, 'accounting'::character varying])::text[]))),
+    CONSTRAINT rpa_purpose_valid CHECK (((purpose)::text = ANY (ARRAY[('general'::character varying)::text, ('booking'::character varying)::text, ('accounting'::character varying)::text]))),
     CONSTRAINT rpa_range_order CHECK (((effective_until IS NULL) OR (effective_from IS NULL) OR (effective_until > effective_from))),
-    CONSTRAINT rpa_record_status_valid CHECK (((record_status)::text = ANY ((ARRAY['valid'::character varying, 'superseded'::character varying, 'voided'::character varying])::text[])))
+    CONSTRAINT rpa_record_status_valid CHECK (((record_status)::text = ANY (ARRAY[('valid'::character varying)::text, ('superseded'::character varying)::text, ('voided'::character varying)::text])))
 );
 
 
@@ -765,6 +809,34 @@ CREATE TABLE public.sessions (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     office_id uuid
+);
+
+
+--
+-- Name: supplier_profiles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_profiles (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    party_id uuid NOT NULL,
+    party_kind character varying NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    party_status character varying,
+    responsible_office_id uuid NOT NULL,
+    responsible_office_status character varying,
+    deactivated_at timestamp with time zone,
+    deactivated_by_membership_id uuid,
+    deactivation_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    default_currency character varying(3) NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_profiles_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT supplier_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
+    CONSTRAINT supplier_profiles_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_profiles_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT supplier_profiles_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
 );
 
 
@@ -851,6 +923,14 @@ ALTER TABLE ONLY public.ar_internal_metadata
 
 ALTER TABLE ONLY public.audit_events
     ADD CONSTRAINT audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_profiles client_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_profiles
+    ADD CONSTRAINT client_profiles_pkey PRIMARY KEY (id);
 
 
 --
@@ -986,7 +1066,7 @@ ALTER TABLE ONLY public.people
 --
 
 ALTER TABLE ONLY public.party_relationships
-    ADD CONSTRAINT pr_affiliation_contact_conflict EXCLUDE USING gist (agency_id WITH =, origin_party_id WITH =, related_party_id WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&) WHERE ((((record_status)::text = 'valid'::text) AND ((relationship_kind)::text = ANY ((ARRAY['organization_affiliation'::character varying, 'organization_contact'::character varying])::text[]))));
+    ADD CONSTRAINT pr_affiliation_contact_conflict EXCLUDE USING gist (agency_id WITH =, origin_party_id WITH =, related_party_id WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&) WHERE ((((record_status)::text = 'valid'::text) AND ((relationship_kind)::text = ANY (ARRAY[('organization_affiliation'::character varying)::text, ('organization_contact'::character varying)::text]))));
 
 
 --
@@ -1010,7 +1090,7 @@ ALTER TABLE ONLY public.party_relationships
 --
 
 ALTER TABLE ONLY public.party_relationships
-    ADD CONSTRAINT pr_unique_valid_spouse_pair EXCLUDE USING gist (agency_id WITH =, LEAST(origin_party_id, related_party_id) WITH =, GREATEST(origin_party_id, related_party_id) WITH =, relationship_label WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&) WHERE ((((record_status)::text = 'valid'::text) AND ((relationship_kind)::text = 'family'::text) AND ((relationship_label)::text = ANY ((ARRAY['spouse_of'::character varying, 'partner_of'::character varying])::text[]))));
+    ADD CONSTRAINT pr_unique_valid_spouse_pair EXCLUDE USING gist (agency_id WITH =, LEAST(origin_party_id, related_party_id) WITH =, GREATEST(origin_party_id, related_party_id) WITH =, relationship_label WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&) WHERE ((((record_status)::text = 'valid'::text) AND ((relationship_kind)::text = 'family'::text) AND ((relationship_label)::text = ANY (ARRAY[('spouse_of'::character varying)::text, ('partner_of'::character varying)::text]))));
 
 
 --
@@ -1043,6 +1123,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_profiles supplier_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_profiles
+    ADD CONSTRAINT supplier_profiles_pkey PRIMARY KEY (id);
 
 
 --
@@ -1100,6 +1188,13 @@ CREATE UNIQUE INDEX index_agency_memberships_on_agency_id_and_person_party_id ON
 --
 
 CREATE INDEX index_agency_memberships_on_agency_id_and_status ON public.agency_memberships USING btree (agency_id, status);
+
+
+--
+-- Name: index_agency_memberships_on_id_agency_id_and_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_memberships_on_id_agency_id_and_status ON public.agency_memberships USING btree (id, agency_id, status);
 
 
 --
@@ -1177,6 +1272,34 @@ CREATE INDEX index_audit_events_on_agency_id ON public.audit_events USING btree 
 --
 
 CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_events USING btree (agency_id, created_at);
+
+
+--
+-- Name: index_client_profiles_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_profiles_on_agency_id ON public.client_profiles USING btree (agency_id);
+
+
+--
+-- Name: index_client_profiles_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_profiles_on_id_and_agency_id ON public.client_profiles USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_profiles_on_office_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_profiles_on_office_id_and_agency_id ON public.client_profiles USING btree (responsible_office_id, agency_id);
+
+
+--
+-- Name: index_client_profiles_on_party_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_profiles_on_party_id_and_agency_id ON public.client_profiles USING btree (party_id, agency_id);
 
 
 --
@@ -1285,6 +1408,13 @@ CREATE UNIQUE INDEX index_offices_on_agency_id_and_code ON public.offices USING 
 
 
 --
+-- Name: index_offices_on_id_agency_id_and_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offices_on_id_agency_id_and_status ON public.offices USING btree (id, agency_id, status);
+
+
+--
 -- Name: index_offices_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1324,6 +1454,13 @@ CREATE INDEX index_parties_on_agency_id_and_sort_name ON public.parties USING bt
 --
 
 CREATE UNIQUE INDEX index_parties_on_id_agency_id_and_party_kind ON public.parties USING btree (id, agency_id, party_kind);
+
+
+--
+-- Name: index_parties_on_id_agency_id_and_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_parties_on_id_agency_id_and_status ON public.parties USING btree (id, agency_id, status);
 
 
 --
@@ -1523,6 +1660,34 @@ CREATE INDEX index_sessions_on_user_id ON public.sessions USING btree (user_id);
 
 
 --
+-- Name: index_supplier_profiles_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_profiles_on_agency_id ON public.supplier_profiles USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_profiles_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_profiles_on_id_and_agency_id ON public.supplier_profiles USING btree (id, agency_id);
+
+
+--
+-- Name: index_supplier_profiles_on_office_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_profiles_on_office_id_and_agency_id ON public.supplier_profiles USING btree (responsible_office_id, agency_id);
+
+
+--
+-- Name: index_supplier_profiles_on_party_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_profiles_on_party_id_and_agency_id ON public.supplier_profiles USING btree (party_id, agency_id);
+
+
+--
 -- Name: index_users_on_email_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1541,6 +1706,13 @@ CREATE TRIGGER audit_events_prevent_delete BEFORE DELETE ON public.audit_events 
 --
 
 CREATE TRIGGER audit_events_prevent_update BEFORE UPDATE ON public.audit_events FOR EACH ROW EXECUTE FUNCTION public.prevent_audit_event_mutation();
+
+
+--
+-- Name: client_profiles client_profiles_identity_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_profiles_identity_immutable BEFORE UPDATE ON public.client_profiles FOR EACH ROW EXECUTE FUNCTION public.role_profiles_prevent_identity_change();
 
 
 --
@@ -1572,11 +1744,58 @@ CREATE TRIGGER party_relationships_identity_immutable BEFORE UPDATE ON public.pa
 
 
 --
+-- Name: supplier_profiles supplier_profiles_identity_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_profiles_identity_immutable BEFORE UPDATE ON public.supplier_profiles FOR EACH ROW EXECUTE FUNCTION public.role_profiles_prevent_identity_change();
+
+
+--
 -- Name: agency_memberships agency_memberships_person_party_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.agency_memberships
     ADD CONSTRAINT agency_memberships_person_party_same_agency_fk FOREIGN KEY (person_party_id, agency_id) REFERENCES public.people(party_id, agency_id);
+
+
+--
+-- Name: client_profiles client_profiles_deactivated_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_profiles
+    ADD CONSTRAINT client_profiles_deactivated_by_membership_fk FOREIGN KEY (deactivated_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: client_profiles client_profiles_office_active_projection_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_profiles
+    ADD CONSTRAINT client_profiles_office_active_projection_fk FOREIGN KEY (responsible_office_id, agency_id, responsible_office_status) REFERENCES public.offices(id, agency_id, status);
+
+
+--
+-- Name: client_profiles client_profiles_office_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_profiles
+    ADD CONSTRAINT client_profiles_office_same_agency_fk FOREIGN KEY (responsible_office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
+-- Name: client_profiles client_profiles_party_active_projection_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_profiles
+    ADD CONSTRAINT client_profiles_party_active_projection_fk FOREIGN KEY (party_id, agency_id, party_status) REFERENCES public.parties(id, agency_id, status);
+
+
+--
+-- Name: client_profiles client_profiles_party_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_profiles
+    ADD CONSTRAINT client_profiles_party_kind_same_agency_fk FOREIGN KEY (party_id, agency_id, party_kind) REFERENCES public.parties(id, agency_id, party_kind);
 
 
 --
@@ -1700,6 +1919,14 @@ ALTER TABLE ONLY public.party_email_addresses
 
 
 --
+-- Name: client_profiles fk_rails_63be60e7aa; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_profiles
+    ADD CONSTRAINT fk_rails_63be60e7aa FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: contact_point_purpose_assignments fk_rails_728112529a; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1753,6 +1980,14 @@ ALTER TABLE ONLY public.party_relationships
 
 ALTER TABLE ONLY public.organizations
     ADD CONSTRAINT fk_rails_aa10f62a8c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_profiles fk_rails_be0b77b682; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_profiles
+    ADD CONSTRAINT fk_rails_be0b77b682 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -2044,12 +2279,53 @@ ALTER TABLE ONLY public.relationship_purpose_assignments
 
 
 --
+-- Name: supplier_profiles supplier_profiles_deactivated_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_profiles
+    ADD CONSTRAINT supplier_profiles_deactivated_by_membership_fk FOREIGN KEY (deactivated_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_profiles supplier_profiles_office_active_projection_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_profiles
+    ADD CONSTRAINT supplier_profiles_office_active_projection_fk FOREIGN KEY (responsible_office_id, agency_id, responsible_office_status) REFERENCES public.offices(id, agency_id, status);
+
+
+--
+-- Name: supplier_profiles supplier_profiles_office_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_profiles
+    ADD CONSTRAINT supplier_profiles_office_same_agency_fk FOREIGN KEY (responsible_office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
+-- Name: supplier_profiles supplier_profiles_party_active_projection_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_profiles
+    ADD CONSTRAINT supplier_profiles_party_active_projection_fk FOREIGN KEY (party_id, agency_id, party_status) REFERENCES public.parties(id, agency_id, status);
+
+
+--
+-- Name: supplier_profiles supplier_profiles_party_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_profiles
+    ADD CONSTRAINT supplier_profiles_party_kind_same_agency_fk FOREIGN KEY (party_id, agency_id, party_kind) REFERENCES public.parties(id, agency_id, party_kind);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907173000'),
 ('20260907050000'),
 ('20260907040000'),
 ('20260907030000'),

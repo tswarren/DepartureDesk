@@ -194,6 +194,37 @@
 
 <article class="dd-panel">
   <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Roles</h2>
+  </header>
+  <div class="dd-panel-body">
+    <p class="dd-field-hint">Client and supplier roles belong to this party. Adding or deactivating a role does not create or replace the directory identity.</p>
+    <%= render "directory/parties/role",
+      party: @party,
+      profile: @client_profile,
+      role_noun: "client",
+      param_key: "client_profile",
+      create_path: directory_party_client_profile_path(@party),
+      update_path: directory_party_client_profile_path(@party),
+      deactivate_path: deactivate_directory_party_client_profile_path(@party),
+      reactivate_path: reactivate_directory_party_client_profile_path(@party),
+      active_offices: @active_offices,
+      eligible: true %>
+    <%= render "directory/parties/role",
+      party: @party,
+      profile: @supplier_profile,
+      role_noun: "supplier",
+      param_key: "supplier_profile",
+      create_path: directory_party_supplier_profile_path(@party),
+      update_path: directory_party_supplier_profile_path(@party),
+      deactivate_path: deactivate_directory_party_supplier_profile_path(@party),
+      reactivate_path: reactivate_directory_party_supplier_profile_path(@party),
+      active_offices: @active_offices,
+      eligible: !@party.household? %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
     <h2 class="dd-panel-title">Contact information</h2>
   </header>
   <div class="dd-panel-body">

@@ -8,6 +8,14 @@ class Office < ApplicationRecord
 
   belongs_to :agency
   has_many :office_assignments, dependent: :restrict_with_exception
+  has_many :client_profiles,
+    foreign_key: :responsible_office_id,
+    inverse_of: :responsible_office,
+    dependent: :restrict_with_exception
+  has_many :supplier_profiles,
+    foreign_key: :responsible_office_id,
+    inverse_of: :responsible_office,
+    dependent: :restrict_with_exception
   has_many :sessions, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
