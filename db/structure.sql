@@ -39,6 +39,25 @@ COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching
 
 
 --
+-- Name: parties_prevent_kind_or_agency_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.parties_prevent_kind_or_agency_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.party_kind IS DISTINCT FROM OLD.party_kind THEN
+    RAISE EXCEPTION 'party kind cannot change';
+  END IF;
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id THEN
+    RAISE EXCEPTION 'party agency cannot change';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: prevent_audit_event_mutation(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -137,6 +156,7 @@ CREATE TABLE public.agency_memberships (
     updated_at timestamp(6) with time zone NOT NULL,
     invitation_version integer DEFAULT 0 NOT NULL,
     invitation_sent_at timestamp with time zone,
+    person_party_id uuid NOT NULL,
     CONSTRAINT agency_memberships_invitation_version_nonnegative CHECK ((invitation_version >= 0)),
     CONSTRAINT agency_memberships_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT agency_memberships_role_valid CHECK (((role)::text = ANY ((ARRAY['staff'::character varying, 'administrator'::character varying])::text[]))),
@@ -218,6 +238,26 @@ CREATE TABLE public.delivery_intents (
 
 
 --
+-- Name: households; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.households (
+    party_id uuid NOT NULL,
+    agency_id uuid NOT NULL,
+    name character varying NOT NULL,
+    correspondence_name character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    party_kind character varying DEFAULT 'household'::character varying NOT NULL,
+    CONSTRAINT households_correspondence_name_null_or_not_blank CHECK (((correspondence_name IS NULL) OR (btrim((correspondence_name)::text) <> ''::text))),
+    CONSTRAINT households_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT households_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT households_party_kind_household CHECK (((party_kind)::text = 'household'::text))
+);
+
+
+--
 -- Name: office_assignments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -259,6 +299,114 @@ CREATE TABLE public.offices (
     CONSTRAINT offices_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
     CONSTRAINT offices_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
     CONSTRAINT offices_timezone_not_blank CHECK ((btrim((default_timezone)::text) <> ''::text))
+);
+
+
+--
+-- Name: organizations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.organizations (
+    party_id uuid NOT NULL,
+    agency_id uuid NOT NULL,
+    legal_name character varying NOT NULL,
+    trading_name character varying,
+    website character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    party_kind character varying DEFAULT 'organization'::character varying NOT NULL,
+    CONSTRAINT organizations_legal_name_not_blank CHECK ((btrim((legal_name)::text) <> ''::text)),
+    CONSTRAINT organizations_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT organizations_party_kind_organization CHECK (((party_kind)::text = 'organization'::text)),
+    CONSTRAINT organizations_trading_name_null_or_not_blank CHECK (((trading_name IS NULL) OR (btrim((trading_name)::text) <> ''::text))),
+    CONSTRAINT organizations_website_null_or_not_blank CHECK (((website IS NULL) OR (btrim((website)::text) <> ''::text)))
+);
+
+
+--
+-- Name: parties; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.parties (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    party_kind character varying NOT NULL,
+    display_name character varying NOT NULL,
+    sort_name character varying NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    deactivated_at timestamp with time zone,
+    deactivated_by_membership_id uuid,
+    deactivation_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT parties_deactivation_matches_status CHECK (((((status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'deactivated'::text) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
+    CONSTRAINT parties_display_name_not_blank CHECK ((btrim((display_name)::text) <> ''::text)),
+    CONSTRAINT parties_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT parties_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'household'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT parties_sort_name_not_blank CHECK ((btrim((sort_name)::text) <> ''::text)),
+    CONSTRAINT parties_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'deactivated'::character varying])::text[])))
+);
+
+
+--
+-- Name: party_alternate_names; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.party_alternate_names (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    party_id uuid NOT NULL,
+    agency_id uuid NOT NULL,
+    name_kind character varying NOT NULL,
+    name character varying NOT NULL,
+    normalized_name character varying NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    removed_by_membership_id uuid,
+    removed_at timestamp with time zone,
+    CONSTRAINT party_alternate_names_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT party_alternate_names_name_kind_valid CHECK (((name_kind)::text = ANY ((ARRAY['former_name'::character varying, 'alias'::character varying, 'additional_trading_name'::character varying, 'acronym'::character varying, 'imported_name'::character varying])::text[]))),
+    CONSTRAINT party_alternate_names_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT party_alternate_names_normalized_name_not_blank CHECK ((btrim((normalized_name)::text) <> ''::text)),
+    CONSTRAINT party_alternate_names_removal_matches_status CHECK (((((status)::text = 'active'::text) AND (removed_at IS NULL) AND (removed_by_membership_id IS NULL)) OR (((status)::text = 'removed'::text) AND (removed_at IS NOT NULL) AND (removed_by_membership_id IS NOT NULL)))),
+    CONSTRAINT party_alternate_names_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'removed'::character varying])::text[])))
+);
+
+
+--
+-- Name: people; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.people (
+    party_id uuid NOT NULL,
+    agency_id uuid NOT NULL,
+    given_name character varying NOT NULL,
+    middle_name character varying,
+    family_name character varying NOT NULL,
+    prefix character varying,
+    suffix character varying,
+    preferred_name character varying,
+    form_of_address character varying,
+    pronouns character varying,
+    date_of_birth date,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    party_kind character varying DEFAULT 'person'::character varying NOT NULL,
+    CONSTRAINT people_date_of_birth_not_future CHECK (((date_of_birth IS NULL) OR (date_of_birth <= CURRENT_DATE))),
+    CONSTRAINT people_family_name_not_blank CHECK ((btrim((family_name)::text) <> ''::text)),
+    CONSTRAINT people_form_of_address_null_or_not_blank CHECK (((form_of_address IS NULL) OR (btrim((form_of_address)::text) <> ''::text))),
+    CONSTRAINT people_given_name_not_blank CHECK ((btrim((given_name)::text) <> ''::text)),
+    CONSTRAINT people_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT people_middle_name_null_or_not_blank CHECK (((middle_name IS NULL) OR (btrim((middle_name)::text) <> ''::text))),
+    CONSTRAINT people_party_kind_person CHECK (((party_kind)::text = 'person'::text)),
+    CONSTRAINT people_preferred_name_null_or_not_blank CHECK (((preferred_name IS NULL) OR (btrim((preferred_name)::text) <> ''::text))),
+    CONSTRAINT people_prefix_null_or_not_blank CHECK (((prefix IS NULL) OR (btrim((prefix)::text) <> ''::text))),
+    CONSTRAINT people_pronouns_null_or_not_blank CHECK (((pronouns IS NULL) OR (btrim((pronouns)::text) <> ''::text))),
+    CONSTRAINT people_suffix_null_or_not_blank CHECK (((suffix IS NULL) OR (btrim((suffix)::text) <> ''::text)))
 );
 
 
@@ -380,6 +528,14 @@ ALTER TABLE ONLY public.delivery_intents
 
 
 --
+-- Name: households households_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.households
+    ADD CONSTRAINT households_pkey PRIMARY KEY (party_id);
+
+
+--
 -- Name: office_assignments office_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -393,6 +549,38 @@ ALTER TABLE ONLY public.office_assignments
 
 ALTER TABLE ONLY public.offices
     ADD CONSTRAINT offices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT organizations_pkey PRIMARY KEY (party_id);
+
+
+--
+-- Name: parties parties_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.parties
+    ADD CONSTRAINT parties_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: party_alternate_names party_alternate_names_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_alternate_names
+    ADD CONSTRAINT party_alternate_names_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: people people_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.people
+    ADD CONSTRAINT people_pkey PRIMARY KEY (party_id);
 
 
 --
@@ -455,6 +643,13 @@ CREATE INDEX index_agency_memberships_on_agency_id ON public.agency_memberships 
 
 
 --
+-- Name: index_agency_memberships_on_agency_id_and_person_party_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_memberships_on_agency_id_and_person_party_id ON public.agency_memberships USING btree (agency_id, person_party_id);
+
+
+--
 -- Name: index_agency_memberships_on_agency_id_and_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -466,6 +661,13 @@ CREATE INDEX index_agency_memberships_on_agency_id_and_status ON public.agency_m
 --
 
 CREATE UNIQUE INDEX index_agency_memberships_on_id_and_agency_id ON public.agency_memberships USING btree (id, agency_id);
+
+
+--
+-- Name: index_agency_memberships_on_person_party_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_agency_memberships_on_person_party_id ON public.agency_memberships USING btree (person_party_id);
 
 
 --
@@ -560,6 +762,13 @@ CREATE INDEX index_delivery_intents_on_subject ON public.delivery_intents USING 
 
 
 --
+-- Name: index_households_on_party_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_households_on_party_id_and_agency_id ON public.households USING btree (party_id, agency_id);
+
+
+--
 -- Name: index_office_assignments_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -616,6 +825,76 @@ CREATE UNIQUE INDEX index_offices_on_id_and_agency_id ON public.offices USING bt
 
 
 --
+-- Name: index_organizations_on_party_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_organizations_on_party_id_and_agency_id ON public.organizations USING btree (party_id, agency_id);
+
+
+--
+-- Name: index_parties_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_parties_on_agency_id ON public.parties USING btree (agency_id);
+
+
+--
+-- Name: index_parties_on_agency_id_and_party_kind_and_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_parties_on_agency_id_and_party_kind_and_status ON public.parties USING btree (agency_id, party_kind, status);
+
+
+--
+-- Name: index_parties_on_agency_id_and_sort_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_parties_on_agency_id_and_sort_name ON public.parties USING btree (agency_id, sort_name);
+
+
+--
+-- Name: index_parties_on_id_agency_id_and_party_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_parties_on_id_agency_id_and_party_kind ON public.parties USING btree (id, agency_id, party_kind);
+
+
+--
+-- Name: index_parties_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_parties_on_id_and_agency_id ON public.parties USING btree (id, agency_id);
+
+
+--
+-- Name: index_party_alternate_names_on_agency_id_and_normalized_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_alternate_names_on_agency_id_and_normalized_name ON public.party_alternate_names USING btree (agency_id, normalized_name);
+
+
+--
+-- Name: index_party_alternate_names_on_removed_by_membership_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_alternate_names_on_removed_by_membership_id ON public.party_alternate_names USING btree (removed_by_membership_id);
+
+
+--
+-- Name: index_party_alternate_names_unique_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_alternate_names_unique_active ON public.party_alternate_names USING btree (party_id, name_kind, normalized_name) WHERE ((status)::text = 'active'::text);
+
+
+--
+-- Name: index_people_on_party_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_people_on_party_id_and_agency_id ON public.people USING btree (party_id, agency_id);
+
+
+--
 -- Name: index_sessions_on_office_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -651,6 +930,21 @@ CREATE TRIGGER audit_events_prevent_update BEFORE UPDATE ON public.audit_events 
 
 
 --
+-- Name: parties parties_kind_and_agency_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER parties_kind_and_agency_immutable BEFORE UPDATE ON public.parties FOR EACH ROW EXECUTE FUNCTION public.parties_prevent_kind_or_agency_change();
+
+
+--
+-- Name: agency_memberships agency_memberships_person_party_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_memberships
+    ADD CONSTRAINT agency_memberships_person_party_same_agency_fk FOREIGN KEY (person_party_id, agency_id) REFERENCES public.people(party_id, agency_id);
+
+
+--
 -- Name: agency_memberships fk_rails_273f2f9052; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -664,6 +958,14 @@ ALTER TABLE ONLY public.agency_memberships
 
 ALTER TABLE ONLY public.offices
     ADD CONSTRAINT fk_rails_29d71841aa FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: parties fk_rails_2e0d960990; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.parties
+    ADD CONSTRAINT fk_rails_2e0d960990 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -731,6 +1033,22 @@ ALTER TABLE ONLY public.active_storage_variant_records
 
 
 --
+-- Name: organizations fk_rails_aa10f62a8c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT fk_rails_aa10f62a8c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: people fk_rails_beffb17c89; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.people
+    ADD CONSTRAINT fk_rails_beffb17c89 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: active_storage_attachments fk_rails_c3b3935057; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -739,11 +1057,27 @@ ALTER TABLE ONLY public.active_storage_attachments
 
 
 --
+-- Name: households fk_rails_cb67d6c8a8; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.households
+    ADD CONSTRAINT fk_rails_cb67d6c8a8 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: delivery_intents fk_rails_e89726e351; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.delivery_intents
     ADD CONSTRAINT fk_rails_e89726e351 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: households households_party_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.households
+    ADD CONSTRAINT households_party_kind_same_agency_fk FOREIGN KEY (party_id, agency_id, party_kind) REFERENCES public.parties(id, agency_id, party_kind);
 
 
 --
@@ -763,12 +1097,55 @@ ALTER TABLE ONLY public.office_assignments
 
 
 --
+-- Name: organizations organizations_party_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT organizations_party_kind_same_agency_fk FOREIGN KEY (party_id, agency_id, party_kind) REFERENCES public.parties(id, agency_id, party_kind);
+
+
+--
+-- Name: parties parties_deactivated_by_membership_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.parties
+    ADD CONSTRAINT parties_deactivated_by_membership_same_agency_fk FOREIGN KEY (deactivated_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: party_alternate_names party_alternate_names_party_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_alternate_names
+    ADD CONSTRAINT party_alternate_names_party_same_agency_fk FOREIGN KEY (party_id, agency_id) REFERENCES public.parties(id, agency_id);
+
+
+--
+-- Name: party_alternate_names party_alternate_names_removed_by_membership_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_alternate_names
+    ADD CONSTRAINT party_alternate_names_removed_by_membership_same_agency_fk FOREIGN KEY (removed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: people people_party_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.people
+    ADD CONSTRAINT people_party_kind_same_agency_fk FOREIGN KEY (party_id, agency_id, party_kind) REFERENCES public.parties(id, agency_id, party_kind);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260906030000'),
+('20260906020000'),
+('20260906010000'),
 ('20260905234500'),
 ('20260905230000'),
 ('20260905220000'),

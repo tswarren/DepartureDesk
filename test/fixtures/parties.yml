@@ -1,0 +1,39 @@
+one:
+  agency: one
+  party_kind: person
+  display_name: Jordan Blake
+  sort_name: Blake, Jordan
+  status: active
+  lock_version: 0
+
+two:
+  agency: two
+  party_kind: person
+  display_name: Casey Nguyen
+  sort_name: Nguyen, Casey
+  status: active
+  lock_version: 0
+
+unlinked:
+  agency: one
+  party_kind: person
+  display_name: Alex Morgan
+  sort_name: Morgan, Alex
+  status: active
+  lock_version: 0
+
+household_one:
+  agency: one
+  party_kind: household
+  display_name: Morgan Household
+  sort_name: Morgan Household
+  status: active
+  lock_version: 0
+
+organization_one:
+  agency: one
+  party_kind: organization
+  display_name: Horizon Tours
+  sort_name: Horizon Tours
+  status: active
+  lock_version: 0

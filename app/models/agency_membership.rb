@@ -17,6 +17,10 @@ class AgencyMembership < ApplicationRecord
 
   belongs_to :user
   belongs_to :agency
+  belongs_to :person_party,
+    class_name: "Person",
+    foreign_key: :person_party_id,
+    inverse_of: :agency_membership
   has_many :office_assignments, dependent: :restrict_with_exception
 
   enum :role, ROLES.index_by(&:itself), validate: true
@@ -24,6 +28,12 @@ class AgencyMembership < ApplicationRecord
 
   generates_token_for :invitation, expires_in: INVITATION_TTL do
     [ id, invitation_version, status, INVITATION_PURPOSE ]
+  end
+
+  validates :person_party_id, uniqueness: { scope: :agency_id }
+
+  def agency_display_name
+    person_party&.party&.display_name.presence || user.display_name
   end
 
   validates :user_id, uniqueness: { scope: :agency_id }

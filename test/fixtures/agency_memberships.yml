@@ -1,6 +1,7 @@
 one:
   user: one
   agency: one
+  person_party: one
   role: administrator
   status: active
   lock_version: 0
@@ -8,6 +9,7 @@ one:
 two:
   user: two
   agency: two
+  person_party: two
   role: staff
   status: active
   lock_version: 0

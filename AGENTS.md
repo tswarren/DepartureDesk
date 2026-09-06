@@ -12,7 +12,7 @@ The application should feel operationally calm, financially trustworthy, and tra
 
 Foundation 1 (agency membership, derived tenant context, profile administration, team invitations, and privileged provisioning/recovery) is shipped on `main`.
 
-The travel and financial domain is not. Do not assume that departures, suppliers, travelers, reservations, or money objects already exist. Before changing behavior, inspect routes, models, migrations, schema dumps, controllers, views, jobs, and tests. Describe planned features as planned until code and tests ship them.
+Phase 2A (agency-owned party identity, kind profiles, membership-to-person linkage, and the operational Directory) is implemented in this repository. Client and supplier profiles, contacts, relationships, merge, and deactivation workflows are not. Do not assume that departures, suppliers, travelers, reservations, or money objects already exist. Before changing behavior, inspect routes, models, migrations, schema dumps, controllers, views, jobs, and tests. Describe planned features as planned until code and tests ship them.
 
 ## Architecture decisions
 
@@ -29,6 +29,10 @@ Use these terms consistently in code, migrations, UI labels, tests, and document
 | --- | --- |
 | Agency | The travel agency using DepartureDesk and owning operational records. Agency is the tenant. |
 | Office | An agency-owned operating location or business unit. It is an authorization and operational-ownership scope inside one agency, not a tenant. Do not use `Branch` as a model or authorization concept. |
+| Party | An agency-owned identity: a person, household, or organization. Party kind is immutable. Later client, supplier, traveler, organizer, and payer records are roles or profiles of a party, not a second identity. |
+| Person | An individual party. Agency team members link to a person through `agency_memberships.person_party_id`. A person is not automatically a traveler, client, or payer. |
+| Household | A servicing and communication collective stored as a party kind. Household membership is a later relationship. Do not treat directory household as an insurance household, traveling party, occupancy group, or payer group. Never infer household membership from shared occupancy. |
+| Organization | A legal or trading entity stored as a party kind. Client and supplier remain later profiles of an organization or person. |
 | Departure | The top-level operational container for one group trip. Do not use `Group` as the primary model name; it is too ambiguous. |
 | Supplier | An external travel provider. |
 | Travel component | One supplied part of a trip. A client reservation can include multiple components and suppliers. |
@@ -39,7 +43,6 @@ Use these terms consistently in code, migrations, UI labels, tests, and document
 | Traveler | A person participating in travel. A traveler is not automatically the client or payer. |
 | Payer / responsibility allocation | The party and amount or share responsible for client charges. |
 | Occupancy assignment | Travelers sharing a cabin, room, or similar unit. Never infer financial responsibility from occupancy. |
-| Household | A product-rule grouping, notably for insurance coverage. Never infer household membership from shared occupancy. |
 | Client charge | An amount billed by the agency. |
 | Client receipt | Money received from a client or payer. |
 | Receipt application | The explicit allocation of a receipt to one or more client charges. |
@@ -61,6 +64,11 @@ Use these terms consistently in code, migrations, UI labels, tests, and document
 9. Client receipts and supplier payments require explicit applications.
 10. Financial corrections should preserve history through reversal or adjustment rather than silent mutation once posted.
 11. Air ticket records must be able to retain the ARC/BSP settlement amount per ticket without requiring full ARC/BSP reconciliation.
+12. Parties are agency-owned. Load them through `Current.agency`. Do not use a tenant `default_scope`, and do not accept ownership from `params[:agency_id]`.
+13. Party kind is immutable after create. Do not convert a person into a household or organization. Kind-profile rows carry a fixed `party_kind` and reference `parties (id, agency_id, party_kind)`.
+14. Every agency membership, including invited, has exactly one same-agency person. Do not add `users.person_id`. Invitation acceptance and reactivation revalidate the link and must not create a person.
+15. The operational Directory is agency-wide. Office selection does not partition party visibility.
+16. Client, supplier, traveler, organizer, and payer are later roles or profiles. Do not duplicate party identity for those roles.
 
 ## Working examples
 
@@ -227,9 +235,9 @@ The exact implementation will evolve, but agents must not collapse these into on
 - Team administration manages `AgencyMembership` through explicit commands. Invitations are distinct from password resets and never disclose whether an email exists in another agency.
 - Membership-target commands must confirm the membership belongs to the supplied agency after locking and before mutation. Tenant-facing team commands accept a user actor only. After the agency lock, that actor must have a usable administrator membership on the affected active agency. Do not rely on `administrator?` alone.
 - Privileged system attribution is an explicit opt-in (`privileged` plus `actor_identifier`). Recovery-owned nested calls may use it. Provisioning and agency lifecycle keep their own system-only contracts. Invitation acceptance is the documented invitee exception: the invitee is the audit actor and is not yet an administrator.
-- Last-administrator and other team mutations lock agency, then membership. Activation (accept and reactivate) locks user, then agency, then membership, reloads those rows, and rechecks eligibility including office access. Staff need an active assignment to an active office. Administrators need a default assignment when any active office exists. Acceptance must revalidate the presented invitation token after those locks. An obsolete token or missing staff office returns the generic public failure and must not change the password. Administrative reactivation without office access returns `:no_office_access`. Recovery `reactivate` must not insert an agency- or membership-referencing row before those locks; write `administrator_recovery_started` and grant a default only after the activation primitive holds them.
+- Last-administrator and other team mutations lock agency, then membership. Activation (accept and reactivate) locks user, then agency, then membership, reloads those rows, and rechecks eligibility including office access. Membership-creation commands that lock an existing user take the same user → agency order and must not reacquire those locks from a nested person-link command; `LinkMembershipPerson.record_locked!` records the already-held link. Staff need an active assignment to an active office. Administrators need a default assignment when any active office exists. Acceptance must revalidate the presented invitation token after those locks. An obsolete token or missing staff office returns the generic public failure and must not change the password. Administrative reactivation without office access returns `:no_office_access`. Recovery `reactivate` must not insert an agency- or membership-referencing row before those locks; write `administrator_recovery_started` and grant a default only after the activation primitive holds them. Recovery `invite_replacement` lets `InviteTeamMember` acquire user → agency locks, then records `administrator_recovery_started` under those locks.
 - Agency provisioning, lifecycle, and administrator recovery are privileged commands (`ProvisionAgency`, `ChangeAgencyStatus`, `RecoverAgencyAdministrator`), not tenant-facing routes. System audit events require `actor_identifier` and must not invent a platform user. Command output may print identifiers only—never passwords or invitation tokens.
-- Audit subjects are narrowly typed: an `Agency` subject must equal the event agency; an `AgencyMembership`, `Office`, or `OfficeAssignment` subject must belong to it. Do not infer tenancy for unknown subject types.
+- Audit subjects are narrowly typed: an `Agency` subject must equal the event agency; an `AgencyMembership`, `Office`, `OfficeAssignment`, `Party`, `Person`, `Household`, `Organization`, or `PartyAlternateName` subject must belong to it. Unknown subject types raise. Do not infer tenancy for unknown subject types.
 - An office belongs to exactly one agency. Staff operate only in offices with an active assignment. Administrators may use every active office without an assignment per office; they still have one default assignment when any active office exists. Office access is not a role.
 - Later office-owned records must carry a direct `agency_id` and enforce matching `(office_id, agency_id)` with a composite foreign key. Do not infer tenant ownership only through `office_id`. Human-readable office codes never authorize. See [ADR 0004](docs/adr/0004-human-readable-references.md).
 - Administrative mutations write append-only `AuditEvent` records in the same transaction. Audit events reject update and destroy in the application and in PostgreSQL.

@@ -1,9 +1,9 @@
-<% content_for :title, "#{@membership.user.display_name} · Team · DepartureDesk" %>
+<% content_for :title, "#{@membership.agency_display_name} · Team · DepartureDesk" %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
-    <h1 class="dd-page-title"><%= @membership.user.display_name %></h1>
+    <h1 class="dd-page-title"><%= @membership.agency_display_name %></h1>
     <p class="dd-page-description"><%= @membership.user.email_address %></p>
     <%= link_to "Back to team", administration_team_members_path, class: "dd-button dd-button--quiet dd-button--small" %>
   </div>
@@ -18,6 +18,16 @@
 
   <div class="dd-panel-body">
     <dl class="dd-definition-list">
+      <div>
+        <dt>Directory person</dt>
+        <dd>
+          <%= link_to @membership.agency_display_name, directory_party_path(@membership.person_party_id) %>
+        </dd>
+      </div>
+      <div>
+        <dt>Login email</dt>
+        <dd><%= @membership.user.email_address %></dd>
+      </div>
       <div>
         <dt>Role</dt>
         <dd><%= membership_role_badge(@membership) %></dd>
@@ -157,7 +167,7 @@
     <div class="dd-button-group">
       <% if @membership.active? %>
         <%= form_with url: suspend_administration_team_member_path(@membership), method: :post do %>
-          <%= submit_tag "Suspend access", class: "dd-button dd-button--danger", data: { turbo_confirm: "Suspend access for #{@membership.user.display_name}?" } %>
+          <%= submit_tag "Suspend access", class: "dd-button dd-button--danger", data: { turbo_confirm: "Suspend access for #{@membership.agency_display_name}?" } %>
         <% end %>
       <% end %>
 

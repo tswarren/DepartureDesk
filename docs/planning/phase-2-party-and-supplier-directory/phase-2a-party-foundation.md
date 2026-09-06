@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation plan for the first slice of Phase 2.
+Shipped in this repository as the first slice of Phase 2. The locked decisions below remain the contract; do not reopen them during later slices.
 
 Phase 2A establishes agency-owned party identity, the three party kinds, agency-scoped membership-to-person linkage, alternate names, and the initial operational directory.
 
@@ -169,6 +169,7 @@ Constraints and indexes:
   * Active parties have no deactivation metadata.
   * Deactivated parties require timestamp, actor membership, and reason.
 * Composite unique key on `(id, agency_id)` for tenant-safe child references
+* Unique `(id, agency_id, party_kind)` as the typed target for kind-profile foreign keys
 * Index on `(agency_id, party_kind, status)`
 * Index on `(agency_id, sort_name)`
 * Composite foreign key for `deactivated_by_membership_id` and agency
@@ -184,6 +185,7 @@ Create the person kind-profile table with:
 | ----------------- | --------------------------------------------- |
 | `party_id`        | Primary key; same UUID as `parties.id`        |
 | `agency_id`       | Required agency                               |
+| `party_kind`      | Required; fixed `person`                      |
 | `given_name`      | Required                                      |
 | `middle_name`     | Optional                                      |
 | `family_name`     | Required                                      |
@@ -200,11 +202,12 @@ Database requirements:
 
 * Primary key `party_id`
 * Unique `(party_id, agency_id)` for tenant-safe child references
-* Composite foreign key `(party_id, agency_id)` to `parties`
+* Composite foreign key `(party_id, agency_id, party_kind)` to `parties`
+* Check constraint `party_kind = 'person'`
 * Party deletion restricted
 * Name fields constrained against blank-only required values
 * Date of birth cannot be unreasonably future-dated
-* Person kind is implied by membership in this table; do not add a second UUID or a kind trigger on `parties` for this FK
+* Person kind is enforced by the typed foreign key, not only by table membership
 
 ## 3.3 `households`
 
@@ -214,6 +217,7 @@ Create the household profile with:
 | --------------------- | -------------------------------------- |
 | `party_id`            | Primary key; same UUID as `parties.id` |
 | `agency_id`           | Required agency                        |
+| `party_kind`          | Required; fixed `household`            |
 | `name`                | Required                               |
 | `correspondence_name` | Optional                               |
 | `lock_version`        | Optimistic-lock counter                |
@@ -223,7 +227,8 @@ Requirements:
 
 * Primary key `party_id`
 * Unique `(party_id, agency_id)`
-* Tenant-safe composite party foreign key
+* Tenant-safe composite party foreign key `(party_id, agency_id, party_kind)`
+* Check constraint `party_kind = 'household'`
 * No second UUID
 * No primary-contact foreign key
 * No membership rows yet
@@ -239,6 +244,7 @@ Create the organization profile with:
 | ----------------------- | -------------------------------------- |
 | `party_id`              | Primary key; same UUID as `parties.id` |
 | `agency_id`             | Required agency                        |
+| `party_kind`            | Required; fixed `organization`         |
 | `legal_name`            | Required                               |
 | `trading_name`          | Optional                               |
 | `organization_category` | Optional constrained value or deferred |
@@ -250,7 +256,8 @@ Requirements:
 
 * Primary key `party_id`
 * Unique `(party_id, agency_id)`
-* Tenant-safe composite party foreign key
+* Tenant-safe composite party foreign key `(party_id, agency_id, party_kind)`
+* Check constraint `party_kind = 'organization'`
 * No second UUID
 * No parent-organization foreign key
 * No client or supplier booleans
@@ -271,6 +278,8 @@ Create typed alternate names with:
 | `name`            | Required display value                   |
 | `normalized_name` | Required derived value                   |
 | `status`          | Required constrained string; `active` or `removed` |
+| `removed_at`      | Required when removed; null when active            |
+| `removed_by_membership_id` | Required when removed; same-agency actor  |
 | `lock_version`    | Optimistic-lock counter                  |
 | Timestamps        | `timestamptz`                            |
 
@@ -287,11 +296,14 @@ Do not use a generic `trading_name` kind that duplicates the organization’s cu
 Constraints:
 
 * Tenant-safe composite party foreign key
+* Same-agency composite foreign key for `removed_by_membership_id`
+* Active rows have no removal metadata; removed rows require timestamp and actor membership
 * No exact duplicate normalized alternate name of the same kind on one party among active rows
 * Alternate names are not globally unique
 * Canonical name duplication should be rejected or omitted
 * Normalization is rebuildable derived data, not canonical identity
 * Removal is an audited `removed` disposition, not a hard delete
+* Re-adding the same normalized name and kind reactivates or supersedes the removed row; it does not accumulate a second ambiguous copy
 
 ## 3.6 Membership foreign key
 
@@ -382,16 +394,20 @@ The service accepts:
 
 ## Transaction and lock order
 
-The service must follow Foundation 1 locking discipline:
+The service must follow Foundation 1 locking discipline.
 
-1. Lock user when user state participates.
+Membership-creation commands own the lock order:
+
+1. Lock user when an existing user participates.
 2. Lock agency.
-3. Lock membership.
-4. Lock an existing person when linking one.
-5. Reload and revalidate ownership and state.
-6. Create or link the person.
-7. Update the membership.
-8. Record audit events in the same transaction.
+3. Lock membership after it exists, and lock an existing person when linking one.
+4. Reload and revalidate ownership and state.
+5. Allocate or confirm the person, insert the membership with `person_party_id` already set, then call `LinkMembershipPerson.record_locked!`.
+6. Record remaining audit events and delivery intent in the same transaction.
+
+`LinkMembershipPerson.record_locked!` does not acquire locks. It validates the person, confirms the membership already points at that person (or assigns on an unsaved record), and writes `team.person_linked`. `allocate_person` creates the party and person without taking extra locks.
+
+Standalone `LinkMembershipPerson#call` may lock user → agency → membership → person when it is the outer command. Nested callers must not invoke `#call`.
 
 It must:
 
@@ -402,7 +418,7 @@ It must:
 * Return a conflict when it already links to a different person
 * Convert database uniqueness violations into stable command errors
 
-`ProvisionAgency`, `InviteTeamMember`, invitation replacement, and `RecoverAgencyAdministrator` call this service. They do not copy linking rules.
+`ProvisionAgency`, `InviteTeamMember`, invitation replacement, and `RecoverAgencyAdministrator` use this service. They do not copy linking rules. Invitation replacement reuses the existing membership person and does not re-enter the linker. Recovery `invite_replacement` lets `InviteTeamMember` acquire user → agency locks rather than holding the agency lock first.
 
 Invitation acceptance and membership reactivation do not call it to create a person. They reload and revalidate the existing link.
 
@@ -433,7 +449,7 @@ Update `ProvisionAgency` so that its existing transaction creates:
 7. Provisioning and invitation audit events
 8. Delivery intent
 
-The person is created from the provisioning name inputs through `LinkMembershipPerson`.
+The person is created from the provisioning name inputs through `LinkMembershipPerson.allocate_person`. If the administrator email already belongs to a user, provisioning locks that user before creating the agency. After the membership insert, it records the link with `LinkMembershipPerson.record_locked!`.
 
 Provisioning idempotency must continue returning the original agency and membership without creating another party or person.
 
@@ -441,7 +457,7 @@ Add the linked party identifier to relevant audit details, but do not expose unn
 
 ## 6.2 Team invitations
 
-`InviteTeamMember` calls `LinkMembershipPerson` in the same transaction as the invited membership. It does not implement a second linking path.
+`InviteTeamMember` owns the user → agency lock order and calls `LinkMembershipPerson.allocate_person` plus `record_locked!` in the same transaction as the invited membership. It does not implement a second linking path and does not reacquire locks through `LinkMembershipPerson#call`.
 
 Email remains the login identity. Phase 2A has no email on the person, and invitation email is never inferred from the selected person.
 
@@ -467,7 +483,7 @@ For a new person:
 
 Phase 2A provides ordinary directory lookup for this selection. Advisory duplicate scoring remains Phase 2D.
 
-Replacing an invitation reuses the existing membership and person link through `LinkMembershipPerson`’s idempotent same-link behavior.
+Replacing an invitation reuses the existing membership and person link. It does not re-enter `LinkMembershipPerson`.
 
 Revoking an invitation leaves the linked person active and available in the directory.
 
@@ -563,7 +579,7 @@ Directory, party, person, household, and organization fixtures must satisfy:
 * Kind-profile primary key equal to the party UUID
 * Unique person-to-membership links inside an agency
 
-Development seeds and `ProvisionAgency` must use `LinkMembershipPerson`. Do not insert ad hoc `User` name rows that skip the linking service.
+Development seeds and `ProvisionAgency` must use `LinkMembershipPerson.allocate_person` and `record_locked!`. Do not insert ad hoc `User` name rows that skip the linking service.
 
 ---
 
@@ -619,11 +635,11 @@ The list should provide:
 * Party kind
 * Active status
 * Team-member indicator when linked to a membership
-* Stable pagination and sort
-* Kind filter
+* Stable pagination by `(sort_name, id)`
+* Kind filter with an explicit apply action
 * Simple normalized prefix or exact lookup if useful
 
-The current office must not filter or hide parties.
+The current office must not filter or hide parties. Kind filtering uses an explicit apply control; do not require JavaScript to submit the filter.
 
 Do not implement fuzzy scoring or advertise full tolerant search before 2D.
 
@@ -705,6 +721,7 @@ At minimum:
 * Changes are audited, including removal.
 * Canonical-name duplicates are rejected among active rows.
 * Active alternate names appear on the party page; removed names are not selectable as current aliases.
+* Re-adding a removed name reactivates the retained row.
 * Phase 2D can index them without schema changes.
 
 ## 8.8 Interface contract
@@ -830,6 +847,7 @@ Phase 2A must handle:
 * Two attempts to create a profile for one party
 * A stale party edit
 * Invitation acceptance racing with invitation replacement
+* Invitation/linking racing with activation for the same user
 * Invitation acceptance encountering an invalid person link
 * Membership reactivation racing with person-link remediation
 * Provisioning retry with the same idempotency key
@@ -865,7 +883,7 @@ Expected behavior:
 * Primary key is `party_id`, the same UUID as the party
 * Exactly one profile for a party
 * Profile agency matches party agency
-* Profile kind matches party kind
+* Profile kind matches party kind, including typed composite foreign keys that reject SQL mismatches
 * Required structured names are enforced
 * Blank-only required values are rejected
 * Organization display falls back from trading to legal name
@@ -880,7 +898,8 @@ Expected behavior:
 * Same name may belong to different parties
 * Canonical-name duplicate is rejected
 * Original value survives normalization
-* Removal sets `status` to `removed` and does not delete the row
+* Removal sets `status` to `removed`, records `removed_at` and the same-agency actor, and does not delete the row
+* Re-adding the same normalized name and kind reactivates the removed row
 
 ### Membership link
 
@@ -940,7 +959,7 @@ Assert that:
 * Invalid links produce the appropriate generic or authenticated failure.
 * Existing Foundation 1 office and activation invariants still hold.
 * Invitation email/person matrix: existing in-agency membership keeps its person; already-linked person is a hard error; unlinked person plus new email, or a user with no membership in this agency, links the selected person.
-* `ProvisionAgency`, `InviteTeamMember`, and recovery call `LinkMembershipPerson`.
+* `ProvisionAgency`, `InviteTeamMember`, and recovery use `LinkMembershipPerson.allocate_person` and `record_locked!` rather than nested `#call`.
 
 ## 12.4 Audit tests
 
@@ -961,7 +980,8 @@ For every party kind:
 * Submitted `agency_id` is ignored or rejected.
 * Submitted `party_kind` cannot change an existing record.
 * Validation errors render accessibly.
-* Basic list filters remain agency-scoped.
+* Basic list filters remain agency-scoped and work without JavaScript.
+* Directory index paginates by `(sort_name, id)`.
 * Directory index and show do not filter by `Current.office`.
 * Alternate names are nested under the party.
 * Alternate-name removal is audited and leaves the row.
@@ -974,7 +994,7 @@ Cover:
 * Create one person, household, and organization.
 * View each on the directory list.
 * Edit canonical identity information.
-* Add and edit an alternate name.
+* Add and edit an alternate name, asserting unique accessible labels and field values rather than only page text.
 * Invite an unlinked existing person with a new email.
 * Reject inviting an already-linked person.
 * Create and invite a new person.

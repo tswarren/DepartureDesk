@@ -15,6 +15,17 @@ module ActiveSupport
       office = agency.offices.active.order(:created_at).first
       { office_ids: [ office.id ], default_office_id: office.id }
     end
+
+    def create_person!(agency, given_name: "Given", family_name: "Family", preferred_name: nil, **profile)
+      person = Person.new(agency:, given_name:, family_name:, preferred_name:, **profile)
+      party = agency.parties.new(party_kind: "person", status: "active")
+      party.apply_derived_names!(person)
+      party.save!
+      person.party = party
+      person.party_id = party.id
+      person.save!
+      person
+    end
   end
 end
 

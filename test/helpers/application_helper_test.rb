@@ -13,6 +13,8 @@ class ApplicationHelperTest < ActionView::TestCase
   test "agency and office badges use title-case labels" do
     assert_includes agency_status_badge(agencies(:one)), "Active"
     assert_includes office_status_badge(offices(:one)), "Active"
+    assert_includes party_kind_badge(parties(:one)), "Person"
+    assert_includes party_status_badge(parties(:one)), "Active"
     assert_equal "active", agencies(:one).status
     assert_equal "active", offices(:one).status
   end

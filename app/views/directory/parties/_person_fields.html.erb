@@ -1,0 +1,53 @@
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :given_name, class: "dd-label" %>
+    <%= form.text_field :given_name, value: profile.given_name, required: true, class: "dd-field", aria: field_aria(profile, :given_name) %>
+    <%= field_error profile, :given_name %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :family_name, class: "dd-label" %>
+    <%= form.text_field :family_name, value: profile.family_name, required: true, class: "dd-field", aria: field_aria(profile, :family_name) %>
+    <%= field_error profile, :family_name %>
+  </div>
+</div>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :preferred_name, class: "dd-label" %>
+    <%= form.text_field :preferred_name, value: profile.preferred_name, class: "dd-field", aria: field_aria(profile, :preferred_name) %>
+    <%= field_error profile, :preferred_name %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :middle_name, class: "dd-label" %>
+    <%= form.text_field :middle_name, value: profile.middle_name, class: "dd-field", aria: field_aria(profile, :middle_name) %>
+    <%= field_error profile, :middle_name %>
+  </div>
+</div>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :prefix, class: "dd-label" %>
+    <%= form.text_field :prefix, value: profile.prefix, class: "dd-field", aria: field_aria(profile, :prefix) %>
+    <%= field_error profile, :prefix %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :suffix, class: "dd-label" %>
+    <%= form.text_field :suffix, value: profile.suffix, class: "dd-field", aria: field_aria(profile, :suffix) %>
+    <%= field_error profile, :suffix %>
+  </div>
+</div>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :form_of_address, class: "dd-label" %>
+    <%= form.text_field :form_of_address, value: profile.form_of_address, class: "dd-field", aria: field_aria(profile, :form_of_address) %>
+    <%= field_error profile, :form_of_address %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :pronouns, class: "dd-label" %>
+    <%= form.text_field :pronouns, value: profile.pronouns, class: "dd-field", aria: field_aria(profile, :pronouns) %>
+    <%= field_error profile, :pronouns %>
+  </div>
+</div>
+<div class="dd-field-group">
+  <%= form.label :date_of_birth, class: "dd-label" %>
+  <%= form.date_field :date_of_birth, value: profile.date_of_birth, class: "dd-field", aria: field_aria(profile, :date_of_birth) %>
+  <%= field_error profile, :date_of_birth %>
+</div>

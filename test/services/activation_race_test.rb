@@ -276,6 +276,41 @@ class ActivationRaceTest < ActiveSupport::TestCase
     assert_not membership.has_active_office_assignment?
   end
 
+  test "inviting an existing user does not deadlock with activation of that user" do
+    user = create_user("race-invite-accept@example.com")
+    agency_a = create_agency("Race Invite Accept A")
+    agency_b = create_agency("Race Invite Accept B")
+    admin_b = create_user("race-invite-accept-admin@example.com")
+    create_active_admin(admin_b, agency_b)
+    membership_a = create_invited_membership(user:, agency: agency_a)
+    token = membership_a.invitation_token
+    barrier = CyclicBarrier.new(2)
+
+    accept = run_on_connection do
+      accepting_after_locate(token, "AcceptPass123!", barrier).call
+    end
+    invite = run_on_connection do
+      inviting_after_start(agency_b, user, admin_b, barrier).call
+    end
+
+    join_all!(accept, invite)
+    assert_not [ accept, invite ].any? { |outcome| outcome[:error].is_a?(ActiveRecord::Deadlocked) }
+    assert_nil accept[:error]
+    assert_predicate membership_a.reload, :active?
+
+    membership_b = agency_b.agency_memberships.find_by(user: user)
+    if invite[:error]
+      flunk invite[:error]
+    elsif invite[:result].status == :silent
+      assert_nil membership_b
+    else
+      assert_equal :created, invite[:result].status
+      assert membership_b.invited?
+      assert membership_b.person_party.present?
+      assert_equal agency_b.id, membership_b.person_party.agency_id
+    end
+  end
+
   private
 
   def create_agency(name)
@@ -311,6 +346,7 @@ class ActivationRaceTest < ActiveSupport::TestCase
     membership = AgencyMembership.create!(
       user:,
       agency:,
+      person_party: create_person!(agency, given_name: user.first_name, family_name: user.last_name),
       status:,
       role:,
       invitation_sent_at: Time.current
@@ -335,6 +371,23 @@ class ActivationRaceTest < ActiveSupport::TestCase
 
   def create_active_admin(user, agency)
     create_membership(user:, agency:, status: "active", role: "administrator")
+  end
+
+  def inviting_after_start(agency, user, actor, barrier)
+    Class.new(InviteTeamMember) do
+      define_method(:call) do
+        barrier.wait
+        super()
+      end
+    end.new(
+      agency:,
+      actor:,
+      email: user.email_address,
+      role: "staff",
+      first_name: user.first_name,
+      last_name: user.last_name,
+      **invite_offices(agency)
+    )
   end
 
   def accepting_after_locate(token, password, barrier)
@@ -448,6 +501,11 @@ class ActivationRaceTest < ActiveSupport::TestCase
     OfficeAssignment.where(agency_id: agency_ids).delete_all
     Office.where(agency_id: agency_ids).delete_all
     AgencyMembership.where(agency_id: agency_ids).delete_all
+    PartyAlternateName.where(agency_id: agency_ids).delete_all
+    Person.where(agency_id: agency_ids).delete_all
+    Household.where(agency_id: agency_ids).delete_all
+    Organization.where(agency_id: agency_ids).delete_all
+    Party.where(agency_id: agency_ids).delete_all
     User.where(id: user_ids).delete_all
     Agency.where(id: agency_ids).delete_all
   ensure

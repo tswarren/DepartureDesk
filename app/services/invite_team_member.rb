@@ -1,13 +1,17 @@
 class InviteTeamMember < MembershipCommand
-  def initialize(agency:, email:, role:, first_name:, last_name:, preferred_name: nil, office_ids: [], default_office_id: nil, actor: nil, actor_identifier: nil, privileged: false)
+  def initialize(agency:, email:, role:, first_name:, last_name:, preferred_name: nil,
+    person_party_id: nil, office_ids: [], default_office_id: nil, actor: nil,
+    actor_identifier: nil, privileged: false, after_locks: nil)
     @agency = agency
     @email = email.to_s.strip.downcase
     @role = role
     @first_name = first_name
     @last_name = last_name
     @preferred_name = preferred_name
+    @person_party_id = person_party_id.presence
     @office_ids = Array(office_ids).compact_blank.uniq
     @default_office_id = default_office_id
+    @after_locks = after_locks
     assign_command_actors(actor:, actor_identifier:, privileged:)
   end
 
@@ -15,7 +19,7 @@ class InviteTeamMember < MembershipCommand
     result = nil
 
     ActiveRecord::Base.transaction do
-      result = with_agency_membership_lock(@agency) { perform }
+      result = perform
       record_delivery_intent(result)
     end
 
@@ -36,23 +40,54 @@ class InviteTeamMember < MembershipCommand
   end
 
   def perform
-    existing_user = User.find_by(email_address: @email)
+    ensure_actor_shape!
+    user = User.find_by(email_address: @email)
 
-    if existing_user && user_has_foreign_active_membership?(existing_user, @agency)
+    if user
+      user.with_lock do
+        user.reload
+        with_agency_locked { perform_for_known_user(user) }
+      end
+    else
+      with_agency_locked { perform_for_unknown_user }
+    end
+  end
+
+  def with_agency_locked
+    @agency.with_lock do
+      @agency.reload
+      ensure_tenant_actor!(@agency)
+      @after_locks&.call
+      yield
+    end
+  end
+
+  def perform_for_known_user(user)
+    if user_has_foreign_active_membership?(user, @agency)
       return CommandResult.new(status: :silent, message: ELIGIBLE_INVITE_NOTICE)
     end
 
-    if existing_user
-      membership = @agency.agency_memberships.find_by(user: existing_user)
-      return handle_existing_membership(membership) if membership
-      return create_membership_for(existing_user)
-    end
+    membership = @agency.agency_memberships.find_by(user: user)
+    return handle_existing_membership(membership) if membership
+
+    create_membership_for(user)
+  end
+
+  def perform_for_unknown_user
+    # A user may have been created after the agency lock. Do not lock that user
+    # while already holding the agency row; unique constraints remain the guard.
+    user = User.find_by(email_address: @email)
+    return perform_for_known_user(user) if user
 
     create_user_and_membership
   end
 
   def handle_existing_membership(membership)
     membership.lock!
+
+    if @person_party_id.present? && membership.person_party_id != @person_party_id
+      raise Error.new("That email already belongs to a different person in this agency.", code: :conflict)
+    end
 
     if membership.active? || membership.suspended?
       return CommandResult.new(
@@ -83,15 +118,50 @@ class InviteTeamMember < MembershipCommand
     CommandResult.new(status: :replaced, membership: membership, message: ELIGIBLE_INVITE_NOTICE)
   end
 
-  def create_membership_for(user)
+  def create_membership_for(user, person = nil)
+    person ||= resolve_person!
     membership = @agency.agency_memberships.create!(
       user: user,
       role: @role,
       status: "invited",
-      invitation_sent_at: Time.current
+      invitation_sent_at: Time.current,
+      person_party: person
+    )
+    LinkMembershipPerson.record_locked!(
+      agency: @agency,
+      membership: membership,
+      person: person,
+      source: "invitation",
+      actor: @actor,
+      actor_identifier: @actor_identifier,
+      privileged: @privileged
     )
     assign_offices!(membership)
     record_created(membership)
+  end
+
+  def resolve_person!
+    if @person_party_id.present?
+      person = @agency.people.find_by(party_id: @person_party_id)
+      raise Error.new("That person is not part of this agency.", code: :not_found) unless person
+
+      person.lock!
+      person.reload
+      linked = @agency.agency_memberships.find_by(person_party_id: person.party_id)
+      raise Error.new("That person is already linked to a membership.", code: :conflict) if linked
+
+      return person
+    end
+
+    LinkMembershipPerson.allocate_person(
+      agency: @agency,
+      given_name: @first_name,
+      family_name: @last_name,
+      preferred_name: @preferred_name,
+      actor: @actor,
+      actor_identifier: @actor_identifier,
+      privileged: @privileged
+    )
   end
 
   def assign_offices!(membership)
@@ -145,16 +215,17 @@ class InviteTeamMember < MembershipCommand
   end
 
   def create_user_and_membership
+    person = resolve_person!
     generated_password = SecureRandom.hex(32)
     user = User.create!(
       email_address: @email,
-      first_name: @first_name,
-      last_name: @last_name,
-      preferred_name: @preferred_name,
+      first_name: @first_name.presence || person.given_name,
+      last_name: @last_name.presence || person.family_name,
+      preferred_name: @preferred_name.presence || person.preferred_name,
       password: generated_password,
       password_confirmation: generated_password
     )
-    create_membership_for(user)
+    create_membership_for(user, person)
   end
 
   def record_created(membership)

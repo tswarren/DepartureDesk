@@ -125,9 +125,9 @@ When importing from another system, a legacy “group code” should map to a De
 
 ## Party
 
-A **party** is a person or organization that participates in a business or operational relationship.
+A **party** is a person, household, or organization that may participate in a business, financial, or operational relationship.
 
-Party is primarily a technical umbrella term. User-facing screens should usually display the more specific role:
+Party is the agency-owned identity root. User-facing screens should usually display the more specific role when that role exists:
 
 * Client  
 * Traveler  
@@ -136,6 +136,10 @@ Party is primarily a technical umbrella term. User-facing screens should usually
 * Group leader  
 * Payer  
 * Agency team member
+
+Phase 2A ships party identity only. Client and supplier remain later profiles. Traveler remains a contextual role of a person.
+
+Agency team members use person identities linked through agency membership. The team name in an agency is the linked person’s directory name; the user email remains the login identifier.
 
 ## Person
 
@@ -210,17 +214,18 @@ Both are contextual forms of traveler, not separate identity types.
 
 ## Household
 
-A **household** is a relationship among people relevant to communication, client servicing, or supplier eligibility.
+A **household** is a servicing and communication collective stored as a party kind.
 
-Household membership may affect:
+Household membership is a later relationship among people. It is not created automatically, and sharing a cabin or room does not establish it.
 
-* Shared client trips  
-* Statements  
-* Contact information  
-* Travel-insurance eligibility  
-* Guardian relationships
+Directory household is not:
 
-Sharing a cabin or room does not establish household membership.
+* An insurance household  
+* A traveling party  
+* An occupancy group  
+* A payer group
+
+Insurance eligibility may later use a separate product-rule household. Do not reuse directory household as that concept without an explicit product decision.
 
 ## Organizer
 

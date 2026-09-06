@@ -39,6 +39,7 @@ class ActivateMembership < MembershipCommand
 
       ensure_membership_belongs_to_agency!(@agency, @membership)
       ensure_tenant_actor!(@agency) unless accept?
+      ensure_person_link!(generic: accept?)
 
       if accept?
         accept_locked!
@@ -145,6 +146,21 @@ class ActivateMembership < MembershipCommand
     else
       Error.new("This person cannot be reactivated while they have another active membership.", code: :conflict)
     end
+  end
+
+  def ensure_person_link!(generic:)
+    person = @membership.person_party
+    valid = person &&
+      person.agency_id == @agency.id &&
+      person.party&.person?
+
+    return if valid
+
+    if generic
+      raise Error.new(AcceptInvitation::GENERIC_FAILURE, code: :invalid_token)
+    end
+
+    raise Error.new("This membership is not linked to a person.", code: :invalid)
   end
 
   def accept?

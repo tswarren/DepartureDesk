@@ -1,0 +1,209 @@
+<% content_for :title, "#{@party.display_name} · Directory · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title"><%= @party.display_name %></h1>
+    <p class="dd-page-description">
+      <%= party_kind_badge(@party) %>
+      <%= party_status_badge(@party) %>
+    </p>
+    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Edit", edit_directory_party_path(@party), class: "dd-button" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Identity</h2>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <% if @party.person? %>
+        <% person = @party.person %>
+        <div>
+          <dt>Given name</dt>
+          <dd><%= person.given_name %></dd>
+        </div>
+        <div>
+          <dt>Middle name</dt>
+          <dd><%= person.middle_name.presence || "—" %></dd>
+        </div>
+        <div>
+          <dt>Family name</dt>
+          <dd><%= person.family_name %></dd>
+        </div>
+        <div>
+          <dt>Preferred name</dt>
+          <dd><%= person.preferred_name.presence || "—" %></dd>
+        </div>
+        <div>
+          <dt>Prefix</dt>
+          <dd><%= person.prefix.presence || "—" %></dd>
+        </div>
+        <div>
+          <dt>Suffix</dt>
+          <dd><%= person.suffix.presence || "—" %></dd>
+        </div>
+        <div>
+          <dt>Form of address</dt>
+          <dd><%= person.form_of_address.presence || "—" %></dd>
+        </div>
+        <div>
+          <dt>Pronouns</dt>
+          <dd><%= person.pronouns.presence || "—" %></dd>
+        </div>
+        <div>
+          <dt>Date of birth</dt>
+          <dd><%= person.date_of_birth&.to_fs(:long) || "—" %></dd>
+        </div>
+      <% elsif @party.household? %>
+        <div>
+          <dt>Household name</dt>
+          <dd><%= @party.household.name %></dd>
+        </div>
+        <div>
+          <dt>Correspondence name</dt>
+          <dd><%= @party.household.correspondence_name.presence || "—" %></dd>
+        </div>
+      <% else %>
+        <div>
+          <dt>Legal name</dt>
+          <dd><%= @party.organization.legal_name %></dd>
+        </div>
+        <div>
+          <dt>Trading name</dt>
+          <dd><%= @party.organization.trading_name.presence || "—" %></dd>
+        </div>
+        <div>
+          <dt>Website</dt>
+          <dd><%= @party.organization.website.presence || "—" %></dd>
+        </div>
+      <% end %>
+      <div>
+        <dt>Directory name</dt>
+        <dd><%= @party.display_name %></dd>
+      </div>
+      <div>
+        <dt>Sort name</dt>
+        <dd><%= @party.sort_name %></dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Alternate names</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @alternate_names.any? %>
+      <ul class="dd-list">
+        <% @alternate_names.each do |alternate| %>
+          <li class="dd-list-item">
+            <div>
+              <strong class="dd-list-title"><%= alternate.name %></strong>
+              <span class="dd-list-detail"><%= alternate.name_kind.titleize %></span>
+            </div>
+            <%= form_with model: alternate,
+              url: directory_party_alternate_name_path(@party, alternate),
+              method: :patch,
+              class: "dd-form" do |form| %>
+              <div class="dd-form-grid dd-form-grid--two-column">
+                <div class="dd-field-group">
+                  <%= form.label :name, "Alternate name", class: "dd-label" %>
+                  <%= form.text_field :name, required: true, class: "dd-field" %>
+                </div>
+                <div class="dd-field-group">
+                  <%= form.label :name_kind, "Alternate name kind", class: "dd-label" %>
+                  <%= form.select :name_kind,
+                    PartyAlternateName::KINDS.map { |kind| [ kind.titleize, kind ] },
+                    {},
+                    class: "dd-field" %>
+                </div>
+              </div>
+              <div class="dd-button-group">
+                <%= form.submit "Update name", class: "dd-button dd-button--secondary dd-button--small" %>
+                <%= link_to "Remove",
+                  directory_party_alternate_name_path(@party, alternate),
+                  data: { turbo_method: :delete, turbo_confirm: "Remove this alternate name?" },
+                  class: "dd-button dd-button--danger dd-button--small" %>
+              </div>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No alternate names</h3>
+        <p class="dd-empty-copy">Former names and aliases stay on this record without replacing the canonical name.</p>
+      </div>
+    <% end %>
+
+    <%= form_with model: @alternate_name,
+      url: directory_party_alternate_names_path(@party),
+      method: :post,
+      class: "dd-form" do |form| %>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :name, "Add alternate name", class: "dd-label" %>
+          <%= form.text_field :name, required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :name_kind, "Add name kind", class: "dd-label" %>
+          <%= form.select :name_kind,
+            PartyAlternateName::KINDS.map { |kind| [ kind.titleize, kind ] },
+            {},
+            class: "dd-field" %>
+        </div>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Add name", class: "dd-button dd-button--secondary" %>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<% if @party.person? && @party.person&.agency_membership %>
+  <% membership = @party.person.agency_membership %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Team membership</h2>
+    </header>
+    <div class="dd-panel-body">
+      <dl class="dd-definition-list">
+        <div>
+          <dt>Access</dt>
+          <dd><%= membership_status_badge(membership) %></dd>
+        </div>
+        <div>
+          <dt>Login email</dt>
+          <dd><%= membership.user.email_address %></dd>
+        </div>
+      </dl>
+      <% if Current.agency_membership&.administrator? %>
+        <p><%= link_to "Open team membership", administration_team_member_path(membership) %></p>
+      <% end %>
+    </div>
+  </article>
+<% end %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Record</h2>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Created</dt>
+        <dd><%= @party.created_at.utc.to_fs(:long) %></dd>
+      </div>
+      <div>
+        <dt>Updated</dt>
+        <dd><%= @party.updated_at.utc.to_fs(:long) %></dd>
+      </div>
+    </dl>
+  </div>
+</article>

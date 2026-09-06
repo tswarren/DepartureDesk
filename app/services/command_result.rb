@@ -1,11 +1,12 @@
 class CommandResult
-  attr_reader :status, :membership, :office, :assignment, :message
+  attr_reader :status, :membership, :office, :assignment, :party, :message
 
-  def initialize(status:, membership: nil, office: nil, assignment: nil, message: nil)
+  def initialize(status:, membership: nil, office: nil, assignment: nil, party: nil, message: nil)
     @status = status
     @membership = membership
     @office = office
     @assignment = assignment
+    @party = party
     @message = message
   end
 

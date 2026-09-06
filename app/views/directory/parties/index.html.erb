@@ -1,0 +1,82 @@
+<% content_for :title, "Directory · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title">People, households, and organizations</h1>
+    <p class="dd-page-description">
+      Agency identities used for clients, suppliers, team members, and later travel roles.
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Add to directory", new_directory_party_path, class: "dd-button" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Directory</h2>
+  </header>
+  <div class="dd-panel-body">
+    <form method="get" action="<%= directory_parties_path %>" class="dd-form" style="max-width: 16rem; margin-bottom: 1rem;">
+      <div class="dd-field-group">
+        <label class="dd-label" for="party_kind">Kind</label>
+        <select name="party_kind" id="party_kind" class="dd-field">
+          <option value="">All</option>
+          <% Party::KINDS.each do |kind| %>
+            <option value="<%= kind %>" <%= "selected" if @party_kind == kind %>><%= kind.titleize %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="dd-form-actions">
+        <button type="submit" class="dd-button dd-button--secondary dd-button--small">Apply filter</button>
+      </div>
+    </form>
+
+    <% if @parties.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Kind</th>
+              <th>Status</th>
+              <th>Team</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @parties.each do |party| %>
+              <tr>
+                <td><%= link_to party.display_name, directory_party_path(party) %></td>
+                <td><%= party_kind_badge(party) %></td>
+                <td><%= party_status_badge(party) %></td>
+                <td>
+                  <% if party.person? && party.person&.agency_membership %>
+                    Team member
+                  <% else %>
+                    —
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <% if @page > 1 || @has_next_page %>
+        <nav class="dd-button-group" aria-label="Directory pagination">
+          <% if @page > 1 %>
+            <%= link_to "Previous", directory_parties_path(party_kind: @party_kind, page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+          <% if @has_next_page %>
+            <%= link_to "Next", directory_parties_path(party_kind: @party_kind, page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+        </nav>
+      <% end %>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No directory records</h3>
+        <p class="dd-empty-copy">Create a person, household, or organization to start the directory.</p>
+      </div>
+    <% end %>
+  </div>
+</article>

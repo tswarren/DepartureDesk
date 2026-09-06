@@ -1,0 +1,37 @@
+<% content_for :title, "Edit #{@party.display_name} · Directory · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title">Edit <%= @party.display_name %></h1>
+    <p class="dd-page-description">
+      <%= party_kind_badge(@party) %> cannot be changed. Prefix and suffix are stored and omitted from the directory name.
+    </p>
+    <%= link_to "Back to record", directory_party_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @profile.errors.any? %>
+      <div class="dd-alert dd-alert--danger" role="alert">
+        <p>Please correct the following:</p>
+        <ul>
+          <% @profile.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <%= form_with model: @party, url: directory_party_path(@party), method: :patch, class: "dd-form" do |form| %>
+      <%= form.hidden_field :lock_version %>
+      <%= hidden_field_tag "party[profile_lock_version]", @profile.lock_version %>
+      <%= render "directory/parties/#{@party.party_kind}_fields", form: form, profile: @profile %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save changes", class: "dd-button" %>
+        <%= link_to "Cancel", directory_party_path(@party), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

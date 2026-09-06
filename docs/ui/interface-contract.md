@@ -68,6 +68,8 @@ Badges pair a title-case label with a color modifier. Stored enum values stay lo
 | `membership_status_badge` | Active | Invited | Suspended | Revoked |
 | `membership_role_badge` | — | Administrator | — | Staff |
 | `office_status_badge` | Active | — | — | Inactive |
+| `party_kind_badge` | — | Person / Household / Organization | — | — |
+| `party_status_badge` | Active | — | — | Deactivated |
 
 Never communicate status by color alone.
 

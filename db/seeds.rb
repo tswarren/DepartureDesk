@@ -34,7 +34,30 @@ if Rails.env.development?
         role: "administrator",
         status: "active"
       )
-      membership.save!
+    end
+
+    if membership.person_party_id.blank?
+      person = LinkMembershipPerson.allocate_person(
+        agency: seed_agency,
+        given_name: seed_user.first_name,
+        family_name: seed_user.last_name,
+        actor_identifier: "seed:development",
+        privileged: true
+      )
+      membership.person_party = person
+    end
+
+    membership.save!
+
+    if membership.saved_change_to_person_party_id?
+      LinkMembershipPerson.record_locked!(
+        agency: seed_agency,
+        membership: membership,
+        person: membership.person_party,
+        source: "seed",
+        actor_identifier: "seed:development",
+        privileged: true
+      )
     end
 
     puts "Seed agency ready:"
