@@ -2,17 +2,10 @@ require "application_system_test_case"
 
 class DirectoryNoteFoundationTest < ApplicationSystemTestCase
   test "standard note correction and administrator-only isolation" do
-    visit new_session_path
-    fill_in "Email address", with: users(:one).email_address
-    fill_in "Password", with: "password"
-    click_button "Sign in"
-
-    click_link "Directory"
-    assert_current_path directory_parties_path
-    click_link "Alex Morgan"
-    assert_current_path directory_party_path(parties(:unlinked))
+    sign_in_from_browser users(:one)
+    open_directory_party "Alex Morgan"
     within("nav[aria-label=Party]") { click_link "Notes" }
-    assert_current_path directory_party_notes_path(parties(:unlinked))
+    assert_field "New note"
     fill_in "New note", with: "Likes aisle seats on the group air."
     click_button "Add note"
     assert_text "Likes aisle seats on the group air."
@@ -32,15 +25,10 @@ class DirectoryNoteFoundationTest < ApplicationSystemTestCase
     assert_text "Internal credit discussion."
 
     click_button "Sign out"
-    fill_in "Email address", with: users(:staff_one).email_address
-    fill_in "Password", with: "password"
-    click_button "Sign in"
-    click_link "Directory"
-    assert_current_path directory_parties_path
-    click_link "Alex Morgan"
-    assert_current_path directory_party_path(parties(:unlinked))
+    sign_in_from_browser users(:staff_one)
+    open_directory_party "Alex Morgan"
     within("nav[aria-label=Party]") { click_link "Notes" }
-    assert_current_path directory_party_notes_path(parties(:unlinked))
+    assert_field "New note"
     assert_text "Prefers window seats on the group air."
     assert_no_text "Internal credit discussion."
     assert_no_text "Administrator only"

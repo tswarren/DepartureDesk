@@ -2,15 +2,8 @@ require "application_system_test_case"
 
 class DirectoryPartyFoundationTest < ApplicationSystemTestCase
   test "directory create edit alternate names and existing-person invitation" do
-    visit new_session_path
-    fill_in "Email address", with: users(:one).email_address
-    fill_in "Password", with: "password"
-    click_button "Sign in"
-    assert_current_path root_path
-
-    click_link "Directory"
-    assert_current_path directory_parties_path
-    assert_text "People, households, and organizations"
+    sign_in_from_browser users(:one)
+    open_directory
     assert_text "Alex Morgan"
     assert_text "Morgan Household"
     assert_text "Horizon Tours"
@@ -27,7 +20,7 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     jamie_id = Party.find_by!(display_name: "Jamie Cole").id
 
     click_link "Back to directory"
-    assert_current_path directory_parties_path
+    assert_selector "h1.dd-page-title", text: "People, households, and organizations"
     click_link "Add to directory"
     assert_current_path new_directory_party_path
     click_link "Household"
@@ -37,7 +30,7 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_text "Cole Household"
 
     click_link "Back to directory"
-    assert_current_path directory_parties_path
+    assert_selector "h1.dd-page-title", text: "People, households, and organizations"
     click_link "Add to directory"
     assert_current_path new_directory_party_path
     click_link "Organization"
@@ -47,12 +40,13 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     click_button "Create organization"
     assert_text "Summit Travel"
 
-    click_link "Directory"
+    open_directory
     assert_text "Jamie Cole"
     assert_text "Cole Household"
     assert_text "Summit Travel"
 
-    click_link "Jamie Cole"
+    within("table.dd-table") { click_link "Jamie Cole", exact: true }
+    assert_selector "h1.dd-page-title", text: "Jamie Cole"
     click_link "Edit"
     assert_field "Preferred name"
     fill_in "Preferred name", with: "Jim"

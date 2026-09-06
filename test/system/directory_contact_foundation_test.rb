@@ -2,18 +2,9 @@ require "application_system_test_case"
 
 class DirectoryContactFoundationTest < ApplicationSystemTestCase
   test "personal contacts household mailing address purposes and suppression" do
-    visit new_session_path
-    fill_in "Email address", with: users(:one).email_address
-    fill_in "Password", with: "password"
-    click_button "Sign in"
-    assert_current_path root_path
-
-    click_link "Directory"
-    assert_current_path directory_parties_path
-    click_link "Alex Morgan"
-    assert_current_path directory_party_path(parties(:unlinked))
+    sign_in_from_browser users(:one)
+    open_directory_party "Alex Morgan"
     within("nav[aria-label=Party]") { click_link "Contact information" }
-    assert_current_path directory_party_contact_information_path(parties(:unlinked))
     assert_link "Add email"
 
     click_link "Add email"
@@ -52,14 +43,10 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     end
     assert_text "Do not use"
 
-    click_link "Directory"
-    assert_current_path directory_parties_path
-    click_link "Morgan Household"
-    assert_current_path directory_party_path(parties(:household_one))
+    open_directory_party "Morgan Household"
     within("nav[aria-label=Party]") { click_link "Contact information" }
-    assert_current_path directory_party_contact_information_path(parties(:household_one))
+    assert_link "Add postal address"
     click_link "Add postal address"
-    assert_current_path new_directory_party_contact_point_path(parties(:household_one), contact_kind: "postal_address")
     assert_field "Address line 1"
     fill_in "Address line 1", with: "18 Harbor Street"
     fill_in "City or locality", with: "Boston"
@@ -69,12 +56,9 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     click_button "Add postal address"
     assert_text "18 Harbor Street"
 
-    click_link "Directory"
-    assert_current_path directory_parties_path
-    click_link "Alex Morgan"
-    assert_current_path directory_party_path(parties(:unlinked))
+    open_directory_party "Alex Morgan"
     within("nav[aria-label=Party]") { click_link "Contact information" }
-    assert_current_path directory_party_contact_information_path(parties(:unlinked))
+    assert_link "Add email"
     assert_no_text "18 Harbor Street"
     assert_text "alex.personal@example.com"
     assert_text "Do not use"

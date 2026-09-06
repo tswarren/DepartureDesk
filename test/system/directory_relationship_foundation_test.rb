@@ -2,17 +2,10 @@ require "application_system_test_case"
 
 class DirectoryRelationshipFoundationTest < ApplicationSystemTestCase
   test "overlapping households organization contact and ending an affiliation" do
-    visit new_session_path
-    fill_in "Email address", with: users(:one).email_address
-    fill_in "Password", with: "password"
-    click_button "Sign in"
-
-    click_link "Directory"
-    assert_current_path directory_parties_path
-    click_link "Alex Morgan"
-    assert_current_path directory_party_path(parties(:unlinked))
+    sign_in_from_browser users(:one)
+    open_directory_party "Alex Morgan"
     within("nav[aria-label=Party]") { click_link "Relationships" }
-    assert_current_path directory_party_relationships_path(parties(:unlinked))
+    assert_link "Add relationship"
     click_link "Add relationship"
     select "Household Member", from: "Relationship kind"
     select "Morgan Household (Household)", from: "Related party"
@@ -25,12 +18,9 @@ class DirectoryRelationshipFoundationTest < ApplicationSystemTestCase
     click_button "Add relationship"
     assert_text "Alex Morgan is a member of Cole Household."
 
-    click_link "Directory"
-    assert_current_path directory_parties_path
-    click_link "Maria Ruiz"
-    assert_current_path directory_party_path(parties(:maria))
+    open_directory_party "Maria Ruiz"
     within("nav[aria-label=Party]") { click_link "Relationships" }
-    assert_current_path directory_party_relationships_path(parties(:maria))
+    assert_link "Add relationship"
     click_link "Add relationship"
     select "Organization Contact", from: "Relationship kind"
     select "Horizon Tours (Organization)", from: "Related party"
