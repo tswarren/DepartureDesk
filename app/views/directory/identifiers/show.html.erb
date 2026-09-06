@@ -1,0 +1,100 @@
+<% content_for :title, "#{@party.display_name} · Identifiers · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title"><%= @party.display_name %></h1>
+    <p class="dd-page-description">
+      <%= party_kind_badge(@party) %>
+      External identifiers belong to this party or one of its roles. Values are not copied into audit events.
+    </p>
+    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "directory/shared/party_subnav", party: @party, current: :identifiers %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title"><%= @status == "deactivated" ? "Identifier history" : "Current identifiers" %></h2>
+  </header>
+  <div class="dd-panel-body">
+    <nav class="dd-button-group" aria-label="Identifier lists">
+      <%= link_to "Current", directory_party_identifiers_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+      <%= link_to "History", directory_party_identifiers_path(@party, status: "deactivated"), class: "dd-button dd-button--quiet dd-button--small" %>
+    </nav>
+
+    <% if @identifiers.any? %>
+      <ul class="dd-list">
+        <% @identifiers.each do |identifier| %>
+          <li>
+            <h3 class="dd-list-title"><%= identifier.type_definition.label %></h3>
+            <p><%= identifier.original_value %></p>
+            <p class="dd-field-hint">
+              <%= identifier.status.titleize %>
+              <% if identifier.issuer.present? %> · <%= identifier.issuer %><% end %>
+              · <%= identifier.type_definition.owner.to_s.humanize %>
+            </p>
+            <% if identifier.active? && @status != "deactivated" %>
+              <%= form_with url: deactivate_directory_party_external_identifier_path(@party, identifier), method: :post, class: "dd-form" do %>
+                <div class="dd-field-group">
+                  <label class="dd-label" for="external_identifier_reason_<%= identifier.id %>">Deactivation reason</label>
+                  <input class="dd-field" id="external_identifier_reason_<%= identifier.id %>" name="external_identifier[reason]" required>
+                </div>
+                <div class="dd-form-actions">
+                  <%= submit_tag "Deactivate identifier", class: "dd-button dd-button--danger dd-button--small" %>
+                </div>
+              <% end %>
+            <% elsif identifier.inactive? %>
+              <%= form_with url: reactivate_directory_party_external_identifier_path(@party, identifier), method: :post, class: "dd-form" do %>
+                <div class="dd-form-actions">
+                  <%= submit_tag "Reactivate identifier", class: "dd-button dd-button--secondary dd-button--small" %>
+                </div>
+              <% end %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+      <% if @page > 1 || @has_next_page %>
+        <nav class="dd-button-group" aria-label="Identifier pagination">
+          <% identifier_list_params = { status: (@status == "deactivated" ? "deactivated" : nil) }.compact %>
+          <% if @page > 1 %>
+            <%= link_to "Previous", directory_party_identifiers_path(@party, **identifier_list_params, page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+          <% if @has_next_page %>
+            <%= link_to "Next", directory_party_identifiers_path(@party, **identifier_list_params, page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+        </nav>
+      <% end %>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title"><%= @status == "deactivated" ? "No identifier history" : "No current identifiers" %></h3>
+        <p class="dd-empty-copy">Add a permitted identifier type. A wrong value is deactivated and replaced, not updated.</p>
+      </div>
+    <% end %>
+
+    <% if @status != "deactivated" && @eligible_types.any? %>
+      <%= form_with url: directory_party_external_identifiers_path(@party), method: :post, class: "dd-form" do %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="external_identifier_identifier_type">Identifier type</label>
+          <select class="dd-field" id="external_identifier_identifier_type" name="external_identifier[identifier_type]" required>
+            <% @eligible_types.each do |type| %>
+              <option value="<%= type.code %>"><%= type.label %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="external_identifier_issuer">Issuer</label>
+          <input class="dd-field" id="external_identifier_issuer" name="external_identifier[issuer]">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="external_identifier_original_value">Value</label>
+          <input class="dd-field" id="external_identifier_original_value" name="external_identifier[original_value]" required>
+        </div>
+        <div class="dd-form-actions">
+          <%= submit_tag "Add identifier", class: "dd-button" %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</article>

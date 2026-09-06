@@ -31,12 +31,15 @@ class AssignRelationshipPurpose < DirectoryCommand
     unless @relationship.purpose_eligible? && @relationship.record_valid?
       raise Error.new("Purposes can only be assigned to an organization affiliation or contact.", code: :invalid)
     end
+    from = @effective_from.presence || DirectoryDate.today(@agency)
+    unless @relationship.current_on?(from)
+      raise Error.new("Purposes cannot be assigned to an ended relationship.", code: :invalid)
+    end
     unless RelationshipPurposeAssignment::PURPOSES.include?(@purpose)
       raise Error.new("Choose a relationship purpose.", code: :invalid)
     end
     raise Error.new("Priority must be a positive integer.", code: :invalid) if @priority < 1
 
-    from = @effective_from.presence || DirectoryDate.today(@agency)
     until_date = @effective_until
     unless DirectoryRange.contained?(from, until_date, @relationship.effective_from, @relationship.effective_until)
       raise Error.new("A purpose cannot outlive the relationship.", code: :invalid)

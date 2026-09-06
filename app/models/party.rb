@@ -56,6 +56,9 @@ class Party < ApplicationRecord
   has_one :supplier_profile,
     inverse_of: :party,
     dependent: :restrict_with_exception
+  has_many :external_identifiers,
+    inverse_of: :party,
+    dependent: :restrict_with_exception
   has_many :notes,
     class_name: "PartyNote",
     inverse_of: :party,
@@ -82,6 +85,21 @@ class Party < ApplicationRecord
 
   def kind_label
     party_kind.titleize
+  end
+
+  def directory_external_identifiers
+    scope = ExternalIdentifier.where(agency_id:)
+    clauses = [ "external_identifiers.party_id = :party_id" ]
+    binds = { party_id: id }
+    if client_profile
+      clauses << "external_identifiers.client_profile_id = :client_profile_id"
+      binds[:client_profile_id] = client_profile.id
+    end
+    if supplier_profile
+      clauses << "external_identifiers.supplier_profile_id = :supplier_profile_id"
+      binds[:supplier_profile_id] = supplier_profile.id
+    end
+    scope.where(clauses.join(" OR "), binds)
   end
 
   def apply_derived_names!(profile = kind_profile)

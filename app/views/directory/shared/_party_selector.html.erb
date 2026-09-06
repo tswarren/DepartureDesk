@@ -1,0 +1,28 @@
+<%# locals: field_name:, field_id:, candidates:, selected_id: nil, q: nil, filter_url: nil, filter_params: {} %>
+<% if filter_url %>
+  <form method="get" action="<%= filter_url %>" class="dd-form" style="margin-bottom: 1rem;">
+    <% filter_params.each do |key, value| %>
+      <% next if value.blank? %>
+      <input type="hidden" name="<%= key %>" value="<%= value %>">
+    <% end %>
+    <div class="dd-field-group">
+      <label class="dd-label" for="<%= field_id %>_q">Name prefix</label>
+      <input class="dd-field" id="<%= field_id %>_q" name="q" value="<%= q %>" autocomplete="off">
+    </div>
+    <div class="dd-form-actions">
+      <button type="submit" class="dd-button dd-button--secondary dd-button--small">Filter parties</button>
+    </div>
+  </form>
+<% end %>
+<div class="dd-field-group">
+  <label class="dd-label" for="<%= field_id %>">Related party</label>
+  <select name="<%= field_name %>" id="<%= field_id %>" class="dd-field" required>
+    <option value="">Choose a party</option>
+    <% candidates.each do |candidate| %>
+      <option value="<%= candidate.party_id %>" <%= "selected" if selected_id.to_s == candidate.party_id.to_s %>>
+        <%= party_selector_option_label(candidate) %>
+      </option>
+    <% end %>
+  </select>
+  <p class="dd-field-hint">Results are party UUIDs with role metadata. Prefix matching is not fuzzy search.</p>
+</div>

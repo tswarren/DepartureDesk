@@ -26,15 +26,14 @@
           <% end %>
         </select>
       </div>
-      <div class="dd-field-group">
-        <label class="dd-label" for="other_party_id">Related party</label>
-        <select name="party_relationship[other_party_id]" id="other_party_id" class="dd-field" required>
-          <% Current.agency.parties.where.not(id: @party.id).order(:sort_name, :id).each do |candidate| %>
-            <option value="<%= candidate.id %>"><%= candidate.display_name %> (<%= candidate.kind_label %>)</option>
-          <% end %>
-        </select>
-        <p class="dd-field-hint">The list shows every agency party. The server still rejects incompatible kinds.</p>
-      </div>
+      <%= render "directory/shared/party_selector",
+        field_name: "party_relationship[other_party_id]",
+        field_id: "other_party_id",
+        candidates: @candidates,
+        selected_id: nil,
+        q: @q,
+        filter_url: new_directory_party_party_relationship_path(@party),
+        filter_params: { relationship_kind: @relationship_kind } %>
       <div class="dd-field-group">
         <label class="dd-label" for="relationship_label">Relationship label</label>
         <select name="party_relationship[relationship_label]" id="relationship_label" class="dd-field">

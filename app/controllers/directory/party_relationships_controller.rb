@@ -5,6 +5,7 @@ module Directory
 
     def new
       @relationship_kind = params[:relationship_kind].to_s.presence
+      load_selector
     end
 
     def create
@@ -24,6 +25,7 @@ module Directory
       redirect_to directory_party_relationships_path(@party), notice: "Relationship added."
     rescue MembershipCommand::Error => error
       @relationship_kind = relationship_params[:relationship_kind]
+      load_selector
       flash.now[:alert] = error.message
       render :new, status: error.code == :conflict ? :conflict : :unprocessable_entity
     end
@@ -100,6 +102,33 @@ module Directory
       end
     rescue KeyError
       [ @party, @party ]
+    end
+
+    def selector_settings
+      case @relationship_kind
+      when "organization_contact", "organization_affiliation"
+        [ "person", false ]
+      when "family"
+        [ "person", false ]
+      when "parent_organization", "service_provider_for"
+        [ "organization", false ]
+      when "household_member"
+        @party.household? ? [ "person", false ] : [ "any", true ]
+      else
+        [ "any", true ]
+      end
+    end
+
+    def load_selector
+      @q = params[:q].to_s.strip.presence
+      @selector_mode, @household_allowed = selector_settings
+      @candidates = DirectoryPartySelector.new(
+        agency: Current.agency,
+        mode: @selector_mode,
+        household_allowed: @household_allowed,
+        q: @q,
+        exclude_party_id: @party.id
+      ).results
     end
   end
 end

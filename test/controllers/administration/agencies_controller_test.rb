@@ -52,10 +52,11 @@ module Administration
     test "staff cannot enter the administration surface" do
       sign_in_as(users(:two))
 
-      get administration_agency_path
-      assert_redirected_to root_url
-      assert_equal "You are not authorized to do that.", flash[:alert]
-      assert_equal 0, AuditEvent.count
+      assert_no_difference("AuditEvent.count") do
+        get administration_agency_path
+        assert_redirected_to root_url
+        assert_equal "You are not authorized to do that.", flash[:alert]
+      end
     end
 
     test "staff cannot mutate the administration surface" do

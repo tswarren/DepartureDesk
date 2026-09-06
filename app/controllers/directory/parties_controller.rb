@@ -31,6 +31,10 @@ module Directory
       @client_profile = @party.client_profile
       @supplier_profile = @party.supplier_profile
       @active_offices = Current.agency.offices.active.order(:name, :code, :id)
+      @advisor_memberships = Current.agency.agency_memberships.active
+        .joins(person_party: :party)
+        .includes(person_party: :party)
+        .order("parties.sort_name", "agency_memberships.id")
     end
 
     def new
