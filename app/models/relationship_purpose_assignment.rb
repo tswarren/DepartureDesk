@@ -55,8 +55,11 @@ class RelationshipPurposeAssignment < ApplicationRecord
 
   def organization_matches_relationship
     return if party_relationship.blank? || organization_party_id.blank?
-    return if party_relationship.related_party_id == organization_party_id
+    unless party_relationship.related_party_id == organization_party_id
+      errors.add(:organization_party, "must match the relationship organization")
+    end
+    return if organization_party.blank? || organization_party.organization?
 
-    errors.add(:organization_party, "must match the relationship organization")
+    errors.add(:organization_party, "must be an organization")
   end
 end

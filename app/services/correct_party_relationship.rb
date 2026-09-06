@@ -74,14 +74,56 @@ class CorrectPartyRelationship < DirectoryCommand
   end
 
   def reconcile_purposes!(replacement, actor)
-    @relationship.purpose_assignments.record_valid.find_each do |assignment|
-      next if DirectoryRange.contained?(assignment.effective_from, assignment.effective_until, replacement.effective_from, replacement.effective_until)
+    assignments = @relationship.purpose_assignments.record_valid.order(:id).lock.to_a
+    assignments.each do |assignment|
+      interval = DirectoryRange.intersection(
+        assignment.effective_from,
+        assignment.effective_until,
+        replacement.effective_from,
+        replacement.effective_until
+      )
+      unless interval
+        assignment.update!(
+          record_status: "voided",
+          corrected_at: Time.current,
+          corrected_by_membership: actor,
+          correction_reason: "Relationship corrected"
+        )
+        next
+      end
 
+      from, until_date = interval
+      replacement_assignment = RelationshipPurposeAssignment.create!(
+        agency: @agency,
+        party_relationship: replacement,
+        organization_party: replacement.related_party,
+        purpose: assignment.purpose,
+        priority: assignment.priority == 1 ? 99 : assignment.priority,
+        effective_from: from,
+        effective_until: until_date,
+        record_status: "valid"
+      )
       assignment.update!(
-        record_status: "voided",
+        record_status: "superseded",
+        superseded_by_assignment: replacement_assignment,
         corrected_at: Time.current,
         corrected_by_membership: actor,
         correction_reason: "Relationship corrected"
+      )
+      replacement_assignment.update!(priority: assignment.priority) if replacement_assignment.priority != assignment.priority
+      audit!(
+        agency: @agency,
+        action: "directory.relationship_purpose_corrected",
+        subject: assignment,
+        details: {
+          "relationship_id" => @relationship.id,
+          "replacement_relationship_id" => replacement.id,
+          "assignment_id" => assignment.id,
+          "replacement_assignment_id" => replacement_assignment.id,
+          "purpose" => assignment.purpose,
+          "priority" => assignment.priority
+        },
+        **actor_audit_args
       )
     end
   end

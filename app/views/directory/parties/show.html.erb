@@ -202,12 +202,7 @@
         <% @primary_assignments.each do |assignment| %>
           <div>
             <dt><%= assignment.contact_kind.titleize %> · <%= assignment.purpose_label %> primary</dt>
-            <dd>
-              <%= assignment.contact_point.display_value.to_s.split("\n").first %>
-              <% if assignment.contact_point.suppressed? %>
-                <%= contact_point_status_badge(assignment.contact_point) %>
-              <% end %>
-            </dd>
+            <dd><%= assignment.contact_point.display_value.to_s.split("\n").first %></dd>
           </div>
         <% end %>
       </dl>

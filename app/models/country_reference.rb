@@ -1,7 +1,21 @@
 class CountryReference
   def self.options
-    ISO3166::Country.all.map { |country| [ country.iso_short_name, country.alpha2 ] }.sort_by(&:first)
+    seen_codes = {}
+    seen_labels = {}
+
+    ISO3166::Country.all
+      .sort_by { |country| [ country.iso_short_name, country.alpha2 ] }
+      .each_with_object([]) do |country, rows|
+        name = country.iso_short_name
+        code = country.alpha2
+        next if name.blank? || code.blank? || seen_codes[code] || seen_labels[name]
+
+        seen_codes[code] = true
+        seen_labels[name] = true
+        rows << [ name, code ]
+      end
   end
+
 
   def self.valid_code?(code)
     ISO3166::Country[code.to_s.strip.upcase].present?

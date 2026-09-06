@@ -46,6 +46,17 @@ class ContactPointPurposeAssignment < ApplicationRecord
       .where("effective_until IS NULL OR effective_until > ?", date)
   }
   scope :primary, -> { where(priority: 1) }
+  scope :on_eligible_destinations, -> {
+    joins(:contact_point)
+      .merge(PartyContactPoint.active)
+      .where(party_contact_points: { suppressed_at: nil })
+  }
+  scope :current_eligible_destinations_on, ->(date) {
+    current_on(date).on_eligible_destinations
+  }
+  scope :current_eligible_primaries_on, ->(date) {
+    current_eligible_destinations_on(date).primary
+  }
 
   def current_on?(date)
     record_valid? &&

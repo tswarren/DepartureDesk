@@ -180,5 +180,54 @@ module Directory
       assert_response :unprocessable_entity
       assert_select "[aria-invalid=true]"
     end
+
+    test "overview omits suppressed and deactivated primary destinations" do
+      sign_in_as(users(:one))
+      party = parties(:unlinked)
+      contact_point = create_email_contact!(party, address: "primary.inbox@example.com", actor: users(:one))
+      SetContactPointPrimary.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        contact_point:,
+        purpose: "general"
+      ).call
+
+      get directory_party_path(party)
+      assert_response :success
+      assert_includes response.body, "primary.inbox@example.com"
+
+      SuppressPartyContactPoint.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        contact_point:,
+        reason: "Mailbox abandoned"
+      ).call
+
+      get directory_party_path(party)
+      assert_response :success
+      assert_not_includes response.body, "primary.inbox@example.com"
+      assert_select "h3.dd-empty-title", text: "No primary contact information"
+
+      UnsuppressPartyContactPoint.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        contact_point:
+      ).call
+      DeactivatePartyContactPoint.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        contact_point:,
+        reason: "Replaced"
+      ).call
+
+      get directory_party_path(party)
+      assert_response :success
+      assert_not_includes response.body, "primary.inbox@example.com"
+      assert_select "h3.dd-empty-title", text: "No primary contact information"
+    end
   end
 end

@@ -190,4 +190,187 @@ class PartyRelationshipTest < ActiveSupport::TestCase
     end
     assert_equal :invalid, error.code
   end
+
+  test "purpose assignment supersession cannot cross agencies" do
+    local = CreatePartyRelationship.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      origin_party: parties(:maria),
+      related_party: parties(:organization_one),
+      relationship_kind: "organization_contact"
+    ).call.relationship
+    foreign_origin = create_person!(agencies(:two), given_name: "Foreign", family_name: "Contact").party
+    foreign_org = CreateParty.new(
+      agency: agencies(:two),
+      actor: users(:two),
+      party_kind: "organization",
+      attributes: { legal_name: "Foreign Org LLC", trading_name: "Foreign Org" }
+    ).call.party
+    foreign = CreatePartyRelationship.new(
+      agency: agencies(:two),
+      actor: users(:two),
+      origin_party: foreign_origin,
+      related_party: foreign_org,
+      relationship_kind: "organization_contact"
+    ).call.relationship
+    local_assignment = AssignRelationshipPurpose.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      relationship: local,
+      purpose: "booking",
+      priority: 1
+    ).call.purpose_assignment
+    foreign_assignment = AssignRelationshipPurpose.new(
+      agency: agencies(:two),
+      actor: users(:two),
+      relationship: foreign,
+      purpose: "booking",
+      priority: 1
+    ).call.purpose_assignment
+    now = Time.current
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      RelationshipPurposeAssignment.transaction(requires_new: true) do
+        RelationshipPurposeAssignment.insert_all!([ {
+          agency_id: agencies(:one).id,
+          relationship_id: local.id,
+          organization_party_id: parties(:organization_one).id,
+          purpose: "accounting",
+          priority: 2,
+          record_status: "superseded",
+          superseded_by_assignment_id: foreign_assignment.id,
+          corrected_at: now,
+          corrected_by_membership_id: agency_memberships(:one).id,
+          correction_reason: "Cross-agency",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+    assert local_assignment.reload.record_valid?
+  end
+
+  test "purpose assignments cannot name an organization that is not the relationship related party" do
+    relationship = CreatePartyRelationship.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      origin_party: parties(:maria),
+      related_party: parties(:organization_one),
+      relationship_kind: "organization_contact"
+    ).call.relationship
+    now = Time.current
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      RelationshipPurposeAssignment.transaction(requires_new: true) do
+        RelationshipPurposeAssignment.insert_all!([ {
+          agency_id: agencies(:one).id,
+          relationship_id: relationship.id,
+          organization_party_id: parties(:harbor_hotel).id,
+          purpose: "booking",
+          priority: 1,
+          record_status: "valid",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+  end
+
+  test "purpose assignments cannot name a non-organization party" do
+    relationship = CreatePartyRelationship.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      origin_party: parties(:unlinked),
+      related_party: parties(:maria),
+      relationship_kind: "family",
+      relationship_label: "other_family"
+    ).call.relationship
+    now = Time.current
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      RelationshipPurposeAssignment.transaction(requires_new: true) do
+        RelationshipPurposeAssignment.insert_all!([ {
+          agency_id: agencies(:one).id,
+          relationship_id: relationship.id,
+          organization_party_id: parties(:maria).id,
+          purpose: "booking",
+          priority: 1,
+          record_status: "valid",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+  end
+
+  test "correcting a relationship moves applicable purposes onto the replacement" do
+    relationship = CreatePartyRelationship.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      origin_party: parties(:maria),
+      related_party: parties(:organization_one),
+      relationship_kind: "organization_contact",
+      effective_from: Date.new(2026, 1, 1)
+    ).call.relationship
+    original_assignment = AssignRelationshipPurpose.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      relationship:,
+      purpose: "booking",
+      priority: 1,
+      effective_from: Date.new(2026, 1, 1)
+    ).call.purpose_assignment
+
+    replacement = CorrectPartyRelationship.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      relationship:,
+      reason: "Title correction",
+      title: "Group desk",
+      effective_from: Date.new(2026, 3, 1)
+    ).call.relationship
+
+    original_assignment.reload
+    transferred = replacement.purpose_assignments.record_valid.find_by!(purpose: "booking")
+    assert original_assignment.record_superseded?
+    assert_equal transferred.id, original_assignment.superseded_by_assignment_id
+    assert_equal 1, transferred.priority
+    assert_equal Date.new(2026, 3, 1), transferred.effective_from
+    assert_nil transferred.effective_until
+    assert_equal replacement.related_party_id, transferred.organization_party_id
+  end
+
+  test "correcting a relationship voids purposes that no longer overlap" do
+    relationship = CreatePartyRelationship.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      origin_party: parties(:maria),
+      related_party: parties(:organization_one),
+      relationship_kind: "organization_contact",
+      effective_from: Date.new(2026, 1, 1),
+      effective_until: Date.new(2026, 6, 1)
+    ).call.relationship
+    original_assignment = AssignRelationshipPurpose.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      relationship:,
+      purpose: "booking",
+      priority: 1,
+      effective_from: Date.new(2026, 1, 1),
+      effective_until: Date.new(2026, 6, 1)
+    ).call.purpose_assignment
+
+    replacement = CorrectPartyRelationship.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      relationship:,
+      reason: "Dates were wrong",
+      effective_from: Date.new(2026, 7, 1),
+      effective_until: Date.new(2026, 12, 1)
+    ).call.relationship
+
+    assert original_assignment.reload.record_voided?
+    assert_equal 0, replacement.purpose_assignments.record_valid.count
+  end
 end
+

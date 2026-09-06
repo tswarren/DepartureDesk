@@ -21,8 +21,7 @@ module Directory
       @alternate_name = @party.alternate_names.new
       @today = DirectoryDate.today(Current.agency)
       @primary_assignments = @party.contact_point_purpose_assignments
-        .current_on(@today)
-        .primary
+        .current_eligible_primaries_on(@today)
         .includes(contact_point: [ :email_address, :phone_number, :postal_address ])
         .order(:contact_kind, :purpose, :id)
       @current_relationships = PartyRelationship.involving(@party)

@@ -17,4 +17,15 @@ class DirectoryRange
 
     true
   end
+
+  def self.intersection(from_a, until_a, from_b, until_b)
+    return unless overlap?(from_a, until_a, from_b, until_b)
+
+    from = [ from_a, from_b ].compact.max
+    until_date = [ until_a, until_b ].compact.min
+    return if from.present? && until_date.present? && from >= until_date
+
+    [ from, until_date ]
+  end
 end
+

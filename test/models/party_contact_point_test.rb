@@ -147,4 +147,76 @@ class PartyContactPointTest < ActiveSupport::TestCase
     assert replacement.record_valid?
     assert original.record_superseded?
   end
+
+  test "purpose assignment supersession cannot cross agencies" do
+    from = DirectoryDate.today(agencies(:one))
+    now = Time.current
+    local = create_email_contact!(parties(:unlinked), address: "local-purpose@example.com", actor: users(:one))
+    foreign = create_email_contact!(parties(:two), address: "foreign-purpose@example.com", actor: users(:two))
+    local_assignment = ContactPointPurposeAssignment.create!(
+      agency: agencies(:one),
+      party: parties(:unlinked),
+      contact_point: local,
+      contact_kind: "email",
+      purpose: "general",
+      priority: 1,
+      effective_from: from,
+      record_status: "valid"
+    )
+    foreign_assignment = ContactPointPurposeAssignment.create!(
+      agency: agencies(:two),
+      party: parties(:two),
+      contact_point: foreign,
+      contact_kind: "email",
+      purpose: "general",
+      priority: 1,
+      effective_from: DirectoryDate.today(agencies(:two)),
+      record_status: "valid"
+    )
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      ContactPointPurposeAssignment.transaction(requires_new: true) do
+        ContactPointPurposeAssignment.insert_all!([ {
+          agency_id: agencies(:one).id,
+          party_id: parties(:unlinked).id,
+          contact_point_id: local.id,
+          contact_kind: "email",
+          purpose: "billing",
+          priority: 2,
+          effective_from: from,
+          record_status: "superseded",
+          superseded_by_assignment_id: foreign_assignment.id,
+          corrected_at: now,
+          corrected_by_membership_id: agency_memberships(:one).id,
+          correction_reason: "Cross-agency",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+    assert local_assignment.reload.record_valid?
+  end
+
+  test "purpose assignments cannot name a party that does not own the contact point" do
+    contact_point = create_email_contact!(parties(:unlinked), address: "owner-mismatch@example.com", actor: users(:one))
+    now = Time.current
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      ContactPointPurposeAssignment.transaction(requires_new: true) do
+        ContactPointPurposeAssignment.insert_all!([ {
+          agency_id: agencies(:one).id,
+          party_id: parties(:one).id,
+          contact_point_id: contact_point.id,
+          contact_kind: "email",
+          purpose: "general",
+          priority: 1,
+          effective_from: DirectoryDate.today(agencies(:one)),
+          record_status: "valid",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+  end
 end
+

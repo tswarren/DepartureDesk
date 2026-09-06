@@ -1194,6 +1194,13 @@ CREATE INDEX index_contact_point_purpose_assignments_on_contact_point ON public.
 
 
 --
+-- Name: index_cppa_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cppa_on_id_and_agency_id ON public.contact_point_purpose_assignments USING btree (id, agency_id);
+
+
+--
 -- Name: index_delivery_intents_for_reconciliation; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1369,6 +1376,13 @@ CREATE UNIQUE INDEX index_party_contact_points_on_id_agency_id_and_kind ON publi
 
 
 --
+-- Name: index_party_contact_points_on_id_party_agency_and_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_contact_points_on_id_party_agency_and_kind ON public.party_contact_points USING btree (id, party_id, agency_id, contact_kind);
+
+
+--
 -- Name: index_party_contact_points_on_party_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1446,6 +1460,13 @@ CREATE UNIQUE INDEX index_party_relationships_on_id_and_agency_id ON public.part
 
 
 --
+-- Name: index_party_relationships_on_id_related_party_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_relationships_on_id_related_party_and_agency ON public.party_relationships USING btree (id, related_party_id, agency_id);
+
+
+--
 -- Name: index_party_relationships_on_origin_party; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1471,6 +1492,13 @@ CREATE UNIQUE INDEX index_people_on_party_id_and_agency_id ON public.people USIN
 --
 
 CREATE INDEX index_relationship_purpose_assignments_on_agency_id ON public.relationship_purpose_assignments USING btree (agency_id);
+
+
+--
+-- Name: index_rpa_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_rpa_on_id_and_agency_id ON public.relationship_purpose_assignments USING btree (id, agency_id);
 
 
 --
@@ -1552,11 +1580,11 @@ ALTER TABLE ONLY public.agency_memberships
 
 
 --
--- Name: contact_point_purpose_assignments cppa_contact_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: contact_point_purpose_assignments cppa_contact_point_owner_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.contact_point_purpose_assignments
-    ADD CONSTRAINT cppa_contact_kind_same_agency_fk FOREIGN KEY (contact_point_id, agency_id, contact_kind) REFERENCES public.party_contact_points(id, agency_id, contact_kind);
+    ADD CONSTRAINT cppa_contact_point_owner_fk FOREIGN KEY (contact_point_id, party_id, agency_id, contact_kind) REFERENCES public.party_contact_points(id, party_id, agency_id, contact_kind);
 
 
 --
@@ -1588,7 +1616,7 @@ ALTER TABLE ONLY public.contact_point_purpose_assignments
 --
 
 ALTER TABLE ONLY public.contact_point_purpose_assignments
-    ADD CONSTRAINT cppa_superseded_by_fk FOREIGN KEY (superseded_by_assignment_id) REFERENCES public.contact_point_purpose_assignments(id);
+    ADD CONSTRAINT cppa_superseded_by_fk FOREIGN KEY (superseded_by_assignment_id, agency_id) REFERENCES public.contact_point_purpose_assignments(id, agency_id);
 
 
 --
@@ -1992,19 +2020,19 @@ ALTER TABLE ONLY public.relationship_purpose_assignments
 
 
 --
--- Name: relationship_purpose_assignments rpa_organization_party_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: relationship_purpose_assignments rpa_organization_party_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.relationship_purpose_assignments
-    ADD CONSTRAINT rpa_organization_party_same_agency_fk FOREIGN KEY (organization_party_id, agency_id) REFERENCES public.parties(id, agency_id);
+    ADD CONSTRAINT rpa_organization_party_fk FOREIGN KEY (organization_party_id, agency_id) REFERENCES public.organizations(party_id, agency_id);
 
 
 --
--- Name: relationship_purpose_assignments rpa_relationship_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: relationship_purpose_assignments rpa_relationship_owner_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.relationship_purpose_assignments
-    ADD CONSTRAINT rpa_relationship_same_agency_fk FOREIGN KEY (relationship_id, agency_id) REFERENCES public.party_relationships(id, agency_id);
+    ADD CONSTRAINT rpa_relationship_owner_fk FOREIGN KEY (relationship_id, organization_party_id, agency_id) REFERENCES public.party_relationships(id, related_party_id, agency_id);
 
 
 --
@@ -2012,7 +2040,7 @@ ALTER TABLE ONLY public.relationship_purpose_assignments
 --
 
 ALTER TABLE ONLY public.relationship_purpose_assignments
-    ADD CONSTRAINT rpa_superseded_by_fk FOREIGN KEY (superseded_by_assignment_id) REFERENCES public.relationship_purpose_assignments(id);
+    ADD CONSTRAINT rpa_superseded_by_fk FOREIGN KEY (superseded_by_assignment_id, agency_id) REFERENCES public.relationship_purpose_assignments(id, agency_id);
 
 
 --
@@ -2022,6 +2050,7 @@ ALTER TABLE ONLY public.relationship_purpose_assignments
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907050000'),
 ('20260907040000'),
 ('20260907030000'),
 ('20260907020000'),
