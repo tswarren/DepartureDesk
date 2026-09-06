@@ -37,6 +37,10 @@
 
           <nav class="dd-primary-nav" aria-label="Primary navigation">
             <%= link_to "Dashboard", root_path, class: "dd-nav-item", aria: { current: ("page" if controller_name == "dashboard") } %>
+            <%= link_to "Directory",
+              directory_parties_path,
+              class: "dd-nav-item",
+              aria: { current: ("page" if controller_path.start_with?("directory/")) } %>
             <span class="dd-nav-item" aria-disabled="true">Departures</span>
             <span class="dd-nav-item" aria-disabled="true">Travelers</span>
             <span class="dd-nav-item" aria-disabled="true">Suppliers</span>

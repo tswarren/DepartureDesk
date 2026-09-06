@@ -1,0 +1,5 @@
+household_one:
+  party: household_one
+  agency: one
+  name: Morgan Household
+  lock_version: 0

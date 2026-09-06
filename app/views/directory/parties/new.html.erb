@@ -1,0 +1,46 @@
+<% content_for :title, "Add to directory · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title">Add to directory</h1>
+    <p class="dd-page-description">Choose a kind. Party kind cannot be changed later.</p>
+    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<% unless @profile %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <div class="dd-button-group">
+        <%= link_to "Person", new_directory_party_path(party_kind: "person"), class: "dd-button" %>
+        <%= link_to "Household", new_directory_party_path(party_kind: "household"), class: "dd-button dd-button--secondary" %>
+        <%= link_to "Organization", new_directory_party_path(party_kind: "organization"), class: "dd-button dd-button--secondary" %>
+      </div>
+    </div>
+  </article>
+<% else %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <% if @profile.errors.any? %>
+        <div class="dd-alert dd-alert--danger" role="alert">
+          <p>Please correct the following:</p>
+          <ul>
+            <% @profile.errors.full_messages.each do |message| %>
+              <li><%= message %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <%= form_with model: @party, url: directory_parties_path, method: :post, class: "dd-form" do |form| %>
+        <%= form.hidden_field :party_kind, value: @party_kind %>
+        <%= render "directory/parties/#{@party_kind}_fields", form: form, profile: @profile %>
+        <div class="dd-form-actions">
+          <%= form.submit "Create #{@party_kind}", class: "dd-button" %>
+          <%= link_to "Cancel", directory_parties_path, class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    </div>
+  </article>
+<% end %>

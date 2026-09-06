@@ -18,6 +18,7 @@ class OfficeBackfillTest < ActiveSupport::TestCase
     membership = AgencyMembership.create!(
       user:,
       agency:,
+      person_party: create_person!(agency),
       role: "administrator",
       status: "active"
     )

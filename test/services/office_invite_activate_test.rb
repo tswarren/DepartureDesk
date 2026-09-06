@@ -62,6 +62,7 @@ class OfficeInviteActivateTest < ActiveSupport::TestCase
     membership = AgencyMembership.create!(
       user:,
       agency: agencies(:one),
+      person_party: create_person!(agencies(:one), given_name: user.first_name, family_name: user.last_name),
       role: "staff",
       status: "invited",
       invitation_sent_at: Time.current
@@ -93,6 +94,7 @@ class OfficeInviteActivateTest < ActiveSupport::TestCase
     membership = AgencyMembership.create!(
       user:,
       agency: agencies(:one),
+      person_party: create_person!(agencies(:one), given_name: user.first_name, family_name: user.last_name),
       role: "administrator",
       status: "invited",
       invitation_sent_at: Time.current

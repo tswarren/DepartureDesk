@@ -41,6 +41,12 @@ Rails.application.routes.draw do
 
   root "dashboard#show"
 
+  namespace :directory do
+    resources :parties, only: %i[index new create show edit update] do
+      resources :alternate_names, only: %i[create update destroy]
+    end
+  end
+
   if Rails.env.development?
     mount LetterOpenerWeb::Engine, at: "/letter_opener"
   end

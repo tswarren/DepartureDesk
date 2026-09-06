@@ -20,6 +20,12 @@ class AuditEvent < ApplicationRecord
     office_access.granted
     office_access.revoked
     office_access.default_changed
+    directory.party_created
+    directory.party_updated
+    directory.alternate_name_added
+    directory.alternate_name_updated
+    directory.alternate_name_removed
+    team.person_linked
   ].freeze
 
   ACTOR_KINDS = %w[

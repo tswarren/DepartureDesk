@@ -66,6 +66,8 @@ class RecordAdministrativeAudit
 
   def ensure_subject_belongs_to_agency!(agency, subject)
     case subject
+    when nil
+      nil
     when Agency
       return if subject.id == agency.id
 
@@ -82,6 +84,12 @@ class RecordAdministrativeAudit
       return if subject.agency_id == agency.id
 
       raise ArgumentError, "Assignment subject must belong to the event agency."
+    when Party, Person, Household, Organization, PartyAlternateName
+      return if subject.agency_id == agency.id
+
+      raise ArgumentError, "#{subject.class.name} subject must belong to the event agency."
+    else
+      raise ArgumentError, "Unknown audit subject type."
     end
   end
 end

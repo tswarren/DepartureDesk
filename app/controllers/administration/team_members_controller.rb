@@ -3,7 +3,7 @@ module Administration
     before_action :set_membership, except: :index
 
     def index
-      @memberships = Current.agency.agency_memberships.includes(:user).order(:created_at)
+      @memberships = Current.agency.agency_memberships.includes(:user, person_party: :party).order(:created_at)
     end
 
     def show
@@ -109,7 +109,7 @@ module Administration
     private
 
     def set_membership
-      @membership = Current.agency.agency_memberships.find(params[:id])
+      @membership = Current.agency.agency_memberships.includes(person_party: :party).find(params[:id])
     end
   end
 end

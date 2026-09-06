@@ -55,6 +55,22 @@ class MembershipCommandsTest < ActiveSupport::TestCase
     assert User.authenticate_by(email_address: membership.user.email_address, password: "Newpass123!")
   end
 
+  test "acceptance does not create another person" do
+    membership = invite_staff
+    person_id = membership.person_party_id
+
+    assert_no_difference(%w[Party.count Person.count]) do
+      AcceptInvitation.new(
+        token: membership.invitation_token,
+        password: "Newpass123!",
+        password_confirmation: "Newpass123!"
+      ).call
+    end
+
+    assert_equal person_id, membership.reload.person_party_id
+    assert membership.active?
+  end
+
   test "last administrator cannot be suspended" do
     assert_raises(MembershipCommand::Error) do
       SuspendMembership.new(
@@ -119,6 +135,22 @@ class MembershipCommandsTest < ActiveSupport::TestCase
       ).call
     end
     assert membership.reload.revoked?
+  end
+
+  test "revoking a pending invitation leaves the person active" do
+    membership = invite_staff
+    person = membership.person_party
+    party = person.party
+
+    RevokeInvitation.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      membership: membership
+    ).call
+
+    assert membership.reload.revoked?
+    assert_equal person.party_id, membership.person_party_id
+    assert party.reload.active?
   end
 
   private

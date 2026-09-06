@@ -77,6 +77,17 @@ class MembershipCommand
     end
   end
 
+  def ensure_agency_operator!(agency)
+    return if @privileged
+
+    membership = @actor.usable_agency_membership
+    unless membership &&
+        membership.agency_id == agency.id &&
+        agency.active?
+      raise Error.new(UNAUTHORIZED, code: :unauthorized)
+    end
+  end
+
   def ensure_membership_belongs_to_agency!(agency, membership)
     return if membership.agency_id == agency.id
 

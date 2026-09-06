@@ -1,0 +1,10 @@
+<div class="dd-field-group">
+  <%= form.label :name, "Household name", class: "dd-label" %>
+  <%= form.text_field :name, value: profile.name, required: true, class: "dd-field", aria: field_aria(profile, :name) %>
+  <%= field_error profile, :name %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :correspondence_name, class: "dd-label" %>
+  <%= form.text_field :correspondence_name, value: profile.correspondence_name, class: "dd-field", aria: field_aria(profile, :correspondence_name) %>
+  <%= field_error profile, :correspondence_name %>
+</div>

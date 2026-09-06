@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation plan for the first slice of Phase 2.
+Shipped in this repository as the first slice of Phase 2. The locked decisions below remain the contract; do not reopen them during later slices.
 
 Phase 2A establishes agency-owned party identity, the three party kinds, agency-scoped membership-to-person linkage, alternate names, and the initial operational directory.
 

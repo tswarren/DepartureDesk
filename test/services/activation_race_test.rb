@@ -311,6 +311,7 @@ class ActivationRaceTest < ActiveSupport::TestCase
     membership = AgencyMembership.create!(
       user:,
       agency:,
+      person_party: create_person!(agency, given_name: user.first_name, family_name: user.last_name),
       status:,
       role:,
       invitation_sent_at: Time.current
@@ -448,6 +449,11 @@ class ActivationRaceTest < ActiveSupport::TestCase
     OfficeAssignment.where(agency_id: agency_ids).delete_all
     Office.where(agency_id: agency_ids).delete_all
     AgencyMembership.where(agency_id: agency_ids).delete_all
+    PartyAlternateName.where(agency_id: agency_ids).delete_all
+    Person.where(agency_id: agency_ids).delete_all
+    Household.where(agency_id: agency_ids).delete_all
+    Organization.where(agency_id: agency_ids).delete_all
+    Party.where(agency_id: agency_ids).delete_all
     User.where(id: user_ids).delete_all
     Agency.where(id: agency_ids).delete_all
   ensure

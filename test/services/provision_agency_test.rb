@@ -25,10 +25,12 @@ class ProvisionAgencyTest < ActiveSupport::TestCase
     events = result.agency.audit_events
     assert_equal %w[
       agency.provisioned
+      directory.party_created
       office.created
       office_access.default_changed
       office_access.granted
       team.invitation_created
+      team.person_linked
     ], events.map(&:action).sort
     events.each do |event|
       assert_equal "system", event.actor_kind
@@ -51,7 +53,7 @@ class ProvisionAgencyTest < ActiveSupport::TestCase
   test "same key and intent returns the existing result without another email" do
     first = provision(key: "same-key", email: "repeat@example.com", name: "Repeat Travel")
 
-    assert_no_difference %w[Agency.count AgencyProvisioningRequest.count AgencyMembership.count] do
+    assert_no_difference %w[Agency.count AgencyProvisioningRequest.count AgencyMembership.count Party.count Person.count] do
       assert_no_enqueued_jobs only: DeliveryIntentJob do
         second = provision(key: "same-key", email: "repeat@example.com", name: "Repeat Travel")
         assert second.reused

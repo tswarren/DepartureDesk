@@ -22,6 +22,14 @@ module ApplicationHelper
     status_badge(membership.status.titleize, modifier:)
   end
 
+  def party_kind_badge(party)
+    status_badge(party.kind_label, modifier: "info")
+  end
+
+  def party_status_badge(party)
+    status_badge(party.status.titleize, modifier: party.active? ? "success" : "neutral")
+  end
+
   def agency_status_badge(agency)
     modifier = case agency.status
     when "active" then "success"

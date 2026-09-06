@@ -1,0 +1,15 @@
+<div class="dd-field-group">
+  <%= form.label :legal_name, class: "dd-label" %>
+  <%= form.text_field :legal_name, value: profile.legal_name, required: true, class: "dd-field", aria: field_aria(profile, :legal_name) %>
+  <%= field_error profile, :legal_name %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :trading_name, class: "dd-label" %>
+  <%= form.text_field :trading_name, value: profile.trading_name, class: "dd-field", aria: field_aria(profile, :trading_name) %>
+  <%= field_error profile, :trading_name %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :website, class: "dd-label" %>
+  <%= form.url_field :website, value: profile.website, class: "dd-field", aria: field_aria(profile, :website) %>
+  <%= field_error profile, :website %>
+</div>

@@ -90,12 +90,30 @@ class ProvisionAgency
       ).call.office
 
       user ||= create_invited_user
+      person = LinkMembershipPerson.allocate_person(
+        agency: agency,
+        given_name: @attrs["first_name"],
+        family_name: @attrs["last_name"],
+        preferred_name: @attrs["preferred_name"],
+        actor_identifier: @actor_identifier,
+        privileged: true
+      )
       membership = agency.agency_memberships.create!(
         user: user,
         role: "administrator",
         status: "invited",
-        invitation_sent_at: Time.current
+        invitation_sent_at: Time.current,
+        person_party: person
       )
+      LinkMembershipPerson.new(
+        agency: agency,
+        membership: membership,
+        person: person,
+        source: "provisioning",
+        audit_link: true,
+        actor_identifier: @actor_identifier,
+        privileged: true
+      ).call
       GrantOfficeAccess.new(
         agency: agency,
         membership: membership,

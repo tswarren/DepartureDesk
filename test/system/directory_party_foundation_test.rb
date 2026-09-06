@@ -1,0 +1,98 @@
+require "application_system_test_case"
+
+class DirectoryPartyFoundationTest < ApplicationSystemTestCase
+  test "directory create edit alternate names and existing-person invitation" do
+    visit new_session_path
+    fill_in "Email address", with: users(:one).email_address
+    fill_in "Password", with: "password"
+    click_button "Sign in"
+
+    click_link "Directory"
+    assert_text "People, households, and organizations"
+    assert_text "Alex Morgan"
+    assert_text "Morgan Household"
+    assert_text "Horizon Tours"
+
+    click_link "Add to directory"
+    click_link "Person"
+    fill_in "Given name", with: "Jamie"
+    fill_in "Family name", with: "Cole"
+    click_button "Create person"
+    assert_text "Jamie Cole"
+    jamie_id = Party.find_by!(display_name: "Jamie Cole").id
+
+    click_link "Back to directory"
+    click_link "Add to directory"
+    click_link "Household"
+    fill_in "Household name", with: "Cole Household"
+    click_button "Create household"
+    assert_text "Cole Household"
+
+    click_link "Back to directory"
+    click_link "Add to directory"
+    click_link "Organization"
+    fill_in "Legal name", with: "Summit Travel Co"
+    fill_in "Trading name", with: "Summit Travel"
+    click_button "Create organization"
+    assert_text "Summit Travel"
+
+    click_link "Directory"
+    assert_text "Jamie Cole"
+    assert_text "Cole Household"
+    assert_text "Summit Travel"
+
+    click_link "Jamie Cole"
+    click_link "Edit"
+    fill_in "Preferred name", with: "Jim"
+    click_button "Save changes"
+    assert_text "Jim Cole"
+    assert_equal jamie_id, Party.find_by!(display_name: "Jim Cole").id
+
+    fill_in "Add alternate name", with: "James Cole"
+    select "Former Name", from: "Kind"
+    click_button "Add name"
+    assert_text "James Cole"
+    assert_text "Jim Cole"
+
+    click_link "Administration"
+    click_link "Team"
+    click_link "Invite someone"
+    fill_in "Email address", with: "alex.team@example.com"
+    choose "Invite an existing person"
+    select "Alex Morgan", from: "Existing person"
+    check "Sunrise Travel (MAIN)"
+    select "Sunrise Travel (MAIN)", from: "Default office"
+    click_button "Send invitation"
+    assert_text MembershipCommand::ELIGIBLE_INVITE_NOTICE
+
+    alex_membership = AgencyMembership.joins(:user).find_by!(users: { email_address: "alex.team@example.com" })
+    assert_equal people(:unlinked).party_id, alex_membership.person_party_id
+
+    click_link "Team"
+    assert_text "Alex Morgan"
+    assert_text "alex.team@example.com"
+
+    click_link "Invite someone"
+    choose "Invite an existing person"
+    assert_no_selector "option", text: "Jordan Blake"
+    assert_no_selector "option", text: "Alex Morgan"
+
+    fill_in "Email address", with: "new.person@example.com"
+    choose "Create and invite a new person"
+    fill_in "First name", with: "Riley"
+    fill_in "Last name", with: "Chen"
+    check "Sunrise Travel (MAIN)"
+    select "Sunrise Travel (MAIN)", from: "Default office"
+    click_button "Send invitation"
+    assert_text MembershipCommand::ELIGIBLE_INVITE_NOTICE
+
+    party_count = Party.where(agency: agencies(:one)).count
+    visit edit_invitation_acceptance_path(alex_membership.invitation_token)
+    fill_in "Password", with: "Newpass123!"
+    fill_in "Password confirmation", with: "Newpass123!"
+    click_button "Join DepartureDesk"
+    assert_text "Dashboard"
+    assert_equal party_count, Party.where(agency: agencies(:one)).count
+    assert_equal people(:unlinked).party_id, alex_membership.reload.person_party_id
+  end
+end

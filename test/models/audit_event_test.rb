@@ -153,4 +153,55 @@ class AuditEventTest < ActiveSupport::TestCase
       )
     end
   end
+
+  test "accepts directory subjects that belong to the event agency" do
+    event = RecordAdministrativeAudit.record(
+      agency: agencies(:one),
+      action: "directory.party_created",
+      actor_user: users(:one),
+      subject: parties(:one),
+      details: { "party_id" => parties(:one).id, "party_kind" => "person" }
+    )
+
+    assert event.persisted?
+    assert_equal "Party", event.subject_type
+  end
+
+  test "rejects a party subject that does not belong to the event agency" do
+    assert_raises(ArgumentError) do
+      RecordAdministrativeAudit.record(
+        agency: agencies(:one),
+        action: "directory.party_created",
+        actor_user: users(:one),
+        subject: parties(:two)
+      )
+    end
+  end
+
+  test "rejects unknown subject types" do
+    error = assert_raises(ArgumentError) do
+      RecordAdministrativeAudit.record(
+        agency: agencies(:one),
+        action: "directory.party_created",
+        actor_user: users(:one),
+        subject: users(:one)
+      )
+    end
+    assert_match(/Unknown audit subject type/, error.message)
+  end
+
+  test "directory payloads exclude date of birth" do
+    party = parties(:unlinked)
+    UpdateParty.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      party: party,
+      attributes: { date_of_birth: Date.new(1990, 1, 1), given_name: "Alex", family_name: "Morgan" },
+      party_lock_version: party.lock_version,
+      profile_lock_version: party.person.lock_version
+    ).call
+
+    payload = agencies(:one).audit_events.where(action: "directory.party_updated").order(:created_at).last.details.to_s
+    assert_no_match(/date_of_birth|1990/, payload)
+  end
 end

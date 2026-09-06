@@ -5,6 +5,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       role: "staff",
       status: "suspended"
     )
@@ -23,6 +24,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       role: "staff",
       status: "suspended"
     )
@@ -36,6 +38,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       role: "staff",
       status: "suspended"
     )
@@ -50,6 +53,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       status: "suspended"
     )
     membership.role = "owner"
@@ -62,6 +66,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       role: "staff"
     )
     membership.status = "closed"
@@ -74,6 +79,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       role: "staff",
       status: "suspended"
     )
@@ -90,6 +96,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       role: "staff",
       status: "active"
     )
@@ -106,6 +113,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:one),
+      person_party: create_person!(agencies(:one)),
       role: "staff",
       status: "suspended"
     )
@@ -118,6 +126,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:one),
+      person_party: create_person!(agencies(:one)),
       role: "staff",
       status: "suspended"
     )
@@ -133,6 +142,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       role: "staff",
       status: "active"
     )
@@ -146,6 +156,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user: users(:one),
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       role: "staff",
       status: "active"
     )
@@ -161,6 +172,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.create!(
       user: users(:one),
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       role: "staff",
       status: "suspended"
     )
@@ -181,12 +193,14 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     AgencyMembership.create!(
       user: user,
       agency: agencies(:one),
+      person_party: create_person!(agencies(:one)),
       role: "staff",
       status: "suspended"
     )
     AgencyMembership.create!(
       user: user,
       agency: agencies(:two),
+      person_party: create_person!(agencies(:two)),
       role: "administrator",
       status: "suspended"
     )
@@ -199,6 +213,7 @@ class AgencyMembershipTest < ActiveSupport::TestCase
     membership = AgencyMembership.new(
       user_id: SecureRandom.uuid_v7,
       agency: agencies(:one),
+      person_party: create_person!(agencies(:one)),
       role: "staff",
       status: "active"
     )

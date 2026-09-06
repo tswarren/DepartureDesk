@@ -40,7 +40,7 @@ module Administration
       assert_select "h2", "Office access"
       assert_select "h2", "Role"
       assert_select "h2", "Membership lifecycle"
-      assert_select "[data-turbo-confirm=?]", "Suspend access for #{users(:one).display_name}?"
+      assert_select "[data-turbo-confirm=?]", "Suspend access for #{agency_memberships(:one).agency_display_name}?"
       assert_select "input[type=submit][value='Suspend access']"
       assert_select "nav[aria-label=Administration] a[aria-current=page]", text: "Team"
     end
