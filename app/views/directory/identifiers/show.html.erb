@@ -56,12 +56,13 @@
         <% end %>
       </ul>
       <% if @page > 1 || @has_next_page %>
-        <nav class="dd-button-group" aria-label="Identifier history pagination">
+        <nav class="dd-button-group" aria-label="Identifier pagination">
+          <% identifier_list_params = { status: (@status == "deactivated" ? "deactivated" : nil) }.compact %>
           <% if @page > 1 %>
-            <%= link_to "Previous", directory_party_identifiers_path(@party, status: "deactivated", page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
+            <%= link_to "Previous", directory_party_identifiers_path(@party, **identifier_list_params, page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
           <% end %>
           <% if @has_next_page %>
-            <%= link_to "Next", directory_party_identifiers_path(@party, status: "deactivated", page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
+            <%= link_to "Next", directory_party_identifiers_path(@party, **identifier_list_params, page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
           <% end %>
         </nav>
       <% end %>

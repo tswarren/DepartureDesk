@@ -31,6 +31,7 @@ class DirectoryCommand < MembershipCommand
     raise Error.new("Choose an active office.", code: :invalid) if office_status_fk_violation?(error)
     raise Error.new("An inactive party cannot receive an active role.", code: :invalid) if party_status_fk_violation?(error)
     raise Error.new("Choose an active team member as advisor.", code: :invalid) if advisor_status_fk_violation?(error)
+    raise Error.new("The current advisor must match the open assignment.", code: :conflict) if advisor_agreement_violation?(error)
     raise Error.new("That advisor assignment overlaps an existing interval.", code: :conflict) if advisor_exclusion_violation?(error)
     raise Error.new("That assignment conflicts with an existing primary.", code: :conflict) if exclusion_violation?(error)
 
@@ -100,6 +101,11 @@ class DirectoryCommand < MembershipCommand
 
   def advisor_exclusion_violation?(error)
     exclusion_violation?(error) && projection_fk_violation?(error, "caa_no_overlapping_intervals")
+  end
+
+  def advisor_agreement_violation?(error)
+    message = [ error.message, error.cause&.message ].compact.join(" ")
+    message.include?("current advisor must agree with open assignment history")
   end
 
   def projection_fk_violation?(error, constraint_name)

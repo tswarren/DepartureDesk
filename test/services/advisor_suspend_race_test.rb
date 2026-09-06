@@ -26,9 +26,9 @@ class AdvisorSuspendRaceTest < ActiveSupport::TestCase
     AuditEvent.where(subject_type: "AgencyMembership", subject_id: membership_id).delete_all if membership_id
     AuditEvent.where(subject_type: "Party", subject_id: advisor_party_id).delete_all if advisor_party_id
     AuditEvent.where(subject_type: "Person", subject_id: person_id).delete_all if person_id
-    connection.execute("SET session_replication_role = DEFAULT")
     ClientAdvisorAssignment.where(client_profile_id: profile_ids).delete_all
     ClientProfile.where(party_id: @party.id).delete_all
+    connection.execute("SET session_replication_role = DEFAULT")
     Person.where(party_id: @party.id).delete_all
     @party.delete
     if @advisor

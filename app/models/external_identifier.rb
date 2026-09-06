@@ -17,7 +17,8 @@ class ExternalIdentifier < ApplicationRecord
   enum :source, SOURCES.index_by(&:itself), validate: true
 
   attr_readonly :agency_id, :party_id, :client_profile_id, :supplier_profile_id,
-    :identifier_type, :issuer, :original_value, :normalization_version
+    :identifier_type, :issuer, :original_value, :normalized_value, :normalization_version,
+    :source
 
   normalizes :issuer, :original_value, with: ->(value) { value&.strip.presence }
   normalizes :deactivation_reason, with: ->(value) { value&.strip.presence }

@@ -158,6 +158,7 @@ Advisor assignment history is retained and identity-immutable. It is not strictl
 * Clearing an advisor ends the current open assignment and clears the profile FK.
 * The current open history row (null `effective_until`) must agree with `ClientProfile.primary_advisor_membership_id`.
 * Commands write the profile pointer and history together. Do not update them independently.
+* PostgreSQL deferred constraint triggers on both tables reject a commit where the open history row disagrees with the current pointer.
 
 No overlapping intervals. Use a GiST exclusion over all retained rows:
 
@@ -294,6 +295,7 @@ Required database contracts:
 * GiST exclusion over all retained rows; no overlapping intervals
 * Range-order and ending-completeness checks matching 2B
 * Identity columns (`advisor_membership_id`, `effective_from`, agency, profile) are immutable
+* Deferred constraint triggers on `client_profiles` and `client_advisor_assignments` requiring that the open history row’s `advisor_membership_id` equals `primary_advisor_membership_id`, and that a null pointer has no open row
 
 ### 3.3 `supplier_profiles`
 
@@ -400,8 +402,10 @@ These fields are immutable after create:
 * Identifier type
 * Issuer/namespace
 * Original value
+* Normalized value
 * Agency
 * Normalization version associated with the stored projection
+* Source
 
 A wrong value or issuer is a retained correction: deactivate the erroneous identifier with a reason, then create the replacement. Do not add `superseded_by` lineage in 2C. Unique indexes apply to active rows, so the corrected value may be inserted after deactivation.
 

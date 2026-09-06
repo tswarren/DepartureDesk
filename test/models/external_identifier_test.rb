@@ -85,6 +85,34 @@ class ExternalIdentifierTest < ActiveSupport::TestCase
         )
       end
     end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      ExternalIdentifier.transaction(requires_new: true) do
+        ExternalIdentifier.connection.execute(
+          "UPDATE external_identifiers SET normalized_value = 'P-2' WHERE id = '#{identifier.id}'"
+        )
+      end
+    end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      ExternalIdentifier.transaction(requires_new: true) do
+        ExternalIdentifier.connection.execute(
+          "UPDATE external_identifiers SET source = 'import' WHERE id = '#{identifier.id}'"
+        )
+      end
+    end
+
+    assert_raises(ActiveRecord::ReadonlyAttributeError) do
+      identifier.update!(normalized_value: "P-2")
+    end
+    assert_raises(ActiveRecord::ReadonlyAttributeError) do
+      identifier.normalized_value = "P-2"
+    end
+    assert_raises(ActiveRecord::ReadonlyAttributeError) do
+      identifier.source = "staff"
+    end
+    assert_equal "P-1", identifier.reload.normalized_value
+    assert_equal "staff", identifier.source
   end
 
   private

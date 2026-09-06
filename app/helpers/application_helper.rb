@@ -105,9 +105,6 @@ module ApplicationHelper
       preferred.each do |assignment|
         lines << assignment.contact_point.display_value.to_s.split("\n").first
       end
-      assignments.reject { |assignment| assignment.contact_kind == preferred_kind }.each do |assignment|
-        lines << "#{assignment.contact_kind.titleize}: #{assignment.contact_point.display_value.to_s.split("\n").first}"
-      end
     end
     lines
   end

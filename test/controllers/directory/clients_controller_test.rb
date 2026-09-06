@@ -91,6 +91,28 @@ module Directory
       assert_includes response.body, "Preferred contact unavailable."
       assert_includes response.body, "Phone:"
       assert_includes response.body, "415-555-0199"
+
+      email = CreatePartyContactPoint.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        contact_kind: "email",
+        attributes: { display_address: "alex.client@example.com", email_type: "personal" }
+      ).call.contact_point
+      SetContactPointPrimary.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        contact_point: email,
+        purpose: "general"
+      ).call
+
+      get directory_clients_path
+      assert_response :success
+      assert_includes response.body, "alex.client@example.com"
+      assert_not_includes response.body, "Preferred contact unavailable."
+      assert_not_includes response.body, "Phone:"
+      assert_not_includes response.body, "415-555-0199"
     end
   end
 end
