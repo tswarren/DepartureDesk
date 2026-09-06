@@ -6,6 +6,7 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     open_directory_party "Alex Morgan"
     within("nav[aria-label=Party]") { click_link "Contact information" }
     assert_link "Add email"
+    wait_for_turbo
 
     click_link "Add email"
     fill_in "Email address", with: "alex.personal@example.com"
@@ -46,6 +47,7 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     open_directory_party "Morgan Household"
     within("nav[aria-label=Party]") { click_link "Contact information" }
     assert_link "Add postal address"
+    wait_for_turbo
     click_link "Add postal address"
     assert_field "Address line 1"
     fill_in "Address line 1", with: "18 Harbor Street"
@@ -59,6 +61,7 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     open_directory_party "Alex Morgan"
     within("nav[aria-label=Party]") { click_link "Contact information" }
     assert_link "Add email"
+    wait_for_turbo
     assert_no_text "18 Harbor Street"
     assert_text "alex.personal@example.com"
     assert_text "Do not use"

@@ -20,6 +20,12 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     assert_no_selector "html[aria-busy=true]"
   end
 
+  def click_link_and_expect(locator, heading:, **click_options)
+    click_link locator, **click_options
+    assert_selector "h1.dd-page-title", text: heading
+    wait_for_turbo
+  end
+
   def sign_in_from_browser(user)
     visit new_session_path
     fill_in "Email address", with: user.email_address
@@ -30,9 +36,13 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   end
 
   def open_directory
-    click_link "Directory", exact: true
-    assert_selector "h1.dd-page-title", text: "People, households, and organizations"
-    wait_for_turbo
+    click_link_and_expect "Directory",
+      heading: "People, households, and organizations",
+      exact: true
+  end
+
+  def open_administration
+    click_link_and_expect "Administration", heading: "Agency profile"
   end
 
   def open_directory_party(display_name)
