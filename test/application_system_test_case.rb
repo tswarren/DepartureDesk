@@ -2,8 +2,11 @@ require "test_helper"
 require_relative "test_helpers/system_test_browser"
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
+  TURBO_CLICK_ATTEMPTS = 3
+
   if SystemTestBrowser.available?
     driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1400 ]
+    Capybara.default_max_wait_time = 5
   else
     driven_by :rack_test
 
@@ -13,17 +16,15 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   end
 
   # Capybara's assert_current_path can pass on a Turbo visit's URL before the
-  # document is replaced. Wait on unique content after in-app Directory clicks.
-  # A click issued while html[aria-busy] is set can cancel the in-flight visit
-  # and leave the previous page in place.
+  # document is replaced. A click issued while a visit is in flight can be
+  # cancelled and leave the previous page in place. Wait on unique content,
+  # then retry the click if the destination heading never appears.
   def wait_for_turbo
     assert_no_selector "html[aria-busy=true]"
   end
 
   def click_link_and_expect(locator, heading:, **click_options)
-    click_link locator, **click_options
-    assert_selector "h1.dd-page-title", text: heading
-    wait_for_turbo
+    expect_heading_after(heading) { click_link locator, **click_options }
   end
 
   def sign_in_from_browser(user)
@@ -47,9 +48,24 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   def open_directory_party(display_name)
     open_directory
-    within("table.dd-table") { click_link display_name, exact: true }
+    expect_heading_after(display_name) do
+      within("table.dd-table") { click_link display_name, exact: true }
+    end
     assert_selector "nav[aria-label=Party]"
-    assert_selector "h1.dd-page-title", text: display_name
-    wait_for_turbo
+  end
+
+  private
+
+  def expect_heading_after(heading)
+    TURBO_CLICK_ATTEMPTS.times do |attempt|
+      begin
+        yield unless has_selector?("h1.dd-page-title", exact_text: heading, wait: 0)
+        assert_selector "h1.dd-page-title", exact_text: heading
+        wait_for_turbo
+        return
+      rescue Capybara::ExpectationNotMet, Capybara::ElementNotFound, Minitest::Assertion
+        raise if attempt == TURBO_CLICK_ATTEMPTS - 1
+      end
+    end
   end
 end

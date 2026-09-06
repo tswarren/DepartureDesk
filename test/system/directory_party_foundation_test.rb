@@ -43,9 +43,7 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_text "Cole Household"
     assert_text "Summit Travel"
 
-    within("table.dd-table") { click_link "Jamie Cole", exact: true }
-    assert_selector "h1.dd-page-title", text: "Jamie Cole"
-    wait_for_turbo
+    open_directory_party "Jamie Cole"
     click_link_and_expect "Edit", heading: "Edit Jamie Cole"
     assert_field "Preferred name"
     fill_in "Preferred name", with: "Jim"
