@@ -216,7 +216,7 @@ Both are contextual forms of traveler, not separate identity types.
 
 A **household** is a servicing and communication collective stored as a party kind.
 
-Household membership is a later relationship among people. It is not created automatically, and sharing a cabin or room does not establish it.
+Household membership is an effective-dated person-to-household relationship. It is not created automatically, and sharing a cabin or room does not establish it.
 
 Directory household is not:
 
@@ -226,6 +226,16 @@ Directory household is not:
 * A payer group
 
 Insurance eligibility may later use a separate product-rule household. Do not reuse directory household as that concept without an explicit product decision.
+
+## Contact information
+
+**Contact information** belongs to a party. A person, household, or organization may each own emails, phones, and postal addresses. Shared mailing details belong on the household or organization; they are not copied onto members.
+
+Directory email is not the login email on a user record. Suppression marks a current value “Do not use.” Deactivation means it is no longer this party’s contact. Primary destinations come from purpose assignments (`general`, `correspondence`, `billing`), not a boolean on the contact root.
+
+## Party note
+
+A **party note** is retained internal servicing context. Standard notes are visible to staff. Administrator-only notes are hidden from staff, including counts and empty states. Correction and removal keep the original body.
 
 ## Organizer
 

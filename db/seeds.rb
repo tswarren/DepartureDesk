@@ -94,4 +94,58 @@ if Rails.env.development?
     puts "Seed office ready:"
     puts "  Code: #{office.code}"
     puts "  ID: #{office.id}"
+
+    demo_person = seed_agency.parties.find_by(display_name: "Alex Morgan")
+    unless demo_person
+      demo_person = CreateParty.new(
+        agency: seed_agency,
+        party_kind: "person",
+        attributes: { given_name: "Alex", family_name: "Morgan" },
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call.party
+    end
+    demo_household = seed_agency.parties.find_by(display_name: "Morgan Household")
+    unless demo_household
+      demo_household = CreateParty.new(
+        agency: seed_agency,
+        party_kind: "household",
+        attributes: { name: "Morgan Household" },
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call.party
+    end
+    unless demo_person.contact_points.email.any?
+      CreatePartyContactPoint.new(
+        agency: seed_agency,
+        party: demo_person,
+        contact_kind: "email",
+        attributes: { display_address: "alex.directory@example.test", email_type: "personal" },
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call
+    end
+    unless PartyRelationship.involving(demo_person).exists?(relationship_kind: "household_member")
+      CreatePartyRelationship.new(
+        agency: seed_agency,
+        origin_party: demo_person,
+        related_party: demo_household,
+        relationship_kind: "household_member",
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call
+    end
+    unless demo_person.notes.exists?
+      CreatePartyNote.new(
+        agency: seed_agency,
+        party: demo_person,
+        body: "Prefers morning calls for trip updates.",
+        visibility: "standard",
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call
+    end
+    puts "Seed directory demo ready:"
+    puts "  Person: #{demo_person.display_name} (#{demo_person.id})"
+    puts "  Household: #{demo_household.display_name} (#{demo_household.id})"
 end

@@ -1,0 +1,68 @@
+<% content_for :title, "#{@party.display_name} · Relationships · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title"><%= @party.display_name %></h1>
+    <p class="dd-page-description">
+      <%= party_kind_badge(@party) %>
+      Directory relationships are not client, traveler, payer, or supplier roles.
+    </p>
+    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Add relationship", new_directory_party_party_relationship_path(@party), class: "dd-button" %>
+  </div>
+</header>
+
+<%= render "directory/shared/party_subnav", party: @party, current: :relationships %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Current relationships</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @current_relationships.any? %>
+      <ul class="dd-list">
+        <% @current_relationships.each do |relationship| %>
+          <%= render "directory/relationships/relationship", relationship:, party: @party, today: @today %>
+        <% end %>
+      </ul>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No current relationships</h3>
+        <p class="dd-empty-copy">Household membership, family, and organization relationships stay on this party without creating travel roles.</p>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Relationship history</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @historical_relationships.any? %>
+      <ul class="dd-list">
+        <% @historical_relationships.each do |relationship| %>
+          <%= render "directory/relationships/relationship", relationship:, party: @party, today: @today %>
+        <% end %>
+      </ul>
+      <% if @page > 1 || @has_next_page %>
+        <nav class="dd-button-group" aria-label="Relationship history pagination">
+          <% if @page > 1 %>
+            <%= link_to "Previous", directory_party_relationships_path(@party, page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+          <% if @has_next_page %>
+            <%= link_to "Next", directory_party_relationships_path(@party, page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+        </nav>
+      <% end %>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No relationship history</h3>
+        <p class="dd-empty-copy">Ended, corrected, and voided relationships are retained here.</p>
+      </div>
+    <% end %>
+  </div>
+</article>

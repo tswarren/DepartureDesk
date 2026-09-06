@@ -37,3 +37,51 @@ organization_one:
   sort_name: Horizon Tours
   status: active
   lock_version: 0
+
+maria:
+  agency: one
+  party_kind: person
+  display_name: Maria Ruiz
+  sort_name: Ruiz, Maria
+  status: active
+  lock_version: 0
+
+household_two:
+  agency: one
+  party_kind: household
+  display_name: Cole Household
+  sort_name: Cole Household
+  status: active
+  lock_version: 0
+
+harbor_hotel:
+  agency: one
+  party_kind: organization
+  display_name: Harbor Hotel Boston
+  sort_name: Harbor Hotel Boston
+  status: active
+  lock_version: 0
+
+harbor_group:
+  agency: one
+  party_kind: organization
+  display_name: Harbor Hospitality Group
+  sort_name: Harbor Hospitality Group
+  status: active
+  lock_version: 0
+
+bedbank:
+  agency: one
+  party_kind: organization
+  display_name: BedBank Wholesale
+  sort_name: BedBank Wholesale
+  status: active
+  lock_version: 0
+
+staff_one:
+  agency: one
+  party_kind: person
+  display_name: Riley Staff
+  sort_name: Staff, Riley
+  status: active
+  lock_version: 0

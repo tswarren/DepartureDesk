@@ -1,0 +1,56 @@
+<li class="dd-list-item">
+  <div>
+    <strong class="dd-list-title"><%= relationship.description %></strong>
+    <p class="dd-list-detail">
+      <%= relationship.relationship_kind.titleize %>
+      <% if relationship.relationship_label.present? %>
+        · <%= relationship.relationship_label.titleize %>
+      <% end %>
+      <% if relationship.title.present? %>
+        · <%= relationship.title %>
+      <% end %>
+      · From <%= relationship.effective_from&.to_fs(:long) || "unspecified" %>
+      <% if relationship.effective_until %>
+        · Until <%= DirectoryDate.inclusive_end(relationship.effective_until).to_fs(:long) %>
+      <% end %>
+    </p>
+    <p>
+      <% if relationship.record_superseded? %>
+        <%= status_badge("Corrected", modifier: "neutral") %>
+      <% elsif relationship.record_voided? %>
+        <%= status_badge("Voided", modifier: "danger") %>
+      <% elsif relationship.current_on?(today) %>
+        <%= status_badge("Current", modifier: "success") %>
+      <% else %>
+        <%= status_badge("Scheduled", modifier: "info") %>
+      <% end %>
+      <% relationship.purpose_assignments.select { |assignment| assignment.current_on?(today) }.each do |assignment| %>
+        <%= status_badge("#{assignment.purpose_label}#{' primary' if assignment.priority == 1}", modifier: assignment.priority == 1 ? "info" : "neutral") %>
+      <% end %>
+    </p>
+  </div>
+  <% if relationship.record_valid? %>
+    <div class="dd-button-group">
+      <% if relationship.purpose_eligible? %>
+        <%= link_to "Assign purpose", new_directory_party_party_relationship_purpose_path(party, relationship), class: "dd-button dd-button--quiet dd-button--small" %>
+      <% end %>
+      <%= form_with url: end_directory_party_party_relationship_path(party, relationship), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="rel_end_on_<%= relationship.id %>">Inclusive end date</label>
+        <input class="dd-field" type="date" id="rel_end_on_<%= relationship.id %>" name="party_relationship[inclusive_end_on]" required>
+        <label class="dd-label" for="rel_end_reason_<%= relationship.id %>">Ending reason</label>
+        <input class="dd-field" id="rel_end_reason_<%= relationship.id %>" name="party_relationship[reason]" required>
+        <%= submit_tag "End relationship", class: "dd-button dd-button--secondary dd-button--small" %>
+      <% end %>
+      <%= form_with url: correct_directory_party_party_relationship_path(party, relationship), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="rel_correct_reason_<%= relationship.id %>">Correction reason</label>
+        <input class="dd-field" id="rel_correct_reason_<%= relationship.id %>" name="party_relationship[reason]" required>
+        <%= submit_tag "Correct relationship", class: "dd-button dd-button--secondary dd-button--small" %>
+      <% end %>
+      <%= form_with url: void_directory_party_party_relationship_path(party, relationship), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="rel_void_reason_<%= relationship.id %>">Void reason</label>
+        <input class="dd-field" id="rel_void_reason_<%= relationship.id %>" name="party_relationship[reason]" required>
+        <%= submit_tag "Void relationship", class: "dd-button dd-button--danger dd-button--small", data: { turbo_confirm: "Void this relationship? The original row is retained." } %>
+      <% end %>
+    </div>
+  <% end %>
+</li>

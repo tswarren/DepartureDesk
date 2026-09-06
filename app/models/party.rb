@@ -32,6 +32,28 @@ class Party < ApplicationRecord
     class_name: "PartyAlternateName",
     inverse_of: :party,
     dependent: :restrict_with_exception
+  has_many :contact_points,
+    class_name: "PartyContactPoint",
+    inverse_of: :party,
+    dependent: :restrict_with_exception
+  has_many :contact_point_purpose_assignments,
+    class_name: "ContactPointPurposeAssignment",
+    inverse_of: :party,
+    dependent: :restrict_with_exception
+  has_many :origin_relationships,
+    class_name: "PartyRelationship",
+    foreign_key: :origin_party_id,
+    inverse_of: :origin_party,
+    dependent: :restrict_with_exception
+  has_many :related_relationships,
+    class_name: "PartyRelationship",
+    foreign_key: :related_party_id,
+    inverse_of: :related_party,
+    dependent: :restrict_with_exception
+  has_many :notes,
+    class_name: "PartyNote",
+    inverse_of: :party,
+    dependent: :restrict_with_exception
 
   enum :party_kind, KINDS.index_by(&:itself), validate: true
   enum :status, STATUSES.index_by(&:itself), validate: true

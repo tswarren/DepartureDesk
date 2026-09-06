@@ -21,3 +21,19 @@ unlinked:
   given_name: Alex
   family_name: Morgan
   lock_version: 0
+
+maria:
+  party: maria
+  agency: one
+  party_kind: person
+  given_name: Maria
+  family_name: Ruiz
+  lock_version: 0
+
+staff_one:
+  party: staff_one
+  agency: one
+  party_kind: person
+  given_name: Riley
+  family_name: Staff
+  lock_version: 0

@@ -44,6 +44,45 @@ Rails.application.routes.draw do
   namespace :directory do
     resources :parties, only: %i[index new create show edit update] do
       resources :alternate_names, only: %i[create update destroy]
+      resource :contact_information, only: :show, controller: "contact_information"
+      resource :relationships, only: :show, controller: "relationships"
+      resource :notes, only: :show, controller: "notes"
+      resources :contact_points, only: %i[new create edit update] do
+        member do
+          post :deactivate
+          post :reactivate
+          post :suppress
+          post :unsuppress
+          post :set_primary
+        end
+        resources :purposes, only: %i[new create], controller: "contact_point_purposes" do
+          member do
+            post :end, action: :close
+            post :correct
+          end
+        end
+      end
+      resources :party_relationships, only: %i[new create], path: "related_parties" do
+        member do
+          post :end, action: :close
+          post :correct
+          post :void
+        end
+        resources :purposes, only: %i[new create], controller: "relationship_purposes" do
+          member do
+            post :end, action: :close
+            post :correct
+          end
+        end
+      end
+      resources :party_notes, only: :create do
+        member do
+          post :correct
+          post :remove
+          post :pin
+          post :unpin
+        end
+      end
     end
   end
 

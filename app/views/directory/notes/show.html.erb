@@ -1,0 +1,99 @@
+<% content_for :title, "#{@party.display_name} · Notes · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title"><%= @party.display_name %></h1>
+    <p class="dd-page-description">
+      <%= party_kind_badge(@party) %>
+      Internal servicing notes. They are not client-visible.
+    </p>
+    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "directory/shared/party_subnav", party: @party, current: :notes %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Current notes</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @notes.any? %>
+      <ul class="dd-list">
+        <% @notes.each do |note| %>
+          <%= render "directory/notes/note", note:, party: @party, historical: false %>
+        <% end %>
+      </ul>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No notes</h3>
+        <p class="dd-empty-copy">Record servicing context here. Notes are retained when corrected or removed.</p>
+      </div>
+    <% end %>
+
+    <%= form_with model: @note,
+      url: directory_party_party_notes_path(@party),
+      method: :post,
+      class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :body, "New note", class: "dd-label" %>
+        <%= form.text_area :body, rows: 4, required: true, class: "dd-field" %>
+        <p class="dd-field-hint">
+          Do not record passwords, payment-card or bank details, passport or identity-document numbers,
+          identity-document images, or medical documentation. This check is best-effort and is not a compliance control.
+        </p>
+      </div>
+      <% if Current.agency_membership&.administrator? %>
+        <div class="dd-field-group">
+          <%= form.label :visibility, "Note visibility", class: "dd-label" %>
+          <%= form.select :visibility,
+            [ [ "Standard", "standard" ], [ "Administrator only", "administrator_only" ] ],
+            {},
+            class: "dd-field" %>
+        </div>
+      <% else %>
+        <%= form.hidden_field :visibility, value: "standard" %>
+      <% end %>
+      <div class="dd-choice-group">
+        <label class="dd-choice">
+          <%= form.check_box :pinned %>
+          Pin this note
+        </label>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Add note", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Note history</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @historical_notes.any? %>
+      <ul class="dd-list">
+        <% @historical_notes.each do |note| %>
+          <%= render "directory/notes/note", note:, party: @party, historical: true %>
+        <% end %>
+      </ul>
+      <% if @page > 1 || @has_next_page %>
+        <nav class="dd-button-group" aria-label="Notes pagination">
+          <% if @page > 1 %>
+            <%= link_to "Previous", directory_party_notes_path(@party, page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+          <% if @has_next_page %>
+            <%= link_to "Next", directory_party_notes_path(@party, page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+        </nav>
+      <% end %>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No note history</h3>
+        <p class="dd-empty-copy">Corrected and removed notes are retained here.</p>
+      </div>
+    <% end %>
+  </div>
+</article>

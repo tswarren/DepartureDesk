@@ -15,6 +15,8 @@
   </div>
 </header>
 
+<%= render "directory/shared/party_subnav", party: @party, current: :overview %>
+
 <article class="dd-panel">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Identity</h2>
@@ -189,6 +191,58 @@
     </div>
   </article>
 <% end %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Contact information</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @primary_assignments.any? %>
+      <dl class="dd-definition-list">
+        <% @primary_assignments.each do |assignment| %>
+          <div>
+            <dt><%= assignment.contact_kind.titleize %> · <%= assignment.purpose_label %> primary</dt>
+            <dd>
+              <%= assignment.contact_point.display_value.to_s.split("\n").first %>
+              <% if assignment.contact_point.suppressed? %>
+                <%= contact_point_status_badge(assignment.contact_point) %>
+              <% end %>
+            </dd>
+          </div>
+        <% end %>
+      </dl>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No primary contact information</h3>
+        <p class="dd-empty-copy">Add emails, phones, or addresses and assign a general, correspondence, or billing purpose.</p>
+      </div>
+    <% end %>
+    <p><%= link_to "Open contact information", directory_party_contact_information_path(@party) %></p>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Relationships</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @current_relationships.any? %>
+      <ul class="dd-list">
+        <% @current_relationships.each do |relationship| %>
+          <li class="dd-list-item">
+            <strong class="dd-list-title"><%= relationship.description %></strong>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No current relationships</h3>
+        <p class="dd-empty-copy">Household, family, and organization relationships are recorded separately from travel roles.</p>
+      </div>
+    <% end %>
+    <p><%= link_to "Open relationships", directory_party_relationships_path(@party) %></p>
+  </div>
+</article>
 
 <article class="dd-panel">
   <header class="dd-panel-header">

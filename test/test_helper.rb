@@ -26,6 +26,17 @@ module ActiveSupport
       person.save!
       person
     end
+
+    def create_email_contact!(party, address:, actor:, label: nil, email_type: "personal")
+      CreatePartyContactPoint.new(
+        agency: party.agency,
+        party:,
+        actor:,
+        contact_kind: "email",
+        label:,
+        attributes: { display_address: address, email_type: }
+      ).call.contact_point
+    end
   end
 end
 

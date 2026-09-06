@@ -1,0 +1,19 @@
+<div class="dd-field-group">
+  <%= form.label :label, "Email label", class: "dd-label" %>
+  <%= form.text_field :label, class: "dd-field", value: form.object.label %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :display_address, "Email address", class: "dd-label" %>
+  <%= form.email_field :display_address,
+    required: true,
+    class: "dd-field",
+    value: form.object.email_address&.display_address || params.dig(:party_contact_point, :display_address) %>
+  <p class="dd-field-hint">This is directory contact information, not the login email.</p>
+</div>
+<div class="dd-field-group">
+  <%= form.label :email_type, "Email type", class: "dd-label" %>
+  <%= form.select :email_type,
+    PartyEmailAddress::TYPES.map { |type| [ type.titleize, type ] },
+    { selected: form.object.email_address&.email_type || params.dig(:party_contact_point, :email_type) || "personal" },
+    class: "dd-field" %>
+</div>

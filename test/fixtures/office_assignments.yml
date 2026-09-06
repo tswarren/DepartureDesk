@@ -15,3 +15,12 @@ two:
   is_default: true
   granted_at: <%= Time.current %>
   lock_version: 0
+
+staff_one:
+  agency: one
+  agency_membership: staff_one
+  office: one
+  status: active
+  is_default: true
+  granted_at: <%= Time.current %>
+  lock_version: 0

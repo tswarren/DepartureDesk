@@ -13,3 +13,11 @@ two:
   role: staff
   status: active
   lock_version: 0
+
+staff_one:
+  user: staff_one
+  agency: one
+  person_party: staff_one
+  role: staff
+  status: active
+  lock_version: 0

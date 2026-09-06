@@ -19,6 +19,16 @@ module Directory
     def show
       @alternate_names = @party.alternate_names.visible.order(:name)
       @alternate_name = @party.alternate_names.new
+      @today = DirectoryDate.today(Current.agency)
+      @primary_assignments = @party.contact_point_purpose_assignments
+        .current_on(@today)
+        .primary
+        .includes(contact_point: [ :email_address, :phone_number, :postal_address ])
+        .order(:contact_kind, :purpose, :id)
+      @current_relationships = PartyRelationship.involving(@party)
+        .includes(:origin_party, :related_party)
+        .current_on(@today)
+        .order(:effective_from, :id)
     end
 
     def new

@@ -299,6 +299,15 @@
     border-bottom-color: var(--dd-teal);
   }
 
+  .dd-subnav span[aria-disabled="true"] {
+    display: inline-flex;
+    padding: 0.65rem 0.85rem;
+    border-bottom: 3px solid transparent;
+    color: #91a8b4;
+    font-weight: 650;
+    cursor: default;
+  }
+
   .dd-eyebrow {
     margin: 0 0 0.2rem;
     color: var(--dd-teal);
@@ -587,9 +596,9 @@
     color: var(--dd-info-text);
   }
 
-  .dd-badge--neutral {
-    background: #edf0f2;
-    color: #46525a;
+  .dd-badge--danger {
+    background: var(--dd-danger-surface);
+    color: var(--dd-danger-text);
   }
 
   .dd-table-wrap {

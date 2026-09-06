@@ -1,0 +1,56 @@
+<% selected_country = form.object.postal_address&.country_code || params.dig(:party_contact_point, :country_code) || Current.agency.country_code %>
+<div class="dd-field-group">
+  <%= form.label :label, "Address label", class: "dd-label" %>
+  <%= form.text_field :label, class: "dd-field", value: form.object.label, placeholder: "Mailing, Home, Work…" %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :attention, "Attention", class: "dd-label" %>
+  <%= form.text_field :attention, class: "dd-field", value: form.object.postal_address&.attention || params.dig(:party_contact_point, :attention) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :address_line_1, "Address line 1", class: "dd-label" %>
+  <%= form.text_field :address_line_1,
+    required: true,
+    class: "dd-field",
+    value: form.object.postal_address&.address_line_1 || params.dig(:party_contact_point, :address_line_1) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :address_line_2, "Address line 2", class: "dd-label" %>
+  <%= form.text_field :address_line_2, class: "dd-field", value: form.object.postal_address&.address_line_2 || params.dig(:party_contact_point, :address_line_2) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :address_line_3, "Address line 3", class: "dd-label" %>
+  <%= form.text_field :address_line_3, class: "dd-field", value: form.object.postal_address&.address_line_3 || params.dig(:party_contact_point, :address_line_3) %>
+</div>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :locality, "City or locality", class: "dd-label" %>
+    <%= form.text_field :locality, class: "dd-field", value: form.object.postal_address&.locality || params.dig(:party_contact_point, :locality) %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :administrative_region, "Region or subdivision", class: "dd-label" %>
+    <%= form.text_field :administrative_region,
+      class: "dd-field",
+      list: "address_subdivisions",
+      value: form.object.postal_address&.administrative_region || params.dig(:party_contact_point, :administrative_region) %>
+    <datalist id="address_subdivisions">
+      <% CountryReference.subdivision_options(selected_country).each do |name, value| %>
+        <option value="<%= value %>"><%= name %></option>
+      <% end %>
+    </datalist>
+    <p class="dd-field-hint">Choose a suggested subdivision or enter free text.</p>
+  </div>
+</div>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :postal_code, "Postal code", class: "dd-label" %>
+    <%= form.text_field :postal_code, class: "dd-field", value: form.object.postal_address&.postal_code || params.dig(:party_contact_point, :postal_code) %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :country_code, "Country", class: "dd-label" %>
+    <%= form.select :country_code,
+      CountryReference.options,
+      { selected: selected_country },
+      class: "dd-field" %>
+  </div>
+</div>

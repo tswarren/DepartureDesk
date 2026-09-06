@@ -1,0 +1,96 @@
+<% purposes = current_purpose_assignments(contact_point, today) %>
+<li class="dd-list-item">
+  <div>
+    <strong class="dd-list-title">
+      <% if contact_point.postal_address? %>
+        <%= simple_format(contact_point.display_value.to_s.presence || "—") %>
+      <% else %>
+        <%= contact_point.display_value.presence || "—" %>
+      <% end %>
+    </strong>
+    <p class="dd-list-detail">
+      <%= [ contact_point.label.presence, contact_point.detail&.try(:phone_type)&.titleize, contact_point.detail&.try(:email_type)&.titleize ].compact.join(" · ") %>
+      <% if contact_point.phone? && contact_point.phone_number && !contact_point.phone_number.parse_valid? %>
+        · <%= contact_point.phone_number.parse_status.titleize %> number
+      <% end %>
+    </p>
+    <p>
+      <%= contact_point_status_badge(contact_point) %>
+      <% purposes.each do |assignment| %>
+        <%= status_badge("#{assignment.purpose_label}#{' primary' if assignment.primary?}", modifier: assignment.primary? ? "info" : "neutral") %>
+      <% end %>
+    </p>
+  </div>
+  <div class="dd-button-group">
+    <% if contact_point.active? %>
+      <%= link_to "Edit", edit_directory_party_contact_point_path(party, contact_point), class: "dd-button dd-button--secondary dd-button--small" %>
+      <%= link_to "Assign purpose", new_directory_party_contact_point_purpose_path(party, contact_point), class: "dd-button dd-button--quiet dd-button--small" %>
+      <% if contact_point.eligible_destination? %>
+        <%= form_with url: set_primary_directory_party_contact_point_path(party, contact_point), method: :post, class: "dd-form" do %>
+          <label class="dd-label" for="primary_purpose_<%= contact_point.id %>">Set as primary purpose</label>
+          <select name="purpose" id="primary_purpose_<%= contact_point.id %>" class="dd-field">
+            <% ContactPointPurposeAssignment::PURPOSES.each do |purpose| %>
+              <option value="<%= purpose %>"><%= purpose.titleize %></option>
+            <% end %>
+          </select>
+          <%= submit_tag "Set as primary", class: "dd-button dd-button--secondary dd-button--small" %>
+        <% end %>
+      <% end %>
+      <% if contact_point.suppressed? %>
+        <%= button_to "Allow use",
+          unsuppress_directory_party_contact_point_path(party, contact_point),
+          method: :post,
+          class: "dd-button dd-button--secondary dd-button--small" %>
+      <% else %>
+        <%= form_with url: suppress_directory_party_contact_point_path(party, contact_point), method: :post, class: "dd-form" do %>
+          <label class="dd-label" for="suppress_reason_<%= contact_point.id %>">Do not use reason</label>
+          <input class="dd-field" id="suppress_reason_<%= contact_point.id %>" name="reason" required>
+          <%= submit_tag "Mark do not use", class: "dd-button dd-button--danger dd-button--small" %>
+        <% end %>
+      <% end %>
+      <%= form_with url: deactivate_directory_party_contact_point_path(party, contact_point), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="deactivate_reason_<%= contact_point.id %>">Deactivation reason</label>
+        <input class="dd-field" id="deactivate_reason_<%= contact_point.id %>" name="reason" required>
+        <%= submit_tag "Deactivate", class: "dd-button dd-button--danger dd-button--small", data: { turbo_confirm: "Deactivate this contact information? It will be retained in history." } %>
+      <% end %>
+    <% else %>
+      <%= button_to "Reactivate",
+        reactivate_directory_party_contact_point_path(party, contact_point),
+        method: :post,
+        class: "dd-button dd-button--secondary dd-button--small" %>
+    <% end %>
+  </div>
+  <% if purposes.any? %>
+    <ul class="dd-list">
+      <% purposes.each do |assignment| %>
+        <li class="dd-list-item">
+          <div>
+            <strong><%= assignment.purpose_label %></strong>
+            <span class="dd-list-detail">
+              Priority <%= assignment.priority %>
+              · From <%= assignment.effective_from&.to_fs(:long) || "unspecified" %>
+              <% if assignment.effective_until %>
+                · Until <%= DirectoryDate.inclusive_end(assignment.effective_until).to_fs(:long) %>
+              <% end %>
+            </span>
+          </div>
+          <% if contact_point.active? && assignment.record_valid? %>
+            <%= form_with url: end_directory_party_contact_point_purpose_path(party, contact_point, assignment), method: :post, class: "dd-form" do |form| %>
+              <div class="dd-form-grid dd-form-grid--two-column">
+                <div class="dd-field-group">
+                  <label class="dd-label" for="end_on_<%= assignment.id %>">Inclusive end date</label>
+                  <input class="dd-field" type="date" id="end_on_<%= assignment.id %>" name="contact_point_purpose_assignment[inclusive_end_on]" required>
+                </div>
+                <div class="dd-field-group">
+                  <label class="dd-label" for="end_reason_<%= assignment.id %>">Ending reason</label>
+                  <input class="dd-field" id="end_reason_<%= assignment.id %>" name="contact_point_purpose_assignment[reason]" required>
+                </div>
+              </div>
+              <%= submit_tag "End purpose", class: "dd-button dd-button--secondary dd-button--small" %>
+            <% end %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</li>

@@ -11,3 +11,9 @@ two:
   first_name: Casey
   last_name: Nguyen
   password_digest: <%= password_digest %>
+
+staff_one:
+  email_address: staff.one@example.com
+  first_name: Riley
+  last_name: Staff
+  password_digest: <%= password_digest %>

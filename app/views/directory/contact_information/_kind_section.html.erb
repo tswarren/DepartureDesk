@@ -1,0 +1,19 @@
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title"><%= title %></h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if contact_points.any? %>
+      <ul class="dd-list">
+        <% contact_points.each do |contact_point| %>
+          <%= render "directory/contact_information/contact_point", contact_point:, party:, today: %>
+        <% end %>
+      </ul>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title"><%= empty_title %></h3>
+        <p class="dd-empty-copy"><%= empty_copy %></p>
+      </div>
+    <% end %>
+  </div>
+</article>

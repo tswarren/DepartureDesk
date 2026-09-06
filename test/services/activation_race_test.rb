@@ -500,8 +500,16 @@ class ActivationRaceTest < ActiveSupport::TestCase
 
     OfficeAssignment.where(agency_id: agency_ids).delete_all
     Office.where(agency_id: agency_ids).delete_all
-    AgencyMembership.where(agency_id: agency_ids).delete_all
+    ContactPointPurposeAssignment.where(agency_id: agency_ids).delete_all
+    PartyEmailAddress.where(agency_id: agency_ids).delete_all
+    PartyPhoneNumber.where(agency_id: agency_ids).delete_all
+    PartyPostalAddress.where(agency_id: agency_ids).delete_all
+    PartyContactPoint.where(agency_id: agency_ids).delete_all
+    RelationshipPurposeAssignment.where(agency_id: agency_ids).delete_all
+    PartyRelationship.where(agency_id: agency_ids).delete_all
+    PartyNote.where(agency_id: agency_ids).delete_all
     PartyAlternateName.where(agency_id: agency_ids).delete_all
+    AgencyMembership.where(agency_id: agency_ids).delete_all
     Person.where(agency_id: agency_ids).delete_all
     Household.where(agency_id: agency_ids).delete_all
     Organization.where(agency_id: agency_ids).delete_all

@@ -1,0 +1,84 @@
+<% content_for :title, "#{@party.display_name} · Contact information · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title"><%= @party.display_name %></h1>
+    <p class="dd-page-description">
+      <%= party_kind_badge(@party) %>
+      <%= party_status_badge(@party) %>
+    </p>
+    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Add email", new_directory_party_contact_point_path(@party, contact_kind: "email"), class: "dd-button" %>
+  </div>
+</header>
+
+<%= render "directory/shared/party_subnav", party: @party, current: :contact %>
+
+<p class="dd-field-hint" style="margin-bottom: 1rem;">
+  Directory email is contact information. It is not the login email used to sign in.
+  Shared household or organization addresses belong on that party, not copied onto each person.
+  “Do not use” keeps the value current but prohibited. Deactivation means it is no longer this party’s contact.
+</p>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Filter</h2>
+  </header>
+  <div class="dd-panel-body">
+    <form method="get" action="<%= directory_party_contact_information_path(@party) %>" class="dd-form" style="max-width: 16rem;">
+      <div class="dd-field-group">
+        <label class="dd-label" for="contact_status">Contact status</label>
+        <select name="status" id="contact_status" class="dd-field">
+          <option value="" <%= "selected" if @status == "active" %>>Current</option>
+          <option value="deactivated" <%= "selected" if @status == "deactivated" %>>Deactivated history</option>
+        </select>
+      </div>
+      <div class="dd-form-actions">
+        <button type="submit" class="dd-button dd-button--secondary dd-button--small">Apply filter</button>
+      </div>
+    </form>
+  </div>
+</article>
+
+<div class="dd-button-group" style="margin-bottom: 1rem;">
+  <%= link_to "Add phone", new_directory_party_contact_point_path(@party, contact_kind: "phone"), class: "dd-button dd-button--secondary dd-button--small" %>
+  <%= link_to "Add postal address", new_directory_party_contact_point_path(@party, contact_kind: "postal_address"), class: "dd-button dd-button--secondary dd-button--small" %>
+</div>
+
+<%= render "directory/contact_information/kind_section",
+  title: "Email addresses",
+  empty_title: "No email addresses",
+  empty_copy: "Add a personal, work, or general email. Login email stays on the user record.",
+  contact_points: @emails,
+  party: @party,
+  today: @today %>
+
+<%= render "directory/contact_information/kind_section",
+  title: "Phone numbers",
+  empty_title: "No phone numbers",
+  empty_copy: "Add a mobile, work, or other phone. Possible or unparsed numbers are kept with a warning.",
+  contact_points: @phones,
+  party: @party,
+  today: @today %>
+
+<%= render "directory/contact_information/kind_section",
+  title: "Postal addresses",
+  empty_title: "No postal addresses",
+  empty_copy: "Add a mailing or other address owned by this party.",
+  contact_points: @addresses,
+  party: @party,
+  today: @today %>
+
+<% if @status == "deactivated" && (@page > 1 || @has_next_page) %>
+  <nav class="dd-button-group" aria-label="Deactivated contact pagination">
+    <% if @page > 1 %>
+      <%= link_to "Previous", directory_party_contact_information_path(@party, status: "deactivated", page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
+    <% end %>
+    <% if @has_next_page %>
+      <%= link_to "Next", directory_party_contact_information_path(@party, status: "deactivated", page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
+    <% end %>
+  </nav>
+<% end %>

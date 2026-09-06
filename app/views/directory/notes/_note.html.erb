@@ -1,0 +1,42 @@
+<li class="dd-list-item">
+  <div>
+    <% if note.pinned? %>
+      <%= status_badge("Pinned", modifier: "info") %>
+    <% end %>
+    <% if note.administrator_only? %>
+      <%= status_badge("Administrator only", modifier: "warning") %>
+    <% end %>
+    <% if note.record_superseded? %>
+      <%= status_badge("Superseded", modifier: "neutral") %>
+    <% elsif note.record_removed? %>
+      <%= status_badge("Removed", modifier: "neutral") %>
+    <% end %>
+    <p><%= simple_format(note.body) %></p>
+    <p class="dd-list-detail">Recorded <%= note.created_at.utc.to_fs(:long) %></p>
+    <% if note.record_superseded? %>
+      <p class="dd-list-detail">Corrected: <%= note.correction_reason %></p>
+    <% elsif note.record_removed? %>
+      <p class="dd-list-detail">Removed: <%= note.removal_reason %></p>
+    <% end %>
+  </div>
+  <% unless historical %>
+    <div class="dd-button-group">
+      <%= button_to note.pinned? ? "Unpin" : "Pin",
+        note.pinned? ? unpin_directory_party_party_note_path(party, note) : pin_directory_party_party_note_path(party, note),
+        method: :post,
+        class: "dd-button dd-button--secondary dd-button--small" %>
+      <%= form_with url: correct_directory_party_party_note_path(party, note), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="note_body_<%= note.id %>">Corrected note</label>
+        <textarea class="dd-field" id="note_body_<%= note.id %>" name="party_note[body]" rows="3" required><%= note.body %></textarea>
+        <label class="dd-label" for="note_correct_reason_<%= note.id %>">Correction reason</label>
+        <input class="dd-field" id="note_correct_reason_<%= note.id %>" name="party_note[reason]" required>
+        <%= submit_tag "Correct note", class: "dd-button dd-button--secondary dd-button--small" %>
+      <% end %>
+      <%= form_with url: remove_directory_party_party_note_path(party, note), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="note_remove_reason_<%= note.id %>">Removal reason</label>
+        <input class="dd-field" id="note_remove_reason_<%= note.id %>" name="party_note[reason]" required>
+        <%= submit_tag "Remove note", class: "dd-button dd-button--danger dd-button--small", data: { turbo_confirm: "Remove this note? The original text is retained." } %>
+      <% end %>
+    </div>
+  <% end %>
+</li>

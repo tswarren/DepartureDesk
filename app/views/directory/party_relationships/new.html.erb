@@ -1,0 +1,73 @@
+<% content_for :title, "Add relationship · #{@party.display_name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title">Add a relationship</h1>
+    <p class="dd-page-description"><%= @party.display_name %></p>
+    <%= link_to "Back to relationships", directory_party_relationships_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "directory/shared/party_subnav", party: @party, current: :relationships %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Relationship</h2>
+  </header>
+  <div class="dd-panel-body">
+    <%= form_with url: directory_party_party_relationships_path(@party), method: :post, class: "dd-form" do %>
+      <div class="dd-field-group">
+        <label class="dd-label" for="relationship_kind">Relationship kind</label>
+        <select name="party_relationship[relationship_kind]" id="relationship_kind" class="dd-field" required>
+          <option value="">Choose a kind</option>
+          <% PartyRelationship::KINDS.each do |kind| %>
+            <option value="<%= kind %>" <%= "selected" if @relationship_kind == kind %>><%= kind.titleize %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="dd-field-group">
+        <label class="dd-label" for="other_party_id">Related party</label>
+        <select name="party_relationship[other_party_id]" id="other_party_id" class="dd-field" required>
+          <% Current.agency.parties.where.not(id: @party.id).order(:sort_name, :id).each do |candidate| %>
+            <option value="<%= candidate.id %>"><%= candidate.display_name %> (<%= candidate.kind_label %>)</option>
+          <% end %>
+        </select>
+        <p class="dd-field-hint">The list shows every agency party. The server still rejects incompatible kinds.</p>
+      </div>
+      <div class="dd-field-group">
+        <label class="dd-label" for="relationship_label">Relationship label</label>
+        <select name="party_relationship[relationship_label]" id="relationship_label" class="dd-field">
+          <option value="">None</option>
+          <optgroup label="Family">
+            <% PartyRelationship::FAMILY_LABELS.each do |label| %>
+              <option value="<%= label %>"><%= label.titleize %></option>
+            <% end %>
+          </optgroup>
+          <optgroup label="Affiliation">
+            <% PartyRelationship::AFFILIATION_LABELS.each do |label| %>
+              <option value="<%= label %>"><%= label.titleize %></option>
+            <% end %>
+          </optgroup>
+        </select>
+      </div>
+      <div class="dd-field-group">
+        <label class="dd-label" for="relationship_title">Title</label>
+        <input class="dd-field" id="relationship_title" name="party_relationship[title]">
+      </div>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <label class="dd-label" for="relationship_effective_from">Effective from</label>
+          <input class="dd-field" type="date" id="relationship_effective_from" name="party_relationship[effective_from]">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="relationship_inclusive_end_on">Inclusive end date</label>
+          <input class="dd-field" type="date" id="relationship_inclusive_end_on" name="party_relationship[inclusive_end_on]">
+        </div>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Add relationship", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</article>

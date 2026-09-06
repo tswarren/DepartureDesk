@@ -11,6 +11,8 @@
   </div>
 </header>
 
+<%= render "directory/shared/party_subnav", party: @party, current: :overview %>
+
 <article class="dd-panel">
   <div class="dd-panel-body">
     <% if @profile.errors.any? %>

@@ -1,6 +1,6 @@
 # Phase 2 — Party and supplier directory
 
-Status: locked planning contract for implementation. Phase 2A is implemented in this repository. Later slices remain planned. This supersedes the earlier directional outline. It must reuse Foundation 1 tenancy, authorization, audit, office, and numbering contracts rather than design around them.
+Status: locked planning contract for implementation. Phase 2A and Phase 2B are implemented in this repository. Later slices remain planned. This supersedes the earlier directional outline. It must reuse Foundation 1 tenancy, authorization, audit, office, and numbering contracts rather than design around them.
 
 ## Purpose
 
@@ -415,7 +415,7 @@ A relationship should contain:
 - Controlled relationship kind
 - Optional user-facing label
 - Effective start date
-- Optional effective end date
+- Optional exclusive effective-until date
 - Title or position where applicable
 - Verification or source information where useful
 - Notes
@@ -426,7 +426,7 @@ A relationship should contain:
 Phase 2 ships a narrow vocabulary:
 
 - Household member
-- Family member, with an optional label such as spouse, partner, parent, child, guardian, or dependent
+- Family member, with a directional label such as spouse, partner, parent, child, guardian, or dependent
 - Employment or organization affiliation
 - Organization contact
 - Parent organization
@@ -470,7 +470,7 @@ Relationships should be stored in one canonical direction when possible. The inv
 
 ### Correction versus termination
 
-A genuine real-world ending records `effective_to`. An erroneous record is superseded or voided as a correction. The original row remains auditable. The correction identifies the replacement or corrected facts, actor, timestamp, and reason. Normal UI does not rewrite historical intervals in place.
+A genuine real-world ending records exclusive `effective_until`. An erroneous record is superseded or voided as a correction. The original row remains auditable. The correction identifies the replacement or corrected facts, actor, timestamp, and reason. Normal UI does not rewrite historical intervals in place.
 
 Do not event-source relationships. A correction disposition plus `superseded_by` and an audit event is sufficient.
 
@@ -948,15 +948,18 @@ Create a person, household, and organization; find each through the agency direc
 
 ## Phase 2B — Contact information, relationships, and notes
 
+Implemented in this repository as Phase 2B.1–2B.3. The locked contract is [phase-2b-contact-info-relationships-notes.md](phase-2b-contact-info-relationships-notes.md). Client and supplier profiles, merge, party deactivation, and fuzzy search remain later slices.
+
 ### Deliverables
 
-- Addresses, phone numbers, and email addresses
-- Purpose-scoped primary contact rules on contact points
+- Addresses, phone numbers, and email addresses on a typed contact-point root
+- Purpose-scoped primary contact rules on contact points (`general`, `correspondence`, `billing`)
 - Household membership
 - Organization affiliations, contacts, parent organizations, and service-provider relationships
-- Contact-purpose assignments for general, booking, and accounting
+- Relationship-contact purposes for general, booking, and accounting
+- Typed origin/related party kinds with composite FKs to `parties (id, agency_id, party_kind)`
 - Relationship-specific cardinality constraints
-- Effective dating
+- Half-open effective dating (`effective_from` inclusive, `effective_until` exclusive)
 - Relationship correction and termination
 - Standard and administrator-only party notes
 - Sensitive-note restrictions
@@ -969,10 +972,12 @@ Create a person, household, and organization; find each through the agency direc
 - Relationship history is not destroyed when a relationship ends.
 - A household relationship does not imply financial, travel, or eligibility consequences.
 - Overlapping household membership and distinct-purpose affiliations remain valid.
-- A household’s primary general contact is derived from current purpose assignments, not stored on the household profile.
+- A person cannot have overlapping valid affiliation and organization-contact rows with the same organization.
+- A household’s primary general contact is derived from current contact-point purpose assignments, not stored on the household profile.
 - Prohibited sensitive information cannot intentionally use general party notes as its system of record.
-- Notes have only standard and administrator-only visibility.
+- Notes have only standard and administrator-only visibility. GET does not write note-access audits.
 - Suppressed or do-not-use contact points cannot be selected as default communication destinations.
+- Contact-point date ranges are not used; purpose assignments and relationships carry effective dates.
 
 ### Exit demonstration
 
