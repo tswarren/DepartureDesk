@@ -37,6 +37,24 @@ module ActiveSupport
         attributes: { display_address: address, email_type: }
       ).call.contact_point
     end
+
+    def assign_client_role!(party, actor:, office: nil)
+      CreateClientProfile.new(
+        agency: party.agency,
+        party:,
+        actor:,
+        office: office || party.agency.offices.active.order(:id).first
+      ).call.client_profile
+    end
+
+    def assign_supplier_role!(party, actor:, office: nil)
+      CreateSupplierProfile.new(
+        agency: party.agency,
+        party:,
+        actor:,
+        office: office || party.agency.offices.active.order(:id).first
+      ).call.supplier_profile
+    end
   end
 end
 

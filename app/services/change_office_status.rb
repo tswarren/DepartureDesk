@@ -23,6 +23,10 @@ class ChangeOfficeStatus < MembershipCommand
     CommandResult.new(status: :accepted, office: @office.reload)
   rescue ActiveRecord::StaleObjectError
     raise Error.new("This office was updated by someone else.", code: :conflict)
+  rescue ActiveRecord::InvalidForeignKey, ActiveRecord::StatementInvalid => error
+    raise Error.new(role_dependency_message, code: :role_dependency) if office_status_fk_violation?(error)
+
+    raise
   end
 
   private
@@ -37,6 +41,7 @@ class ChangeOfficeStatus < MembershipCommand
     if @to == "inactive" && @agency.offices.active.where.not(id: @office.id).none?
       raise Error.new("An agency must keep at least one active office.", code: :last_office)
     end
+    reject_active_role_dependency! if @to == "inactive"
 
     previous = @office.status
     @office.update!(status: @to)
@@ -55,6 +60,43 @@ class ChangeOfficeStatus < MembershipCommand
       },
       **actor_audit_args
     )
+  end
+
+  def reject_active_role_dependency!
+    dependents = dependent_active_role_labels
+    return if dependents.empty?
+
+    raise Error.new(role_dependency_message(dependents), code: :role_dependency)
+  end
+
+  def dependent_active_role_labels
+    clients = ClientProfile.includes(:party).where(
+      agency_id: @agency.id,
+      responsible_office_id: @office.id,
+      status: "active"
+    ).order(:id)
+    suppliers = SupplierProfile.includes(:party).where(
+      agency_id: @agency.id,
+      responsible_office_id: @office.id,
+      status: "active"
+    ).order(:id)
+
+    clients.map { |profile| "#{profile.party.display_name} (client)" } +
+      suppliers.map { |profile| "#{profile.party.display_name} (supplier)" }
+  end
+
+  def role_dependency_message(labels = nil)
+    labels ||= dependent_active_role_labels
+    return "Reassign active roles before deactivating this office." if labels.empty?
+
+    noun = labels.one? ? "role" : "roles"
+    "Reassign #{labels.size} active #{noun} before deactivating this office: #{labels.join(", ")}."
+  end
+
+  def office_status_fk_violation?(error)
+    cause = error.is_a?(ActiveRecord::InvalidForeignKey) ? error : error.cause
+    message = [ error.message, cause&.message ].compact.join(" ")
+    message.include?("office_active_projection_fk")
   end
 
   def apply_deactivation_fan_out!

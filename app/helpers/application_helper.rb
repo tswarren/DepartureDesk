@@ -30,6 +30,30 @@ module ApplicationHelper
     status_badge(party.status.titleize, modifier: party.active? ? "success" : "neutral")
   end
 
+  def role_profile_status_badge(profile)
+    if profile.nil?
+      status_badge("Not assigned", modifier: "neutral")
+    elsif profile.active?
+      status_badge("Active", modifier: "success")
+    else
+      status_badge("Inactive", modifier: "neutral")
+    end
+  end
+
+  def office_choice_label(office)
+    "#{office.name} (#{office.code})"
+  end
+
+  def responsible_office_text(profile)
+    office = profile.responsible_office
+    return "—" unless office
+
+    label = office_choice_label(office)
+    return label unless office.inactive?
+
+    "#{label} · Inactive"
+  end
+
   def contact_point_status_badge(contact_point)
     if contact_point.suppressed?
       status_badge("Do not use", modifier: "danger")

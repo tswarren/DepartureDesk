@@ -83,6 +83,14 @@ Rails.application.routes.draw do
           post :unpin
         end
       end
+      resource :client_profile, only: %i[create update] do
+        post :deactivate
+        post :reactivate
+      end
+      resource :supplier_profile, only: %i[create update] do
+        post :deactivate
+        post :reactivate
+      end
     end
   end
 

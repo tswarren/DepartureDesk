@@ -71,6 +71,7 @@ Badges pair a title-case label with a color modifier. Stored enum values stay lo
 | `office_status_badge` | Active | — | — | Inactive |
 | `party_kind_badge` | — | Person / Household / Organization | — | — |
 | `party_status_badge` | Active | — | — | Deactivated |
+| `role_profile_status_badge` | Active | — | — | Inactive; **Not assigned** and **Ineligible** use the neutral modifier |
 | `contact_point_status_badge` | Active | — | — | Deactivated; **Do not use** uses the danger modifier |
 
 Never communicate status by color alone. “Do not use” (suppressed, still current) uses red danger styling. Deactivated contact points use the neutral badge. Amber is not the do-not-use color. Administrator-only notes are labeled in text; they are not color-only.

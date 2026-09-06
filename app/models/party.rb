@@ -50,6 +50,12 @@ class Party < ApplicationRecord
     foreign_key: :related_party_id,
     inverse_of: :related_party,
     dependent: :restrict_with_exception
+  has_one :client_profile,
+    inverse_of: :party,
+    dependent: :restrict_with_exception
+  has_one :supplier_profile,
+    inverse_of: :party,
+    dependent: :restrict_with_exception
   has_many :notes,
     class_name: "PartyNote",
     inverse_of: :party,

@@ -84,7 +84,7 @@ class RecordAdministrativeAudit
       return if subject.agency_id == agency.id
 
       raise ArgumentError, "Assignment subject must belong to the event agency."
-    when Party, Person, Household, Organization, PartyAlternateName, PartyContactPoint, ContactPointPurposeAssignment, PartyRelationship, RelationshipPurposeAssignment, PartyNote
+    when Party, Person, Household, Organization, PartyAlternateName, PartyContactPoint, ContactPointPurposeAssignment, PartyRelationship, RelationshipPurposeAssignment, PartyNote, ClientProfile, SupplierProfile
       return if subject.agency_id == agency.id
 
       raise ArgumentError, "#{subject.class.name} subject must belong to the event agency."
