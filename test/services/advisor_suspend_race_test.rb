@@ -19,11 +19,13 @@ class AdvisorSuspendRaceTest < ActiveSupport::TestCase
     person_id = @advisor&.person_party_id
     user_id = @advisor&.user_id
     advisor_party_id = @advisor&.person_party&.party_id
+    office_assignment_ids = OfficeAssignment.where(agency_membership_id: membership_id).pluck(:id) if membership_id
     connection = ActiveRecord::Base.connection
     connection.execute("SET session_replication_role = replica")
     AuditEvent.where(subject_type: "ClientAdvisorAssignment", subject_id: assignment_ids).delete_all
     AuditEvent.where(subject_type: "ClientProfile", subject_id: profile_ids).delete_all
     AuditEvent.where(subject_type: "AgencyMembership", subject_id: membership_id).delete_all if membership_id
+    AuditEvent.where(subject_type: "OfficeAssignment", subject_id: office_assignment_ids).delete_all if office_assignment_ids
     AuditEvent.where(subject_type: "Party", subject_id: advisor_party_id).delete_all if advisor_party_id
     AuditEvent.where(subject_type: "Person", subject_id: person_id).delete_all if person_id
     ClientAdvisorAssignment.where(client_profile_id: profile_ids).delete_all
