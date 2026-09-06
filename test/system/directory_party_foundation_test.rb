@@ -6,15 +6,20 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     fill_in "Email address", with: users(:one).email_address
     fill_in "Password", with: "password"
     click_button "Sign in"
+    assert_current_path root_path
 
     click_link "Directory"
+    assert_current_path directory_parties_path
     assert_text "People, households, and organizations"
     assert_text "Alex Morgan"
     assert_text "Morgan Household"
     assert_text "Horizon Tours"
 
     click_link "Add to directory"
+    assert_current_path new_directory_party_path
+    assert_text "Choose a kind. Party kind cannot be changed later."
     click_link "Person"
+    assert_field "Given name"
     fill_in "Given name", with: "Jamie"
     fill_in "Family name", with: "Cole"
     click_button "Create person"
@@ -22,15 +27,21 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     jamie_id = Party.find_by!(display_name: "Jamie Cole").id
 
     click_link "Back to directory"
+    assert_current_path directory_parties_path
     click_link "Add to directory"
+    assert_current_path new_directory_party_path
     click_link "Household"
+    assert_field "Household name"
     fill_in "Household name", with: "Cole Household"
     click_button "Create household"
     assert_text "Cole Household"
 
     click_link "Back to directory"
+    assert_current_path directory_parties_path
     click_link "Add to directory"
+    assert_current_path new_directory_party_path
     click_link "Organization"
+    assert_field "Legal name"
     fill_in "Legal name", with: "Summit Travel Co"
     fill_in "Trading name", with: "Summit Travel"
     click_button "Create organization"
@@ -43,6 +54,7 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
 
     click_link "Jamie Cole"
     click_link "Edit"
+    assert_field "Preferred name"
     fill_in "Preferred name", with: "Jim"
     click_button "Save changes"
     assert_text "Jim Cole"
@@ -59,8 +71,11 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_text "Jim Cole"
 
     click_link "Administration"
+    assert_current_path administration_agency_path
     click_link "Team"
+    assert_current_path administration_team_members_path
     click_link "Invite someone"
+    assert_current_path new_administration_invitation_path
     fill_in "Email address", with: "alex.team@example.com"
     choose "Invite an existing person"
     select "Alex Morgan", from: "Existing person"

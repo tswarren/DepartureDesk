@@ -59,10 +59,12 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     within("nav[aria-label=Party]") { click_link "Contact information" }
     assert_current_path directory_party_contact_information_path(parties(:household_one))
     click_link "Add postal address"
+    assert_current_path new_directory_party_contact_point_path(parties(:household_one), contact_kind: "postal_address")
+    assert_field "Address line 1"
     fill_in "Address line 1", with: "18 Harbor Street"
     fill_in "City or locality", with: "Boston"
     fill_in "Postal code", with: "02110"
-    select "United States", from: "Country"
+    find_field("Country").find("option[value='US']").select_option
     fill_in "Address label", with: "Mailing"
     click_button "Add postal address"
     assert_text "18 Harbor Street"
