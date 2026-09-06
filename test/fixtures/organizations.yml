@@ -5,3 +5,27 @@ organization_one:
   legal_name: Horizon Tours Limited
   trading_name: Horizon Tours
   lock_version: 0
+
+harbor_hotel:
+  party: harbor_hotel
+  agency: one
+  party_kind: organization
+  legal_name: Harbor Hotel Boston LLC
+  trading_name: Harbor Hotel Boston
+  lock_version: 0
+
+harbor_group:
+  party: harbor_group
+  agency: one
+  party_kind: organization
+  legal_name: Harbor Hospitality Group Inc
+  trading_name: Harbor Hospitality Group
+  lock_version: 0
+
+bedbank:
+  party: bedbank
+  agency: one
+  party_kind: organization
+  legal_name: BedBank Wholesale Ltd
+  trading_name: BedBank Wholesale
+  lock_version: 0

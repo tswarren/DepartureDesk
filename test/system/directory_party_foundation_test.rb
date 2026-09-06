@@ -2,19 +2,17 @@ require "application_system_test_case"
 
 class DirectoryPartyFoundationTest < ApplicationSystemTestCase
   test "directory create edit alternate names and existing-person invitation" do
-    visit new_session_path
-    fill_in "Email address", with: users(:one).email_address
-    fill_in "Password", with: "password"
-    click_button "Sign in"
-
-    click_link "Directory"
-    assert_text "People, households, and organizations"
+    sign_in_from_browser users(:one)
+    open_directory
     assert_text "Alex Morgan"
     assert_text "Morgan Household"
     assert_text "Horizon Tours"
 
     click_link "Add to directory"
+    assert_current_path new_directory_party_path
+    assert_text "Choose a kind. Party kind cannot be changed later."
     click_link "Person"
+    assert_field "Given name"
     fill_in "Given name", with: "Jamie"
     fill_in "Family name", with: "Cole"
     click_button "Create person"
@@ -22,27 +20,35 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     jamie_id = Party.find_by!(display_name: "Jamie Cole").id
 
     click_link "Back to directory"
+    assert_selector "h1.dd-page-title", text: "People, households, and organizations"
     click_link "Add to directory"
+    assert_current_path new_directory_party_path
     click_link "Household"
+    assert_field "Household name"
     fill_in "Household name", with: "Cole Household"
     click_button "Create household"
     assert_text "Cole Household"
 
     click_link "Back to directory"
+    assert_selector "h1.dd-page-title", text: "People, households, and organizations"
     click_link "Add to directory"
+    assert_current_path new_directory_party_path
     click_link "Organization"
+    assert_field "Legal name"
     fill_in "Legal name", with: "Summit Travel Co"
     fill_in "Trading name", with: "Summit Travel"
     click_button "Create organization"
     assert_text "Summit Travel"
 
-    click_link "Directory"
+    open_directory
     assert_text "Jamie Cole"
     assert_text "Cole Household"
     assert_text "Summit Travel"
 
-    click_link "Jamie Cole"
+    within("table.dd-table") { click_link "Jamie Cole", exact: true }
+    assert_selector "h1.dd-page-title", text: "Jamie Cole"
     click_link "Edit"
+    assert_field "Preferred name"
     fill_in "Preferred name", with: "Jim"
     click_button "Save changes"
     assert_text "Jim Cole"
@@ -59,8 +65,11 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_text "Jim Cole"
 
     click_link "Administration"
+    assert_current_path administration_agency_path
     click_link "Team"
+    assert_current_path administration_team_members_path
     click_link "Invite someone"
+    assert_current_path new_administration_invitation_path
     fill_in "Email address", with: "alex.team@example.com"
     choose "Invite an existing person"
     select "Alex Morgan", from: "Existing person"

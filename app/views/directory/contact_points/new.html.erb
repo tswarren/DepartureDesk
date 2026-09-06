@@ -1,0 +1,30 @@
+<% content_for :title, "Add contact information · #{@party.display_name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title">Add <%= @contact_kind.titleize.downcase %></h1>
+    <p class="dd-page-description"><%= @party.display_name %></p>
+    <%= link_to "Back to contact information", directory_party_contact_information_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "directory/shared/party_subnav", party: @party, current: :contact %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Contact details</h2>
+  </header>
+  <div class="dd-panel-body">
+    <%= form_with model: @contact_point,
+      url: directory_party_contact_points_path(@party),
+      method: :post,
+      class: "dd-form" do |form| %>
+      <%= form.hidden_field :contact_kind, value: @contact_kind %>
+      <%= render "directory/contact_points/#{@contact_kind}_fields", form: %>
+      <div class="dd-form-actions">
+        <%= form.submit "Add #{@contact_kind.titleize.downcase}", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</article>

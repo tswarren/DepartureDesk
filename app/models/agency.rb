@@ -9,6 +9,11 @@ class Agency < ApplicationRecord
     has_many :office_assignments, dependent: :restrict_with_exception
     has_many :audit_events, dependent: :restrict_with_exception
     has_many :agency_provisioning_requests, dependent: :restrict_with_exception
+    has_many :party_contact_points, dependent: :restrict_with_exception
+    has_many :contact_point_purpose_assignments, dependent: :restrict_with_exception
+    has_many :party_relationships, dependent: :restrict_with_exception
+    has_many :relationship_purpose_assignments, dependent: :restrict_with_exception
+    has_many :party_notes, dependent: :restrict_with_exception
 
     STATUSES = %w[
       active

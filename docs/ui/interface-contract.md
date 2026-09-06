@@ -1,6 +1,6 @@
-# Administration interface contract
+# Administration and directory interface contract
 
-This is the Foundation 1F presentation contract for tenant administration and the office chooser. It does not change routes, commands, or terminology. Dashboard metrics and the unauthenticated auth shell stay on their existing chrome unless they already share these `dd-` classes.
+This is the presentation contract for tenant administration, the office chooser, and party-local directory pages. It does not change routes, commands, or terminology. Dashboard metrics and the unauthenticated auth shell stay on their existing chrome unless they already share these `dd-` classes.
 
 Reuse these classes before adding new presentation rules. Do not introduce ViewComponent, an icon library, or view-specific CSS.
 
@@ -10,14 +10,15 @@ Reuse these classes before adding new presentation rules. Do not introduce ViewC
 dd-page-header
   dd-page-heading   eyebrow, title, description, optional quiet back link
   dd-page-actions   at most one primary header action
-dd-subnav           Agency profile / Team / Offices
+dd-subnav           Agency profile / Team / Offices, or party Overview / Contact information / Relationships / Notes
 dd-panel+
 ```
 
 - `.dd-page-header` is a horizontal row that stacks at the existing 600px breakpoint.
 - `.dd-page-actions` wraps header buttons and stacks with them at 600px.
-- `.dd-subnav` is a horizontal link row. The current item uses teal, never amber. Mark it with `aria-current="page"` on a `nav` labeled `Administration`.
-- Child pages (team member, invitation, office new/edit/show) still render the shared subnav. Place a quiet “Back to …” link in the page heading or first panel, not a loose paragraph.
+- `.dd-subnav` is a horizontal link row. The current item uses teal, never amber. Mark it with `aria-current="page"` on a `nav` labeled `Administration` or `Party`.
+- Party-local subnav uses real links only when the corresponding route exists. Upcoming slices render disabled placeholders (`span[aria-disabled="true"]`), matching primary navigation.
+- Child pages (team member, invitation, office new/edit/show, contact point new/edit) still render the shared subnav. Place a quiet “Back to …” link in the page heading or first panel, not a loose paragraph.
 
 ## Panel anatomy
 
@@ -70,8 +71,9 @@ Badges pair a title-case label with a color modifier. Stored enum values stay lo
 | `office_status_badge` | Active | — | — | Inactive |
 | `party_kind_badge` | — | Person / Household / Organization | — | — |
 | `party_status_badge` | Active | — | — | Deactivated |
+| `contact_point_status_badge` | Active | — | — | Deactivated; **Do not use** uses the danger modifier |
 
-Never communicate status by color alone.
+Never communicate status by color alone. “Do not use” (suppressed, still current) uses red danger styling. Deactivated contact points use the neutral badge. Amber is not the do-not-use color. Administrator-only notes are labeled in text; they are not color-only.
 
 ## Tables
 

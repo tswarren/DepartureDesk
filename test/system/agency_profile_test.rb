@@ -40,13 +40,17 @@ class AgencyProfileTest < ApplicationSystemTestCase
     fill_in "Email address", with: users(:one).email_address
     fill_in "Password", with: "password"
     click_button "Sign in"
+    assert_current_path root_path
 
     click_link "Administration"
+    assert_current_path administration_agency_path
+    assert_text "Agency profile"
     assert_selector "a[href='#main-content']", text: "Skip to main content", visible: :all
     page.execute_script("document.querySelector(\"a[href='#main-content']\").focus()")
     assert_selector "a[href='#main-content']", text: "Skip to main content"
     assert_selector "nav[aria-label=Administration]"
     click_link "Edit profile"
+    assert_current_path edit_administration_agency_path
     assert_field "Display name"
     assert_field "Default currency"
   end

@@ -11,6 +11,20 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- Name: btree_gist; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION btree_gist; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiST';
+
+
+--
 -- Name: citext; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -51,6 +65,71 @@ BEGIN
   END IF;
   IF NEW.agency_id IS DISTINCT FROM OLD.agency_id THEN
     RAISE EXCEPTION 'party agency cannot change';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: party_contact_points_prevent_kind_or_agency_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.party_contact_points_prevent_kind_or_agency_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.contact_kind IS DISTINCT FROM OLD.contact_kind THEN
+    RAISE EXCEPTION 'contact kind cannot change';
+  END IF;
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id THEN
+    RAISE EXCEPTION 'contact agency cannot change';
+  END IF;
+  IF NEW.party_id IS DISTINCT FROM OLD.party_id THEN
+    RAISE EXCEPTION 'contact party cannot change';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: party_notes_prevent_body_or_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.party_notes_prevent_body_or_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.body IS DISTINCT FROM OLD.body THEN
+    RAISE EXCEPTION 'note body cannot change';
+  END IF;
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.party_id IS DISTINCT FROM OLD.party_id
+    OR NEW.author_membership_id IS DISTINCT FROM OLD.author_membership_id
+    OR NEW.visibility IS DISTINCT FROM OLD.visibility THEN
+    RAISE EXCEPTION 'note identity cannot change';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: party_relationships_prevent_immutable_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.party_relationships_prevent_immutable_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.origin_party_id IS DISTINCT FROM OLD.origin_party_id
+    OR NEW.related_party_id IS DISTINCT FROM OLD.related_party_id
+    OR NEW.origin_party_kind IS DISTINCT FROM OLD.origin_party_kind
+    OR NEW.related_party_kind IS DISTINCT FROM OLD.related_party_kind
+    OR NEW.relationship_kind IS DISTINCT FROM OLD.relationship_kind THEN
+    RAISE EXCEPTION 'relationship identity cannot change';
   END IF;
   RETURN NEW;
 END;
@@ -207,6 +286,41 @@ CREATE TABLE public.audit_events (
     CONSTRAINT audit_events_action_format CHECK (((action)::text ~ '^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$'::text)),
     CONSTRAINT audit_events_actor_consistency CHECK (((((actor_kind)::text = 'user'::text) AND (actor_user_id IS NOT NULL) AND (actor_identifier IS NULL)) OR (((actor_kind)::text = 'system'::text) AND (actor_user_id IS NULL) AND (btrim((actor_identifier)::text) <> ''::text)))),
     CONSTRAINT audit_events_subject_consistency CHECK (((subject_type IS NULL) = (subject_id IS NULL)))
+);
+
+
+--
+-- Name: contact_point_purpose_assignments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contact_point_purpose_assignments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    party_id uuid NOT NULL,
+    contact_point_id uuid NOT NULL,
+    contact_kind character varying NOT NULL,
+    purpose character varying NOT NULL,
+    priority integer NOT NULL,
+    effective_from date,
+    effective_until date,
+    record_status character varying DEFAULT 'valid'::character varying NOT NULL,
+    superseded_by_assignment_id uuid,
+    corrected_at timestamp with time zone,
+    corrected_by_membership_id uuid,
+    correction_reason character varying,
+    ended_at timestamp with time zone,
+    ended_by_membership_id uuid,
+    ending_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT contact_point_purpose_assignments_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT contact_point_purpose_assignments_priority_positive CHECK ((priority >= 1)),
+    CONSTRAINT contact_point_purpose_assignments_purpose_valid CHECK (((purpose)::text = ANY ((ARRAY['general'::character varying, 'correspondence'::character varying, 'billing'::character varying])::text[]))),
+    CONSTRAINT contact_point_purpose_assignments_range_order CHECK (((effective_until IS NULL) OR (effective_from IS NULL) OR (effective_until > effective_from))),
+    CONSTRAINT contact_point_purpose_assignments_record_status_valid CHECK (((record_status)::text = ANY ((ARRAY['valid'::character varying, 'superseded'::character varying, 'voided'::character varying])::text[]))),
+    CONSTRAINT cppa_disposition_matches_status CHECK (((((record_status)::text = 'valid'::text) AND (superseded_by_assignment_id IS NULL) AND (corrected_at IS NULL) AND (corrected_by_membership_id IS NULL) AND (correction_reason IS NULL)) OR (((record_status)::text = 'superseded'::text) AND (superseded_by_assignment_id IS NOT NULL) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text)) OR (((record_status)::text = 'voided'::text) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text)))),
+    CONSTRAINT cppa_ending_complete CHECK ((((ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL)) OR ((ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text) AND (effective_until IS NOT NULL))))
 );
 
 
@@ -377,6 +491,192 @@ CREATE TABLE public.party_alternate_names (
 
 
 --
+-- Name: party_contact_points; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.party_contact_points (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    party_id uuid NOT NULL,
+    contact_kind character varying NOT NULL,
+    label character varying,
+    normalized_value character varying NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    deactivated_at timestamp with time zone,
+    deactivated_by_membership_id uuid,
+    deactivation_reason character varying,
+    suppressed_at timestamp with time zone,
+    suppressed_by_membership_id uuid,
+    suppression_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT party_contact_points_contact_kind_valid CHECK (((contact_kind)::text = ANY ((ARRAY['postal_address'::character varying, 'phone'::character varying, 'email'::character varying])::text[]))),
+    CONSTRAINT party_contact_points_deactivation_matches_status CHECK (((((status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'deactivated'::text) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
+    CONSTRAINT party_contact_points_label_null_or_not_blank CHECK (((label IS NULL) OR (btrim((label)::text) <> ''::text))),
+    CONSTRAINT party_contact_points_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT party_contact_points_normalized_value_not_blank CHECK ((btrim((normalized_value)::text) <> ''::text)),
+    CONSTRAINT party_contact_points_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'deactivated'::character varying])::text[]))),
+    CONSTRAINT party_contact_points_suppression_complete CHECK ((((suppressed_at IS NULL) AND (suppressed_by_membership_id IS NULL) AND (suppression_reason IS NULL)) OR ((suppressed_at IS NOT NULL) AND (suppressed_by_membership_id IS NOT NULL) AND (btrim((suppression_reason)::text) <> ''::text))))
+);
+
+
+--
+-- Name: party_email_addresses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.party_email_addresses (
+    contact_point_id uuid NOT NULL,
+    agency_id uuid NOT NULL,
+    contact_kind character varying DEFAULT 'email'::character varying NOT NULL,
+    display_address character varying NOT NULL,
+    normalized_address character varying NOT NULL,
+    email_type character varying NOT NULL,
+    normalization_version integer DEFAULT 1 NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT party_email_addresses_contact_kind_email CHECK (((contact_kind)::text = 'email'::text)),
+    CONSTRAINT party_email_addresses_display_address_not_blank CHECK ((btrim((display_address)::text) <> ''::text)),
+    CONSTRAINT party_email_addresses_email_type_valid CHECK (((email_type)::text = ANY ((ARRAY['personal'::character varying, 'work'::character varying, 'general'::character varying, 'booking'::character varying, 'accounting'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT party_email_addresses_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT party_email_addresses_normalized_address_not_blank CHECK ((btrim((normalized_address)::text) <> ''::text))
+);
+
+
+--
+-- Name: party_notes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.party_notes (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    party_id uuid NOT NULL,
+    author_membership_id uuid NOT NULL,
+    body text NOT NULL,
+    visibility character varying NOT NULL,
+    pinned boolean DEFAULT false NOT NULL,
+    record_status character varying DEFAULT 'active'::character varying NOT NULL,
+    superseded_by_note_id uuid,
+    corrected_at timestamp with time zone,
+    corrected_by_membership_id uuid,
+    correction_reason character varying,
+    removed_at timestamp with time zone,
+    removed_by_membership_id uuid,
+    removal_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT party_notes_body_not_blank CHECK ((btrim(body) <> ''::text)),
+    CONSTRAINT party_notes_disposition_matches_status CHECK (((((record_status)::text = 'active'::text) AND (superseded_by_note_id IS NULL) AND (corrected_at IS NULL) AND (corrected_by_membership_id IS NULL) AND (correction_reason IS NULL) AND (removed_at IS NULL) AND (removed_by_membership_id IS NULL) AND (removal_reason IS NULL)) OR (((record_status)::text = 'superseded'::text) AND (superseded_by_note_id IS NOT NULL) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text) AND (removed_at IS NULL) AND (removed_by_membership_id IS NULL) AND (removal_reason IS NULL)) OR (((record_status)::text = 'removed'::text) AND (removed_at IS NOT NULL) AND (removed_by_membership_id IS NOT NULL) AND (btrim((removal_reason)::text) <> ''::text)))),
+    CONSTRAINT party_notes_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT party_notes_no_self_supersession CHECK (((superseded_by_note_id IS NULL) OR (superseded_by_note_id <> id))),
+    CONSTRAINT party_notes_record_status_valid CHECK (((record_status)::text = ANY ((ARRAY['active'::character varying, 'superseded'::character varying, 'removed'::character varying])::text[]))),
+    CONSTRAINT party_notes_visibility_valid CHECK (((visibility)::text = ANY ((ARRAY['standard'::character varying, 'administrator_only'::character varying])::text[])))
+);
+
+
+--
+-- Name: party_phone_numbers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.party_phone_numbers (
+    contact_point_id uuid NOT NULL,
+    agency_id uuid NOT NULL,
+    contact_kind character varying DEFAULT 'phone'::character varying NOT NULL,
+    display_number character varying NOT NULL,
+    normalized_digits character varying NOT NULL,
+    e164_number character varying,
+    extension character varying,
+    phone_type character varying NOT NULL,
+    parsed_country_code character varying(2),
+    parse_status character varying NOT NULL,
+    normalization_version integer DEFAULT 1 NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT party_phone_numbers_contact_kind_phone CHECK (((contact_kind)::text = 'phone'::text)),
+    CONSTRAINT party_phone_numbers_display_number_not_blank CHECK ((btrim((display_number)::text) <> ''::text)),
+    CONSTRAINT party_phone_numbers_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT party_phone_numbers_normalized_digits_not_blank CHECK ((btrim((normalized_digits)::text) <> ''::text)),
+    CONSTRAINT party_phone_numbers_parse_status_valid CHECK (((parse_status)::text = ANY ((ARRAY['valid'::character varying, 'possible'::character varying, 'unparsed'::character varying])::text[]))),
+    CONSTRAINT party_phone_numbers_parsed_country_code_format CHECK (((parsed_country_code IS NULL) OR ((parsed_country_code)::text ~ '^[A-Z]{2}$'::text))),
+    CONSTRAINT party_phone_numbers_phone_type_valid CHECK (((phone_type)::text = ANY ((ARRAY['mobile'::character varying, 'home'::character varying, 'work'::character varying, 'main'::character varying, 'fax'::character varying, 'other'::character varying])::text[])))
+);
+
+
+--
+-- Name: party_postal_addresses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.party_postal_addresses (
+    contact_point_id uuid NOT NULL,
+    agency_id uuid NOT NULL,
+    contact_kind character varying DEFAULT 'postal_address'::character varying NOT NULL,
+    attention character varying,
+    address_line_1 character varying NOT NULL,
+    address_line_2 character varying,
+    address_line_3 character varying,
+    locality character varying,
+    administrative_region character varying,
+    postal_code character varying,
+    country_code character varying(2) NOT NULL,
+    formatted_address character varying NOT NULL,
+    normalized_address character varying NOT NULL,
+    normalization_version integer DEFAULT 1 NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT party_postal_addresses_address_line_1_not_blank CHECK ((btrim((address_line_1)::text) <> ''::text)),
+    CONSTRAINT party_postal_addresses_contact_kind_postal_address CHECK (((contact_kind)::text = 'postal_address'::text)),
+    CONSTRAINT party_postal_addresses_country_code_format CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
+    CONSTRAINT party_postal_addresses_lock_version_nonnegative CHECK ((lock_version >= 0))
+);
+
+
+--
+-- Name: party_relationships; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.party_relationships (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    origin_party_id uuid NOT NULL,
+    origin_party_kind character varying NOT NULL,
+    related_party_id uuid NOT NULL,
+    related_party_kind character varying NOT NULL,
+    relationship_kind character varying NOT NULL,
+    relationship_label character varying,
+    title character varying,
+    effective_from date,
+    effective_until date,
+    record_status character varying DEFAULT 'valid'::character varying NOT NULL,
+    superseded_by_relationship_id uuid,
+    corrected_at timestamp with time zone,
+    corrected_by_membership_id uuid,
+    correction_reason character varying,
+    ended_at timestamp with time zone,
+    ended_by_membership_id uuid,
+    ending_reason character varying,
+    source character varying,
+    notes character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT party_relationships_kind_pair_valid CHECK (((((relationship_kind)::text = 'household_member'::text) AND ((origin_party_kind)::text = 'person'::text) AND ((related_party_kind)::text = 'household'::text)) OR (((relationship_kind)::text = 'family'::text) AND ((origin_party_kind)::text = 'person'::text) AND ((related_party_kind)::text = 'person'::text)) OR (((relationship_kind)::text = 'organization_affiliation'::text) AND ((origin_party_kind)::text = 'person'::text) AND ((related_party_kind)::text = 'organization'::text)) OR (((relationship_kind)::text = 'organization_contact'::text) AND ((origin_party_kind)::text = 'person'::text) AND ((related_party_kind)::text = 'organization'::text)) OR (((relationship_kind)::text = 'parent_organization'::text) AND ((origin_party_kind)::text = 'organization'::text) AND ((related_party_kind)::text = 'organization'::text)) OR (((relationship_kind)::text = 'service_provider_for'::text) AND ((origin_party_kind)::text = 'organization'::text) AND ((related_party_kind)::text = 'organization'::text)))),
+    CONSTRAINT party_relationships_kind_valid CHECK (((relationship_kind)::text = ANY ((ARRAY['household_member'::character varying, 'family'::character varying, 'organization_affiliation'::character varying, 'organization_contact'::character varying, 'parent_organization'::character varying, 'service_provider_for'::character varying])::text[]))),
+    CONSTRAINT party_relationships_label_matches_kind CHECK (((((relationship_kind)::text = 'family'::text) AND ((relationship_label)::text = ANY ((ARRAY['parent_of'::character varying, 'child_of'::character varying, 'guardian_of'::character varying, 'dependent_of'::character varying, 'spouse_of'::character varying, 'partner_of'::character varying, 'other_family'::character varying])::text[]))) OR (((relationship_kind)::text = 'organization_affiliation'::text) AND ((relationship_label)::text = ANY ((ARRAY['employee'::character varying, 'contractor'::character varying, 'owner'::character varying, 'member'::character varying, 'representative'::character varying, 'other'::character varying])::text[]))) OR (((relationship_kind)::text = ANY ((ARRAY['household_member'::character varying, 'organization_contact'::character varying, 'parent_organization'::character varying, 'service_provider_for'::character varying])::text[])) AND (relationship_label IS NULL)))),
+    CONSTRAINT party_relationships_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT party_relationships_no_self CHECK ((origin_party_id <> related_party_id)),
+    CONSTRAINT party_relationships_range_order CHECK (((effective_until IS NULL) OR (effective_from IS NULL) OR (effective_until > effective_from))),
+    CONSTRAINT party_relationships_record_status_valid CHECK (((record_status)::text = ANY ((ARRAY['valid'::character varying, 'superseded'::character varying, 'voided'::character varying])::text[]))),
+    CONSTRAINT party_relationships_spouse_canonical_order CHECK ((((relationship_kind)::text <> 'family'::text) OR ((relationship_label)::text <> ALL ((ARRAY['spouse_of'::character varying, 'partner_of'::character varying])::text[])) OR (origin_party_id < related_party_id))),
+    CONSTRAINT pr_disposition_matches_status CHECK (((((record_status)::text = 'valid'::text) AND (superseded_by_relationship_id IS NULL) AND (corrected_at IS NULL) AND (corrected_by_membership_id IS NULL) AND (correction_reason IS NULL)) OR (((record_status)::text = 'superseded'::text) AND (superseded_by_relationship_id IS NOT NULL) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text)) OR (((record_status)::text = 'voided'::text) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text)))),
+    CONSTRAINT pr_ending_complete CHECK ((((ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL)) OR ((ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text) AND (effective_until IS NOT NULL))))
+);
+
+
+--
 -- Name: people; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -407,6 +707,40 @@ CREATE TABLE public.people (
     CONSTRAINT people_prefix_null_or_not_blank CHECK (((prefix IS NULL) OR (btrim((prefix)::text) <> ''::text))),
     CONSTRAINT people_pronouns_null_or_not_blank CHECK (((pronouns IS NULL) OR (btrim((pronouns)::text) <> ''::text))),
     CONSTRAINT people_suffix_null_or_not_blank CHECK (((suffix IS NULL) OR (btrim((suffix)::text) <> ''::text)))
+);
+
+
+--
+-- Name: relationship_purpose_assignments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.relationship_purpose_assignments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    relationship_id uuid NOT NULL,
+    organization_party_id uuid NOT NULL,
+    purpose character varying NOT NULL,
+    priority integer NOT NULL,
+    effective_from date,
+    effective_until date,
+    record_status character varying DEFAULT 'valid'::character varying NOT NULL,
+    superseded_by_assignment_id uuid,
+    corrected_at timestamp with time zone,
+    corrected_by_membership_id uuid,
+    correction_reason character varying,
+    ended_at timestamp with time zone,
+    ended_by_membership_id uuid,
+    ending_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT rpa_disposition_matches_status CHECK (((((record_status)::text = 'valid'::text) AND (superseded_by_assignment_id IS NULL) AND (corrected_at IS NULL) AND (corrected_by_membership_id IS NULL) AND (correction_reason IS NULL)) OR (((record_status)::text = 'superseded'::text) AND (superseded_by_assignment_id IS NOT NULL) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text)) OR (((record_status)::text = 'voided'::text) AND (corrected_at IS NOT NULL) AND (corrected_by_membership_id IS NOT NULL) AND (btrim((correction_reason)::text) <> ''::text)))),
+    CONSTRAINT rpa_ending_complete CHECK ((((ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL)) OR ((ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text) AND (effective_until IS NOT NULL)))),
+    CONSTRAINT rpa_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT rpa_priority_positive CHECK ((priority >= 1)),
+    CONSTRAINT rpa_purpose_valid CHECK (((purpose)::text = ANY ((ARRAY['general'::character varying, 'booking'::character varying, 'accounting'::character varying])::text[]))),
+    CONSTRAINT rpa_range_order CHECK (((effective_until IS NULL) OR (effective_from IS NULL) OR (effective_until > effective_from))),
+    CONSTRAINT rpa_record_status_valid CHECK (((record_status)::text = ANY ((ARRAY['valid'::character varying, 'superseded'::character varying, 'voided'::character varying])::text[])))
 );
 
 
@@ -520,6 +854,22 @@ ALTER TABLE ONLY public.audit_events
 
 
 --
+-- Name: contact_point_purpose_assignments contact_point_purpose_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contact_point_purpose_assignments
+    ADD CONSTRAINT contact_point_purpose_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: contact_point_purpose_assignments cppa_unique_valid_primary; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contact_point_purpose_assignments
+    ADD CONSTRAINT cppa_unique_valid_primary EXCLUDE USING gist (agency_id WITH =, party_id WITH =, contact_kind WITH =, purpose WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&) WHERE ((((record_status)::text = 'valid'::text) AND (priority = 1)));
+
+
+--
 -- Name: delivery_intents delivery_intents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -576,11 +926,107 @@ ALTER TABLE ONLY public.party_alternate_names
 
 
 --
+-- Name: party_contact_points party_contact_points_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_contact_points
+    ADD CONSTRAINT party_contact_points_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: party_email_addresses party_email_addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_email_addresses
+    ADD CONSTRAINT party_email_addresses_pkey PRIMARY KEY (contact_point_id);
+
+
+--
+-- Name: party_notes party_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_notes
+    ADD CONSTRAINT party_notes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: party_phone_numbers party_phone_numbers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_phone_numbers
+    ADD CONSTRAINT party_phone_numbers_pkey PRIMARY KEY (contact_point_id);
+
+
+--
+-- Name: party_postal_addresses party_postal_addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_postal_addresses
+    ADD CONSTRAINT party_postal_addresses_pkey PRIMARY KEY (contact_point_id);
+
+
+--
+-- Name: party_relationships party_relationships_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT party_relationships_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: people people_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.people
     ADD CONSTRAINT people_pkey PRIMARY KEY (party_id);
+
+
+--
+-- Name: party_relationships pr_affiliation_contact_conflict; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT pr_affiliation_contact_conflict EXCLUDE USING gist (agency_id WITH =, origin_party_id WITH =, related_party_id WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&) WHERE ((((record_status)::text = 'valid'::text) AND ((relationship_kind)::text = ANY ((ARRAY['organization_affiliation'::character varying, 'organization_contact'::character varying])::text[]))));
+
+
+--
+-- Name: party_relationships pr_one_valid_parent; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT pr_one_valid_parent EXCLUDE USING gist (agency_id WITH =, origin_party_id WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&) WHERE ((((record_status)::text = 'valid'::text) AND ((relationship_kind)::text = 'parent_organization'::text)));
+
+
+--
+-- Name: party_relationships pr_unique_valid_duplicate; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT pr_unique_valid_duplicate EXCLUDE USING gist (agency_id WITH =, origin_party_id WITH =, related_party_id WITH =, relationship_kind WITH =, COALESCE(relationship_label, ''::character varying) WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&) WHERE (((record_status)::text = 'valid'::text));
+
+
+--
+-- Name: party_relationships pr_unique_valid_spouse_pair; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT pr_unique_valid_spouse_pair EXCLUDE USING gist (agency_id WITH =, LEAST(origin_party_id, related_party_id) WITH =, GREATEST(origin_party_id, related_party_id) WITH =, relationship_label WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&) WHERE ((((record_status)::text = 'valid'::text) AND ((relationship_kind)::text = 'family'::text) AND ((relationship_label)::text = ANY ((ARRAY['spouse_of'::character varying, 'partner_of'::character varying])::text[]))));
+
+
+--
+-- Name: relationship_purpose_assignments relationship_purpose_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.relationship_purpose_assignments
+    ADD CONSTRAINT relationship_purpose_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: relationship_purpose_assignments rpa_unique_valid_primary; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.relationship_purpose_assignments
+    ADD CONSTRAINT rpa_unique_valid_primary EXCLUDE USING gist (agency_id WITH =, organization_party_id WITH =, purpose WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&) WHERE ((((record_status)::text = 'valid'::text) AND (priority = 1)));
 
 
 --
@@ -731,6 +1177,27 @@ CREATE INDEX index_audit_events_on_agency_id ON public.audit_events USING btree 
 --
 
 CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_events USING btree (agency_id, created_at);
+
+
+--
+-- Name: index_contact_point_purpose_assignments_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contact_point_purpose_assignments_on_agency_id ON public.contact_point_purpose_assignments USING btree (agency_id);
+
+
+--
+-- Name: index_contact_point_purpose_assignments_on_contact_point; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contact_point_purpose_assignments_on_contact_point ON public.contact_point_purpose_assignments USING btree (contact_point_id, agency_id);
+
+
+--
+-- Name: index_cppa_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cppa_on_id_and_agency_id ON public.contact_point_purpose_assignments USING btree (id, agency_id);
 
 
 --
@@ -888,10 +1355,157 @@ CREATE UNIQUE INDEX index_party_alternate_names_unique_active ON public.party_al
 
 
 --
+-- Name: index_party_contact_points_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_contact_points_on_agency_id ON public.party_contact_points USING btree (agency_id);
+
+
+--
+-- Name: index_party_contact_points_on_agency_id_and_normalized_value; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_contact_points_on_agency_id_and_normalized_value ON public.party_contact_points USING btree (agency_id, normalized_value);
+
+
+--
+-- Name: index_party_contact_points_on_id_agency_id_and_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_contact_points_on_id_agency_id_and_kind ON public.party_contact_points USING btree (id, agency_id, contact_kind);
+
+
+--
+-- Name: index_party_contact_points_on_id_party_agency_and_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_contact_points_on_id_party_agency_and_kind ON public.party_contact_points USING btree (id, party_id, agency_id, contact_kind);
+
+
+--
+-- Name: index_party_contact_points_on_party_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_contact_points_on_party_id_and_agency_id ON public.party_contact_points USING btree (party_id, agency_id);
+
+
+--
+-- Name: index_party_contact_points_unique_active_normalized; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_contact_points_unique_active_normalized ON public.party_contact_points USING btree (party_id, contact_kind, normalized_value) WHERE ((status)::text = 'active'::text);
+
+
+--
+-- Name: index_party_email_addresses_on_contact_point_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_email_addresses_on_contact_point_and_agency ON public.party_email_addresses USING btree (contact_point_id, agency_id);
+
+
+--
+-- Name: index_party_notes_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_notes_on_agency_id ON public.party_notes USING btree (agency_id);
+
+
+--
+-- Name: index_party_notes_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_notes_on_id_and_agency_id ON public.party_notes USING btree (id, agency_id);
+
+
+--
+-- Name: index_party_notes_on_party_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_notes_on_party_id_and_agency_id ON public.party_notes USING btree (party_id, agency_id);
+
+
+--
+-- Name: index_party_notes_on_party_pinned_and_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_notes_on_party_pinned_and_created_at ON public.party_notes USING btree (party_id, pinned, created_at);
+
+
+--
+-- Name: index_party_phone_numbers_on_contact_point_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_phone_numbers_on_contact_point_and_agency ON public.party_phone_numbers USING btree (contact_point_id, agency_id);
+
+
+--
+-- Name: index_party_postal_addresses_on_contact_point_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_postal_addresses_on_contact_point_and_agency ON public.party_postal_addresses USING btree (contact_point_id, agency_id);
+
+
+--
+-- Name: index_party_relationships_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_relationships_on_agency_id ON public.party_relationships USING btree (agency_id);
+
+
+--
+-- Name: index_party_relationships_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_relationships_on_id_and_agency_id ON public.party_relationships USING btree (id, agency_id);
+
+
+--
+-- Name: index_party_relationships_on_id_related_party_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_party_relationships_on_id_related_party_and_agency ON public.party_relationships USING btree (id, related_party_id, agency_id);
+
+
+--
+-- Name: index_party_relationships_on_origin_party; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_relationships_on_origin_party ON public.party_relationships USING btree (origin_party_id, agency_id);
+
+
+--
+-- Name: index_party_relationships_on_related_party; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_relationships_on_related_party ON public.party_relationships USING btree (related_party_id, agency_id);
+
+
+--
 -- Name: index_people_on_party_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX index_people_on_party_id_and_agency_id ON public.people USING btree (party_id, agency_id);
+
+
+--
+-- Name: index_relationship_purpose_assignments_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_relationship_purpose_assignments_on_agency_id ON public.relationship_purpose_assignments USING btree (agency_id);
+
+
+--
+-- Name: index_rpa_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_rpa_on_id_and_agency_id ON public.relationship_purpose_assignments USING btree (id, agency_id);
+
+
+--
+-- Name: index_rpa_on_relationship; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_rpa_on_relationship ON public.relationship_purpose_assignments USING btree (relationship_id, agency_id);
 
 
 --
@@ -937,6 +1551,27 @@ CREATE TRIGGER parties_kind_and_agency_immutable BEFORE UPDATE ON public.parties
 
 
 --
+-- Name: party_contact_points party_contact_points_kind_agency_party_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER party_contact_points_kind_agency_party_immutable BEFORE UPDATE ON public.party_contact_points FOR EACH ROW EXECUTE FUNCTION public.party_contact_points_prevent_kind_or_agency_change();
+
+
+--
+-- Name: party_notes party_notes_body_identity_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER party_notes_body_identity_immutable BEFORE UPDATE ON public.party_notes FOR EACH ROW EXECUTE FUNCTION public.party_notes_prevent_body_or_identity_change();
+
+
+--
+-- Name: party_relationships party_relationships_identity_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER party_relationships_identity_immutable BEFORE UPDATE ON public.party_relationships FOR EACH ROW EXECUTE FUNCTION public.party_relationships_prevent_immutable_change();
+
+
+--
 -- Name: agency_memberships agency_memberships_person_party_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -945,11 +1580,59 @@ ALTER TABLE ONLY public.agency_memberships
 
 
 --
+-- Name: contact_point_purpose_assignments cppa_contact_point_owner_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contact_point_purpose_assignments
+    ADD CONSTRAINT cppa_contact_point_owner_fk FOREIGN KEY (contact_point_id, party_id, agency_id, contact_kind) REFERENCES public.party_contact_points(id, party_id, agency_id, contact_kind);
+
+
+--
+-- Name: contact_point_purpose_assignments cppa_corrected_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contact_point_purpose_assignments
+    ADD CONSTRAINT cppa_corrected_by_membership_fk FOREIGN KEY (corrected_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: contact_point_purpose_assignments cppa_ended_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contact_point_purpose_assignments
+    ADD CONSTRAINT cppa_ended_by_membership_fk FOREIGN KEY (ended_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: contact_point_purpose_assignments cppa_party_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contact_point_purpose_assignments
+    ADD CONSTRAINT cppa_party_same_agency_fk FOREIGN KEY (party_id, agency_id) REFERENCES public.parties(id, agency_id);
+
+
+--
+-- Name: contact_point_purpose_assignments cppa_superseded_by_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contact_point_purpose_assignments
+    ADD CONSTRAINT cppa_superseded_by_fk FOREIGN KEY (superseded_by_assignment_id, agency_id) REFERENCES public.contact_point_purpose_assignments(id, agency_id);
+
+
+--
 -- Name: agency_memberships fk_rails_273f2f9052; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.agency_memberships
     ADD CONSTRAINT fk_rails_273f2f9052 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: party_contact_points fk_rails_28f93dab28; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_contact_points
+    ADD CONSTRAINT fk_rails_28f93dab28 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -1001,6 +1684,30 @@ ALTER TABLE ONLY public.agency_provisioning_requests
 
 
 --
+-- Name: relationship_purpose_assignments fk_rails_45c236232c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.relationship_purpose_assignments
+    ADD CONSTRAINT fk_rails_45c236232c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: party_email_addresses fk_rails_51fb47a3a2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_email_addresses
+    ADD CONSTRAINT fk_rails_51fb47a3a2 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: contact_point_purpose_assignments fk_rails_728112529a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contact_point_purpose_assignments
+    ADD CONSTRAINT fk_rails_728112529a FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: sessions fk_rails_758836b4f0; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1030,6 +1737,14 @@ ALTER TABLE ONLY public.sessions
 
 ALTER TABLE ONLY public.active_storage_variant_records
     ADD CONSTRAINT fk_rails_993965df05 FOREIGN KEY (blob_id) REFERENCES public.active_storage_blobs(id);
+
+
+--
+-- Name: party_relationships fk_rails_a851e339a0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT fk_rails_a851e339a0 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -1065,11 +1780,35 @@ ALTER TABLE ONLY public.households
 
 
 --
+-- Name: party_postal_addresses fk_rails_cc74c21c38; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_postal_addresses
+    ADD CONSTRAINT fk_rails_cc74c21c38 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: delivery_intents fk_rails_e89726e351; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.delivery_intents
     ADD CONSTRAINT fk_rails_e89726e351 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: party_notes fk_rails_e930c2d819; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_notes
+    ADD CONSTRAINT fk_rails_e930c2d819 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: party_phone_numbers fk_rails_edd3d13317; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_phone_numbers
+    ADD CONSTRAINT fk_rails_edd3d13317 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -1129,11 +1868,179 @@ ALTER TABLE ONLY public.party_alternate_names
 
 
 --
+-- Name: party_contact_points party_contact_points_deactivated_by_membership_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_contact_points
+    ADD CONSTRAINT party_contact_points_deactivated_by_membership_same_agency_fk FOREIGN KEY (deactivated_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: party_contact_points party_contact_points_party_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_contact_points
+    ADD CONSTRAINT party_contact_points_party_same_agency_fk FOREIGN KEY (party_id, agency_id) REFERENCES public.parties(id, agency_id);
+
+
+--
+-- Name: party_contact_points party_contact_points_suppressed_by_membership_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_contact_points
+    ADD CONSTRAINT party_contact_points_suppressed_by_membership_same_agency_fk FOREIGN KEY (suppressed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: party_email_addresses party_email_addresses_contact_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_email_addresses
+    ADD CONSTRAINT party_email_addresses_contact_kind_same_agency_fk FOREIGN KEY (contact_point_id, agency_id, contact_kind) REFERENCES public.party_contact_points(id, agency_id, contact_kind);
+
+
+--
+-- Name: party_notes party_notes_author_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_notes
+    ADD CONSTRAINT party_notes_author_membership_fk FOREIGN KEY (author_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: party_notes party_notes_corrected_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_notes
+    ADD CONSTRAINT party_notes_corrected_by_membership_fk FOREIGN KEY (corrected_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: party_notes party_notes_party_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_notes
+    ADD CONSTRAINT party_notes_party_same_agency_fk FOREIGN KEY (party_id, agency_id) REFERENCES public.parties(id, agency_id);
+
+
+--
+-- Name: party_notes party_notes_removed_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_notes
+    ADD CONSTRAINT party_notes_removed_by_membership_fk FOREIGN KEY (removed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: party_notes party_notes_superseded_by_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_notes
+    ADD CONSTRAINT party_notes_superseded_by_fk FOREIGN KEY (superseded_by_note_id, agency_id) REFERENCES public.party_notes(id, agency_id);
+
+
+--
+-- Name: party_phone_numbers party_phone_numbers_contact_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_phone_numbers
+    ADD CONSTRAINT party_phone_numbers_contact_kind_same_agency_fk FOREIGN KEY (contact_point_id, agency_id, contact_kind) REFERENCES public.party_contact_points(id, agency_id, contact_kind);
+
+
+--
+-- Name: party_postal_addresses party_postal_addresses_contact_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_postal_addresses
+    ADD CONSTRAINT party_postal_addresses_contact_kind_same_agency_fk FOREIGN KEY (contact_point_id, agency_id, contact_kind) REFERENCES public.party_contact_points(id, agency_id, contact_kind);
+
+
+--
 -- Name: people people_party_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.people
     ADD CONSTRAINT people_party_kind_same_agency_fk FOREIGN KEY (party_id, agency_id, party_kind) REFERENCES public.parties(id, agency_id, party_kind);
+
+
+--
+-- Name: party_relationships pr_corrected_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT pr_corrected_by_membership_fk FOREIGN KEY (corrected_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: party_relationships pr_ended_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT pr_ended_by_membership_fk FOREIGN KEY (ended_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: party_relationships pr_origin_party_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT pr_origin_party_kind_same_agency_fk FOREIGN KEY (origin_party_id, agency_id, origin_party_kind) REFERENCES public.parties(id, agency_id, party_kind);
+
+
+--
+-- Name: party_relationships pr_related_party_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT pr_related_party_kind_same_agency_fk FOREIGN KEY (related_party_id, agency_id, related_party_kind) REFERENCES public.parties(id, agency_id, party_kind);
+
+
+--
+-- Name: party_relationships pr_superseded_by_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.party_relationships
+    ADD CONSTRAINT pr_superseded_by_fk FOREIGN KEY (superseded_by_relationship_id, agency_id) REFERENCES public.party_relationships(id, agency_id);
+
+
+--
+-- Name: relationship_purpose_assignments rpa_corrected_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.relationship_purpose_assignments
+    ADD CONSTRAINT rpa_corrected_by_membership_fk FOREIGN KEY (corrected_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: relationship_purpose_assignments rpa_ended_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.relationship_purpose_assignments
+    ADD CONSTRAINT rpa_ended_by_membership_fk FOREIGN KEY (ended_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: relationship_purpose_assignments rpa_organization_party_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.relationship_purpose_assignments
+    ADD CONSTRAINT rpa_organization_party_fk FOREIGN KEY (organization_party_id, agency_id) REFERENCES public.organizations(party_id, agency_id);
+
+
+--
+-- Name: relationship_purpose_assignments rpa_relationship_owner_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.relationship_purpose_assignments
+    ADD CONSTRAINT rpa_relationship_owner_fk FOREIGN KEY (relationship_id, organization_party_id, agency_id) REFERENCES public.party_relationships(id, related_party_id, agency_id);
+
+
+--
+-- Name: relationship_purpose_assignments rpa_superseded_by_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.relationship_purpose_assignments
+    ADD CONSTRAINT rpa_superseded_by_fk FOREIGN KEY (superseded_by_assignment_id, agency_id) REFERENCES public.relationship_purpose_assignments(id, agency_id);
 
 
 --
@@ -1143,6 +2050,11 @@ ALTER TABLE ONLY public.people
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907050000'),
+('20260907040000'),
+('20260907030000'),
+('20260907020000'),
+('20260907010000'),
 ('20260906030000'),
 ('20260906020000'),
 ('20260906010000'),

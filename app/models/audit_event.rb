@@ -25,6 +25,26 @@ class AuditEvent < ApplicationRecord
     directory.alternate_name_added
     directory.alternate_name_updated
     directory.alternate_name_removed
+    directory.contact_created
+    directory.contact_updated
+    directory.contact_deactivated
+    directory.contact_reactivated
+    directory.contact_suppressed
+    directory.contact_unsuppressed
+    directory.contact_purpose_assigned
+    directory.contact_purpose_ended
+    directory.contact_purpose_corrected
+    directory.relationship_created
+    directory.relationship_ended
+    directory.relationship_corrected
+    directory.relationship_voided
+    directory.relationship_purpose_assigned
+    directory.relationship_purpose_ended
+    directory.relationship_purpose_corrected
+    directory.note_created
+    directory.note_corrected
+    directory.note_removed
+    directory.note_pin_changed
     team.person_linked
   ].freeze
 

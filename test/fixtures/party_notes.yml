@@ -1,0 +1,19 @@
+standard_alex:
+  party: unlinked
+  agency: one
+  author_membership: one
+  body: Prefers morning calls for trip updates.
+  visibility: standard
+  pinned: true
+  record_status: active
+  lock_version: 0
+
+admin_only_alex:
+  party: unlinked
+  agency: one
+  author_membership: one
+  body: Restricted credit discussion for administrators only.
+  visibility: administrator_only
+  pinned: false
+  record_status: active
+  lock_version: 0

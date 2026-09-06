@@ -4,3 +4,10 @@ household_one:
   party_kind: household
   name: Morgan Household
   lock_version: 0
+
+household_two:
+  party: household_two
+  agency: one
+  party_kind: household
+  name: Cole Household
+  lock_version: 0

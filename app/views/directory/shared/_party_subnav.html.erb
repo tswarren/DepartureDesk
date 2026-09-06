@@ -1,0 +1,26 @@
+<nav class="dd-subnav" aria-label="Party">
+  <%= link_to "Overview",
+    directory_party_path(party),
+    aria: { current: ("page" if current == :overview) } %>
+  <% if party_named_route?(:directory_party_contact_information) %>
+    <%= link_to "Contact information",
+      directory_party_contact_information_path(party),
+      aria: { current: ("page" if current == :contact) } %>
+  <% else %>
+    <span aria-disabled="true">Contact information</span>
+  <% end %>
+  <% if party_named_route?(:directory_party_relationships) %>
+    <%= link_to "Relationships",
+      directory_party_relationships_path(party),
+      aria: { current: ("page" if current == :relationships) } %>
+  <% else %>
+    <span aria-disabled="true">Relationships</span>
+  <% end %>
+  <% if party_named_route?(:directory_party_notes) %>
+    <%= link_to "Notes",
+      directory_party_notes_path(party),
+      aria: { current: ("page" if current == :notes) } %>
+  <% else %>
+    <span aria-disabled="true">Notes</span>
+  <% end %>
+</nav>

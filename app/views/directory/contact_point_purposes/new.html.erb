@@ -1,0 +1,50 @@
+<% content_for :title, "Assign contact purpose · #{@party.display_name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title">Assign a contact purpose</h1>
+    <p class="dd-page-description"><%= @contact_point.display_value %></p>
+    <%= link_to "Back to contact information", directory_party_contact_information_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "directory/shared/party_subnav", party: @party, current: :contact %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Purpose</h2>
+  </header>
+  <div class="dd-panel-body">
+    <%= form_with model: @assignment,
+      url: directory_party_contact_point_purposes_path(@party, @contact_point),
+      method: :post,
+      class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :purpose, "#{@contact_point.kind_label} purpose", class: "dd-label" %>
+        <%= form.select :purpose,
+          ContactPointPurposeAssignment::PURPOSES.map { |purpose| [ purpose.titleize, purpose ] },
+          {},
+          class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :priority, "Purpose priority", class: "dd-label" %>
+        <%= form.number_field :priority, min: 1, class: "dd-field" %>
+        <p class="dd-field-hint">Priority 1 is primary. Assigning a second primary is rejected; use Set as primary to replace it.</p>
+      </div>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :effective_from, "Effective from", class: "dd-label" %>
+          <%= form.date_field :effective_from, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="contact_point_purpose_assignment_inclusive_end_on">Inclusive end date</label>
+          <input class="dd-field" type="date" id="contact_point_purpose_assignment_inclusive_end_on" name="contact_point_purpose_assignment[inclusive_end_on]">
+        </div>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Assign purpose", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</article>

@@ -40,6 +40,12 @@ gem "thruster", require: false
 # Use Money-rails for currency calculations [https://github.com/RubyMoney/money-rails]
 gem "money-rails", "~> 3.0"
 
+# Phase 2B directory: phone parsing and ISO country reference data.
+# Call Phonelib only through PhoneNumberNormalizer. Use ISO3166::Country, not a global Country constant.
+# The countries gem's currency data is not an accounting authority; ADR 0001 remains money-rails.
+gem "phonelib"
+gem "countries", require: "countries"
+
 # Use Image_Processing for image processing [https://github.com/janko/image_processing]
 gem "image_processing", "~> 2.1"
 

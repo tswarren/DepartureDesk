@@ -30,6 +30,24 @@ module ApplicationHelper
     status_badge(party.status.titleize, modifier: party.active? ? "success" : "neutral")
   end
 
+  def contact_point_status_badge(contact_point)
+    if contact_point.suppressed?
+      status_badge("Do not use", modifier: "danger")
+    elsif contact_point.deactivated?
+      status_badge("Deactivated", modifier: "neutral")
+    else
+      status_badge("Active", modifier: "success")
+    end
+  end
+
+  def party_named_route?(name)
+    Rails.application.routes.named_routes.key?(name)
+  end
+
+  def current_purpose_assignments(contact_point, date)
+    contact_point.purpose_assignments.select { |assignment| assignment.current_on?(date) }
+  end
+
   def agency_status_badge(agency)
     modifier = case agency.status
     when "active" then "success"
