@@ -22,6 +22,7 @@ class DeactivateRoleProfile < RoleProfileCommand
     ensure_fresh_lock!(@profile, @lock_version)
     @profile.update!(
       status: "inactive",
+      party_status: nil,
       responsible_office_status: nil,
       deactivated_at: Time.current,
       deactivated_by_membership: actor_membership!(@agency),

@@ -25,6 +25,7 @@ class RoleProfileCommandsTest < ActiveSupport::TestCase
     assert_equal "person", person.party_kind
     assert_equal offices(:one).id, person.responsible_office_id
     assert_equal "active", person.responsible_office_status
+    assert_equal "active", person.party_status
     assert household.active?
     assert_equal "household", household.party_kind
     assert organization.active?
@@ -98,6 +99,7 @@ class RoleProfileCommandsTest < ActiveSupport::TestCase
     profile.reload
     assert profile.inactive?
     assert_nil profile.responsible_office_status
+    assert_nil profile.party_status
     assert_equal offices(:one).id, profile.responsible_office_id
     assert_equal party_status, party.reload.status
 
@@ -114,6 +116,7 @@ class RoleProfileCommandsTest < ActiveSupport::TestCase
     assert_equal profile_id, profile.id
     assert_equal extra.id, profile.responsible_office_id
     assert_equal "active", profile.responsible_office_status
+    assert_equal "active", profile.party_status
     assert_equal party_status, party.reload.status
     assert_includes agencies(:one).audit_events.pluck(:action), "directory.client_profile_deactivated"
     assert_includes agencies(:one).audit_events.pluck(:action), "directory.client_profile_reactivated"
@@ -255,6 +258,41 @@ class RoleProfileCommandsTest < ActiveSupport::TestCase
     assert_equal :role_dependency, error.code
     assert_match(/Alex Morgan \(client\)/, error.message)
     assert offices(:one).reload.active?
+  end
+
+  test "office deactivation names a bounded sample of dependent roles" do
+    extra = create_extra_office
+    [
+      parties(:unlinked),
+      parties(:organization_one),
+      parties(:household_one),
+      parties(:maria),
+      parties(:harbor_hotel),
+      parties(:harbor_group)
+    ].each do |party|
+      assign_client_role!(party, actor: users(:one), office: extra)
+    end
+
+    error = assert_raises(MembershipCommand::Error) do
+      ChangeOfficeStatus.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        office: extra,
+        to: "inactive",
+        reason: "Seasonal close"
+      ).call
+    end
+
+    assert_equal :role_dependency, error.code
+    assert_match(/\AReassign 6 active roles before deactivating this office: /, error.message)
+    assert_includes error.message, "Alex Morgan (client)"
+    assert_includes error.message, "Horizon Tours (client)"
+    assert_includes error.message, "Morgan Household (client)"
+    assert_includes error.message, "Maria Ruiz (client)"
+    assert_includes error.message, "Harbor Hotel Boston (client)"
+    assert_not_includes error.message, "Harbor Hospitality Group"
+    assert_match(/, and 1 more\.\z/, error.message)
+    assert extra.reload.active?
   end
 
   test "an administrator from another agency cannot mutate roles" do

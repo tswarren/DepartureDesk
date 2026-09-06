@@ -1,4 +1,6 @@
 class ChangeOfficeStatus < MembershipCommand
+  ROLE_DEPENDENCY_SAMPLE = 5
+
   def initialize(agency:, office:, to:, reason:, actor: nil, actor_identifier: nil, privileged: false)
     @agency = agency
     @office = office
@@ -63,34 +65,50 @@ class ChangeOfficeStatus < MembershipCommand
   end
 
   def reject_active_role_dependency!
-    dependents = dependent_active_role_labels
-    return if dependents.empty?
+    summary = dependent_active_role_summary
+    return if summary[:total].zero?
 
-    raise Error.new(role_dependency_message(dependents), code: :role_dependency)
+    raise Error.new(role_dependency_message(summary), code: :role_dependency)
   end
 
-  def dependent_active_role_labels
-    clients = ClientProfile.includes(:party).where(
+  def dependent_active_role_summary
+    client_scope = ClientProfile.includes(:party).where(
       agency_id: @agency.id,
       responsible_office_id: @office.id,
       status: "active"
-    ).order(:id)
-    suppliers = SupplierProfile.includes(:party).where(
+    )
+    supplier_scope = SupplierProfile.includes(:party).where(
       agency_id: @agency.id,
       responsible_office_id: @office.id,
       status: "active"
-    ).order(:id)
+    )
+    total = client_scope.count + supplier_scope.count
+    labels = client_scope.order(:id).limit(ROLE_DEPENDENCY_SAMPLE).map { |profile|
+      "#{profile.party.display_name} (client)"
+    }
+    remaining = ROLE_DEPENDENCY_SAMPLE - labels.size
+    if remaining.positive?
+      labels.concat(
+        supplier_scope.order(:id).limit(remaining).map { |profile|
+          "#{profile.party.display_name} (supplier)"
+        }
+      )
+    end
 
-    clients.map { |profile| "#{profile.party.display_name} (client)" } +
-      suppliers.map { |profile| "#{profile.party.display_name} (supplier)" }
+    { total:, labels: }
   end
 
-  def role_dependency_message(labels = nil)
-    labels ||= dependent_active_role_labels
-    return "Reassign active roles before deactivating this office." if labels.empty?
+  def role_dependency_message(summary = nil)
+    summary ||= dependent_active_role_summary
+    total = summary[:total].to_i
+    labels = Array(summary[:labels])
+    return "Reassign active roles before deactivating this office." if total.zero?
 
-    noun = labels.one? ? "role" : "roles"
-    "Reassign #{labels.size} active #{noun} before deactivating this office: #{labels.join(", ")}."
+    noun = total == 1 ? "role" : "roles"
+    listed = labels.join(", ")
+    extra = total - labels.size
+    suffix = extra.positive? ? ", and #{extra} more" : ""
+    "Reassign #{total} active #{noun} before deactivating this office: #{listed}#{suffix}."
   end
 
   def office_status_fk_violation?(error)

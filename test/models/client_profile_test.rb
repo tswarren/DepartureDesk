@@ -92,6 +92,7 @@ class ClientProfileTest < ActiveSupport::TestCase
     now = Time.current
     row = client_row(party: parties(:unlinked), office: offices(:one), now:).merge(
       status: "inactive",
+      party_status: nil,
       deactivated_at: now,
       deactivated_by_membership_id: agency_memberships(:one).id,
       deactivation_reason: "Closed"
@@ -157,7 +158,102 @@ class ClientProfileTest < ActiveSupport::TestCase
     assert offices(:one).reload.active?
   end
 
+  test "active profile requires an active party projection" do
+    now = Time.current
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      ClientProfile.transaction(requires_new: true) do
+        ClientProfile.insert_all!([
+          client_row(party: parties(:unlinked), office: offices(:one), now:).merge(party_status: nil)
+        ])
+      end
+    end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      ClientProfile.transaction(requires_new: true) do
+        ClientProfile.insert_all!([
+          client_row(party: parties(:unlinked), office: offices(:one), now:).merge(party_status: "deactivated")
+        ])
+      end
+    end
+  end
+
+  test "inactive profile cannot keep an active party projection" do
+    now = Time.current
+    row = client_row(party: parties(:unlinked), office: offices(:one), now:).merge(
+      status: "inactive",
+      responsible_office_status: nil,
+      deactivated_at: now,
+      deactivated_by_membership_id: agency_memberships(:one).id,
+      deactivation_reason: "Closed"
+    )
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      ClientProfile.transaction(requires_new: true) do
+        ClientProfile.insert_all!([ row ])
+      end
+    end
+  end
+
+  test "an active profile cannot be inserted for a deactivated party" do
+    party = parties(:unlinked)
+    deactivate_party!(party)
+    now = Time.current
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      ClientProfile.transaction(requires_new: true) do
+        ClientProfile.insert_all!([ client_row(party:, office: offices(:one), now:) ])
+      end
+    end
+  end
+
+  test "party status cannot become deactivated while an active profile holds the projection" do
+    party = parties(:unlinked)
+    assign_client_role!(party, actor: users(:one))
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      Party.transaction(requires_new: true) do
+        Party.connection.execute(<<~SQL.squish)
+          UPDATE parties
+          SET status = 'deactivated',
+              deactivated_at = CURRENT_TIMESTAMP,
+              deactivated_by_membership_id = '#{agency_memberships(:one).id}',
+              deactivation_reason = 'Left directory'
+          WHERE id = '#{party.id}'
+        SQL
+      end
+    end
+    assert party.reload.active?
+  end
+
+  test "model validation rejects an active profile on a deactivated party" do
+    party = parties(:unlinked)
+    deactivate_party!(party)
+
+    profile = ClientProfile.new(
+      agency: agencies(:one),
+      party:,
+      party_kind: party.party_kind,
+      status: "active",
+      party_status: "active",
+      responsible_office: offices(:one),
+      responsible_office_status: "active"
+    )
+
+    assert_not profile.valid?
+    assert_includes profile.errors[:party], "must be active"
+  end
+
   private
+
+  def deactivate_party!(party)
+    party.update!(
+      status: "deactivated",
+      deactivated_at: Time.current,
+      deactivated_by_membership: agency_memberships(:one),
+      deactivation_reason: "Left directory"
+    )
+  end
 
   def client_row(party:, office:, now:, party_kind: party.party_kind)
     {
@@ -165,6 +261,7 @@ class ClientProfileTest < ActiveSupport::TestCase
       party_id: party.id,
       party_kind:,
       status: "active",
+      party_status: "active",
       responsible_office_id: office.id,
       responsible_office_status: "active",
       lock_version: 0,

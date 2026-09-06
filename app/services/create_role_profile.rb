@@ -40,6 +40,7 @@ class CreateRoleProfile < RoleProfileCommand
       party: @party,
       party_kind: @party.party_kind,
       status: "active",
+      party_status: "active",
       responsible_office: @office,
       responsible_office_status: "active"
     }

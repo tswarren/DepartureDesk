@@ -8,6 +8,10 @@ class CreateClientAndSupplierProfiles < ActiveRecord::Migration[8.1]
       [ :id, :agency_id, :status ],
       unique: true,
       name: "index_agency_memberships_on_id_agency_id_and_status"
+    add_index :parties,
+      [ :id, :agency_id, :status ],
+      unique: true,
+      name: "index_parties_on_id_agency_id_and_status"
 
     create_role_profile_table(:client_profiles, kinds: %w[person household organization], extra: :client)
     create_role_profile_table(:supplier_profiles, kinds: %w[person organization], extra: :supplier)
@@ -44,8 +48,9 @@ class CreateClientAndSupplierProfiles < ActiveRecord::Migration[8.1]
     execute "DROP FUNCTION IF EXISTS role_profiles_prevent_identity_change();"
     drop_table :supplier_profiles
     drop_table :client_profiles
-    remove_index :agency_memberships, name: "index_agency_memberships_on_id_agency_id_and_status"
-    remove_index :offices, name: "index_offices_on_id_agency_id_and_status"
+    remove_index :parties, name: "index_parties_on_id_agency_id_and_status", if_exists: true
+    remove_index :agency_memberships, name: "index_agency_memberships_on_id_agency_id_and_status", if_exists: true
+    remove_index :offices, name: "index_offices_on_id_agency_id_and_status", if_exists: true
   end
 
   private
@@ -58,6 +63,7 @@ class CreateClientAndSupplierProfiles < ActiveRecord::Migration[8.1]
       table.uuid :party_id, null: false
       table.string :party_kind, null: false
       table.string :status, null: false, default: "active"
+      table.string :party_status
       table.uuid :responsible_office_id, null: false
       table.string :responsible_office_status
       table.timestamptz :deactivated_at
@@ -86,6 +92,8 @@ class CreateClientAndSupplierProfiles < ActiveRecord::Migration[8.1]
     add_check_constraint table_name,
       <<~SQL.squish,
         (status = 'active'
+          AND party_status IS NOT NULL
+          AND party_status = 'active'
           AND responsible_office_status IS NOT NULL
           AND responsible_office_status = 'active'
           AND deactivated_at IS NULL
@@ -93,12 +101,13 @@ class CreateClientAndSupplierProfiles < ActiveRecord::Migration[8.1]
           AND deactivation_reason IS NULL)
         OR
         (status = 'inactive'
+          AND party_status IS NULL
           AND responsible_office_status IS NULL
           AND deactivated_at IS NOT NULL
           AND deactivated_by_membership_id IS NOT NULL
           AND btrim(deactivation_reason) <> '')
       SQL
-      name: "#{table_name}_lifecycle_and_office_projection"
+      name: "#{table_name}_lifecycle_and_status_projections"
     add_check_constraint table_name,
       "lock_version >= 0",
       name: "#{table_name}_lock_version_nonnegative"
@@ -113,6 +122,10 @@ class CreateClientAndSupplierProfiles < ActiveRecord::Migration[8.1]
         ADD CONSTRAINT #{table_name}_party_kind_same_agency_fk
         FOREIGN KEY (party_id, agency_id, party_kind)
         REFERENCES parties (id, agency_id, party_kind);
+      ALTER TABLE #{table_name}
+        ADD CONSTRAINT #{table_name}_party_active_projection_fk
+        FOREIGN KEY (party_id, agency_id, party_status)
+        REFERENCES parties (id, agency_id, status);
       ALTER TABLE #{table_name}
         ADD CONSTRAINT #{table_name}_office_same_agency_fk
         FOREIGN KEY (responsible_office_id, agency_id)

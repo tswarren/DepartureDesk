@@ -73,10 +73,10 @@ module Directory
     end
 
     def office_from_params!
-      office = Current.agency.offices.find_by(id: profile_params[:responsible_office_id])
-      raise MembershipCommand::Error.new("Choose an active office.", code: :invalid) unless office
+      office_id = profile_params[:responsible_office_id]
+      raise MembershipCommand::Error.new("Choose an active office.", code: :invalid) if office_id.blank?
 
-      office
+      Current.agency.offices.find(office_id)
     end
   end
 end

@@ -23,6 +23,7 @@ class ReactivateRoleProfile < RoleProfileCommand
     ensure_fresh_lock!(@profile, @lock_version)
     @profile.update!(
       status: "active",
+      party_status: "active",
       responsible_office: @office,
       responsible_office_status: "active",
       deactivated_at: nil,

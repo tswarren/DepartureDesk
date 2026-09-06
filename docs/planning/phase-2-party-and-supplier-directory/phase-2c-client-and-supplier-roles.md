@@ -78,6 +78,15 @@ A deactivated profile is reactivated rather than recreated. The unique party/pro
 
 Do not deactivate the party when a role is deactivated. Inactive parties cannot receive a new active role, even though party deactivation itself is Phase 2D.
 
+Use the same state-bearing projection as responsible office:
+
+* Store nullable `party_status`.
+* Active profile ⇒ `party_status = 'active'` and composite FK `(party_id, agency_id, party_status)` → unique `parties (id, agency_id, status)`.
+* Inactive profile ⇒ `party_status IS NULL` (`MATCH SIMPLE` skips the state-bearing FK).
+* Unique `(id, agency_id, status)` on `parties`.
+
+Role create and reactivation set the projection to `active` against a currently active party. Role deactivation nulls it. PostgreSQL rejects a party `active → deactivated` transition while any active profile still holds the `active` projection. Phase 2D party deactivation must keep that race boundary.
+
 `status` changes only through lifecycle commands. `UpdateClientProfile` and `UpdateSupplierProfile` must not accept or persist a status change.
 
 `agency_id`, `party_id`, and `party_kind` are immutable at both the Rails and database boundaries.
@@ -110,7 +119,7 @@ Command protocol:
 * An office change locks both the existing and replacement offices in stable UUID order, then confirms the replacement is active.
 * `ChangeOfficeStatus` to inactive locks that same office row before the transition.
 * PostgreSQL rejects the inactive office transition while any active profile still holds the `active` projection.
-* Commands still return a friendly count/list of profiles to reassign.
+* Commands still return a friendly count and a bounded sample of profile names (five), not an unbounded list.
 
 ### 2.5 Current advisor
 
@@ -219,6 +228,7 @@ Privileged directory commands continue to attribute membership-backed dispositio
 | `party_id`                           | Required; unique with agency                      |
 | `party_kind`                         | `person`, `household`, or `organization`          |
 | `status`                             | `active` or `inactive`                            |
+| `party_status`                       | `active` while profile active; `NULL` when inactive |
 | `client_since_on`                    | Optional date                                     |
 | `responsible_office_id`              | Required; `NOT NULL` on every row                 |
 | `responsible_office_status`          | `active` while profile active; `NULL` when inactive |
@@ -251,10 +261,11 @@ Required database contracts:
 * Unique `(party_id, agency_id)`
 * Unique `(id, agency_id)` for child FKs
 * Composite FK `(party_id, agency_id, party_kind)` → `parties (id, agency_id, party_kind)`
+* State-bearing FK `(party_id, agency_id, party_status)` → unique `parties (id, agency_id, status)`
 * Tenancy FK `(responsible_office_id, agency_id)` → `offices (id, agency_id)`; `responsible_office_id` is `NOT NULL`
 * State-bearing FK `(responsible_office_id, agency_id, responsible_office_status)` → unique `offices (id, agency_id, status)`
 * State-bearing FK `(primary_advisor_membership_id, agency_id, primary_advisor_membership_status)` → unique `agency_memberships (id, agency_id, status)`
-* Unique `(id, agency_id, status)` on `offices` and `agency_memberships`
+* Unique `(id, agency_id, status)` on `offices`, `agency_memberships`, and `parties`
 * Named status, lifecycle-completeness, projection-completeness, and nonnegative-lock constraints
 * Trigger preventing `agency_id`, `party_id`, and `party_kind` changes
 
@@ -293,6 +304,7 @@ Required database contracts:
 | `party_id`                  | Required; unique with agency                      |
 | `party_kind`                | `person` or `organization`                        |
 | `status`                    | `active` or `inactive`                            |
+| `party_status`              | `active` while profile active; `NULL` when inactive |
 | `responsible_office_id`     | Required; `NOT NULL` on every row                 |
 | `responsible_office_status` | `active` while profile active; `NULL` when inactive |
 | `default_currency`          | Required uppercase three-letter code              |
@@ -310,7 +322,7 @@ The database must enforce:
 
 * Unique `(party_id, agency_id)` and unique `(id, agency_id)`
 * Composite FK `(party_id, agency_id, party_kind)` → `parties (id, agency_id, party_kind)` with `party_kind IN ('person', 'organization')`
-* Same office tenancy and state-bearing FKs as client profiles
+* Same party-status and office tenancy and state-bearing FKs as client profiles
 * Immutable agency, party, and party-kind identity
 * Complete lifecycle and projection disposition
 * `default_currency ~ '^[A-Z]{3}$'` like `agencies.default_currency`
@@ -662,10 +674,13 @@ Prove rejection of:
 * Duplicate role profile
 * Null `responsible_office_id`
 * Active profile with missing or inactive responsible-office projection
-* Inactive profile that still holds an `active` office or advisor projection
+* Active profile with missing or inactive party-status projection
+* Active profile inserted against a deactivated party
+* Inactive profile that still holds an `active` office, party, or advisor projection
 * Current advisor pointing at a non-active membership
 * Membership `active → suspended` while it is a current advisor
 * Office `active → inactive` while it is an active profile’s responsible office
+* Party `active → deactivated` while it is an active profile’s party
 * Overlapping advisor intervals, including two closed ranges
 * External identifier attached to the wrong owner or agency
 * Identifier type used with an ineligible owner or missing required issuer
@@ -707,6 +722,8 @@ Cover:
 
 * Agency-wide visibility regardless of current office
 * Cross-agency resources return 404
+* Cross-agency `responsible_office_id` values return 404; a blank office id remains a validation error
+* Office deactivation names a count and a sample of five dependent roles
 * Party-keyed routes; profile UUID is not the user-facing identity
 * Role-filtered directories
 * Household lacks supplier action
@@ -728,8 +745,8 @@ These are separate mergeable PRs onto a Phase 2C integration branch. Each slice 
 
 ### 2C.1 — Role-profile foundation
 
-* Client and supplier tables, including `party_kind` and office status projections
-* Unique `(id, agency_id, status)` keys on offices and memberships
+* Client and supplier tables, including `party_kind`, party-status projections, and office status projections
+* Unique `(id, agency_id, status)` keys on offices, memberships, and parties
 * Lifecycle commands
 * Responsible-office constraints and `ChangeOfficeStatus` dependency
 * Party overview roles panel

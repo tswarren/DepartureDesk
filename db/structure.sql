@@ -317,6 +317,7 @@ CREATE TABLE public.client_profiles (
     party_id uuid NOT NULL,
     party_kind character varying NOT NULL,
     status character varying DEFAULT 'active'::character varying NOT NULL,
+    party_status character varying,
     responsible_office_id uuid NOT NULL,
     responsible_office_status character varying,
     deactivated_at timestamp with time zone,
@@ -325,10 +326,10 @@ CREATE TABLE public.client_profiles (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT client_profiles_lifecycle_and_office_projection CHECK (((((status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (responsible_office_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
+    CONSTRAINT client_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT client_profiles_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT client_profiles_party_kind_valid CHECK (((party_kind)::text = ANY (ARRAY[('person'::character varying)::text, ('household'::character varying)::text, ('organization'::character varying)::text]))),
-    CONSTRAINT client_profiles_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+    CONSTRAINT client_profiles_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'household'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT client_profiles_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
 );
 
 
@@ -821,6 +822,7 @@ CREATE TABLE public.supplier_profiles (
     party_id uuid NOT NULL,
     party_kind character varying NOT NULL,
     status character varying DEFAULT 'active'::character varying NOT NULL,
+    party_status character varying,
     responsible_office_id uuid NOT NULL,
     responsible_office_status character varying,
     deactivated_at timestamp with time zone,
@@ -831,10 +833,10 @@ CREATE TABLE public.supplier_profiles (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT supplier_profiles_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
-    CONSTRAINT supplier_profiles_lifecycle_and_office_projection CHECK (((((status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (responsible_office_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
+    CONSTRAINT supplier_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT supplier_profiles_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT supplier_profiles_party_kind_valid CHECK (((party_kind)::text = ANY (ARRAY[('person'::character varying)::text, ('organization'::character varying)::text]))),
-    CONSTRAINT supplier_profiles_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+    CONSTRAINT supplier_profiles_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT supplier_profiles_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
 );
 
 
@@ -1455,6 +1457,13 @@ CREATE UNIQUE INDEX index_parties_on_id_agency_id_and_party_kind ON public.parti
 
 
 --
+-- Name: index_parties_on_id_agency_id_and_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_parties_on_id_agency_id_and_status ON public.parties USING btree (id, agency_id, status);
+
+
+--
 -- Name: index_parties_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1771,6 +1780,14 @@ ALTER TABLE ONLY public.client_profiles
 
 ALTER TABLE ONLY public.client_profiles
     ADD CONSTRAINT client_profiles_office_same_agency_fk FOREIGN KEY (responsible_office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
+-- Name: client_profiles client_profiles_party_active_projection_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_profiles
+    ADD CONSTRAINT client_profiles_party_active_projection_fk FOREIGN KEY (party_id, agency_id, party_status) REFERENCES public.parties(id, agency_id, status);
 
 
 --
@@ -2283,6 +2300,14 @@ ALTER TABLE ONLY public.supplier_profiles
 
 ALTER TABLE ONLY public.supplier_profiles
     ADD CONSTRAINT supplier_profiles_office_same_agency_fk FOREIGN KEY (responsible_office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
+-- Name: supplier_profiles supplier_profiles_party_active_projection_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_profiles
+    ADD CONSTRAINT supplier_profiles_party_active_projection_fk FOREIGN KEY (party_id, agency_id, party_status) REFERENCES public.parties(id, agency_id, status);
 
 
 --

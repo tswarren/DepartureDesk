@@ -96,5 +96,87 @@ module Directory
       assert_response :not_found
       assert_nil parties(:two).reload.client_profile
     end
+
+    test "cross-agency office ids return not found on create update and reactivate" do
+      sign_in_as(users(:one))
+      party = parties(:organization_one)
+
+      post directory_party_client_profile_path(party), params: {
+        client_profile: { responsible_office_id: offices(:two).id }
+      }
+      assert_response :not_found
+      assert_nil party.reload.client_profile
+
+      post directory_party_supplier_profile_path(party), params: {
+        supplier_profile: { responsible_office_id: offices(:two).id }
+      }
+      assert_response :not_found
+      assert_nil party.reload.supplier_profile
+
+      profile = assign_client_role!(party, actor: users(:one))
+      patch directory_party_client_profile_path(party), params: {
+        client_profile: {
+          responsible_office_id: offices(:two).id,
+          lock_version: profile.lock_version
+        }
+      }
+      assert_response :not_found
+      assert_equal offices(:one).id, profile.reload.responsible_office_id
+
+      DeactivateClientProfile.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        profile:,
+        reason: "Paused"
+      ).call
+      post reactivate_directory_party_client_profile_path(party), params: {
+        client_profile: {
+          responsible_office_id: offices(:two).id,
+          lock_version: profile.reload.lock_version
+        }
+      }
+      assert_response :not_found
+      assert profile.reload.inactive?
+
+      supplier = assign_supplier_role!(party, actor: users(:one))
+      patch directory_party_supplier_profile_path(party), params: {
+        supplier_profile: {
+          responsible_office_id: offices(:two).id,
+          lock_version: supplier.lock_version
+        }
+      }
+      assert_response :not_found
+      assert_equal offices(:one).id, supplier.reload.responsible_office_id
+
+      DeactivateSupplierProfile.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        profile: supplier,
+        reason: "Paused"
+      ).call
+      post reactivate_directory_party_supplier_profile_path(party), params: {
+        supplier_profile: {
+          responsible_office_id: offices(:two).id,
+          lock_version: supplier.reload.lock_version
+        }
+      }
+      assert_response :not_found
+      assert supplier.reload.inactive?
+    end
+
+    test "a blank office id is a validation error" do
+      sign_in_as(users(:one))
+      party = parties(:organization_one)
+
+      post directory_party_client_profile_path(party), params: {
+        client_profile: { responsible_office_id: "" }
+      }
+      assert_redirected_to directory_party_path(party)
+      follow_redirect!
+      assert_includes response.body, "Choose an active office."
+      assert_nil party.reload.client_profile
+    end
   end
 end

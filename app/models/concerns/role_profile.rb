@@ -24,6 +24,7 @@ module RoleProfile
     validates :party_kind, presence: true
     validate :deactivation_matches_status
     validate :office_projection_matches_status
+    validate :party_projection_matches_status
     validate :actors_and_office_same_agency
     validate :party_kind_matches_party
   end
@@ -51,6 +52,15 @@ module RoleProfile
       errors.add(:responsible_office_status, "must be active") unless responsible_office_status == "active"
     elsif inactive?
       errors.add(:responsible_office_status, "must be blank") if responsible_office_status.present?
+    end
+  end
+
+  def party_projection_matches_status
+    if active?
+      errors.add(:party_status, "must be active") unless party_status == "active"
+      errors.add(:party, "must be active") if party.present? && !party.active?
+    elsif inactive?
+      errors.add(:party_status, "must be blank") if party_status.present?
     end
   end
 

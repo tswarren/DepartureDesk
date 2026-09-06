@@ -28,6 +28,7 @@ class DirectoryCommand < MembershipCommand
     raise Error.new("This record was updated by someone else.", code: :conflict)
   rescue ActiveRecord::InvalidForeignKey, ActiveRecord::StatementInvalid => error
     raise Error.new("Choose an active office.", code: :invalid) if office_status_fk_violation?(error)
+    raise Error.new("An inactive party cannot receive an active role.", code: :invalid) if party_status_fk_violation?(error)
     raise Error.new("That assignment conflicts with an existing primary.", code: :conflict) if exclusion_violation?(error)
 
     raise
@@ -73,8 +74,16 @@ class DirectoryCommand < MembershipCommand
   end
 
   def office_status_fk_violation?(error)
+    projection_fk_violation?(error, "office_active_projection_fk")
+  end
+
+  def party_status_fk_violation?(error)
+    projection_fk_violation?(error, "party_active_projection_fk")
+  end
+
+  def projection_fk_violation?(error, constraint_name)
     cause = error.is_a?(ActiveRecord::InvalidForeignKey) ? error : error.cause
     message = [ error.message, cause&.message ].compact.join(" ")
-    message.include?("office_active_projection_fk")
+    message.include?(constraint_name)
   end
 end
