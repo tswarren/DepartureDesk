@@ -28,4 +28,3 @@ class DirectoryRange
     [ from, until_date ]
   end
 end
-

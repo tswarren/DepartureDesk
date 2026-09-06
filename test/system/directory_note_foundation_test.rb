@@ -8,8 +8,11 @@ class DirectoryNoteFoundationTest < ApplicationSystemTestCase
     click_button "Sign in"
 
     click_link "Directory"
+    assert_current_path directory_parties_path
     click_link "Alex Morgan"
-    click_link "Notes"
+    assert_current_path directory_party_path(parties(:unlinked))
+    within("nav[aria-label=Party]") { click_link "Notes" }
+    assert_current_path directory_party_notes_path(parties(:unlinked))
     fill_in "New note", with: "Likes aisle seats on the group air."
     click_button "Add note"
     assert_text "Likes aisle seats on the group air."
@@ -33,8 +36,11 @@ class DirectoryNoteFoundationTest < ApplicationSystemTestCase
     fill_in "Password", with: "password"
     click_button "Sign in"
     click_link "Directory"
+    assert_current_path directory_parties_path
     click_link "Alex Morgan"
-    click_link "Notes"
+    assert_current_path directory_party_path(parties(:unlinked))
+    within("nav[aria-label=Party]") { click_link "Notes" }
+    assert_current_path directory_party_notes_path(parties(:unlinked))
     assert_text "Prefers window seats on the group air."
     assert_no_text "Internal credit discussion."
     assert_no_text "Administrator only"

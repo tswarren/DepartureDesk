@@ -8,8 +8,11 @@ class DirectoryRelationshipFoundationTest < ApplicationSystemTestCase
     click_button "Sign in"
 
     click_link "Directory"
+    assert_current_path directory_parties_path
     click_link "Alex Morgan"
-    click_link "Relationships"
+    assert_current_path directory_party_path(parties(:unlinked))
+    within("nav[aria-label=Party]") { click_link "Relationships" }
+    assert_current_path directory_party_relationships_path(parties(:unlinked))
     click_link "Add relationship"
     select "Household Member", from: "Relationship kind"
     select "Morgan Household (Household)", from: "Related party"
@@ -23,8 +26,11 @@ class DirectoryRelationshipFoundationTest < ApplicationSystemTestCase
     assert_text "Alex Morgan is a member of Cole Household."
 
     click_link "Directory"
+    assert_current_path directory_parties_path
     click_link "Maria Ruiz"
-    click_link "Relationships"
+    assert_current_path directory_party_path(parties(:maria))
+    within("nav[aria-label=Party]") { click_link "Relationships" }
+    assert_current_path directory_party_relationships_path(parties(:maria))
     click_link "Add relationship"
     select "Organization Contact", from: "Relationship kind"
     select "Horizon Tours (Organization)", from: "Related party"

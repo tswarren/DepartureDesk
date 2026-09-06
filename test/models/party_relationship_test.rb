@@ -373,4 +373,3 @@ class PartyRelationshipTest < ActiveSupport::TestCase
     assert_equal 0, replacement.purpose_assignments.record_valid.count
   end
 end
-

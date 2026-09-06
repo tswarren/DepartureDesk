@@ -16,7 +16,6 @@ class CountryReference
       end
   end
 
-
   def self.valid_code?(code)
     ISO3166::Country[code.to_s.strip.upcase].present?
   end
