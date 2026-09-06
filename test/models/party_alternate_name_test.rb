@@ -94,5 +94,40 @@ class PartyAlternateNameTest < ActiveSupport::TestCase
 
     assert alternate.reload.removed?
     assert_not_includes parties(:one).alternate_names.visible, alternate
+    assert alternate.removed_at.present?
+    assert_equal agency_memberships(:one).id, alternate.removed_by_membership_id
+  end
+
+  test "re-adding a removed name reactivates the same row" do
+    party = parties(:one)
+    alternate = party.alternate_names.create!(
+      agency: agencies(:one),
+      name: "JB",
+      name_kind: "acronym"
+    )
+    RemovePartyAlternateName.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      party: party,
+      alternate_name: alternate
+    ).call
+
+    assert_no_difference("PartyAlternateName.count") do
+      AddPartyAlternateName.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party: party,
+        name: "JB",
+        name_kind: "acronym"
+      ).call
+    end
+
+    alternate.reload
+    assert alternate.active?
+    assert_nil alternate.removed_at
+    assert_nil alternate.removed_by_membership_id
+    assert_equal 1, party.alternate_names.where(normalized_name: "jb", name_kind: "acronym").count
+    event = agencies(:one).audit_events.where(action: "directory.alternate_name_added").order(:created_at).last
+    assert_equal true, event.details["reactivated"]
   end
 end

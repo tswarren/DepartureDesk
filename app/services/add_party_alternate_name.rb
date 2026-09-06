@@ -29,12 +29,34 @@ class AddPartyAlternateName < MembershipCommand
   private
 
   def perform
-    alternate = @party.alternate_names.create!(
-      agency: @agency,
-      name: @name,
-      name_kind: @name_kind,
-      status: "active"
-    )
+    normalized = PartyName.normalize(@name)
+    existing = @party.alternate_names.removed
+      .where(name_kind: @name_kind, normalized_name: normalized)
+      .order(:id)
+      .last
+    reactivated = false
+
+    if existing
+      existing.lock!
+      existing.reload
+      existing.assign_attributes(
+        name: @name,
+        status: "active",
+        removed_at: nil,
+        removed_by_membership: nil
+      )
+      existing.save!
+      alternate = existing
+      reactivated = true
+    else
+      alternate = @party.alternate_names.create!(
+        agency: @agency,
+        name: @name,
+        name_kind: @name_kind,
+        status: "active"
+      )
+    end
+
     audit!(
       agency: @agency,
       action: "directory.alternate_name_added",
@@ -42,7 +64,8 @@ class AddPartyAlternateName < MembershipCommand
       details: {
         "party_id" => @party.id,
         "alternate_name_id" => alternate.id,
-        "name_kind" => alternate.name_kind
+        "name_kind" => alternate.name_kind,
+        "reactivated" => reactivated
       },
       **actor_audit_args
     )

@@ -1,12 +1,19 @@
 module Directory
   class PartiesController < ApplicationController
+    class_attribute :page_size, default: 50
+
     before_action :set_party, only: %i[show edit update]
 
     def index
-      @parties = Current.agency.parties
+      @party_kind = params[:party_kind] if Party::KINDS.include?(params[:party_kind])
+      @page = [ params[:page].to_i, 1 ].max
+      scope = Current.agency.parties
         .includes(:household, :organization, person: :agency_membership)
         .order(:sort_name, :id)
-      @parties = @parties.where(party_kind: params[:party_kind]) if Party::KINDS.include?(params[:party_kind])
+      scope = scope.where(party_kind: @party_kind) if @party_kind
+      records = scope.offset((@page - 1) * page_size).limit(page_size + 1).to_a
+      @has_next_page = records.size > page_size
+      @parties = records.first(page_size)
     end
 
     def show

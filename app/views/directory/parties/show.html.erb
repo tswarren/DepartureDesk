@@ -113,11 +113,11 @@
               class: "dd-form" do |form| %>
               <div class="dd-form-grid dd-form-grid--two-column">
                 <div class="dd-field-group">
-                  <%= form.label :name, class: "dd-label" %>
+                  <%= form.label :name, "Alternate name", class: "dd-label" %>
                   <%= form.text_field :name, required: true, class: "dd-field" %>
                 </div>
                 <div class="dd-field-group">
-                  <%= form.label :name_kind, "Name kind", class: "dd-label" %>
+                  <%= form.label :name_kind, "Alternate name kind", class: "dd-label" %>
                   <%= form.select :name_kind,
                     PartyAlternateName::KINDS.map { |kind| [ kind.titleize, kind ] },
                     {},
@@ -152,7 +152,7 @@
           <%= form.text_field :name, required: true, class: "dd-field" %>
         </div>
         <div class="dd-field-group">
-          <%= form.label :name_kind, "Kind", class: "dd-label" %>
+          <%= form.label :name_kind, "Add name kind", class: "dd-label" %>
           <%= form.select :name_kind,
             PartyAlternateName::KINDS.map { |kind| [ kind.titleize, kind ] },
             {},

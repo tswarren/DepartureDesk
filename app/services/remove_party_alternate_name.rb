@@ -31,7 +31,12 @@ class RemovePartyAlternateName < MembershipCommand
   def perform
     return CommandResult.new(status: :accepted, party: @party) if @alternate_name.removed?
 
-    @alternate_name.update!(status: "removed")
+    remover = @actor&.usable_agency_membership
+    unless remover && remover.agency_id == @agency.id
+      raise Error.new(UNAUTHORIZED, code: :unauthorized)
+    end
+
+    @alternate_name.remove!(removed_at: Time.current, removed_by_membership: remover)
     audit!(
       agency: @agency,
       action: "directory.alternate_name_removed",

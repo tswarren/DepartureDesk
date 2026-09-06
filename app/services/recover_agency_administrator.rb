@@ -30,8 +30,10 @@ class RecoverAgencyAdministrator
     when "reactivate"
       before_reactivate
       reactivate!
-    when "replace_invitation", "invite_replacement"
+    when "replace_invitation"
       recover_with_agency_lock
+    when "invite_replacement"
+      invite_replacement!
     else
       raise Error.new("Unknown recovery mode.", code: :invalid)
     end
@@ -50,12 +52,7 @@ class RecoverAgencyAdministrator
       @agency.with_lock do
         ensure_agency_active!
         record_recovery_started!
-        result = case @mode
-        when "replace_invitation"
-          replace_invitation!
-        when "invite_replacement"
-          invite_replacement!
-        end
+        result = replace_invitation!
       end
     end
 
@@ -117,24 +114,34 @@ class RecoverAgencyAdministrator
     raise Error.new("A first and last name are required.", code: :invalid) if @first_name.blank? || @last_name.blank?
 
     default_office = @agency.offices.active.order(:created_at).first
-    result = InviteTeamMember.new(
-      agency: @agency,
-      actor_identifier: @actor_identifier,
-      privileged: true,
-      email: @email,
-      role: "administrator",
-      first_name: @first_name,
-      last_name: @last_name,
-      preferred_name: @preferred_name,
-      office_ids: Array(default_office&.id),
-      default_office_id: default_office&.id
-    ).call
+    result = nil
 
-    unless result.enqueue_mail?
-      raise Error.new("The replacement administrator cannot be invited.", code: :conflict)
+    ActiveRecord::Base.transaction do
+      result = InviteTeamMember.new(
+        agency: @agency,
+        actor_identifier: @actor_identifier,
+        privileged: true,
+        email: @email,
+        role: "administrator",
+        first_name: @first_name,
+        last_name: @last_name,
+        preferred_name: @preferred_name,
+        office_ids: Array(default_office&.id),
+        default_office_id: default_office&.id,
+        after_locks: method(:record_invite_replacement_start!)
+      ).call
+
+      unless result.enqueue_mail?
+        raise Error.new("The replacement administrator cannot be invited.", code: :conflict)
+      end
     end
 
     result
+  end
+
+  def record_invite_replacement_start!
+    ensure_agency_active!
+    record_recovery_started!
   end
 
   def locked_target

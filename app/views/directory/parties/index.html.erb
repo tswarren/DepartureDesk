@@ -21,12 +21,15 @@
     <form method="get" action="<%= directory_parties_path %>" class="dd-form" style="max-width: 16rem; margin-bottom: 1rem;">
       <div class="dd-field-group">
         <label class="dd-label" for="party_kind">Kind</label>
-        <select name="party_kind" id="party_kind" class="dd-field" onchange="this.form.submit()">
+        <select name="party_kind" id="party_kind" class="dd-field">
           <option value="">All</option>
           <% Party::KINDS.each do |kind| %>
-            <option value="<%= kind %>" <%= "selected" if params[:party_kind] == kind %>><%= kind.titleize %></option>
+            <option value="<%= kind %>" <%= "selected" if @party_kind == kind %>><%= kind.titleize %></option>
           <% end %>
         </select>
+      </div>
+      <div class="dd-form-actions">
+        <button type="submit" class="dd-button dd-button--secondary dd-button--small">Apply filter</button>
       </div>
     </form>
 
@@ -59,6 +62,16 @@
           </tbody>
         </table>
       </div>
+      <% if @page > 1 || @has_next_page %>
+        <nav class="dd-button-group" aria-label="Directory pagination">
+          <% if @page > 1 %>
+            <%= link_to "Previous", directory_parties_path(party_kind: @party_kind, page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+          <% if @has_next_page %>
+            <%= link_to "Next", directory_parties_path(party_kind: @party_kind, page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+        </nav>
+      <% end %>
     <% else %>
       <div class="dd-empty-state">
         <h3 class="dd-empty-title">No directory records</h3>

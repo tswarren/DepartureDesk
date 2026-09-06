@@ -40,7 +40,7 @@ class CreateParty < MembershipCommand
     end
 
     party = @agency.parties.new(party_kind: @party_kind, status: "active")
-    profile = profile_class.new(agency: @agency)
+    profile = profile_class.new(agency: @agency, party_kind: @party_kind)
     profile.assign_attributes(permitted_attributes)
     party.apply_derived_names!(profile)
     party.save!

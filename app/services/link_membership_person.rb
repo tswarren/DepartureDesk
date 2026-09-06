@@ -30,12 +30,27 @@ class LinkMembershipPerson < MembershipCommand
     ).allocate_person
   end
 
+  def self.record_locked!(agency:, membership:, person:, source:, actor: nil, actor_identifier: nil,
+    privileged: false)
+    new(
+      agency: agency,
+      membership: membership,
+      person: person,
+      source: source,
+      audit_link: true,
+      actor: actor,
+      actor_identifier: actor_identifier,
+      privileged: privileged
+    ).record_locked!
+  end
+
   def allocate_person
     ensure_actor_shape!
     raise Error.new("A first and last name are required.", code: :invalid) if @given_name.blank? || @family_name.blank?
 
     person = Person.new(
       agency: @agency,
+      party_kind: "person",
       given_name: @given_name,
       family_name: @family_name,
       preferred_name: @preferred_name,
@@ -63,6 +78,15 @@ class LinkMembershipPerson < MembershipCommand
     raise Error.new(error.record.errors.full_messages.to_sentence, code: :invalid)
   end
 
+  def record_locked!
+    ensure_actor_shape!
+    raise Error.new("A person is required.", code: :invalid) if @person.blank?
+
+    ensure_membership_belongs_to_agency!(@agency, @membership)
+    ensure_person_usable!(@person)
+    assign_or_confirm!(@person, audit: true)
+  end
+
   def call
     ActiveRecord::Base.transaction do
       ensure_actor_shape!
@@ -78,18 +102,27 @@ class LinkMembershipPerson < MembershipCommand
 
   def perform_locked
     user = @membership.user
-    user.lock! if user&.persisted?
+    if user&.persisted?
+      user.with_lock { lock_agency_and_link }
+    else
+      lock_agency_and_link
+    end
+  end
+
+  def lock_agency_and_link
     @agency.lock!
     @agency.reload
-    @membership.lock!
-    @membership.reload
-    user&.reload
-    @person&.lock!
+    if @membership.persisted?
+      @membership.lock!
+      @membership.reload
+    end
+    @membership.user&.reload
+    @person.lock! if @person&.persisted?
     @person&.reload
 
     ensure_membership_belongs_to_agency!(@agency, @membership)
     person = resolve_person
-    assign_link!(person)
+    assign_or_confirm!(person, audit: @audit_link || @membership.person_party_id.blank?)
   end
 
   def resolve_person
@@ -112,11 +145,11 @@ class LinkMembershipPerson < MembershipCommand
     raise Error.new("That person is already linked to a membership.", code: :conflict)
   end
 
-  def assign_link!(person)
+  def assign_or_confirm!(person, audit:)
     current_id = @membership.person_party_id
     if current_id.present?
       if current_id == person.party_id
-        record_link_audit!(person) if @audit_link
+        record_link_audit!(person) if audit
         return CommandResult.new(status: :accepted, membership: @membership, party: person.party)
       end
 

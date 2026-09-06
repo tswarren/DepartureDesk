@@ -49,10 +49,13 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_equal jamie_id, Party.find_by!(display_name: "Jim Cole").id
 
     fill_in "Add alternate name", with: "James Cole"
-    select "Former Name", from: "Kind"
+    select "Former Name", from: "Add name kind"
     click_button "Add name"
     assert_text "Alternate name added."
-    assert_css "strong.dd-list-title", text: "James Cole"
+    within("li.dd-list-item", text: "James Cole") do
+      assert_css "strong.dd-list-title", text: "James Cole"
+      assert_field "Alternate name", with: "James Cole"
+    end
     assert_text "Jim Cole"
 
     click_link "Administration"

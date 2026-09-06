@@ -8,6 +8,9 @@ class Household < ApplicationRecord
   normalizes :correspondence_name, with: ->(value) { value&.strip.presence }
 
   validates :name, presence: true
+  attribute :party_kind, :string, default: "household"
+  attr_readonly :party_kind
+  validates :party_kind, inclusion: { in: %w[household] }
   validate :party_is_household_kind
   validate :agency_matches_party
 

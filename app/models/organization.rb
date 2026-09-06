@@ -8,6 +8,9 @@ class Organization < ApplicationRecord
   normalizes :trading_name, :website, with: ->(value) { value&.strip.presence }
 
   validates :legal_name, presence: true
+  attribute :party_kind, :string, default: "organization"
+  attr_readonly :party_kind
+  validates :party_kind, inclusion: { in: %w[organization] }
   validate :party_is_organization_kind
   validate :agency_matches_party
 

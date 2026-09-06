@@ -256,4 +256,92 @@ class PartyTest < ActiveSupport::TestCase
     assert extra.reload.suspended?
     assert extra.person_party.present?
   end
+
+  test "people households and organizations cannot reference a mismatched party kind" do
+    now = Time.current
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      Person.transaction(requires_new: true) do
+        Person.insert_all!([ {
+          party_id: parties(:household_one).id,
+          agency_id: agencies(:one).id,
+          party_kind: "person",
+          given_name: "Wrong",
+          family_name: "Kind",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      Household.transaction(requires_new: true) do
+        Household.insert_all!([ {
+          party_id: parties(:one).id,
+          agency_id: agencies(:one).id,
+          party_kind: "household",
+          name: "Wrong Kind",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      Organization.transaction(requires_new: true) do
+        Organization.insert_all!([ {
+          party_id: parties(:one).id,
+          agency_id: agencies(:one).id,
+          party_kind: "organization",
+          legal_name: "Wrong Kind",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+  end
+
+  test "kind profile party_kind checks reject the other kinds" do
+    now = Time.current
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      Person.transaction(requires_new: true) do
+        Person.insert_all!([ {
+          party_id: parties(:household_one).id,
+          agency_id: agencies(:one).id,
+          party_kind: "household",
+          given_name: "Wrong",
+          family_name: "Kind",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      Household.transaction(requires_new: true) do
+        Household.insert_all!([ {
+          party_id: parties(:one).id,
+          agency_id: agencies(:one).id,
+          party_kind: "person",
+          name: "Wrong Kind",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      Organization.transaction(requires_new: true) do
+        Organization.insert_all!([ {
+          party_id: parties(:one).id,
+          agency_id: agencies(:one).id,
+          party_kind: "person",
+          legal_name: "Wrong Kind",
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+  end
 end

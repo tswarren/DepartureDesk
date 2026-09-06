@@ -47,7 +47,7 @@ These decisions are closed for Phase 2. Implementation slices may refine persist
 - Do not add `users.person_id`. `User` remains the global login identity.
 - The agency-scoped person link lives on `AgencyMembership`, the existing user-within-agency aggregate: `agency_memberships.person_party_id`.
 - Unique `(agency_id, user_id)` already exists on membership. Add unique `(agency_id, person_party_id)`.
-- The linked party must have `party_kind = person` and `agency_id` matching the membership. The foreign key targets `people (party_id, agency_id)`, so person kind is enforced by the referenced kind-profile row.
+- The linked party must have `party_kind = person` and `agency_id` matching the membership. The membership foreign key targets `people (party_id, agency_id)`. Kind-profile rows carry a fixed `party_kind` and reference `parties (id, agency_id, party_kind)`.
 - Every successful membership create—including invited—writes `person_party_id` in the same transaction. Invited memberships are not a null-person state. Acceptance only revalidates the existing link.
 - The migration may add the column nullable, backfill every existing membership (invited, active, suspended, revoked), validate, and then enforce `NOT NULL` plus the unique and composite foreign keys. Null `person_party_id` is not a normal post-2A state.
 - A person links to at most one membership in the agency. Resolving a user-link conflict is administrator-only.

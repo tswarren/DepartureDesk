@@ -13,6 +13,9 @@ class Person < ApplicationRecord
     with: ->(value) { value&.strip.presence }
 
   validates :given_name, :family_name, presence: true
+  attribute :party_kind, :string, default: "person"
+  attr_readonly :party_kind
+  validates :party_kind, inclusion: { in: %w[person] }
   validate :date_of_birth_not_future
   validate :party_is_person_kind
   validate :agency_matches_party

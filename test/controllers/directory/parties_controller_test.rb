@@ -116,6 +116,36 @@ module Directory
       assert_includes response.body, parties(:one).display_name
       assert_not_includes response.body, parties(:household_one).display_name
       assert_not_includes response.body, parties(:two).display_name
+      assert_select "button[type=submit]", text: "Apply filter"
+      assert_select "[onchange]", count: 0
+    end
+
+    test "directory index paginates by sort name and id" do
+      sign_in_as(users(:one))
+      CreateParty.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party_kind: "person",
+        attributes: { given_name: "Pat", family_name: "Lee" }
+      ).call
+
+      previous_page_size = Directory::PartiesController.page_size
+      Directory::PartiesController.page_size = 2
+      begin
+        get directory_parties_path, params: { party_kind: "person" }
+        assert_response :success
+        assert_includes response.body, parties(:one).display_name
+        assert_select "a", text: "Next"
+        assert_select "a", text: "Previous", count: 0
+
+        get directory_parties_path, params: { party_kind: "person", page: 2 }
+        assert_response :success
+        assert_includes response.body, parties(:unlinked).display_name
+        assert_not_includes response.body, parties(:one).display_name
+        assert_select "a", text: "Previous"
+      ensure
+        Directory::PartiesController.page_size = previous_page_size
+      end
     end
 
     test "directory index and show do not filter by current office" do

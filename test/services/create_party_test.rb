@@ -24,6 +24,9 @@ class CreatePartyTest < ActiveSupport::TestCase
     assert_equal "Jamie Lee Cole", person.display_name
     assert_equal "Cole, Jamie Lee", person.sort_name
     assert_equal person.id, person.person.party_id
+    assert_equal "person", person.person.party_kind
+    assert_equal "household", household.household.party_kind
+    assert_equal "organization", organization.organization.party_kind
     assert_equal "Cole Household", household.display_name
     assert_equal "Summit Travel", organization.display_name
     assert_includes agencies(:one).audit_events.pluck(:action), "directory.party_created"
@@ -156,6 +159,23 @@ class LinkMembershipPersonTest < ActiveSupport::TestCase
     assert result.ok?
     assert_equal person.party_id, membership.reload.person_party_id
     assert_equal person.party_id, person.id
+    assert_includes agencies(:one).audit_events.pluck(:action), "team.person_linked"
+  end
+
+  test "record_locked confirms an already assigned person without reacquiring locks" do
+    membership = agency_memberships(:one)
+    person = membership.person_party
+
+    result = LinkMembershipPerson.record_locked!(
+      agency: agencies(:one),
+      membership: membership,
+      person: person,
+      source: "invitation",
+      actor: users(:one)
+    )
+
+    assert result.ok?
+    assert_equal person.party_id, membership.reload.person_party_id
     assert_includes agencies(:one).audit_events.pluck(:action), "team.person_linked"
   end
 

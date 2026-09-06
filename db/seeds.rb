@@ -49,15 +49,16 @@ if Rails.env.development?
 
     membership.save!
 
-    LinkMembershipPerson.new(
-      agency: seed_agency,
-      membership: membership,
-      person: membership.person_party,
-      source: "seed",
-      audit_link: membership.saved_change_to_person_party_id?,
-      actor_identifier: "seed:development",
-      privileged: true
-    ).call
+    if membership.saved_change_to_person_party_id?
+      LinkMembershipPerson.record_locked!(
+        agency: seed_agency,
+        membership: membership,
+        person: membership.person_party,
+        source: "seed",
+        actor_identifier: "seed:development",
+        privileged: true
+      )
+    end
 
     puts "Seed agency ready:"
     puts "  Name: #{seed_agency.name}"

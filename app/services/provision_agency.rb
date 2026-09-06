@@ -68,8 +68,13 @@ class ProvisionAgency
     result = nil
 
     ActiveRecord::Base.transaction do
-      if (user = User.find_by(email_address: @attrs["email"])) && user.active_agency_memberships.exists?
-        raise Error.new("The initial administrator cannot be provisioned.", code: :conflict)
+      user = User.find_by(email_address: @attrs["email"])
+      if user
+        user.lock!
+        user.reload
+        if user.active_agency_memberships.exists?
+          raise Error.new("The initial administrator cannot be provisioned.", code: :conflict)
+        end
       end
 
       agency = Agency.create!(
@@ -105,15 +110,14 @@ class ProvisionAgency
         invitation_sent_at: Time.current,
         person_party: person
       )
-      LinkMembershipPerson.new(
+      LinkMembershipPerson.record_locked!(
         agency: agency,
         membership: membership,
         person: person,
         source: "provisioning",
-        audit_link: true,
         actor_identifier: @actor_identifier,
         privileged: true
-      ).call
+      )
       GrantOfficeAccess.new(
         agency: agency,
         membership: membership,
