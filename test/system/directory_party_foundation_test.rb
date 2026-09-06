@@ -51,7 +51,8 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     fill_in "Add alternate name", with: "James Cole"
     select "Former Name", from: "Kind"
     click_button "Add name"
-    assert_text "James Cole"
+    assert_text "Alternate name added."
+    assert_css "strong.dd-list-title", text: "James Cole"
     assert_text "Jim Cole"
 
     click_link "Administration"

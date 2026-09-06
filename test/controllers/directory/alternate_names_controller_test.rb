@@ -10,6 +10,8 @@ module Directory
         party_alternate_name: { name: "Alexander Morgan", name_kind: "former_name" }
       }
       assert_redirected_to directory_party_path(party)
+      follow_redirect!
+      assert_select "strong.dd-list-title", text: "Alexander Morgan"
       alternate = party.alternate_names.find_by!(normalized_name: "alexander morgan")
       assert alternate.active?
       assert_includes agencies(:one).audit_events.pluck(:action), "directory.alternate_name_added"

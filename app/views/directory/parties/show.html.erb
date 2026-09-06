@@ -103,6 +103,10 @@
       <ul class="dd-list">
         <% @alternate_names.each do |alternate| %>
           <li class="dd-list-item">
+            <div>
+              <strong class="dd-list-title"><%= alternate.name %></strong>
+              <span class="dd-list-detail"><%= alternate.name_kind.titleize %></span>
+            </div>
             <%= form_with model: alternate,
               url: directory_party_alternate_name_path(@party, alternate),
               method: :patch,
@@ -113,7 +117,7 @@
                   <%= form.text_field :name, required: true, class: "dd-field" %>
                 </div>
                 <div class="dd-field-group">
-                  <%= form.label :name_kind, "Kind", class: "dd-label" %>
+                  <%= form.label :name_kind, "Name kind", class: "dd-label" %>
                   <%= form.select :name_kind,
                     PartyAlternateName::KINDS.map { |kind| [ kind.titleize, kind ] },
                     {},
