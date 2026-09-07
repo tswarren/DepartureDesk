@@ -27,6 +27,17 @@ module ActiveSupport
       person
     end
 
+    def create_organization!(agency, legal_name:, trading_name: nil, website: nil)
+      organization = Organization.new(agency:, legal_name:, trading_name:, website:)
+      party = agency.parties.new(party_kind: "organization", status: "active")
+      party.apply_derived_names!(organization)
+      party.save!
+      organization.party = party
+      organization.party_id = party.id
+      organization.save!
+      organization
+    end
+
     def create_email_contact!(party, address:, actor:, label: nil, email_type: "personal")
       CreatePartyContactPoint.new(
         agency: party.agency,
@@ -35,6 +46,17 @@ module ActiveSupport
         contact_kind: "email",
         label:,
         attributes: { display_address: address, email_type: }
+      ).call.contact_point
+    end
+
+    def create_phone_contact!(party, number:, actor:, label: nil, phone_type: "mobile", parsed_country_code: "US")
+      CreatePartyContactPoint.new(
+        agency: party.agency,
+        party:,
+        actor:,
+        contact_kind: "phone",
+        label:,
+        attributes: { display_number: number, phone_type:, parsed_country_code: }
       ).call.contact_point
     end
 

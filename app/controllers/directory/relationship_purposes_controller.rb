@@ -5,6 +5,11 @@ module Directory
     before_action :set_assignment, only: %i[close correct]
 
     def new
+      unless @party.active? && @relationship.origin_party.active? && @relationship.related_party.active?
+        redirect_to directory_party_relationships_path(@party), alert: "Inactive parties cannot receive a new relationship purpose."
+        return
+      end
+
       @assignment = @relationship.purpose_assignments.new(
         purpose: "general",
         priority: 1,

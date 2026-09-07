@@ -1779,6 +1779,13 @@ CREATE INDEX index_parties_on_agency_id_and_sort_name ON public.parties USING bt
 
 
 --
+-- Name: index_parties_on_display_name_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_parties_on_display_name_trgm ON public.parties USING gin (display_name public.gin_trgm_ops);
+
+
+--
 -- Name: index_parties_on_id_agency_id_and_party_kind; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1800,10 +1807,24 @@ CREATE UNIQUE INDEX index_parties_on_id_and_agency_id ON public.parties USING bt
 
 
 --
+-- Name: index_parties_on_sort_name_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_parties_on_sort_name_trgm ON public.parties USING gin (sort_name public.gin_trgm_ops);
+
+
+--
 -- Name: index_party_alternate_names_on_agency_id_and_normalized_name; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_party_alternate_names_on_agency_id_and_normalized_name ON public.party_alternate_names USING btree (agency_id, normalized_name);
+
+
+--
+-- Name: index_party_alternate_names_on_normalized_name_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_party_alternate_names_on_normalized_name_trgm ON public.party_alternate_names USING gin (normalized_name public.gin_trgm_ops);
 
 
 --
@@ -2807,6 +2828,7 @@ ALTER TABLE ONLY public.supplier_profiles
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260908010000'),
 ('20260907185600'),
 ('20260907185500'),
 ('20260907185000'),

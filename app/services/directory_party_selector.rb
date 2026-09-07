@@ -23,26 +23,36 @@ class DirectoryPartySelector
     keyword_init: true
   )
 
-  def initialize(agency:, mode: "any", household_allowed: true, q: nil, exclude_party_id: nil, limit: PAGE_SIZE)
+  def initialize(agency:, mode: "any", household_allowed: true, q: nil, exclude_party_id: nil, limit: PAGE_SIZE, include_inactive: false, party_kind: nil)
     @agency = agency
     @mode = mode.to_s
     @household_allowed = household_allowed
     @q = q.to_s.strip
     @exclude_party_id = exclude_party_id
     @limit = limit
+    @include_inactive = include_inactive
+    @party_kind = party_kind.to_s.presence
   end
 
-  def results
+  def relation
     unless MODES.include?(@mode)
       raise ArgumentError, "Unknown party selector mode."
     end
 
-    scope = @agency.parties.includes(:client_profile, :supplier_profile, person: :agency_membership).order(:sort_name, :id)
+    scope = @agency.parties.order(:sort_name, :id)
+    scope = scope.active unless @include_inactive
     scope = scope.where.not(id: @exclude_party_id) if @exclude_party_id.present?
+    scope = scope.where(party_kind: @party_kind) if Party::KINDS.include?(@party_kind.to_s)
     scope = apply_mode(scope)
     scope = apply_household(scope)
-    scope = apply_query(scope)
-    scope.limit(@limit).map { |party| result_for(party) }
+    apply_query(scope)
+  end
+
+  def results
+    relation
+      .includes(:client_profile, :supplier_profile, person: :agency_membership)
+      .limit(@limit)
+      .map { |party| result_for(party) }
   end
 
   private
@@ -87,8 +97,99 @@ class DirectoryPartySelector
   def apply_query(scope)
     return scope if @q.blank?
 
-    pattern = "#{sanitize_like(@q)}%"
-    scope.where("parties.display_name ILIKE :q OR parties.sort_name ILIKE :q", q: pattern)
+    binds = {
+      contains: "%#{sanitize_like(@q)}%",
+      raw: @q,
+      normalized_q: PartyName.normalize(@q),
+      identifier_value: ExternalIdentifierRegistry.normalize("legacy_party_id", @q)
+    }
+    clauses = [
+      "parties.display_name ILIKE :contains",
+      "parties.sort_name ILIKE :contains",
+      "similarity(parties.display_name, :raw) >= 0.3",
+      "similarity(parties.sort_name, :raw) >= 0.3",
+      "word_similarity(:raw, parties.display_name) >= 0.4",
+      "word_similarity(:raw, parties.sort_name) >= 0.4",
+      <<~SQL.squish,
+        EXISTS (
+          SELECT 1
+          FROM party_alternate_names an
+          WHERE an.party_id = parties.id
+            AND an.agency_id = parties.agency_id
+            AND an.status = 'active'
+            AND (
+              an.normalized_name ILIKE :contains
+              OR an.name ILIKE :contains
+              OR similarity(an.normalized_name, :normalized_q) >= 0.3
+              OR an.normalized_name % :normalized_q
+            )
+        )
+      SQL
+      <<~SQL.squish
+        EXISTS (
+          SELECT 1
+          FROM external_identifiers ei
+          LEFT JOIN client_profiles identifier_clients
+            ON identifier_clients.id = ei.client_profile_id
+          LEFT JOIN supplier_profiles identifier_suppliers
+            ON identifier_suppliers.id = ei.supplier_profile_id
+          WHERE ei.agency_id = parties.agency_id
+            AND ei.status = 'active'
+            AND ei.normalized_value = :identifier_value
+            AND (
+              ei.party_id = parties.id
+              OR identifier_clients.party_id = parties.id
+              OR identifier_suppliers.party_id = parties.id
+            )
+        )
+      SQL
+    ]
+
+    if (email_value = normalized_email_query)
+      binds[:email_value] = email_value
+      clauses << <<~SQL.squish
+        EXISTS (
+          SELECT 1
+          FROM party_contact_points cp
+          WHERE cp.party_id = parties.id
+            AND cp.agency_id = parties.agency_id
+            AND cp.status = 'active'
+            AND cp.contact_kind = 'email'
+            AND cp.normalized_value = :email_value
+        )
+      SQL
+    end
+
+    if (phone_value = normalized_phone_query)
+      binds[:phone_value] = phone_value
+      clauses << <<~SQL.squish
+        EXISTS (
+          SELECT 1
+          FROM party_contact_points cp
+          WHERE cp.party_id = parties.id
+            AND cp.agency_id = parties.agency_id
+            AND cp.status = 'active'
+            AND cp.contact_kind = 'phone'
+            AND cp.normalized_value = :phone_value
+        )
+      SQL
+    end
+
+    scope.where(clauses.join(" OR "), **binds)
+  end
+
+  def normalized_email_query
+    EmailAddressNormalizer.normalize(@q)[:normalized_address]
+  rescue EmailAddressNormalizer::Error
+    nil
+  end
+
+  def normalized_phone_query
+    return if @q.match?(/\A\D*\z/)
+
+    PhoneNumberNormalizer.normalize(@q).normalized_digits
+  rescue PhoneNumberNormalizer::Error
+    nil
   end
 
   def sanitize_like(value)

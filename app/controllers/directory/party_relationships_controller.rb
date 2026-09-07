@@ -4,6 +4,11 @@ module Directory
     before_action :set_relationship, only: %i[close correct void]
 
     def new
+      unless @party.active?
+        redirect_to directory_party_relationships_path(@party), alert: "Inactive parties cannot receive a new relationship."
+        return
+      end
+
       @relationship_kind = params[:relationship_kind].to_s.presence
       load_selector
     end

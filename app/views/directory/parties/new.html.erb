@@ -20,6 +20,42 @@
     </div>
   </article>
 <% else %>
+  <% if @duplicate_match&.candidates&.any? %>
+    <article class="dd-panel">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title">Possible existing records</h2>
+      </header>
+      <div class="dd-panel-body">
+        <div class="dd-alert <%= @duplicate_match.strong? ? "dd-alert--danger" : "dd-alert--warning" %>" role="alert">
+          <p>
+            <% if @duplicate_match.strong? %>
+              A likely duplicate already exists. Use the existing record or enter a reason to create a separate identity.
+            <% else %>
+              A similar directory record already exists. Use the existing record or create a separate identity.
+            <% end %>
+          </p>
+        </div>
+        <ul class="dd-list">
+          <% @duplicate_match.candidates.each do |candidate| %>
+            <li class="dd-list-item">
+              <div>
+                <strong class="dd-list-title"><%= candidate.display_name %></strong>
+                <span class="dd-list-detail">
+                  <%= candidate.party_kind.titleize %>
+                  · <%= candidate.status.titleize %>
+                  <% if candidate.primary_contact.present? %>
+                    · <%= candidate.primary_contact %>
+                  <% end %>
+                </span>
+              </div>
+              <%= link_to "Use this record", directory_party_path(candidate.party_id), class: "dd-button dd-button--secondary dd-button--small" %>
+            </li>
+          <% end %>
+        </ul>
+      </div>
+    </article>
+  <% end %>
+
   <article class="dd-panel">
     <div class="dd-panel-body">
       <% if @profile.errors.any? %>
@@ -36,8 +72,25 @@
       <%= form_with model: @party, url: directory_parties_path, method: :post, class: "dd-form" do |form| %>
         <%= form.hidden_field :party_kind, value: @party_kind %>
         <%= render "directory/parties/#{@party_kind}_fields", form: form, profile: @profile %>
+        <% if @duplicate_match&.candidates&.any? %>
+          <input type="hidden" name="party[create_anyway]" value="1">
+          <input type="hidden" name="party[acknowledged_strength]" value="<%= @duplicate_match.strength %>">
+          <% @duplicate_match.candidates.each do |candidate| %>
+            <input type="hidden" name="party[acknowledged_candidate_ids][]" value="<%= candidate.party_id %>">
+          <% end %>
+          <% if @duplicate_match.strong? %>
+            <div class="dd-field-group">
+              <label class="dd-label" for="party_duplicate_override_reason">Reason for creating a separate identity</label>
+              <input class="dd-field" id="party_duplicate_override_reason" name="party[duplicate_override_reason]" required value="<%= params.dig(:party, :duplicate_override_reason) %>">
+            </div>
+          <% end %>
+        <% end %>
         <div class="dd-form-actions">
-          <%= form.submit "Create #{@party_kind}", class: "dd-button" %>
+          <% if @duplicate_match&.candidates&.any? %>
+            <%= form.submit "Create as a separate identity", class: "dd-button" %>
+          <% else %>
+            <%= form.submit "Create #{@party_kind}", class: "dd-button" %>
+          <% end %>
           <%= link_to "Cancel", directory_parties_path, class: "dd-button dd-button--quiet" %>
         </div>
       <% end %>

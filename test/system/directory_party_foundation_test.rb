@@ -24,9 +24,9 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     click_link "Household"
     assert_field "Household name"
     wait_for_turbo
-    fill_in "Household name", with: "Cole Household"
+    fill_in "Household name", with: "Jamie Cole Household"
     click_button "Create household"
-    assert_text "Cole Household"
+    assert_text "Jamie Cole Household"
 
     click_link_and_expect "Back to directory", heading: "People, households, and organizations"
     click_link_and_expect "Add to directory", heading: "Add to directory"
@@ -40,7 +40,7 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
 
     open_directory
     assert_text "Jamie Cole"
-    assert_text "Cole Household"
+    assert_text "Jamie Cole Household"
     assert_text "Summit Travel"
 
     open_directory_party "Jamie Cole"
