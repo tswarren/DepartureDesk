@@ -16,6 +16,11 @@
     <h2 class="dd-panel-title">Relationship</h2>
   </header>
   <div class="dd-panel-body">
+    <%= render "directory/shared/party_selector_filter",
+      field_id: "other_party_id",
+      q: @q,
+      filter_url: new_directory_party_party_relationship_path(@party),
+      filter_params: { relationship_kind: @relationship_kind } %>
     <%= form_with url: directory_party_party_relationships_path(@party), method: :post, class: "dd-form" do %>
       <div class="dd-field-group">
         <label class="dd-label" for="relationship_kind">Relationship kind</label>
@@ -30,10 +35,7 @@
         field_name: "party_relationship[other_party_id]",
         field_id: "other_party_id",
         candidates: @candidates,
-        selected_id: nil,
-        q: @q,
-        filter_url: new_directory_party_party_relationship_path(@party),
-        filter_params: { relationship_kind: @relationship_kind } %>
+        selected_id: @other_party_id %>
       <div class="dd-field-group">
         <label class="dd-label" for="relationship_label">Relationship label</label>
         <select name="party_relationship[relationship_label]" id="relationship_label" class="dd-field">

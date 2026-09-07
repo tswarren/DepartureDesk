@@ -27,6 +27,21 @@ module Directory
       assert_response :not_found
     end
 
+    test "the add-relationship filter is not nested inside the create form" do
+      sign_in_as(users(:one))
+      party = parties(:unlinked)
+
+      get new_directory_party_party_relationship_path(party)
+      assert_response :success
+      assert_select "form[method=get][action=?]", new_directory_party_party_relationship_path(party)
+      assert_select "form[action=?]", directory_party_party_relationships_path(party) do
+        assert_select "select#relationship_kind"
+        assert_select "select#other_party_id"
+        assert_select "input[type=submit][value='Add relationship']"
+      end
+      assert_select "form form", count: 0
+    end
+
     test "incompatible kinds are rejected by the server" do
       sign_in_as(users(:one))
 

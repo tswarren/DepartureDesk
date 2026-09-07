@@ -25,6 +25,7 @@ module Directory
       redirect_to directory_party_relationships_path(@party), notice: "Relationship added."
     rescue MembershipCommand::Error => error
       @relationship_kind = relationship_params[:relationship_kind]
+      @other_party_id = relationship_params[:other_party_id]
       load_selector
       flash.now[:alert] = error.message
       render :new, status: error.code == :conflict ? :conflict : :unprocessable_entity

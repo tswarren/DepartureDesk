@@ -29,6 +29,8 @@ class DirectoryPhase2cDemoTest < ApplicationSystemTestCase
     assert_text "Supplier role updated."
 
     within("nav[aria-label=Party]") { click_link "Relationships" }
+    assert_link "Add relationship"
+    wait_for_turbo
     click_link "Add relationship"
     select "Organization Contact", from: "Relationship kind"
     select "Maria Ruiz (Person)", from: "Related party"
