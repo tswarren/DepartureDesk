@@ -10,9 +10,9 @@ module Directory
         party: @party,
         office: office_from_params!
       ).call
-      redirect_to directory_party_path(@party), notice: "Supplier role added."
+      redirect_to directory_party_roles_path(@party), notice: "Supplier role added."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     def update
@@ -31,9 +31,9 @@ module Directory
         cancellation_policy_notes: profile_params[:cancellation_policy_notes],
         lock_version: profile_params[:lock_version]
       ).call
-      redirect_to directory_party_path(@party), notice: "Supplier role updated."
+      redirect_to directory_party_roles_path(@party), notice: "Supplier role updated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     def deactivate
@@ -45,9 +45,9 @@ module Directory
         reason: profile_params[:reason],
         lock_version: profile_params[:lock_version]
       ).call
-      redirect_to directory_party_path(@party), notice: "Supplier role deactivated."
+      redirect_to directory_party_roles_path(@party), notice: "Supplier role deactivated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     def reactivate
@@ -59,9 +59,9 @@ module Directory
         office: office_from_params!,
         lock_version: profile_params[:lock_version]
       ).call
-      redirect_to directory_party_path(@party), notice: "Supplier role reactivated."
+      redirect_to directory_party_roles_path(@party), notice: "Supplier role reactivated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     def assign_category
@@ -72,9 +72,9 @@ module Directory
         profile: @profile,
         category_code: profile_params[:category_code]
       ).call
-      redirect_to directory_party_path(@party), notice: "Supplier category added."
+      redirect_to directory_party_roles_path(@party), notice: "Supplier category added."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     def remove_category
@@ -85,9 +85,9 @@ module Directory
         profile: @profile,
         category_code: profile_params[:category_code]
       ).call
-      redirect_to directory_party_path(@party), notice: "Supplier category removed."
+      redirect_to directory_party_roles_path(@party), notice: "Supplier category removed."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     private

@@ -90,6 +90,8 @@ Rails.application.routes.draw do
           post :unpin
         end
       end
+      resource :roles, only: :show, controller: "roles"
+      resource :record, only: :show, controller: "records"
       resources :external_identifiers, only: :create do
         member do
           post :deactivate

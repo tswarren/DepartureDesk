@@ -9,9 +9,9 @@ module Directory
       post directory_party_alternate_names_path(party), params: {
         party_alternate_name: { name: "Alexander Morgan", name_kind: "former_name" }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to edit_directory_party_path(party)
       follow_redirect!
-      assert_select "strong.dd-list-title", text: "Alexander Morgan"
+      assert_select "strong.dd-cell-title", text: "Alexander Morgan"
       alternate = party.alternate_names.find_by!(normalized_name: "alexander morgan")
       assert alternate.active?
       assert_includes agencies(:one).audit_events.pluck(:action), "directory.alternate_name_added"
@@ -19,14 +19,14 @@ module Directory
       patch directory_party_alternate_name_path(party, alternate), params: {
         party_alternate_name: { name: "Alex J. Morgan", name_kind: "former_name" }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to edit_directory_party_path(party)
       assert_equal "Alex J. Morgan", alternate.reload.name
       assert_includes agencies(:one).audit_events.pluck(:action), "directory.alternate_name_updated"
 
       assert_no_difference("PartyAlternateName.count") do
         delete directory_party_alternate_name_path(party, alternate)
       end
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to edit_directory_party_path(party)
       assert alternate.reload.removed?
       assert_includes agencies(:one).audit_events.pluck(:action), "directory.alternate_name_removed"
     end

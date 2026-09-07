@@ -1,27 +1,13 @@
 <% content_for :title, "#{@party.display_name} · Relationships · DepartureDesk" %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Directory</p>
-    <h1 class="dd-page-title"><%= @party.display_name %></h1>
-    <p class="dd-page-description">
-      <%= party_kind_badge(@party) %>
-      Directory relationships are not client, traveler, payer, or supplier roles.
-    </p>
-    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
-  </div>
-  <div class="dd-page-actions">
-    <% if @party.active? %>
-      <%= link_to "Add relationship", new_directory_party_party_relationship_path(@party), class: "dd-button" %>
-    <% end %>
-  </div>
-</header>
-
-<%= render "directory/shared/party_subnav", party: @party, current: :relationships %>
+<%= render "directory/shared/party_chrome", party: @party, current: :relationships %>
 
 <article class="dd-panel">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Current relationships</h2>
+    <% if @party.active? %>
+      <%= link_to "Add relationship", new_directory_party_party_relationship_path(@party), class: "dd-button dd-button--secondary dd-button--small" %>
+    <% end %>
   </header>
   <div class="dd-panel-body">
     <% if @current_relationships.any? %>

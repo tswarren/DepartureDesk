@@ -10,9 +10,9 @@ module Directory
         name: alternate_params[:name],
         name_kind: alternate_params[:name_kind]
       ).call
-      redirect_to directory_party_path(@party), notice: "Alternate name added."
+      redirect_to edit_directory_party_path(@party), notice: "Alternate name added."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to edit_directory_party_path(@party), alert: error.message
     end
 
     def update
@@ -25,9 +25,9 @@ module Directory
         name: alternate_params[:name],
         name_kind: alternate_params[:name_kind]
       ).call
-      redirect_to directory_party_path(@party), notice: "Alternate name updated."
+      redirect_to edit_directory_party_path(@party), notice: "Alternate name updated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to edit_directory_party_path(@party), alert: error.message
     end
 
     def destroy
@@ -38,9 +38,9 @@ module Directory
         party: @party,
         alternate_name: alternate
       ).call
-      redirect_to directory_party_path(@party), notice: "Alternate name removed."
+      redirect_to edit_directory_party_path(@party), notice: "Alternate name removed."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to edit_directory_party_path(@party), alert: error.message
     end
 
     private

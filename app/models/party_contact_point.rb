@@ -82,7 +82,7 @@ class PartyContactPoint < ApplicationRecord
   def display_value
     case contact_kind
     when "postal_address" then postal_address&.formatted_address
-    when "phone" then phone_number&.display_number
+    when "phone" then phone_number&.formatted_number
     when "email" then email_address&.display_address
     end
   end

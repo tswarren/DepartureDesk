@@ -1,5 +1,7 @@
 # DepartureDesk Presentation and Interface Contract
 
+> This document describes proposed future-state presentation patterns. The current application does not implement every listed primitive. For the UX party-record prototype, `docs/planning/phase-2-ux-refactor/ux-foundation-party-record-prototype.md` and its planning addendum define the in-scope subset. Prototype values become canonical only after the stakeholder visual-review gate.
+
 This is the presentation contract for application layouts, tenant administration, travel operations, and party-local directory pages. It does not change routes, commands, or terminology.
 
 Reuse these `.dd-` classes before adding new presentation rules. Do not introduce ViewComponent, third-party icon fonts/gems, or view-specific CSS files.

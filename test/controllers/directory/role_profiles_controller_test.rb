@@ -6,7 +6,7 @@ module Directory
       sign_in_as(users(:one))
       party = parties(:organization_one)
 
-      get directory_party_path(party)
+      get directory_party_roles_path(party)
       assert_response :success
       assert_includes response.body, "Roles"
       assert_includes response.body, "Add client role"
@@ -21,15 +21,17 @@ module Directory
         directory_party_supplier_profile_path(party) do
         assert_select "input[type=submit][value='Add supplier role']"
       end
-      assert_select "form[action=?]", directory_party_alternate_names_path(party) do
-        assert_select "input[type=submit][value='Add supplier role']", count: 0
-        assert_select "input[type=submit][value='Add client role']", count: 0
-      end
+
+      get directory_party_path(party)
+      assert_response :success
+      assert_includes response.body, "Not assigned"
+      assert_select "form#client_profile_create_form", count: 0
+      assert_select "form#supplier_profile_create_form", count: 0
 
       post directory_party_client_profile_path(party), params: {
         client_profile: { responsible_office_id: offices(:one).id }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       follow_redirect!
       assert_includes response.body, "Client role added."
       assert_select "h3.dd-list-title", text: "Client"
@@ -39,7 +41,7 @@ module Directory
       post deactivate_directory_party_client_profile_path(party), params: {
         client_profile: { reason: "No longer a client", lock_version: profile.lock_version }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       assert profile.reload.inactive?
 
       post reactivate_directory_party_client_profile_path(party), params: {
@@ -48,7 +50,7 @@ module Directory
           lock_version: profile.lock_version
         }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       assert profile.reload.active?
     end
 
@@ -59,14 +61,14 @@ module Directory
       post directory_party_supplier_profile_path(party), params: {
         supplier_profile: { responsible_office_id: offices(:one).id }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       assert party.reload.supplier_profile.active?
     end
 
     test "household overview has no supplier action" do
       sign_in_as(users(:one))
 
-      get directory_party_path(parties(:household_one))
+      get directory_party_roles_path(parties(:household_one))
       assert_response :success
       assert_includes response.body, "Ineligible"
       assert_includes response.body, "Households cannot hold a supplier role."
@@ -75,7 +77,7 @@ module Directory
       post directory_party_supplier_profile_path(parties(:household_one)), params: {
         supplier_profile: { responsible_office_id: offices(:one).id }
       }
-      assert_redirected_to directory_party_path(parties(:household_one))
+      assert_redirected_to directory_party_roles_path(parties(:household_one))
       follow_redirect!
       assert_includes response.body, "Households cannot be suppliers."
       assert_nil parties(:household_one).reload.supplier_profile
@@ -184,7 +186,7 @@ module Directory
       party = parties(:organization_one)
       profile = assign_client_role!(party, actor: users(:staff_one))
 
-      get directory_party_path(party)
+      get directory_party_roles_path(party)
       assert_response :success
       assert_select "select[name='client_profile[primary_advisor_membership_id]'] option[value=?]",
         agency_memberships(:staff_one).id,
@@ -199,7 +201,7 @@ module Directory
           lock_version: profile.lock_version
         }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       follow_redirect!
       assert_includes response.body, "Client advisor updated."
       assert_equal agency_memberships(:one).id, profile.reload.primary_advisor_membership_id
@@ -207,7 +209,7 @@ module Directory
       post clear_advisor_directory_party_client_profile_path(party), params: {
         client_profile: { lock_version: profile.lock_version }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       assert_nil profile.reload.primary_advisor_membership_id
     end
 
@@ -237,7 +239,7 @@ module Directory
           lock_version: profile.lock_version
         }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       follow_redirect!
       assert_includes response.body, "Choose an active team member as advisor."
       assert_nil profile.reload.primary_advisor_membership_id
@@ -257,7 +259,7 @@ module Directory
           lock_version: profile.lock_version
         }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       profile.reload
       assert profile.active?
       assert_equal "phone", profile.communication_preference
@@ -272,7 +274,7 @@ module Directory
       post assign_category_directory_party_supplier_profile_path(party), params: {
         supplier_profile: { category_code: "accommodation" }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       follow_redirect!
       assert_includes response.body, "Supplier category added."
       assert_includes response.body, "Accommodation"
@@ -280,7 +282,7 @@ module Directory
       post remove_category_directory_party_supplier_profile_path(party), params: {
         supplier_profile: { category_code: "accommodation" }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       assert_equal [], party.reload.supplier_profile.category_codes
     end
 
@@ -291,7 +293,7 @@ module Directory
       post directory_party_client_profile_path(party), params: {
         client_profile: { responsible_office_id: "" }
       }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_roles_path(party)
       follow_redirect!
       assert_includes response.body, "Choose an active office."
       assert_nil party.reload.client_profile

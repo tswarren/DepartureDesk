@@ -18,7 +18,7 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     fill_in "Phone number", with: "617-555-0142"
     select "Mobile", from: "Phone type"
     click_button "Add phone"
-    assert_text "617-555-0142"
+    assert_text "(617) 555-0142"
 
     click_link "Add email"
     fill_in "Email address", with: "alex.billing@example.com"

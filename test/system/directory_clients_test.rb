@@ -9,8 +9,7 @@ class DirectoryClientsTest < ApplicationSystemTestCase
     click_button_and_expect "Assign advisor", text: "Client advisor updated."
     assert_text "Riley Staff"
 
-    open_directory
-    click_link_and_expect "Clients", heading: "Clients"
+    open_clients
     assert_text "Horizon Tours"
     assert_text "Riley Staff"
     assert_text "No preference"

@@ -1,0 +1,45 @@
+<nav class="dd-breadcrumbs" aria-label="Breadcrumb">
+  <% party_breadcrumb_items(party).each_with_index do |item, index| %>
+    <% if index.positive? %>
+      <span class="dd-breadcrumb-sep" aria-hidden="true">/</span>
+    <% end %>
+    <% if item[:path] %>
+      <%= link_to item[:label], item[:path] %>
+    <% else %>
+      <span aria-current="page"><%= item[:label] %></span>
+    <% end %>
+  <% end %>
+</nav>
+
+<header class="dd-record-header">
+  <div class="dd-record-identity">
+    <h1 class="dd-page-title"><%= local_assigns.fetch(:title, party.display_name) %></h1>
+    <div class="dd-record-meta">
+      <%= party_kind_badge(party) %>
+      <%= party_status_badge(party) %>
+      <% if party.client_profile %>
+        <%= status_badge("Client", modifier: party.client_profile.active? ? "success" : "neutral") %>
+      <% end %>
+      <% if party.supplier_profile %>
+        <%= status_badge("Supplier", modifier: party.supplier_profile.active? ? "success" : "neutral") %>
+      <% end %>
+    </div>
+    <% if (line = party_identity_line(party)).present? %>
+      <p class="dd-record-kicker"><%= line %></p>
+    <% end %>
+  </div>
+  <div class="dd-record-actions">
+    <% if local_assigns.fetch(:show_primary_action, true) %>
+      <%= link_to party_edit_label(party), edit_directory_party_path(party), class: "dd-button" %>
+    <% end %>
+    <details class="dd-action-menu">
+      <summary class="dd-button dd-button--secondary dd-button--small">More actions</summary>
+      <ul class="dd-action-menu-panel">
+        <li><%= link_to "Manage roles", directory_party_roles_path(party) %></li>
+        <li><%= link_to "View record", directory_party_record_path(party) %></li>
+      </ul>
+    </details>
+  </div>
+</header>
+
+<%= render "directory/shared/party_subnav", party: party, current: current %>

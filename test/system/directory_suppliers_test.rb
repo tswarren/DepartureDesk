@@ -8,7 +8,7 @@ class DirectorySuppliersTest < ApplicationSystemTestCase
     select "Cruise", from: "Service category"
     click_button_and_expect "Add category", text: "Supplier category added."
 
-    click_link_and_expect "Suppliers", heading: "Suppliers"
+    open_suppliers
     assert_text "Horizon Tours"
     assert_text "Cruise"
     assert_no_text "Maria Ruiz"

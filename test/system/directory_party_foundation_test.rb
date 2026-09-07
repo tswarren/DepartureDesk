@@ -19,7 +19,7 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_text "Jamie Cole"
     jamie_id = Party.find_by!(display_name: "Jamie Cole").id
 
-    click_link_and_expect "Back to directory", heading: "People, households, and organizations"
+    open_directory
     click_link_and_expect "Add to directory", heading: "Add to directory"
     click_link "Household"
     assert_field "Household name"
@@ -28,7 +28,7 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     click_button "Create household"
     assert_text "Jamie Cole Household"
 
-    click_link_and_expect "Back to directory", heading: "People, households, and organizations"
+    open_directory
     click_link_and_expect "Add to directory", heading: "Add to directory"
     click_link "Organization"
     assert_field "Legal name"
@@ -44,20 +44,20 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_text "Summit Travel"
 
     open_directory_party "Jamie Cole"
-    click_link_and_expect "Edit", heading: "Edit Jamie Cole"
+    click_link_and_expect "Edit person", heading: "Edit Jamie Cole"
     assert_field "Preferred name"
     fill_in "Preferred name", with: "Jim"
     click_button "Save changes"
     assert_text "Jim Cole"
     assert_equal jamie_id, Party.find_by!(display_name: "Jim Cole").id
 
+    click_link_and_expect "Edit person", heading: "Edit Jim Cole"
     fill_in "Add alternate name", with: "James Cole"
     select "Former Name", from: "Add name kind"
     click_button "Add name"
     assert_text "Alternate name added."
     within("li.dd-list-item", text: "James Cole") do
-      assert_css "strong.dd-list-title", text: "James Cole"
-      assert_field "Alternate name", with: "James Cole"
+      assert_css "strong.dd-cell-title", text: "James Cole"
     end
     assert_text "Jim Cole"
 

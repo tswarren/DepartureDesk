@@ -55,18 +55,21 @@ class DirectoryPhase2dDemoTest < ApplicationSystemTestCase
     assert_selector "h1.dd-page-title", exact_text: "Alex Morgan"
     duplicate = Party.where(agency: agencies(:one), display_name: "Alex Morgan").where.not(id: parties(:unlinked).id).order(:created_at).last
 
+    click_party_tab "Record"
     fill_in "Party deactivation reason", with: "Unused duplicate"
-    accept_confirm { click_button "Deactivate party" }
+    click_button_accepting_confirm "Deactivate party"
     assert_text "Party deactivated."
     assert duplicate.reload.deactivated?
 
     open_directory_party "Horizon Tours"
     add_party_role "supplier", office_label: "Sunrise Travel (MAIN)"
+    click_party_tab "Record"
     fill_in "Party deactivation reason", with: "Still a supplier"
-    accept_confirm { click_button "Deactivate party" }
+    click_button_accepting_confirm "Deactivate party"
     assert_text "Horizon Tours (supplier)"
     assert parties(:organization_one).reload.active?
 
+    click_party_tab "Roles"
     fill_in "Supplier deactivation reason", with: "Season over"
     accept_confirm { click_button "Deactivate supplier role" }
     assert_text "Supplier role deactivated."
@@ -79,9 +82,11 @@ class DirectoryPhase2dDemoTest < ApplicationSystemTestCase
     assert_selector "a", exact_text: "Alex Morgan", count: 2
     visit directory_party_path(duplicate)
     assert_selector "h1.dd-page-title", exact_text: "Alex Morgan"
+    click_party_tab "Record"
     fill_in "Party reactivation reason", with: "Needed again"
     click_button "Reactivate party"
     assert_text "Party reactivated."
+    click_party_tab "Overview"
     assert_text "Not assigned"
     assert_nil duplicate.reload.client_profile
   end
