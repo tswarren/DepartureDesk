@@ -38,6 +38,17 @@ module ActiveSupport
       ).call.contact_point
     end
 
+    def create_phone_contact!(party, number:, actor:, label: nil, phone_type: "mobile", parsed_country_code: "US")
+      CreatePartyContactPoint.new(
+        agency: party.agency,
+        party:,
+        actor:,
+        contact_kind: "phone",
+        label:,
+        attributes: { display_number: number, phone_type:, parsed_country_code: }
+      ).call.contact_point
+    end
+
     def assign_client_role!(party, actor:, office: nil)
       CreateClientProfile.new(
         agency: party.agency,

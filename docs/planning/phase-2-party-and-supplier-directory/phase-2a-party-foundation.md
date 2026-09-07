@@ -175,7 +175,7 @@ Constraints and indexes:
 * Composite foreign key for `deactivated_by_membership_id` and agency
 * Deactivation actor membership must belong to the party agency
 
-Do not add `merged_into_party_id` in 2A. Phase 2D should add merge persistence with the transaction and participant contract that uses it.
+Do not add `merged_into_party_id` in 2A. Phase 2D must not add it either. Phase 2E adds merge persistence with the transaction and participant contract that uses it.
 
 ## 3.2 `people`
 

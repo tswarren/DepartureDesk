@@ -12,7 +12,7 @@ class CreatePartyTest < ActiveSupport::TestCase
       agency: agencies(:one),
       actor: users(:one),
       party_kind: "household",
-      attributes: { name: "Cole Household" }
+      attributes: { name: "Jamie Cole Household" }
     ).call.party
     organization = CreateParty.new(
       agency: agencies(:one),
@@ -27,7 +27,7 @@ class CreatePartyTest < ActiveSupport::TestCase
     assert_equal "person", person.person.party_kind
     assert_equal "household", household.household.party_kind
     assert_equal "organization", organization.organization.party_kind
-    assert_equal "Cole Household", household.display_name
+    assert_equal "Jamie Cole Household", household.display_name
     assert_equal "Summit Travel", organization.display_name
     assert_includes agencies(:one).audit_events.pluck(:action), "directory.party_created"
   end
@@ -67,6 +67,95 @@ class CreatePartyTest < ActiveSupport::TestCase
     ).call
 
     assert_equal agencies(:one).id, result.party.agency_id
+  end
+
+  test "returns duplicate review instead of inserting a possible match" do
+    assert_no_difference("Party.count") do
+      result = CreateParty.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party_kind: "person",
+        attributes: { given_name: "Alex", family_name: "Morgan" }
+      ).call
+      assert_equal :duplicate_review, result.status
+      assert_not result.ok?
+      assert_includes result.duplicate_match.candidate_ids, parties(:unlinked).id
+    end
+  end
+
+  test "creates a possible match after an acknowledged create-anyway" do
+    match = PartyDuplicateMatcher.new(
+      agency: agencies(:one),
+      party_kind: "person",
+      attributes: { given_name: "Alex", family_name: "Morgan" }
+    ).call
+
+    result = CreateParty.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      party_kind: "person",
+      attributes: { given_name: "Alex", family_name: "Morgan" },
+      create_anyway: true,
+      acknowledged_candidate_ids: match.candidate_ids,
+      acknowledged_strength: match.strength
+    ).call
+
+    assert result.ok?
+    assert_equal "Alex Morgan", result.party.display_name
+    assert_not_equal parties(:unlinked).id, result.party.id
+    event = agencies(:one).audit_events.where(action: "directory.party_created").order(:created_at).last
+    assert_equal "possible", event.details["duplicate_override_strength"]
+    assert_includes event.details["duplicate_candidate_ids"], parties(:unlinked).id
+  end
+
+  test "strong override requires a reason and records it" do
+    people(:unlinked).update!(date_of_birth: Date.new(1990, 5, 1))
+    attributes = { given_name: "Alex", family_name: "Morgan", date_of_birth: "1990-05-01" }
+    match = PartyDuplicateMatcher.new(agency: agencies(:one), party_kind: "person", attributes:).call
+
+    error = assert_raises(MembershipCommand::Error) do
+      CreateParty.new(
+        agency: agencies(:one),
+        actor: users(:staff_one),
+        party_kind: "person",
+        attributes:,
+        create_anyway: true,
+        acknowledged_candidate_ids: match.candidate_ids,
+        acknowledged_strength: match.strength
+      ).call
+    end
+    assert_equal :invalid, error.code
+
+    result = CreateParty.new(
+      agency: agencies(:one),
+      actor: users(:staff_one),
+      party_kind: "person",
+      attributes:,
+      create_anyway: true,
+      duplicate_override_reason: "Separate household member with the same name",
+      acknowledged_candidate_ids: match.candidate_ids,
+      acknowledged_strength: match.strength
+    ).call
+
+    assert result.ok?
+    event = agencies(:one).audit_events.where(action: "directory.party_created").order(:created_at).last
+    assert_equal "strong", event.details["duplicate_override_strength"]
+    assert_equal "Separate household member with the same name", event.details["duplicate_override_reason"]
+  end
+
+  test "rejects stale acknowledged candidates" do
+    error = assert_raises(MembershipCommand::Error) do
+      CreateParty.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party_kind: "person",
+        attributes: { given_name: "Alex", family_name: "Morgan" },
+        create_anyway: true,
+        acknowledged_candidate_ids: [ SecureRandom.uuid ],
+        acknowledged_strength: "possible"
+      ).call
+    end
+    assert_equal :stale, error.code
   end
 end
 

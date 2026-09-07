@@ -1,6 +1,6 @@
 # Phase 2 — Party and supplier directory
 
-Status: locked planning contract for implementation. Phase 2A, Phase 2B, and Phase 2C are implemented in this repository. Phase 2D (search, duplicate handling, merge, and party deactivation) remains planned. This supersedes the earlier directional outline. It must reuse Foundation 1 tenancy, authorization, audit, office, and numbering contracts rather than design around them.
+Status: locked planning contract for implementation. Phase 2A, Phase 2B, Phase 2C, and Phase 2D are implemented in this repository. Phase 2D (search, duplicate warnings, and party deactivation) is documented in [phase-2d-search-duplicates-lifecycle.md](phase-2d-search-duplicates-lifecycle.md). Executable merge is Phase 2E, specified in [phase-2e-party-merge.md](phase-2e-party-merge.md). This supersedes the earlier directional outline. It must reuse Foundation 1 tenancy, authorization, audit, office, and numbering contracts rather than design around them.
 
 ## Purpose
 
@@ -24,9 +24,9 @@ Demonstrate:
 6. Relate an existing person to a supplier organization as a contact.
 7. Search through the reusable party selector.
 8. Trigger and override a strong duplicate warning as staff, with an audited reason.
-9. Merge a confirmed same-kind duplicate as an administrator.
-10. Deactivate a role independently of the party.
-11. Preserve UUIDs, relationship history, absorbed-party aliases, and audit events.
+9. Deactivate an unused duplicate after dependency checks, and include inactive parties when searching.
+10. Deactivate a role independently of the party; fail party deactivation while an active role remains.
+11. Preserve UUIDs, relationship history, and audit events. Absorbed-party aliases belong to Phase 2E merge.
 
 Do not assign the person as a traveler, organizer, payer, or responsible client. Phase 2 only proves that later workflows can receive the same party ID.
 
@@ -108,7 +108,7 @@ A household is a named servicing and communication collective party.
 - An organization may have one current canonical trading name on its organization profile. Alternate-name records hold former trading names, additional doing-business-as names, acronyms, aliases, or imported representations. The current canonical trading name must not also be stored as an equivalent alternate-name row.
 - Every application-owned directory table uses UUID primary keys, `agency_id`, and timestamp-with-time-zone semantics. Independently editable aggregates use `lock_version`; join and assignment records use database constraints and transactional locking appropriate to their lifecycle.
 - Cross-agency controller tests are required for every new agency-owned resource, per ADR 0002.
-- Model and service tests must show that composite tenant constraints reject cross-agency membership-person links, party profiles, contacts, relationships, responsible offices, advisor memberships, external identifiers, and merge participants.
+- Model and service tests must show that composite tenant constraints reject cross-agency membership-person links, party profiles, contacts, relationships, responsible offices, advisor memberships, and external identifiers. Merge-participant tenant tests belong to Phase 2E.
 
 ### Role profiles
 
@@ -161,9 +161,11 @@ Advisor assignment history is effective-dated and owned by the client profile. D
 
 A primary advisor must be an active membership of the same agency. The advisor is not required to have an assignment to the profile’s responsible office.
 
-### Merge execution
+### Merge execution (Phase 2E)
 
-A merge runs in one database transaction, locks and revalidates both parties, and fails if either party changes disposition or gains an unresolved dependency before commit. Merge execution must be idempotent for the same survivor and absorbed party.
+Phase 2D must not add `merged_into_party_id` or merge tables. The locked merge policy lives in [phase-2e-party-merge.md](phase-2e-party-merge.md).
+
+When 2E ships, a merge runs in one database transaction, locks and revalidates both parties, and fails if either party changes disposition or gains an unresolved dependency before commit. Merge execution must be idempotent for the same survivor and absorbed party.
 
 The merge participant registry is fail-closed. A registered participant must declare whether its references are reassigned, preserved as historical references, consolidated, or block the merge. An unresolved party dependency blocks merge; the merge service must never assume an unknown reference can be reassigned.
 
@@ -209,7 +211,7 @@ A party contains only shared identity and lifecycle information:
 - Derived sort/search name
 - Active or deactivated state
 - Deactivated timestamp, actor, and reason
-- Merge status and surviving-party reference
+- Merge status and surviving-party reference (Phase 2E; not persisted in 2D)
 - Created and updated timestamps
 - Optimistic-lock version
 
@@ -641,9 +643,9 @@ Provide unified directory search across people, households, and organizations. S
 - Alternate names
 - Email addresses
 - Phone numbers
-- Postal address elements
 - Permitted external identifiers
-- Household and organization affiliations
+
+Phase 2D ships name, alternate-name, email, phone, and identifier lookup. Postal-address and affiliation search remain later.
 
 Results should display enough authorized context to distinguish candidates:
 
@@ -670,38 +672,23 @@ The system must never automatically merge parties.
 
 ### Person matching signals
 
-Potential person duplicates may be identified using weighted combinations of:
+Phase 2D create-time scoring uses only fields on the party form. A name match alone is a weak signal (`possible`, never `strong`).
+
+### Person matching signals (2D create)
 
 - Normalized name
-- Alternate names
-- Email
-- Phone
-- Date of birth
-- Address
-- Household affiliation
-- Organization affiliation
+- Date of birth when both values are present (name plus DOB is `strong`)
 
-A name match alone is a weak signal.
+Email, phone, address, and affiliations may inform a later review tool; they are not on the create form.
 
-### Household matching signals
+### Household matching signals (2D create)
 
-Potential household duplicates may consider:
+- Household name (`possible` only)
 
-- Household name
-- Shared address
-- Phone or email
-- Overlapping members
+### Organization matching signals (2D create)
 
-### Organization matching signals
-
-Potential organization duplicates may consider:
-
-- Legal, trading, or alternate names
-- Website domain
-- Phone
-- Address
-- External identifier
-- Parent organization
+- Legal or trading name (`possible`)
+- Website host plus a name match (`strong`)
 
 ### Creation workflow
 
@@ -720,7 +707,9 @@ Duplicate review must not expose administrator-only notes or other restricted co
 
 ---
 
-## 12. Merge policy
+## 12. Merge policy (Phase 2E)
+
+The rules below are the 2E contract. Phase 2D documents them and does not execute them. See [phase-2e-party-merge.md](phase-2e-party-merge.md).
 
 Merging is an explicit, administrator-only consolidation of two parties of the same kind.
 
@@ -772,9 +761,9 @@ Phase 2 ships an extensible dependency-check contract and the Phase 2 subscriber
 - Current organization-contact purposes
 - Current household membership
 - Surviving relationships that designate the party as primary
-- A pending merge disposition
+- A pending merge disposition (Phase 2E; not a 2D subscriber)
 
-Future domains register additional checks for departures, supplier arrangements, balances, and other records.
+Future domains register additional checks for departures, supplier arrangements, balances, and other records. Phase 2D ships the registry with the Phase 2 subscribers that already exist.
 
 ### Deactivated records
 
@@ -948,7 +937,7 @@ Create a person, household, and organization; find each through the agency direc
 
 ## Phase 2B — Contact information, relationships, and notes
 
-Implemented in this repository as Phase 2B.1–2B.3. The locked contract is [phase-2b-contact-info-relationships-notes.md](phase-2b-contact-info-relationships-notes.md). Client and supplier profiles, merge, party deactivation, and fuzzy search remain later slices.
+Implemented in this repository as Phase 2B.1–2B.3. The locked contract is [phase-2b-contact-info-relationships-notes.md](phase-2b-contact-info-relationships-notes.md). Party deactivation, search, and duplicate warnings are Phase 2D. Merge is Phase 2E.
 
 ### Deliverables
 
@@ -1026,48 +1015,43 @@ Find an existing organization, add both client and supplier roles, and relate an
 
 ---
 
-## Phase 2D — Search, duplicate handling, merge, and lifecycle hardening
+## Phase 2D — Search, duplicate warnings, and party lifecycle
+
+The locked implementation contract is [phase-2d-search-duplicates-lifecycle.md](phase-2d-search-duplicates-lifecycle.md). Implement as 2D.1–2D.3. Executable merge is Phase 2E.
 
 ### Deliverables
 
-- Unified `pg_trgm` directory search and normalized projections
-- Alternate-name search
-- Role-filtered selection
-- Advisory duplicate scoring
+- Party deactivation and reactivation commands
+- Extensible dependency-check registry with Phase 2 subscribers
+- Unified `pg_trgm` directory search on names and alternate names
+- Exact normalized email, phone, and current-identifier lookup
+- Role and kind filters; active parties by default; explicit include-inactive
+- Improved reusable party selector returning party UUIDs
+- Advisory duplicate scoring from create-form fields
 - Access-safe duplicate warnings
-- Staff create-anyway workflow with audited reason
-- Administrator-only same-kind merge of Phase 2-owned records
-- Transactional, idempotent, fail-closed merge with a concurrency test for two simultaneous merges of the same party
-- Absorbed-party aliases and tombstones
-- Membership-link transfer or block during person merge
-- Merge conflict resolution
-- Fail-closed merge-participant registry and documented contract for later domains
-- Party and role deactivation and reactivation
-- Extensible dependency-check interface with Phase 2 subscribers
-- Authorization, model, service, request, and system tests, including composite tenant-constraint rejection
+- Staff create-anyway workflow with audited reason for strong matches
+- Written merge-participant contract (Phase 2E policy)
+- Authorization, model, service, request, and system tests
 
 ### Required invariants
 
 - The system never automatically merges parties.
 - Contractually unique identifiers still enforce hard uniqueness.
 - Users cannot obtain administrator-only notes through duplicate warnings.
-- Merge requires same agency and same party kind.
-- Merge is transactional, idempotent for the same survivor and absorbed party, and fail-closed for unregistered party dependencies.
-- Historical snapshots and documents are not rewritten by merge.
-- An absorbed party cannot be reactivated independently.
-- An absorbed person cannot retain an active membership link.
-- Automatic unmerge is not part of the application contract.
 - Directory-owned dependency checks run before deactivation.
+- Reactivation does not restore roles, relationships, or contact purposes.
+- Name-only matches are never strong.
+- 2D does not persist `merged_into_party_id`.
 
 ### Not in 2D
 
-- Cross-kind merge
-- Cross-agency merge
+- Executable merge, tombstones, merge UI, or merge concurrency machinery
+- Cross-kind or cross-agency merge
 - General unmerge
-- Privacy erasure workflow
-- Hard-deletion UI
-- Automatic downstream reference reassignment for domains that do not yet exist
-- Universal merge callbacks
+- Privacy erasure workflow or hard-deletion UI
+- Create-form contact wizard
+- Postal-address or affiliation search
+- Invitation/provisioning duplicate matching
 - Traveler, payer, organizer, or departure-role workflows
 
 ### Exit demonstration
@@ -1077,16 +1061,47 @@ Attempt to create a likely duplicate, review the authorized match information, c
 Then:
 
 - Create a justified separate identity after a strong warning, as staff.
+- Deactivate an unused duplicate after dependency checks.
+- Deactivate a supplier role without deactivating the underlying party; fail party deactivation while that role is active.
+- Include inactive parties in search and reactivate an eligible party.
+- Confirm that historical relationship and audit records remain intact.
+- Confirm the selector continues to return party UUIDs.
+
+---
+
+## Phase 2E — Party merge
+
+The locked policy is [phase-2e-party-merge.md](phase-2e-party-merge.md). Do not implement until a downstream domain needs a single surviving party UUID.
+
+### Deliverables
+
+- Administrator-only same-kind merge of Phase 2-owned records
+- Transactional, idempotent, fail-closed merge with a concurrency test for two simultaneous merges of the same party
+- Absorbed-party aliases and tombstones
+- Membership-link transfer or block during person merge
+- Merge conflict resolution
+- Fail-closed merge-participant registry for later domains
+
+### Required invariants
+
+- Merge requires same agency and same party kind.
+- Merge is transactional, idempotent for the same survivor and absorbed party, and fail-closed for unregistered party dependencies.
+- Historical snapshots and documents are not rewritten by merge.
+- An absorbed party cannot be reactivated independently.
+- An absorbed person cannot retain an active membership link.
+- Automatic unmerge is not part of the application contract.
+
+### Exit demonstration
+
 - Merge a confirmed same-kind duplicate, as an administrator.
 - Find the survivor through the absorbed identity.
-- Deactivate a supplier role without deactivating the underlying party.
 - Confirm that historical relationship and audit records remain intact.
 
 ---
 
 # Phase 2 completion criteria
 
-Phase 2 is complete when:
+Phase 2 directory identity (through 2D) is complete when:
 
 1. People, households, and organizations have stable agency-owned identities, and terminology matches that model.
 2. Every membership is linked to a reusable person identity through `agency_memberships.person_party_id`.
@@ -1095,10 +1110,10 @@ Phase 2 is complete when:
 5. External contacts use person identities, effective-dated relationships, and purpose assignments.
 6. Contact information and alternate names can be maintained and searched without unsafe uniqueness assumptions.
 7. Household and organization relationships preserve their effective history, including overlapping membership where allowed.
-8. Future domains have a written contract for contextual snapshots and merge participation.
+8. Future domains have a written contract for contextual snapshots and merge participation (2E policy).
 9. Search and role-specific selection reuse the same party directory.
 10. Strong duplicate candidates require an explicit, audited decision, which staff may make.
-11. Same-kind Phase 2 duplicates can be merged by an administrator without erasing absorbed identities or rewriting historical facts. Merge is transactional, idempotent, concurrency-tested, and fail-closed for unregistered party references.
+11. Same-kind Phase 2 merge is specified as Phase 2E. It is not required for 2D exit. When 2E ships, an administrator can merge without erasing absorbed identities or rewriting historical facts. Merge is transactional, idempotent, concurrency-tested, and fail-closed for unregistered party references.
 12. Party and role deactivation preserve retained history and enforce Phase 2 dependency checks.
 13. General notes cannot serve as storage for credentials, payment data, identity documents, or medical records, and they are not office-scoped.
 14. Office attributes control responsibility and defaults without partitioning the directory or cloning identities.

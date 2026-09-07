@@ -8,7 +8,7 @@ Do not branch until PR 12 is green and merged.
 
 ## Status
 
-**2C.1 through 2C.4 are implemented** in this repository (role profiles, advisors, client and supplier directories, supplier categories, role-aware selector, and external identifiers). Merge, party deactivation, fuzzy search, travelers, payers, arrangements, and posted money remain out of scope.
+**2C.1 through 2C.4 are implemented** in this repository (role profiles, advisors, client and supplier directories, supplier categories, role-aware selector, and external identifiers). Party deactivation, search, and duplicate warnings are implemented in Phase 2D. Merge, travelers, payers, arrangements, and posted money remain out of scope.
 
 ---
 
@@ -76,7 +76,7 @@ Deactivation requires a reason. Reactivation clears the deactivation disposition
 
 A deactivated profile is reactivated rather than recreated. The unique party/profile relationship remains permanent. Creating a role when an inactive profile already exists is a reactivation choice or conflict; it must not insert a second row.
 
-Do not deactivate the party when a role is deactivated. Inactive parties cannot receive a new active role, even though party deactivation itself is Phase 2D.
+Do not deactivate the party when a role is deactivated. Inactive parties cannot receive a new active role. Party deactivation is Phase 2D.
 
 Use the same state-bearing projection as responsible office:
 
@@ -205,7 +205,8 @@ Privileged directory commands continue to attribute membership-backed dispositio
 
 ### 2.9 Explicitly out of 2C
 
-* Party deactivation, merge, duplicate scoring, and `pg_trgm` fuzzy search (Phase 2D)
+* Party deactivation, duplicate scoring, and `pg_trgm` fuzzy search (Phase 2D)
+* Executable merge (Phase 2E)
 * Advisor-assignment correction / supersession
 * Exceptional identifier-uniqueness override
 * `UpdateExternalIdentifier`

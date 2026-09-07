@@ -120,6 +120,27 @@ module Directory
       assert_select "[onchange]", count: 0
     end
 
+    test "search finds name email and role filters without leaking other agencies" do
+      sign_in_as(users(:one))
+      create_email_contact!(parties(:unlinked), address: "alex.search@example.com", actor: users(:one))
+      assign_client_role!(parties(:household_one), actor: users(:one))
+
+      get directory_parties_path, params: { q: "Tours" }
+      assert_response :success
+      assert_includes response.body, "Horizon Tours"
+      assert_not_includes response.body, "Alex Morgan"
+
+      get directory_parties_path, params: { q: "alex.search@example.com" }
+      assert_response :success
+      assert_includes response.body, "Alex Morgan"
+      assert_not_includes response.body, parties(:two).display_name
+
+      get directory_parties_path, params: { role: "client" }
+      assert_response :success
+      assert_includes response.body, "Morgan Household"
+      assert_not_includes response.body, "Horizon Tours"
+    end
+
     test "directory index paginates by sort name and id" do
       sign_in_as(users(:one))
       CreateParty.new(
@@ -228,6 +249,98 @@ module Directory
       assert_response :success
       assert_not_includes response.body, "primary.inbox@example.com"
       assert_select "h3.dd-empty-title", text: "No primary contact information"
+    end
+
+    test "staff can deactivate an unblocked party and include it when requested" do
+      sign_in_as(users(:staff_one))
+      party = parties(:unlinked)
+
+      post deactivate_directory_party_path(party), params: { reason: "Unused duplicate" }
+      assert_redirected_to directory_party_path(party)
+      follow_redirect!
+      assert_includes response.body, "Party deactivated."
+      assert party.reload.deactivated?
+
+      get directory_parties_path
+      assert_response :success
+      assert_not_includes response.body, party.display_name
+
+      get directory_parties_path(include_inactive: "1")
+      assert_response :success
+      assert_includes response.body, party.display_name
+
+      post reactivate_directory_party_path(party), params: { reason: "Needed" }
+      assert_redirected_to directory_party_path(party)
+      assert party.reload.active?
+    end
+
+    test "cross-agency party lifecycle routes return not found" do
+      sign_in_as(users(:one))
+
+      post deactivate_directory_party_path(parties(:two)), params: { reason: "Leave" }
+      assert_response :not_found
+      assert parties(:two).reload.active?
+    end
+
+    test "create warns on a likely duplicate and can use the existing party" do
+      sign_in_as(users(:one))
+      contact = create_email_contact!(parties(:unlinked), address: "alex.inbox@example.com", actor: users(:one))
+      AssignContactPointPurpose.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party: parties(:unlinked),
+        contact_point: contact,
+        purpose: "general",
+        priority: 1
+      ).call
+
+      assert_no_difference("Party.count") do
+        post directory_parties_path, params: {
+          party: { party_kind: "person", given_name: "Alex", family_name: "Morgan" }
+        }
+      end
+      assert_response :unprocessable_entity
+      assert_includes response.body, "Possible existing records"
+      assert_includes response.body, "Alex Morgan"
+      assert_includes response.body, "alex.inbox@example.com"
+      assert_not_includes response.body, "Restricted credit discussion for administrators only."
+      assert_select "a", text: "Use this record"
+    end
+
+    test "staff can create a justified separate identity after a strong warning" do
+      sign_in_as(users(:staff_one))
+      people(:unlinked).update!(date_of_birth: Date.new(1990, 5, 1))
+
+      post directory_parties_path, params: {
+        party: {
+          party_kind: "person",
+          given_name: "Alex",
+          family_name: "Morgan",
+          date_of_birth: "1990-05-01"
+        }
+      }
+      assert_response :unprocessable_entity
+      assert_includes response.body, "Reason for creating a separate identity"
+
+      assert_difference("Party.count", 1) do
+        post directory_parties_path, params: {
+          party: {
+            party_kind: "person",
+            given_name: "Alex",
+            family_name: "Morgan",
+            date_of_birth: "1990-05-01",
+            create_anyway: "1",
+            acknowledged_strength: "strong",
+            acknowledged_candidate_ids: [ parties(:unlinked).id ],
+            duplicate_override_reason: "Twins with the same name"
+          }
+        }
+      end
+      party = agencies(:one).parties.order(:created_at).last
+      assert_redirected_to directory_party_path(party)
+      event = agencies(:one).audit_events.where(action: "directory.party_created").order(:created_at).last
+      assert_equal "strong", event.details["duplicate_override_strength"]
+      assert_equal "Twins with the same name", event.details["duplicate_override_reason"]
     end
   end
 end

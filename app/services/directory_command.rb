@@ -29,7 +29,7 @@ class DirectoryCommand < MembershipCommand
     raise Error.new("This record was updated by someone else.", code: :conflict)
   rescue ActiveRecord::InvalidForeignKey, ActiveRecord::StatementInvalid => error
     raise Error.new("Choose an active office.", code: :invalid) if office_status_fk_violation?(error)
-    raise Error.new("An inactive party cannot receive an active role.", code: :invalid) if party_status_fk_violation?(error)
+    raise party_status_fk_error if party_status_fk_violation?(error)
     raise Error.new("Choose an active team member as advisor.", code: :invalid) if advisor_status_fk_violation?(error)
     raise Error.new("The current advisor must match the open assignment.", code: :conflict) if advisor_agreement_violation?(error)
     raise Error.new("That advisor assignment overlaps an existing interval.", code: :conflict) if advisor_exclusion_violation?(error)
@@ -93,6 +93,10 @@ class DirectoryCommand < MembershipCommand
 
   def party_status_fk_violation?(error)
     projection_fk_violation?(error, "party_active_projection_fk")
+  end
+
+  def party_status_fk_error
+    Error.new("An inactive party cannot receive an active role.", code: :invalid)
   end
 
   def advisor_status_fk_violation?(error)

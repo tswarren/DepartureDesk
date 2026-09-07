@@ -2,15 +2,23 @@ module Directory
   class PartiesController < ApplicationController
     class_attribute :page_size, default: 50
 
-    before_action :set_party, only: %i[show edit update]
+    before_action :set_party, only: %i[show edit update deactivate reactivate]
+
+    INDEX_ROLES = %w[client supplier].freeze
 
     def index
+      @q = params[:q].to_s.strip.presence
       @party_kind = params[:party_kind] if Party::KINDS.include?(params[:party_kind])
+      @role = params[:role] if INDEX_ROLES.include?(params[:role])
+      @include_inactive = params[:include_inactive] == "1"
       @page = [ params[:page].to_i, 1 ].max
-      scope = Current.agency.parties
-        .includes(:household, :organization, person: :agency_membership)
-        .order(:sort_name, :id)
-      scope = scope.where(party_kind: @party_kind) if @party_kind
+      scope = DirectoryPartySelector.new(
+        agency: Current.agency,
+        mode: @role || "any",
+        q: @q,
+        include_inactive: @include_inactive,
+        party_kind: @party_kind
+      ).relation.includes(:household, :organization, :client_profile, :supplier_profile, person: :agency_membership)
       records = scope.offset((@page - 1) * page_size).limit(page_size + 1).to_a
       @has_next_page = records.size > page_size
       @parties = records.first(page_size)
@@ -57,16 +65,31 @@ module Directory
         agency: Current.agency,
         actor: Current.user,
         party_kind: @party_kind,
-        attributes: profile_params(@party_kind)
+        attributes: profile_params(@party_kind),
+        create_anyway: party_params[:create_anyway],
+        duplicate_override_reason: party_params[:duplicate_override_reason],
+        acknowledged_candidate_ids: party_params[:acknowledged_candidate_ids],
+        acknowledged_strength: party_params[:acknowledged_strength]
       ).call
+      if result.status == :duplicate_review
+        assign_new_form
+        @duplicate_match = result.duplicate_match
+        flash.now[:alert] = duplicate_review_message(@duplicate_match)
+        render :new, status: :unprocessable_entity
+        return
+      end
+
       redirect_to directory_party_path(result.party), notice: "#{result.party.kind_label} created."
     rescue MembershipCommand::Error => error
-      @party = Current.agency.parties.new(party_kind: @party_kind, status: "active")
-      @profile = profile_class(@party_kind).new(agency: Current.agency)
-      @profile.assign_attributes(profile_params(@party_kind))
+      assign_new_form
+      @duplicate_match = PartyDuplicateMatcher.new(
+        agency: Current.agency,
+        party_kind: @party_kind,
+        attributes: profile_params(@party_kind)
+      ).call
       @profile.validate
       flash.now[:alert] = error.message
-      render :new, status: :unprocessable_entity
+      render :new, status: error.code == :stale ? :conflict : :unprocessable_entity
     end
 
     def edit
@@ -91,6 +114,32 @@ module Directory
       render :edit, status: error.code == :conflict ? :conflict : :unprocessable_entity
     end
 
+    def deactivate
+      DeactivateParty.new(
+        agency: Current.agency,
+        actor: Current.user,
+        party: @party,
+        reason: lifecycle_params[:reason],
+        lock_version: lifecycle_params[:lock_version]
+      ).call
+      redirect_to directory_party_path(@party), notice: "Party deactivated."
+    rescue MembershipCommand::Error => error
+      redirect_to directory_party_path(@party), alert: error.message
+    end
+
+    def reactivate
+      ReactivateParty.new(
+        agency: Current.agency,
+        actor: Current.user,
+        party: @party,
+        reason: lifecycle_params[:reason],
+        lock_version: lifecycle_params[:lock_version]
+      ).call
+      redirect_to directory_party_path(@party), notice: "Party reactivated."
+    rescue MembershipCommand::Error => error
+      redirect_to directory_party_path(@party), alert: error.message
+    end
+
     private
 
     def set_party
@@ -109,9 +158,35 @@ module Directory
         :given_name, :middle_name, :family_name, :prefix, :suffix, :preferred_name,
         :form_of_address, :pronouns, :date_of_birth,
         :name, :correspondence_name,
-        :legal_name, :trading_name, :website
+        :legal_name, :trading_name, :website,
+        :create_anyway, :duplicate_override_reason, :acknowledged_strength,
+        acknowledged_candidate_ids: []
       )
     end
+
+    def assign_new_form
+      @party = Current.agency.parties.new(party_kind: @party_kind, status: "active")
+      @profile = profile_class(@party_kind).new(agency: Current.agency)
+      @profile.assign_attributes(profile_params(@party_kind))
+    end
+
+    def duplicate_review_message(match)
+      if match.strong?
+        "A likely duplicate already exists. Review it before creating a separate identity."
+      else
+        "A similar directory record already exists."
+      end
+    end
+
+    def directory_index_params
+      {
+        q: @q,
+        party_kind: @party_kind,
+        role: @role,
+        include_inactive: (@include_inactive ? "1" : nil)
+      }.compact_blank
+    end
+    helper_method :directory_index_params
 
     def profile_params(kind)
       allowed = CreateParty::PROFILE_ATTRS[kind] || []
@@ -120,6 +195,10 @@ module Directory
 
     def profile_lock_version_param
       party_params[:profile_lock_version]
+    end
+
+    def lifecycle_params
+      params.permit(:reason, :lock_version)
     end
   end
 end

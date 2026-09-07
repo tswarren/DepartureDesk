@@ -22,6 +22,8 @@ class AuditEvent < ApplicationRecord
     office_access.default_changed
     directory.party_created
     directory.party_updated
+    directory.party_deactivated
+    directory.party_reactivated
     directory.alternate_name_added
     directory.alternate_name_updated
     directory.alternate_name_removed

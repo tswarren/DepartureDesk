@@ -20,15 +20,35 @@
     <h2 class="dd-panel-title">Directory</h2>
   </header>
   <div class="dd-panel-body">
-    <form method="get" action="<%= directory_parties_path %>" class="dd-form" style="max-width: 16rem; margin-bottom: 1rem;">
-      <div class="dd-field-group">
-        <label class="dd-label" for="party_kind">Kind</label>
-        <select name="party_kind" id="party_kind" class="dd-field">
-          <option value="">All</option>
-          <% Party::KINDS.each do |kind| %>
-            <option value="<%= kind %>" <%= "selected" if @party_kind == kind %>><%= kind.titleize %></option>
-          <% end %>
-        </select>
+    <form method="get" action="<%= directory_parties_path %>" class="dd-form" style="margin-bottom: 1rem;">
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <label class="dd-label" for="directory_q">Search</label>
+          <input class="dd-field" id="directory_q" name="q" value="<%= @q %>" autocomplete="off">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="party_kind">Kind</label>
+          <select name="party_kind" id="party_kind" class="dd-field">
+            <option value="">All</option>
+            <% Party::KINDS.each do |kind| %>
+              <option value="<%= kind %>" <%= "selected" if @party_kind == kind %>><%= kind.titleize %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="directory_role">Role</label>
+          <select name="role" id="directory_role" class="dd-field">
+            <option value="">All</option>
+            <option value="client" <%= "selected" if @role == "client" %>>Client</option>
+            <option value="supplier" <%= "selected" if @role == "supplier" %>>Supplier</option>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="include_inactive">
+            <input type="checkbox" name="include_inactive" id="include_inactive" value="1" <%= "checked" if @include_inactive %>>
+            Include inactive
+          </label>
+        </div>
       </div>
       <div class="dd-form-actions">
         <button type="submit" class="dd-button dd-button--secondary dd-button--small">Apply filter</button>
@@ -67,10 +87,10 @@
       <% if @page > 1 || @has_next_page %>
         <nav class="dd-button-group" aria-label="Directory pagination">
           <% if @page > 1 %>
-            <%= link_to "Previous", directory_parties_path(party_kind: @party_kind, page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
+            <%= link_to "Previous", directory_parties_path(directory_index_params.merge(page: @page - 1)), class: "dd-button dd-button--quiet dd-button--small" %>
           <% end %>
           <% if @has_next_page %>
-            <%= link_to "Next", directory_parties_path(party_kind: @party_kind, page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
+            <%= link_to "Next", directory_parties_path(directory_index_params.merge(page: @page + 1)), class: "dd-button dd-button--quiet dd-button--small" %>
           <% end %>
         </nav>
       <% end %>

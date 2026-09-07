@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented in this repository as Phase 2B.1–2B.3. Client and supplier profiles, merge, party deactivation, and fuzzy search remain out of scope.
+Implemented in this repository as Phase 2B.1–2B.3. Client and supplier profiles are Phase 2C. Party deactivation, search, and duplicate warnings are implemented in Phase 2D. Merge is Phase 2E.
 
 Phase 2A is shipped and remains authoritative for:
 
@@ -15,7 +15,7 @@ Phase 2A is shipped and remains authoritative for:
 
 Phase 2B adds reusable contact information, effective-dated party relationships, relationship contact purposes, and retained internal notes.
 
-It does not add client profiles, supplier profiles, duplicate detection, merge, party deactivation, or operational traveler/departure roles.
+It does not add client profiles, supplier profiles, duplicate detection, merge, party deactivation, or operational traveler/departure roles. Those belong to 2C, 2D, and 2E.
 
 Implement 2B as three mergeable PRs (2B.1 contacts, 2B.2 relationships, 2B.3 notes). Do not land the whole slice in one review.
 

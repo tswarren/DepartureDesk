@@ -45,6 +45,10 @@ Rails.application.routes.draw do
     resources :clients, only: :index
     resources :suppliers, only: :index
     resources :parties, only: %i[index new create show edit update] do
+      member do
+        post :deactivate
+        post :reactivate
+      end
       resources :alternate_names, only: %i[create update destroy]
       resource :contact_information, only: :show, controller: "contact_information"
       resource :relationships, only: :show, controller: "relationships"
