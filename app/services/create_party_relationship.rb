@@ -33,6 +33,7 @@ class CreatePartyRelationship < DirectoryCommand
     if @origin_party.id == @related_party.id
       raise Error.new("A party cannot be related to itself.", code: :invalid)
     end
+    ensure_active_parties!(@origin_party, @related_party, noun: "a new relationship")
 
     origin = @origin_party
     related = @related_party

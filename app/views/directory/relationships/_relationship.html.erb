@@ -31,7 +31,7 @@
   </div>
   <% if relationship.record_valid? %>
     <div class="dd-button-group">
-      <% if relationship.purpose_eligible? %>
+      <% if relationship.purpose_eligible? && relationship.origin_party.active? && relationship.related_party.active? %>
         <%= link_to "Assign purpose", new_directory_party_party_relationship_purpose_path(party, relationship), class: "dd-button dd-button--quiet dd-button--small" %>
       <% end %>
       <%= form_with url: end_directory_party_party_relationship_path(party, relationship), method: :post, class: "dd-form" do %>

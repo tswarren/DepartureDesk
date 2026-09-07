@@ -84,4 +84,33 @@ class PartyDuplicateMatcherTest < ActiveSupport::TestCase
 
     assert match.none?
   end
+
+  test "narrows and caps candidates without scanning unrelated people" do
+    match = PartyDuplicateMatcher.new(
+      agency: agencies(:one),
+      party_kind: "person",
+      attributes: { given_name: "Alex", family_name: "Morgan" },
+      party_ids: [ parties(:one).id ]
+    ).call
+    assert match.none?
+
+    CreateParty.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      party_kind: "person",
+      attributes: { given_name: "Alex", family_name: "Morgan" },
+      create_anyway: true,
+      acknowledged_candidate_ids: [ parties(:unlinked).id ],
+      acknowledged_strength: "possible"
+    ).call
+
+    capped = PartyDuplicateMatcher.new(
+      agency: agencies(:one),
+      party_kind: "person",
+      attributes: { given_name: "Alex", family_name: "Morgan" },
+      limit: 1
+    ).call
+    assert_equal 1, capped.candidates.size
+    assert capped.possible?
+  end
 end

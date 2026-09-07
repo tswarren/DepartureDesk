@@ -1,5 +1,21 @@
 class PartyDeactivationDependencies
   SAMPLE_SIZE = 5
+  Checker = Data.define(:name, :runner)
+
+  class << self
+    def checkers
+      @checkers ||= []
+    end
+
+    def register(name, &block)
+      unregister(name)
+      checkers << Checker.new(name.to_s, block)
+    end
+
+    def unregister(name)
+      checkers.reject! { |checker| checker.name == name.to_s }
+    end
+  end
 
   def initialize(agency:, party:)
     @agency = agency
@@ -32,65 +48,70 @@ class PartyDeactivationDependencies
 
   def summary
     @summary ||= begin
-      items = []
-      items.concat(membership_items)
-      items.concat(role_items)
-      items.concat(household_items)
-      items.concat(organization_relationship_items)
-      items.concat(primary_purpose_items)
+      items = self.class.checkers.flat_map { |checker| items_for(checker) }
       { total: items.size, labels: items.first(SAMPLE_SIZE) }
     end
   end
 
-  def membership_items
-    membership = @party.person&.agency_membership
-    return [] if membership.blank?
-
-    [ "Team membership (#{membership.agency_display_name})" ]
+  def items_for(checker)
+    Array(
+      checker.runner.call(
+        agency: @agency,
+        party: @party,
+        today: @today
+      )
+    ).compact
+  rescue StandardError
+    [ "#{checker.name} could not be verified" ]
   end
+end
 
-  def role_items
-    items = []
-    if @party.client_profile&.active?
-      items << "#{@party.display_name} (client)"
-    end
-    if @party.supplier_profile&.active?
-      items << "#{@party.display_name} (supplier)"
-    end
-    items
-  end
+PartyDeactivationDependencies.register("membership") do |party:, **|
+  membership = party.person&.agency_membership
+  next [] if membership.blank?
 
-  def household_items
-    scope = PartyRelationship.current_on(@today).where(relationship_kind: "household_member").involving(@party)
-    scope.includes(:origin_party, :related_party).order(:id).map { |relationship|
-      other = relationship.origin_party_id == @party.id ? relationship.related_party : relationship.origin_party
+  [ "Team membership (#{membership.agency_display_name})" ]
+end
+
+PartyDeactivationDependencies.register("roles") do |party:, **|
+  items = []
+  items << "#{party.display_name} (client)" if party.client_profile&.active?
+  items << "#{party.display_name} (supplier)" if party.supplier_profile&.active?
+  items
+end
+
+PartyDeactivationDependencies.register("household_membership") do |party:, today:, **|
+  PartyRelationship.current_on(today).where(relationship_kind: "household_member").involving(party)
+    .includes(:origin_party, :related_party)
+    .order(:id)
+    .map { |relationship|
+      other = relationship.origin_party_id == party.id ? relationship.related_party : relationship.origin_party
       "#{other.display_name} (household membership)"
     }
-  end
+end
 
-  def organization_relationship_items
-    scope = PartyRelationship.current_on(@today)
-      .where(relationship_kind: %w[organization_contact organization_affiliation])
-      .involving(@party)
-    scope.includes(:origin_party, :related_party).order(:id).map { |relationship|
-      other = relationship.origin_party_id == @party.id ? relationship.related_party : relationship.origin_party
+PartyDeactivationDependencies.register("organization_relationships") do |party:, today:, **|
+  PartyRelationship.current_on(today)
+    .where(relationship_kind: %w[organization_contact organization_affiliation])
+    .involving(party)
+    .includes(:origin_party, :related_party)
+    .order(:id)
+    .map { |relationship|
+      other = relationship.origin_party_id == party.id ? relationship.related_party : relationship.origin_party
       "#{other.display_name} (#{relationship.relationship_kind.tr("_", " ")})"
     }
-  end
+end
 
-  def primary_purpose_items
-    RelationshipPurposeAssignment.record_valid.primary
-      .joins(:party_relationship)
-      .where("relationship_purpose_assignments.effective_from IS NULL OR relationship_purpose_assignments.effective_from <= ?", @today)
-      .where("relationship_purpose_assignments.effective_until IS NULL OR relationship_purpose_assignments.effective_until > ?", @today)
-      .where(
-        "party_relationships.origin_party_id = :id OR party_relationships.related_party_id = :id OR relationship_purpose_assignments.organization_party_id = :id",
-        id: @party.id
-      )
-      .includes(:party_relationship)
-      .order(:id)
-      .map { |assignment|
-        "#{assignment.purpose_label} primary"
-      }
-  end
+PartyDeactivationDependencies.register("primary_purposes") do |party:, today:, **|
+  RelationshipPurposeAssignment.record_valid.primary
+    .joins(:party_relationship)
+    .where("relationship_purpose_assignments.effective_from IS NULL OR relationship_purpose_assignments.effective_from <= ?", today)
+    .where("relationship_purpose_assignments.effective_until IS NULL OR relationship_purpose_assignments.effective_until > ?", today)
+    .where(
+      "party_relationships.origin_party_id = :id OR party_relationships.related_party_id = :id OR relationship_purpose_assignments.organization_party_id = :id",
+      id: party.id
+    )
+    .includes(:party_relationship)
+    .order(:id)
+    .map { |assignment| "#{assignment.purpose_label} primary" }
 end

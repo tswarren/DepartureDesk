@@ -42,6 +42,24 @@ module Directory
       assert_select "form form", count: 0
     end
 
+    test "inactive parties do not expose relationship creation" do
+      sign_in_as(users(:one))
+      party = parties(:unlinked)
+      DeactivateParty.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        reason: "Unused"
+      ).call
+
+      get directory_party_relationships_path(party)
+      assert_response :success
+      assert_select "a", text: "Add relationship", count: 0
+
+      get new_directory_party_party_relationship_path(party)
+      assert_redirected_to directory_party_relationships_path(party)
+    end
+
     test "incompatible kinds are rejected by the server" do
       sign_in_as(users(:one))
 

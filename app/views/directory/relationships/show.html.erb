@@ -11,7 +11,9 @@
     <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
   </div>
   <div class="dd-page-actions">
-    <%= link_to "Add relationship", new_directory_party_party_relationship_path(@party), class: "dd-button" %>
+    <% if @party.active? %>
+      <%= link_to "Add relationship", new_directory_party_party_relationship_path(@party), class: "dd-button" %>
+    <% end %>
   </div>
 </header>
 

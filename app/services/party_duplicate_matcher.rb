@@ -1,5 +1,6 @@
 class PartyDuplicateMatcher
   STRENGTHS = %w[none possible strong hard_conflict].freeze
+  CANDIDATE_LIMIT = 10
 
   Candidate = Struct.new(
     :party_id,
@@ -45,13 +46,17 @@ class PartyDuplicateMatcher
     nil
   end
 
-  def initialize(agency:, party_kind:, attributes:)
+  def initialize(agency:, party_kind:, attributes:, party_ids: nil, limit: CANDIDATE_LIMIT)
     @agency = agency
     @party_kind = party_kind.to_s
     @attributes = attributes.to_h.symbolize_keys
+    @party_ids = Array(party_ids).presence
+    @limit = limit
   end
 
   def call
+    return Result.new(strength: "none", candidates: []) if @party_ids && @party_ids.empty?
+
     candidates = case @party_kind
     when "person" then person_candidates
     when "household" then household_candidates
@@ -80,7 +85,7 @@ class PartyDuplicateMatcher
     )
     proposed_dob = parse_date(@attributes[:date_of_birth])
 
-    matching_people.filter_map do |person|
+    matching_people(given:, family:, display: proposed_display).filter_map do |person|
       display_match = PartyName.normalize(person.party.display_name) == proposed_display
       name_match = PartyName.normalize(person.given_name) == given &&
         PartyName.normalize(person.family_name) == family
@@ -98,7 +103,7 @@ class PartyDuplicateMatcher
     name = PartyName.normalize(@attributes[:name])
     return [] if name.blank?
 
-    matching_households.filter_map do |household|
+    matching_households(name).filter_map do |household|
       next unless PartyName.normalize(household.name) == name
 
       candidate_for(household.party, strength: "possible", signals: [ "name" ])
@@ -112,7 +117,7 @@ class PartyDuplicateMatcher
 
     proposed_host = self.class.website_host(@attributes[:website])
 
-    matching_organizations.filter_map do |organization|
+    matching_organizations(legal:, trading:).filter_map do |organization|
       legal_match = legal.present? && PartyName.normalize(organization.legal_name) == legal
       trading_match = trading.present? && organization.trading_name.present? &&
         PartyName.normalize(organization.trading_name) == trading
@@ -126,33 +131,47 @@ class PartyDuplicateMatcher
     end
   end
 
-  def matching_people
-    @agency.people.includes(party: party_summary_includes).select do |person|
-      PartyName.normalize(person.family_name) == PartyName.normalize(@attributes[:family_name]) ||
-        PartyName.normalize(person.party.display_name) == PartyName.normalize(
-          PartyName.person(
-            given_name: @attributes[:given_name],
-            family_name: @attributes[:family_name],
-            preferred_name: @attributes[:preferred_name],
-            middle_name: @attributes[:middle_name]
-          ).display_name
-        )
-    end
+  def matching_people(given:, family:, display:)
+    scope = @agency.people.joins(:party)
+    scope = scope.where(party_id: @party_ids) if @party_ids
+    scope.where(
+      "(#{sql_normalized("people.given_name")} = :given AND #{sql_normalized("people.family_name")} = :family) OR #{sql_normalized("parties.display_name")} = :display",
+      given:, family:, display:
+    ).includes(party: party_summary_includes).order("parties.sort_name", "parties.id").limit(@limit)
   end
 
-  def matching_households
-    @agency.households.includes(party: party_summary_includes).select do |household|
-      PartyName.normalize(household.name) == PartyName.normalize(@attributes[:name])
-    end
+  def matching_households(name)
+    scope = @agency.households.joins(:party)
+    scope = scope.where(party_id: @party_ids) if @party_ids
+    scope.where("#{sql_normalized("households.name")} = :name", name:)
+      .includes(party: party_summary_includes)
+      .order("parties.sort_name", "parties.id")
+      .limit(@limit)
   end
 
-  def matching_organizations
-    @agency.organizations.includes(party: party_summary_includes).select do |organization|
-      legal = PartyName.normalize(@attributes[:legal_name])
-      trading = PartyName.normalize(@attributes[:trading_name])
-      (legal.present? && PartyName.normalize(organization.legal_name) == legal) ||
-        (trading.present? && organization.trading_name.present? && PartyName.normalize(organization.trading_name) == trading)
+  def matching_organizations(legal:, trading:)
+    scope = @agency.organizations.joins(:party)
+    scope = scope.where(party_id: @party_ids) if @party_ids
+    clauses = []
+    binds = {}
+    if legal.present?
+      clauses << "#{sql_normalized("organizations.legal_name")} = :legal"
+      binds[:legal] = legal
     end
+    if trading.present?
+      clauses << "#{sql_normalized("organizations.trading_name")} = :trading"
+      binds[:trading] = trading
+    end
+    return scope.none if clauses.empty?
+
+    scope.where(clauses.join(" OR "), **binds)
+      .includes(party: party_summary_includes)
+      .order("parties.sort_name", "parties.id")
+      .limit(@limit)
+  end
+
+  def sql_normalized(column)
+    "lower(regexp_replace(btrim(normalize(#{column}, NFKC)), '\\s+', ' ', 'g'))"
   end
 
   def party_summary_includes

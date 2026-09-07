@@ -87,6 +87,12 @@ class DirectoryCommand < MembershipCommand
     error.cause.is_a?(PG::ExclusionViolation)
   end
 
+  def ensure_active_parties!(*parties, noun:)
+    return unless parties.flatten.compact.any? { |party| !party.active? }
+
+    raise Error.new("Inactive parties cannot receive #{noun}.", code: :invalid)
+  end
+
   def office_status_fk_violation?(error)
     projection_fk_violation?(error, "office_active_projection_fk")
   end

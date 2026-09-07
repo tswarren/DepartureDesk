@@ -163,4 +163,44 @@ class PartyLifecycleCommandsTest < ActiveSupport::TestCase
     assert profile.reload.inactive?
     assert_nil profile.party_status
   end
+
+  test "a registered checker can block deactivation without changing the lifecycle command" do
+    PartyDeactivationDependencies.register("test_only") do |party:, **|
+      [ "#{party.display_name} (registered check)" ]
+    end
+
+    error = assert_raises(MembershipCommand::Error) do
+      DeactivateParty.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party: parties(:unlinked),
+        reason: "Leave"
+      ).call
+    end
+    assert_equal :party_dependency, error.code
+    assert_match(/registered check/, error.message)
+    assert parties(:unlinked).reload.active?
+  ensure
+    PartyDeactivationDependencies.unregister("test_only")
+  end
+
+  test "a checker failure blocks deactivation instead of looking like no dependencies" do
+    PartyDeactivationDependencies.register("boom") do |**|
+      raise "checker exploded"
+    end
+
+    error = assert_raises(MembershipCommand::Error) do
+      DeactivateParty.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party: parties(:unlinked),
+        reason: "Leave"
+      ).call
+    end
+    assert_equal :party_dependency, error.code
+    assert_match(/boom could not be verified/, error.message)
+    assert parties(:unlinked).reload.active?
+  ensure
+    PartyDeactivationDependencies.unregister("boom")
+  end
 end

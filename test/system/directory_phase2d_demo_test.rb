@@ -38,6 +38,7 @@ class DirectoryPhase2dDemoTest < ApplicationSystemTestCase
     add_party_role "client", office_label: "Sunrise Travel (MAIN)"
     assert_text "Active"
 
+    open_directory
     click_link_and_expect "Add to directory", heading: "Add to directory"
     click_link "Person"
     fill_in "Given name", with: "Alex"

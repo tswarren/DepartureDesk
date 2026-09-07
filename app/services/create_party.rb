@@ -44,8 +44,10 @@ class CreateParty < MembershipCommand
     end
 
     match = current_match
-    lock_match_parties!(match)
-    match = current_match
+    if match.candidates.any?
+      lock_match_parties!(match)
+      match = current_match(party_ids: match.candidate_ids)
+    end
 
     unless @create_anyway
       unless match.none?
@@ -77,11 +79,12 @@ class CreateParty < MembershipCommand
     CommandResult.new(status: :created, party: party, duplicate_match: match)
   end
 
-  def current_match
+  def current_match(party_ids: nil)
     PartyDuplicateMatcher.new(
       agency: @agency,
       party_kind: @party_kind,
-      attributes: permitted_attributes
+      attributes: permitted_attributes,
+      party_ids:
     ).call
   end
 

@@ -31,6 +31,11 @@ class AssignRelationshipPurpose < DirectoryCommand
     unless @relationship.purpose_eligible? && @relationship.record_valid?
       raise Error.new("Purposes can only be assigned to an organization affiliation or contact.", code: :invalid)
     end
+    ensure_active_parties!(
+      @relationship.origin_party,
+      @relationship.related_party,
+      noun: "a new relationship purpose"
+    )
     from = @effective_from.presence || DirectoryDate.today(@agency)
     unless @relationship.current_on?(from)
       raise Error.new("Purposes cannot be assigned to an ended relationship.", code: :invalid)
