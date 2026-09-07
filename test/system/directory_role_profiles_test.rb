@@ -6,9 +6,7 @@ class DirectoryRoleProfilesTest < ApplicationSystemTestCase
     open_directory_party "Horizon Tours"
     assert_text "Roles"
     assert_text "Not assigned"
-    select "Sunrise Travel (MAIN)", from: "Client responsible office"
-    click_button "Add client role"
-    assert_text "Client role added."
+    add_party_role "client", office_label: "Sunrise Travel (MAIN)"
     assert_text "Active"
     assert_text "Sunrise Travel (MAIN)"
 

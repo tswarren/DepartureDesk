@@ -1,0 +1,125 @@
+<% content_for :title, "Suppliers · Directory · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Directory</p>
+    <h1 class="dd-page-title">Suppliers</h1>
+    <p class="dd-page-description">
+      Parties with a supplier role. Identity remains the directory party.
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Open directory", directory_parties_path, class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Supplier directory</h2>
+  </header>
+  <div class="dd-panel-body">
+    <form method="get" action="<%= directory_suppliers_path %>" class="dd-form" style="margin-bottom: 1rem;">
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <label class="dd-label" for="status">Status</label>
+          <select name="status" id="status" class="dd-field">
+            <option value="">All</option>
+            <% SupplierProfile::STATUSES.each do |status| %>
+              <option value="<%= status %>" <%= "selected" if @status == status %>><%= status.titleize %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="party_kind">Kind</label>
+          <select name="party_kind" id="party_kind" class="dd-field">
+            <option value="">All</option>
+            <% SupplierProfile::PARTY_KINDS.each do |kind| %>
+              <option value="<%= kind %>" <%= "selected" if @party_kind == kind %>><%= kind.titleize %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="office_id">Responsible office</label>
+          <select name="office_id" id="office_id" class="dd-field">
+            <option value="">All</option>
+            <% @offices.each do |office| %>
+              <option value="<%= office.id %>" <%= "selected" if @office_id.to_s == office.id.to_s %>><%= office_choice_label(office) %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="category_code">Category</label>
+          <select name="category_code" id="category_code" class="dd-field">
+            <option value="">All</option>
+            <% SupplierServiceCategoryAssignment::CATEGORY_CODES.each do |code| %>
+              <option value="<%= code %>" <%= "selected" if @category_code == code %>><%= supplier_category_label(code) %></option>
+            <% end %>
+          </select>
+        </div>
+      </div>
+      <div class="dd-form-actions">
+        <button type="submit" class="dd-button dd-button--secondary dd-button--small">Apply filter</button>
+      </div>
+    </form>
+
+    <% if @supplier_profiles.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Kind</th>
+              <th>Status</th>
+              <th>Categories</th>
+              <th>Office</th>
+              <th>General primaries</th>
+              <th>Booking contact</th>
+              <th>Accounting contact</th>
+              <th>Currency</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @supplier_profiles.each do |profile| %>
+              <tr>
+                <td><%= link_to profile.party.display_name, directory_party_path(profile.party) %></td>
+                <td><%= party_kind_badge(profile.party) %></td>
+                <td><%= role_profile_status_badge(profile) %></td>
+                <td>
+                  <% if profile.category_codes.any? %>
+                    <%= profile.service_category_assignments.sort_by(&:category_code).map(&:category_label).to_sentence %>
+                  <% else %>
+                    —
+                  <% end %>
+                </td>
+                <td><%= responsible_office_text(profile) %></td>
+                <td>
+                  <% supplier_general_primary_lines(profile.party, @today).each do |line| %>
+                    <div><%= line %></div>
+                  <% end %>
+                </td>
+                <td><%= @booking_contacts[profile.party_id]&.display_name || "—" %></td>
+                <td><%= @accounting_contacts[profile.party_id]&.display_name || "—" %></td>
+                <td><%= profile.default_currency %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <% if @page > 1 || @has_next_page %>
+        <nav class="dd-button-group" aria-label="Supplier directory pagination">
+          <% if @page > 1 %>
+            <%= link_to "Previous", directory_suppliers_path(status: @status, party_kind: @party_kind, office_id: @office_id, category_code: @category_code, page: @page - 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+          <% if @has_next_page %>
+            <%= link_to "Next", directory_suppliers_path(status: @status, party_kind: @party_kind, office_id: @office_id, category_code: @category_code, page: @page + 1), class: "dd-button dd-button--quiet dd-button--small" %>
+          <% end %>
+        </nav>
+      <% end %>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No supplier roles</h3>
+        <p class="dd-empty-copy">Add a supplier role from a person or organization record. The party remains the directory identity.</p>
+      </div>
+    <% end %>
+  </div>
+</article>

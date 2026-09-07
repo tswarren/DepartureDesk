@@ -23,4 +23,11 @@
   <% else %>
     <span aria-disabled="true">Notes</span>
   <% end %>
+  <% if party_named_route?(:directory_party_identifiers) %>
+    <%= link_to "Identifiers",
+      directory_party_identifiers_path(party),
+      aria: { current: ("page" if current == :identifiers) } %>
+  <% else %>
+    <span aria-disabled="true">Identifiers</span>
+  <% end %>
 </nav>

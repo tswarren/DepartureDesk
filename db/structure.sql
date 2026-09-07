@@ -53,6 +53,110 @@ COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching
 
 
 --
+-- Name: client_advisor_assignments_prevent_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.client_advisor_assignments_prevent_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.client_profile_id IS DISTINCT FROM OLD.client_profile_id
+    OR NEW.advisor_membership_id IS DISTINCT FROM OLD.advisor_membership_id
+    OR NEW.effective_from IS DISTINCT FROM OLD.effective_from THEN
+    RAISE EXCEPTION 'advisor assignment identity cannot change';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: client_advisor_current_matches_open_assignment(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.client_advisor_current_matches_open_assignment() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  target_profile_id uuid;
+  pointer uuid;
+  open_count integer;
+  open_membership_id uuid;
+BEGIN
+  IF TG_TABLE_NAME = 'client_profiles' THEN
+    target_profile_id := COALESCE(NEW.id, OLD.id);
+  ELSE
+    target_profile_id := COALESCE(NEW.client_profile_id, OLD.client_profile_id);
+  END IF;
+
+  SELECT primary_advisor_membership_id
+    INTO pointer
+    FROM client_profiles
+    WHERE id = target_profile_id;
+
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT COUNT(*)::integer
+    INTO open_count
+    FROM client_advisor_assignments
+    WHERE client_profile_id = target_profile_id
+      AND effective_until IS NULL;
+
+  IF pointer IS NULL THEN
+    IF COALESCE(open_count, 0) <> 0 THEN
+      RAISE EXCEPTION 'current advisor must agree with open assignment history'
+        USING ERRCODE = 'check_violation';
+    END IF;
+  ELSIF COALESCE(open_count, 0) <> 1 THEN
+    RAISE EXCEPTION 'current advisor must agree with open assignment history'
+      USING ERRCODE = 'check_violation';
+  ELSE
+    SELECT advisor_membership_id
+      INTO STRICT open_membership_id
+      FROM client_advisor_assignments
+      WHERE client_profile_id = target_profile_id
+        AND effective_until IS NULL;
+
+    IF open_membership_id IS DISTINCT FROM pointer THEN
+      RAISE EXCEPTION 'current advisor must agree with open assignment history'
+        USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: external_identifiers_prevent_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.external_identifiers_prevent_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.party_id IS DISTINCT FROM OLD.party_id
+    OR NEW.client_profile_id IS DISTINCT FROM OLD.client_profile_id
+    OR NEW.supplier_profile_id IS DISTINCT FROM OLD.supplier_profile_id
+    OR NEW.identifier_type IS DISTINCT FROM OLD.identifier_type
+    OR NEW.issuer IS DISTINCT FROM OLD.issuer
+    OR NEW.original_value IS DISTINCT FROM OLD.original_value
+    OR NEW.normalized_value IS DISTINCT FROM OLD.normalized_value
+    OR NEW.normalization_version IS DISTINCT FROM OLD.normalization_version
+    OR NEW.source IS DISTINCT FROM OLD.source THEN
+    RAISE EXCEPTION 'external identifier identity cannot change';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: parties_prevent_kind_or_agency_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -308,6 +412,29 @@ CREATE TABLE public.audit_events (
 
 
 --
+-- Name: client_advisor_assignments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_advisor_assignments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_profile_id uuid NOT NULL,
+    advisor_membership_id uuid NOT NULL,
+    effective_from date NOT NULL,
+    effective_until date,
+    ended_at timestamp with time zone,
+    ended_by_membership_id uuid,
+    ending_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT caa_ending_complete CHECK ((((ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL) AND (effective_until IS NULL)) OR ((ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text) AND (effective_until IS NOT NULL)))),
+    CONSTRAINT caa_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT caa_range_order CHECK (((effective_until IS NULL) OR (effective_until >= effective_from)))
+);
+
+
+--
 -- Name: client_profiles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -326,9 +453,18 @@ CREATE TABLE public.client_profiles (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT client_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
+    primary_advisor_membership_id uuid,
+    primary_advisor_membership_status character varying,
+    communication_preference character varying DEFAULT 'no_preference'::character varying NOT NULL,
+    servicing_restrictions text,
+    billing_restrictions text,
+    CONSTRAINT client_profiles_advisor_projection CHECK ((((primary_advisor_membership_id IS NULL) AND (primary_advisor_membership_status IS NULL)) OR ((primary_advisor_membership_id IS NOT NULL) AND ((primary_advisor_membership_status)::text = 'active'::text)))),
+    CONSTRAINT client_profiles_billing_restrictions_length CHECK ((char_length(billing_restrictions) <= 2000)),
+    CONSTRAINT client_profiles_communication_preference_valid CHECK (((communication_preference)::text = ANY ((ARRAY['no_preference'::character varying, 'email'::character varying, 'phone'::character varying, 'postal_mail'::character varying])::text[]))),
+    CONSTRAINT client_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (primary_advisor_membership_id IS NULL) AND (primary_advisor_membership_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT client_profiles_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT client_profiles_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'household'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT client_profiles_servicing_restrictions_length CHECK ((char_length(servicing_restrictions) <= 2000)),
     CONSTRAINT client_profiles_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
 );
 
@@ -392,6 +528,42 @@ CREATE TABLE public.delivery_intents (
     CONSTRAINT delivery_intents_purpose_valid CHECK (((purpose)::text = ANY (ARRAY[('team_invitation'::character varying)::text, ('password_reset'::character varying)::text]))),
     CONSTRAINT delivery_intents_status_valid CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('processing'::character varying)::text, ('succeeded'::character varying)::text, ('discarded'::character varying)::text]))),
     CONSTRAINT delivery_intents_success_has_delivery_time CHECK (((((status)::text = 'succeeded'::text) AND (delivered_at IS NOT NULL)) OR (((status)::text <> 'succeeded'::text) AND (delivered_at IS NULL))))
+);
+
+
+--
+-- Name: external_identifiers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.external_identifiers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    party_id uuid,
+    client_profile_id uuid,
+    supplier_profile_id uuid,
+    office_id uuid,
+    identifier_type character varying NOT NULL,
+    issuer character varying,
+    original_value character varying NOT NULL,
+    normalized_value character varying NOT NULL,
+    normalization_version integer NOT NULL,
+    status character varying NOT NULL,
+    source character varying NOT NULL,
+    deactivated_at timestamp with time zone,
+    deactivated_by_membership_id uuid,
+    deactivation_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT external_identifiers_exactly_one_owner CHECK ((((((party_id IS NOT NULL))::integer + ((client_profile_id IS NOT NULL))::integer) + ((supplier_profile_id IS NOT NULL))::integer) = 1)),
+    CONSTRAINT external_identifiers_issuer_required CHECK ((((identifier_type)::text <> ALL ((ARRAY['legacy_client_id'::character varying, 'external_crm_id'::character varying, 'supplier_account_number'::character varying, 'supplier_portal_id'::character varying, 'industry_supplier_code'::character varying])::text[])) OR ((issuer IS NOT NULL) AND (btrim((issuer)::text) <> ''::text)))),
+    CONSTRAINT external_identifiers_lifecycle CHECK (((((status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
+    CONSTRAINT external_identifiers_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT external_identifiers_office_id_null CHECK ((office_id IS NULL)),
+    CONSTRAINT external_identifiers_source_valid CHECK (((source)::text = 'staff'::text)),
+    CONSTRAINT external_identifiers_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT external_identifiers_type_owner CHECK (((((identifier_type)::text = 'legacy_party_id'::text) AND (party_id IS NOT NULL) AND (client_profile_id IS NULL) AND (supplier_profile_id IS NULL)) OR (((identifier_type)::text = ANY ((ARRAY['legacy_client_id'::character varying, 'external_crm_id'::character varying])::text[])) AND (client_profile_id IS NOT NULL) AND (party_id IS NULL) AND (supplier_profile_id IS NULL)) OR (((identifier_type)::text = ANY ((ARRAY['supplier_account_number'::character varying, 'supplier_portal_id'::character varying, 'industry_supplier_code'::character varying])::text[])) AND (supplier_profile_id IS NOT NULL) AND (party_id IS NULL) AND (client_profile_id IS NULL)))),
+    CONSTRAINT external_identifiers_values_not_blank CHECK (((btrim((original_value)::text) <> ''::text) AND (btrim((normalized_value)::text) <> ''::text)))
 );
 
 
@@ -832,11 +1004,38 @@ CREATE TABLE public.supplier_profiles (
     default_currency character varying(3) NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    payment_term_notes text,
+    commission_notes text,
+    booking_instructions text,
+    payment_instructions text,
+    cancellation_policy_notes text,
+    portal_url character varying,
+    CONSTRAINT supplier_profiles_booking_instructions_length CHECK ((char_length(booking_instructions) <= 2000)),
+    CONSTRAINT supplier_profiles_cancellation_policy_notes_length CHECK ((char_length(cancellation_policy_notes) <= 2000)),
+    CONSTRAINT supplier_profiles_commission_notes_length CHECK ((char_length(commission_notes) <= 2000)),
     CONSTRAINT supplier_profiles_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT supplier_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT supplier_profiles_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_profiles_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT supplier_profiles_payment_instructions_length CHECK ((char_length(payment_instructions) <= 2000)),
+    CONSTRAINT supplier_profiles_payment_term_notes_length CHECK ((char_length(payment_term_notes) <= 2000)),
+    CONSTRAINT supplier_profiles_portal_url_https CHECK (((portal_url IS NULL) OR (((portal_url)::text ~ '^https://'::text) AND ((portal_url)::text !~ '^https://[^/]*@'::text)))),
     CONSTRAINT supplier_profiles_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_service_category_assignments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_service_category_assignments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_profile_id uuid CONSTRAINT supplier_service_category_assignme_supplier_profile_id_not_null NOT NULL,
+    category_code character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT ssca_category_code_valid CHECK (((category_code)::text = ANY ((ARRAY['accommodation'::character varying, 'air'::character varying, 'cruise'::character varying, 'rail'::character varying, 'ground_transportation'::character varying, 'tour_operator'::character varying, 'activity'::character varying, 'venue'::character varying, 'dining'::character varying, 'insurance'::character varying, 'destination_management'::character varying])::text[])))
 );
 
 
@@ -926,6 +1125,22 @@ ALTER TABLE ONLY public.audit_events
 
 
 --
+-- Name: client_advisor_assignments caa_no_overlapping_intervals; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_advisor_assignments
+    ADD CONSTRAINT caa_no_overlapping_intervals EXCLUDE USING gist (agency_id WITH =, client_profile_id WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&);
+
+
+--
+-- Name: client_advisor_assignments client_advisor_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_advisor_assignments
+    ADD CONSTRAINT client_advisor_assignments_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: client_profiles client_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -955,6 +1170,14 @@ ALTER TABLE ONLY public.contact_point_purpose_assignments
 
 ALTER TABLE ONLY public.delivery_intents
     ADD CONSTRAINT delivery_intents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: external_identifiers external_identifiers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.external_identifiers
+    ADD CONSTRAINT external_identifiers_pkey PRIMARY KEY (id);
 
 
 --
@@ -1134,6 +1357,14 @@ ALTER TABLE ONLY public.supplier_profiles
 
 
 --
+-- Name: supplier_service_category_assignments supplier_service_category_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_service_category_assignments
+    ADD CONSTRAINT supplier_service_category_assignments_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1275,6 +1506,34 @@ CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_even
 
 
 --
+-- Name: index_client_advisor_assignments_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_advisor_assignments_on_agency_id ON public.client_advisor_assignments USING btree (agency_id);
+
+
+--
+-- Name: index_client_advisor_assignments_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_advisor_assignments_on_id_and_agency_id ON public.client_advisor_assignments USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_advisor_assignments_on_membership; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_advisor_assignments_on_membership ON public.client_advisor_assignments USING btree (advisor_membership_id, agency_id);
+
+
+--
+-- Name: index_client_advisor_assignments_on_profile; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_advisor_assignments_on_profile ON public.client_advisor_assignments USING btree (client_profile_id, agency_id);
+
+
+--
 -- Name: index_client_profiles_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1349,6 +1608,76 @@ CREATE UNIQUE INDEX index_delivery_intents_on_idempotency_key ON public.delivery
 --
 
 CREATE INDEX index_delivery_intents_on_subject ON public.delivery_intents USING btree (subject_type, subject_id);
+
+
+--
+-- Name: index_external_identifiers_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_external_identifiers_on_agency_id ON public.external_identifiers USING btree (agency_id);
+
+
+--
+-- Name: index_external_identifiers_on_client_profile; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_external_identifiers_on_client_profile ON public.external_identifiers USING btree (client_profile_id, agency_id);
+
+
+--
+-- Name: index_external_identifiers_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_external_identifiers_on_id_and_agency_id ON public.external_identifiers USING btree (id, agency_id);
+
+
+--
+-- Name: index_external_identifiers_on_party; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_external_identifiers_on_party ON public.external_identifiers USING btree (party_id, agency_id);
+
+
+--
+-- Name: index_external_identifiers_on_supplier_profile; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_external_identifiers_on_supplier_profile ON public.external_identifiers USING btree (supplier_profile_id, agency_id);
+
+
+--
+-- Name: index_external_identifiers_unique_external_crm_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_external_identifiers_unique_external_crm_id ON public.external_identifiers USING btree (agency_id, issuer, normalized_value) WHERE (((status)::text = 'active'::text) AND ((identifier_type)::text = 'external_crm_id'::text));
+
+
+--
+-- Name: index_external_identifiers_unique_industry_supplier_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_external_identifiers_unique_industry_supplier_code ON public.external_identifiers USING btree (agency_id, issuer, normalized_value) WHERE (((status)::text = 'active'::text) AND ((identifier_type)::text = 'industry_supplier_code'::text));
+
+
+--
+-- Name: index_external_identifiers_unique_legacy_client_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_external_identifiers_unique_legacy_client_id ON public.external_identifiers USING btree (agency_id, issuer, normalized_value) WHERE (((status)::text = 'active'::text) AND ((identifier_type)::text = 'legacy_client_id'::text));
+
+
+--
+-- Name: index_external_identifiers_unique_supplier_account_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_external_identifiers_unique_supplier_account_number ON public.external_identifiers USING btree (agency_id, issuer, normalized_value) WHERE (((status)::text = 'active'::text) AND ((identifier_type)::text = 'supplier_account_number'::text));
+
+
+--
+-- Name: index_external_identifiers_unique_supplier_portal_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_external_identifiers_unique_supplier_portal_id ON public.external_identifiers USING btree (agency_id, issuer, normalized_value) WHERE (((status)::text = 'active'::text) AND ((identifier_type)::text = 'supplier_portal_id'::text));
 
 
 --
@@ -1660,6 +1989,20 @@ CREATE INDEX index_sessions_on_user_id ON public.sessions USING btree (user_id);
 
 
 --
+-- Name: index_ssca_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ssca_on_id_and_agency_id ON public.supplier_service_category_assignments USING btree (id, agency_id);
+
+
+--
+-- Name: index_ssca_on_profile_and_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ssca_on_profile_and_category ON public.supplier_service_category_assignments USING btree (agency_id, supplier_profile_id, category_code);
+
+
+--
 -- Name: index_supplier_profiles_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1688,6 +2031,13 @@ CREATE UNIQUE INDEX index_supplier_profiles_on_party_id_and_agency_id ON public.
 
 
 --
+-- Name: index_supplier_service_category_assignments_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_service_category_assignments_on_agency_id ON public.supplier_service_category_assignments USING btree (agency_id);
+
+
+--
 -- Name: index_users_on_email_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1709,10 +2059,38 @@ CREATE TRIGGER audit_events_prevent_update BEFORE UPDATE ON public.audit_events 
 
 
 --
+-- Name: client_advisor_assignments client_advisor_assignments_agree_with_profile_pointer; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER client_advisor_assignments_agree_with_profile_pointer AFTER INSERT OR DELETE OR UPDATE ON public.client_advisor_assignments DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.client_advisor_current_matches_open_assignment();
+
+
+--
+-- Name: client_advisor_assignments client_advisor_assignments_identity_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_advisor_assignments_identity_immutable BEFORE UPDATE ON public.client_advisor_assignments FOR EACH ROW EXECUTE FUNCTION public.client_advisor_assignments_prevent_identity_change();
+
+
+--
+-- Name: client_profiles client_profiles_advisor_agrees_with_open_assignment; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER client_profiles_advisor_agrees_with_open_assignment AFTER INSERT OR DELETE OR UPDATE ON public.client_profiles DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.client_advisor_current_matches_open_assignment();
+
+
+--
 -- Name: client_profiles client_profiles_identity_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER client_profiles_identity_immutable BEFORE UPDATE ON public.client_profiles FOR EACH ROW EXECUTE FUNCTION public.role_profiles_prevent_identity_change();
+
+
+--
+-- Name: external_identifiers external_identifiers_identity_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER external_identifiers_identity_immutable BEFORE UPDATE ON public.external_identifiers FOR EACH ROW EXECUTE FUNCTION public.external_identifiers_prevent_identity_change();
 
 
 --
@@ -1756,6 +2134,46 @@ CREATE TRIGGER supplier_profiles_identity_immutable BEFORE UPDATE ON public.supp
 
 ALTER TABLE ONLY public.agency_memberships
     ADD CONSTRAINT agency_memberships_person_party_same_agency_fk FOREIGN KEY (person_party_id, agency_id) REFERENCES public.people(party_id, agency_id);
+
+
+--
+-- Name: client_advisor_assignments caa_advisor_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_advisor_assignments
+    ADD CONSTRAINT caa_advisor_same_agency_fk FOREIGN KEY (advisor_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: client_advisor_assignments caa_ended_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_advisor_assignments
+    ADD CONSTRAINT caa_ended_by_membership_fk FOREIGN KEY (ended_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: client_advisor_assignments caa_profile_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_advisor_assignments
+    ADD CONSTRAINT caa_profile_same_agency_fk FOREIGN KEY (client_profile_id, agency_id) REFERENCES public.client_profiles(id, agency_id);
+
+
+--
+-- Name: client_profiles client_profiles_advisor_active_projection_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_profiles
+    ADD CONSTRAINT client_profiles_advisor_active_projection_fk FOREIGN KEY (primary_advisor_membership_id, agency_id, primary_advisor_membership_status) REFERENCES public.agency_memberships(id, agency_id, status);
+
+
+--
+-- Name: client_profiles client_profiles_advisor_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_profiles
+    ADD CONSTRAINT client_profiles_advisor_same_agency_fk FOREIGN KEY (primary_advisor_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
 
 
 --
@@ -1836,6 +2254,38 @@ ALTER TABLE ONLY public.contact_point_purpose_assignments
 
 ALTER TABLE ONLY public.contact_point_purpose_assignments
     ADD CONSTRAINT cppa_superseded_by_fk FOREIGN KEY (superseded_by_assignment_id, agency_id) REFERENCES public.contact_point_purpose_assignments(id, agency_id);
+
+
+--
+-- Name: external_identifiers external_identifiers_client_profile_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.external_identifiers
+    ADD CONSTRAINT external_identifiers_client_profile_same_agency_fk FOREIGN KEY (client_profile_id, agency_id) REFERENCES public.client_profiles(id, agency_id);
+
+
+--
+-- Name: external_identifiers external_identifiers_deactivated_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.external_identifiers
+    ADD CONSTRAINT external_identifiers_deactivated_by_membership_fk FOREIGN KEY (deactivated_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: external_identifiers external_identifiers_party_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.external_identifiers
+    ADD CONSTRAINT external_identifiers_party_same_agency_fk FOREIGN KEY (party_id, agency_id) REFERENCES public.parties(id, agency_id);
+
+
+--
+-- Name: external_identifiers external_identifiers_supplier_profile_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.external_identifiers
+    ADD CONSTRAINT external_identifiers_supplier_profile_same_agency_fk FOREIGN KEY (supplier_profile_id, agency_id) REFERENCES public.supplier_profiles(id, agency_id);
 
 
 --
@@ -1967,6 +2417,14 @@ ALTER TABLE ONLY public.active_storage_variant_records
 
 
 --
+-- Name: external_identifiers fk_rails_a66f964ec8; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.external_identifiers
+    ADD CONSTRAINT fk_rails_a66f964ec8 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: party_relationships fk_rails_a851e339a0; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2020,6 +2478,22 @@ ALTER TABLE ONLY public.households
 
 ALTER TABLE ONLY public.party_postal_addresses
     ADD CONSTRAINT fk_rails_cc74c21c38 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_service_category_assignments fk_rails_d1256876d4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_service_category_assignments
+    ADD CONSTRAINT fk_rails_d1256876d4 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: client_advisor_assignments fk_rails_dca68ed391; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_advisor_assignments
+    ADD CONSTRAINT fk_rails_dca68ed391 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -2279,6 +2753,14 @@ ALTER TABLE ONLY public.relationship_purpose_assignments
 
 
 --
+-- Name: supplier_service_category_assignments ssca_profile_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_service_category_assignments
+    ADD CONSTRAINT ssca_profile_same_agency_fk FOREIGN KEY (supplier_profile_id, agency_id) REFERENCES public.supplier_profiles(id, agency_id);
+
+
+--
 -- Name: supplier_profiles supplier_profiles_deactivated_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2325,6 +2807,11 @@ ALTER TABLE ONLY public.supplier_profiles
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907185600'),
+('20260907185500'),
+('20260907185000'),
+('20260907184500'),
+('20260907184000'),
 ('20260907173000'),
 ('20260907050000'),
 ('20260907040000'),

@@ -1,0 +1,14 @@
+<%# locals: field_id:, q: nil, filter_url:, filter_params: {} %>
+<form method="get" action="<%= filter_url %>" class="dd-form" style="margin-bottom: 1rem;">
+  <% filter_params.each do |key, value| %>
+    <% next if value.blank? %>
+    <input type="hidden" name="<%= key %>" value="<%= value %>">
+  <% end %>
+  <div class="dd-field-group">
+    <label class="dd-label" for="<%= field_id %>_q">Name prefix</label>
+    <input class="dd-field" id="<%= field_id %>_q" name="q" value="<%= q %>" autocomplete="off">
+  </div>
+  <div class="dd-form-actions">
+    <button type="submit" class="dd-button dd-button--secondary dd-button--small">Filter parties</button>
+  </div>
+</form>

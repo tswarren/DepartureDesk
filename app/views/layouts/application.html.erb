@@ -43,10 +43,10 @@
             <%= link_to "Directory",
               directory_parties_path,
               class: "dd-nav-item",
-              aria: { current: ("page" if controller_path.start_with?("directory/")) } %>
+              aria: { current: ("page" if controller_path.start_with?("directory/") && controller_name != "suppliers") } %>
             <span class="dd-nav-item" aria-disabled="true">Departures</span>
             <span class="dd-nav-item" aria-disabled="true">Travelers</span>
-            <span class="dd-nav-item" aria-disabled="true">Suppliers</span>
+            <%= link_to "Suppliers", directory_suppliers_path, class: "dd-nav-item", aria: { current: ("page" if controller_name == "suppliers") } %>
             <span class="dd-nav-item" aria-disabled="true">Accounting</span>
             <% if Current.agency_membership&.administrator? %>
               <%= link_to "Administration",

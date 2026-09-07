@@ -49,10 +49,18 @@ class AuditEvent < ApplicationRecord
     directory.client_profile_updated
     directory.client_profile_deactivated
     directory.client_profile_reactivated
+    directory.client_advisor_assigned
+    directory.client_advisor_reassigned
+    directory.client_advisor_cleared
     directory.supplier_profile_created
     directory.supplier_profile_updated
     directory.supplier_profile_deactivated
     directory.supplier_profile_reactivated
+    directory.supplier_service_category_assigned
+    directory.supplier_service_category_removed
+    directory.external_identifier_created
+    directory.external_identifier_deactivated
+    directory.external_identifier_reactivated
     team.person_linked
   ].freeze
 

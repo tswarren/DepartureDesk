@@ -1,0 +1,13 @@
+<%# locals: field_name:, field_id:, candidates:, selected_id: nil %>
+<div class="dd-field-group">
+  <label class="dd-label" for="<%= field_id %>">Related party</label>
+  <select name="<%= field_name %>" id="<%= field_id %>" class="dd-field" required>
+    <option value="">Choose a party</option>
+    <% candidates.each do |candidate| %>
+      <option value="<%= candidate.party_id %>" <%= "selected" if selected_id.to_s == candidate.party_id.to_s %>>
+        <%= party_selector_option_label(candidate) %>
+      </option>
+    <% end %>
+  </select>
+  <p class="dd-field-hint">Results are party UUIDs with role metadata. Prefix matching is not fuzzy search.</p>
+</div>

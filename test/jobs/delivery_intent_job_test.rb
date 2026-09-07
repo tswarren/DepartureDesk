@@ -13,6 +13,7 @@ class DeliveryIntentJobTest < ActiveJob::TestCase
       subject_version: @membership.invitation_version,
       idempotency_key: "test:#{SecureRandom.uuid}:invitation"
     )
+    ActionMailer::Base.deliveries.clear
   end
 
   test "records terminal success and duplicate execution does not deliver again" do
@@ -64,7 +65,6 @@ class DeliveryIntentJobTest < ActiveJob::TestCase
     assert_no_emails { DeliveryIntentJob.new.perform(@intent.id) }
 
     assert_predicate @intent.reload, :discarded?
-    assert_not ActionMailer::Base.deliveries.any?
   end
 
   test "discards a team invitation when the intent agency does not own the membership" do

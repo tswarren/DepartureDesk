@@ -74,6 +74,7 @@
     background: var(--dd-background);
     color: var(--dd-text);
     font-family: var(--font-sans);
+    scroll-padding-top: 5.5rem;
   }
 
   body {

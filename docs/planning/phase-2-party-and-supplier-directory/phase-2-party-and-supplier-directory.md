@@ -1,6 +1,6 @@
 # Phase 2 — Party and supplier directory
 
-Status: locked planning contract for implementation. Phase 2A and Phase 2B are implemented in this repository. Later slices remain planned. This supersedes the earlier directional outline. It must reuse Foundation 1 tenancy, authorization, audit, office, and numbering contracts rather than design around them.
+Status: locked planning contract for implementation. Phase 2A, Phase 2B, and Phase 2C are implemented in this repository. Phase 2D (search, duplicate handling, merge, and party deactivation) remains planned. This supersedes the earlier directional outline. It must reuse Foundation 1 tenancy, authorization, audit, office, and numbering contracts rather than design around them.
 
 ## Purpose
 

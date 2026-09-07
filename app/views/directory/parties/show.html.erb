@@ -207,7 +207,10 @@
       update_path: directory_party_client_profile_path(@party),
       deactivate_path: deactivate_directory_party_client_profile_path(@party),
       reactivate_path: reactivate_directory_party_client_profile_path(@party),
+      assign_advisor_path: assign_advisor_directory_party_client_profile_path(@party),
+      clear_advisor_path: clear_advisor_directory_party_client_profile_path(@party),
       active_offices: @active_offices,
+      advisor_memberships: @advisor_memberships,
       eligible: true %>
     <%= render "directory/parties/role",
       party: @party,
@@ -219,6 +222,9 @@
       deactivate_path: deactivate_directory_party_supplier_profile_path(@party),
       reactivate_path: reactivate_directory_party_supplier_profile_path(@party),
       active_offices: @active_offices,
+      assign_advisor_path: nil,
+      clear_advisor_path: nil,
+      advisor_memberships: [],
       eligible: !@party.household? %>
   </div>
 </article>

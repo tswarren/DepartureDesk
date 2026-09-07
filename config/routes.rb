@@ -42,11 +42,14 @@ Rails.application.routes.draw do
   root "dashboard#show"
 
   namespace :directory do
+    resources :clients, only: :index
+    resources :suppliers, only: :index
     resources :parties, only: %i[index new create show edit update] do
       resources :alternate_names, only: %i[create update destroy]
       resource :contact_information, only: :show, controller: "contact_information"
       resource :relationships, only: :show, controller: "relationships"
       resource :notes, only: :show, controller: "notes"
+      resource :identifiers, only: :show, controller: "identifiers"
       resources :contact_points, only: %i[new create edit update] do
         member do
           post :deactivate
@@ -83,13 +86,23 @@ Rails.application.routes.draw do
           post :unpin
         end
       end
+      resources :external_identifiers, only: :create do
+        member do
+          post :deactivate
+          post :reactivate
+        end
+      end
       resource :client_profile, only: %i[create update] do
         post :deactivate
         post :reactivate
+        post :assign_advisor
+        post :clear_advisor
       end
       resource :supplier_profile, only: %i[create update] do
         post :deactivate
         post :reactivate
+        post :assign_category
+        post :remove_category
       end
     end
   end

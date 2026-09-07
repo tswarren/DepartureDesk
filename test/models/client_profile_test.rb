@@ -226,6 +226,70 @@ class ClientProfileTest < ActiveSupport::TestCase
     assert party.reload.active?
   end
 
+  test "inactive profile cannot keep an active advisor projection" do
+    now = Time.current
+    row = client_row(party: parties(:unlinked), office: offices(:one), now:).merge(
+      status: "inactive",
+      party_status: nil,
+      responsible_office_status: nil,
+      primary_advisor_membership_id: agency_memberships(:one).id,
+      primary_advisor_membership_status: "active",
+      deactivated_at: now,
+      deactivated_by_membership_id: agency_memberships(:one).id,
+      deactivation_reason: "Closed"
+    )
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      ClientProfile.transaction(requires_new: true) do
+        ClientProfile.insert_all!([ row ])
+      end
+    end
+  end
+
+  test "current advisor cannot point at a non-active membership" do
+    now = Time.current
+    invited = InviteTeamMember.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      email: "invited.advisor@example.com",
+      role: "staff",
+      first_name: "Invited",
+      last_name: "Advisor",
+      **invite_offices
+    ).call.membership
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      ClientProfile.transaction(requires_new: true) do
+        ClientProfile.insert_all!([
+          client_row(party: parties(:unlinked), office: offices(:one), now:).merge(
+            primary_advisor_membership_id: invited.id,
+            primary_advisor_membership_status: "active"
+          )
+        ])
+      end
+    end
+  end
+
+  test "membership cannot become suspended while it is a current advisor" do
+    profile = assign_client_role!(parties(:unlinked), actor: users(:one))
+    AssignClientAdvisor.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      party: parties(:unlinked),
+      profile:,
+      membership: agency_memberships(:staff_one)
+    ).call
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      AgencyMembership.transaction(requires_new: true) do
+        AgencyMembership.connection.execute(
+          "UPDATE agency_memberships SET status = 'suspended' WHERE id = '#{agency_memberships(:staff_one).id}'"
+        )
+      end
+    end
+    assert agency_memberships(:staff_one).reload.active?
+  end
+
   test "model validation rejects an active profile on a deactivated party" do
     party = parties(:unlinked)
     deactivate_party!(party)
