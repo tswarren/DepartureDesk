@@ -27,6 +27,32 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     expect_heading_after(heading) { click_link locator, **click_options }
   end
 
+  def click_button_and_expect(locator, text:, **click_options)
+    TURBO_CLICK_ATTEMPTS.times do |attempt|
+      begin
+        wait_for_turbo
+        unless has_text?(text, wait: 0)
+          button = find_button(locator, **click_options)
+          scroll_to(button, align: :center)
+          button.click
+          wait_for_turbo
+        end
+        assert_text text
+        return
+      rescue Capybara::ExpectationNotMet, Capybara::ElementNotFound, Minitest::Assertion
+        raise if attempt == TURBO_CLICK_ATTEMPTS - 1
+      end
+    end
+  end
+
+  def add_party_role(role_noun, office_label:)
+    wait_for_turbo
+    within("##{role_noun}_profile_create_form") do
+      select office_label, from: "#{role_noun.titleize} responsible office"
+    end
+    click_button_and_expect "Add #{role_noun} role", text: "#{role_noun.titleize} role added."
+  end
+
   def sign_in_from_browser(user)
     visit new_session_path
     fill_in "Email address", with: user.email_address

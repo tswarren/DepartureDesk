@@ -11,19 +11,13 @@ class DirectoryPhase2cDemoTest < ApplicationSystemTestCase
     independent_id = independent.id
 
     open_directory_party "Horizon Tours"
-    select "Sunrise Travel (MAIN)", from: "Client responsible office"
-    click_button "Add client role"
-    assert_text "Client role added."
+    add_party_role "client", office_label: "Sunrise Travel (MAIN)"
     select "Riley Staff", from: "Primary advisor"
-    click_button "Assign advisor"
-    assert_text "Client advisor updated."
+    click_button_and_expect "Assign advisor", text: "Client advisor updated."
 
-    select "Sunrise Travel (MAIN)", from: "Supplier responsible office"
-    click_button "Add supplier role"
-    assert_text "Supplier role added."
+    add_party_role "supplier", office_label: "Sunrise Travel (MAIN)"
     select "Cruise", from: "Service category"
-    click_button "Add category"
-    assert_text "Supplier category added."
+    click_button_and_expect "Add category", text: "Supplier category added."
     fill_in "Booking instructions", with: "Hold space 45 days out."
     click_button "Save supplier details"
     assert_text "Supplier role updated."
@@ -48,9 +42,7 @@ class DirectoryPhase2cDemoTest < ApplicationSystemTestCase
     assert_nil contact.reload.supplier_profile
 
     open_directory_party "Alex Morgan"
-    select "Sunrise Travel (MAIN)", from: "Supplier responsible office"
-    click_button "Add supplier role"
-    assert_text "Supplier role added."
+    add_party_role "supplier", office_label: "Sunrise Travel (MAIN)"
 
     extra = CreateOffice.new(
       agency: agencies(:one),

@@ -4,12 +4,9 @@ class DirectoryClientsTest < ApplicationSystemTestCase
   test "client directory and advisor picker stay on the party identity" do
     sign_in_from_browser users(:one)
     open_directory_party "Horizon Tours"
-    select "Sunrise Travel (MAIN)", from: "Client responsible office"
-    click_button "Add client role"
-    assert_text "Client role added."
+    add_party_role "client", office_label: "Sunrise Travel (MAIN)"
     select "Riley Staff", from: "Primary advisor"
-    click_button "Assign advisor"
-    assert_text "Client advisor updated."
+    click_button_and_expect "Assign advisor", text: "Client advisor updated."
     assert_text "Riley Staff"
 
     open_directory

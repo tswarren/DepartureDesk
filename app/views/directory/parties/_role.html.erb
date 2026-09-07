@@ -55,7 +55,11 @@
   <% end %>
 
   <% if eligible && profile.nil? && party.active? && active_offices.any? %>
-    <%= form_with url: create_path, method: :post, class: "dd-form" do %>
+    <%= form_with url: create_path,
+      method: :post,
+      id: "#{param_key}_create_form",
+      class: "dd-form",
+      data: { turbo: false } do %>
       <div class="dd-field-group">
         <label class="dd-label" for="<%= param_key %>_responsible_office_id_create"><%= role_noun.titleize %> responsible office</label>
         <select class="dd-field" id="<%= param_key %>_responsible_office_id_create" name="<%= param_key %>[responsible_office_id]" required>
@@ -69,7 +73,7 @@
       </div>
     <% end %>
   <% elsif eligible && profile&.active? && active_offices.any? %>
-    <%= form_with url: update_path, method: :patch, class: "dd-form" do %>
+    <%= form_with url: update_path, method: :patch, class: "dd-form", data: { turbo: false } do %>
       <input type="hidden" name="<%= param_key %>[lock_version]" value="<%= profile.lock_version %>">
       <div class="dd-field-group">
         <label class="dd-label" for="<%= param_key %>_responsible_office_id_update"><%= role_noun.titleize %> responsible office</label>
@@ -132,7 +136,7 @@
       </div>
     <% end %>
     <% if assign_advisor_path.present? %>
-      <%= form_with url: assign_advisor_path, method: :post, class: "dd-form" do %>
+      <%= form_with url: assign_advisor_path, method: :post, class: "dd-form", data: { turbo: false } do %>
         <input type="hidden" name="<%= param_key %>[lock_version]" value="<%= profile.lock_version %>">
         <div class="dd-field-group">
           <label class="dd-label" for="<%= param_key %>_primary_advisor_membership_id">Primary advisor</label>
@@ -147,7 +151,7 @@
         </div>
       <% end %>
       <% if profile.primary_advisor_membership_id.present? && clear_advisor_path.present? %>
-        <%= form_with url: clear_advisor_path, method: :post, class: "dd-form" do %>
+        <%= form_with url: clear_advisor_path, method: :post, class: "dd-form", data: { turbo: false } do %>
           <input type="hidden" name="<%= param_key %>[lock_version]" value="<%= profile.lock_version %>">
           <div class="dd-form-actions">
             <%= submit_tag "Clear advisor", class: "dd-button dd-button--quiet dd-button--small" %>
@@ -159,7 +163,10 @@
       <% assigned_codes = profile.category_codes %>
       <% remaining = SupplierServiceCategoryAssignment::CATEGORY_CODES - assigned_codes %>
       <% if remaining.any? %>
-        <%= form_with url: assign_category_directory_party_supplier_profile_path(party), method: :post, class: "dd-form" do %>
+        <%= form_with url: assign_category_directory_party_supplier_profile_path(party),
+          method: :post,
+          class: "dd-form",
+          data: { turbo: false } do %>
           <div class="dd-field-group">
             <label class="dd-label" for="supplier_profile_category_code">Service category</label>
             <select class="dd-field" id="supplier_profile_category_code" name="supplier_profile[category_code]" required>
@@ -174,7 +181,10 @@
         <% end %>
       <% end %>
       <% profile.service_category_assignments.sort_by(&:category_code).each do |assignment| %>
-        <%= form_with url: remove_category_directory_party_supplier_profile_path(party), method: :post, class: "dd-form" do %>
+        <%= form_with url: remove_category_directory_party_supplier_profile_path(party),
+          method: :post,
+          class: "dd-form",
+          data: { turbo: false } do %>
           <input type="hidden" name="supplier_profile[category_code]" value="<%= assignment.category_code %>">
           <div class="dd-form-actions">
             <%= submit_tag "Remove #{assignment.category_label}", class: "dd-button dd-button--quiet dd-button--small" %>
@@ -193,7 +203,7 @@
       </div>
     <% end %>
   <% elsif eligible && profile&.inactive? && active_offices.any? %>
-    <%= form_with url: reactivate_path, method: :post, class: "dd-form" do %>
+    <%= form_with url: reactivate_path, method: :post, class: "dd-form", data: { turbo: false } do %>
       <input type="hidden" name="<%= param_key %>[lock_version]" value="<%= profile.lock_version %>">
       <div class="dd-field-group">
         <label class="dd-label" for="<%= param_key %>_responsible_office_id_reactivate"><%= role_noun.titleize %> responsible office</label>

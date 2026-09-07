@@ -12,6 +12,19 @@ module Directory
       assert_includes response.body, "Add client role"
       assert_includes response.body, "Add supplier role"
       assert_select "a[href=?]", directory_suppliers_path, text: "Suppliers"
+      assert_select "form form", count: 0
+      assert_select "form#client_profile_create_form[action=?][data-turbo=false]",
+        directory_party_client_profile_path(party) do
+        assert_select "input[type=submit][value='Add client role']"
+      end
+      assert_select "form#supplier_profile_create_form[action=?][data-turbo=false]",
+        directory_party_supplier_profile_path(party) do
+        assert_select "input[type=submit][value='Add supplier role']"
+      end
+      assert_select "form[action=?]", directory_party_alternate_names_path(party) do
+        assert_select "input[type=submit][value='Add supplier role']", count: 0
+        assert_select "input[type=submit][value='Add client role']", count: 0
+      end
 
       post directory_party_client_profile_path(party), params: {
         client_profile: { responsible_office_id: offices(:one).id }
