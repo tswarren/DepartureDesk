@@ -132,46 +132,53 @@ class PartyDuplicateMatcher
   end
 
   def matching_people(given:, family:, display:)
-    scope = @agency.people.joins(:party)
-    scope = scope.where(party_id: @party_ids) if @party_ids
-    scope.where(
-      "(#{sql_normalized("people.given_name")} = :given AND #{sql_normalized("people.family_name")} = :family) OR #{sql_normalized("parties.display_name")} = :display",
-      given:, family:, display:
-    ).includes(party: party_summary_includes).order("parties.sort_name", "parties.id").limit(@limit)
+    people = Person.arel_table
+    parties = Party.arel_table
+    name_match = sql_normalized(people[:given_name]).eq(given)
+      .and(sql_normalized(people[:family_name]).eq(family))
+    display_match = sql_normalized(parties[:display_name]).eq(display)
+    finish_matches(scoped_kind(@agency.people).where(name_match.or(display_match)))
   end
 
   def matching_households(name)
-    scope = @agency.households.joins(:party)
-    scope = scope.where(party_id: @party_ids) if @party_ids
-    scope.where("#{sql_normalized("households.name")} = :name", name:)
-      .includes(party: party_summary_includes)
-      .order("parties.sort_name", "parties.id")
-      .limit(@limit)
+    households = Household.arel_table
+    finish_matches(scoped_kind(@agency.households).where(sql_normalized(households[:name]).eq(name)))
   end
 
   def matching_organizations(legal:, trading:)
-    scope = @agency.organizations.joins(:party)
-    scope = scope.where(party_id: @party_ids) if @party_ids
-    clauses = []
-    binds = {}
-    if legal.present?
-      clauses << "#{sql_normalized("organizations.legal_name")} = :legal"
-      binds[:legal] = legal
-    end
-    if trading.present?
-      clauses << "#{sql_normalized("organizations.trading_name")} = :trading"
-      binds[:trading] = trading
-    end
-    return scope.none if clauses.empty?
+    organizations = Organization.arel_table
+    scope = scoped_kind(@agency.organizations)
+    predicates = []
+    predicates << sql_normalized(organizations[:legal_name]).eq(legal) if legal.present?
+    predicates << sql_normalized(organizations[:trading_name]).eq(trading) if trading.present?
+    return scope.none if predicates.empty?
 
-    scope.where(clauses.join(" OR "), **binds)
-      .includes(party: party_summary_includes)
-      .order("parties.sort_name", "parties.id")
-      .limit(@limit)
+    finish_matches(scope.where(predicates.reduce { |combined, predicate| combined.or(predicate) }))
+  end
+
+  def scoped_kind(scope)
+    scope = scope.joins(:party)
+    scope = scope.where(party_id: @party_ids) if @party_ids
+    scope
+  end
+
+  def finish_matches(scope)
+    scope.includes(party: party_summary_includes).order("parties.sort_name", "parties.id").limit(@limit)
   end
 
   def sql_normalized(column)
-    "lower(regexp_replace(btrim(normalize(#{column}, NFKC)), '\\s+', ' ', 'g'))"
+    normalized = Arel::Nodes::NamedFunction.new("normalize", [ column, Arel.sql("NFKC") ])
+    trimmed = Arel::Nodes::NamedFunction.new("btrim", [ normalized ])
+    collapsed = Arel::Nodes::NamedFunction.new(
+      "regexp_replace",
+      [
+        trimmed,
+        Arel::Nodes.build_quoted("\\s+"),
+        Arel::Nodes.build_quoted(" "),
+        Arel::Nodes.build_quoted("g")
+      ]
+    )
+    Arel::Nodes::NamedFunction.new("lower", [ collapsed ])
   end
 
   def party_summary_includes
