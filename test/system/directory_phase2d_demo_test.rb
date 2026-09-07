@@ -27,6 +27,8 @@ class DirectoryPhase2dDemoTest < ApplicationSystemTestCase
 
     click_link_and_expect "Add to directory", heading: "Add to directory"
     click_link "Person"
+    assert_field "Given name"
+    wait_for_turbo
     fill_in "Given name", with: "Alex"
     fill_in "Family name", with: "Morgan"
     click_button "Create person"
@@ -41,9 +43,11 @@ class DirectoryPhase2dDemoTest < ApplicationSystemTestCase
     open_directory
     click_link_and_expect "Add to directory", heading: "Add to directory"
     click_link "Person"
+    assert_field "Given name"
+    wait_for_turbo
     fill_in "Given name", with: "Alex"
     fill_in "Family name", with: "Morgan"
-    fill_in "Date of birth", with: "1990-05-01"
+    fill_in_html_date "Date of birth", "1990-05-01"
     click_button "Create person"
     assert_text "A likely duplicate already exists."
     fill_in "Reason for creating a separate identity", with: "Twins with the same name"

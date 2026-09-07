@@ -53,6 +53,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     click_button_and_expect "Add #{role_noun} role", text: "#{role_noun.titleize} role added."
   end
 
+  def fill_in_html_date(locator, iso_date)
+    find_field(locator).execute_script("this.value = arguments[0]", iso_date)
+  end
+
   def sign_in_from_browser(user)
     visit new_session_path
     fill_in "Email address", with: user.email_address
