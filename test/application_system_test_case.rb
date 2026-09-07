@@ -21,6 +21,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   # then retry the click if the destination heading never appears.
   def wait_for_turbo
     assert_no_selector "html[aria-busy=true]"
+    wait_until_turbo_session
   end
 
   def click_link_and_expect(locator, heading:, **click_options)
@@ -56,6 +57,14 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     click_button_and_expect "Add #{role_noun} role", text: "#{role_noun.titleize} role added."
   end
 
+  def click_button_accepting_confirm(locator)
+    wait_for_turbo
+    button = find_button(locator)
+    scroll_to(button, align: :center)
+    accept_confirm { button.click }
+    wait_for_turbo
+  end
+
   def fill_in_html_date(locator, iso_date)
     find_field(locator).execute_script("this.value = arguments[0]", iso_date)
   end
@@ -86,11 +95,20 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   end
 
   def click_party_tab(name)
-    wait_for_turbo
-    href = within("nav[aria-label=Party]") { find("a", exact_text: name)[:href] }
-    visit href
-    assert_selector "nav[aria-label=Party] a[aria-current=page]", exact_text: name
-    wait_for_turbo
+    TURBO_CLICK_ATTEMPTS.times do |attempt|
+      begin
+        wait_for_turbo
+        unless has_selector?("nav[aria-label=Party] a[aria-current=page]", exact_text: name, wait: 0)
+          within("nav[aria-label=Party]") { click_link name, exact: true }
+          wait_for_turbo
+        end
+        assert_selector "nav[aria-label=Party] a[aria-current=page]", exact_text: name
+        wait_for_turbo
+        return
+      rescue Capybara::ExpectationNotMet, Capybara::ElementNotFound, Minitest::Assertion
+        raise if attempt == TURBO_CLICK_ATTEMPTS - 1
+      end
+    end
   end
 
   def open_directory_party(display_name)
@@ -113,6 +131,23 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   def click_primary_nav(locator, heading:)
     expect_heading_after(heading) do
       within("nav[aria-label='Primary navigation']") { click_link locator, exact: true }
+    end
+  end
+
+  def wait_until_turbo_session
+    return unless page.driver.respond_to?(:evaluate_script)
+
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + Capybara.default_max_wait_time
+    loop do
+      begin
+        return if page.evaluate_script("typeof Turbo === 'object' && Turbo !== null")
+      rescue Selenium::WebDriver::Error::JavascriptError, Selenium::WebDriver::Error::UnknownError
+        # The document can be replaced while a visit is in flight.
+      end
+      if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+        raise Minitest::Assertion, "Turbo did not become ready"
+      end
+      sleep 0.05
     end
   end
 

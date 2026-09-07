@@ -6,7 +6,7 @@ class DirectoryPartyLifecycleTest < ApplicationSystemTestCase
     open_directory_party "Alex Morgan"
     click_party_tab "Record"
     fill_in "Party deactivation reason", with: "Unused duplicate"
-    accept_confirm { click_button "Deactivate party" }
+    click_button_accepting_confirm "Deactivate party"
     assert_text "Party deactivated."
 
     open_directory

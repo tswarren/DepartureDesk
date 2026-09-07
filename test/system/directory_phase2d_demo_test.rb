@@ -57,7 +57,7 @@ class DirectoryPhase2dDemoTest < ApplicationSystemTestCase
 
     click_party_tab "Record"
     fill_in "Party deactivation reason", with: "Unused duplicate"
-    accept_confirm { click_button "Deactivate party" }
+    click_button_accepting_confirm "Deactivate party"
     assert_text "Party deactivated."
     assert duplicate.reload.deactivated?
 
@@ -65,7 +65,7 @@ class DirectoryPhase2dDemoTest < ApplicationSystemTestCase
     add_party_role "supplier", office_label: "Sunrise Travel (MAIN)"
     click_party_tab "Record"
     fill_in "Party deactivation reason", with: "Still a supplier"
-    accept_confirm { click_button "Deactivate party" }
+    click_button_accepting_confirm "Deactivate party"
     assert_text "Horizon Tours (supplier)"
     assert parties(:organization_one).reload.active?
 

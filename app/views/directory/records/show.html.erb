@@ -35,7 +35,7 @@
     <h2 class="dd-panel-title">Party lifecycle</h2>
   </header>
   <% if @party.active? %>
-    <%= form_with url: deactivate_directory_party_path(@party), method: :post, class: "dd-form" do %>
+    <%= form_with url: deactivate_directory_party_path(@party), method: :post, class: "dd-form", data: { turbo_confirm: "Deactivate this party? Historical records stay in the directory." } do %>
       <input type="hidden" name="lock_version" value="<%= @party.lock_version %>">
       <div class="dd-panel-body">
         <p class="dd-field-hint">Deactivation hides this identity from normal directory search. Roles, relationships, and membership links must be resolved first. History stays on the record.</p>
@@ -45,7 +45,7 @@
         </div>
       </div>
       <div class="dd-panel-footer dd-form-actions">
-        <%= submit_tag "Deactivate party", class: "dd-button dd-button--danger", data: { turbo_confirm: "Deactivate this party? Historical records stay in the directory." } %>
+        <%= submit_tag "Deactivate party", class: "dd-button dd-button--danger" %>
       </div>
     <% end %>
   <% else %>
