@@ -1,21 +1,6 @@
 <% content_for :title, "#{@party.display_name} · Contact information · DepartureDesk" %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Directory</p>
-    <h1 class="dd-page-title"><%= @party.display_name %></h1>
-    <p class="dd-page-description">
-      <%= party_kind_badge(@party) %>
-      <%= party_status_badge(@party) %>
-    </p>
-    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
-  </div>
-  <div class="dd-page-actions">
-    <%= link_to "Add email", new_directory_party_contact_point_path(@party, contact_kind: "email"), class: "dd-button" %>
-  </div>
-</header>
-
-<%= render "directory/shared/party_subnav", party: @party, current: :contact %>
+<%= render "directory/shared/party_chrome", party: @party, current: :contact %>
 
 <p class="dd-field-hint" style="margin-bottom: 1rem;">
   Directory email is contact information. It is not the login email used to sign in.
@@ -44,6 +29,7 @@
 </article>
 
 <div class="dd-button-group" style="margin-bottom: 1rem;">
+  <%= link_to "Add email", new_directory_party_contact_point_path(@party, contact_kind: "email"), class: "dd-button dd-button--secondary dd-button--small" %>
   <%= link_to "Add phone", new_directory_party_contact_point_path(@party, contact_kind: "phone"), class: "dd-button dd-button--secondary dd-button--small" %>
   <%= link_to "Add postal address", new_directory_party_contact_point_path(@party, contact_kind: "postal_address"), class: "dd-button dd-button--secondary dd-button--small" %>
 </div>

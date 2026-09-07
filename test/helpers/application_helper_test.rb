@@ -61,6 +61,23 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_nil field_error(agency, :legal_name)
   end
 
+  test "icon_tag renders a curated svg with currentColor" do
+    html = icon_tag("house", html_class: "dd-icon dd-icon--sm")
+
+    assert_includes html, "aria-hidden=\"true\""
+    assert_includes html, "dd-icon--sm"
+    assert_includes html, "currentColor"
+  end
+
+  test "party breadcrumbs prefer supplier then client then directory" do
+    party = parties(:organization_one)
+    items = party_breadcrumb_items(party)
+
+    assert_equal "Directory", items.first[:label]
+    assert_equal directory_parties_path, items.first[:path]
+    assert_equal party.display_name, items.last[:label]
+  end
+
   private
 
   PreferencePoint = Struct.new(:display_value) do

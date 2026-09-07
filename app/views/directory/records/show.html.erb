@@ -1,0 +1,66 @@
+<% content_for :title, "#{@party.display_name} · Record · DepartureDesk" %>
+
+<%= render "directory/shared/party_chrome", party: @party, current: :record %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Record</h2>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Created</dt>
+        <dd><%= @party.created_at.utc.to_fs(:long) %></dd>
+      </div>
+      <div>
+        <dt>Updated</dt>
+        <dd><%= @party.updated_at.utc.to_fs(:long) %></dd>
+      </div>
+      <% if @party.deactivated? %>
+        <div>
+          <dt>Deactivated</dt>
+          <dd><%= @party.deactivated_at.utc.to_fs(:long) %></dd>
+        </div>
+        <div>
+          <dt>Deactivation reason</dt>
+          <dd><%= @party.deactivation_reason %></dd>
+        </div>
+      <% end %>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Party lifecycle</h2>
+  </header>
+  <% if @party.active? %>
+    <%= form_with url: deactivate_directory_party_path(@party), method: :post, class: "dd-form" do %>
+      <input type="hidden" name="lock_version" value="<%= @party.lock_version %>">
+      <div class="dd-panel-body">
+        <p class="dd-field-hint">Deactivation hides this identity from normal directory search. Roles, relationships, and membership links must be resolved first. History stays on the record.</p>
+        <div class="dd-field-group">
+          <label class="dd-label" for="party_deactivation_reason">Party deactivation reason</label>
+          <input class="dd-field" type="text" name="reason" id="party_deactivation_reason" required>
+        </div>
+      </div>
+      <div class="dd-panel-footer dd-form-actions">
+        <%= submit_tag "Deactivate party", class: "dd-button dd-button--danger", data: { turbo_confirm: "Deactivate this party? Historical records stay in the directory." } %>
+      </div>
+    <% end %>
+  <% else %>
+    <%= form_with url: reactivate_directory_party_path(@party), method: :post, class: "dd-form" do %>
+      <input type="hidden" name="lock_version" value="<%= @party.lock_version %>">
+      <div class="dd-panel-body">
+        <p class="dd-field-hint">Reactivation makes this identity available for new work. It does not restore client or supplier roles, advisors, relationships, or contact purposes.</p>
+        <div class="dd-field-group">
+          <label class="dd-label" for="party_reactivation_reason">Party reactivation reason</label>
+          <input class="dd-field" type="text" name="reason" id="party_reactivation_reason" required>
+        </div>
+      </div>
+      <div class="dd-panel-footer dd-form-actions">
+        <%= submit_tag "Reactivate party", class: "dd-button dd-button--secondary" %>
+      </div>
+    <% end %>
+  <% end %>
+</article>

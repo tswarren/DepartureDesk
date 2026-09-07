@@ -1,4 +1,15 @@
 module ApplicationHelper
+  ICON_NAMES = %w[
+    house users briefcase boat calendar_blank suitcase coins gear dots_three list x
+  ].freeze
+
+  def icon_tag(name, html_class: "dd-icon dd-icon--md")
+    key = name.to_s
+    raise ArgumentError, "Unknown icon #{key}" unless ICON_NAMES.include?(key)
+
+    render partial: "shared/icons/#{key}", locals: { class: html_class }
+  end
+
   def status_badge(status, modifier:)
     tag.span status, class: "dd-badge dd-badge--#{modifier}"
   end
@@ -178,5 +189,66 @@ module ApplicationHelper
     tag.p record.errors[attribute].to_sentence,
       id: field_error_id(record, attribute),
       class: "dd-field-error"
+  end
+
+  def party_edit_label(party)
+    "Edit #{party.kind_label.downcase}"
+  end
+
+  def party_breadcrumb_items(party)
+    items = [ { label: "Directory", path: directory_parties_path } ]
+    if party.supplier_profile
+      items << { label: "Suppliers", path: directory_suppliers_path }
+    elsif party.client_profile
+      items << { label: "Clients", path: directory_clients_path }
+    end
+    items << { label: party.display_name, path: nil }
+    items
+  end
+
+  def party_identity_line(party)
+    if party.organization?
+      org = party.organization
+      parts = []
+      parts << org.legal_name if org.legal_name.present? && org.legal_name != party.display_name
+      parts << "Trading as #{org.trading_name}" if org.trading_name.present? && org.trading_name != party.display_name
+      parts.join(" · ").presence
+    elsif party.household?
+      party.household.correspondence_name.presence
+    elsif party.person?
+      person = party.person
+      person.preferred_name.presence if person.preferred_name.present? && person.preferred_name != party.display_name
+    end
+  end
+
+  def party_attention_path(party, item)
+    case item.path
+    when :contact then directory_party_contact_information_path(party)
+    when :roles then directory_party_roles_path(party)
+    else directory_party_path(party)
+    end
+  end
+
+  def overview_primary_contact_text(assignments)
+    direct = assignments.select { |row| row.general? && %w[email phone].include?(row.contact_kind) }
+    chosen = direct.first || assignments.find(&:general?) || assignments.first
+    return "None" unless chosen
+
+    chosen.contact_point.display_value.to_s.split("\n").first
+  end
+
+  def overview_responsible_office_text(client_profile, supplier_profile)
+    profile = [ supplier_profile, client_profile ].compact.find(&:active?) || supplier_profile || client_profile
+    return "—" unless profile
+
+    responsible_office_text(profile)
+  end
+
+  def overview_supplier_services_text(party, supplier_profile)
+    return "Not a supplier" if party.household? || supplier_profile.nil?
+    return "Inactive" if supplier_profile.inactive?
+    return "None assigned" if supplier_profile.category_codes.empty?
+
+    supplier_profile.service_category_assignments.sort_by(&:category_code).map(&:category_label).to_sentence
   end
 end

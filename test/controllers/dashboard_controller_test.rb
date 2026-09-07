@@ -8,7 +8,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_includes response.body, agencies(:one).name
-    assert_select "nav[aria-label='Primary navigation'] a[href=?]", directory_parties_path, text: "Directory"
+    assert_select "nav[aria-label='Primary navigation'] a[href=?]", directory_clients_path, text: "Clients"
     assert_select "nav[aria-label='Primary navigation'] span[aria-disabled=true]", text: "Travelers"
   end
 

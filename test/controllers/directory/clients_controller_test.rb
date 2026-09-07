@@ -20,7 +20,7 @@ module Directory
       assert_includes response.body, parties(:unlinked).display_name
       assert_includes response.body, "Clients"
       assert_select "a[href=?]", directory_suppliers_path, text: "Suppliers"
-      assert_select "nav[aria-label='Primary navigation'] a", text: "Clients", count: 0
+      assert_select "nav[aria-label='Primary navigation'] a[aria-current=page]", text: "Clients"
     end
 
     test "directory index links to the client directory" do

@@ -47,6 +47,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   def add_party_role(role_noun, office_label:)
     wait_for_turbo
+    unless has_css?("##{role_noun}_profile_create_form", wait: 0)
+      click_link "Roles"
+      wait_for_turbo
+    end
     within("##{role_noun}_profile_create_form") do
       select office_label, from: "#{role_noun.titleize} responsible office"
     end

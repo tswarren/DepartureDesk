@@ -25,8 +25,6 @@ module Directory
     end
 
     def show
-      @alternate_names = @party.alternate_names.visible.order(:name)
-      @alternate_name = @party.alternate_names.new
       @today = DirectoryDate.today(Current.agency)
       @primary_assignments = @party.contact_point_purpose_assignments
         .current_eligible_primaries_on(@today)
@@ -38,11 +36,9 @@ module Directory
         .order(:effective_from, :id)
       @client_profile = @party.client_profile
       @supplier_profile = @party.supplier_profile
-      @active_offices = Current.agency.offices.active.order(:name, :code, :id)
-      @advisor_memberships = Current.agency.agency_memberships.active
-        .joins(person_party: :party)
-        .includes(person_party: :party)
-        .order("parties.sort_name", "agency_memberships.id")
+      @attention = PartyAttention.new(@party, date: @today)
+      @overview_notes = @party.notes.visible_to(Current.agency_membership).active_records.pinned_first.limit(3)
+      @overview_identifiers = @party.directory_external_identifiers.merge(ExternalIdentifier.current).order(:identifier_type, :id).limit(5)
     end
 
     def new
@@ -94,6 +90,8 @@ module Directory
 
     def edit
       @profile = @party.kind_profile
+      @alternate_names = @party.alternate_names.visible.order(:name)
+      @alternate_name = @party.alternate_names.new
     end
 
     def update
@@ -110,6 +108,8 @@ module Directory
       @profile = @party.kind_profile
       @profile.assign_attributes(profile_params(@party.party_kind))
       @profile.validate
+      @alternate_names = @party.alternate_names.visible.order(:name)
+      @alternate_name = @party.alternate_names.new
       flash.now[:alert] = error.message
       render :edit, status: error.code == :conflict ? :conflict : :unprocessable_entity
     end
@@ -122,9 +122,9 @@ module Directory
         reason: lifecycle_params[:reason],
         lock_version: lifecycle_params[:lock_version]
       ).call
-      redirect_to directory_party_path(@party), notice: "Party deactivated."
+      redirect_to directory_party_record_path(@party), notice: "Party deactivated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_record_path(@party), alert: error.message
     end
 
     def reactivate
@@ -135,16 +135,22 @@ module Directory
         reason: lifecycle_params[:reason],
         lock_version: lifecycle_params[:lock_version]
       ).call
-      redirect_to directory_party_path(@party), notice: "Party reactivated."
+      redirect_to directory_party_record_path(@party), notice: "Party reactivated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_record_path(@party), alert: error.message
     end
 
     private
 
     def set_party
       @party = Current.agency.parties
-        .includes(client_profile: :responsible_office, supplier_profile: :responsible_office)
+        .includes(
+          :organization,
+          :household,
+          { person: { agency_membership: :user } },
+          { client_profile: :responsible_office },
+          { supplier_profile: [ :responsible_office, :service_category_assignments ] }
+        )
         .find(params[:id])
     end
 

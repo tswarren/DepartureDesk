@@ -18,8 +18,8 @@ module Directory
       get directory_suppliers_path
       assert_response :success
       assert_includes response.body, parties(:organization_one).display_name
-      assert_select "nav[aria-label='Primary navigation'] a[href=?]", directory_suppliers_path, text: "Suppliers"
-      assert_select "nav[aria-label='Primary navigation'] a", text: "Clients", count: 0
+      assert_select "nav[aria-label='Primary navigation'] a[href=?]", directory_clients_path, text: "Clients"
+      assert_select "nav[aria-label='Primary navigation'] a[aria-current=page]", text: "Suppliers"
       assert_nil parties(:maria).supplier_profile
       assert_not_includes response.body, parties(:two).display_name
     end

@@ -40,6 +40,9 @@ module Directory
       get directory_party_path(party)
       assert_response :success
       assert_includes response.body, "Pat Lee"
+      assert_select "nav[aria-label='Primary navigation'] a[aria-current=page]", text: "Directory"
+      assert_select "nav[aria-label='Primary navigation'] a[aria-current=page]", text: "Clients", count: 0
+      assert_select "nav[aria-label='Primary navigation'] a[aria-current=page]", text: "Suppliers", count: 0
 
       get edit_directory_party_path(party)
       assert_response :success
@@ -162,7 +165,7 @@ module Directory
         get directory_parties_path, params: { party_kind: "person", page: 2 }
         assert_response :success
         assert_includes response.body, parties(:unlinked).display_name
-        assert_not_includes response.body, parties(:one).display_name
+        assert_select "table.dd-table a", text: parties(:one).display_name, count: 0
         assert_select "a", text: "Previous"
       ensure
         Directory::PartiesController.page_size = previous_page_size
@@ -229,7 +232,9 @@ module Directory
       get directory_party_path(party)
       assert_response :success
       assert_not_includes response.body, "primary.inbox@example.com"
-      assert_select "h3.dd-empty-title", text: "No primary contact information"
+      assert_select ".dd-missing", text: /No eligible primary contact information/
+      assert_includes response.body, "need attention"
+      assert_includes response.body, "marked do not use or deactivated"
 
       UnsuppressPartyContactPoint.new(
         agency: agencies(:one),
@@ -248,7 +253,7 @@ module Directory
       get directory_party_path(party)
       assert_response :success
       assert_not_includes response.body, "primary.inbox@example.com"
-      assert_select "h3.dd-empty-title", text: "No primary contact information"
+      assert_select ".dd-missing", text: /No eligible primary contact information/
     end
 
     test "staff can deactivate an unblocked party and include it when requested" do
@@ -256,7 +261,7 @@ module Directory
       party = parties(:unlinked)
 
       post deactivate_directory_party_path(party), params: { reason: "Unused duplicate" }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_record_path(party)
       follow_redirect!
       assert_includes response.body, "Party deactivated."
       assert party.reload.deactivated?
@@ -270,7 +275,7 @@ module Directory
       assert_includes response.body, party.display_name
 
       post reactivate_directory_party_path(party), params: { reason: "Needed" }
-      assert_redirected_to directory_party_path(party)
+      assert_redirected_to directory_party_record_path(party)
       assert party.reload.active?
     end
 

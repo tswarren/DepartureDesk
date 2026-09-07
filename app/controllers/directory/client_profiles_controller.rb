@@ -10,9 +10,9 @@ module Directory
         party: @party,
         office: office_from_params!
       ).call
-      redirect_to directory_party_path(@party), notice: "Client role added."
+      redirect_to directory_party_roles_path(@party), notice: "Client role added."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     def update
@@ -27,9 +27,9 @@ module Directory
         billing_restrictions: profile_params[:billing_restrictions],
         lock_version: profile_params[:lock_version]
       ).call
-      redirect_to directory_party_path(@party), notice: "Client role updated."
+      redirect_to directory_party_roles_path(@party), notice: "Client role updated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     def deactivate
@@ -41,9 +41,9 @@ module Directory
         reason: profile_params[:reason],
         lock_version: profile_params[:lock_version]
       ).call
-      redirect_to directory_party_path(@party), notice: "Client role deactivated."
+      redirect_to directory_party_roles_path(@party), notice: "Client role deactivated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     def reactivate
@@ -55,9 +55,9 @@ module Directory
         office: office_from_params!,
         lock_version: profile_params[:lock_version]
       ).call
-      redirect_to directory_party_path(@party), notice: "Client role reactivated."
+      redirect_to directory_party_roles_path(@party), notice: "Client role reactivated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     def assign_advisor
@@ -69,9 +69,9 @@ module Directory
         membership: advisor_from_params!,
         lock_version: profile_params[:lock_version]
       ).call
-      redirect_to directory_party_path(@party), notice: "Client advisor updated."
+      redirect_to directory_party_roles_path(@party), notice: "Client advisor updated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     def clear_advisor
@@ -82,9 +82,9 @@ module Directory
         profile: @profile,
         lock_version: profile_params[:lock_version]
       ).call
-      redirect_to directory_party_path(@party), notice: "Client advisor cleared."
+      redirect_to directory_party_roles_path(@party), notice: "Client advisor cleared."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_path(@party), alert: error.message
+      redirect_to directory_party_roles_path(@party), alert: error.message
     end
 
     private

@@ -186,4 +186,205 @@ if Rails.env.development?
     puts "  Person: #{demo_person.display_name} (#{demo_person.id})"
     puts "  Household: #{demo_household.display_name} (#{demo_household.id})"
     puts "  Organization: #{demo_organization.display_name} (#{demo_organization.id})"
+
+    seed_actor = { actor: seed_user }
+    oceanview = seed_agency.parties.find_by(display_name: "OceanView Cruises")
+    unless oceanview
+      oceanview = CreateParty.new(
+        agency: seed_agency,
+        party_kind: "organization",
+        attributes: { legal_name: "OceanView Cruises Limited", trading_name: "OceanView Cruises", website: "https://oceanview.example.test" },
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call.party
+    end
+    unless oceanview.alternate_names.visible.exists?(name: "OVC")
+      AddPartyAlternateName.new(
+        agency: seed_agency,
+        party: oceanview,
+        name: "OVC",
+        name_kind: "acronym",
+        **seed_actor
+      ).call
+    end
+    unless oceanview.supplier_profile
+      CreateSupplierProfile.new(
+        agency: seed_agency,
+        party: oceanview,
+        office: office,
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call
+    end
+    oceanview.reload
+    %w[cruise accommodation].each do |code|
+      next if oceanview.supplier_profile.reload.category_codes.include?(code)
+
+      AssignSupplierServiceCategory.new(
+        agency: seed_agency,
+        party: oceanview,
+        profile: oceanview.supplier_profile,
+        category_code: code,
+        **seed_actor
+      ).call
+    end
+    unless oceanview.contact_points.email.exists?
+      general_email = CreatePartyContactPoint.new(
+        agency: seed_agency,
+        party: oceanview,
+        contact_kind: "email",
+        attributes: { display_address: "groups@oceanview.example.test", email_type: "work" },
+        **seed_actor
+      ).call.contact_point
+      SetContactPointPrimary.new(
+        agency: seed_agency,
+        party: oceanview,
+        contact_point: general_email,
+        purpose: "general",
+        **seed_actor
+      ).call
+    end
+    unless oceanview.contact_points.phone.exists?
+      CreatePartyContactPoint.new(
+        agency: seed_agency,
+        party: oceanview,
+        contact_kind: "phone",
+        attributes: { display_number: "206-555-0140", phone_type: "work", parsed_country_code: "US" },
+        **seed_actor
+      ).call
+    end
+    unless oceanview.contact_points.postal_address.exists?
+      CreatePartyContactPoint.new(
+        agency: seed_agency,
+        party: oceanview,
+        contact_kind: "postal_address",
+        attributes: {
+          address_line_1: "400 Harbor Avenue",
+          locality: "Seattle",
+          administrative_region: "WA",
+          postal_code: "98104",
+          country_code: "US"
+        },
+        **seed_actor
+      ).call
+    end
+    billing_email = oceanview.contact_points.email.find_by(normalized_value: "billing@oceanview.example.test")
+    unless billing_email
+      billing_email = CreatePartyContactPoint.new(
+        agency: seed_agency,
+        party: oceanview,
+        contact_kind: "email",
+        attributes: { display_address: "billing@oceanview.example.test", email_type: "work" },
+        **seed_actor
+      ).call.contact_point
+    end
+    unless ContactPointPurposeAssignment.current_on(DirectoryDate.today(seed_agency)).exists?(contact_point: billing_email, purpose: "billing", priority: 1)
+      SetContactPointPrimary.new(
+        agency: seed_agency,
+        party: oceanview,
+        contact_point: billing_email,
+        purpose: "billing",
+        **seed_actor
+      ).call
+    end
+    unless billing_email.reload.suppressed?
+      SuppressPartyContactPoint.new(
+        agency: seed_agency,
+        party: oceanview,
+        contact_point: billing_email,
+        reason: "Accounts payable mailbox retired",
+        **seed_actor
+      ).call
+    end
+    unless oceanview.directory_external_identifiers.exists?(identifier_type: "supplier_account_number")
+      AddExternalIdentifier.new(
+        agency: seed_agency,
+        party: oceanview,
+        identifier_type: "supplier_account_number",
+        original_value: "OVC-44019",
+        issuer: "OceanView",
+        **seed_actor
+      ).call
+    end
+    unless oceanview.directory_external_identifiers.exists?(identifier_type: "supplier_portal_id")
+      AddExternalIdentifier.new(
+        agency: seed_agency,
+        party: oceanview,
+        identifier_type: "supplier_portal_id",
+        original_value: "portal-ovc",
+        issuer: "OceanView",
+        **seed_actor
+      ).call
+    end
+    booking_contact = seed_agency.parties.find_by(display_name: "Priya Shah")
+    unless booking_contact
+      booking_contact = CreateParty.new(
+        agency: seed_agency,
+        party_kind: "person",
+        attributes: { given_name: "Priya", family_name: "Shah" },
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call.party
+    end
+    accounting_contact = seed_agency.parties.find_by(display_name: "Noah Ellis")
+    unless accounting_contact
+      accounting_contact = CreateParty.new(
+        agency: seed_agency,
+        party_kind: "person",
+        attributes: { given_name: "Noah", family_name: "Ellis" },
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call.party
+    end
+    unless PartyRelationship.involving(oceanview).exists?(relationship_kind: "organization_contact", origin_party_id: booking_contact.id)
+      CreatePartyRelationship.new(
+        agency: seed_agency,
+        origin_party: booking_contact,
+        related_party: oceanview,
+        relationship_kind: "organization_contact",
+        **seed_actor
+      ).call
+    end
+    unless PartyRelationship.involving(oceanview).exists?(relationship_kind: "organization_contact", origin_party_id: accounting_contact.id)
+      CreatePartyRelationship.new(
+        agency: seed_agency,
+        origin_party: accounting_contact,
+        related_party: oceanview,
+        relationship_kind: "organization_contact",
+        **seed_actor
+      ).call
+    end
+    unless oceanview.notes.exists?
+      CreatePartyNote.new(
+        agency: seed_agency,
+        party: oceanview,
+        body: "Group desk prefers contracted allotments confirmed 90 days out.",
+        visibility: "standard",
+        pinned: true,
+        **seed_actor
+      ).call
+      CreatePartyNote.new(
+        agency: seed_agency,
+        party: oceanview,
+        body: "Commission schedule last reviewed in spring.",
+        visibility: "standard",
+        **seed_actor
+      ).call
+    end
+
+    sparse = seed_agency.parties.find_by(display_name: "Cedar & Salt Expeditions")
+    unless sparse
+      sparse = CreateParty.new(
+        agency: seed_agency,
+        party_kind: "organization",
+        attributes: { legal_name: "Cedar & Salt Expeditions" },
+        actor_identifier: "seed:development",
+        privileged: true
+      ).call.party
+    end
+
+    puts "UX prototype records ready:"
+    puts "  OceanView Cruises: #{oceanview.display_name} (#{oceanview.id})"
+    puts "  Sparse organization: #{sparse.display_name} (#{sparse.id})"
+    puts "  Path: /directory/parties/#{oceanview.id}"
 end

@@ -1,0 +1,26 @@
+<header class="dd-topbar">
+  <button
+    type="button"
+    class="dd-drawer-toggle"
+    data-navigation-drawer-target="toggle"
+    data-action="navigation-drawer#toggle"
+    aria-controls="app-navigation"
+    aria-expanded="false">
+    <%= icon_tag "list", html_class: "dd-icon dd-icon--md" %>
+    <span>Menu</span>
+  </button>
+
+  <div class="dd-topbar-account">
+    <span class="dd-account-agency"><%= Current.agency.name %></span>
+    <span class="dd-account-user"><%= Current.user.display_name %></span>
+    <% if Current.office %>
+      <%= link_to office_choice_label(Current.office), edit_current_office_path, class: "dd-topbar-office" %>
+    <% else %>
+      <%= link_to "Choose office", edit_current_office_path, class: "dd-topbar-office" %>
+    <% end %>
+    <%= button_to "Sign out",
+      session_path,
+      method: :delete,
+      class: "dd-button dd-button--secondary dd-button--small" %>
+  </div>
+</header>

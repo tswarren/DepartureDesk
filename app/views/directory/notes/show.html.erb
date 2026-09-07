@@ -1,18 +1,6 @@
 <% content_for :title, "#{@party.display_name} · Notes · DepartureDesk" %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Directory</p>
-    <h1 class="dd-page-title"><%= @party.display_name %></h1>
-    <p class="dd-page-description">
-      <%= party_kind_badge(@party) %>
-      Internal servicing notes. They are not client-visible.
-    </p>
-    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
-  </div>
-</header>
-
-<%= render "directory/shared/party_subnav", party: @party, current: :notes %>
+<%= render "directory/shared/party_chrome", party: @party, current: :notes %>
 
 <article class="dd-panel">
   <header class="dd-panel-header">

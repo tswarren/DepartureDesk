@@ -1,340 +1,183 @@
 <% content_for :title, "#{@party.display_name} · Directory · DepartureDesk" %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Directory</p>
-    <h1 class="dd-page-title"><%= @party.display_name %></h1>
-    <p class="dd-page-description">
-      <%= party_kind_badge(@party) %>
-      <%= party_status_badge(@party) %>
-    </p>
-    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
-  </div>
-  <div class="dd-page-actions">
-    <%= link_to "Edit", edit_directory_party_path(@party), class: "dd-button" %>
-  </div>
-</header>
+<%= render "directory/shared/party_chrome", party: @party, current: :overview %>
 
-<%= render "directory/shared/party_subnav", party: @party, current: :overview %>
-
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Identity</h2>
-  </header>
-  <div class="dd-panel-body">
-    <dl class="dd-definition-list">
-      <% if @party.person? %>
-        <% person = @party.person %>
-        <div>
-          <dt>Given name</dt>
-          <dd><%= person.given_name %></dd>
-        </div>
-        <div>
-          <dt>Middle name</dt>
-          <dd><%= person.middle_name.presence || "—" %></dd>
-        </div>
-        <div>
-          <dt>Family name</dt>
-          <dd><%= person.family_name %></dd>
-        </div>
-        <div>
-          <dt>Preferred name</dt>
-          <dd><%= person.preferred_name.presence || "—" %></dd>
-        </div>
-        <div>
-          <dt>Prefix</dt>
-          <dd><%= person.prefix.presence || "—" %></dd>
-        </div>
-        <div>
-          <dt>Suffix</dt>
-          <dd><%= person.suffix.presence || "—" %></dd>
-        </div>
-        <div>
-          <dt>Form of address</dt>
-          <dd><%= person.form_of_address.presence || "—" %></dd>
-        </div>
-        <div>
-          <dt>Pronouns</dt>
-          <dd><%= person.pronouns.presence || "—" %></dd>
-        </div>
-        <div>
-          <dt>Date of birth</dt>
-          <dd><%= person.date_of_birth&.to_fs(:long) || "—" %></dd>
-        </div>
-      <% elsif @party.household? %>
-        <div>
-          <dt>Household name</dt>
-          <dd><%= @party.household.name %></dd>
-        </div>
-        <div>
-          <dt>Correspondence name</dt>
-          <dd><%= @party.household.correspondence_name.presence || "—" %></dd>
-        </div>
-      <% else %>
-        <div>
-          <dt>Legal name</dt>
-          <dd><%= @party.organization.legal_name %></dd>
-        </div>
-        <div>
-          <dt>Trading name</dt>
-          <dd><%= @party.organization.trading_name.presence || "—" %></dd>
-        </div>
-        <div>
-          <dt>Website</dt>
-          <dd><%= @party.organization.website.presence || "—" %></dd>
-        </div>
-      <% end %>
-      <div>
-        <dt>Directory name</dt>
-        <dd><%= @party.display_name %></dd>
-      </div>
-      <div>
-        <dt>Sort name</dt>
-        <dd><%= @party.sort_name %></dd>
-      </div>
-    </dl>
+<section class="dd-summary-strip" aria-label="Party summary">
+  <div class="dd-summary-segment">
+    <span class="dd-summary-label">Primary contact</span>
+    <strong class="dd-summary-value"><%= overview_primary_contact_text(@primary_assignments) %></strong>
+    <span class="dd-summary-support">Eligible general destination</span>
   </div>
-</article>
+  <div class="dd-summary-segment">
+    <span class="dd-summary-label">Responsible office</span>
+    <strong class="dd-summary-value"><%= overview_responsible_office_text(@client_profile, @supplier_profile) %></strong>
+    <span class="dd-summary-support"><%= @supplier_profile&.active? ? "Supplier office" : (@client_profile&.active? ? "Client office" : "No active role") %></span>
+  </div>
+  <div class="dd-summary-segment">
+    <span class="dd-summary-label">Supplier services</span>
+    <strong class="dd-summary-value"><%= overview_supplier_services_text(@party, @supplier_profile) %></strong>
+    <span class="dd-summary-support"><%= @party.household? ? "Households cannot be suppliers" : "Role of this party" %></span>
+  </div>
+  <div class="dd-summary-segment">
+    <span class="dd-summary-label">Needs attention</span>
+    <strong class="dd-summary-value"><%= @attention.count %></strong>
+    <span class="dd-summary-support"><%= @attention.count.positive? ? "Action required" : "No current exceptions" %></span>
+  </div>
+</section>
 
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Alternate names</h2>
-  </header>
-  <div class="dd-panel-body">
-    <% if @alternate_names.any? %>
-      <ul class="dd-list">
-        <% @alternate_names.each do |alternate| %>
-          <li class="dd-list-item">
-            <div>
-              <strong class="dd-list-title"><%= alternate.name %></strong>
-              <span class="dd-list-detail"><%= alternate.name_kind.titleize %></span>
-            </div>
-            <%= form_with model: alternate,
-              url: directory_party_alternate_name_path(@party, alternate),
-              method: :patch,
-              class: "dd-form" do |form| %>
-              <div class="dd-form-grid dd-form-grid--two-column">
-                <div class="dd-field-group">
-                  <%= form.label :name, "Alternate name", class: "dd-label" %>
-                  <%= form.text_field :name, required: true, class: "dd-field" %>
-                </div>
-                <div class="dd-field-group">
-                  <%= form.label :name_kind, "Alternate name kind", class: "dd-label" %>
-                  <%= form.select :name_kind,
-                    PartyAlternateName::KINDS.map { |kind| [ kind.titleize, kind ] },
-                    {},
-                    class: "dd-field" %>
-                </div>
-              </div>
-              <div class="dd-button-group">
-                <%= form.submit "Update name", class: "dd-button dd-button--secondary dd-button--small" %>
-                <%= link_to "Remove",
-                  directory_party_alternate_name_path(@party, alternate),
-                  data: { turbo_method: :delete, turbo_confirm: "Remove this alternate name?" },
-                  class: "dd-button dd-button--danger dd-button--small" %>
+<div class="dd-content-grid--main-aside">
+  <div class="dd-stack">
+    <article class="dd-panel">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title">Contact summary</h2>
+        <%= link_to "Contact information", directory_party_contact_information_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+      </header>
+      <div class="dd-panel-body">
+        <% if @primary_assignments.any? %>
+          <dl class="dd-definition-list">
+            <% @primary_assignments.each do |assignment| %>
+              <div>
+                <dt><%= assignment.contact_kind.titleize %> · <%= assignment.purpose_label %> primary</dt>
+                <dd><%= assignment.contact_point.display_value.to_s.split("\n").first %></dd>
               </div>
             <% end %>
-          </li>
+          </dl>
+        <% else %>
+          <p class="dd-missing">No eligible primary contact information. <%= link_to "Add contact information", directory_party_contact_information_path(@party) %></p>
         <% end %>
-      </ul>
-    <% else %>
-      <div class="dd-empty-state">
-        <h3 class="dd-empty-title">No alternate names</h3>
-        <p class="dd-empty-copy">Former names and aliases stay on this record without replacing the canonical name.</p>
       </div>
-    <% end %>
+    </article>
 
-    <%= form_with model: @alternate_name,
-      url: directory_party_alternate_names_path(@party),
-      method: :post,
-      class: "dd-form" do |form| %>
-      <div class="dd-form-grid dd-form-grid--two-column">
-        <div class="dd-field-group">
-          <%= form.label :name, "Add alternate name", class: "dd-label" %>
-          <%= form.text_field :name, required: true, class: "dd-field" %>
-        </div>
-        <div class="dd-field-group">
-          <%= form.label :name_kind, "Add name kind", class: "dd-label" %>
-          <%= form.select :name_kind,
-            PartyAlternateName::KINDS.map { |kind| [ kind.titleize, kind ] },
-            {},
-            class: "dd-field" %>
-        </div>
-      </div>
-      <div class="dd-form-actions">
-        <%= form.submit "Add name", class: "dd-button dd-button--secondary" %>
-      </div>
-    <% end %>
-  </div>
-</article>
-
-<% if @party.person? && @party.person&.agency_membership %>
-  <% membership = @party.person.agency_membership %>
-  <article class="dd-panel">
-    <header class="dd-panel-header">
-      <h2 class="dd-panel-title">Team membership</h2>
-    </header>
-    <div class="dd-panel-body">
-      <dl class="dd-definition-list">
-        <div>
-          <dt>Access</dt>
-          <dd><%= membership_status_badge(membership) %></dd>
-        </div>
-        <div>
-          <dt>Login email</dt>
-          <dd><%= membership.user.email_address %></dd>
-        </div>
-      </dl>
-      <% if Current.agency_membership&.administrator? %>
-        <p><%= link_to "Open team membership", administration_team_member_path(membership) %></p>
-      <% end %>
-    </div>
-  </article>
-<% end %>
-
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Roles</h2>
-  </header>
-  <div class="dd-panel-body">
-    <p class="dd-field-hint">Client and supplier roles belong to this party. Adding or deactivating a role does not create or replace the directory identity. An active role blocks party deactivation.</p>
-    <%= render "directory/parties/role",
-      party: @party,
-      profile: @client_profile,
-      role_noun: "client",
-      param_key: "client_profile",
-      create_path: directory_party_client_profile_path(@party),
-      update_path: directory_party_client_profile_path(@party),
-      deactivate_path: deactivate_directory_party_client_profile_path(@party),
-      reactivate_path: reactivate_directory_party_client_profile_path(@party),
-      assign_advisor_path: assign_advisor_directory_party_client_profile_path(@party),
-      clear_advisor_path: clear_advisor_directory_party_client_profile_path(@party),
-      active_offices: @active_offices,
-      advisor_memberships: @advisor_memberships,
-      eligible: true %>
-    <%= render "directory/parties/role",
-      party: @party,
-      profile: @supplier_profile,
-      role_noun: "supplier",
-      param_key: "supplier_profile",
-      create_path: directory_party_supplier_profile_path(@party),
-      update_path: directory_party_supplier_profile_path(@party),
-      deactivate_path: deactivate_directory_party_supplier_profile_path(@party),
-      reactivate_path: reactivate_directory_party_supplier_profile_path(@party),
-      active_offices: @active_offices,
-      assign_advisor_path: nil,
-      clear_advisor_path: nil,
-      advisor_memberships: [],
-      eligible: !@party.household? %>
-  </div>
-</article>
-
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Contact information</h2>
-  </header>
-  <div class="dd-panel-body">
-    <% if @primary_assignments.any? %>
-      <dl class="dd-definition-list">
-        <% @primary_assignments.each do |assignment| %>
-          <div>
-            <dt><%= assignment.contact_kind.titleize %> · <%= assignment.purpose_label %> primary</dt>
-            <dd><%= assignment.contact_point.display_value.to_s.split("\n").first %></dd>
-          </div>
-        <% end %>
-      </dl>
-    <% else %>
-      <div class="dd-empty-state">
-        <h3 class="dd-empty-title">No primary contact information</h3>
-        <p class="dd-empty-copy">Add emails, phones, or addresses and assign a general, correspondence, or billing purpose.</p>
-      </div>
-    <% end %>
-    <p><%= link_to "Open contact information", directory_party_contact_information_path(@party) %></p>
-  </div>
-</article>
-
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Relationships</h2>
-  </header>
-  <div class="dd-panel-body">
-    <% if @current_relationships.any? %>
-      <ul class="dd-list">
-        <% @current_relationships.each do |relationship| %>
-          <li class="dd-list-item">
-            <strong class="dd-list-title"><%= relationship.description %></strong>
-          </li>
-        <% end %>
-      </ul>
-    <% else %>
-      <div class="dd-empty-state">
-        <h3 class="dd-empty-title">No current relationships</h3>
-        <p class="dd-empty-copy">Household, family, and organization relationships are recorded separately from travel roles.</p>
-      </div>
-    <% end %>
-    <p><%= link_to "Open relationships", directory_party_relationships_path(@party) %></p>
-  </div>
-</article>
-
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Record</h2>
-  </header>
-  <div class="dd-panel-body">
-    <dl class="dd-definition-list">
-      <div>
-        <dt>Created</dt>
-        <dd><%= @party.created_at.utc.to_fs(:long) %></dd>
-      </div>
-      <div>
-        <dt>Updated</dt>
-        <dd><%= @party.updated_at.utc.to_fs(:long) %></dd>
-      </div>
-      <% if @party.deactivated? %>
-        <div>
-          <dt>Deactivated</dt>
-          <dd><%= @party.deactivated_at.utc.to_fs(:long) %></dd>
-        </div>
-        <div>
-          <dt>Deactivation reason</dt>
-          <dd><%= @party.deactivation_reason %></dd>
-        </div>
-      <% end %>
-    </dl>
-  </div>
-</article>
-
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Party lifecycle</h2>
-  </header>
-  <% if @party.active? %>
-    <%= form_with url: deactivate_directory_party_path(@party), method: :post, class: "dd-form" do %>
-      <input type="hidden" name="lock_version" value="<%= @party.lock_version %>">
+    <article class="dd-panel">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title">Supplier summary</h2>
+        <%= link_to "Manage roles", directory_party_roles_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+      </header>
       <div class="dd-panel-body">
-        <p class="dd-field-hint">Deactivation hides this identity from normal directory search. Roles, relationships, and membership links must be resolved first. History stays on the record.</p>
-        <div class="dd-field-group">
-          <label class="dd-label" for="party_deactivation_reason">Party deactivation reason</label>
-          <input class="dd-field" type="text" name="reason" id="party_deactivation_reason" required>
-        </div>
+        <% if @party.household? %>
+          <%= status_badge("Ineligible", modifier: "neutral") %>
+          <p class="dd-missing">Households cannot hold a supplier role.</p>
+        <% elsif @supplier_profile.nil? %>
+          <p class="dd-missing">Not assigned. <%= link_to "Add a supplier role", directory_party_roles_path(@party) %></p>
+        <% else %>
+          <dl class="dd-definition-list">
+            <div>
+              <dt>Status</dt>
+              <dd><%= role_profile_status_badge(@supplier_profile) %></dd>
+            </div>
+            <div>
+              <dt>Responsible office</dt>
+              <dd><%= responsible_office_text(@supplier_profile) %></dd>
+            </div>
+            <div>
+              <dt>Service categories</dt>
+              <dd><%= overview_supplier_services_text(@party, @supplier_profile) %></dd>
+            </div>
+          </dl>
+        <% end %>
       </div>
-      <div class="dd-panel-footer dd-form-actions">
-        <%= submit_tag "Deactivate party", class: "dd-button dd-button--danger", data: { turbo_confirm: "Deactivate this party? Historical records stay in the directory." } %>
-      </div>
-    <% end %>
-  <% else %>
-    <%= form_with url: reactivate_directory_party_path(@party), method: :post, class: "dd-form" do %>
-      <input type="hidden" name="lock_version" value="<%= @party.lock_version %>">
+    </article>
+
+    <article class="dd-panel">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title">Current relationships</h2>
+        <%= link_to "View all", directory_party_relationships_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+      </header>
       <div class="dd-panel-body">
-        <p class="dd-field-hint">Reactivation makes this identity available for new work. It does not restore client or supplier roles, advisors, relationships, or contact purposes.</p>
-        <div class="dd-field-group">
-          <label class="dd-label" for="party_reactivation_reason">Party reactivation reason</label>
-          <input class="dd-field" type="text" name="reason" id="party_reactivation_reason" required>
-        </div>
+        <% if @current_relationships.any? %>
+          <ul class="dd-list">
+            <% @current_relationships.first(5).each do |relationship| %>
+              <li class="dd-list-item">
+                <div>
+                  <span class="dd-cell-title"><%= relationship.description %></span>
+                </div>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p class="dd-missing">No current relationships. <%= link_to "Add a relationship", directory_party_relationships_path(@party) %></p>
+        <% end %>
       </div>
-      <div class="dd-panel-footer dd-form-actions">
-        <%= submit_tag "Reactivate party", class: "dd-button dd-button--secondary" %>
+    </article>
+
+    <article class="dd-panel">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title">Notes</h2>
+        <%= link_to "View all", directory_party_notes_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+      </header>
+      <div class="dd-panel-body">
+        <% if @overview_notes.any? %>
+          <ul class="dd-list">
+            <% @overview_notes.each do |note| %>
+              <li class="dd-list-item">
+                <div>
+                  <% if note.pinned? %>
+                    <%= status_badge("Pinned", modifier: "info") %>
+                  <% end %>
+                  <span class="dd-cell-title"><%= truncate(note.body, length: 140) %></span>
+                  <span class="dd-cell-subtext">Recorded <%= note.created_at.utc.to_fs(:long) %></span>
+                </div>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p class="dd-missing">No notes. <%= link_to "Open notes", directory_party_notes_path(@party) %></p>
+        <% end %>
+      </div>
+    </article>
+  </div>
+
+  <aside class="dd-stack">
+    <% if @attention.count.positive? %>
+      <div class="dd-attention-callout">
+        <h2><%= pluralize(@attention.count, "item") %> need attention</h2>
+        <ul>
+          <% @attention.items.each do |item| %>
+            <li><%= link_to item.label, party_attention_path(@party, item) %></li>
+          <% end %>
+        </ul>
       </div>
     <% end %>
-  <% end %>
-</article>
+
+    <article class="dd-panel dd-panel--compact">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title">Identifiers</h2>
+        <%= link_to "View all", directory_party_identifiers_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+      </header>
+      <div class="dd-panel-body">
+        <% if @overview_identifiers.any? %>
+          <ul class="dd-list">
+            <% @overview_identifiers.each do |identifier| %>
+              <li class="dd-list-item">
+                <div>
+                  <span class="dd-cell-title"><%= identifier.type_definition.label %></span>
+                  <span class="dd-cell-subtext"><%= identifier.original_value %></span>
+                </div>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p class="dd-missing">No current identifiers. <%= link_to "Add identifiers", directory_party_identifiers_path(@party) %></p>
+        <% end %>
+      </div>
+    </article>
+
+    <% if @party.person? && @party.person&.agency_membership %>
+      <% membership = @party.person.agency_membership %>
+      <article class="dd-panel dd-panel--compact">
+        <header class="dd-panel-header">
+          <h2 class="dd-panel-title">Team membership</h2>
+        </header>
+        <div class="dd-panel-body">
+          <p>
+            <%= membership_status_badge(membership) %>
+            <span class="dd-cell-subtext"><%= membership.user.email_address %></span>
+          </p>
+          <% if Current.agency_membership&.administrator? %>
+            <p><%= link_to "Open team membership", administration_team_member_path(membership) %></p>
+          <% end %>
+        </div>
+      </article>
+    <% end %>
+  </aside>
+</div>

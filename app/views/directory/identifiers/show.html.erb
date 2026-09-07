@@ -1,18 +1,6 @@
 <% content_for :title, "#{@party.display_name} · Identifiers · DepartureDesk" %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Directory</p>
-    <h1 class="dd-page-title"><%= @party.display_name %></h1>
-    <p class="dd-page-description">
-      <%= party_kind_badge(@party) %>
-      External identifiers belong to this party or one of its roles. Values are not copied into audit events.
-    </p>
-    <%= link_to "Back to directory", directory_parties_path, class: "dd-button dd-button--quiet dd-button--small" %>
-  </div>
-</header>
-
-<%= render "directory/shared/party_subnav", party: @party, current: :identifiers %>
+<%= render "directory/shared/party_chrome", party: @party, current: :identifiers %>
 
 <article class="dd-panel">
   <header class="dd-panel-header">
