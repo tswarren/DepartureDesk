@@ -48,8 +48,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   def add_party_role(role_noun, office_label:)
     wait_for_turbo
     unless has_css?("##{role_noun}_profile_create_form", wait: 0)
-      click_link "Roles"
-      wait_for_turbo
+      click_party_tab "Roles"
     end
     within("##{role_noun}_profile_create_form") do
       select office_label, from: "#{role_noun.titleize} responsible office"
@@ -71,13 +70,27 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   end
 
   def open_directory
-    click_link_and_expect "Directory",
-      heading: "People, households, and organizations",
-      exact: true
+    click_primary_nav "Directory", heading: "People, households, and organizations"
+  end
+
+  def open_clients
+    click_primary_nav "Clients", heading: "Clients"
+  end
+
+  def open_suppliers
+    click_primary_nav "Suppliers", heading: "Suppliers"
   end
 
   def open_administration
     click_link_and_expect "Administration", heading: "Agency profile"
+  end
+
+  def click_party_tab(name)
+    wait_for_turbo
+    href = within("nav[aria-label=Party]") { find("a", exact_text: name)[:href] }
+    visit href
+    assert_selector "nav[aria-label=Party] a[aria-current=page]", exact_text: name
+    wait_for_turbo
   end
 
   def open_directory_party(display_name)
@@ -96,6 +109,12 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   end
 
   private
+
+  def click_primary_nav(locator, heading:)
+    expect_heading_after(heading) do
+      within("nav[aria-label='Primary navigation']") { click_link locator, exact: true }
+    end
+  end
 
   def expect_heading_after(heading)
     TURBO_CLICK_ATTEMPTS.times do |attempt|

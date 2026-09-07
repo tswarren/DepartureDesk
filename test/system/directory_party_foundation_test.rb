@@ -19,7 +19,7 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_text "Jamie Cole"
     jamie_id = Party.find_by!(display_name: "Jamie Cole").id
 
-    click_link_and_expect "Back to directory", heading: "People, households, and organizations"
+    open_directory
     click_link_and_expect "Add to directory", heading: "Add to directory"
     click_link "Household"
     assert_field "Household name"
@@ -28,7 +28,7 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     click_button "Create household"
     assert_text "Jamie Cole Household"
 
-    click_link_and_expect "Back to directory", heading: "People, households, and organizations"
+    open_directory
     click_link_and_expect "Add to directory", heading: "Add to directory"
     click_link "Organization"
     assert_field "Legal name"

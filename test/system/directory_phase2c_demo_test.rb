@@ -53,7 +53,7 @@ class DirectoryPhase2cDemoTest < ApplicationSystemTestCase
     ).call.office
 
     open_directory_party "Horizon Tours"
-    click_link "Roles"
+    click_party_tab "Roles"
     fill_in "Supplier deactivation reason", with: "Season over"
     accept_confirm { click_button "Deactivate supplier role" }
     assert_text "Supplier role deactivated."
@@ -80,7 +80,7 @@ class DirectoryPhase2cDemoTest < ApplicationSystemTestCase
     assert_equal :invalid, error.code
 
     open_directory_party "Horizon Tours"
-    click_link "Roles"
+    click_party_tab "Roles"
     select "Sunrise Travel (MAIN)", from: "Supplier responsible office"
     click_button "Reactivate supplier role"
     assert_text "Supplier role reactivated."
