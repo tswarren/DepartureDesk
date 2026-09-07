@@ -99,7 +99,8 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       begin
         wait_for_turbo
         unless has_selector?("nav[aria-label=Party] a[aria-current=page]", exact_text: name, wait: 0)
-          within("nav[aria-label=Party]") { click_link name, exact: true }
+          href = within("nav[aria-label=Party]") { find("a", exact_text: name)[:href] }
+          visit href
           wait_for_turbo
         end
         assert_selector "nav[aria-label=Party] a[aria-current=page]", exact_text: name
