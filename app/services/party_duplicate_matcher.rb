@@ -84,8 +84,10 @@ class PartyDuplicateMatcher
       ).display_name
     )
     proposed_dob = parse_date(@attributes[:date_of_birth])
+    scope = matching_people(given:, family:, display: proposed_display)
+    strong_scope = proposed_dob.present? ? scope.where(date_of_birth: proposed_dob) : nil
 
-    matching_people(given:, family:, display: proposed_display).filter_map do |person|
+    merge_strong_and_possible(scope, strong_scope:).filter_map do |person|
       display_match = PartyName.normalize(person.party.display_name) == proposed_display
       name_match = PartyName.normalize(person.given_name) == given &&
         PartyName.normalize(person.family_name) == family
@@ -116,8 +118,16 @@ class PartyDuplicateMatcher
     return [] if legal.blank? && trading.blank?
 
     proposed_host = self.class.website_host(@attributes[:website])
+    scope = matching_organizations(legal:, trading:)
+    strong_scope = website_host_scope(scope, proposed_host)
 
-    matching_organizations(legal:, trading:).filter_map do |organization|
+    merge_strong_and_possible(
+      scope,
+      strong_scope:,
+      verify_strong: ->(organization) {
+        proposed_host.present? && self.class.website_host(organization.website) == proposed_host
+      }
+    ).filter_map do |organization|
       legal_match = legal.present? && PartyName.normalize(organization.legal_name) == legal
       trading_match = trading.present? && organization.trading_name.present? &&
         PartyName.normalize(organization.trading_name) == trading
@@ -137,7 +147,7 @@ class PartyDuplicateMatcher
     name_match = sql_normalized(people[:given_name]).eq(given)
       .and(sql_normalized(people[:family_name]).eq(family))
     display_match = sql_normalized(parties[:display_name]).eq(display)
-    finish_matches(scoped_kind(@agency.people).where(name_match.or(display_match)))
+    scoped_kind(@agency.people).where(name_match.or(display_match))
   end
 
   def matching_households(name)
@@ -153,7 +163,7 @@ class PartyDuplicateMatcher
     predicates << sql_normalized(organizations[:trading_name]).eq(trading) if trading.present?
     return scope.none if predicates.empty?
 
-    finish_matches(scope.where(predicates.reduce { |combined, predicate| combined.or(predicate) }))
+    scope.where(predicates.reduce { |combined, predicate| combined.or(predicate) })
   end
 
   def scoped_kind(scope)
@@ -163,7 +173,38 @@ class PartyDuplicateMatcher
   end
 
   def finish_matches(scope)
-    scope.includes(party: party_summary_includes).order("parties.sort_name", "parties.id").limit(@limit)
+    ordered_matches(scope).limit(@limit)
+  end
+
+  def ordered_matches(scope)
+    scope.includes(party: party_summary_includes).order("parties.sort_name", "parties.id")
+  end
+
+  def merge_strong_and_possible(scope, strong_scope: nil, verify_strong: nil)
+    strong_records = []
+    if strong_scope
+      fetched = ordered_matches(strong_scope)
+      fetched = verify_strong ? fetched.to_a.select { |record| verify_strong.call(record) } : fetched.limit(@limit).to_a
+      strong_records = fetched.first(@limit)
+    end
+
+    remaining = @limit - strong_records.size
+    possible_records = if remaining.positive?
+      possible_scope = strong_records.any? ? scope.where.not(party_id: strong_records.map(&:party_id)) : scope
+      ordered_matches(possible_scope).limit(remaining).to_a
+    else
+      []
+    end
+
+    strong_records + possible_records
+  end
+
+  def website_host_scope(scope, host)
+    return if host.blank?
+
+    pattern = "%#{Organization.sanitize_sql_like(host)}%"
+    lowered = Arel::Nodes::NamedFunction.new("lower", [ Organization.arel_table[:website] ])
+    scope.where(lowered.matches(pattern, nil, true))
   end
 
   def sql_normalized(column)

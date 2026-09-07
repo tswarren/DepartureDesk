@@ -113,4 +113,53 @@ class PartyDuplicateMatcherTest < ActiveSupport::TestCase
     assert_equal 1, capped.candidates.size
     assert capped.possible?
   end
+
+  test "keeps a strong person match that sorts after the candidate cap" do
+    9.times do
+      create_person!(agencies(:one), given_name: "Alex", family_name: "Morgan", date_of_birth: Date.new(1970, 1, 1))
+    end
+    strong = create_person!(
+      agencies(:one),
+      given_name: "Alex",
+      family_name: "Morgan",
+      date_of_birth: Date.new(1990, 5, 1)
+    )
+
+    match = PartyDuplicateMatcher.new(
+      agency: agencies(:one),
+      party_kind: "person",
+      attributes: { given_name: "Alex", family_name: "Morgan", date_of_birth: "1990-05-01" }
+    ).call
+    strong_candidate = match.candidates.find { |candidate| candidate.party_id == strong.party_id }
+
+    assert match.strong?
+    assert_equal PartyDuplicateMatcher::CANDIDATE_LIMIT, match.candidates.size
+    assert_equal strong.party_id, match.candidates.first.party_id
+    assert_equal "strong", strong_candidate.strength
+    assert_includes strong_candidate.signals, "date_of_birth"
+  end
+
+  test "keeps a strong organization match that sorts after the candidate cap" do
+    10.times do
+      create_organization!(agencies(:one), legal_name: "Duplicate Line Ltd")
+    end
+    strong = create_organization!(
+      agencies(:one),
+      legal_name: "Duplicate Line Ltd",
+      website: "https://www.duplicate-line.example"
+    )
+
+    match = PartyDuplicateMatcher.new(
+      agency: agencies(:one),
+      party_kind: "organization",
+      attributes: { legal_name: "Duplicate Line Ltd", website: "https://duplicate-line.example" }
+    ).call
+    strong_candidate = match.candidates.find { |candidate| candidate.party_id == strong.party_id }
+
+    assert match.strong?
+    assert_equal PartyDuplicateMatcher::CANDIDATE_LIMIT, match.candidates.size
+    assert_equal strong.party_id, match.candidates.first.party_id
+    assert_equal "strong", strong_candidate.strength
+    assert_includes strong_candidate.signals, "website"
+  end
 end

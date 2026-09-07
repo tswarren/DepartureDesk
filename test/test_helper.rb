@@ -27,6 +27,17 @@ module ActiveSupport
       person
     end
 
+    def create_organization!(agency, legal_name:, trading_name: nil, website: nil)
+      organization = Organization.new(agency:, legal_name:, trading_name:, website:)
+      party = agency.parties.new(party_kind: "organization", status: "active")
+      party.apply_derived_names!(organization)
+      party.save!
+      organization.party = party
+      organization.party_id = party.id
+      organization.save!
+      organization
+    end
+
     def create_email_contact!(party, address:, actor:, label: nil, email_type: "personal")
       CreatePartyContactPoint.new(
         agency: party.agency,

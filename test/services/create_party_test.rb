@@ -143,6 +143,50 @@ class CreatePartyTest < ActiveSupport::TestCase
     assert_equal "Separate household member with the same name", event.details["duplicate_override_reason"]
   end
 
+  test "strong override still requires a reason when the match sorts after the candidate cap" do
+    9.times do
+      create_person!(agencies(:one), given_name: "Alex", family_name: "Morgan", date_of_birth: Date.new(1970, 1, 1))
+    end
+    create_person!(
+      agencies(:one),
+      given_name: "Alex",
+      family_name: "Morgan",
+      date_of_birth: Date.new(1990, 5, 1)
+    )
+    attributes = { given_name: "Alex", family_name: "Morgan", date_of_birth: "1990-05-01" }
+    match = PartyDuplicateMatcher.new(agency: agencies(:one), party_kind: "person", attributes:).call
+
+    error = assert_raises(MembershipCommand::Error) do
+      CreateParty.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party_kind: "person",
+        attributes:,
+        create_anyway: true,
+        acknowledged_candidate_ids: match.candidate_ids,
+        acknowledged_strength: match.strength
+      ).call
+    end
+    assert_equal :invalid, error.code
+    assert match.strong?
+
+    result = CreateParty.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      party_kind: "person",
+      attributes:,
+      create_anyway: true,
+      duplicate_override_reason: "Twins with the same name",
+      acknowledged_candidate_ids: match.candidate_ids,
+      acknowledged_strength: match.strength
+    ).call
+
+    assert result.ok?
+    event = agencies(:one).audit_events.where(action: "directory.party_created").order(:created_at).last
+    assert_equal "strong", event.details["duplicate_override_strength"]
+    assert_equal "Twins with the same name", event.details["duplicate_override_reason"]
+  end
+
   test "rejects stale acknowledged candidates" do
     error = assert_raises(MembershipCommand::Error) do
       CreateParty.new(
