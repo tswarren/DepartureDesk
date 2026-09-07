@@ -36,6 +36,16 @@ class PartyPhoneNumber < ApplicationRecord
     allow_nil: true
   validate :agency_matches_contact_point
 
+  def formatted_number
+    PhoneNumberNormalizer.format(
+      display_number:,
+      e164_number:,
+      parsed_country_code:,
+      extension:,
+      home_country: agency&.country_code
+    )
+  end
+
   private
 
   def agency_matches_contact_point

@@ -218,4 +218,23 @@ class PartyContactPointTest < ActiveSupport::TestCase
       end
     end
   end
+
+  test "phone display_value uses a formatted number and optional extension" do
+    contact_point = CreatePartyContactPoint.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      party: parties(:unlinked),
+      contact_kind: "phone",
+      attributes: {
+        display_number: "415-555-0199",
+        extension: "12",
+        phone_type: "work",
+        parsed_country_code: "US"
+      }
+    ).call.contact_point
+
+    assert_equal "415-555-0199", contact_point.phone_number.display_number
+    assert_equal "12", contact_point.phone_number.extension
+    assert_equal "(415) 555-0199 ext. 12", contact_point.display_value
+  end
 end

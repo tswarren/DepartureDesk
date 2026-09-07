@@ -17,6 +17,47 @@ class PhoneNumberNormalizerTest < ActiveSupport::TestCase
     end
     assert_match(/digits/, error.message)
   end
+
+  test "formats a home-country number nationally and appends an extension" do
+    result = PhoneNumberNormalizer.normalize("415-555-0199", default_country: "US")
+
+    assert_equal "(415) 555-0199", PhoneNumberNormalizer.format(
+      display_number: result.display_number,
+      e164_number: result.e164_number,
+      parsed_country_code: result.parsed_country_code,
+      home_country: "US"
+    )
+    assert_equal "(415) 555-0199 ext. 12", PhoneNumberNormalizer.format(
+      display_number: result.display_number,
+      e164_number: result.e164_number,
+      parsed_country_code: result.parsed_country_code,
+      extension: "12",
+      home_country: "US"
+    )
+  end
+
+  test "formats a foreign number in international form" do
+    result = PhoneNumberNormalizer.normalize("+44 20 7946 0958", default_country: "US")
+
+    assert_equal "+44 20 7946 0958", PhoneNumberNormalizer.format(
+      display_number: result.display_number,
+      e164_number: result.e164_number,
+      parsed_country_code: result.parsed_country_code,
+      home_country: "US"
+    )
+  end
+
+  test "falls back to the stored display number when the value cannot be parsed" do
+    assert_equal "desk line", PhoneNumberNormalizer.format(
+      display_number: "desk line",
+      home_country: "US"
+    )
+    assert_equal "desk line ext. 9", PhoneNumberNormalizer.format(
+      display_number: "desk line",
+      extension: "9",
+      home_country: "US"
+    )
+  end
 end
 
 class EmailAddressNormalizerTest < ActiveSupport::TestCase

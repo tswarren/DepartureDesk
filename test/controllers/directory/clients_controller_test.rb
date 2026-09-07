@@ -75,7 +75,7 @@ module Directory
       assert_response :success
       assert_includes response.body, "No preference"
       assert_includes response.body, "Phone:"
-      assert_includes response.body, "415-555-0199"
+      assert_includes response.body, "(415) 555-0199"
 
       UpdateClientProfile.new(
         agency: agencies(:one),
@@ -90,7 +90,7 @@ module Directory
       assert_response :success
       assert_includes response.body, "Preferred contact unavailable."
       assert_includes response.body, "Phone:"
-      assert_includes response.body, "415-555-0199"
+      assert_includes response.body, "(415) 555-0199"
 
       email = CreatePartyContactPoint.new(
         agency: agencies(:one),
@@ -112,7 +112,7 @@ module Directory
       assert_includes response.body, "alex.client@example.com"
       assert_not_includes response.body, "Preferred contact unavailable."
       assert_not_includes response.body, "Phone:"
-      assert_not_includes response.body, "415-555-0199"
+      assert_not_includes response.body, "(415) 555-0199"
     end
   end
 end
