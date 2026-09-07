@@ -48,9 +48,16 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   def open_directory_party(display_name)
     open_directory
-    expect_heading_after(display_name) do
-      within("table.dd-table") { click_link display_name, exact: true }
+    wait_for_turbo
+    href = nil
+    within("table.dd-table") do
+      href = find("a", exact_text: display_name)[:href]
     end
+    # Follow the table href with visit so an in-flight Turbo click cannot
+    # cancel navigation and leave the directory index in place.
+    visit href
+    assert_selector "h1.dd-page-title", exact_text: display_name
+    wait_for_turbo
     assert_selector "nav[aria-label=Party]"
   end
 
@@ -59,7 +66,11 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   def expect_heading_after(heading)
     TURBO_CLICK_ATTEMPTS.times do |attempt|
       begin
-        yield unless has_selector?("h1.dd-page-title", exact_text: heading, wait: 0)
+        wait_for_turbo
+        unless has_selector?("h1.dd-page-title", exact_text: heading, wait: 0)
+          yield
+          wait_for_turbo
+        end
         assert_selector "h1.dd-page-title", exact_text: heading
         wait_for_turbo
         return
