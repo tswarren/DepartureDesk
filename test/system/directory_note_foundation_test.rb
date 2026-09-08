@@ -37,6 +37,7 @@ class DirectoryNoteFoundationTest < ApplicationSystemTestCase
     assert_text "Internal credit discussion."
 
     click_button "Sign out"
+    wait_for_turbo
     sign_in_from_browser users(:staff_one)
     open_directory_party "Alex Morgan"
     click_party_tab "Notes"

@@ -27,6 +27,8 @@ class NavigationDrawerTest < ApplicationSystemTestCase
     assert_not page.evaluate_script("document.querySelector('.dd-topbar').inert")
     assert_not page.evaluate_script("document.querySelector('.dd-main').inert")
     assert_equal "Open navigation", focused_aria_label
+  ensure
+    restore_default_window_size
   end
 
   private
@@ -36,9 +38,6 @@ class NavigationDrawerTest < ApplicationSystemTestCase
   end
 
   def focused_inside_drawer?
-    page.evaluate_script(<<~JS)
-      const drawer = document.querySelector("#app-navigation");
-      return !!(drawer && drawer.contains(document.activeElement));
-    JS
+    page.evaluate_script("!!(document.querySelector('#app-navigation') && document.querySelector('#app-navigation').contains(document.activeElement))")
   end
 end

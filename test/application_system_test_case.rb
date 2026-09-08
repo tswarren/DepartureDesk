@@ -15,6 +15,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     end
   end
 
+  teardown do
+    restore_default_window_size
+  end
+
   # Capybara's assert_current_path can pass on a Turbo visit's URL before the
   # document is replaced. A click issued while a visit is in flight can be
   # cancelled and leave the previous page in place. Wait on unique content,
@@ -176,7 +180,8 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   def click_primary_nav(locator, heading:)
     expect_heading_after(heading) do
-      within("nav[aria-label='Primary navigation']") { click_link locator, exact: true }
+      href = within("nav[aria-label='Primary navigation']") { find("a", exact_text: locator)[:href] }
+      visit href
     end
   end
 
@@ -195,6 +200,15 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       end
       sleep 0.05
     end
+  end
+
+  def restore_default_window_size
+    return unless SystemTestBrowser.available?
+    return unless page.driver.respond_to?(:browser)
+
+    page.current_window.resize_to(1400, 1400)
+  rescue Selenium::WebDriver::Error::WebDriverError, Capybara::NotSupportedByDriverError
+    nil
   end
 
   def expect_heading_after(heading)
