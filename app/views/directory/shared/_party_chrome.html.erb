@@ -15,8 +15,8 @@
   <div class="dd-record-identity">
     <span class="dd-id-avatar" aria-hidden="true"><%= party_initials(party) %></span>
     <div>
-      <h1 class="dd-page-title"><%= local_assigns.fetch(:title, party.display_name) %></h1>
-      <div class="dd-record-meta">
+      <div class="dd-id-name-row">
+        <h1 class="dd-page-title"><%= local_assigns.fetch(:title, party.display_name) %></h1>
         <%= party_kind_badge(party) %>
         <% unless party.active? %>
           <%= party_status_badge(party) %>

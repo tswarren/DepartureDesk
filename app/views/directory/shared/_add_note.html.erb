@@ -1,0 +1,31 @@
+<% suffix = local_assigns.fetch(:suffix, "note") %>
+<% return_to = local_assigns[:return_to] %>
+<%= form_with url: directory_party_party_notes_path(party),
+  scope: :party_note,
+  method: :post,
+  class: "dd-add-note" do |form| %>
+  <% if return_to.present? %>
+    <%= hidden_field_tag :return_to, return_to %>
+  <% end %>
+  <%= form.label :body, "New note", class: "dd-visually-hidden", for: "party_note_body_#{suffix}" %>
+  <%= form.text_area :body,
+    id: "party_note_body_#{suffix}",
+    rows: 3,
+    required: true,
+    placeholder: "Add a note about this party…",
+    class: "dd-field" %>
+  <div class="dd-add-note-footer">
+    <% if Current.agency_membership&.administrator? %>
+      <label class="dd-add-note-admin" for="party_note_visibility_<%= suffix %>">
+        <%= form.check_box :visibility,
+          { id: "party_note_visibility_#{suffix}" },
+          "administrator_only",
+          "standard" %>
+        Administrator-only note
+      </label>
+    <% else %>
+      <%= form.hidden_field :visibility, value: "standard" %>
+    <% end %>
+    <%= form.submit "Add note", class: "dd-button" %>
+  </div>
+<% end %>

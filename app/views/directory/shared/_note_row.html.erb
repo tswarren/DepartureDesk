@@ -1,17 +1,60 @@
-<div class="dd-note-row">
-  <div class="dd-note-main">
-    <% if note.pinned? %>
-      <%= status_badge("Pinned", modifier: "info") %>
-    <% end %>
+<% compact = local_assigns.fetch(:compact, false) %>
+<% historical = local_assigns.fetch(:historical, false) %>
+<div class="dd-note-item">
+  <div class="dd-note-head">
+    <span class="dd-note-avatar" aria-hidden="true"><%= membership_initials(note.author_membership) %></span>
+    <span class="dd-note-author"><%= membership_display_name(note.author_membership) %></span>
+    <time class="dd-note-time" datetime="<%= note.created_at.iso8601 %>"><%= dd_display_date(note.created_at) %></time>
     <% if note.administrator_only? %>
-      <%= status_badge("Administrator only", modifier: "warning") %>
+      <span class="dd-note-badge">Admin only</span>
     <% end %>
-    <% if note.record_superseded? %>
-      <%= status_badge("Superseded", modifier: "neutral") %>
-    <% elsif note.record_removed? %>
-      <%= status_badge("Removed", modifier: "neutral") %>
-    <% end %>
-    <p class="dd-contact-value"><%= truncate(note.body, length: local_assigns.fetch(:compact, false) ? 140 : 2000) %></p>
-    <p class="dd-cell-subtext">Recorded <%= dd_display_date(note.created_at) %></p>
   </div>
+  <% if note.record_removed? %>
+    <p class="dd-note-removed">
+      Removed<%= " · #{note.removal_reason}" if note.removal_reason.present? %>
+    </p>
+  <% else %>
+    <div class="dd-note-body"><%= compact ? truncate(note.body, length: 140) : simple_format(note.body) %></div>
+  <% end %>
+  <% if note.record_superseded? %>
+    <p class="dd-note-edited">Superseded<%= " · #{note.correction_reason}" if note.correction_reason.present? %></p>
+  <% elsif note.pinned? && !historical %>
+    <p class="dd-note-edited">Pinned</p>
+  <% end %>
+  <% unless compact || historical %>
+    <div class="dd-note-actions">
+      <%= button_to note.pinned? ? "Unpin" : "Pin",
+        note.pinned? ? unpin_directory_party_party_note_path(party, note) : pin_directory_party_party_note_path(party, note),
+        method: :post,
+        class: "dd-row-action" %>
+      <%= link_to "Correct",
+        directory_party_notes_path(party, acting: "correct", note_id: note.id),
+        class: "dd-row-action" %>
+      <%= link_to "Remove",
+        directory_party_notes_path(party, acting: "remove", note_id: note.id),
+        class: "dd-row-action" %>
+    </div>
+
+    <% if selected_action?("correct", id: note.id, param: :note_id) %>
+      <%= form_with url: correct_directory_party_party_note_path(party, note), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="note_body_<%= note.id %>">Corrected note</label>
+        <textarea class="dd-field" id="note_body_<%= note.id %>" name="party_note[body]" rows="3" required><%= note.body %></textarea>
+        <label class="dd-label" for="note_correct_reason_<%= note.id %>">Correction reason</label>
+        <input class="dd-field" id="note_correct_reason_<%= note.id %>" name="party_note[reason]" required>
+        <div class="dd-form-actions">
+          <%= submit_tag "Correct note", class: "dd-button dd-button--secondary dd-button--small" %>
+          <%= link_to "Cancel", directory_party_notes_path(party), class: "dd-row-action" %>
+        </div>
+      <% end %>
+    <% elsif selected_action?("remove", id: note.id, param: :note_id) %>
+      <%= form_with url: remove_directory_party_party_note_path(party, note), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="note_remove_reason_<%= note.id %>">Removal reason</label>
+        <input class="dd-field" id="note_remove_reason_<%= note.id %>" name="party_note[reason]" required>
+        <div class="dd-form-actions">
+          <%= submit_tag "Remove note", class: "dd-button dd-button--danger dd-button--small" %>
+          <%= link_to "Cancel", directory_party_notes_path(party), class: "dd-row-action" %>
+        </div>
+      <% end %>
+    <% end %>
+  <% end %>
 </div>

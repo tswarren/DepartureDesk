@@ -4,25 +4,20 @@
 
 <% history = params[:view] == "history" %>
 
-<article class="dd-panel">
+<article class="dd-panel dd-notes-panel">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title"><%= history ? "Note history" : "Current notes" %></h2>
     <div class="dd-button-group">
       <%= link_to "Current", directory_party_notes_path(@party), class: "dd-row-action" %>
       <%= link_to "History", directory_party_notes_path(@party, view: "history"), class: "dd-row-action" %>
-      <% unless history || params[:adding] == "1" %>
-        <%= link_to "Add note", directory_party_notes_path(@party, adding: 1), class: "dd-button dd-button--secondary dd-button--small" %>
-      <% end %>
     </div>
   </header>
-  <div class="dd-panel-body">
+  <div class="dd-notes-list">
     <% if history %>
       <% if @historical_notes.any? %>
-        <ul class="dd-list">
-          <% @historical_notes.each do |note| %>
-            <%= render "directory/notes/note", note:, party: @party, historical: true %>
-          <% end %>
-        </ul>
+        <% @historical_notes.each do |note| %>
+          <%= render "directory/notes/note", note:, party: @party, historical: true %>
+        <% end %>
         <% if @page > 1 || @has_next_page %>
           <nav class="dd-button-group" aria-label="Notes pagination">
             <% if @page > 1 %>
@@ -41,54 +36,18 @@
       <% end %>
     <% else %>
       <% if @notes.any? %>
-        <ul class="dd-list">
-          <% @notes.each do |note| %>
-            <%= render "directory/notes/note", note:, party: @party, historical: false %>
-          <% end %>
-        </ul>
+        <% @notes.each do |note| %>
+          <%= render "directory/notes/note", note:, party: @party, historical: false %>
+        <% end %>
       <% else %>
         <div class="<%= class_names(empty_state_classes(family: :inline)) %>">
           <h3 class="dd-empty-title">No notes</h3>
           <p class="dd-empty-copy">Record servicing context here. Notes are retained when corrected or removed.</p>
         </div>
       <% end %>
-
-      <% if params[:adding] == "1" %>
-        <%= form_with model: @note,
-          url: directory_party_party_notes_path(@party),
-          method: :post,
-          class: "dd-form" do |form| %>
-          <div class="dd-field-group">
-            <%= form.label :body, "New note", class: "dd-label" %>
-            <%= form.text_area :body, rows: 4, required: true, class: "dd-field" %>
-            <p class="dd-field-hint">
-              Do not record passwords, payment-card or bank details, passport or identity-document numbers,
-              identity-document images, or medical documentation. This check is best-effort and is not a compliance control.
-            </p>
-          </div>
-          <% if Current.agency_membership&.administrator? %>
-            <div class="dd-field-group">
-              <%= form.label :visibility, "Note visibility", class: "dd-label" %>
-              <%= form.select :visibility,
-                [ [ "Standard", "standard" ], [ "Administrator only", "administrator_only" ] ],
-                {},
-                class: "dd-field" %>
-            </div>
-          <% else %>
-            <%= form.hidden_field :visibility, value: "standard" %>
-          <% end %>
-          <div class="dd-choice-group">
-            <label class="dd-choice">
-              <%= form.check_box :pinned %>
-              Pin this note
-            </label>
-          </div>
-          <div class="dd-form-actions">
-            <%= form.submit "Add note", class: "dd-button" %>
-            <%= link_to "Cancel", directory_party_notes_path(@party), class: "dd-button dd-button--quiet" %>
-          </div>
-        <% end %>
-      <% end %>
     <% end %>
   </div>
+  <% unless history %>
+    <%= render "directory/shared/add_note", party: @party, suffix: "page" %>
+  <% end %>
 </article>

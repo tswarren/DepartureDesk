@@ -47,23 +47,34 @@ dd-app-shell
 ## Typography and density
 
 * Self-hosted IBM Plex Sans (400/500/600/700, italic 400) and IBM Plex Mono (400/500/600) as `woff2` under `/fonts/`. SIL OFL. Auth pages inherit Plex; do not recompose the auth shell.
-* Body 13px. Table and list rows 12px. Labels 10–11px. Detail titles ~19px (`.dd-page-title`).
-* `.dd-type-mono` is for currency, codes, counts, and confirmation values only.
+* Weights are only 400/500/600/700. Do not request 650 or 750. `html` and `body` set `font-synthesis: none` so the browser cannot fake-bold missing cuts.
+* Body 13px. Table and list rows 12.5px. Labels 10.5–11px. Detail titles ~19px (`.dd-page-title`).
+* `.dd-type-mono` is for currency, codes, counts, and confirmation values outside tables.
 * Desktop fields ~34–36px, buttons ~32–34px; mobile controls may be taller. Short values use `.dd-field--narrow` or `.dd-field--code`, never a full-width field.
 * Cards use `radius-md` and a border, with little or no shadow. Keyboard focus: teal field border plus amber outer ring (`--dd-focus`).
 * Warning token: `--dd-warning: #b87800`. Keep `#8a5a00` as `--dd-amber-icon` only.
 
+## Tables
+
+* Indexes use `table.dd-table`. Global CSS restyles Directory, Clients, Suppliers, Offices, and Team; do not recompose those column sets in this program.
+* Headers: uppercase, `--dd-text-faint`, 10.5px, weight 600, tracking `0.02em`, `--dd-surface-subtle` background, `--dd-border` underline.
+* Cells: 12.5px, 8×12 padding, `--dd-surface-subtle` row rules; the last body row has no bottom border.
+* `.num` on `th`/`td` is for currency, codes, and counts in tables (IBM Plex Mono, right-aligned, `tabular-nums`). Current directory columns do not use it.
+* Ready-but-unused row states: `tr.attention`, `tr.is-inactive`, `tr.is-error`. `.dd-table-indicator` is a 3px amber (or red with `.is-error`) left bar. Do not fabricate attention rows on directory indexes.
+
 ## Party profile
 
-* Identity header: initials tile, display name (`h1.dd-page-title`), kind chip, real Client/Supplier chips, deactivated treatment when applicable.
+* Identity header: initials tile, display name (`h1.dd-page-title`) on the same row as the kind chip and real Client/Supplier chips, deactivated treatment when applicable.
 * Header metadata is identity disambiguation that already exists. Omit the line when empty; never print placeholders. Do not promote postal locality, organization type, or household locality.
   * Person: preferred name only when it differs from display name.
   * Organization: legal name only when display is the trading name. Website belongs in overview.
   * Household: correspondence name only when it differs from household name.
-* Edit is the only prominent header action. More is native `details`/`summary` with links to Roles and Record only.
+* Edit is the only prominent header action. More is a 32px secondary icon button (`details`/`summary`, `aria-label="More actions"`) with the filled `dots_three` ellipsis (`fill="currentColor"`) and links to Roles and Record only. Do not leave the summary as an empty white box.
+* Notes are a feed, not contact rows: author avatar and name, 10.5px faint date, 12.5px / 400 body, `Admin only` badge for restricted notes. Counts and lists use `PartyNote.visible_to` before render. Compact add-note lives in the same card (overview and Notes). Do not hide administrator-only notes with CSS.
+* Contact maintenance (Email / Phone / Postal) uses the same four-track row (`--dd-contact-cols`: icon, value, status, actions) so columns line up across the three kind cards. Do not wrap status and row actions as `space-between` flex siblings. Overview contact rows stay a compact icon + value row.
 * Subnav labels: Overview, Contact, Relationships, Roles, Notes, Identifiers, Record. One compact non-wrapping row; horizontal scroll at narrow widths; current item stays visible. Accessible name remains on the `nav`.
 * Desktop overview: main plus aside, 20–24px gap. Aside max `--dd-party-aside-max` (~21–22.5rem). Below the design-system breakpoint the aside stacks. Do not use a stretching 2:1.
-* Do not manufacture Party metrics or restore `.dd-summary-strip`. Notes counts use `PartyNote.visible_to` before render.
+* Do not manufacture Party metrics or restore `.dd-summary-strip`.
 
 ## Data entry
 

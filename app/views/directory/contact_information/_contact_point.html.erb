@@ -1,78 +1,88 @@
 <% purposes = current_purpose_assignments(contact_point, today) %>
-<li class="dd-list-item">
-  <%= render "directory/shared/contact_row", party:, contact_point:, today:, compact: true %>
-  <p>
-    <%= contact_point_status_badge(contact_point) %>
-  </p>
-  <div class="dd-button-group">
-    <% if contact_point.active? %>
-      <%= link_to "Edit", edit_directory_party_contact_point_path(party, contact_point), class: "dd-row-action" %>
-      <%= link_to "Assign purpose", new_directory_party_contact_point_purpose_path(party, contact_point), class: "dd-row-action" %>
-      <% if contact_point.eligible_destination? %>
-        <%= link_to "Set primary",
-          directory_party_contact_information_path(party, acting: "set_primary", contact_id: contact_point.id, status: params[:status]),
-          class: "dd-row-action" %>
-      <% end %>
-      <% if contact_point.suppressed? %>
-        <%= button_to "Allow use",
-          unsuppress_directory_party_contact_point_path(party, contact_point),
-          method: :post,
-          class: "dd-row-action" %>
-      <% else %>
-        <%= link_to "Do not use",
-          directory_party_contact_information_path(party, acting: "suppress", contact_id: contact_point.id, status: params[:status]),
-          class: "dd-row-action" %>
-      <% end %>
-      <%= link_to "Deactivate",
-        directory_party_contact_information_path(party, acting: "deactivate", contact_id: contact_point.id, status: params[:status]),
+<% actions = capture do %>
+  <% if contact_point.active? %>
+    <%= link_to "Edit", edit_directory_party_contact_point_path(party, contact_point), class: "dd-row-action" %>
+    <%= link_to "Assign purpose", new_directory_party_contact_point_purpose_path(party, contact_point), class: "dd-row-action" %>
+    <% if contact_point.eligible_destination? %>
+      <%= link_to "Set primary",
+        directory_party_contact_information_path(party, acting: "set_primary", contact_id: contact_point.id, status: params[:status]),
         class: "dd-row-action" %>
-    <% else %>
-      <%= button_to "Reactivate",
-        reactivate_directory_party_contact_point_path(party, contact_point),
+    <% end %>
+    <% if contact_point.suppressed? %>
+      <%= button_to "Allow use",
+        unsuppress_directory_party_contact_point_path(party, contact_point),
         method: :post,
         class: "dd-row-action" %>
+    <% else %>
+      <%= link_to "Do not use",
+        directory_party_contact_information_path(party, acting: "suppress", contact_id: contact_point.id, status: params[:status]),
+        class: "dd-row-action" %>
     <% end %>
-  </div>
+    <%= link_to "Deactivate",
+      directory_party_contact_information_path(party, acting: "deactivate", contact_id: contact_point.id, status: params[:status]),
+      class: "dd-row-action" %>
+  <% else %>
+    <%= button_to "Reactivate",
+      reactivate_directory_party_contact_point_path(party, contact_point),
+      method: :post,
+      class: "dd-row-action" %>
+  <% end %>
+<% end %>
+<li class="dd-list-item dd-contact-item">
+  <%= render "directory/shared/contact_row",
+    party:,
+    contact_point:,
+    today:,
+    compact: false,
+    maintain: true,
+    status: contact_point_status_badge(contact_point),
+    actions: actions %>
 
   <% if selected_action?("set_primary", id: contact_point.id, param: :contact_id) && contact_point.eligible_destination? %>
-    <%= form_with url: set_primary_directory_party_contact_point_path(party, contact_point), method: :post, class: "dd-form" do %>
-      <label class="dd-label" for="primary_purpose_<%= contact_point.id %>">Set as primary purpose</label>
-      <select name="purpose" id="primary_purpose_<%= contact_point.id %>" class="dd-field dd-field--narrow">
-        <% ContactPointPurposeAssignment::PURPOSES.each do |purpose| %>
-          <option value="<%= purpose %>"><%= purpose.titleize %></option>
-        <% end %>
-      </select>
-      <div class="dd-form-actions">
-        <%= submit_tag "Set as primary", class: "dd-button dd-button--secondary dd-button--small" %>
-        <%= link_to "Cancel", directory_party_contact_information_path(party, status: params[:status]), class: "dd-row-action" %>
-      </div>
-    <% end %>
+    <div class="dd-contact-extra">
+      <%= form_with url: set_primary_directory_party_contact_point_path(party, contact_point), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="primary_purpose_<%= contact_point.id %>">Set as primary purpose</label>
+        <select name="purpose" id="primary_purpose_<%= contact_point.id %>" class="dd-field dd-field--narrow">
+          <% ContactPointPurposeAssignment::PURPOSES.each do |purpose| %>
+            <option value="<%= purpose %>"><%= purpose.titleize %></option>
+          <% end %>
+        </select>
+        <div class="dd-form-actions">
+          <%= submit_tag "Set as primary", class: "dd-button dd-button--secondary dd-button--small" %>
+          <%= link_to "Cancel", directory_party_contact_information_path(party, status: params[:status]), class: "dd-row-action" %>
+        </div>
+      <% end %>
+    </div>
   <% end %>
 
   <% if selected_action?("suppress", id: contact_point.id, param: :contact_id) && contact_point.active? && !contact_point.suppressed? %>
-    <%= form_with url: suppress_directory_party_contact_point_path(party, contact_point), method: :post, class: "dd-form" do %>
-      <label class="dd-label" for="suppress_reason_<%= contact_point.id %>">Do not use reason</label>
-      <input class="dd-field" id="suppress_reason_<%= contact_point.id %>" name="reason" required>
-      <div class="dd-form-actions">
-        <%= submit_tag "Mark do not use", class: "dd-button dd-button--danger dd-button--small" %>
-        <%= link_to "Cancel", directory_party_contact_information_path(party, status: params[:status]), class: "dd-row-action" %>
-      </div>
-    <% end %>
+    <div class="dd-contact-extra">
+      <%= form_with url: suppress_directory_party_contact_point_path(party, contact_point), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="suppress_reason_<%= contact_point.id %>">Do not use reason</label>
+        <input class="dd-field" id="suppress_reason_<%= contact_point.id %>" name="reason" required>
+        <div class="dd-form-actions">
+          <%= submit_tag "Mark do not use", class: "dd-button dd-button--danger dd-button--small" %>
+          <%= link_to "Cancel", directory_party_contact_information_path(party, status: params[:status]), class: "dd-row-action" %>
+        </div>
+      <% end %>
+    </div>
   <% end %>
 
   <% if selected_action?("deactivate", id: contact_point.id, param: :contact_id) && contact_point.active? %>
-    <%= form_with url: deactivate_directory_party_contact_point_path(party, contact_point), method: :post, class: "dd-form" do %>
-      <label class="dd-label" for="deactivate_reason_<%= contact_point.id %>">Deactivation reason</label>
-      <input class="dd-field" id="deactivate_reason_<%= contact_point.id %>" name="reason" required>
-      <div class="dd-form-actions">
-        <%= submit_tag "Deactivate", class: "dd-button dd-button--danger dd-button--small" %>
-        <%= link_to "Cancel", directory_party_contact_information_path(party, status: params[:status]), class: "dd-row-action" %>
-      </div>
-    <% end %>
+    <div class="dd-contact-extra">
+      <%= form_with url: deactivate_directory_party_contact_point_path(party, contact_point), method: :post, class: "dd-form" do %>
+        <label class="dd-label" for="deactivate_reason_<%= contact_point.id %>">Deactivation reason</label>
+        <input class="dd-field" id="deactivate_reason_<%= contact_point.id %>" name="reason" required>
+        <div class="dd-form-actions">
+          <%= submit_tag "Deactivate", class: "dd-button dd-button--danger dd-button--small" %>
+          <%= link_to "Cancel", directory_party_contact_information_path(party, status: params[:status]), class: "dd-row-action" %>
+        </div>
+      <% end %>
+    </div>
   <% end %>
 
   <% if purposes.any? %>
-    <ul class="dd-list">
+    <ul class="dd-list dd-contact-extra">
       <% purposes.each do |assignment| %>
         <li class="dd-list-item">
           <div>

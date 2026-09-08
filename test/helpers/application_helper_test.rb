@@ -70,6 +70,8 @@ class ApplicationHelperTest < ActionView::TestCase
   test "initials helpers take the first letters of the display name" do
     assert_equal "AM", party_initials(parties(:unlinked))
     assert_equal "JB", user_initials(users(:one))
+    assert_equal "Jordan Blake", membership_display_name(agency_memberships(:one))
+    assert_equal "JB", membership_initials(agency_memberships(:one))
   end
 
   test "empty state classes select a family modifier" do
@@ -87,6 +89,12 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_includes html, "aria-hidden=\"true\""
     assert_includes html, "dd-icon--sm"
     assert_includes html, "currentColor"
+  end
+
+  test "dots three icon fills circles with currentColor" do
+    html = icon_tag("dots_three")
+
+    assert_equal 3, html.scan('fill="currentColor"').size
   end
 
   test "party breadcrumbs prefer supplier then client then directory" do

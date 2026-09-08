@@ -37,7 +37,11 @@ module Directory
       @client_profile = @party.client_profile
       @supplier_profile = @party.supplier_profile
       @attention = PartyAttention.new(@party, date: @today)
-      @overview_notes = @party.notes.visible_to(Current.agency_membership).active_records.pinned_first.limit(3)
+      @overview_notes = @party.notes.visible_to(Current.agency_membership)
+        .active_records
+        .pinned_first
+        .includes(author_membership: [ :user, { person_party: :party } ])
+        .limit(3)
       @overview_note_count = @party.notes.visible_to(Current.agency_membership).active_records.count
       @overview_identifiers = @party.directory_external_identifiers.merge(ExternalIdentifier.current).order(:identifier_type, :id).limit(5)
       @overview_contacts = @party.contact_points.current

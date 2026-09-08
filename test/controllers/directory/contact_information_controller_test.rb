@@ -31,7 +31,10 @@ module Directory
       assert_redirected_to directory_party_contact_information_path(party)
       follow_redirect!
       assert_includes response.body, "alex.directory@example.com"
-      assert_select "strong.dd-list-title", text: "alex.directory@example.com"
+      assert_select ".dd-contact-value", text: "alex.directory@example.com"
+      assert_select "li.dd-contact-item .dd-contact-row--maintain"
+      assert_select "li.dd-contact-item .dd-contact-status", text: "Active"
+      assert_select "li.dd-contact-item .dd-contact-actions a", text: "Edit"
     end
 
     test "staff can create contact information" do

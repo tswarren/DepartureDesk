@@ -258,6 +258,18 @@ module ApplicationHelper
     initials_from_name(party.display_name)
   end
 
+  def membership_display_name(membership)
+    membership&.agency_display_name.presence || "Unknown"
+  end
+
+  def membership_initials(membership)
+    person_party = membership&.person_party
+    return party_initials(person_party.party) if person_party&.party
+    return user_initials(membership.user) if membership&.user
+
+    "?"
+  end
+
   def initials_from_name(name)
     words = name.to_s.scan(/[[:alpha:]]+/)
     letters = words.first(2).map { |word| word[0] }

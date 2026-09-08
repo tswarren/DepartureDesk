@@ -12,9 +12,9 @@ module Directory
         visibility: note_params[:visibility].presence || "standard",
         pinned: note_params[:pinned] == "1"
       ).call
-      redirect_to directory_party_notes_path(@party), notice: "Note added."
+      redirect_to after_note_path, notice: "Note added."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_notes_path(@party), alert: error.message
+      redirect_to after_note_path, alert: error.message
     end
 
     def correct
@@ -82,6 +82,10 @@ module Directory
 
     def note_params
       params.fetch(:party_note, params).permit(:body, :visibility, :pinned, :reason)
+    end
+
+    def after_note_path
+      params[:return_to] == "overview" ? directory_party_path(@party) : directory_party_notes_path(@party)
     end
   end
 end

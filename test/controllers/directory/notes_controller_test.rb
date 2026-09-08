@@ -65,5 +65,37 @@ module Directory
       get directory_party_notes_path(parties(:two))
       assert_response :not_found
     end
+
+    test "note feed names the author and overview more control exposes the ellipsis icon" do
+      sign_in_as(users(:one))
+      get directory_party_path(parties(:unlinked))
+      assert_response :success
+      assert_select ".dd-id-name-row h1.dd-page-title", text: "Alex Morgan"
+      assert_select ".dd-id-name-row .dd-badge--kind", text: "Person"
+      assert_select "summary[aria-label='More actions'] svg circle[fill=currentColor]", count: 3
+      assert_select ".dd-note-author", text: "Jordan Blake"
+      assert_select ".dd-note-body", text: /Prefers morning calls/
+      assert_select ".dd-note-badge", text: "Admin only"
+      assert_select "textarea[placeholder='Add a note about this party…']"
+
+      sign_out
+      sign_in_as(users(:staff_one))
+      get directory_party_path(parties(:unlinked))
+      assert_response :success
+      assert_select ".dd-note-body", text: /Prefers morning calls/
+      assert_select ".dd-note-badge", count: 0
+      assert_not_includes response.body, "Restricted credit discussion"
+    end
+
+    test "overview composer returns to the party after adding a note" do
+      sign_in_as(users(:one))
+      assert_difference("PartyNote.count", 1) do
+        post directory_party_party_notes_path(parties(:unlinked)), params: {
+          return_to: "overview",
+          party_note: { body: "Prefers window seats.", visibility: "standard" }
+        }
+      end
+      assert_redirected_to directory_party_path(parties(:unlinked))
+    end
   end
 end

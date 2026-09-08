@@ -7,6 +7,7 @@ module Directory
     def show
       @page = [ params[:page].to_i, 1 ].max
       visible = @party.notes.visible_to(Current.agency_membership)
+        .includes(author_membership: [ :user, { person_party: :party } ])
       @notes = visible.active_records.pinned_first
       records = visible.historical_records.order(created_at: :desc, id: :desc)
         .offset((@page - 1) * page_size).limit(page_size + 1).to_a

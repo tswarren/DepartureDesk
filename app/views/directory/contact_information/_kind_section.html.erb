@@ -4,7 +4,7 @@
   </header>
   <div class="dd-panel-body">
     <% if contact_points.any? %>
-      <ul class="dd-list">
+      <ul class="dd-list dd-contact-list">
         <% contact_points.each do |contact_point| %>
           <%= render "directory/contact_information/contact_point", contact_point:, party:, today: %>
         <% end %>

@@ -78,20 +78,21 @@
       </div>
     <% end %>
 
-    <article class="dd-panel dd-panel--compact">
+    <article class="dd-panel dd-panel--compact dd-notes-panel">
       <header class="dd-panel-header">
         <h2 class="dd-panel-title">Notes <span class="dd-count dd-type-mono"><%= @overview_note_count %></span></h2>
         <%= link_to "View all", directory_party_notes_path(@party), class: "dd-row-action" %>
       </header>
-      <div class="dd-panel-body">
+      <div class="dd-notes-list">
         <% if @overview_notes.any? %>
           <% @overview_notes.each do |note| %>
             <%= render "directory/shared/note_row", party: @party, note: note, compact: true %>
           <% end %>
         <% else %>
-          <%= render "directory/shared/inline_empty", title: "No notes yet", copy: "Servicing context is recorded here.", action_label: "Open notes", action_path: directory_party_notes_path(@party) %>
+          <%= render "directory/shared/inline_empty", title: "No notes yet", copy: "Servicing context is recorded here." %>
         <% end %>
       </div>
+      <%= render "directory/shared/add_note", party: @party, suffix: "overview", return_to: "overview" %>
     </article>
 
     <article class="dd-panel dd-panel--compact">
