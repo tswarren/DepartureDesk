@@ -1,219 +1,135 @@
 # DepartureDesk Presentation and Interface Contract
 
-> This document describes proposed future-state presentation patterns. The current application does not implement every listed primitive. For the UX party-record prototype, `docs/planning/phase-2-ux-refactor/ux-foundation-party-record-prototype.md` and its planning addendum define the in-scope subset. Prototype values become canonical only after the stakeholder visual-review gate.
+This is the presentation contract for implemented application layouts after the CAI 2026-09-07 adoption. Domain commands, tenancy, authorization, and terminology are unchanged. The design system in `docs/ui/ui-revamp-cai-260907/departuredesk-design-system.md` remains the visual authority for in-scope surfaces.
 
-This is the presentation contract for application layouts, tenant administration, travel operations, and party-local directory pages. It does not change routes, commands, or terminology.
+Reuse these `.dd-` classes before adding new presentation rules. Do not introduce ViewComponent, third-party icon fonts/gems, or view-specific CSS files. Tokens and component CSS live in `app/assets/tailwind/application.css`.
 
-Reuse these `.dd-` classes before adding new presentation rules. Do not introduce ViewComponent, third-party icon fonts/gems, or view-specific CSS files.
+## Canonical names
 
----
+| Concern | Name |
+| --- | --- |
+| Authenticated shell | `.dd-app-shell`, `.dd-topbar`, `.dd-sidebar`, `.dd-main`, `.dd-workspace` |
+| Party workspace | `.dd-workspace--party` (content max `--dd-party-content-max`: 80rem) |
+| Party chrome | `directory/shared/_party_chrome`, `_party_subnav` |
+| Display rows | `_contact_row`, `_relationship_row`, `_note_row`, `_identifier_row`, `_role_summary`, `_inline_empty` |
+| Icons | `icon_tag` → `app/views/shared/icons/` |
+| Empty states | `empty_state_classes(family:)` → `.dd-empty-state--*` |
+| Selected row action | `selected_action?(action, id:, param:)` |
+| Development specimen | `GET /dev/ui` when `Rails.env.development?` |
 
-## Application Frame & Shell
+## Display / edit chooser
 
-The application wraps all view templates inside a persistent layout frame:
+| Situation | Pattern |
+| --- | --- |
+| Browse a party-local collection | Display rows and text links. No editable field until one composer or one row editor is open. |
+| Substantial create or edit | Focused GET page (`new` / `edit`) with Cancel back to the browse tab. |
+| Single immediate action (pin note, set primary, category assign) | Row-scoped button or Turbo Frame. Server-rendered result; no client-calculated status. |
+| Consequential destruction | Focused confirmation page (party deactivate) or a selected composer with a required reason. Destructive controls never share the ordinary edit footer. |
+| Secondary long text on a focused edit page | Native `details`/`summary`. Open automatically on validation error or a direct `?open=` / fragment target. Required fields never live in a closed disclosure. |
+| Empty region | Empty-state family: `actionable`, `positive`, `filtered`, `inline`, `permission`, `error`. |
+
+## Application frame
 
 ```
 dd-app-shell
-  dd-sidebar
-    dd-sidebar-brand
-    dd-sidebar-nav
-    dd-sidebar-footer
+  dd-topbar          52px navy, viewport-wide
+  dd-sidebar         208px navy, below the topbar
   dd-main
-    dd-topbar
     dd-workspace
-
 ```
 
-* `.dd-app-shell` is a two-column grid shell. On screens smaller than 768px, `.dd-sidebar` collapses into a toggleable drawer.
-* `.dd-sidebar` uses persistent Departure Navy (`#002340`) background with `#FFFFFF` text on active/selected items.
+* Brand, compact office link (`edit_current_office_path`), user initials plus name, and Sign out live in the topbar. There is no global search, notification bell, or invented office dropdown.
+* Sidebar groups: **Workspace** (Dashboard, Directory, Clients, Suppliers, disabled Departures / Travelers / Accounting) and **System** (Administration). Do not add an empty Money group.
+* Active nav uses a 2px teal left edge and restrained fill, with `aria-current="page"`. Party-local pages keep Directory current.
+* Below 768px the sidebar is the existing Stimulus drawer (`navigation_drawer_controller.js`): focus trap, Escape, inert backdrop, close on Turbo navigation. Nav DOM is not duplicated.
+* Workspace padding is 18–24px. Party pages cap readable width at ~76–82rem.
 
+## Typography and density
 
-* Active vertical nav items use `.is-active` with Route Teal (`#007080`) background accenting.
+* Self-hosted IBM Plex Sans (400/500/600/700, italic 400) and IBM Plex Mono (400/500/600) as `woff2` under `/fonts/`. SIL OFL. Auth pages inherit Plex; do not recompose the auth shell.
+* Body 13px. Table and list rows 12px. Labels 10–11px. Detail titles ~19px (`.dd-page-title`).
+* `.dd-type-mono` is for currency, codes, counts, and confirmation values only.
+* Desktop fields ~34–36px, buttons ~32–34px; mobile controls may be taller. Short values use `.dd-field--narrow` or `.dd-field--code`, never a full-width field.
+* Cards use `radius-md` and a border, with little or no shadow. Keyboard focus: teal field border plus amber outer ring (`--dd-focus`).
+* Warning token: `--dd-warning: #b87800`. Keep `#8a5a00` as `--dd-amber-icon` only.
 
+## Party profile
 
-* `.dd-topbar` hosts the global search input (`.dd-global-search`), contextual help links, and the user profile dropdown.
+* Identity header: initials tile, display name (`h1.dd-page-title`), kind chip, real Client/Supplier chips, deactivated treatment when applicable.
+* Header metadata is identity disambiguation that already exists. Omit the line when empty; never print placeholders. Do not promote postal locality, organization type, or household locality.
+  * Person: preferred name only when it differs from display name.
+  * Organization: legal name only when display is the trading name. Website belongs in overview.
+  * Household: correspondence name only when it differs from household name.
+* Edit is the only prominent header action. More is native `details`/`summary` with links to Roles and Record only.
+* Subnav labels: Overview, Contact, Relationships, Roles, Notes, Identifiers, Record. One compact non-wrapping row; horizontal scroll at narrow widths; current item stays visible. Accessible name remains on the `nav`.
+* Desktop overview: main plus aside, 20–24px gap. Aside max `--dd-party-aside-max` (~21–22.5rem). Below the design-system breakpoint the aside stacks. Do not use a stretching 2:1.
+* Do not manufacture Party metrics or restore `.dd-summary-strip`. Notes counts use `PartyNote.visible_to` before render.
 
----
+## Data entry
 
-## Page Anatomy
+* Required fields: asterisk plus the legend “Required fields are marked with an asterisk.”
+* Error summary at the top of a failed form, plus per-field `aria-invalid` / `aria-describedby` where model errors exist.
+* Long focused forms may use `.dd-form-actions--sticky`.
+* **Edit supplier details** is the reference form: Responsibility and Commercial defaults (including portal URL) stay visible. Disclosures hold booking / payment / policy notes only. Service categories are a separate dashed panel and Turbo Frame; copy states that category changes save immediately. The main Save button does not commit categories.
+* Party deactivate is a full page that names what changes and what does not, requires a reason, and works without JavaScript.
 
-```
-dd-breadcrumbs     optional location hierarchy above page title
-dd-page-header
-  dd-page-heading   eyebrow, title, description, optional quiet back link
-  dd-page-actions   at most one primary header action
-dd-subnav           horizontal navigation tabs
-dd-metrics-grid     optional row of 1-4 key performance indicator cards
-dd-filter-bar       optional search and collection filters
-dd-panel+
+## Icons
 
-```
+Curated Phosphor Regular SVGs via `icon_tag`. MIT attribution: `docs/licenses/phosphor-icons.md`. Sizes: `.dd-icon--sm` 16px, `--md` 20px, `--lg` 24px, `--xl` 32–40px. Unknown names raise.
 
-* `.dd-page-header` is a horizontal row that stacks at the existing 600px breakpoint.
+Row actions are text links (`.dd-row-action`), not three-dot menus, unless a row has more than three actions. Do not add ARIA menus without full keyboard behavior.
 
+## Status badges
 
-* `.dd-page-actions` wraps header buttons and stacks with them at 600px.
+Badges pair a title-case label with a color modifier. Stored enums stay lowercase.
 
+| Helper | Notes |
+| --- | --- |
+| `party_kind_badge` | `.dd-badge--kind` |
+| Client / Supplier chips | `.dd-badge--role` when active, `--neutral` when inactive |
+| `role_profile_status_badge` | Active / Inactive / Not assigned |
+| `contact_point_status_badge` | Active, Do not use, Deactivated |
 
-* `.dd-subnav` is a horizontal link row. The current item uses teal, never amber. Mark it with `aria-current="page"` on a `nav` element.
+Never communicate status by color alone.
 
+## Turbo
 
-* Child pages (team member, invitation, office edit, trip package detail) still render the shared subnav. Place a quiet “Back to …” link in the breadcrumb or page heading, not a loose paragraph.
+* Progress bar is teal (`.turbo-progress-bar`).
+* Frame pending: `.dd-skeleton` / `.dd-frame-skeleton`. Frame failure: `.dd-frame-error`.
+* “Saving…” uses native submit `data-disable-with`. Never a client-calculated status.
 
+## Administration and dashboard
 
+Shell geometry wraps these pages. Inner composition (agency profile, offices, team, invitations, dashboard metrics) is **deferred** and may still use older panel/filter/table anatomy until a later program. Administration keeps `nav[aria-label=Administration]`.
 
----
+## Deferred families
 
-## Metric Summary Cards
+Do not treat these as adopted in this program:
 
-Wrap operational highlights in a `.dd-metrics-grid` container. Cards stack on mobile (375px) and expand to 4 columns at 1280px.
+* Directory index and search restyle beyond global CSS
+* Administration and dashboard composition
+* Operational records (departures, client trips, money)
+* Print
+* Multi-currency domain UI
+* True inline cell editors
+* Global search and notifications
 
-| Region | Class | Description |
-| --- | --- | --- |
-| Container | `.dd-metric-card` | White surface with standard border and `1rem` padding |
-| Icon | `.dd-metric-card-icon` | Circular background using soft semantic surface fills |
-| Title | `.dd-metric-card-label` | Muted slate label text (`--dd-text-muted`) |
-| Value | `.dd-metric-card-value` | Large numeric display (`1.75rem` font size) |
-| Subtext | `.dd-metric-card-subtext` | Faint supporting detail or status context (`--dd-text-faint`) |
-
----
-
-## Collection Filter Bar
-
-Place `.dd-filter-bar` directly above operational tables or list views:
-
-* `.dd-filter-input`: Text search input with integrated search icon.
-* `.dd-filter-select`: Dropdown controls for status, date range, or destination filtering.
-* `.dd-filter-reset`: Quiet link (`.dd-button--quiet`) to clear active filter parameters.
-
-
-
----
-
-## Panel Anatomy
-
-`.dd-panel` has no padding of its own.
-
-| Region | Class | Spacing |
-| --- | --- | --- |
-| Header | `.dd-panel-header` | existing header padding and bottom border |
-| Body | `.dd-panel-body` | `1rem` padding |
-| Footer | `.dd-panel-footer` | `1rem` padding and a top border |
-
-Put readable content in the body. Use the footer for submit rows or lifecycle actions when they belong to that panel. Definition lists inherit body padding; they do not add a second inset.
-
----
-
-## Icon Strategy
-
-Do not import third-party icon libraries or font gems. Manage iconography using curated raw SVG partials in `app/views/shared/icons/` and render them via the `icon_tag` helper:
-
-```erb
-<%= icon_tag "calendar", class: "dd-icon--sm" %>
-
-```
-
-* All SVG assets must use `viewBox="0 0 24 24"` or `viewBox="0 0 256 256"` and set `stroke="currentColor"` / `fill="currentColor"` to inherit text color dynamically.
-
-
-* Icons carry `aria-hidden="true"` by default; accessible text must be supplied in surrounding markup.
-
-
-* Dimension utility classes: `.dd-icon--sm` (16px), `.dd-icon--md` (20px), `.dd-icon--lg` (24px).
-
----
-
-## Button Hierarchy
-
-| Emphasis | Class | Use |
-| --- | --- | --- |
-| Primary | `.dd-button` | The one main action in a header or section |
-| Secondary | `.dd-button--secondary` | Alternate constructive actions (reactivate, edit package, grant) |
-| Danger | `.dd-button--danger` | Destructive actions. Uses danger tokens, not amber |
-| Quiet | `.dd-button--quiet` | Cancel, clear filters, and back links |
-| Compact | `.dd-button--small` | Table row actions or tight panel options |
-
-* At most one visually primary button per section.
-
-
-* `.dd-button-group` aligns general actions and stacks at 600px.
-
-
-* Reserve `.dd-form-actions` for form submit rows. Danger actions keep their existing `turbo_confirm` copy.
-
-
-
----
-
-## Field Anatomy
-
-`.dd-form` has a readable max-width of about 40rem.
-
-* Text and select fields share `.dd-field` height.
-
-
-* Related fields may use `.dd-form-grid.dd-form-grid--two-column`, which becomes one column below 768px.
-
-
-* Office codes, currency, and numerical metrics use `.dd-field--code`.
-
-
-* Checkbox and radio labels use `.dd-choice` inside `.dd-choice-group`. Do not use `.dd-label` as the clickable choice row.
-
-
-* Hints use `.dd-field-hint`. Grouped invitation or lifecycle copy may use `.dd-form-section`.
-
-
-* Editable forms that can fail expose a summary alert plus per-field errors with `aria-invalid` and `aria-describedby`.
-
-
-
----
-
-## Status Presentation
-
-Badges pair a title-case label with a color modifier. Stored enum values stay lowercase in the database.
-
-| Helper | Success | Info | Warning | Danger | Neutral |
-| --- | --- | --- | --- | --- | --- |
-| `agency_status_badge`<br> | Active | — | Suspended  | — | Closed  |
-| `membership_status_badge`<br> | Active | Invited | Suspended | — | Revoked |
-| `membership_role_badge`<br> | — | Administrator | — | — | Staff |
-| `office_status_badge`<br> | Active | — | — | — | Inactive |
-| `party_kind_badge`<br> | — | Person / Household / Organization | — | — | — |
-| `party_status_badge`<br> | Active | — | — | — | Deactivated |
-| `role_profile_status_badge`<br> | Active | — | — | — | Inactive; **Not assigned** and **Ineligible**<br> |
-| `contact_point_status_badge`<br> | Active | — | — | Do not use | Deactivated |
-| `departure_status_badge`<br> | Open for sale | Upcoming / Planning | Needs attention | Overdue / Cancelled | Draft / Closed |
-| `milestone_status_badge`<br> | Confirmed | Opens soon / Upcoming | Action required | Overdue | Completed |
-
-Never communicate status by color alone. Amber is a waypoint/attention indicator, not the do-not-use or destructive color.
-
----
-
-## Tables & Financial Presentation
-
-Wrap operational tables in `.dd-table-wrap` inside `.dd-panel-body` so wide rows scroll instead of overflowing. Use the standard empty state when a collection is empty.
-
-* **Capacity & Progress Indicators:** Progress bars use `.dd-progress` (track) with `.dd-progress-bar` (Route Teal fill).
-
-
-* **Cell Hierarchy:** Primary title text uses `.dd-cell-title`; supporting detail uses `.dd-cell-subtext`.
-* **Financial Cells:** Align currency and margin figures to the right. Negative or past due values use `.dd-text-danger` (`#B5473D`) alongside explicit negative signifiers (`-` sign or text labels).
-
-
-* **Row Actions:** Use `.dd-action-menu` (three-dot quiet trigger) for row operations instead of cluttering rows with multiple text buttons.
-
----
-
-## Responsive Checkpoints
-
-Verify all pages, forms, tables, and action groups at:
+## Responsive checkpoints
 
 | Width | Intent |
 | --- | --- |
-| 375px | Sidebar drawer collapses; header actions, subnav, choice rows, and button groups stack; tables remain inside `.dd-table-wrap`<br> |
-| 768px | Sidebar expands into regular layout; two-column form grids collapse to one column |
-| 1280px | Heading and primary action share a row; metric cards expand to 4 columns; tables use full workspace width |
+| 375px | Drawer; topbar account name may hide; subnav scrolls; party aside stacks |
+| 768px | Sidebar in the grid; two-column form grids may collapse |
+| Reference desktop / 1280px | Party main + capped aside; 52px / 208px shell |
 
-Keep the skip link and Waypoint Amber (`#F49A00`) focus ring working across all interactive elements. Keyboard focus must reach primary fields and table controls.
+Keep the skip link and amber focus ring. Keyboard focus must reach primary fields and party subnav.
+
+## Intentional mockup deltas
+
+* Real nav versus mockup Parties / Client trips / Receipts
+* No search, notifications, client-trip actions, or party numbers ([ADR 0004](../adr/0004-human-readable-references.md))
+* Party subnav retained
+* Stat strip absent on Party
+* Office control is a link to the existing office page
+* Header omits location/type the domain does not store
+* Aside width is capped rather than a stretching 2:1

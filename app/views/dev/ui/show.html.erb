@@ -1,0 +1,87 @@
+<% content_for :title, "UI specimen · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Development</p>
+    <h1 class="dd-page-title">CAI specimen</h1>
+    <p class="dd-page-description">Development-only field kit, badges, empty states, and buttons. Not a production route.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Buttons</h2>
+  </header>
+  <div class="dd-panel-body">
+    <div class="dd-button-group">
+      <button type="button" class="dd-button">Primary</button>
+      <button type="button" class="dd-button dd-button--secondary">Secondary</button>
+      <button type="button" class="dd-button dd-button--quiet">Quiet</button>
+      <button type="button" class="dd-button dd-button--danger">Danger</button>
+      <button type="button" class="dd-button" disabled>Disabled</button>
+    </div>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Fields</h2>
+  </header>
+  <div class="dd-panel-body">
+    <p class="dd-required-legend">Required fields are marked with an asterisk (<span class="dd-required">*</span>).</p>
+    <form class="dd-form">
+      <div class="dd-field-group">
+        <label class="dd-label" for="specimen_name">Short name <span class="dd-required">*</span></label>
+        <input class="dd-field dd-field--narrow" id="specimen_name" value="Horizon">
+      </div>
+      <div class="dd-field-group">
+        <label class="dd-label" for="specimen_code">Currency</label>
+        <input class="dd-field dd-field--code dd-type-mono" id="specimen_code" value="USD" maxlength="3">
+      </div>
+      <div class="dd-field-group">
+        <label class="dd-label" for="specimen_invalid">Invalid field</label>
+        <input class="dd-field" id="specimen_invalid" aria-invalid="true" aria-describedby="specimen_invalid_error">
+        <p class="dd-field-error" id="specimen_invalid_error">Enter a value.</p>
+      </div>
+    </form>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Badges</h2>
+  </header>
+  <div class="dd-panel-body">
+    <%= status_badge("Active", modifier: "success") %>
+    <%= status_badge("Client", modifier: "role") %>
+    <%= status_badge("Person", modifier: "kind") %>
+    <%= status_badge("Inactive", modifier: "neutral") %>
+    <%= status_badge("Do not use", modifier: "danger") %>
+    <%= status_badge("Attention", modifier: "warning") %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Empty states</h2>
+  </header>
+  <div class="dd-panel-body">
+    <div class="dd-empty-state dd-empty-state--actionable">
+      <h3 class="dd-empty-title">Actionable</h3>
+      <p class="dd-empty-copy">Start by adding a record.</p>
+    </div>
+    <div class="dd-empty-state dd-empty-state--inline">
+      <h3 class="dd-empty-title">Inline</h3>
+      <p class="dd-empty-copy">Nothing in this region yet.</p>
+    </div>
+    <div class="dd-empty-state dd-empty-state--filtered">
+      <h3 class="dd-empty-title">Filtered</h3>
+      <p class="dd-empty-copy">No history matches this filter.</p>
+    </div>
+    <div class="dd-empty-state dd-empty-state--error">
+      <h3 class="dd-empty-title">Error</h3>
+      <p class="dd-empty-copy">The list could not be loaded.</p>
+    </div>
+    <div class="dd-skeleton" aria-hidden="true"></div>
+  </div>
+</article>

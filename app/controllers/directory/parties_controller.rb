@@ -2,7 +2,7 @@ module Directory
   class PartiesController < ApplicationController
     class_attribute :page_size, default: 50
 
-    before_action :set_party, only: %i[show edit update deactivate reactivate]
+    before_action :set_party, only: %i[show edit update confirm_deactivate deactivate reactivate]
 
     INDEX_ROLES = %w[client supplier].freeze
 
@@ -38,7 +38,12 @@ module Directory
       @supplier_profile = @party.supplier_profile
       @attention = PartyAttention.new(@party, date: @today)
       @overview_notes = @party.notes.visible_to(Current.agency_membership).active_records.pinned_first.limit(3)
+      @overview_note_count = @party.notes.visible_to(Current.agency_membership).active_records.count
       @overview_identifiers = @party.directory_external_identifiers.merge(ExternalIdentifier.current).order(:identifier_type, :id).limit(5)
+      @overview_contacts = @party.contact_points.current
+        .includes(:email_address, :phone_number, :postal_address, :purpose_assignments)
+        .order(:contact_kind, :id)
+        .select(&:eligible_destination?)
     end
 
     def new
@@ -112,6 +117,10 @@ module Directory
       @alternate_name = @party.alternate_names.new
       flash.now[:alert] = error.message
       render :edit, status: error.code == :conflict ? :conflict : :unprocessable_entity
+    end
+
+    def confirm_deactivate
+      render :confirm_deactivate
     end
 
     def deactivate

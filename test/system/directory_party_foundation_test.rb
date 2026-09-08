@@ -52,6 +52,7 @@ class DirectoryPartyFoundationTest < ApplicationSystemTestCase
     assert_equal jamie_id, Party.find_by!(display_name: "Jim Cole").id
 
     click_link_and_expect "Edit person", heading: "Edit Jim Cole"
+    click_link "Add name"
     fill_in "Add alternate name", with: "James Cole"
     select "Former Name", from: "Add name kind"
     click_button "Add name"

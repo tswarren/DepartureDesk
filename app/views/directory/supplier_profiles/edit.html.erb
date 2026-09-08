@@ -1,0 +1,86 @@
+<% content_for :title, "Edit supplier details · #{@party.display_name} · DepartureDesk" %>
+
+<%= render "directory/shared/party_chrome",
+  party: @party,
+  current: :roles,
+  show_primary_action: false,
+  title: "Edit supplier details" %>
+
+<%= render "directory/supplier_profiles/categories", party: @party, profile: @profile %>
+
+<%= form_with url: directory_party_supplier_profile_path(@party), method: :patch, class: "dd-form" do %>
+  <input type="hidden" name="supplier_profile[lock_version]" value="<%= @profile.lock_version %>">
+  <p class="dd-required-legend">Required fields are marked with an asterisk (<span class="dd-required">*</span>).</p>
+
+  <% if @profile.errors.any? %>
+    <div class="dd-alert dd-alert--danger" role="alert">
+      <p>Please correct the following:</p>
+      <ul>
+        <% @profile.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Responsibility</h2>
+    </header>
+    <div class="dd-panel-body">
+      <div class="dd-field-group">
+        <label class="dd-label" for="supplier_profile_responsible_office_id">Responsible office <span class="dd-required">*</span></label>
+        <select class="dd-field" id="supplier_profile_responsible_office_id" name="supplier_profile[responsible_office_id]" required>
+          <% @active_offices.each do |office| %>
+            <option value="<%= office.id %>" <%= "selected" if office.id == @profile.responsible_office_id %>><%= office_choice_label(office) %></option>
+          <% end %>
+        </select>
+      </div>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Commercial defaults</h2>
+    </header>
+    <div class="dd-panel-body">
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <label class="dd-label" for="supplier_profile_default_currency">Default currency <span class="dd-required">*</span></label>
+          <input class="dd-field dd-field--code dd-type-mono" id="supplier_profile_default_currency" name="supplier_profile[default_currency]" value="<%= @profile.default_currency %>" maxlength="3" required>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="supplier_profile_portal_url">Portal URL</label>
+          <input class="dd-field" id="supplier_profile_portal_url" name="supplier_profile[portal_url]" value="<%= @profile.portal_url %>" placeholder="https://">
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <% [
+    ["booking_instructions", "Booking instructions", @profile.booking_instructions, "booking"],
+    ["payment_instructions", "Payment instructions", @profile.payment_instructions, "payment"],
+    ["payment_term_notes", "Payment term notes", @profile.payment_term_notes, "terms"],
+    ["commission_notes", "Commission notes", @profile.commission_notes, "commission"],
+    ["cancellation_policy_notes", "Cancellation policy notes", @profile.cancellation_policy_notes, "cancellation"]
+  ].each do |name, label, value, anchor| %>
+    <% open = @profile.errors[name].any? || params[:open].to_s == name || request.path.include?("##{anchor}") %>
+    <details class="dd-disclosure" id="<%= anchor %>" <%= "open" if open %>>
+      <summary>
+        <%= label %>
+        <span class="dd-disclosure-summary"><%= disclosure_populated_summary(value) %></span>
+      </summary>
+      <div class="dd-disclosure-body">
+        <div class="dd-field-group">
+          <label class="dd-label" for="supplier_profile_<%= name %>"><%= label %></label>
+          <textarea class="dd-field" id="supplier_profile_<%= name %>" name="supplier_profile[<%= name %>]" maxlength="2000" rows="4"><%= value %></textarea>
+        </div>
+      </div>
+    </details>
+  <% end %>
+
+  <div class="dd-form-actions dd-form-actions--sticky">
+    <%= submit_tag "Save supplier details", class: "dd-button", data: { disable_with: "Saving…" } %>
+    <%= link_to "Cancel", directory_party_roles_path(@party), class: "dd-button dd-button--quiet" %>
+  </div>
+<% end %>

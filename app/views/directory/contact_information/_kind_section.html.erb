@@ -10,7 +10,7 @@
         <% end %>
       </ul>
     <% else %>
-      <div class="dd-empty-state">
+      <div class="<%= class_names(empty_state_classes(family: :inline)) %>">
         <h3 class="dd-empty-title"><%= empty_title %></h3>
         <p class="dd-empty-copy"><%= empty_copy %></p>
       </div>

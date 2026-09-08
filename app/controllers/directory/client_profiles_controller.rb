@@ -1,7 +1,11 @@
 module Directory
   class ClientProfilesController < ApplicationController
     before_action :set_party
-    before_action :set_profile, only: %i[update deactivate reactivate assign_advisor clear_advisor]
+    before_action :set_profile, only: %i[edit update deactivate reactivate assign_advisor clear_advisor]
+    before_action :prepare_form, only: %i[new edit update]
+
+    def new
+    end
 
     def create
       CreateClientProfile.new(
@@ -12,7 +16,10 @@ module Directory
       ).call
       redirect_to directory_party_roles_path(@party), notice: "Client role added."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_roles_path(@party), alert: error.message
+      redirect_to new_directory_party_client_profile_path(@party), alert: error.message
+    end
+
+    def edit
     end
 
     def update
@@ -29,7 +36,9 @@ module Directory
       ).call
       redirect_to directory_party_roles_path(@party), notice: "Client role updated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_roles_path(@party), alert: error.message
+      flash.now[:alert] = error.message
+      @profile.assign_attributes(profile_params.except(:lock_version, :reason, :status, :responsible_office_id, :primary_advisor_membership_id))
+      render :edit, status: :unprocessable_entity
     end
 
     def deactivate
@@ -69,9 +78,9 @@ module Directory
         membership: advisor_from_params!,
         lock_version: profile_params[:lock_version]
       ).call
-      redirect_to directory_party_roles_path(@party), notice: "Client advisor updated."
+      redirect_to edit_directory_party_client_profile_path(@party), notice: "Client advisor updated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_roles_path(@party), alert: error.message
+      redirect_to edit_directory_party_client_profile_path(@party), alert: error.message
     end
 
     def clear_advisor
@@ -82,9 +91,9 @@ module Directory
         profile: @profile,
         lock_version: profile_params[:lock_version]
       ).call
-      redirect_to directory_party_roles_path(@party), notice: "Client advisor cleared."
+      redirect_to edit_directory_party_client_profile_path(@party), notice: "Client advisor cleared."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_roles_path(@party), alert: error.message
+      redirect_to edit_directory_party_client_profile_path(@party), alert: error.message
     end
 
     private
@@ -123,6 +132,14 @@ module Directory
       raise MembershipCommand::Error.new("Choose an active team member as advisor.", code: :invalid) if membership_id.blank?
 
       Current.agency.agency_memberships.find(membership_id)
+    end
+
+    def prepare_form
+      @active_offices = Current.agency.offices.active.order(:name, :code, :id)
+      @advisor_memberships = Current.agency.agency_memberships.active
+        .joins(person_party: :party)
+        .includes(person_party: :party)
+        .order("parties.sort_name", "agency_memberships.id")
     end
   end
 end

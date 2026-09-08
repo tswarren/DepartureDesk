@@ -46,6 +46,7 @@ Rails.application.routes.draw do
     resources :suppliers, only: :index
     resources :parties, only: %i[index new create show edit update] do
       member do
+        get :confirm_deactivate
         post :deactivate
         post :reactivate
       end
@@ -98,13 +99,13 @@ Rails.application.routes.draw do
           post :reactivate
         end
       end
-      resource :client_profile, only: %i[create update] do
+      resource :client_profile, only: %i[new create update edit] do
         post :deactivate
         post :reactivate
         post :assign_advisor
         post :clear_advisor
       end
-      resource :supplier_profile, only: %i[create update] do
+      resource :supplier_profile, only: %i[new create update edit] do
         post :deactivate
         post :reactivate
         post :assign_category
@@ -114,6 +115,9 @@ Rails.application.routes.draw do
   end
 
   if Rails.env.development?
+    namespace :dev do
+      get "ui", to: "ui#show"
+    end
     mount LetterOpenerWeb::Engine, at: "/letter_opener"
   end
 end

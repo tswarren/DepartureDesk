@@ -1,0 +1,29 @@
+<% content_for :title, "Deactivate #{@party.display_name} · Directory · DepartureDesk" %>
+
+<%= render "directory/shared/party_chrome",
+  party: @party,
+  current: :record,
+  show_primary_action: false,
+  title: "Deactivate #{@party.display_name}" %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Confirm deactivation</h2>
+  </header>
+  <%= form_with url: deactivate_directory_party_path(@party), method: :post, class: "dd-form" do %>
+    <input type="hidden" name="lock_version" value="<%= @party.lock_version %>">
+    <div class="dd-panel-body">
+      <p>Deactivating <strong><%= @party.display_name %></strong> hides this identity from normal directory search.</p>
+      <p class="dd-field-hint">This does not cancel client or supplier roles, end relationships, deactivate contact information, or delete notes. Those records stay on the party. An active client or supplier role, a current household membership, or a blocking dependency will prevent deactivation.</p>
+      <p class="dd-required-legend">Required fields are marked with an asterisk (<span class="dd-required">*</span>).</p>
+      <div class="dd-field-group">
+        <label class="dd-label" for="party_deactivation_reason">Party deactivation reason <span class="dd-required" aria-hidden="true">*</span></label>
+        <input class="dd-field" type="text" name="reason" id="party_deactivation_reason" required>
+      </div>
+    </div>
+    <div class="dd-panel-footer dd-form-actions">
+      <%= submit_tag "Deactivate party", class: "dd-button dd-button--danger" %>
+      <%= link_to "Cancel", directory_party_record_path(@party), class: "dd-button dd-button--quiet" %>
+    </div>
+  <% end %>
+</article>

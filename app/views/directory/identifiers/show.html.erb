@@ -5,25 +5,37 @@
 <article class="dd-panel">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title"><%= @status == "deactivated" ? "Identifier history" : "Current identifiers" %></h2>
+    <div class="dd-button-group">
+      <%= link_to "Current", directory_party_identifiers_path(@party), class: "dd-row-action" %>
+      <%= link_to "History", directory_party_identifiers_path(@party, status: "deactivated"), class: "dd-row-action" %>
+      <% if @status != "deactivated" && @eligible_types.any? && params[:adding] != "1" %>
+        <%= link_to "Add identifier", directory_party_identifiers_path(@party, adding: 1), class: "dd-button dd-button--secondary dd-button--small" %>
+      <% end %>
+    </div>
   </header>
   <div class="dd-panel-body">
-    <nav class="dd-button-group" aria-label="Identifier lists">
-      <%= link_to "Current", directory_party_identifiers_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
-      <%= link_to "History", directory_party_identifiers_path(@party, status: "deactivated"), class: "dd-button dd-button--quiet dd-button--small" %>
-    </nav>
-
     <% if @identifiers.any? %>
       <ul class="dd-list">
         <% @identifiers.each do |identifier| %>
-          <li>
+          <li class="dd-list-item">
             <h3 class="dd-list-title"><%= identifier.type_definition.label %></h3>
-            <p><%= identifier.original_value %></p>
+            <p class="dd-type-mono"><%= identifier.original_value %></p>
             <p class="dd-field-hint">
               <%= identifier.status.titleize %>
               <% if identifier.issuer.present? %> · <%= identifier.issuer %><% end %>
               · <%= identifier.type_definition.owner.to_s.humanize %>
             </p>
-            <% if identifier.active? && @status != "deactivated" %>
+            <% if identifier.active? && @status != "deactivated" && !selected_action?("deactivate", id: identifier.id, param: :identifier_id) %>
+              <%= link_to "Deactivate",
+                directory_party_identifiers_path(@party, acting: "deactivate", identifier_id: identifier.id),
+                class: "dd-row-action" %>
+            <% elsif identifier.inactive? %>
+              <%= button_to "Reactivate identifier",
+                reactivate_directory_party_external_identifier_path(@party, identifier),
+                method: :post,
+                class: "dd-row-action" %>
+            <% end %>
+            <% if selected_action?("deactivate", id: identifier.id, param: :identifier_id) && identifier.active? %>
               <%= form_with url: deactivate_directory_party_external_identifier_path(@party, identifier), method: :post, class: "dd-form" do %>
                 <div class="dd-field-group">
                   <label class="dd-label" for="external_identifier_reason_<%= identifier.id %>">Deactivation reason</label>
@@ -31,12 +43,7 @@
                 </div>
                 <div class="dd-form-actions">
                   <%= submit_tag "Deactivate identifier", class: "dd-button dd-button--danger dd-button--small" %>
-                </div>
-              <% end %>
-            <% elsif identifier.inactive? %>
-              <%= form_with url: reactivate_directory_party_external_identifier_path(@party, identifier), method: :post, class: "dd-form" do %>
-                <div class="dd-form-actions">
-                  <%= submit_tag "Reactivate identifier", class: "dd-button dd-button--secondary dd-button--small" %>
+                  <%= link_to "Cancel", directory_party_identifiers_path(@party), class: "dd-row-action" %>
                 </div>
               <% end %>
             <% end %>
@@ -55,13 +62,13 @@
         </nav>
       <% end %>
     <% else %>
-      <div class="dd-empty-state">
+      <div class="<%= class_names(empty_state_classes(family: @status == "deactivated" ? :filtered : :inline)) %>">
         <h3 class="dd-empty-title"><%= @status == "deactivated" ? "No identifier history" : "No current identifiers" %></h3>
         <p class="dd-empty-copy">Add a permitted identifier type. A wrong value is deactivated and replaced, not updated.</p>
       </div>
     <% end %>
 
-    <% if @status != "deactivated" && @eligible_types.any? %>
+    <% if @status != "deactivated" && @eligible_types.any? && params[:adding] == "1" %>
       <%= form_with url: directory_party_external_identifiers_path(@party), method: :post, class: "dd-form" do %>
         <div class="dd-field-group">
           <label class="dd-label" for="external_identifier_identifier_type">Identifier type</label>
@@ -77,10 +84,11 @@
         </div>
         <div class="dd-field-group">
           <label class="dd-label" for="external_identifier_original_value">Value</label>
-          <input class="dd-field" id="external_identifier_original_value" name="external_identifier[original_value]" required>
+          <input class="dd-field dd-type-mono" id="external_identifier_original_value" name="external_identifier[original_value]" required>
         </div>
         <div class="dd-form-actions">
           <%= submit_tag "Add identifier", class: "dd-button" %>
+          <%= link_to "Cancel", directory_party_identifiers_path(@party), class: "dd-button dd-button--quiet" %>
         </div>
       <% end %>
     <% end %>

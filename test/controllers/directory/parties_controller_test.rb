@@ -232,7 +232,6 @@ module Directory
       get directory_party_path(party)
       assert_response :success
       assert_not_includes response.body, "primary.inbox@example.com"
-      assert_select ".dd-missing", text: /No eligible primary contact information/
       assert_includes response.body, "need attention"
       assert_includes response.body, "marked do not use or deactivated"
 
@@ -253,12 +252,17 @@ module Directory
       get directory_party_path(party)
       assert_response :success
       assert_not_includes response.body, "primary.inbox@example.com"
-      assert_select ".dd-missing", text: /No eligible primary contact information/
+      assert_includes response.body, "need attention"
     end
 
     test "staff can deactivate an unblocked party and include it when requested" do
       sign_in_as(users(:staff_one))
       party = parties(:unlinked)
+
+      get confirm_deactivate_directory_party_path(party)
+      assert_response :success
+      assert_select "input#party_deactivation_reason"
+      assert_select "input[type=submit][value='Deactivate party']"
 
       post deactivate_directory_party_path(party), params: { reason: "Unused duplicate" }
       assert_redirected_to directory_party_record_path(party)
@@ -281,6 +285,9 @@ module Directory
 
     test "cross-agency party lifecycle routes return not found" do
       sign_in_as(users(:one))
+
+      get confirm_deactivate_directory_party_path(parties(:two))
+      assert_response :not_found
 
       post deactivate_directory_party_path(parties(:two)), params: { reason: "Leave" }
       assert_response :not_found

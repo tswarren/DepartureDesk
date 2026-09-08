@@ -1,7 +1,12 @@
 module Directory
   class SupplierProfilesController < ApplicationController
     before_action :set_party
-    before_action :set_profile, only: %i[update deactivate reactivate assign_category remove_category]
+    before_action :set_profile, only: %i[edit update deactivate reactivate assign_category remove_category]
+    before_action :prepare_edit, only: %i[edit update]
+
+    def new
+      @active_offices = Current.agency.offices.active.order(:name, :code, :id)
+    end
 
     def create
       CreateSupplierProfile.new(
@@ -12,7 +17,11 @@ module Directory
       ).call
       redirect_to directory_party_roles_path(@party), notice: "Supplier role added."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_roles_path(@party), alert: error.message
+      destination = @party.household? ? directory_party_roles_path(@party) : new_directory_party_supplier_profile_path(@party)
+      redirect_to destination, alert: error.message
+    end
+
+    def edit
     end
 
     def update
@@ -33,7 +42,9 @@ module Directory
       ).call
       redirect_to directory_party_roles_path(@party), notice: "Supplier role updated."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_roles_path(@party), alert: error.message
+      flash.now[:alert] = error.message
+      @profile.assign_attributes(profile_params.except(:lock_version, :reason, :status, :category_code, :responsible_office_id))
+      render :edit, status: :unprocessable_entity
     end
 
     def deactivate
@@ -72,9 +83,9 @@ module Directory
         profile: @profile,
         category_code: profile_params[:category_code]
       ).call
-      redirect_to directory_party_roles_path(@party), notice: "Supplier category added."
+      respond_to_category_change("Supplier category added.")
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_roles_path(@party), alert: error.message
+      respond_to_category_change(error.message, alert: true)
     end
 
     def remove_category
@@ -85,9 +96,9 @@ module Directory
         profile: @profile,
         category_code: profile_params[:category_code]
       ).call
-      redirect_to directory_party_roles_path(@party), notice: "Supplier category removed."
+      respond_to_category_change("Supplier category removed.")
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_roles_path(@party), alert: error.message
+      respond_to_category_change(error.message, alert: true)
     end
 
     private
@@ -123,6 +134,22 @@ module Directory
       raise MembershipCommand::Error.new("Choose an active office.", code: :invalid) if office_id.blank?
 
       Current.agency.offices.find(office_id)
+    end
+
+    def prepare_edit
+      @active_offices = Current.agency.offices.active.order(:name, :code, :id)
+    end
+
+    def respond_to_category_change(message, alert: false)
+      @profile.reload
+      if turbo_frame_request?
+        alert ? flash.now[:alert] = message : flash.now[:notice] = message
+        prepare_edit
+        render partial: "directory/supplier_profiles/categories", status: alert ? :unprocessable_entity : :ok
+      else
+        redirect_to edit_directory_party_supplier_profile_path(@party),
+          alert ? { alert: message } : { notice: message }
+      end
     end
   end
 end

@@ -9,13 +9,13 @@ module Directory
       get directory_party_path(party)
       assert_response :success
       assert_select "nav[aria-label=Party] a[aria-current=page]", text: "Overview"
-      assert_select "nav[aria-label=Party] a", text: "Contact information"
+      assert_select "nav[aria-label=Party] a", text: "Contact"
       assert_select "nav[aria-label=Party] a", text: "Relationships"
       assert_select "nav[aria-label=Party] a", text: "Notes"
 
       get directory_party_contact_information_path(party)
       assert_response :success
-      assert_select "nav[aria-label=Party] a[aria-current=page]", text: "Contact information"
+      assert_select "nav[aria-label=Party] a[aria-current=page]", text: "Contact"
       assert_select "button[type=submit]", text: "Apply filter"
 
       assert_difference("PartyContactPoint.count", 1) do

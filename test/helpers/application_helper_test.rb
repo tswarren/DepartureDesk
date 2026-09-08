@@ -61,6 +61,26 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_nil field_error(agency, :legal_name)
   end
 
+  test "party header metadata is identity disambiguation only" do
+    assert_equal "Horizon Tours Limited", party_header_metadata(parties(:organization_one))
+    assert_nil party_header_metadata(parties(:unlinked))
+    assert_nil party_header_metadata(parties(:household_one))
+  end
+
+  test "initials helpers take the first letters of the display name" do
+    assert_equal "AM", party_initials(parties(:unlinked))
+    assert_equal "JB", user_initials(users(:one))
+  end
+
+  test "empty state classes select a family modifier" do
+    assert_equal [ "dd-empty-state", "dd-empty-state--inline" ], empty_state_classes
+    assert_equal [ "dd-empty-state", "dd-empty-state--filtered" ], empty_state_classes(family: :filtered)
+  end
+
+  test "unknown icons are refused" do
+    assert_raises(ArgumentError) { icon_tag("not-an-icon") }
+  end
+
   test "icon_tag renders a curated svg with currentColor" do
     html = icon_tag("house", html_class: "dd-icon dd-icon--sm")
 

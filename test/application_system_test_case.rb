@@ -50,11 +50,33 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     wait_for_turbo
     unless has_css?("##{role_noun}_profile_create_form", wait: 0)
       click_party_tab "Roles"
+      wait_for_turbo
+      click_link "Add #{role_noun} role"
+      wait_for_turbo
     end
     within("##{role_noun}_profile_create_form") do
       select office_label, from: "#{role_noun.titleize} responsible office"
     end
     click_button_and_expect "Add #{role_noun} role", text: "#{role_noun.titleize} role added."
+  end
+
+  def deactivate_party_from_record(reason)
+    click_party_tab "Record"
+    click_link "Deactivate party"
+    fill_in "Party deactivation reason", with: reason
+    click_button "Deactivate party"
+    wait_for_turbo
+  end
+
+  def reactivate_party_from_record(reason)
+    click_party_tab "Record"
+    unless has_field?("Party reactivation reason", wait: 0)
+      click_link "Reactivate party"
+      wait_for_turbo
+    end
+    fill_in "Party reactivation reason", with: reason
+    click_button "Reactivate party"
+    wait_for_turbo
   end
 
   def click_button_accepting_confirm(locator)

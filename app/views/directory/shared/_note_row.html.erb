@@ -1,0 +1,17 @@
+<div class="dd-note-row">
+  <div class="dd-note-main">
+    <% if note.pinned? %>
+      <%= status_badge("Pinned", modifier: "info") %>
+    <% end %>
+    <% if note.administrator_only? %>
+      <%= status_badge("Administrator only", modifier: "warning") %>
+    <% end %>
+    <% if note.record_superseded? %>
+      <%= status_badge("Superseded", modifier: "neutral") %>
+    <% elsif note.record_removed? %>
+      <%= status_badge("Removed", modifier: "neutral") %>
+    <% end %>
+    <p class="dd-contact-value"><%= truncate(note.body, length: local_assigns.fetch(:compact, false) ? 140 : 2000) %></p>
+    <p class="dd-cell-subtext">Recorded <%= dd_display_date(note.created_at) %></p>
+  </div>
+</div>

@@ -37,6 +37,8 @@ module Directory
       assert_redirected_to directory_party_notes_path(parties(:unlinked))
       follow_redirect!
       assert_includes response.body, "Prefers afternoon calls."
+      get directory_party_notes_path(parties(:unlinked), view: "history")
+      assert_response :success
       assert_includes response.body, original_body
       assert_includes response.body, "Superseded"
     end

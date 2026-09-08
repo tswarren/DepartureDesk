@@ -24,19 +24,35 @@
       <%= button_to note.pinned? ? "Unpin" : "Pin",
         note.pinned? ? unpin_directory_party_party_note_path(party, note) : pin_directory_party_party_note_path(party, note),
         method: :post,
-        class: "dd-button dd-button--secondary dd-button--small" %>
+        class: "dd-row-action" %>
+      <%= link_to "Correct",
+        directory_party_notes_path(party, acting: "correct", note_id: note.id),
+        class: "dd-row-action" %>
+      <%= link_to "Remove",
+        directory_party_notes_path(party, acting: "remove", note_id: note.id),
+        class: "dd-row-action" %>
+    </div>
+
+    <% if selected_action?("correct", id: note.id, param: :note_id) %>
       <%= form_with url: correct_directory_party_party_note_path(party, note), method: :post, class: "dd-form" do %>
         <label class="dd-label" for="note_body_<%= note.id %>">Corrected note</label>
         <textarea class="dd-field" id="note_body_<%= note.id %>" name="party_note[body]" rows="3" required><%= note.body %></textarea>
         <label class="dd-label" for="note_correct_reason_<%= note.id %>">Correction reason</label>
         <input class="dd-field" id="note_correct_reason_<%= note.id %>" name="party_note[reason]" required>
-        <%= submit_tag "Correct note", class: "dd-button dd-button--secondary dd-button--small" %>
+        <div class="dd-form-actions">
+          <%= submit_tag "Correct note", class: "dd-button dd-button--secondary dd-button--small" %>
+          <%= link_to "Cancel", directory_party_notes_path(party), class: "dd-row-action" %>
+        </div>
       <% end %>
+    <% elsif selected_action?("remove", id: note.id, param: :note_id) %>
       <%= form_with url: remove_directory_party_party_note_path(party, note), method: :post, class: "dd-form" do %>
         <label class="dd-label" for="note_remove_reason_<%= note.id %>">Removal reason</label>
         <input class="dd-field" id="note_remove_reason_<%= note.id %>" name="party_note[reason]" required>
-        <%= submit_tag "Remove note", class: "dd-button dd-button--danger dd-button--small", data: { turbo_confirm: "Remove this note? The original text is retained." } %>
+        <div class="dd-form-actions">
+          <%= submit_tag "Remove note", class: "dd-button dd-button--danger dd-button--small" %>
+          <%= link_to "Cancel", directory_party_notes_path(party), class: "dd-row-action" %>
+        </div>
       <% end %>
-    </div>
+    <% end %>
   <% end %>
 </li>

@@ -12,12 +12,15 @@ class DirectoryPhase2cDemoTest < ApplicationSystemTestCase
 
     open_directory_party "Horizon Tours"
     add_party_role "client", office_label: "Sunrise Travel (MAIN)"
+    click_link "Edit client details"
     select "Riley Staff", from: "Primary advisor"
     click_button_and_expect "Assign advisor", text: "Client advisor updated."
 
     add_party_role "supplier", office_label: "Sunrise Travel (MAIN)"
+    click_link "Edit supplier details"
     select "Cruise", from: "Service category"
     click_button_and_expect "Add category", text: "Supplier category added."
+    find("summary", text: /Booking instructions/).click
     fill_in "Booking instructions", with: "Hold space 45 days out."
     click_button "Save supplier details"
     assert_text "Supplier role updated."
@@ -54,6 +57,7 @@ class DirectoryPhase2cDemoTest < ApplicationSystemTestCase
 
     open_directory_party "Horizon Tours"
     click_party_tab "Roles"
+    click_link "Deactivate supplier role"
     fill_in "Supplier deactivation reason", with: "Season over"
     accept_confirm { click_button "Deactivate supplier role" }
     assert_text "Supplier role deactivated."
@@ -81,6 +85,7 @@ class DirectoryPhase2cDemoTest < ApplicationSystemTestCase
 
     open_directory_party "Horizon Tours"
     click_party_tab "Roles"
+    click_link "Reactivate supplier role"
     select "Sunrise Travel (MAIN)", from: "Supplier responsible office"
     click_button "Reactivate supplier role"
     assert_text "Supplier role reactivated."
