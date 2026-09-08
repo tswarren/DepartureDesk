@@ -14,7 +14,11 @@ module Directory
       ).call
       redirect_to directory_party_notes_path(@party), notice: "Note added."
     rescue MembershipCommand::Error => error
-      redirect_to directory_party_notes_path(@party), alert: error.message
+      flash[:note_draft] = {
+        "body" => note_params[:body].to_s,
+        "visibility" => note_params[:visibility].presence || "standard"
+      }
+      redirect_to directory_party_notes_path(@party, adding: 1), alert: error.message
     end
 
     def correct

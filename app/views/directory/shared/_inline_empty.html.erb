@@ -1,0 +1,7 @@
+<div class="dd-empty-state dd-empty-state--inline">
+  <h3 class="dd-empty-title"><%= title %></h3>
+  <p class="dd-empty-copy"><%= copy %></p>
+  <% if local_assigns[:action_path] %>
+    <p><%= link_to action_label, action_path, class: "dd-row-action" %></p>
+  <% end %>
+</div>

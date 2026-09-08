@@ -2,39 +2,140 @@
 
 <%= render "directory/shared/party_chrome", party: @party, current: :roles %>
 
+<p class="dd-field-hint">Client and supplier roles belong to this party. Adding or deactivating a role does not create or replace the directory identity.</p>
+
 <article class="dd-panel">
   <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Roles</h2>
+    <h2 class="dd-panel-title">Client</h2>
+    <div class="dd-button-group">
+      <% if @client_profile.nil? && @party.active? && @active_offices.any? %>
+        <%= link_to "Add client role", new_directory_party_client_profile_path(@party), class: "dd-row-action" %>
+      <% elsif @client_profile&.active? %>
+        <%= link_to "Edit client details", edit_directory_party_client_profile_path(@party), class: "dd-row-action" %>
+        <%= link_to "Deactivate client role", directory_party_roles_path(@party, acting: "deactivate_client"), class: "dd-row-action" %>
+      <% elsif @client_profile&.inactive? && @active_offices.any? %>
+        <%= link_to "Reactivate client role", directory_party_roles_path(@party, acting: "reactivate_client"), class: "dd-row-action" %>
+      <% end %>
+    </div>
   </header>
   <div class="dd-panel-body">
-    <p class="dd-field-hint">Client and supplier roles belong to this party. Adding or deactivating a role does not create or replace the directory identity. An active role blocks party deactivation.</p>
-    <%= render "directory/parties/role",
-      party: @party,
-      profile: @client_profile,
-      role_noun: "client",
-      param_key: "client_profile",
-      create_path: directory_party_client_profile_path(@party),
-      update_path: directory_party_client_profile_path(@party),
-      deactivate_path: deactivate_directory_party_client_profile_path(@party),
-      reactivate_path: reactivate_directory_party_client_profile_path(@party),
-      assign_advisor_path: assign_advisor_directory_party_client_profile_path(@party),
-      clear_advisor_path: clear_advisor_directory_party_client_profile_path(@party),
-      active_offices: @active_offices,
-      advisor_memberships: @advisor_memberships,
-      eligible: true %>
-    <%= render "directory/parties/role",
-      party: @party,
-      profile: @supplier_profile,
-      role_noun: "supplier",
-      param_key: "supplier_profile",
-      create_path: directory_party_supplier_profile_path(@party),
-      update_path: directory_party_supplier_profile_path(@party),
-      deactivate_path: deactivate_directory_party_supplier_profile_path(@party),
-      reactivate_path: reactivate_directory_party_supplier_profile_path(@party),
-      active_offices: @active_offices,
-      assign_advisor_path: nil,
-      clear_advisor_path: nil,
-      advisor_memberships: [],
-      eligible: !@party.household? %>
+    <%= role_profile_status_badge(@client_profile) %>
+    <% if @client_profile %>
+      <dl class="dd-definition-list">
+        <div>
+          <dt>Responsible office</dt>
+          <dd><%= responsible_office_text(@client_profile) %></dd>
+        </div>
+        <div>
+          <dt>Primary advisor</dt>
+          <dd><%= advisor_membership_label(@client_profile.primary_advisor_membership) %></dd>
+        </div>
+      </dl>
+    <% else %>
+      <%= render "directory/shared/inline_empty", title: "Not assigned", copy: "A client role is optional. The party remains in the directory." %>
+    <% end %>
+
+    <% if params[:acting] == "deactivate_client" && @client_profile&.active? %>
+      <%= form_with url: deactivate_directory_party_client_profile_path(@party), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="client_profile[lock_version]" value="<%= @client_profile.lock_version %>">
+        <div class="dd-field-group">
+          <label class="dd-label" for="client_profile_deactivation_reason">Client deactivation reason <span class="dd-required">*</span></label>
+          <input class="dd-field" id="client_profile_deactivation_reason" name="client_profile[reason]" required>
+        </div>
+        <div class="dd-form-actions">
+          <%= submit_tag "Deactivate client role", class: "dd-button dd-button--danger", data: { turbo_confirm: "Deactivate this client role? The party remains in the directory." } %>
+          <%= link_to "Cancel", directory_party_roles_path(@party), class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    <% elsif params[:acting] == "reactivate_client" && @client_profile&.inactive? %>
+      <%= form_with url: reactivate_directory_party_client_profile_path(@party), method: :post, class: "dd-form", data: { turbo: false } do %>
+        <input type="hidden" name="client_profile[lock_version]" value="<%= @client_profile.lock_version %>">
+        <div class="dd-field-group">
+          <label class="dd-label" for="client_profile_responsible_office_id_reactivate">Client responsible office <span class="dd-required">*</span></label>
+          <select class="dd-field" id="client_profile_responsible_office_id_reactivate" name="client_profile[responsible_office_id]" required>
+            <% @active_offices.each do |office| %>
+              <option value="<%= office.id %>"><%= office_choice_label(office) %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-form-actions">
+          <%= submit_tag "Reactivate client role", class: "dd-button dd-button--secondary" %>
+          <%= link_to "Cancel", directory_party_roles_path(@party), class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Supplier</h2>
+    <div class="dd-button-group">
+      <% if @party.household? %>
+        <%= status_badge("Ineligible", modifier: "neutral") %>
+      <% elsif @supplier_profile.nil? && @party.active? && @active_offices.any? %>
+        <%= link_to "Add supplier role", new_directory_party_supplier_profile_path(@party), class: "dd-row-action" %>
+      <% elsif @supplier_profile&.active? %>
+        <%= link_to "Edit supplier details", edit_directory_party_supplier_profile_path(@party), class: "dd-row-action" %>
+        <%= link_to "Deactivate supplier role", directory_party_roles_path(@party, acting: "deactivate_supplier"), class: "dd-row-action" %>
+      <% elsif @supplier_profile&.inactive? && @active_offices.any? %>
+        <%= link_to "Reactivate supplier role", directory_party_roles_path(@party, acting: "reactivate_supplier"), class: "dd-row-action" %>
+      <% end %>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if @party.household? %>
+      <p class="dd-field-hint">Households cannot hold a supplier role.</p>
+    <% else %>
+      <%= role_profile_status_badge(@supplier_profile) %>
+      <% if @supplier_profile %>
+        <dl class="dd-definition-list">
+          <div>
+            <dt>Responsible office</dt>
+            <dd><%= responsible_office_text(@supplier_profile) %></dd>
+          </div>
+          <div>
+            <dt>Default currency</dt>
+            <dd class="dd-type-mono"><%= @supplier_profile.default_currency %></dd>
+          </div>
+          <div>
+            <dt>Service categories</dt>
+            <dd><%= overview_supplier_services_text(@party, @supplier_profile) %></dd>
+          </div>
+        </dl>
+      <% else %>
+        <%= render "directory/shared/inline_empty", title: "Not assigned", copy: "A supplier role is optional." %>
+      <% end %>
+    <% end %>
+
+    <% if params[:acting] == "deactivate_supplier" && @supplier_profile&.active? %>
+      <%= form_with url: deactivate_directory_party_supplier_profile_path(@party), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="supplier_profile[lock_version]" value="<%= @supplier_profile.lock_version %>">
+        <div class="dd-field-group">
+          <label class="dd-label" for="supplier_profile_deactivation_reason">Supplier deactivation reason <span class="dd-required">*</span></label>
+          <input class="dd-field" id="supplier_profile_deactivation_reason" name="supplier_profile[reason]" required>
+        </div>
+        <div class="dd-form-actions">
+          <%= submit_tag "Deactivate supplier role", class: "dd-button dd-button--danger", data: { turbo_confirm: "Deactivate this supplier role? The party remains in the directory." } %>
+          <%= link_to "Cancel", directory_party_roles_path(@party), class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    <% elsif params[:acting] == "reactivate_supplier" && @supplier_profile&.inactive? %>
+      <%= form_with url: reactivate_directory_party_supplier_profile_path(@party), method: :post, class: "dd-form", data: { turbo: false } do %>
+        <input type="hidden" name="supplier_profile[lock_version]" value="<%= @supplier_profile.lock_version %>">
+        <div class="dd-field-group">
+          <label class="dd-label" for="supplier_profile_responsible_office_id_reactivate">Supplier responsible office <span class="dd-required">*</span></label>
+          <select class="dd-field" id="supplier_profile_responsible_office_id_reactivate" name="supplier_profile[responsible_office_id]" required>
+            <% @active_offices.each do |office| %>
+              <option value="<%= office.id %>"><%= office_choice_label(office) %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-form-actions">
+          <%= submit_tag "Reactivate supplier role", class: "dd-button dd-button--secondary" %>
+          <%= link_to "Cancel", directory_party_roles_path(@party), class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    <% end %>
   </div>
 </article>

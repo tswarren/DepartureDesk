@@ -1,0 +1,87 @@
+<% content_for :title, "Edit client details · #{@party.display_name} · DepartureDesk" %>
+
+<%= render "directory/shared/party_chrome",
+  party: @party,
+  current: :roles,
+  show_primary_action: false,
+  title: "Edit client details" %>
+
+<div class="dd-form-surface">
+<%= form_with url: directory_party_client_profile_path(@party), method: :patch, class: "dd-form" do %>
+  <input type="hidden" name="client_profile[lock_version]" value="<%= @profile.lock_version %>">
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Responsibility</h2>
+    </header>
+    <div class="dd-panel-body">
+      <div class="dd-field-group">
+        <label class="dd-label" for="client_profile_responsible_office_id">Client responsible office <span class="dd-required">*</span></label>
+        <select class="dd-field" id="client_profile_responsible_office_id" name="client_profile[responsible_office_id]" required>
+          <% @active_offices.each do |office| %>
+            <option value="<%= office.id %>" <%= "selected" if office.id == @profile.responsible_office_id %>><%= office_choice_label(office) %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="dd-field-group">
+        <label class="dd-label" for="client_profile_communication_preference">Communication preference</label>
+        <select class="dd-field" id="client_profile_communication_preference" name="client_profile[communication_preference]">
+          <% ClientProfile::COMMUNICATION_PREFERENCES.each do |preference| %>
+            <option value="<%= preference %>" <%= "selected" if @profile.communication_preference == preference %>><%= communication_preference_label(preference) %></option>
+          <% end %>
+        </select>
+      </div>
+    </div>
+  </article>
+
+  <details class="dd-disclosure" <%= "open" if @profile.servicing_restrictions.present? || @profile.billing_restrictions.present? %>>
+    <summary>
+      Restrictions
+      <span class="dd-disclosure-summary"><%= disclosure_populated_summary(@profile.servicing_restrictions.presence || @profile.billing_restrictions) %></span>
+    </summary>
+    <div class="dd-disclosure-body">
+      <div class="dd-field-group">
+        <label class="dd-label" for="client_profile_servicing_restrictions">Servicing restrictions</label>
+        <textarea class="dd-field" id="client_profile_servicing_restrictions" name="client_profile[servicing_restrictions]" maxlength="2000" rows="3"><%= @profile.servicing_restrictions %></textarea>
+      </div>
+      <div class="dd-field-group">
+        <label class="dd-label" for="client_profile_billing_restrictions">Billing restrictions</label>
+        <textarea class="dd-field" id="client_profile_billing_restrictions" name="client_profile[billing_restrictions]" maxlength="2000" rows="3"><%= @profile.billing_restrictions %></textarea>
+      </div>
+    </div>
+  </details>
+
+  <div class="dd-form-actions">
+    <%= submit_tag "Save client details", class: "dd-button", data: { disable_with: "Saving…" } %>
+    <%= link_to "Cancel", directory_party_roles_path(@party), class: "dd-button dd-button--quiet" %>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Primary advisor</h2>
+  </header>
+  <div class="dd-panel-body">
+    <p class="dd-cell-subtext"><%= advisor_membership_label(@profile.primary_advisor_membership) %></p>
+    <%= form_with url: assign_advisor_directory_party_client_profile_path(@party), method: :post, class: "dd-form" do %>
+      <input type="hidden" name="client_profile[lock_version]" value="<%= @profile.lock_version %>">
+      <div class="dd-field-group">
+        <label class="dd-label" for="client_profile_primary_advisor_membership_id">Primary advisor</label>
+        <select class="dd-field" id="client_profile_primary_advisor_membership_id" name="client_profile[primary_advisor_membership_id]" required>
+          <% @advisor_memberships.each do |membership| %>
+            <option value="<%= membership.id %>" <%= "selected" if membership.id == @profile.primary_advisor_membership_id %>><%= advisor_membership_label(membership) %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Assign advisor", class: "dd-button dd-button--secondary" %>
+      </div>
+    <% end %>
+    <% if @profile.primary_advisor_membership_id.present? %>
+      <%= form_with url: clear_advisor_directory_party_client_profile_path(@party), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="client_profile[lock_version]" value="<%= @profile.lock_version %>">
+        <%= submit_tag "Clear advisor", class: "dd-button dd-button--quiet" %>
+      <% end %>
+    <% end %>
+  </div>
+</article>
+</div>

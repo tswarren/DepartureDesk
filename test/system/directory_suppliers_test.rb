@@ -5,6 +5,7 @@ class DirectorySuppliersTest < ApplicationSystemTestCase
     sign_in_from_browser users(:one)
     open_directory_party "Horizon Tours"
     add_party_role "supplier", office_label: "Sunrise Travel (MAIN)"
+    click_link "Edit supplier details"
     select "Cruise", from: "Service category"
     click_button_and_expect "Add category", text: "Supplier category added."
 

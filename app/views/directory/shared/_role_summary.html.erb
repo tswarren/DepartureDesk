@@ -1,0 +1,33 @@
+<% if party.household? %>
+  <p><%= status_badge("Ineligible", modifier: "neutral") %> Households cannot hold a supplier role.</p>
+<% end %>
+<div class="dd-contact-row">
+  <div class="dd-contact-main">
+    <div class="dd-contact-value">Client</div>
+    <div class="dd-cell-subtext">
+      <%= role_profile_status_badge(client_profile) %>
+      <% if client_profile %>
+        · <%= responsible_office_text(client_profile) %>
+      <% end %>
+    </div>
+  </div>
+  <%= link_to client_profile ? "Edit" : "Add", directory_party_roles_path(party), class: "dd-row-action" %>
+</div>
+<div class="dd-contact-row">
+  <div class="dd-contact-main">
+    <div class="dd-contact-value">Supplier</div>
+    <div class="dd-cell-subtext">
+      <% if party.household? %>
+        <%= status_badge("Ineligible", modifier: "neutral") %>
+      <% else %>
+        <%= role_profile_status_badge(supplier_profile) %>
+        <% if supplier_profile %>
+          · <%= overview_supplier_services_text(party, supplier_profile) %>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+  <% unless party.household? %>
+    <%= link_to supplier_profile ? "Edit" : "Add", directory_party_roles_path(party), class: "dd-row-action" %>
+  <% end %>
+</div>

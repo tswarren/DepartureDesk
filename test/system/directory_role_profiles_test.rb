@@ -10,11 +10,13 @@ class DirectoryRoleProfilesTest < ApplicationSystemTestCase
     assert_text "Active"
     assert_text "Sunrise Travel (MAIN)"
 
+    click_link "Deactivate client role"
     fill_in "Client deactivation reason", with: "Season over"
     accept_confirm { click_button "Deactivate client role" }
     assert_text "Client role deactivated."
     assert_text "Inactive"
 
+    click_link "Reactivate client role"
     select "Sunrise Travel (MAIN)", from: "Client responsible office"
     click_button "Reactivate client role"
     assert_text "Client role reactivated."

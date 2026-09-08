@@ -1,6 +1,8 @@
 module ApplicationHelper
   ICON_NAMES = %w[
     house users briefcase boat calendar_blank suitcase coins gear dots_three list x
+    envelope phone map_pin caret_down warning_circle check_circle lock_simple plus
+    pencil_simple users_two file_text magnifying_glass info spinner globe
   ].freeze
 
   def icon_tag(name, html_class: "dd-icon dd-icon--md")
@@ -34,7 +36,7 @@ module ApplicationHelper
   end
 
   def party_kind_badge(party)
-    status_badge(party.kind_label, modifier: "info")
+    status_badge(party.kind_label, modifier: "kind")
   end
 
   def party_status_badge(party)
@@ -207,18 +209,7 @@ module ApplicationHelper
   end
 
   def party_identity_line(party)
-    if party.organization?
-      org = party.organization
-      parts = []
-      parts << org.legal_name if org.legal_name.present? && org.legal_name != party.display_name
-      parts << "Trading as #{org.trading_name}" if org.trading_name.present? && org.trading_name != party.display_name
-      parts.join(" · ").presence
-    elsif party.household?
-      party.household.correspondence_name.presence
-    elsif party.person?
-      person = party.person
-      person.preferred_name.presence if person.preferred_name.present? && person.preferred_name != party.display_name
-    end
+    party_header_metadata(party)
   end
 
   def party_attention_path(party, item)
@@ -229,19 +220,18 @@ module ApplicationHelper
     end
   end
 
-  def overview_primary_contact_text(assignments)
-    direct = assignments.select { |row| row.general? && %w[email phone].include?(row.contact_kind) }
-    chosen = direct.first || assignments.find(&:general?) || assignments.first
-    return "None" unless chosen
+  CONTACT_ROW_PREFERRED_KEYS = %i[allow_use reactivate set_primary].freeze
 
-    chosen.contact_point.display_value.to_s.split("\n").first
-  end
+  def split_contact_row_actions(actions)
+    return [ actions, [] ] if actions.size <= 3
 
-  def overview_responsible_office_text(client_profile, supplier_profile)
-    profile = [ supplier_profile, client_profile ].compact.find(&:active?) || supplier_profile || client_profile
-    return "—" unless profile
-
-    responsible_office_text(profile)
+    first = actions.find { |action| action[:label] == "Edit" } || actions.first
+    remaining = actions.reject { |action| action.equal?(first) }
+    second = CONTACT_ROW_PREFERRED_KEYS.filter_map { |key| remaining.find { |action| action[:key] == key } }.first
+    second ||= remaining.first
+    visible = [ first, second ].compact.uniq
+    overflow = actions.reject { |action| visible.include?(action) }
+    [ visible, overflow ]
   end
 
   def overview_supplier_services_text(party, supplier_profile)
@@ -250,5 +240,75 @@ module ApplicationHelper
     return "None assigned" if supplier_profile.category_codes.empty?
 
     supplier_profile.service_category_assignments.sort_by(&:category_code).map(&:category_label).to_sentence
+  end
+
+  def party_workspace?
+    return false unless controller_path.start_with?("directory/")
+    return false if %w[index].include?(action_name) && %w[parties clients suppliers].include?(controller_name)
+
+    true
+  end
+
+  def user_initials(user)
+    initials_from_name(user.display_name)
+  end
+
+  def party_initials(party)
+    initials_from_name(party.display_name)
+  end
+
+  def membership_display_name(membership)
+    membership&.agency_display_name.presence || "Unknown"
+  end
+
+  def membership_initials(membership)
+    person_party = membership&.person_party
+    return party_initials(person_party.party) if person_party&.party
+    return user_initials(membership.user) if membership&.user
+
+    "?"
+  end
+
+  def initials_from_name(name)
+    words = name.to_s.scan(/[[:alpha:]]+/)
+    letters = words.first(2).map { |word| word[0] }
+    letters.join.upcase.presence || "?"
+  end
+
+  def party_header_metadata(party)
+    if party.organization?
+      org = party.organization
+      return org.legal_name if org.legal_name.present? && org.legal_name != party.display_name
+    elsif party.household?
+      correspondence = party.household.correspondence_name
+      return correspondence if correspondence.present? && correspondence != party.household.name
+    elsif party.person?
+      preferred = party.person.preferred_name
+      return preferred if preferred.present? && preferred != party.display_name
+    end
+
+    nil
+  end
+
+  def dd_display_date(value)
+    return if value.blank?
+
+    date = value.respond_to?(:to_date) ? value.to_date : value
+    date.strftime("%b %-d, %Y")
+  end
+
+  def disclosure_populated_summary(value)
+    value.to_s.strip.present? ? "Provided" : "Not provided"
+  end
+
+  def empty_state_classes(family: :inline)
+    [ "dd-empty-state", "dd-empty-state--#{family}" ]
+  end
+
+  def selected_action?(action, id: nil, param: :id)
+    return false unless params[:acting].to_s == action.to_s
+    return true if id.nil?
+
+    params[param].to_s == id.to_s
   end
 end

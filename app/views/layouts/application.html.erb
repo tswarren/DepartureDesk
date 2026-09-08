@@ -33,10 +33,10 @@
           data-navigation-drawer-target="backdrop"
           data-action="click->navigation-drawer#close"
           hidden></div>
+        <%= render "layouts/topbar" %>
         <%= render "layouts/sidebar" %>
         <div class="dd-main" data-navigation-drawer-target="main">
-          <%= render "layouts/topbar" %>
-          <main id="main-content" class="dd-workspace">
+          <main id="main-content" class="dd-workspace<%= " dd-workspace--party" if party_workspace? %>">
             <% if notice = flash[:notice] %>
               <p class="dd-alert dd-alert--success" role="status"><%= notice %></p>
             <% end %>

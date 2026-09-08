@@ -1,0 +1,30 @@
+<% content_for :title, "Add #{role_noun} role · #{@party.display_name} · DepartureDesk" %>
+
+<%= render "directory/shared/party_chrome",
+  party: @party,
+  current: :roles,
+  show_primary_action: false,
+  title: "Add #{role_noun} role" %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: create_path,
+      method: :post,
+      id: "#{param_key}_create_form",
+      class: "dd-form",
+      data: { turbo: false } do %>
+      <div class="dd-field-group">
+        <label class="dd-label" for="<%= param_key %>_responsible_office_id_create"><%= role_noun.titleize %> responsible office <span class="dd-required">*</span></label>
+        <select class="dd-field" id="<%= param_key %>_responsible_office_id_create" name="<%= param_key %>[responsible_office_id]" required>
+          <% @active_offices.each do |office| %>
+            <option value="<%= office.id %>"><%= office_choice_label(office) %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Add #{role_noun} role", class: "dd-button" %>
+        <%= link_to "Cancel", directory_party_roles_path(@party), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

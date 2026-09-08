@@ -27,7 +27,7 @@
       <%= hidden_field_tag "party[profile_lock_version]", @profile.lock_version %>
       <%= render "directory/parties/#{@party.party_kind}_fields", form: form, profile: @profile %>
       <div class="dd-form-actions">
-        <%= form.submit "Save changes", class: "dd-button" %>
+        <%= form.submit "Save changes", class: "dd-button", data: { disable_with: "Saving…" } %>
         <%= link_to "Cancel", directory_party_path(@party), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
@@ -37,6 +37,9 @@
 <article class="dd-panel">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Alternate names</h2>
+    <% unless params[:adding_name] == "1" %>
+      <%= link_to "Add name", edit_directory_party_path(@party, adding_name: 1), class: "dd-row-action" %>
+    <% end %>
   </header>
   <div class="dd-panel-body">
     <% if @alternate_names.any? %>
@@ -44,6 +47,7 @@
         <% @alternate_names.each do |alternate| %>
           <li class="dd-list-item">
             <% editing = params[:editing_alternate_id].to_s == alternate.id.to_s %>
+            <% removing = params[:removing_alternate_id].to_s == alternate.id.to_s %>
             <div>
               <strong class="dd-cell-title"><%= alternate.name %></strong>
               <span class="dd-cell-subtext"><%= alternate.name_kind.titleize %></span>
@@ -68,47 +72,60 @@
                 </div>
                 <div class="dd-button-group">
                   <%= form.submit "Update name", class: "dd-button dd-button--secondary dd-button--small" %>
-                  <%= link_to "Cancel", edit_directory_party_path(@party), class: "dd-button dd-button--quiet dd-button--small" %>
+                  <%= link_to "Cancel", edit_directory_party_path(@party), class: "dd-row-action" %>
                 </div>
               <% end %>
+            <% elsif removing %>
+              <p class="dd-field-hint">Remove this alternate name? The canonical display name is unchanged.</p>
+              <div class="dd-button-group">
+                <%= link_to "Remove name",
+                  directory_party_alternate_name_path(@party, alternate),
+                  data: { turbo_method: :delete, turbo_confirm: "Remove this alternate name?" },
+                  class: "dd-button dd-button--danger dd-button--small" %>
+                <%= link_to "Cancel", edit_directory_party_path(@party), class: "dd-row-action" %>
+              </div>
             <% else %>
               <div class="dd-button-group">
                 <%= link_to "Edit name",
                   edit_directory_party_path(@party, editing_alternate_id: alternate.id),
-                  class: "dd-button dd-button--quiet dd-button--small" %>
+                  class: "dd-row-action" %>
                 <%= link_to "Remove",
-                  directory_party_alternate_name_path(@party, alternate),
-                  data: { turbo_method: :delete, turbo_confirm: "Remove this alternate name?" },
-                  class: "dd-button dd-button--danger dd-button--small" %>
+                  edit_directory_party_path(@party, removing_alternate_id: alternate.id),
+                  class: "dd-row-action" %>
               </div>
             <% end %>
           </li>
         <% end %>
       </ul>
     <% else %>
-      <p class="dd-missing">No alternate names. Former names and aliases stay on this record without replacing the canonical name.</p>
+      <%= render "directory/shared/inline_empty",
+        title: "No alternate names",
+        copy: "Former names and aliases stay on this record without replacing the canonical name." %>
     <% end %>
 
-    <%= form_with model: @alternate_name,
-      url: directory_party_alternate_names_path(@party),
-      method: :post,
-      class: "dd-form" do |form| %>
-      <div class="dd-form-grid dd-form-grid--two-column">
-        <div class="dd-field-group">
-          <%= form.label :name, "Add alternate name", class: "dd-label" %>
-          <%= form.text_field :name, required: true, class: "dd-field" %>
+    <% if params[:adding_name] == "1" %>
+      <%= form_with model: @alternate_name,
+        url: directory_party_alternate_names_path(@party),
+        method: :post,
+        class: "dd-form" do |form| %>
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <%= form.label :name, "Add alternate name", class: "dd-label" %>
+            <%= form.text_field :name, required: true, class: "dd-field" %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :name_kind, "Add name kind", class: "dd-label" %>
+            <%= form.select :name_kind,
+              PartyAlternateName::KINDS.map { |kind| [ kind.titleize, kind ] },
+              {},
+              class: "dd-field" %>
+          </div>
         </div>
-        <div class="dd-field-group">
-          <%= form.label :name_kind, "Add name kind", class: "dd-label" %>
-          <%= form.select :name_kind,
-            PartyAlternateName::KINDS.map { |kind| [ kind.titleize, kind ] },
-            {},
-            class: "dd-field" %>
+        <div class="dd-form-actions">
+          <%= form.submit "Add name", class: "dd-button dd-button--secondary" %>
+          <%= link_to "Cancel", edit_directory_party_path(@party), class: "dd-button dd-button--quiet" %>
         </div>
-      </div>
-      <div class="dd-form-actions">
-        <%= form.submit "Add name", class: "dd-button dd-button--secondary" %>
-      </div>
+      <% end %>
     <% end %>
   </div>
 </article>

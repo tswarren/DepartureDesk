@@ -61,12 +61,66 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_nil field_error(agency, :legal_name)
   end
 
+  test "party header metadata is identity disambiguation only" do
+    assert_equal "Horizon Tours Limited", party_header_metadata(parties(:organization_one))
+    assert_nil party_header_metadata(parties(:unlinked))
+    assert_nil party_header_metadata(parties(:household_one))
+  end
+
+  test "initials helpers take the first letters of the display name" do
+    assert_equal "AM", party_initials(parties(:unlinked))
+    assert_equal "JB", user_initials(users(:one))
+    assert_equal "Jordan Blake", membership_display_name(agency_memberships(:one))
+    assert_equal "JB", membership_initials(agency_memberships(:one))
+  end
+
+  test "empty state classes select a family modifier" do
+    assert_equal [ "dd-empty-state", "dd-empty-state--inline" ], empty_state_classes
+    assert_equal [ "dd-empty-state", "dd-empty-state--filtered" ], empty_state_classes(family: :filtered)
+  end
+
+  test "unknown icons are refused" do
+    assert_raises(ArgumentError) { icon_tag("not-an-icon") }
+  end
+
   test "icon_tag renders a curated svg with currentColor" do
     html = icon_tag("house", html_class: "dd-icon dd-icon--sm")
 
     assert_includes html, "aria-hidden=\"true\""
     assert_includes html, "dd-icon--sm"
     assert_includes html, "currentColor"
+  end
+
+  test "split_contact_row_actions keeps three or fewer visible and never emits empty overflow" do
+    three = [
+      { key: :edit, label: "Edit" },
+      { key: :assign_purpose, label: "Assign purpose" },
+      { key: :deactivate, label: "Deactivate" }
+    ]
+    visible, overflow = split_contact_row_actions(three)
+
+    assert_equal three, visible
+    assert_empty overflow
+  end
+
+  test "split_contact_row_actions keeps edit and a preferred action when more than three exist" do
+    actions = [
+      { key: :edit, label: "Edit" },
+      { key: :assign_purpose, label: "Assign purpose" },
+      { key: :set_primary, label: "Set primary" },
+      { key: :do_not_use, label: "Do not use" },
+      { key: :deactivate, label: "Deactivate" }
+    ]
+    visible, overflow = split_contact_row_actions(actions)
+
+    assert_equal [ "Edit", "Set primary" ], visible.map { |action| action[:label] }
+    assert_equal [ "Assign purpose", "Do not use", "Deactivate" ], overflow.map { |action| action[:label] }
+  end
+
+  test "dots three icon fills circles with currentColor" do
+    html = icon_tag("dots_three")
+
+    assert_equal 3, html.scan('fill="currentColor"').size
   end
 
   test "party breadcrumbs prefer supplier then client then directory" do

@@ -37,6 +37,8 @@ module Directory
       assert_redirected_to directory_party_notes_path(parties(:unlinked))
       follow_redirect!
       assert_includes response.body, "Prefers afternoon calls."
+      get directory_party_notes_path(parties(:unlinked), view: "history")
+      assert_response :success
       assert_includes response.body, original_body
       assert_includes response.body, "Superseded"
     end
@@ -62,6 +64,64 @@ module Directory
       sign_in_as(users(:one))
       get directory_party_notes_path(parties(:two))
       assert_response :not_found
+    end
+
+    test "note feed names the author and overview more control exposes the ellipsis icon" do
+      sign_in_as(users(:one))
+      get directory_party_path(parties(:unlinked))
+      assert_response :success
+      assert_select ".dd-id-name-row h1.dd-page-title", text: "Alex Morgan"
+      assert_select ".dd-id-name-row .dd-badge--kind", text: "Person"
+      assert_select "summary[aria-label='More actions'] svg circle[fill=currentColor]", count: 3
+      assert_select ".dd-note-author", text: "Jordan Blake"
+      assert_select ".dd-note-body", text: /Prefers morning calls/
+      assert_select ".dd-note-badge", text: "Admin only"
+      assert_select "textarea", count: 0
+      assert_select "a[href=?]", directory_party_notes_path(parties(:unlinked), adding: 1), text: "Add note"
+
+      sign_out
+      sign_in_as(users(:staff_one))
+      get directory_party_path(parties(:unlinked))
+      assert_response :success
+      assert_select ".dd-note-body", text: /Prefers morning calls/
+      assert_select ".dd-note-badge", count: 0
+      assert_not_includes response.body, "Restricted credit discussion"
+    end
+
+    test "notes composer is requested with adding and create errors reopen the draft" do
+      sign_in_as(users(:one))
+      party = parties(:unlinked)
+
+      get directory_party_notes_path(party)
+      assert_response :success
+      assert_select "textarea", count: 0
+      assert_select "a[href=?]", directory_party_notes_path(party, adding: 1), text: "Add note"
+
+      get directory_party_notes_path(party, adding: 1)
+      assert_response :success
+      assert_select "textarea#party_note_body_page[autofocus]"
+      assert_select "a", text: "Cancel"
+
+      assert_no_difference("PartyNote.count") do
+        post directory_party_party_notes_path(party), params: {
+          party_note: { body: "password: hunter2", visibility: "administrator_only" }
+        }
+      end
+      assert_redirected_to directory_party_notes_path(party, adding: 1)
+      follow_redirect!
+      assert_includes response.body, "Notes cannot include passwords"
+      assert_select "textarea#party_note_body_page", text: "password: hunter2"
+      assert_select "input[name='party_note[visibility]'][value=administrator_only][checked]"
+    end
+
+    test "creating a note returns to notes browse" do
+      sign_in_as(users(:one))
+      assert_difference("PartyNote.count", 1) do
+        post directory_party_party_notes_path(parties(:unlinked)), params: {
+          party_note: { body: "Prefers window seats.", visibility: "standard" }
+        }
+      end
+      assert_redirected_to directory_party_notes_path(parties(:unlinked))
     end
   end
 end

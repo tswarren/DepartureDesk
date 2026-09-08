@@ -1,8 +1,8 @@
-<nav class="dd-subnav" aria-label="Party">
+<nav class="dd-subnav" aria-label="Party" data-controller="subnav-scroll">
   <%= link_to "Overview",
     directory_party_path(party),
     aria: { current: ("page" if current == :overview) } %>
-  <%= link_to "Contact information",
+  <%= link_to "Contact",
     directory_party_contact_information_path(party),
     aria: { current: ("page" if current == :contact) } %>
   <%= link_to "Relationships",

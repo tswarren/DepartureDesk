@@ -36,6 +36,9 @@ class DirectoryRelationshipFoundationTest < ApplicationSystemTestCase
     assert_text "Booking primary"
 
     within("li.dd-list-item", text: "Maria Ruiz is a contact for Horizon Tours.") do
+      click_link "End"
+    end
+    within("li.dd-list-item", text: "Maria Ruiz is a contact for Horizon Tours.") do
       fill_in "Inclusive end date", with: Date.new(2026, 9, 30)
       fill_in "Ending reason", with: "Contract ended"
       click_button "End relationship"

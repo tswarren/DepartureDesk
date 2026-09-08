@@ -4,7 +4,7 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
   test "personal contacts household mailing address purposes and suppression" do
     sign_in_from_browser users(:one)
     open_directory_party "Alex Morgan"
-    within("nav[aria-label=Party]") { click_link "Contact information" }
+    within("nav[aria-label=Party]") { click_link "Contact" }
     assert_link "Add email"
     wait_for_turbo
 
@@ -27,11 +27,17 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     assert_text "alex.billing@example.com"
 
     within("li.dd-list-item", text: "alex.personal@example.com") do
+      click_link "Set primary"
+    end
+    within("li.dd-list-item", text: "alex.personal@example.com") do
       select "General", from: "Set as primary purpose"
       click_button "Set as primary"
     end
     assert_text "Primary contact updated."
 
+    within("li.dd-list-item", text: "alex.billing@example.com") do
+      click_link "Set primary"
+    end
     within("li.dd-list-item", text: "alex.billing@example.com") do
       select "Billing", from: "Set as primary purpose"
       click_button "Set as primary"
@@ -39,13 +45,17 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     assert_text "Primary contact updated."
 
     within("li.dd-list-item", text: "alex.personal@example.com") do
+      find("summary", exact_text: "More").click
+      click_link "Do not use"
+    end
+    within("li.dd-list-item", text: "alex.personal@example.com") do
       fill_in "Do not use reason", with: "Mailbox not monitored"
       click_button "Mark do not use"
     end
     assert_text "Do not use"
 
     open_directory_party "Morgan Household"
-    within("nav[aria-label=Party]") { click_link "Contact information" }
+    within("nav[aria-label=Party]") { click_link "Contact" }
     assert_link "Add postal address"
     wait_for_turbo
     click_link "Add postal address"
@@ -59,7 +69,7 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     assert_text "18 Harbor Street"
 
     open_directory_party "Alex Morgan"
-    within("nav[aria-label=Party]") { click_link "Contact information" }
+    within("nav[aria-label=Party]") { click_link "Contact" }
     assert_link "Add email"
     wait_for_turbo
     assert_no_text "18 Harbor Street"

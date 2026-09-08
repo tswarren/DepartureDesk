@@ -13,30 +13,37 @@
 
 <header class="dd-record-header">
   <div class="dd-record-identity">
-    <h1 class="dd-page-title"><%= local_assigns.fetch(:title, party.display_name) %></h1>
-    <div class="dd-record-meta">
-      <%= party_kind_badge(party) %>
-      <%= party_status_badge(party) %>
-      <% if party.client_profile %>
-        <%= status_badge("Client", modifier: party.client_profile.active? ? "success" : "neutral") %>
-      <% end %>
-      <% if party.supplier_profile %>
-        <%= status_badge("Supplier", modifier: party.supplier_profile.active? ? "success" : "neutral") %>
+    <span class="dd-id-avatar" aria-hidden="true"><%= party_initials(party) %></span>
+    <div>
+      <div class="dd-id-name-row">
+        <h1 class="dd-page-title"><%= local_assigns.fetch(:title, party.display_name) %></h1>
+        <%= party_kind_badge(party) %>
+        <% unless party.active? %>
+          <%= party_status_badge(party) %>
+        <% end %>
+        <% if party.client_profile %>
+          <%= status_badge("Client", modifier: party.client_profile.active? ? "role" : "neutral") %>
+        <% end %>
+        <% if party.supplier_profile %>
+          <%= status_badge("Supplier", modifier: party.supplier_profile.active? ? "role" : "neutral") %>
+        <% end %>
+      </div>
+      <% if (line = party_header_metadata(party)).present? %>
+        <p class="dd-record-kicker"><%= line %></p>
       <% end %>
     </div>
-    <% if (line = party_identity_line(party)).present? %>
-      <p class="dd-record-kicker"><%= line %></p>
-    <% end %>
   </div>
   <div class="dd-record-actions">
     <% if local_assigns.fetch(:show_primary_action, true) %>
       <%= link_to party_edit_label(party), edit_directory_party_path(party), class: "dd-button" %>
     <% end %>
     <details class="dd-action-menu">
-      <summary class="dd-button dd-button--secondary dd-button--small">More actions</summary>
+      <summary class="dd-button dd-button--secondary dd-button--icon" aria-label="More actions">
+        <%= icon_tag "dots_three", html_class: "dd-icon dd-icon--md" %>
+      </summary>
       <ul class="dd-action-menu-panel">
-        <li><%= link_to "Manage roles", directory_party_roles_path(party) %></li>
-        <li><%= link_to "View record", directory_party_record_path(party) %></li>
+        <li><%= link_to "Roles", directory_party_roles_path(party) %></li>
+        <li><%= link_to "Record", directory_party_record_path(party) %></li>
       </ul>
     </details>
   </div>

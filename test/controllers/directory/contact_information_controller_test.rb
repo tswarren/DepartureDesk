@@ -9,13 +9,13 @@ module Directory
       get directory_party_path(party)
       assert_response :success
       assert_select "nav[aria-label=Party] a[aria-current=page]", text: "Overview"
-      assert_select "nav[aria-label=Party] a", text: "Contact information"
+      assert_select "nav[aria-label=Party] a", text: "Contact"
       assert_select "nav[aria-label=Party] a", text: "Relationships"
       assert_select "nav[aria-label=Party] a", text: "Notes"
 
       get directory_party_contact_information_path(party)
       assert_response :success
-      assert_select "nav[aria-label=Party] a[aria-current=page]", text: "Contact information"
+      assert_select "nav[aria-label=Party] a[aria-current=page]", text: "Contact"
       assert_select "button[type=submit]", text: "Apply filter"
 
       assert_difference("PartyContactPoint.count", 1) do
@@ -31,7 +31,14 @@ module Directory
       assert_redirected_to directory_party_contact_information_path(party)
       follow_redirect!
       assert_includes response.body, "alex.directory@example.com"
-      assert_select "strong.dd-list-title", text: "alex.directory@example.com"
+      assert_select ".dd-contact-value", text: "alex.directory@example.com"
+      assert_select "li.dd-contact-item .dd-contact-row--maintain"
+      assert_select "li.dd-contact-item .dd-contact-status", text: "Active"
+      assert_select "li.dd-contact-item .dd-contact-actions a", text: "Edit"
+      assert_select "li.dd-contact-item .dd-contact-actions a", text: "Set primary"
+      assert_select "li.dd-contact-item details.dd-row-more summary", text: "More"
+      assert_select "li.dd-contact-item details.dd-row-more a", text: "Do not use"
+      assert_select "li.dd-contact-item .dd-contact-actions > a", text: "Do not use", count: 0
     end
 
     test "staff can create contact information" do

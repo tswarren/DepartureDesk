@@ -1,0 +1,52 @@
+<section class="dd-category-panel" aria-labelledby="supplier-categories-heading">
+  <h2 class="dd-panel-title" id="supplier-categories-heading">Service categories</h2>
+  <p class="dd-field-hint">Category changes save immediately. They are not included when you save supplier details below.</p>
+
+  <%= turbo_frame_tag "supplier_categories" do %>
+    <% if turbo_frame_request? && notice.present? %>
+      <p class="dd-alert dd-alert--success" role="status"><%= notice %></p>
+    <% elsif turbo_frame_request? && alert.present? %>
+      <p class="dd-alert dd-alert--danger" role="alert"><%= alert %></p>
+    <% end %>
+    <% assigned = @profile.service_category_assignments.sort_by(&:category_code) %>
+    <% remaining = SupplierServiceCategoryAssignment::CATEGORY_CODES - @profile.category_codes %>
+
+    <% if assigned.any? %>
+      <ul class="dd-list">
+        <% assigned.each do |assignment| %>
+          <li class="dd-list-item">
+            <span class="dd-contact-value"><%= assignment.category_label %></span>
+            <%= form_with url: remove_category_directory_party_supplier_profile_path(@party),
+              method: :post,
+              class: "dd-form",
+              data: { turbo_frame: "supplier_categories" } do %>
+              <input type="hidden" name="supplier_profile[category_code]" value="<%= assignment.category_code %>">
+              <%= submit_tag "Remove #{assignment.category_label}", class: "dd-row-action", data: { disable_with: "Saving…" } %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="dd-cell-subtext">No categories assigned.</p>
+    <% end %>
+
+    <% if remaining.any? %>
+      <%= form_with url: assign_category_directory_party_supplier_profile_path(@party),
+        method: :post,
+        class: "dd-form",
+        data: { turbo_frame: "supplier_categories" } do %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="supplier_profile_category_code">Service category</label>
+          <select class="dd-field dd-field--narrow" id="supplier_profile_category_code" name="supplier_profile[category_code]" required>
+            <% remaining.each do |code| %>
+              <option value="<%= code %>"><%= supplier_category_label(code) %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-form-actions">
+          <%= submit_tag "Add category", class: "dd-button dd-button--secondary", data: { disable_with: "Saving…" } %>
+        </div>
+      <% end %>
+    <% end %>
+  <% end %>
+</section>

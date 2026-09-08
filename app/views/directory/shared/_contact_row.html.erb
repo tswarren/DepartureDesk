@@ -1,0 +1,30 @@
+<% purposes = current_purpose_assignments(contact_point, today) %>
+<% icon_name = { "email" => "envelope", "phone" => "phone", "postal_address" => "map_pin" }.fetch(contact_point.contact_kind, "info") %>
+<% maintain = local_assigns.fetch(:maintain, false) %>
+<div class="dd-contact-row<%= " dd-contact-row--maintain" if maintain %>">
+  <span class="dd-contact-icon"><%= icon_tag icon_name, html_class: "dd-icon dd-icon--sm" %></span>
+  <div class="dd-contact-main">
+    <div class="dd-contact-value-row">
+      <span class="dd-contact-value<%= " is-suppressed" if contact_point.suppressed? %><%= " is-deactivated" if contact_point.deactivated? %>">
+        <%= contact_point.display_value.to_s.split("\n").first.presence || "—" %>
+      </span>
+      <% purposes.each do |assignment| %>
+        <span class="dd-purpose-chip<%= " is-primary" if assignment.primary? %>"><%= assignment.purpose_label %><%= " primary" if assignment.primary? %></span>
+      <% end %>
+      <% unless maintain %>
+        <% if contact_point.suppressed? %>
+          <%= status_badge("Do not use", modifier: "danger") %>
+        <% elsif contact_point.deactivated? %>
+          <%= status_badge("Deactivated", modifier: "neutral") %>
+        <% end %>
+      <% end %>
+    </div>
+    <% if contact_point.display_value.to_s.include?("\n") && !local_assigns.fetch(:compact, false) %>
+      <p class="dd-cell-subtext"><%= simple_format(contact_point.display_value) %></p>
+    <% end %>
+  </div>
+  <% if maintain %>
+    <div class="dd-contact-status"><%= local_assigns[:status] %></div>
+    <div class="dd-contact-actions"><%= local_assigns[:actions] %></div>
+  <% end %>
+</div>

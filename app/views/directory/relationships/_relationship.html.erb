@@ -32,25 +32,48 @@
   <% if relationship.record_valid? %>
     <div class="dd-button-group">
       <% if relationship.purpose_eligible? && relationship.origin_party.active? && relationship.related_party.active? %>
-        <%= link_to "Assign purpose", new_directory_party_party_relationship_purpose_path(party, relationship), class: "dd-button dd-button--quiet dd-button--small" %>
+        <%= link_to "Assign purpose", new_directory_party_party_relationship_purpose_path(party, relationship), class: "dd-row-action" %>
       <% end %>
+      <%= link_to "End",
+        directory_party_relationships_path(party, acting: "end", relationship_id: relationship.id, view: params[:view]),
+        class: "dd-row-action" %>
+      <%= link_to "Correct",
+        directory_party_relationships_path(party, acting: "correct", relationship_id: relationship.id, view: params[:view]),
+        class: "dd-row-action" %>
+      <%= link_to "Void",
+        directory_party_relationships_path(party, acting: "void", relationship_id: relationship.id, view: params[:view]),
+        class: "dd-row-action" %>
+    </div>
+
+    <% if selected_action?("end", id: relationship.id, param: :relationship_id) %>
       <%= form_with url: end_directory_party_party_relationship_path(party, relationship), method: :post, class: "dd-form" do %>
         <label class="dd-label" for="rel_end_on_<%= relationship.id %>">Inclusive end date</label>
         <input class="dd-field" type="date" id="rel_end_on_<%= relationship.id %>" name="party_relationship[inclusive_end_on]" required>
         <label class="dd-label" for="rel_end_reason_<%= relationship.id %>">Ending reason</label>
         <input class="dd-field" id="rel_end_reason_<%= relationship.id %>" name="party_relationship[reason]" required>
-        <%= submit_tag "End relationship", class: "dd-button dd-button--secondary dd-button--small" %>
+        <div class="dd-form-actions">
+          <%= submit_tag "End relationship", class: "dd-button dd-button--secondary dd-button--small" %>
+          <%= link_to "Cancel", directory_party_relationships_path(party, view: params[:view]), class: "dd-row-action" %>
+        </div>
       <% end %>
+    <% elsif selected_action?("correct", id: relationship.id, param: :relationship_id) %>
       <%= form_with url: correct_directory_party_party_relationship_path(party, relationship), method: :post, class: "dd-form" do %>
         <label class="dd-label" for="rel_correct_reason_<%= relationship.id %>">Correction reason</label>
         <input class="dd-field" id="rel_correct_reason_<%= relationship.id %>" name="party_relationship[reason]" required>
-        <%= submit_tag "Correct relationship", class: "dd-button dd-button--secondary dd-button--small" %>
+        <div class="dd-form-actions">
+          <%= submit_tag "Correct relationship", class: "dd-button dd-button--secondary dd-button--small" %>
+          <%= link_to "Cancel", directory_party_relationships_path(party, view: params[:view]), class: "dd-row-action" %>
+        </div>
       <% end %>
+    <% elsif selected_action?("void", id: relationship.id, param: :relationship_id) %>
       <%= form_with url: void_directory_party_party_relationship_path(party, relationship), method: :post, class: "dd-form" do %>
         <label class="dd-label" for="rel_void_reason_<%= relationship.id %>">Void reason</label>
         <input class="dd-field" id="rel_void_reason_<%= relationship.id %>" name="party_relationship[reason]" required>
-        <%= submit_tag "Void relationship", class: "dd-button dd-button--danger dd-button--small", data: { turbo_confirm: "Void this relationship? The original row is retained." } %>
+        <div class="dd-form-actions">
+          <%= submit_tag "Void relationship", class: "dd-button dd-button--danger dd-button--small" %>
+          <%= link_to "Cancel", directory_party_relationships_path(party, view: params[:view]), class: "dd-row-action" %>
+        </div>
       <% end %>
-    </div>
+    <% end %>
   <% end %>
 </li>

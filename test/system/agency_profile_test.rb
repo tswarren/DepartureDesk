@@ -4,7 +4,9 @@ class AgencyProfileTest < ApplicationSystemTestCase
   test "administrator edits the agency profile and sees the new name" do
     sign_in_from_browser users(:one)
     open_administration
-    click_link_and_expect "Edit profile", heading: "Edit agency profile"
+    click_link_and_expect "Edit profile",
+      heading: "Edit agency profile",
+      path: edit_administration_agency_path
     fill_in "Display name", with: "Sunrise Travel Group"
     fill_in "Legal name", with: "Sunrise Travel LLC"
     select "Canada (CA)", from: "Country"
@@ -36,7 +38,9 @@ class AgencyProfileTest < ApplicationSystemTestCase
     page.execute_script("document.querySelector(\"a[href='#main-content']\").focus()")
     assert_selector "a[href='#main-content']", text: "Skip to main content"
     assert_selector "nav[aria-label=Administration]"
-    click_link_and_expect "Edit profile", heading: "Edit agency profile"
+    click_link_and_expect "Edit profile",
+      heading: "Edit agency profile",
+      path: edit_administration_agency_path
     assert_field "Display name"
     assert_field "Default currency"
   end

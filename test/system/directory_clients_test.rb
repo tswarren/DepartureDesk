@@ -5,6 +5,7 @@ class DirectoryClientsTest < ApplicationSystemTestCase
     sign_in_from_browser users(:one)
     open_directory_party "Horizon Tours"
     add_party_role "client", office_label: "Sunrise Travel (MAIN)"
+    click_link "Edit client details"
     select "Riley Staff", from: "Primary advisor"
     click_button_and_expect "Assign advisor", text: "Client advisor updated."
     assert_text "Riley Staff"

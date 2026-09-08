@@ -15,6 +15,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     end
   end
 
+  teardown do
+    restore_default_window_size
+  end
+
   # Capybara's assert_current_path can pass on a Turbo visit's URL before the
   # document is replaced. A click issued while a visit is in flight can be
   # cancelled and leave the previous page in place. Wait on unique content,
@@ -24,8 +28,29 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     wait_until_turbo_session
   end
 
-  def click_link_and_expect(locator, heading:, **click_options)
-    expect_heading_after(heading) { click_link locator, **click_options }
+  def click_link_and_expect(locator, heading:, path: nil, **click_options)
+    TURBO_CLICK_ATTEMPTS.times do |attempt|
+      begin
+        wait_for_turbo
+        arrived = has_selector?("h1.dd-page-title", exact_text: heading, wait: 0)
+        arrived &&= path.nil? || current_path == path
+        unless arrived
+          link = find("a", exact_text: locator, **click_options)
+          if path
+            assert_equal path, URI.parse(link[:href]).path
+          end
+          scroll_to(link, align: :center)
+          link.click
+          wait_for_turbo
+        end
+        assert_selector "h1.dd-page-title", exact_text: heading
+        assert_equal path, current_path if path
+        wait_for_turbo
+        return
+      rescue Capybara::ExpectationNotMet, Capybara::ElementNotFound, Minitest::Assertion
+        raise if attempt == TURBO_CLICK_ATTEMPTS - 1
+      end
+    end
   end
 
   def click_button_and_expect(locator, text:, **click_options)
@@ -50,11 +75,33 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     wait_for_turbo
     unless has_css?("##{role_noun}_profile_create_form", wait: 0)
       click_party_tab "Roles"
+      wait_for_turbo
+      click_link "Add #{role_noun} role"
+      wait_for_turbo
     end
     within("##{role_noun}_profile_create_form") do
       select office_label, from: "#{role_noun.titleize} responsible office"
     end
     click_button_and_expect "Add #{role_noun} role", text: "#{role_noun.titleize} role added."
+  end
+
+  def deactivate_party_from_record(reason)
+    click_party_tab "Record"
+    click_link "Deactivate party"
+    fill_in "Party deactivation reason", with: reason
+    click_button "Deactivate party"
+    wait_for_turbo
+  end
+
+  def reactivate_party_from_record(reason)
+    click_party_tab "Record"
+    unless has_field?("Party reactivation reason", wait: 0)
+      click_link "Reactivate party"
+      wait_for_turbo
+    end
+    fill_in "Party reactivation reason", with: reason
+    click_button "Reactivate party"
+    wait_for_turbo
   end
 
   def click_button_accepting_confirm(locator)
@@ -98,12 +145,14 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     TURBO_CLICK_ATTEMPTS.times do |attempt|
       begin
         wait_for_turbo
-        unless has_selector?("nav[aria-label=Party] a[aria-current=page]", exact_text: name, wait: 0)
-          href = within("nav[aria-label=Party]") { find("a", exact_text: name)[:href] }
+        href = within("nav[aria-label=Party]") { find("a", exact_text: name)[:href] }
+        target_path = URI.parse(href).path
+        unless current_path == target_path
           visit href
           wait_for_turbo
         end
         assert_selector "nav[aria-label=Party] a[aria-current=page]", exact_text: name
+        assert_equal target_path, current_path
         wait_for_turbo
         return
       rescue Capybara::ExpectationNotMet, Capybara::ElementNotFound, Minitest::Assertion
@@ -131,7 +180,8 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   def click_primary_nav(locator, heading:)
     expect_heading_after(heading) do
-      within("nav[aria-label='Primary navigation']") { click_link locator, exact: true }
+      href = within("nav[aria-label='Primary navigation']") { find("a", exact_text: locator)[:href] }
+      visit href
     end
   end
 
@@ -150,6 +200,15 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       end
       sleep 0.05
     end
+  end
+
+  def restore_default_window_size
+    return unless SystemTestBrowser.available?
+    return unless page.driver.respond_to?(:browser)
+
+    page.current_window.resize_to(1400, 1400)
+  rescue Selenium::WebDriver::Error::WebDriverError, Capybara::NotSupportedByDriverError
+    nil
   end
 
   def expect_heading_after(heading)
