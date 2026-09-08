@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DepartureDesk — Data Entry Patterns</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dd-navy: #002340; --dd-navy-3: #0b3c5e;
+    --dd-teal: #007080; --dd-teal-action: #006270;
+    --dd-amber: #f49a00;
+    --dd-background: #f6f7f5; --dd-surface: #ffffff;
+    --dd-surface-subtle: #eef2f1; --dd-surface-emphasis: #e2ebea;
+    --dd-text: #17212b; --dd-text-muted: #52616d; --dd-text-faint: #71808a;
+    --dd-text-on-dark: #ffffff; --dd-text-on-dark-muted: #aebfd0;
+    --dd-border: #d4dedf; --dd-border-strong: #aababd;
+    --dd-action: #006270; --dd-action-hover: #004f5b; --dd-action-active: #003f49;
+    --dd-focus: #f49a00; --dd-selection: #d7eff0; --dd-selection-text: #003c45;
+    --dd-success: #2f6b4f; --dd-success-surface: #e6f3eb; --dd-success-text: #24523d;
+    --dd-warning: #b87800; --dd-warning-surface: #fff2d6; --dd-warning-text: #694400;
+    --dd-danger: #b5473d; --dd-danger-surface: #fbe9e7; --dd-danger-text: #84332d;
+    --dd-info: #326a8a; --dd-info-surface: #e7f1f7; --dd-info-text: #264f67;
+    --dd-neutral-surface: #edf0f2; --dd-neutral-text: #46525a;
+    --dd-radius-sm: 4px; --dd-radius-md: 7px; --dd-radius-lg: 10px;
+    --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: var(--font-ui); background: var(--dd-background);
+    color: var(--dd-text); font-size: 13px; line-height: 1.45;
+  }
+  :focus-visible { outline: 2px solid var(--dd-focus); outline-offset: 1px; }
+
+  .page { max-width: 1180px; margin: 0 auto; padding: 28px 28px 80px; }
+  .page-header { margin-bottom: 8px; }
+  .page-header h1 { font-size: 19px; color: var(--dd-navy); margin: 0 0 4px; font-weight: 600; }
+  .page-header p { color: var(--dd-text-muted); margin: 0; font-size: 12.5px; }
+
+  section.block { margin-top: 40px; }
+  .block-title {
+    font-size: 11px; font-weight: 600; color: var(--dd-text-faint);
+    letter-spacing: 0.04em; text-transform: uppercase;
+    padding-bottom: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--dd-border);
+  }
+
+  /* ===== Field kit grid ===== */
+  .kit-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+  }
+  .kit-cell {
+    background: var(--dd-surface); border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-md); padding: 14px;
+  }
+  .kit-label {
+    font-size: 10.5px; color: var(--dd-text-faint); text-transform: uppercase;
+    letter-spacing: 0.03em; margin-bottom: 10px;
+  }
+
+  .field { margin-bottom: 0; }
+  .field-label {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 12px; font-weight: 500; color: var(--dd-text); margin-bottom: 5px;
+  }
+  .field-label .req { color: var(--dd-danger); font-weight: 600; }
+  .field-label .optional { font-weight: 400; color: var(--dd-text-faint); font-size: 11px; }
+  .field-input {
+    width: 100%; font-family: var(--font-ui); font-size: 13px;
+    padding: 7px 10px; border: 1px solid var(--dd-border-strong);
+    border-radius: var(--dd-radius-sm); background: var(--dd-surface); color: var(--dd-text);
+  }
+  .field-input:focus { border-color: var(--dd-teal); }
+  .field-input.mono { font-family: var(--font-mono); }
+  .field-input::placeholder { color: var(--dd-text-faint); }
+  .field-help { font-size: 11px; color: var(--dd-text-faint); margin-top: 4px; }
+  .field-error-text { font-size: 11px; color: var(--dd-danger); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+  .field.has-error .field-input { border-color: var(--dd-danger); background: var(--dd-danger-surface); }
+  .field.is-disabled .field-input { background: var(--dd-neutral-surface); color: var(--dd-text-faint); cursor: not-allowed; }
+
+  .input-currency-wrap { position: relative; }
+  .input-currency-wrap .prefix {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    font-family: var(--font-mono); color: var(--dd-text-faint); font-size: 13px; pointer-events: none;
+  }
+  .input-currency-wrap .field-input { padding-left: 22px; text-align: right; }
+
+  .input-date-wrap { position: relative; }
+  .input-date-wrap .field-input { padding-right: 30px; }
+  .input-date-wrap .icon { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: var(--dd-text-faint); font-size: 13px; pointer-events: none; }
+
+  select.field-input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--dd-text-faint) 50%), linear-gradient(135deg, var(--dd-text-faint) 50%, transparent 50%); background-position: calc(100% - 14px) center, calc(100% - 9px) center; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 28px; }
+
+  .combobox { position: relative; }
+  .combobox-panel {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5;
+    background: var(--dd-surface); border: 1px solid var(--dd-border-strong);
+    border-radius: var(--dd-radius-sm); box-shadow: 0 6px 16px rgba(0,35,64,0.12);
+    max-height: 220px; overflow-y: auto;
+  }
+  .combobox-option {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px; font-size: 12.5px; cursor: pointer; border-bottom: 1px solid var(--dd-surface-subtle);
+  }
+  .combobox-option:last-child { border-bottom: none; }
+  .combobox-option:hover, .combobox-option.highlighted { background: var(--dd-selection); }
+  .combobox-option .party-name { font-weight: 500; }
+  .combobox-option .party-meta { font-size: 10.5px; color: var(--dd-text-faint); }
+  .combobox-option.create-new { color: var(--dd-action); font-weight: 500; }
+  .role-tag {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.02em;
+    background: var(--dd-surface-subtle); color: var(--dd-text-muted);
+    padding: 1px 6px; border-radius: 3px;
+  }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+  .toggle-text .t-label { font-size: 12.5px; font-weight: 500; }
+  .toggle-text .t-help { font-size: 11px; color: var(--dd-text-faint); }
+  .toggle { width: 36px; height: 20px; border-radius: 999px; background: var(--dd-border-strong); position: relative; cursor: pointer; flex-shrink: 0; }
+  .toggle::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: white; top: 2px; left: 2px; transition: left 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+  .toggle.on { background: var(--dd-teal-action); }
+  .toggle.on::after { left: 18px; }
+
+  .segmented { display: inline-flex; border: 1px solid var(--dd-border-strong); border-radius: var(--dd-radius-sm); overflow: hidden; }
+  .segmented button {
+    font-family: var(--font-ui); font-size: 12px; padding: 6px 13px; border: none;
+    background: var(--dd-surface); color: var(--dd-text-muted); cursor: pointer;
+    border-right: 1px solid var(--dd-border-strong);
+  }
+  .segmented button:last-child { border-right: none; }
+  .segmented button.active { background: var(--dd-selection); color: var(--dd-selection-text); font-weight: 500; }
+
+  .radio-cards { display: flex; flex-direction: column; gap: 8px; }
+  .radio-card {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--dd-border-strong); border-radius: var(--dd-radius-sm); cursor: pointer;
+  }
+  .radio-card.selected { border-color: var(--dd-teal); background: var(--dd-selection); }
+  .radio-dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--dd-border-strong); flex-shrink: 0; position: relative; }
+  .radio-card.selected .radio-dot { border-color: var(--dd-teal-action); }
+  .radio-card.selected .radio-dot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dd-teal-action); position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+  .radio-body .radio-title { font-size: 12.5px; font-weight: 500; }
+  .radio-body .radio-sub { font-size: 11px; color: var(--dd-text-faint); }
+  .radio-price { margin-left: auto; font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; color: var(--dd-navy); }
+
+  textarea.field-input { resize: vertical; min-height: 60px; font-family: var(--font-ui); }
+
+  .checkbox-row { display: flex; align-items: center; gap: 8px; }
+  .checkbox { width: 15px; height: 15px; border: 1.5px solid var(--dd-border-strong); border-radius: 3px; flex-shrink: 0; position: relative; cursor: pointer; }
+  .checkbox.checked { background: var(--dd-teal-action); border-color: var(--dd-teal-action); }
+  .checkbox.checked::after { content: "✓"; position: absolute; inset: 0; color: white; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+
+  /* ===== Panel form (New client trip) ===== */
+  .panel {
+    background: var(--dd-surface); border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-lg); overflow: hidden;
+    box-shadow: 0 10px 28px rgba(0,35,64,0.10);
+  }
+  .panel-header {
+    padding: 16px 22px; border-bottom: 1px solid var(--dd-border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-header h2 { font-size: 15px; margin: 0; color: var(--dd-navy); font-weight: 600; }
+  .panel-header .sub { font-size: 11.5px; color: var(--dd-text-faint); margin-top: 2px; }
+  .panel-close { color: var(--dd-text-faint); font-size: 18px; cursor: pointer; line-height: 1; }
+  .panel-body { padding: 20px 22px; }
+  .panel-section { margin-bottom: 26px; }
+  .panel-section:last-child { margin-bottom: 0; }
+  .panel-section-title {
+    font-size: 12px; font-weight: 600; color: var(--dd-text); margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .link-btn { font-size: 11.5px; color: var(--dd-action); font-weight: 500; cursor: pointer; }
+  .link-btn:hover { color: var(--dd-action-hover); text-decoration: underline; }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .field-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .field-row:last-child { margin-bottom: 0; }
+
+  .party-line {
+    display: grid; grid-template-columns: 1fr 140px 90px 28px;
+    gap: 10px; align-items: center; padding: 8px 0;
+    border-bottom: 1px solid var(--dd-surface-subtle);
+  }
+  .party-line:last-child { border-bottom: none; }
+  .party-line .name { font-size: 12.5px; font-weight: 500; }
+  .party-line .role { font-size: 10.5px; color: var(--dd-text-faint); }
+  .remove-x { color: var(--dd-text-faint); cursor: pointer; text-align: center; }
+  .remove-x:hover { color: var(--dd-danger); }
+
+  .alloc-table { width: 100%; border-collapse: collapse; }
+  .alloc-table th {
+    text-align: left; font-size: 10.5px; color: var(--dd-text-faint); font-weight: 600;
+    padding: 6px 8px; border-bottom: 1px solid var(--dd-border); text-transform: uppercase; letter-spacing: 0.02em;
+  }
+  .alloc-table th.num { text-align: right; }
+  .alloc-table td { padding: 7px 8px; border-bottom: 1px solid var(--dd-surface-subtle); font-size: 12.5px; }
+  .alloc-table td.num { text-align: right; font-family: var(--font-mono); }
+  .alloc-table input.mini { width: 90px; text-align: right; }
+  .alloc-summary {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 8px 0; font-size: 12px;
+  }
+  .alloc-summary.balanced { color: var(--dd-success); }
+  .alloc-summary.unbalanced { color: var(--dd-danger); }
+
+  .schedule-row {
+    display: grid; grid-template-columns: 130px 130px 1fr 28px; gap: 10px; align-items: center; margin-bottom: 8px;
+  }
+
+  .panel-footer {
+    padding: 14px 22px; border-top: 1px solid var(--dd-border);
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--dd-surface-subtle);
+  }
+  .btn {
+    font-family: var(--font-ui); font-size: 12.5px; font-weight: 500;
+    padding: 7px 14px; border-radius: var(--dd-radius-sm); border: 1px solid var(--dd-border-strong);
+    background: var(--dd-surface); color: var(--dd-text); cursor: pointer;
+  }
+  .btn:hover { background: var(--dd-surface-subtle); }
+  .btn-primary { background: var(--dd-action); border-color: var(--dd-action); color: white; }
+  .btn-primary:hover { background: var(--dd-action-hover); border-color: var(--dd-action-hover); }
+  .btn-primary:disabled { background: var(--dd-border-strong); border-color: var(--dd-border-strong); cursor: not-allowed; }
+  .btn-ghost { border-color: transparent; background: transparent; color: var(--dd-text-muted); }
+
+  /* ===== Modal (record receipt) ===== */
+  .modal-shell {
+    background: rgba(23,33,43,0.35); border-radius: var(--dd-radius-lg);
+    padding: 40px 0; display: flex; justify-content: center;
+  }
+  .modal {
+    width: 480px; background: var(--dd-surface); border-radius: var(--dd-radius-lg);
+    box-shadow: 0 20px 48px rgba(0,35,64,0.28); overflow: hidden;
+  }
+  .apply-row {
+    display: grid; grid-template-columns: 24px 1fr 90px 100px; gap: 10px; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid var(--dd-surface-subtle); font-size: 12px;
+  }
+  .apply-row .inst-label { font-weight: 500; }
+  .apply-row .inst-due { font-size: 10.5px; color: var(--dd-text-faint); }
+  .apply-row input.mini { width: 92px; text-align: right; }
+  .running-total {
+    margin-top: 12px; padding: 10px 12px; border-radius: var(--dd-radius-sm);
+    background: var(--dd-success-surface); color: var(--dd-success-text);
+    display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 500;
+  }
+  .running-total.warn { background: var(--dd-warning-surface); color: var(--dd-warning-text); }
+
+  /* ===== Inline edit table ===== */
+  .demo-table { width: 100%; border-collapse: collapse; background: var(--dd-surface); border: 1px solid var(--dd-border); border-radius: var(--dd-radius-md); overflow: hidden; }
+  .demo-table th { background: var(--dd-surface-subtle); text-align: left; font-size: 11px; color: var(--dd-navy); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--dd-border); }
+  .demo-table td { padding: 8px 12px; border-bottom: 1px solid var(--dd-border); font-size: 12.5px; }
+  .demo-table tr:last-child td { border-bottom: none; }
+  td.editing { background: #fbfdfc; padding: 4px 8px; }
+  .cell-editor { display: flex; align-items: center; gap: 6px; }
+  .cell-editor .field-input { padding: 4px 8px; font-size: 12.5px; border-color: var(--dd-teal); box-shadow: 0 0 0 3px rgba(0,112,128,0.12); }
+  .cell-editor-actions { display: flex; gap: 3px; }
+  .cell-editor-actions span { width: 20px; height: 20px; border-radius: 3px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; }
+  .cell-editor-actions .confirm { background: var(--dd-success-surface); color: var(--dd-success-text); }
+  .cell-editor-actions .cancel { color: var(--dd-text-faint); }
+  .editable-cell { cursor: text; border-radius: 3px; padding: 2px 4px; margin: -2px -4px; }
+  .editable-cell:hover { background: var(--dd-surface-subtle); outline: 1px dashed var(--dd-border-strong); }
+  .num { font-family: var(--font-mono); text-align: right; }
+
+  .caption { font-size: 11.5px; color: var(--dd-text-faint); margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="page-header">
+    <h1>Data entry patterns</h1>
+    <p>Field kit, a full form panel, a payment-application modal, and inline table editing — built on the same tokens as the departure detail screen.</p>
+  </div>
+
+  <!-- ===================== FIELD KIT ===================== -->
+  <section class="block">
+    <div class="block-title">Field kit</div>
+    <div class="kit-grid">
+
+      <div class="kit-cell">
+        <div class="kit-label">Text — default</div>
+        <div class="field">
+          <label class="field-label">Client trip name</label>
+          <input class="field-input" placeholder="e.g. Whitfield family">
+        </div>
+      </div>
+
+      <div class="kit-cell">
+        <div class="kit-label">Text — required, error</div>
+        <div class="field has-error">
+          <label class="field-label">Responsible client <span class="req">*</span></label>
+          <input class="field-input" value="">
+          <div class="field-error-text">⚠ Required before this client trip can be saved</div>
+        </div>
+      </div>
+
+      <div class="kit-cell">
+        <div class="kit-label">Text — disabled</div>
+        <div class="field is-disabled">
+          <label class="field-label">Client trip code</label>
+          <input class="field-input" value="CT-10422" disabled>
+          <div class="field-help">Assigned automatically on creation</div>
+        </div>
+      </div>
+
+      <div class="kit-cell">
+        <div class="kit-label">Currency</div>
+        <div class="field">
+          <label class="field-label">Package price <span class="optional">(per traveler)</span></label>
+          <div class="input-currency-wrap">
+            <span class="prefix">$</span>
+            <input class="field-input mono" value="1,895.00">
+          </div>
+        </div>
+      </div>
+
+      <div class="kit-cell">
+        <div class="kit-label">Date</div>
+        <div class="field">
+          <label class="field-label">Installment due date <span class="req">*</span></label>
+          <div class="input-date-wrap">
+            <input class="field-input" value="Aug 1, 2027">
+            <span class="icon">📅</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kit-cell">
+        <div class="kit-label">Select</div>
+        <div class="field">
+          <label class="field-label">Client-trip status</label>
+          <select class="field-input">
+            <option>Confirmed</option>
+            <option>Quoted</option>
+            <option>Optioned</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="kit-cell" style="grid-column: span 2;">
+        <div class="kit-label">Party combobox — searchable, with role tags and inline create</div>
+        <div class="field combobox">
+          <label class="field-label">Responsible client <span class="req">*</span></label>
+          <input class="field-input" value="Nak" placeholder="Search people, households, or organizations…">
+          <div class="combobox-panel">
+            <div class="combobox-option highlighted">
+              <div><div class="party-name">Aiko Nakamura</div><div class="party-meta">Existing client · Harbor office</div></div>
+              <span class="role-tag">Client</span>
+            </div>
+            <div class="combobox-option">
+              <div><div class="party-name">Nakamura Household</div><div class="party-meta">3 members</div></div>
+              <span class="role-tag">Household</span>
+            </div>
+            <div class="combobox-option create-new">＋ Create new person "Nak…"</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kit-cell">
+        <div class="kit-label">Toggle</div>
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="t-label">Send confirmation email</div>
+            <div class="t-help">To the responsible client on save</div>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+      </div>
+
+      <div class="kit-cell">
+        <div class="kit-label">Segmented control</div>
+        <div class="field">
+          <label class="field-label">Allocation type</label>
+          <div class="segmented">
+            <button class="active">Fixed</button>
+            <button>Percent</button>
+            <button>Share</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="kit-cell">
+        <div class="kit-label">Checkbox</div>
+        <div class="checkbox-row">
+          <div class="checkbox checked"></div>
+          <span>Apply receipt to this installment</span>
+        </div>
+        <div class="checkbox-row" style="margin-top:8px;">
+          <div class="checkbox"></div>
+          <span style="color:var(--dd-text-faint);">Waive remaining balance</span>
+        </div>
+      </div>
+
+      <div class="kit-cell" style="grid-column: span 2;">
+        <div class="kit-label">Radio cards — package selection</div>
+        <div class="radio-cards">
+          <div class="radio-card selected">
+            <div class="radio-dot"></div>
+            <div class="radio-body"><div class="radio-title">Ocean View — Deluxe</div><div class="radio-sub">Included: cabin, all meals, port transfers</div></div>
+            <div class="radio-price">$1,895</div>
+          </div>
+          <div class="radio-card">
+            <div class="radio-dot"></div>
+            <div class="radio-body"><div class="radio-title">Balcony — Standard</div><div class="radio-sub">Included: cabin, all meals</div></div>
+            <div class="radio-price">$1,540</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kit-cell" style="grid-column: span 3;">
+        <div class="kit-label">Textarea</div>
+        <div class="field">
+          <label class="field-label">Internal note <span class="optional">optional, staff only</span></label>
+          <textarea class="field-input" placeholder="Not visible to the client…"></textarea>
+        </div>
+      </div>
+
+    </div>
+    <div class="caption">Required fields are marked with a conventional asterisk plus label text — never by amber color alone. Focus uses a teal border by default, with an amber outer ring added specifically for keyboard navigation.</div>
+  </section>
+
+  <!-- ===================== FULL FORM PANEL ===================== -->
+  <section class="block">
+    <div class="block-title">Full form — new client trip</div>
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>New client trip</h2>
+          <div class="sub">Smith Family Reunion Cruise — July 12, 2027</div>
+        </div>
+        <div class="panel-close">✕</div>
+      </div>
+      <div class="panel-body">
+
+        <div class="panel-section">
+          <div class="panel-section-title">Details</div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Client trip name <span class="req">*</span></label>
+              <input class="field-input" placeholder="e.g. Whitfield family">
+            </div>
+            <div class="field">
+              <label class="field-label">Client-trip status</label>
+              <select class="field-input"><option>Inquiry</option><option>Quoted</option><option selected>Optioned</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title">
+            Responsible clients
+            <span class="link-btn">＋ Add responsible client</span>
+          </div>
+          <div class="party-line">
+            <div><div class="name">Margaret Whitfield</div><div class="role">Responsible client · Payer</div></div>
+            <span class="role-tag">Primary</span>
+            <span style="font-family: var(--font-mono); text-align:right;">100%</span>
+            <div class="remove-x">✕</div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title">
+            Travelers
+            <span class="link-btn">＋ Add traveler</span>
+          </div>
+          <div class="party-line">
+            <div><div class="name">Margaret Whitfield</div><div class="role">Adult</div></div>
+            <span></span><span></span>
+            <div class="remove-x">✕</div>
+          </div>
+          <div class="party-line">
+            <div><div class="name">Daniel Whitfield</div><div class="role">Adult</div></div>
+            <span></span><span></span>
+            <div class="remove-x">✕</div>
+          </div>
+          <div class="party-line">
+            <div><div class="name">Two minors</div><div class="role">Child · ages 8, 11</div></div>
+            <span></span><span></span>
+            <div class="remove-x">✕</div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title">Package</div>
+          <div class="radio-cards">
+            <div class="radio-card selected">
+              <div class="radio-dot"></div>
+              <div class="radio-body"><div class="radio-title">Ocean View — Deluxe</div><div class="radio-sub">4 travelers · included meals &amp; transfers</div></div>
+              <div class="radio-price">$7,580</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title">Responsibility allocation</div>
+          <table class="alloc-table">
+            <thead>
+              <tr><th>Responsible client</th><th>Type</th><th class="num">Amount</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Margaret Whitfield</td>
+                <td>
+                  <div class="segmented" style="transform: scale(0.9); transform-origin: left;">
+                    <button class="active">Fixed</button><button>%</button>
+                  </div>
+                </td>
+                <td class="num"><input class="field-input mini mono" value="7,580.00"></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="alloc-summary balanced">
+            <span>✓ Allocations equal charge total</span>
+            <span style="font-family: var(--font-mono);">$7,580.00 of $7,580.00</span>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title">
+            Payment schedule
+            <span class="link-btn">＋ Add installment</span>
+          </div>
+          <div class="schedule-row">
+            <div class="input-date-wrap"><input class="field-input" value="Jul 1, 2027"></div>
+            <div class="input-currency-wrap"><span class="prefix">$</span><input class="field-input mono" value="1,500.00"></div>
+            <div class="field-help" style="margin-top:0;">Deposit</div>
+            <div class="remove-x">✕</div>
+          </div>
+          <div class="schedule-row">
+            <div class="input-date-wrap"><input class="field-input" value="Aug 1, 2027"></div>
+            <div class="input-currency-wrap"><span class="prefix">$</span><input class="field-input mono" value="6,080.00"></div>
+            <div class="field-help" style="margin-top:0;">Final payment</div>
+            <div class="remove-x">✕</div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <div class="t-label">Send quote to responsible client</div>
+              <div class="t-help">Emails a summary with the payment schedule</div>
+            </div>
+            <div class="toggle"></div>
+          </div>
+        </div>
+
+      </div>
+      <div class="panel-footer">
+        <span class="btn btn-ghost">Cancel</span>
+        <div style="display:flex; gap:8px;">
+          <button class="btn">Save as draft</button>
+          <button class="btn btn-primary">Create client trip</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== MODAL ===================== -->
+  <section class="block">
+    <div class="block-title">Modal — record receipt</div>
+    <div class="modal-shell">
+      <div class="modal">
+        <div class="panel-header">
+          <div>
+            <h2>Record receipt</h2>
+            <div class="sub">Whitfield family · CT-10422</div>
+          </div>
+          <div class="panel-close">✕</div>
+        </div>
+        <div class="panel-body">
+          <div class="field-row three">
+            <div class="field">
+              <label class="field-label">Amount received <span class="req">*</span></label>
+              <div class="input-currency-wrap"><span class="prefix">$</span><input class="field-input mono" value="1,240.00"></div>
+            </div>
+            <div class="field">
+              <label class="field-label">Date received</label>
+              <div class="input-date-wrap"><input class="field-input" value="Jul 28, 2027"></div>
+            </div>
+            <div class="field">
+              <label class="field-label">Method</label>
+              <select class="field-input"><option>Card</option><option>Check</option><option>ACH</option></select>
+            </div>
+          </div>
+
+          <div class="panel-section-title" style="margin-top: 4px;">Apply to open installments</div>
+          <div class="apply-row">
+            <div class="checkbox checked"></div>
+            <div><div class="inst-label">Deposit</div><div class="inst-due">Was due Jul 1, 2027</div></div>
+            <div style="font-family: var(--font-mono); text-align:right; color: var(--dd-text-faint);">$1,500</div>
+            <input class="field-input mini mono" value="1,240.00">
+          </div>
+          <div class="apply-row">
+            <div class="checkbox"></div>
+            <div><div class="inst-label" style="color:var(--dd-text-faint);">Final payment</div><div class="inst-due">Due Aug 1, 2027</div></div>
+            <div style="font-family: var(--font-mono); text-align:right; color: var(--dd-text-faint);">$6,080</div>
+            <input class="field-input mini mono" value="0.00" disabled style="background:var(--dd-neutral-surface); color:var(--dd-text-faint);">
+          </div>
+
+          <div class="running-total">
+            <span>Fully applied</span>
+            <span style="font-family: var(--font-mono);">$1,240.00 of $1,240.00</span>
+          </div>
+        </div>
+        <div class="panel-footer">
+          <span class="btn btn-ghost">Cancel</span>
+          <button class="btn btn-primary">Record receipt</button>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Unapplied amounts stay visible rather than silently disappearing — if the received amount doesn't match the selected installments, the summary switches to the amber "unapplied funds" treatment instead of forcing a balance.</div>
+  </section>
+
+  <!-- ===================== INLINE EDIT ===================== -->
+  <section class="block">
+    <div class="block-title">Inline table editing</div>
+    <table class="demo-table">
+      <thead>
+        <tr><th>Client trip</th><th>Status</th><th style="text-align:right;">Client balance</th><th>Next installment</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Reyes trip</td>
+          <td>Optioned</td>
+          <td class="num">$2,880.00</td>
+          <td class="editing">
+            <div class="cell-editor">
+              <div class="input-date-wrap" style="flex:1;">
+                <input class="field-input" value="Jul 15, 2027">
+              </div>
+              <div class="cell-editor-actions">
+                <span class="confirm">✓</span>
+                <span class="cancel">✕</span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>Park family</td>
+          <td>Quoted</td>
+          <td class="num">$0.00</td>
+          <td><span class="editable-cell">—</span></td>
+        </tr>
+        <tr>
+          <td>Whitfield family</td>
+          <td>Confirmed</td>
+          <td class="num"><span class="editable-cell">$1,240.00</span></td>
+          <td><span class="editable-cell">Aug 1, 2027</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="caption">Hover reveals a dashed affordance on editable cells (dotted outline, no color-only cue). Active editing gets a teal focus ring and inline confirm/cancel — no separate save button or page reload for a single-field change.</div>
+  </section>
+
+</div>
+
+</body>
+</html>

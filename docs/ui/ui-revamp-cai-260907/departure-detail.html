@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DepartureDesk — Departure Detail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Brand */
+    --dd-navy: #002340;
+    --dd-navy-2: #06304f;
+    --dd-navy-3: #0b3c5e;
+    --dd-teal: #007080;
+    --dd-teal-action: #006270;
+    --dd-amber: #f49a00;
+
+    /* Surfaces */
+    --dd-background: #f6f7f5;
+    --dd-surface: #ffffff;
+    --dd-surface-subtle: #eef2f1;
+    --dd-surface-emphasis: #e2ebea;
+
+    /* Text */
+    --dd-text: #17212b;
+    --dd-text-muted: #52616d;
+    --dd-text-faint: #71808a;
+    --dd-text-on-dark: #ffffff;
+    --dd-text-on-dark-muted: #aebfd0;
+
+    /* Structure */
+    --dd-border: #d4dedf;
+    --dd-border-strong: #aababd;
+
+    /* Interaction */
+    --dd-action: #006270;
+    --dd-action-hover: #004f5b;
+    --dd-action-active: #003f49;
+    --dd-focus: #f49a00;
+    --dd-selection: #d7eff0;
+    --dd-selection-text: #003c45;
+
+    /* Semantic */
+    --dd-success: #2f6b4f;
+    --dd-success-surface: #e6f3eb;
+    --dd-success-text: #24523d;
+    --dd-warning: #b87800;
+    --dd-warning-surface: #fff2d6;
+    --dd-warning-text: #694400;
+    --dd-danger: #b5473d;
+    --dd-danger-surface: #fbe9e7;
+    --dd-danger-text: #84332d;
+    --dd-info: #326a8a;
+    --dd-info-surface: #e7f1f7;
+    --dd-info-text: #264f67;
+    --dd-neutral: #65727b;
+    --dd-neutral-surface: #edf0f2;
+    --dd-neutral-text: #46525a;
+
+    /* Amber callout variants */
+    --dd-amber-surface: #fff2d6;
+    --dd-amber-border: #e6a52e;
+    --dd-amber-text: #694400;
+    --dd-amber-icon: #8a5a00;
+
+    /* Row states */
+    --dd-row-hover: #f1f7f6;
+    --dd-row-selected: #d7eff0;
+    --dd-row-attention: #fff7e7;
+    --dd-row-error: #fdf0ee;
+    --dd-row-inactive: #f3f4f4;
+
+    /* Geometry */
+    --dd-radius-sm: 4px;
+    --dd-radius-md: 7px;
+    --dd-radius-lg: 10px;
+
+    --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: var(--font-ui);
+    background: var(--dd-background);
+    color: var(--dd-text);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  a { color: inherit; }
+
+  :focus-visible {
+    outline: 2px solid var(--dd-focus);
+    outline-offset: 2px;
+  }
+
+  /* ===== Shell ===== */
+  .shell {
+    display: grid;
+    grid-template-columns: 208px 1fr;
+    grid-template-rows: 52px 1fr;
+    grid-template-areas:
+      "topbar topbar"
+      "nav    main";
+    height: 100vh;
+  }
+
+  .topbar {
+    grid-area: topbar;
+    background: var(--dd-navy);
+    display: flex;
+    align-items: center;
+    padding: 0 16px 0 18px;
+    gap: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .topbar .brand {
+    color: var(--dd-text-on-dark);
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .brand-mark {
+    width: 20px; height: 20px;
+    border-radius: 5px;
+    background: linear-gradient(135deg, var(--dd-teal) 0%, var(--dd-navy-3) 100%);
+    flex-shrink: 0;
+  }
+  .topbar .office-switch {
+    color: var(--dd-text-on-dark-muted);
+    font-size: 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--dd-radius-sm);
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  .topbar .global-search {
+    flex: 1;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--dd-radius-sm);
+    padding: 6px 10px;
+    color: var(--dd-text-on-dark-muted);
+    font-size: 12.5px;
+  }
+  .topbar .spacer { flex: 1; }
+  .topbar .icon-btn {
+    position: relative;
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--dd-radius-sm);
+    color: var(--dd-text-on-dark-muted);
+    cursor: pointer;
+  }
+  .topbar .icon-btn:hover { background: rgba(255,255,255,0.08); color: var(--dd-text-on-dark); }
+  .notif-dot {
+    position: absolute; top: 5px; right: 5px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--dd-amber);
+    border: 1.5px solid var(--dd-navy);
+  }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--dd-teal);
+    color: white; font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .nav {
+    grid-area: nav;
+    background: var(--dd-navy);
+    padding: 14px 10px;
+    overflow-y: auto;
+  }
+  .nav-section-label {
+    color: rgba(255,255,255,0.38);
+    font-size: 10.5px;
+    padding: 10px 10px 6px;
+    letter-spacing: 0.03em;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--dd-radius-sm);
+    color: var(--dd-text-on-dark-muted);
+    font-size: 13px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    margin-bottom: 1px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: var(--dd-text-on-dark); }
+  .nav-item.active {
+    background: rgba(255,255,255,0.07);
+    color: var(--dd-text-on-dark);
+    border-left: 2px solid var(--dd-teal);
+    font-weight: 500;
+  }
+  .nav-item .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.55; flex-shrink: 0; }
+  .nav-item.active .dot { background: var(--dd-teal); opacity: 1; }
+
+  .main {
+    grid-area: main;
+    overflow-y: auto;
+    padding: 18px 24px 40px;
+  }
+
+  /* ===== Breadcrumb ===== */
+  .breadcrumb {
+    font-size: 12px;
+    color: var(--dd-text-faint);
+    margin-bottom: 12px;
+  }
+  .breadcrumb a { color: var(--dd-text-muted); text-decoration: none; }
+  .breadcrumb a:hover { color: var(--dd-action); }
+  .breadcrumb .sep { margin: 0 6px; color: var(--dd-border-strong); }
+
+  /* ===== Header ===== */
+  .departure-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 16px;
+  }
+  .departure-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .departure-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--dd-navy);
+    margin: 0;
+  }
+  .code-chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--dd-text-muted);
+    background: var(--dd-surface-subtle);
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-sm);
+    padding: 2px 7px;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    padding: 3px 9px 3px 7px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .status-pill .pulse {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 0 currentColor;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(0,112,128,0.5); }
+    70% { box-shadow: 0 0 0 5px rgba(0,112,128,0); }
+    100% { box-shadow: 0 0 0 0 rgba(0,112,128,0); }
+  }
+  .status-inoperation { background: var(--dd-selection); color: var(--dd-selection-text); }
+  .status-confirmed { background: var(--dd-success-surface); color: var(--dd-success-text); }
+  .status-planning { background: var(--dd-info-surface); color: var(--dd-info-text); }
+  .status-draft { background: var(--dd-neutral-surface); color: var(--dd-neutral-text); }
+  .status-reconciliation { background: var(--dd-amber-surface); color: var(--dd-amber-text); }
+  .status-cancelled { background: transparent; color: var(--dd-danger); border: 1px solid var(--dd-danger); }
+  .status-closed { background: #e6e9ec; color: #3c4650; }
+  .status-quoted { background: var(--dd-info-surface); color: var(--dd-info-text); }
+  .status-optioned { background: var(--dd-amber-surface); color: var(--dd-amber-text); }
+  .status-inquiry { background: var(--dd-neutral-surface); color: var(--dd-neutral-text); }
+  .status-partiallycancelled { background: transparent; color: var(--dd-danger); border: 1px solid var(--dd-danger); }
+  .status-traveled { background: #e2e8ee; color: var(--dd-navy); }
+
+  .departure-meta {
+    margin-top: 6px;
+    color: var(--dd-text-muted);
+    font-size: 12.5px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .departure-meta .sep { color: var(--dd-border-strong); }
+
+  .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .btn {
+    font-family: var(--font-ui);
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 7px 13px;
+    border-radius: var(--dd-radius-sm);
+    border: 1px solid var(--dd-border-strong);
+    background: var(--dd-surface);
+    color: var(--dd-text);
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--dd-surface-subtle); }
+  .btn-primary {
+    background: var(--dd-action);
+    border-color: var(--dd-action);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--dd-action-hover); border-color: var(--dd-action-hover); }
+  .btn-primary:active { background: var(--dd-action-active); }
+  .btn-icon-only { width: 32px; padding: 0; display:flex; align-items:center; justify-content:center; }
+
+  /* ===== Stat strip ===== */
+  .stat-strip {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    background: var(--dd-surface);
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-md);
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+  .stat {
+    padding: 11px 16px;
+    border-right: 1px solid var(--dd-border);
+  }
+  .stat:last-child { border-right: none; }
+  .stat-label {
+    font-size: 10.5px;
+    color: var(--dd-text-faint);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 16.5px;
+    font-weight: 600;
+    color: var(--dd-navy);
+    line-height: 1.2;
+  }
+  .stat-value.amber { color: var(--dd-amber-icon); }
+  .stat-value.teal { color: var(--dd-teal-action); }
+  .stat-sub {
+    font-size: 10.5px;
+    color: var(--dd-text-faint);
+    margin-top: 2px;
+    font-family: var(--font-ui);
+  }
+  .stat-sub.ok { color: var(--dd-success); }
+
+  /* ===== Tabs ===== */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--dd-border);
+    margin-bottom: 14px;
+  }
+  .tab {
+    padding: 9px 4px;
+    margin-right: 20px;
+    font-size: 13px;
+    color: var(--dd-text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    position: relative;
+    top: 1px;
+  }
+  .tab.active {
+    color: var(--dd-navy);
+    font-weight: 600;
+    border-bottom: 2px solid var(--dd-teal);
+  }
+  .tab:hover:not(.active) { color: var(--dd-text); }
+  .tab .badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--dd-text-faint);
+    margin-left: 4px;
+  }
+
+  /* ===== Toolbar ===== */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--dd-surface);
+    border: 1px solid var(--dd-border-strong);
+    border-radius: var(--dd-radius-sm);
+    padding: 6px 10px;
+    font-size: 12.5px;
+    color: var(--dd-text-faint);
+    width: 220px;
+  }
+  .filter-chip {
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: var(--dd-radius-sm);
+    border: 1px solid var(--dd-border-strong);
+    background: var(--dd-surface);
+    color: var(--dd-text-muted);
+    cursor: pointer;
+  }
+  .filter-chip.active { background: var(--dd-selection); border-color: var(--dd-teal); color: var(--dd-selection-text); }
+  .toolbar .spacer { flex: 1; }
+
+  /* ===== Table ===== */
+  .table-card {
+    background: var(--dd-surface);
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-md);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--dd-surface-subtle);
+    color: var(--dd-navy);
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--dd-border);
+    white-space: nowrap;
+  }
+  thead th.num { text-align: right; }
+  tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--dd-border);
+    vertical-align: middle;
+    font-size: 12.5px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--dd-row-hover); }
+  tbody tr.attention { background: var(--dd-row-attention); }
+  tbody tr.attention:hover { background: #fdf1d9; }
+  tbody tr.inactive td { color: var(--dd-text-faint); }
+  td.num, th.num { text-align: right; font-family: var(--font-mono); }
+  .indicator-bar { width: 3px; }
+  tr .indicator-bar td { padding: 0; }
+  .indicator { width: 3px; height: 100%; display: block; }
+  .indicator.warning { background: var(--dd-amber); }
+  .indicator.danger { background: var(--dd-danger); }
+
+  .client-trip-name { font-weight: 500; color: var(--dd-text); }
+  .party-sub { font-size: 11px; color: var(--dd-text-faint); margin-top: 1px; }
+  .traveler-list { color: var(--dd-text-muted); }
+  .tp-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    color: var(--dd-info-text);
+    background: var(--dd-info-surface);
+    border-radius: var(--dd-radius-sm);
+    padding: 1px 6px;
+    margin-top: 3px;
+  }
+
+  .amount-zero { color: var(--dd-text-faint); }
+  .amount-due { color: var(--dd-amber-icon); font-weight: 600; }
+  .amount-neg { color: var(--dd-danger); }
+
+  .row-action {
+    font-size: 11.5px;
+    color: var(--dd-action);
+    cursor: pointer;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .row-action:hover { color: var(--dd-action-hover); text-decoration: underline; }
+  .row-action + .row-action { margin-left: 10px; }
+
+  .req-marker { color: var(--dd-danger); margin-left: 2px; }
+
+  .table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    font-size: 11.5px;
+    color: var(--dd-text-faint);
+    border-top: 1px solid var(--dd-border);
+    background: var(--dd-surface-subtle);
+  }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--dd-text-faint);
+    align-items: center;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-swatch { width: 8px; height: 8px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Top chrome -->
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark"></span> DepartureDesk</div>
+    <div class="office-switch">Harbor office ▾</div>
+    <div class="global-search">🔍 Search travelers, clients, departures…</div>
+    <div class="spacer"></div>
+    <div class="icon-btn">🔔<span class="notif-dot"></span></div>
+    <div class="icon-btn">?</div>
+    <div class="avatar">CT</div>
+  </div>
+
+  <!-- Left nav -->
+  <div class="nav">
+    <div class="nav-section-label">WORKSPACE</div>
+    <div class="nav-item"><span class="dot"></span> Dashboard</div>
+    <div class="nav-item active"><span class="dot"></span> Departures</div>
+    <div class="nav-item"><span class="dot"></span> Client trips</div>
+    <div class="nav-item"><span class="dot"></span> Parties</div>
+    <div class="nav-item"><span class="dot"></span> Suppliers</div>
+    <div class="nav-section-label">MONEY</div>
+    <div class="nav-item"><span class="dot"></span> Receipts</div>
+    <div class="nav-item"><span class="dot"></span> Supplier payments</div>
+    <div class="nav-item"><span class="dot"></span> Reports</div>
+    <div class="nav-section-label">SYSTEM</div>
+    <div class="nav-item"><span class="dot"></span> Tasks</div>
+    <div class="nav-item"><span class="dot"></span> Settings</div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <div class="breadcrumb">
+      <a href="#">Departures</a><span class="sep">/</span>
+      <a href="#">Smith Family Reunion</a><span class="sep">/</span>
+      Cruise — Jul 12, 2027
+    </div>
+
+    <div class="departure-header">
+      <div>
+        <div class="departure-title-row">
+          <h1 class="departure-title">Smith Family Reunion Cruise — July 12, 2027</h1>
+          <span class="code-chip">SFR-2027-CRZ</span>
+          <span class="status-pill status-inoperation"><span class="pulse"></span>In operation</span>
+        </div>
+        <div class="departure-meta">
+          <span>Caribbean — Eastern route</span>
+          <span class="sep">·</span>
+          <span>Jul 12 – Jul 19, 2027</span>
+          <span class="sep">·</span>
+          <span>Harbor office</span>
+          <span class="sep">·</span>
+          <span>Advisor: Casey Nguyen</span>
+          <span class="sep">·</span>
+          <span>Sales closed Jun 1, 2027</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn">＋ Traveler</button>
+        <button class="btn btn-primary">＋ Client trip</button>
+        <button class="btn btn-icon-only">⋯</button>
+      </div>
+    </div>
+
+    <!-- Stat strip -->
+    <div class="stat-strip">
+      <div class="stat">
+        <div class="stat-label">TRAVELERS</div>
+        <div class="stat-value">24<span style="color:var(--dd-text-faint); font-weight:400;"> / 30</span></div>
+        <div class="stat-sub">seats sold of blocked</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">CLIENT TRIPS</div>
+        <div class="stat-value">14</div>
+        <div class="stat-sub">2 optioned, 12 confirmed</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">BREAK-EVEN</div>
+        <div class="stat-value teal">16</div>
+        <div class="stat-sub ok">✓ met — 24 enrolled</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">PROJECTED MARGIN</div>
+        <div class="stat-value">$18,450</div>
+        <div class="stat-sub">on $96,200 client revenue</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">CASH POSITION</div>
+        <div class="stat-value">$42,300</div>
+        <div class="stat-sub">agency-controlled, net</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">CLIENT BALANCE DUE</div>
+        <div class="stat-value amber">$6,120</div>
+        <div class="stat-sub">3 client trips past due</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active">Roster<span class="badge">14</span></div>
+      <div class="tab">Packages<span class="badge">3</span></div>
+      <div class="tab">Supplier arrangements<span class="badge">5</span></div>
+      <div class="tab">Financials</div>
+      <div class="tab">Documents &amp; tasks<span class="badge">7</span></div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="search-box">🔍 Filter roster…</div>
+      <div class="filter-chip active">All statuses</div>
+      <div class="filter-chip">Balance due</div>
+      <div class="filter-chip">Traveling parties</div>
+      <div class="spacer"></div>
+      <button class="btn">Export</button>
+    </div>
+
+    <!-- Roster table -->
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:3px; padding:0; border:none;"></th>
+            <th>Client trip</th>
+            <th>Responsible client</th>
+            <th>Travelers</th>
+            <th>Package</th>
+            <th>Status</th>
+            <th class="num">Client balance</th>
+            <th>Next installment</th>
+            <th style="width:140px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <tr class="attention">
+            <td class="indicator-bar"><span class="indicator warning"></span></td>
+            <td>
+              <div class="client-trip-name">Whitfield family</div>
+              <div class="party-sub">CT-10422</div>
+            </td>
+            <td>Margaret Whitfield</td>
+            <td class="traveler-list">Margaret, Daniel, +2 minors</td>
+            <td>Ocean View — Deluxe</td>
+            <td><span class="status-pill status-confirmed">Confirmed</span></td>
+            <td class="num amount-due">$1,240</td>
+            <td>Aug 1, 2027</td>
+            <td><span class="row-action">View</span><span class="row-action">Receipt</span></td>
+          </tr>
+
+          <tr>
+            <td class="indicator-bar"></td>
+            <td>
+              <div class="client-trip-name">Nakamura + Ortiz (shared cabin)</div>
+              <div class="party-sub">CT-10431</div>
+              <div class="tp-tag">⛴ Cabin 8142 · traveling party with CT-10433</div>
+            </td>
+            <td>Aiko Nakamura</td>
+            <td class="traveler-list">Aiko, Kenji</td>
+            <td>Balcony — Standard</td>
+            <td><span class="status-pill status-confirmed">Confirmed</span></td>
+            <td class="num amount-zero">$0</td>
+            <td class="amount-zero">—</td>
+            <td><span class="row-action">View</span></td>
+          </tr>
+
+          <tr>
+            <td class="indicator-bar"></td>
+            <td>
+              <div class="client-trip-name">Ortiz family</div>
+              <div class="party-sub">CT-10433</div>
+              <div class="tp-tag">⛴ Cabin 8142 · traveling party with CT-10431</div>
+            </td>
+            <td>Luis Ortiz</td>
+            <td class="traveler-list">Luis, Elena</td>
+            <td>Balcony — Standard</td>
+            <td><span class="status-pill status-confirmed">Confirmed</span></td>
+            <td class="num amount-zero">$0</td>
+            <td class="amount-zero">—</td>
+            <td><span class="row-action">View</span></td>
+          </tr>
+
+          <tr class="attention">
+            <td class="indicator-bar"><span class="indicator warning"></span></td>
+            <td>
+              <div class="client-trip-name">Reyes trip</div>
+              <div class="party-sub">CT-10440</div>
+            </td>
+            <td>Community Church of Harbor <span style="color:var(--dd-text-faint); font-size:11px;">(sponsor)</span></td>
+            <td class="traveler-list">Sofia Reyes</td>
+            <td>Inside — Standard</td>
+            <td><span class="status-pill status-optioned">Optioned</span></td>
+            <td class="num amount-due">$2,880</td>
+            <td>Jul 15, 2027</td>
+            <td><span class="row-action">View</span><span class="row-action">Receipt</span></td>
+          </tr>
+
+          <tr>
+            <td class="indicator-bar"></td>
+            <td>
+              <div class="client-trip-name">Park family</div>
+              <div class="party-sub">CT-10447</div>
+            </td>
+            <td>Ji-woo Park</td>
+            <td class="traveler-list">Ji-woo, Min-jun, Seo-yeon</td>
+            <td>Ocean View — Deluxe</td>
+            <td><span class="status-pill status-quoted">Quoted</span></td>
+            <td class="num amount-zero">$0</td>
+            <td class="amount-zero">—</td>
+            <td><span class="row-action">View</span></td>
+          </tr>
+
+          <tr>
+            <td class="indicator-bar"><span class="indicator danger"></span></td>
+            <td>
+              <div class="client-trip-name">Callahan trip</div>
+              <div class="party-sub">CT-10398</div>
+            </td>
+            <td>Brendan Callahan</td>
+            <td class="traveler-list">Brendan</td>
+            <td>Inside — Standard</td>
+            <td><span class="status-pill status-partiallycancelled">Partially cancelled</span></td>
+            <td class="num amount-neg">($310)</td>
+            <td class="amount-zero">—</td>
+            <td><span class="row-action">View</span><span class="row-action">Refund</span></td>
+          </tr>
+
+          <tr class="inactive">
+            <td class="indicator-bar"></td>
+            <td>
+              <div class="client-trip-name">Bianchi trip</div>
+              <div class="party-sub">CT-10355</div>
+            </td>
+            <td>Giulia Bianchi</td>
+            <td class="traveler-list">Giulia, Marco</td>
+            <td>Suite — Premium</td>
+            <td><span class="status-pill status-closed">Closed</span></td>
+            <td class="num amount-zero">$0</td>
+            <td class="amount-zero">—</td>
+            <td><span class="row-action">View</span></td>
+          </tr>
+
+        </tbody>
+      </table>
+      <div class="table-footer">
+        <span>Showing 7 of 14 client trips</span>
+        <span>Sorted by client balance, descending</span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--dd-amber);"></span> Client balance due</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--dd-danger);"></span> Requires attention</div>
+      <div class="legend-item">⛴ Traveling party — shares a supplier resource, not a financial account</div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

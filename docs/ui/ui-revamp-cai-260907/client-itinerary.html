@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whitfield Family — Travel Itinerary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dd-navy: #002340;
+    --dd-teal: #007080;
+    --dd-teal-action: #006270;
+    --dd-amber: #f49a00;
+    --dd-amber-surface: #fff2d6;
+    --dd-amber-border: #e6a52e;
+    --dd-amber-text: #694400;
+    --dd-text: #17212b;
+    --dd-text-muted: #52616d;
+    --dd-text-faint: #71808a;
+    --dd-border: #d4dedf;
+    --dd-surface-subtle: #eef2f1;
+    --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #dfe3e0; font-family: var(--font-ui); color: var(--dd-text);
+    font-size: 12.5px; line-height: 1.5; padding: 32px 0;
+  }
+
+  .page {
+    width: 8.5in; min-height: 11in; margin: 0 auto 24px; background: white;
+    padding: 0.65in 0.7in; box-shadow: 0 4px 18px rgba(0,35,64,0.18);
+    position: relative;
+  }
+
+  /* Letterhead */
+  .letterhead { display:flex; align-items:center; justify-content:space-between; padding-bottom: 14px; border-bottom: 2px solid var(--dd-navy); margin-bottom: 18px; }
+  .agency-id { display:flex; align-items:center; gap:10px; }
+  .agency-mark { width:30px; height:30px; border-radius:6px; background: linear-gradient(135deg, var(--dd-teal), var(--dd-navy)); flex-shrink:0; }
+  .agency-name { font-size:15px; font-weight:700; color: var(--dd-navy); }
+  .agency-sub { font-size:10px; color: var(--dd-text-faint); }
+  .doc-title { text-align:right; }
+  .doc-title h1 { font-size:16px; margin:0; color: var(--dd-navy); font-weight:600; }
+  .doc-title .doc-date { font-size:10.5px; color: var(--dd-text-faint); margin-top:2px; }
+
+  /* Summary block */
+  .summary-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 18px; }
+  .summary-label { font-size:9.5px; text-transform: uppercase; letter-spacing:0.04em; color: var(--dd-text-faint); margin-bottom:2px; }
+  .summary-value { font-size:13px; color: var(--dd-text); margin-bottom:10px; }
+  .summary-value.strong { font-weight:600; color: var(--dd-navy); }
+
+  .desc-block { font-size:12px; color: var(--dd-text-muted); line-height:1.6; padding: 12px 14px; background: var(--dd-surface-subtle); border-radius: 5px; margin-bottom: 20px; }
+
+  h2.section-title { font-size:12px; font-weight:700; color: var(--dd-navy); text-transform: uppercase; letter-spacing: 0.03em; margin: 22px 0 10px; padding-bottom:6px; border-bottom: 1px solid var(--dd-border); }
+
+  /* Travelers */
+  .traveler-list { display:flex; flex-wrap:wrap; gap: 8px 22px; margin-bottom: 4px; }
+  .traveler-item { font-size:12.5px; }
+  .traveler-item .role { color: var(--dd-text-faint); font-size:10.5px; }
+
+  /* Day by day */
+  table.day-table { width:100%; border-collapse: collapse; margin-top: 4px; }
+  .day-table th { text-align:left; font-size:9.5px; text-transform:uppercase; letter-spacing:0.03em; color: var(--dd-text-faint); font-weight:600; padding: 6px 8px; border-bottom: 1px solid var(--dd-border); }
+  .day-table td { padding: 8px 8px; border-bottom: 1px solid var(--dd-surface-subtle); font-size:12px; vertical-align: top; }
+  .day-table tr:last-child td { border-bottom: none; }
+  .day-num { font-family: var(--font-mono); font-weight:600; color: var(--dd-navy); white-space:nowrap; }
+  .day-date { color: var(--dd-text-muted); white-space:nowrap; }
+  .day-note { color: var(--dd-text-faint); font-size:11px; margin-top:2px; }
+
+  /* Cabin / confirmations */
+  .conf-grid { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 4px; }
+  .conf-item .summary-label { margin-bottom:3px; }
+  .conf-value { font-family: var(--font-mono); font-size:12px; color: var(--dd-text); }
+
+  /* Payment summary */
+  .payment-box { border: 1.5px solid var(--dd-amber-border); background: var(--dd-amber-surface); border-radius: 6px; padding: 14px 16px; margin-top: 16px; }
+  .payment-box-title { font-size:11.5px; font-weight:700; color: var(--dd-amber-text); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.02em; }
+  .payment-row { display:flex; justify-content:space-between; padding: 3px 0; font-size:12.5px; color: var(--dd-amber-text); }
+  .payment-row.total { font-weight:700; border-top: 1px solid var(--dd-amber-border); margin-top:4px; padding-top:7px; font-size:13.5px; }
+  .payment-row .v { font-family: var(--font-mono); }
+
+  .terms-note { font-size:10.5px; color: var(--dd-text-faint); margin-top: 18px; line-height:1.6; }
+
+  /* Footer */
+  .page-footer { position: absolute; bottom: 0.5in; left: 0.7in; right: 0.7in; display:flex; justify-content:space-between; align-items:center; padding-top: 10px; border-top: 1px solid var(--dd-border); font-size: 9.5px; color: var(--dd-text-faint); }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .page { box-shadow: none; margin: 0; width: auto; min-height: auto; }
+    @page { size: letter; margin: 0.6in; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="letterhead">
+    <div class="agency-id">
+      <div class="agency-mark"></div>
+      <div>
+        <div class="agency-name">Harbor Bay Travel</div>
+        <div class="agency-sub">1420 Waterfront Ave, Suite 200 · Seattle, WA 98101 · (206) 555-0100</div>
+      </div>
+    </div>
+    <div class="doc-title">
+      <h1>Travel Itinerary</h1>
+      <div class="doc-date">Issued July 3, 2027</div>
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div>
+      <div class="summary-label">Prepared for</div>
+      <div class="summary-value strong">Margaret Whitfield &amp; family</div>
+      <div class="summary-label">Departure</div>
+      <div class="summary-value strong">Smith Family Reunion Cruise</div>
+      <div class="summary-label">Travel dates</div>
+      <div class="summary-value">July 12 – July 19, 2027 (7 nights)</div>
+    </div>
+    <div>
+      <div class="summary-label">Advisor</div>
+      <div class="summary-value">Casey Nguyen · (206) 555-0148 · casey@harborbaytravel.example</div>
+      <div class="summary-label">Cabin</div>
+      <div class="summary-value">Ocean View — Deluxe, Cabin 8142</div>
+      <div class="summary-label">Confirmation</div>
+      <div class="summary-value">Cabin confirmation RC-8142-W</div>
+    </div>
+  </div>
+
+  <div class="desc-block">
+    7-night Eastern Caribbean cruise aboard an Ocean View – Deluxe cabin for the Whitfield family, departing July 12, 2027. Includes all onboard meals and port transfers. One optional excursion added.
+  </div>
+
+  <h2 class="section-title">Travelers</h2>
+  <div class="traveler-list">
+    <div class="traveler-item">Margaret Whitfield <div class="role">Adult</div></div>
+    <div class="traveler-item">Daniel Whitfield <div class="role">Adult</div></div>
+    <div class="traveler-item">Ella Whitfield <div class="role">Child, age 11</div></div>
+    <div class="traveler-item">Thomas Whitfield <div class="role">Child, age 8</div></div>
+  </div>
+
+  <h2 class="section-title">Day by day</h2>
+  <table class="day-table">
+    <thead><tr><th style="width:60px;">Day</th><th style="width:90px;">Date</th><th>Location</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="day-num">Day 1</td><td class="day-date">Jul 12</td>
+        <td>Miami, FL</td>
+        <td>Embarkation — boarding begins 12:00 PM, all aboard by 4:00 PM</td>
+      </tr>
+      <tr>
+        <td class="day-num">Day 2</td><td class="day-date">Jul 13</td>
+        <td>At sea</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td class="day-num">Day 3</td><td class="day-date">Jul 14</td>
+        <td>Nassau, Bahamas</td>
+        <td>Vineyard tasting excursion — 1:00 PM (Margaret &amp; Daniel)</td>
+      </tr>
+      <tr>
+        <td class="day-num">Day 4</td><td class="day-date">Jul 15</td>
+        <td>Perfect Day at CocoCay</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td class="day-num">Day 5</td><td class="day-date">Jul 16</td>
+        <td>At sea</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td class="day-num">Day 6</td><td class="day-date">Jul 17</td>
+        <td>At sea</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td class="day-num">Day 7</td><td class="day-date">Jul 18</td>
+        <td>At sea</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td class="day-num">Day 8</td><td class="day-date">Jul 19</td>
+        <td>Miami, FL</td>
+        <td>Disembarkation — 7:00 AM</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="payment-box">
+    <div class="payment-box-title">Balance due</div>
+    <div class="payment-row"><span>Total package price</span><span class="v">$7,580.00</span></div>
+    <div class="payment-row"><span>Deposit received Jul 3, 2027</span><span class="v">$1,500.00</span></div>
+    <div class="payment-row total"><span>Balance due Aug 1, 2027</span><span class="v">$6,080.00</span></div>
+  </div>
+
+  <div class="terms-note">
+    Final payment is due August 1, 2027. Please contact your advisor at least 60 days before departure for any changes to travelers or services. Cancellation terms were provided at the time of booking and remain available on request.
+  </div>
+
+  <div class="page-footer">
+    <span>Harbor Bay Travel · CST #2094871-40</span>
+    <span>Page 1 of 1</span>
+  </div>
+
+</div>
+
+</body>
+</html>

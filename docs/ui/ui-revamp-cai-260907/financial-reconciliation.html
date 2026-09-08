@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DepartureDesk — Financials</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dd-navy: #002340; --dd-navy-3: #0b3c5e;
+    --dd-teal: #007080; --dd-teal-action: #006270;
+    --dd-amber: #f49a00;
+    --dd-background: #f6f7f5; --dd-surface: #ffffff;
+    --dd-surface-subtle: #eef2f1; --dd-surface-emphasis: #e2ebea;
+    --dd-text: #17212b; --dd-text-muted: #52616d; --dd-text-faint: #71808a;
+    --dd-text-on-dark: #ffffff; --dd-text-on-dark-muted: #aebfd0;
+    --dd-border: #d4dedf; --dd-border-strong: #aababd;
+    --dd-action: #006270; --dd-action-hover: #004f5b;
+    --dd-focus: #f49a00; --dd-selection: #d7eff0; --dd-selection-text: #003c45;
+    --dd-success: #2f6b4f; --dd-success-surface: #e6f3eb; --dd-success-text: #24523d;
+    --dd-warning: #b87800; --dd-warning-surface: #fff2d6; --dd-warning-text: #694400;
+    --dd-danger: #b5473d; --dd-danger-surface: #fbe9e7; --dd-danger-text: #84332d;
+    --dd-info: #326a8a; --dd-info-surface: #e7f1f7; --dd-info-text: #264f67;
+    --dd-neutral-surface: #edf0f2; --dd-neutral-text: #46525a;
+    --dd-amber-surface: #fff2d6; --dd-amber-text: #694400; --dd-amber-icon: #8a5a00;
+    --dd-radius-sm: 4px; --dd-radius-md: 7px; --dd-radius-lg: 10px;
+    --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: var(--font-ui); background: var(--dd-background); color: var(--dd-text); font-size:13px; line-height:1.45; }
+  :focus-visible { outline: 2px solid var(--dd-focus); outline-offset:1px; }
+
+  .shell { display:grid; grid-template-columns: 208px 1fr; grid-template-rows: 52px 1fr; grid-template-areas: "topbar topbar" "nav main"; height:100vh; }
+  .topbar { grid-area: topbar; background: var(--dd-navy); display:flex; align-items:center; padding:0 16px; gap:16px; }
+  .brand { color: var(--dd-text-on-dark); font-weight:600; font-size:14px; display:flex; align-items:center; gap:8px; }
+  .brand-mark { width:20px; height:20px; border-radius:5px; background: linear-gradient(135deg, var(--dd-teal), var(--dd-navy-3)); }
+  .office-switch { color: var(--dd-text-on-dark-muted); font-size:12px; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius: var(--dd-radius-sm); padding:5px 10px; }
+  .global-search { flex:1; max-width:420px; display:flex; align-items:center; gap:6px; background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-radius: var(--dd-radius-sm); padding:6px 10px; color: var(--dd-text-on-dark-muted); font-size:12.5px; }
+  .spacer { flex:1; }
+  .avatar-top { width:28px; height:28px; border-radius:50%; background: var(--dd-teal); color:white; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+
+  .nav { grid-area: nav; background: var(--dd-navy); padding:14px 10px; }
+  .nav-section-label { color: rgba(255,255,255,0.38); font-size:10.5px; padding:10px 10px 6px; letter-spacing:0.03em; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius: var(--dd-radius-sm); color: var(--dd-text-on-dark-muted); font-size:13px; border-left:2px solid transparent; margin-bottom:1px; }
+  .nav-item.active { background: rgba(255,255,255,0.07); color: var(--dd-text-on-dark); border-left:2px solid var(--dd-teal); font-weight:500; }
+  .nav-item .dot { width:6px; height:6px; border-radius:50%; background: currentColor; opacity:0.55; }
+  .nav-item.active .dot { background: var(--dd-teal); opacity:1; }
+
+  .main { grid-area: main; overflow-y:auto; padding: 18px 24px 60px; }
+
+  .breadcrumb { font-size:12px; color: var(--dd-text-faint); margin-bottom:12px; }
+  .breadcrumb a { color: var(--dd-text-muted); text-decoration:none; }
+  .breadcrumb .sep { margin:0 6px; color: var(--dd-border-strong); }
+
+  .header { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:14px; }
+  .title-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .title { font-size:19px; font-weight:600; color: var(--dd-navy); margin:0; }
+  .code-chip { font-family: var(--font-mono); font-size:11px; color: var(--dd-text-muted); background: var(--dd-surface-subtle); border:1px solid var(--dd-border); border-radius: var(--dd-radius-sm); padding:2px 7px; }
+  .status-pill { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:500; padding:3px 9px; border-radius:999px; background: var(--dd-selection); color: var(--dd-selection-text); }
+  .header-actions { display:flex; gap:8px; flex-shrink:0; }
+  .btn { font-family: var(--font-ui); font-size:12.5px; font-weight:500; padding:7px 13px; border-radius: var(--dd-radius-sm); border:1px solid var(--dd-border-strong); background: var(--dd-surface); color: var(--dd-text); cursor:pointer; }
+  .btn:hover { background: var(--dd-surface-subtle); }
+  .btn-primary { background: var(--dd-action); border-color: var(--dd-action); color:white; }
+
+  .tabs { display:flex; gap:2px; border-bottom:1px solid var(--dd-border); margin-bottom:18px; }
+  .tab { padding:9px 4px; margin-right:20px; font-size:13px; color: var(--dd-text-muted); cursor:pointer; border-bottom:2px solid transparent; position:relative; top:1px; }
+  .tab.active { color: var(--dd-navy); font-weight:600; border-bottom:2px solid var(--dd-teal); }
+
+  .card { background: var(--dd-surface); border:1px solid var(--dd-border); border-radius: var(--dd-radius-md); margin-bottom:18px; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--dd-border); }
+  .card-header h3 { font-size:12.5px; font-weight:600; margin:0; }
+  .card-header .sub { font-size:10.5px; color: var(--dd-text-faint); margin-top:1px; font-weight:400; }
+  .link-btn { font-size:11.5px; color: var(--dd-action); font-weight:500; cursor:pointer; }
+  .card-body { padding: 14px 16px; }
+
+  /* Projected / confirmed / actual table (reused pattern) */
+  .pva-legend { display:flex; gap:22px; padding: 4px 0 12px; }
+  .pva-legend-item { display:flex; align-items:center; gap:8px; font-size:11.5px; color: var(--dd-text-muted); }
+  .pva-swatch { width:26px; height:12px; border-radius:2px; }
+  .pva-swatch.projected { background: repeating-linear-gradient(135deg, #b9c6cc 0px, #b9c6cc 3px, transparent 3px, transparent 6px); border: 1px dashed var(--dd-border-strong); }
+  .pva-swatch.confirmed { background: var(--dd-teal); }
+  .pva-swatch.actual { background: var(--dd-navy); }
+  table.pva-table { width:100%; border-collapse:collapse; }
+  .pva-table th { text-align:left; font-size:10.5px; color: var(--dd-text-faint); font-weight:600; text-transform:uppercase; letter-spacing:0.02em; padding:8px 6px; border-bottom:1px solid var(--dd-border); }
+  .pva-table th.num { text-align:right; }
+  .pva-table td { padding:9px 6px; border-bottom:1px solid var(--dd-surface-subtle); font-size:12.5px; }
+  .pva-table tr:last-child td { border-bottom:none; }
+  .pva-table td.num { text-align:right; font-family: var(--font-mono); }
+  .val-projected { color: var(--dd-text-muted); font-weight:400; border-bottom: 1px dashed var(--dd-border-strong); padding-bottom:1px; }
+  .val-confirmed { color: var(--dd-teal-action); font-weight:600; }
+  .val-actual { color: var(--dd-navy); font-weight:700; }
+  .pva-table tr.margin-row td { font-weight:600; border-top: 1.5px solid var(--dd-border); }
+
+  .bar-chart { display:flex; align-items:flex-end; gap:40px; height: 140px; padding: 24px 10px 0; justify-content:center; }
+  .bar-group { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .bar-track { display:flex; align-items:flex-end; gap:8px; height: 100px; }
+  .bar { width: 40px; border-radius: 3px 3px 0 0; position:relative; }
+  .bar.projected { background: repeating-linear-gradient(135deg, #cdd8dc 0px, #cdd8dc 4px, #e7edee 4px, #e7edee 8px); border: 1.5px dashed var(--dd-border-strong); border-bottom: none; }
+  .bar.confirmed { background: var(--dd-teal); }
+  .bar.actual { background: var(--dd-navy); }
+  .bar-value { position:absolute; top:-18px; left:50%; transform: translateX(-50%); font-family: var(--font-mono); font-size:10.5px; color: var(--dd-text-muted); white-space:nowrap; }
+  .bar-label { font-size:11px; color: var(--dd-text-muted); text-align:center; }
+  .not-income-note { font-size:11px; color: var(--dd-text-faint); text-align:center; margin-top:6px; }
+
+  .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+  .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:18px; }
+
+  /* Fin ledger rows */
+  .fin-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--dd-surface-subtle); font-size:12.5px; }
+  .fin-row:last-child { border-bottom:none; }
+  .fin-row .amt { font-family: var(--font-mono); }
+  .fin-row.sub .amt, .fin-row.sub span:first-child { color: var(--dd-text-muted); font-size:12px; }
+  .fin-row.total { font-weight:700; border-top: 1.5px solid var(--dd-border); margin-top:2px; padding-top:9px; }
+  .fin-row.total .amt { color: var(--dd-navy); font-size:14px; }
+  .fin-row.danger .amt { color: var(--dd-danger); font-weight:600; }
+  .fin-row.amber .amt { color: var(--dd-amber-icon); font-weight:600; }
+  .op { width: 16px; text-align:center; color: var(--dd-text-faint); font-family: var(--font-mono); }
+
+  .exposure-callout { display:flex; gap:8px; align-items:flex-start; background: var(--dd-amber-surface); color: var(--dd-amber-text); border-radius: var(--dd-radius-sm); padding:9px 11px; font-size:11.5px; margin-top:10px; }
+  .info-callout { display:flex; gap:8px; align-items:flex-start; background: var(--dd-info-surface); color: var(--dd-info-text); border-radius: var(--dd-radius-sm); padding:9px 11px; font-size:11.5px; margin-top:10px; }
+  .unapplied-callout { display:flex; gap:8px; align-items:center; justify-content:space-between; background: var(--dd-warning-surface); color: var(--dd-warning-text); border-radius: var(--dd-radius-sm); padding:9px 11px; font-size:11.5px; margin-top:10px; }
+  .unapplied-callout .link-btn { color: var(--dd-warning-text); text-decoration:underline; }
+
+  /* Break-even */
+  .be-row { display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; }
+  .be-value { font-family: var(--font-mono); font-size:22px; font-weight:700; color: var(--dd-navy); }
+  .be-check { display:flex; align-items:center; gap:6px; font-size:11.5px; color: var(--dd-success-text); font-weight:500; background: var(--dd-success-surface); padding:3px 9px; border-radius:999px; }
+  .mini-stat-row { display:flex; justify-content:space-between; padding:6px 0; font-size:12px; border-bottom:1px solid var(--dd-surface-subtle); }
+  .mini-stat-row:last-child { border-bottom:none; }
+  .mini-stat-row .v { font-family: var(--font-mono); color: var(--dd-text); }
+
+  .caption { font-size:11.5px; color: var(--dd-text-faint); margin-top:10px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark"></span> DepartureDesk</div>
+    <div class="office-switch">Harbor office ▾</div>
+    <div class="global-search">🔍 Search travelers, clients, departures…</div>
+    <div class="spacer"></div>
+    <div class="avatar-top">CT</div>
+  </div>
+
+  <div class="nav">
+    <div class="nav-section-label">WORKSPACE</div>
+    <div class="nav-item"><span class="dot"></span> Dashboard</div>
+    <div class="nav-item active"><span class="dot"></span> Departures</div>
+    <div class="nav-item"><span class="dot"></span> Client trips</div>
+    <div class="nav-item"><span class="dot"></span> Parties</div>
+    <div class="nav-item"><span class="dot"></span> Suppliers</div>
+    <div class="nav-section-label">MONEY</div>
+    <div class="nav-item"><span class="dot"></span> Receipts</div>
+    <div class="nav-item"><span class="dot"></span> Supplier payments</div>
+    <div class="nav-item"><span class="dot"></span> Reports</div>
+  </div>
+
+  <div class="main">
+
+    <div class="breadcrumb">
+      <a href="#">Departures</a><span class="sep">/</span>
+      Smith Family Reunion Cruise — Jul 12, 2027
+    </div>
+
+    <div class="header">
+      <div>
+        <div class="title-row">
+          <h1 class="title">Smith Family Reunion Cruise — July 12, 2027</h1>
+          <span class="code-chip">SFR-2027-CRZ</span>
+          <span class="status-pill">In operation</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn">Export summary</button>
+        <button class="btn btn-primary">Record supplier payment</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab">Roster</div>
+      <div class="tab">Packages</div>
+      <div class="tab">Supplier arrangements</div>
+      <div class="tab active">Financials</div>
+      <div class="tab">Documents &amp; tasks</div>
+    </div>
+
+    <!-- ===== Projected / Confirmed / Actual summary ===== -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>Revenue, cost &amp; margin</h3>
+          <div class="sub">Projected at time of sale · Confirmed once contracted and sold · Actual once billed and received</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="pva-legend">
+          <div class="pva-legend-item"><span class="pva-swatch projected"></span> Projected</div>
+          <div class="pva-legend-item"><span class="pva-swatch confirmed"></span> Confirmed</div>
+          <div class="pva-legend-item"><span class="pva-swatch actual"></span> Actual</div>
+        </div>
+        <div class="grid-2" style="align-items:start; gap:28px;">
+          <table class="pva-table">
+            <thead><tr><th>Measure</th><th class="num">Projected</th><th class="num">Confirmed</th><th class="num">Actual</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Client revenue</td>
+                <td class="num"><span class="val-projected">$96,200</span></td>
+                <td class="num"><span class="val-confirmed">$91,800</span></td>
+                <td class="num"><span class="val-actual">$89,300</span></td>
+              </tr>
+              <tr>
+                <td>Supplier cost</td>
+                <td class="num"><span class="val-projected">$69,900</span></td>
+                <td class="num"><span class="val-confirmed">$73,350</span></td>
+                <td class="num"><span class="val-actual">$74,120</span></td>
+              </tr>
+              <tr class="margin-row">
+                <td>Margin</td>
+                <td class="num"><span class="val-projected">$26,300</span></td>
+                <td class="num"><span class="val-confirmed">$18,450</span></td>
+                <td class="num"><span class="val-actual">$15,180</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div>
+            <div class="bar-chart">
+              <div class="bar-group">
+                <div class="bar-track">
+                  <div class="bar projected" style="height:96px;"><span class="bar-value">$26,300</span></div>
+                </div>
+                <div class="bar-label">Projected</div>
+              </div>
+              <div class="bar-group">
+                <div class="bar-track">
+                  <div class="bar confirmed" style="height:68px;"><span class="bar-value">$18,450</span></div>
+                </div>
+                <div class="bar-label">Confirmed</div>
+              </div>
+              <div class="bar-group">
+                <div class="bar-track">
+                  <div class="bar actual" style="height:56px;"><span class="bar-value">$15,180</span></div>
+                </div>
+                <div class="bar-label">Actual</div>
+              </div>
+            </div>
+            <div class="not-income-note">Margin is a management estimate, not recognized accounting income, at every stage shown here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+
+      <!-- Revenue & cash -->
+      <div class="card">
+        <div class="card-header"><h3>Client revenue &amp; cash received</h3></div>
+        <div class="card-body">
+          <div class="fin-row"><span>Confirmed client revenue</span><span class="amt">$91,800.00</span></div>
+          <div class="fin-row"><span>Cash received (receipts)</span><span class="amt">$84,600.00</span></div>
+          <div class="fin-row sub"><span>Client refunds issued</span><span class="amt">($310.00)</span></div>
+          <div class="fin-row"><span>Client balance outstanding</span><span class="amt">$6,890.00</span></div>
+          <div class="unapplied-callout">
+            <span>⚠ $180.00 unapplied — overpayment on the Park family deposit</span>
+            <span class="link-btn">Apply now</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Supplier cost & payments -->
+      <div class="card">
+        <div class="card-header"><h3>Supplier cost &amp; payments</h3></div>
+        <div class="card-body">
+          <div class="fin-row sub"><span>Fixed supplier cost</span><span class="amt">$6,500.00</span></div>
+          <div class="fin-row sub"><span>Variable supplier cost</span><span class="amt">$66,850.00</span></div>
+          <div class="fin-row"><span>Estimated total cost</span><span class="amt">$69,900.00</span></div>
+          <div class="fin-row"><span>Contracted total cost</span><span class="amt">$73,350.00</span></div>
+          <div class="fin-row"><span>Actual billed cost</span><span class="amt">$74,120.00</span></div>
+          <div class="fin-row"><span>Supplier payments made</span><span class="amt">$61,370.00</span></div>
+          <div class="fin-row danger"><span>Outstanding to suppliers</span><span class="amt">$12,750.00</span></div>
+          <div class="exposure-callout">
+            ⚠ Includes $1,700 guaranteed but unsold — 1 cruise cabin held under the group guarantee with no traveler assigned.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="grid-3">
+
+      <!-- Cash position -->
+      <div class="card">
+        <div class="card-header"><h3>Cash position</h3></div>
+        <div class="card-body">
+          <div class="fin-row sub"><span>Receipts</span><span class="amt">$84,600.00</span></div>
+          <div class="fin-row sub"><span><span class="op">−</span>Client refunds</span><span class="amt">$310.00</span></div>
+          <div class="fin-row sub"><span><span class="op">−</span>Supplier payments</span><span class="amt">$61,370.00</span></div>
+          <div class="fin-row sub"><span><span class="op">+</span>Supplier refunds</span><span class="amt">$0.00</span></div>
+          <div class="fin-row total"><span>Cash position</span><span class="amt">$22,920.00</span></div>
+          <div class="caption">Net agency-controlled cash — not profit. It reflects custody of funds, not what's owed or earned.</div>
+        </div>
+      </div>
+
+      <!-- Break-even & capacity -->
+      <div class="card">
+        <div class="card-header"><h3>Break-even &amp; capacity</h3></div>
+        <div class="card-body">
+          <div class="be-row">
+            <div>
+              <div style="font-size:10.5px; color:var(--dd-text-faint);">BREAK-EVEN ENROLLMENT</div>
+              <div class="be-value">16</div>
+            </div>
+            <div class="be-check">✓ Met — 24 enrolled</div>
+          </div>
+          <div class="mini-stat-row"><span>Remaining capacity</span><span class="v">6 of 30 blocked</span></div>
+          <div class="mini-stat-row"><span>Within guarantee</span><span class="v">1 of 25</span></div>
+          <div class="mini-stat-row"><span>Effective cost per sold traveler</span><span class="v">$3,088.33</span></div>
+        </div>
+      </div>
+
+      <!-- Air settlement rollup -->
+      <div class="card">
+        <div class="card-header"><h3>Air settlement</h3></div>
+        <div class="card-body">
+          <div class="mini-stat-row"><span>Client air value</span><span class="v">$18,000.00</span></div>
+          <div class="mini-stat-row"><span>Supplier-collected directly</span><span class="v">$3,000.00</span></div>
+          <div class="mini-stat-row"><span>Agency-collected air value</span><span class="v">$15,000.00</span></div>
+          <div class="mini-stat-row"><span>Reported ARC/BSP settlement</span><span class="v">$14,250.00</span></div>
+          <div class="mini-stat-row"><span>Ticket commission</span><span class="v">$750.00</span></div>
+          <div class="mini-stat-row"><span>Agency service fees</span><span class="v">$900.00</span></div>
+          <div class="mini-stat-row" style="font-weight:600;"><span>Expected air revenue</span><span class="v">$1,650.00</span></div>
+          <div class="caption">Air is included in group profitability without needing full ARC/BSP settlement-period reconciliation here.</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

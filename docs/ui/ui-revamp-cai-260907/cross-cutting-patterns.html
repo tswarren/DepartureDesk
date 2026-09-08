@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DepartureDesk — Cross-Cutting Patterns</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dd-navy: #002340; --dd-navy-3: #0b3c5e;
+    --dd-teal: #007080; --dd-teal-action: #006270;
+    --dd-amber: #f49a00;
+    --dd-background: #f6f7f5; --dd-surface: #ffffff;
+    --dd-surface-subtle: #eef2f1; --dd-surface-emphasis: #e2ebea;
+    --dd-text: #17212b; --dd-text-muted: #52616d; --dd-text-faint: #71808a;
+    --dd-border: #d4dedf; --dd-border-strong: #aababd;
+    --dd-action: #006270; --dd-action-hover: #004f5b;
+    --dd-focus: #f49a00; --dd-selection: #d7eff0; --dd-selection-text: #003c45;
+    --dd-success: #2f6b4f; --dd-success-surface: #e6f3eb; --dd-success-text: #24523d;
+    --dd-warning: #b87800; --dd-warning-surface: #fff2d6; --dd-warning-text: #694400;
+    --dd-danger: #b5473d; --dd-danger-surface: #fbe9e7; --dd-danger-text: #84332d;
+    --dd-info: #326a8a; --dd-info-surface: #e7f1f7; --dd-info-text: #264f67;
+    --dd-neutral-surface: #edf0f2; --dd-neutral-text: #46525a;
+    --dd-radius-sm: 4px; --dd-radius-md: 7px; --dd-radius-lg: 10px;
+    --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: var(--font-ui); background: var(--dd-background); color: var(--dd-text); font-size:13px; line-height:1.45; }
+  :focus-visible { outline: 2px solid var(--dd-focus); outline-offset:1px; }
+
+  .page { max-width: 1180px; margin:0 auto; padding: 28px 28px 80px; }
+  .page-header h1 { font-size:19px; color: var(--dd-navy); margin:0 0 4px; font-weight:600; }
+  .page-header p { color: var(--dd-text-muted); margin:0; font-size:12.5px; max-width: 720px; }
+
+  section.block { margin-top: 42px; }
+  .block-title { font-size:11px; font-weight:600; color: var(--dd-text-faint); letter-spacing:0.04em; text-transform:uppercase; padding-bottom:8px; margin-bottom:16px; border-bottom:1px solid var(--dd-border); }
+  .block-note { font-size:12px; color: var(--dd-text-muted); margin: -8px 0 18px; max-width: 720px; }
+
+  .card { background: var(--dd-surface); border:1px solid var(--dd-border); border-radius: var(--dd-radius-md); }
+  .card-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--dd-border); }
+  .card-header h3 { font-size:12.5px; font-weight:600; margin:0; }
+  .card-body { padding: 14px 16px; }
+  .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+  .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:18px; }
+
+  .btn { font-family: var(--font-ui); font-size:12.5px; font-weight:500; padding:7px 13px; border-radius: var(--dd-radius-sm); border:1px solid var(--dd-border-strong); background: var(--dd-surface); color: var(--dd-text); cursor:pointer; }
+  .btn:hover { background: var(--dd-surface-subtle); }
+  .btn-primary { background: var(--dd-action); border-color: var(--dd-action); color:white; }
+  .btn-primary:hover { background: var(--dd-action-hover); }
+  .btn-danger { background: var(--dd-danger); border-color: var(--dd-danger); color:white; }
+  .btn-danger:hover { background: #963b32; }
+  .btn-ghost { border-color: transparent; background: transparent; color: var(--dd-text-muted); }
+
+  .caption { font-size:11.5px; color: var(--dd-text-faint); margin-top:10px; }
+
+  /* ============ STATUS PILLS ============ */
+  .status-pill { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:500; padding:4px 10px; border-radius:999px; }
+  .status-inoperation { background: var(--dd-selection); color: var(--dd-selection-text); }
+  .status-confirmed { background: var(--dd-success-surface); color: var(--dd-success-text); }
+  .status-cancelled { background: transparent; color: var(--dd-danger); border: 1px solid var(--dd-danger); }
+  .status-partiallypaid { background: var(--dd-warning-surface); color: var(--dd-warning-text); }
+
+  /* Editable status dropdown trigger */
+  .status-control { position: relative; display:inline-block; }
+  .status-trigger { cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
+  .status-trigger .caret { font-size:9px; opacity:0.7; }
+  .status-menu {
+    position:absolute; top: calc(100% + 6px); left:0; z-index:5; width: 260px;
+    background: var(--dd-surface); border:1px solid var(--dd-border-strong); border-radius: var(--dd-radius-sm);
+    box-shadow: 0 10px 24px rgba(0,35,64,0.14); overflow:hidden;
+  }
+  .status-menu-label { font-size:10px; text-transform:uppercase; letter-spacing:0.03em; color: var(--dd-text-faint); padding:9px 12px 4px; }
+  .status-option { display:flex; align-items:center; justify-content:space-between; padding:9px 12px; font-size:12.5px; cursor:pointer; }
+  .status-option:hover { background: var(--dd-surface-subtle); }
+  .status-option .dest-dot { width:6px; height:6px; border-radius:50%; background: var(--dd-danger); }
+  .status-option.destructive { color: var(--dd-danger); border-top: 1px solid var(--dd-border); }
+  .status-current-marker { font-size:10px; color: var(--dd-text-faint); }
+
+  /* Read-only / derived status */
+  .derived-wrap { display:flex; align-items:center; gap:8px; }
+  .derived-note { font-size:11px; color: var(--dd-text-faint); display:flex; align-items:center; gap:4px; }
+  .lock-icon { font-size:11px; }
+
+  /* Confirmation modal */
+  .modal-shell { background: rgba(23,33,43,0.35); border-radius: var(--dd-radius-lg); padding: 32px 0; display:flex; justify-content:center; }
+  .modal { width: 440px; background: var(--dd-surface); border-radius: var(--dd-radius-lg); box-shadow: 0 20px 48px rgba(0,35,64,0.28); overflow:hidden; }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--dd-border); }
+  .modal-header h2 { font-size:14.5px; margin:0; color: var(--dd-navy); }
+  .modal-body { padding: 16px 20px; font-size:12.5px; color: var(--dd-text); }
+  .warn-callout { background: var(--dd-warning-surface); color: var(--dd-warning-text); border-radius: var(--dd-radius-sm); padding:10px 12px; font-size:11.5px; margin-top:12px; }
+  .warn-callout ul { margin: 6px 0 0; padding-left: 18px; }
+  .warn-callout li { margin-bottom: 3px; }
+  .confirm-checkbox-row { display:flex; align-items:flex-start; gap:8px; margin-top:14px; font-size:12px; }
+  .checkbox { width:15px; height:15px; border:1.5px solid var(--dd-border-strong); border-radius:3px; flex-shrink:0; margin-top:1px; }
+  .modal-footer { padding: 14px 20px; border-top:1px solid var(--dd-border); display:flex; justify-content:flex-end; gap:8px; background: var(--dd-surface-subtle); }
+
+  /* ============ AUDIT TRAIL ============ */
+  .audit-toolbar { display:flex; gap:8px; padding: 0 16px 12px; }
+  .filter-chip { font-size:11px; padding:4px 10px; border-radius: var(--dd-radius-sm); border:1px solid var(--dd-border-strong); background: var(--dd-surface); color: var(--dd-text-muted); cursor:pointer; }
+  .filter-chip.active { background: var(--dd-selection); border-color: var(--dd-teal); color: var(--dd-selection-text); }
+
+  .audit-item { display:flex; gap:12px; padding: 12px 16px; border-bottom:1px solid var(--dd-surface-subtle); }
+  .audit-item:last-child { border-bottom:none; }
+  .audit-avatar { width:24px; height:24px; border-radius:50%; background: var(--dd-navy-3); color:white; font-size:10px; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .audit-avatar.system { background: var(--dd-neutral-surface); color: var(--dd-neutral-text); }
+  .audit-main { flex:1; }
+  .audit-line { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .audit-actor { font-size:12px; font-weight:600; }
+  .audit-time { font-size:10.5px; color: var(--dd-text-faint); }
+  .audit-tag { font-size:9px; text-transform:uppercase; letter-spacing:0.02em; padding:1px 6px; border-radius:3px; background: var(--dd-surface-subtle); color: var(--dd-text-faint); }
+  .audit-tag.financial { background: var(--dd-info-surface); color: var(--dd-info-text); }
+  .audit-tag.correction { background: var(--dd-warning-surface); color: var(--dd-warning-text); }
+  .audit-desc { font-size:12.5px; color: var(--dd-text); margin-top:4px; }
+  .audit-diff { margin-top:6px; font-size:11.5px; font-family: var(--font-mono); background: var(--dd-surface-subtle); border-radius: var(--dd-radius-sm); padding:7px 10px; }
+  .audit-diff .from { color: var(--dd-danger); text-decoration: line-through; }
+  .audit-diff .to { color: var(--dd-success-text); }
+  .audit-reason { font-size:11px; color: var(--dd-text-faint); margin-top:4px; font-style: italic; }
+
+  /* ============ PROJECTED VS ACTUAL ============ */
+  .pva-legend { display:flex; gap:22px; padding: 10px 16px 4px; }
+  .pva-legend-item { display:flex; align-items:center; gap:8px; font-size:11.5px; color: var(--dd-text-muted); }
+  .pva-swatch { width:26px; height:12px; border-radius:2px; }
+  .pva-swatch.projected { background: repeating-linear-gradient(135deg, #b9c6cc 0px, #b9c6cc 3px, transparent 3px, transparent 6px); border: 1px dashed var(--dd-border-strong); }
+  .pva-swatch.confirmed { background: var(--dd-teal); }
+  .pva-swatch.actual { background: var(--dd-navy); }
+
+  table.pva-table { width:100%; border-collapse:collapse; }
+  .pva-table th { text-align:left; font-size:10.5px; color: var(--dd-text-faint); font-weight:600; text-transform:uppercase; letter-spacing:0.02em; padding:8px 12px; border-bottom:1px solid var(--dd-border); }
+  .pva-table th.num { text-align:right; }
+  .pva-table td { padding:10px 12px; border-bottom:1px solid var(--dd-surface-subtle); font-size:12.5px; }
+  .pva-table tr:last-child td { border-bottom:none; }
+  .pva-table td.num { text-align:right; font-family: var(--font-mono); }
+  .val-projected { color: var(--dd-text-muted); font-weight:400; border-bottom: 1px dashed var(--dd-border-strong); padding-bottom:1px; }
+  .val-confirmed { color: var(--dd-teal-action); font-weight:600; }
+  .val-actual { color: var(--dd-navy); font-weight:700; }
+
+  /* Bar comparison */
+  .bar-chart { display:flex; align-items:flex-end; gap:36px; height: 140px; padding: 20px 20px 0; }
+  .bar-group { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .bar-track { display:flex; align-items:flex-end; gap:6px; height: 100px; }
+  .bar { width: 34px; border-radius: 3px 3px 0 0; position:relative; }
+  .bar.projected { background: repeating-linear-gradient(135deg, #cdd8dc 0px, #cdd8dc 4px, #e7edee 4px, #e7edee 8px); border: 1.5px dashed var(--dd-border-strong); border-bottom: none; }
+  .bar.actual { background: var(--dd-navy); }
+  .bar-value { position:absolute; top:-18px; left:50%; transform: translateX(-50%); font-family: var(--font-mono); font-size:10px; color: var(--dd-text-muted); white-space:nowrap; }
+  .bar-label { font-size:11px; color: var(--dd-text-muted); text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="page-header">
+    <h1>Cross-cutting patterns</h1>
+    <p>Three behaviors that show up on nearly every screen: how a status is allowed to change, how a change gets recorded, and how a projected figure stays visually distinct from a confirmed or actual one.</p>
+  </div>
+
+  <!-- ===================== STATUS CHANGES ===================== -->
+  <section class="block">
+    <div class="block-title">Status transitions</div>
+    <div class="block-note">Not every status is user-editable, and not every transition is available from every state. A departure's status is a deliberate choice with real consequences; a payment's status is a fact derived from receipts and shouldn't be set by hand at all.</div>
+
+    <div class="grid-2">
+
+      <!-- Editable status with valid-next-states menu -->
+      <div class="card">
+        <div class="card-header"><h3>Editable — departure status</h3></div>
+        <div class="card-body">
+          <div class="status-control">
+            <div class="status-trigger">
+              <span class="status-pill status-inoperation">In operation</span>
+              <span class="caret">▾</span>
+            </div>
+            <div class="status-menu">
+              <div class="status-menu-label">Move to</div>
+              <div class="status-option"><span>Completed</span><span class="status-current-marker">next stage</span></div>
+              <div class="status-option destructive"><span><span class="dest-dot"></span> Cancel departure</span></div>
+            </div>
+          </div>
+          <div class="caption">Only "Completed" and "Cancel" are offered from "In operation" — skipped-over stages like Draft or Planning aren't shown as options once a departure has moved forward.</div>
+        </div>
+      </div>
+
+      <!-- Derived / read-only status -->
+      <div class="card">
+        <div class="card-header"><h3>Derived — payment status</h3></div>
+        <div class="card-body">
+          <div class="derived-wrap">
+            <span class="status-pill status-partiallypaid">Partially paid</span>
+            <span class="derived-note"><span class="lock-icon">🔒</span> Calculated from receipts</span>
+          </div>
+          <div class="caption">No dropdown — this status isn't set by a person. It's recalculated automatically whenever a receipt is applied, so it can never drift out of sync with the actual balance.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CONFIRMATION MODAL ===================== -->
+  <section class="block">
+    <div class="block-title">Consequential transitions get a confirmation</div>
+    <div class="block-note">Cancelling a departure doesn't cancel its client trips or supplier obligations — those are tracked independently on purpose. The confirmation exists to state that plainly before the click, not to slow people down generically.</div>
+
+    <div class="modal-shell">
+      <div class="modal">
+        <div class="modal-header"><h2>Cancel this departure?</h2></div>
+        <div class="modal-body">
+          Smith Family Reunion Cruise — July 12, 2027 will be marked <strong>Cancelled</strong>.
+          <div class="warn-callout">
+            ⚠ This does not automatically:
+            <ul>
+              <li>Cancel the 14 client trips on this departure</li>
+              <li>Release or cancel the 5 supplier arrangements</li>
+              <li>Refund any client receipts or supplier payments</li>
+            </ul>
+            Each of those needs to be handled on its own record.
+          </div>
+          <div class="confirm-checkbox-row">
+            <div class="checkbox"></div>
+            <span>I understand client trips and supplier arrangements are unaffected</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost">Go back</button>
+          <button class="btn btn-danger">Cancel departure</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== AUDIT TRAIL ===================== -->
+  <section class="block">
+    <div class="block-title">Audit trail</div>
+    <div class="block-note">Every entry is a plain statement of what changed, by whom — no narration, no apology. Financial and correction entries are tagged so they can be filtered; a correction to an already-confirmed fact is visually distinct from a routine edit.</div>
+
+    <div class="card">
+      <div class="audit-toolbar">
+        <span class="filter-chip active">All activity</span>
+        <span class="filter-chip">Financial</span>
+        <span class="filter-chip">Status changes</span>
+        <span class="filter-chip">Assignments</span>
+      </div>
+
+      <div class="audit-item">
+        <div class="audit-avatar">CN</div>
+        <div class="audit-main">
+          <div class="audit-line">
+            <span class="audit-actor">Casey Nguyen</span>
+            <span class="audit-tag">Status</span>
+            <span class="audit-time">Jul 28, 2027 · 9:14 AM</span>
+          </div>
+          <div class="audit-desc">Changed departure status</div>
+          <div class="audit-diff"><span class="from">Confirmed</span> → <span class="to">In operation</span></div>
+        </div>
+      </div>
+
+      <div class="audit-item">
+        <div class="audit-avatar">CN</div>
+        <div class="audit-main">
+          <div class="audit-line">
+            <span class="audit-actor">Casey Nguyen</span>
+            <span class="audit-tag financial">Financial</span>
+            <span class="audit-time">Jul 24, 2027 · 3:02 PM</span>
+          </div>
+          <div class="audit-desc">Changed responsibility allocation on CT-10422</div>
+          <div class="audit-diff">Margaret Whitfield: <span class="from">100%</span> → <span class="to">60%</span><br>Daniel Whitfield: <span class="from">0%</span> → <span class="to">40%</span> <span style="color:var(--dd-text-faint); font-family: var(--font-ui);">(added)</span></div>
+        </div>
+      </div>
+
+      <div class="audit-item">
+        <div class="audit-avatar system">◆</div>
+        <div class="audit-main">
+          <div class="audit-line">
+            <span class="audit-actor">System</span>
+            <span class="audit-tag financial">Financial</span>
+            <span class="audit-time">Jul 24, 2027 · 3:02 PM</span>
+          </div>
+          <div class="audit-desc">Recalculated payment status on CT-10422 following allocation change</div>
+        </div>
+      </div>
+
+      <div class="audit-item">
+        <div class="audit-avatar">JR</div>
+        <div class="audit-main">
+          <div class="audit-line">
+            <span class="audit-actor">Jordan Reyes</span>
+            <span class="audit-tag correction">Correction</span>
+            <span class="audit-time">Jul 20, 2027 · 11:40 AM</span>
+          </div>
+          <div class="audit-desc">Corrected contracted cost on supplier arrangement SA-2207 <span style="color:var(--dd-text-faint); font-weight:400;">(already confirmed)</span></div>
+          <div class="audit-diff">Contracted cost: <span class="from">$12,000.00</span> → <span class="to">$12,450.00</span></div>
+          <div class="audit-reason">Reason: Supplier issued a revised invoice after final headcount</div>
+        </div>
+      </div>
+
+      <div class="audit-item">
+        <div class="audit-avatar">CN</div>
+        <div class="audit-main">
+          <div class="audit-line">
+            <span class="audit-actor">Casey Nguyen</span>
+            <span class="audit-tag">Assignment</span>
+            <span class="audit-time">Jul 15, 2027 · 1:18 PM</span>
+          </div>
+          <div class="audit-desc">Reassigned traveler David Ortiz from Cabin 8140 to Cabin 8142 — responsibility allocation unchanged</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">A "Correction" is a distinct category from a normal edit — it's reserved for changing a fact that was already confirmed, always carries a reason, and never silently overwrites the prior value in the visible history.</div>
+  </section>
+
+  <!-- ===================== PROJECTED VS ACTUAL ===================== -->
+  <section class="block">
+    <div class="block-title">Projected vs. confirmed vs. actual</div>
+    <div class="block-note">The same figure can exist in three states of certainty at once. The distinction is carried by fill and weight — dashed and muted, solid teal, solid navy and bold — never by hue alone, so it still reads correctly for someone who can't distinguish color.</div>
+
+    <div class="card">
+      <div class="pva-legend">
+        <div class="pva-legend-item"><span class="pva-swatch projected"></span> Projected — lighter, dashed</div>
+        <div class="pva-legend-item"><span class="pva-swatch confirmed"></span> Confirmed — solid teal</div>
+        <div class="pva-legend-item"><span class="pva-swatch actual"></span> Actual — solid navy, bold</div>
+      </div>
+      <div class="card-body">
+        <table class="pva-table">
+          <thead><tr><th>Measure</th><th class="num">Projected</th><th class="num">Confirmed</th><th class="num">Actual</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Client revenue</td>
+              <td class="num"><span class="val-projected">$96,200</span></td>
+              <td class="num"><span class="val-confirmed">$91,800</span></td>
+              <td class="num"><span class="val-actual">$89,300</span></td>
+            </tr>
+            <tr>
+              <td>Supplier cost</td>
+              <td class="num"><span class="val-projected">$71,750</span></td>
+              <td class="num"><span class="val-confirmed">$73,350</span></td>
+              <td class="num"><span class="val-actual">$74,120</span></td>
+            </tr>
+            <tr>
+              <td>Margin</td>
+              <td class="num"><span class="val-projected">$24,450</span></td>
+              <td class="num"><span class="val-confirmed">$18,450</span></td>
+              <td class="num"><span class="val-actual">$15,180</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header"><h3>Margin — projected vs. actual</h3></div>
+      <div class="bar-chart">
+        <div class="bar-group">
+          <div class="bar-track">
+            <div class="bar projected" style="height:88px;"><span class="bar-value">$24,450</span></div>
+            <div class="bar actual" style="height:55px;"><span class="bar-value">$15,180</span></div>
+          </div>
+          <div class="bar-label">This departure</div>
+        </div>
+        <div class="bar-group">
+          <div class="bar-track">
+            <div class="bar projected" style="height:70px;"><span class="bar-value">$19,800</span></div>
+            <div class="bar actual" style="height:74px;"><span class="bar-value">$20,600</span></div>
+          </div>
+          <div class="bar-label">2026 program avg.</div>
+        </div>
+      </div>
+      <div class="caption" style="padding: 0 16px 14px;">The projected bar keeps its hatch pattern and dashed edge even at a glance or in grayscale — the visual language of "not yet real" survives independent of the navy/teal hue.</div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

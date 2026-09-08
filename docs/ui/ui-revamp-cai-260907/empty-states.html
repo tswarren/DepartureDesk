@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DepartureDesk — Empty States</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dd-navy: #002340; --dd-navy-3: #0b3c5e;
+    --dd-teal: #007080; --dd-teal-action: #006270;
+    --dd-amber: #f49a00;
+    --dd-background: #f6f7f5; --dd-surface: #ffffff;
+    --dd-surface-subtle: #eef2f1; --dd-surface-emphasis: #e2ebea;
+    --dd-text: #17212b; --dd-text-muted: #52616d; --dd-text-faint: #71808a;
+    --dd-border: #d4dedf; --dd-border-strong: #aababd;
+    --dd-action: #006270; --dd-action-hover: #004f5b;
+    --dd-focus: #f49a00; --dd-selection: #d7eff0; --dd-selection-text: #003c45;
+    --dd-success: #2f6b4f; --dd-success-surface: #e6f3eb; --dd-success-text: #24523d;
+    --dd-warning: #b87800; --dd-warning-surface: #fff2d6; --dd-warning-text: #694400;
+    --dd-danger: #b5473d; --dd-danger-surface: #fbe9e7; --dd-danger-text: #84332d;
+    --dd-info: #326a8a; --dd-info-surface: #e7f1f7; --dd-info-text: #264f67;
+    --dd-neutral-surface: #edf0f2; --dd-neutral-text: #46525a;
+    --dd-radius-sm: 4px; --dd-radius-md: 7px; --dd-radius-lg: 10px;
+    --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: var(--font-ui); background: var(--dd-background); color: var(--dd-text); font-size:13px; line-height:1.45; }
+  :focus-visible { outline: 2px solid var(--dd-focus); outline-offset:1px; }
+
+  .page { max-width: 1180px; margin:0 auto; padding: 28px 28px 80px; }
+  .page-header h1 { font-size:19px; color: var(--dd-navy); margin:0 0 4px; font-weight:600; }
+  .page-header p { color: var(--dd-text-muted); margin:0; font-size:12.5px; }
+
+  section.block { margin-top: 38px; }
+  .block-title { font-size:11px; font-weight:600; color: var(--dd-text-faint); letter-spacing:0.04em; text-transform:uppercase; padding-bottom:8px; margin-bottom:16px; border-bottom:1px solid var(--dd-border); }
+  .block-note { font-size:12px; color: var(--dd-text-muted); margin: -8px 0 16px; max-width: 720px; }
+
+  /* Card shell mimicking real screen surfaces */
+  .card { background: var(--dd-surface); border:1px solid var(--dd-border); border-radius: var(--dd-radius-md); overflow:hidden; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--dd-border); }
+  .card-header h3 { font-size:12.5px; font-weight:600; margin:0; }
+  .card-header .count { font-family: var(--font-mono); font-size:10.5px; color: var(--dd-text-faint); margin-left:5px; }
+
+  .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+  .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:18px; }
+
+  /* Full empty state — centered */
+  .empty-full {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding: 44px 30px;
+  }
+  .empty-full.dashed {
+    border: 1.5px dashed var(--dd-border-strong); border-radius: var(--dd-radius-md);
+    background: var(--dd-surface);
+  }
+  .empty-icon { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:17px; margin-bottom:14px; background: var(--dd-surface-subtle); color: var(--dd-text-muted); }
+  .empty-icon.positive { background: var(--dd-success-surface); color: var(--dd-success-text); }
+  .empty-title { font-size:13.5px; font-weight:600; color: var(--dd-text); margin-bottom:5px; }
+  .empty-body { font-size:12px; color: var(--dd-text-muted); max-width: 320px; margin-bottom: 16px; }
+  .empty-body:last-child { margin-bottom: 0; }
+
+  .btn { font-family: var(--font-ui); font-size:12.5px; font-weight:500; padding:7px 14px; border-radius: var(--dd-radius-sm); border:1px solid var(--dd-border-strong); background: var(--dd-surface); color: var(--dd-text); cursor:pointer; }
+  .btn:hover { background: var(--dd-surface-subtle); }
+  .btn-primary { background: var(--dd-action); border-color: var(--dd-action); color:white; }
+  .btn-primary:hover { background: var(--dd-action-hover); border-color: var(--dd-action-hover); }
+  .btn-link { border:none; background:none; color: var(--dd-action); font-weight:500; padding:0; }
+  .btn-link:hover { text-decoration:underline; }
+
+  /* Inline / compact empty state, for use inside a smaller card section */
+  .empty-inline {
+    display:flex; align-items:center; gap:12px;
+    padding: 16px 4px;
+  }
+  .empty-inline .empty-icon { margin-bottom:0; width:32px; height:32px; font-size:14px; flex-shrink:0; }
+  .empty-inline .empty-text { flex:1; }
+  .empty-inline .empty-title { margin-bottom:2px; }
+  .empty-inline .empty-body { margin-bottom:0; max-width: none; }
+
+  .card-body-pad { padding: 4px 16px 16px; }
+
+  .caption { font-size:11.5px; color: var(--dd-text-faint); margin-top:10px; }
+  .scenario-label { font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em; color: var(--dd-text-faint); font-weight:600; margin-bottom:8px; }
+
+  .callout { display:flex; gap:8px; align-items:flex-start; background: var(--dd-info-surface); color: var(--dd-info-text); border-radius: var(--dd-radius-sm); padding:10px 12px; font-size:11.5px; margin-top: 14px; }
+  .callout.warn { background: var(--dd-warning-surface); color: var(--dd-warning-text); }
+
+  /* filter chip for the "no results" example */
+  .toolbar { display:flex; align-items:center; gap:8px; padding: 10px 16px; border-bottom: 1px solid var(--dd-border); }
+  .search-box { display:flex; align-items:center; gap:6px; background: var(--dd-surface); border:1px solid var(--dd-border-strong); border-radius: var(--dd-radius-sm); padding:6px 10px; font-size:12px; color: var(--dd-text); width: 220px; }
+  .filter-chip { font-size:11.5px; padding:4px 9px; border-radius: var(--dd-radius-sm); border:1px solid var(--dd-teal); background: var(--dd-selection); color: var(--dd-selection-text); }
+
+  /* Error state variant */
+  .empty-icon.error { background: var(--dd-danger-surface); color: var(--dd-danger-text); }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="page-header">
+    <h1>Empty states</h1>
+    <p>Every empty state explains what's missing and what to do about it — in the interface's voice, never apologetic or vague. Not all of them need a call to action.</p>
+  </div>
+
+  <!-- ===================== ACTIONABLE: NO DATA YET ===================== -->
+  <section class="block">
+    <div class="block-title">No data yet — actionable</div>
+    <div class="block-note">The most common case: nothing has been created here yet, and the fix is one specific action. The dashed border signals "not yet populated," distinct from a solid-bordered card that's simply empty by filtering.</div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-header"><h3>Roster <span class="count">0</span></h3></div>
+        <div class="card-body-pad">
+          <div class="empty-full dashed">
+            <div class="empty-icon">👥</div>
+            <div class="empty-title">No client trips yet</div>
+            <div class="empty-body">Client trips will appear here once travelers are added to this departure.</div>
+            <button class="btn btn-primary">＋ Add client trip</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Supplier arrangements <span class="count">0</span></h3></div>
+        <div class="card-body-pad">
+          <div class="empty-full dashed">
+            <div class="empty-icon">📄</div>
+            <div class="empty-title">No supplier arrangements yet</div>
+            <div class="empty-body">Record what the agency has contracted or requested with suppliers for this departure.</div>
+            <button class="btn btn-primary">＋ Add supplier arrangement</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Packages <span class="count">0</span></h3></div>
+        <div class="card-body-pad">
+          <div class="empty-full dashed">
+            <div class="empty-icon">📦</div>
+            <div class="empty-title">No packages defined</div>
+            <div class="empty-body">Create a package before opening this departure for sale.</div>
+            <button class="btn btn-primary">＋ Create package</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== POSITIVE EMPTY ===================== -->
+  <section class="block">
+    <div class="block-title">Nothing outstanding — positive</div>
+    <div class="block-note">Not every empty state signals a gap to fill. When zero is the good outcome, say so plainly instead of reusing the "get started" treatment — no dashed border, no urgency, and usually no button.</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><h3>Client balances</h3></div>
+        <div class="card-body-pad">
+          <div class="empty-full">
+            <div class="empty-icon positive">✓</div>
+            <div class="empty-title">No client balances due</div>
+            <div class="empty-body">Every confirmed client trip on this departure is paid in full.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Tasks &amp; deadlines</h3></div>
+        <div class="card-body-pad">
+          <div class="empty-full">
+            <div class="empty-icon positive">✓</div>
+            <div class="empty-title">All caught up</div>
+            <div class="empty-body">No outstanding tasks or approaching deadlines for this departure.</div>
+            <button class="btn-link">＋ Add a task anyway</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== NO RESULTS (FILTERED) ===================== -->
+  <section class="block">
+    <div class="block-title">No results — filtered or searched</div>
+    <div class="block-note">Different from "no data yet": the data exists, the current view just doesn't match it. The fix is to change the search or filter, not to create something, so the action is secondary, not the primary teal button.</div>
+
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-box">🔍 "Callahan-Reyes"</div>
+        <div class="filter-chip">Balance due ✕</div>
+      </div>
+      <div class="card-body-pad">
+        <div class="empty-full">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-title">No matches for "Callahan-Reyes"</div>
+          <div class="empty-body">Check the spelling, or clear the "Balance due" filter to see all client trips.</div>
+          <button class="btn">Clear filters</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== INLINE / COMPACT ===================== -->
+  <section class="block">
+    <div class="block-title">Inline empty states — within an existing section</div>
+    <div class="block-note">When the empty state lives inside a card that already has other content around it (like a profile page), it doesn't need its own full treatment — left-aligned, smaller icon, no dashed frame competing with the card's own border.</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><h3>Contact information</h3></div>
+        <div class="card-body-pad">
+          <div class="empty-inline">
+            <div class="empty-icon">✉</div>
+            <div class="empty-text">
+              <div class="empty-title">No contact information on file</div>
+              <div class="empty-body">Add an email, phone, or postal address to reach this party.</div>
+            </div>
+            <button class="btn">＋ Add</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Household &amp; relationships</h3></div>
+        <div class="card-body-pad">
+          <div class="empty-inline">
+            <div class="empty-icon">🏠</div>
+            <div class="empty-text">
+              <div class="empty-title">Not linked to a household</div>
+              <div class="empty-body">Household membership affects insurance eligibility and shared statements.</div>
+            </div>
+            <button class="btn-link">＋ Add relationship</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PERMISSION-SAFE EMPTY (NOTES) ===================== -->
+  <section class="block">
+    <div class="block-title">Permission-safe empty states</div>
+    <div class="block-note">The tricky case: administrator-only notes must be invisible to staff "including counts and empty states." That means a staff member looking at a party with only an admin-only note must see the exact same screen as a party with genuinely zero notes — not a hint, not a different count, not a slightly different message.</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="scenario-label" style="padding: 12px 16px 0;">Scenario A — no notes exist at all</div>
+        <div class="card-header"><h3>Notes <span class="count">0</span></h3></div>
+        <div class="card-body-pad">
+          <div class="empty-full">
+            <div class="empty-icon">📝</div>
+            <div class="empty-title">No notes yet</div>
+            <div class="empty-body">Add a note to start tracking context for this party.</div>
+            <button class="btn">＋ Add note</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="scenario-label" style="padding: 12px 16px 0;">Scenario B — one admin-only note exists, viewed as staff</div>
+        <div class="card-header"><h3>Notes <span class="count">0</span></h3></div>
+        <div class="card-body-pad">
+          <div class="empty-full">
+            <div class="empty-icon">📝</div>
+            <div class="empty-title">No notes yet</div>
+            <div class="empty-body">Add a note to start tracking context for this party.</div>
+            <button class="btn">＋ Add note</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="callout warn">
+      ⚠ These two must render identically, pixel for pixel — same count, same title, same body. If Scenario B ever differs (a "1 hidden note" hint, a different empty-state copy, even a slower load), the interface has leaked that restricted content exists.
+    </div>
+  </section>
+
+  <!-- ===================== ERROR VS EMPTY ===================== -->
+  <section class="block">
+    <div class="block-title">Error vs. empty — don't conflate them</div>
+    <div class="block-note">An empty state means the request succeeded and there's genuinely nothing there. A failed request is a different problem with a different fix, and should never be dressed up as an empty state.</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><h3>Supplier arrangements</h3></div>
+        <div class="card-body-pad">
+          <div class="empty-full dashed">
+            <div class="empty-icon">📄</div>
+            <div class="empty-title">No supplier arrangements yet</div>
+            <div class="empty-body">Record what the agency has contracted or requested with suppliers for this departure.</div>
+            <button class="btn btn-primary">＋ Add supplier arrangement</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Supplier arrangements</h3></div>
+        <div class="card-body-pad">
+          <div class="empty-full">
+            <div class="empty-icon error">⚠</div>
+            <div class="empty-title">Couldn't load supplier arrangements</div>
+            <div class="empty-body">The connection was interrupted. Nothing has been lost.</div>
+            <button class="btn">Retry</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Empty: neutral icon, dashed frame, creation action. Error: danger-surface icon, solid frame, retry action — and a reassurance that no data was lost, since a dense financial tool is exactly where a false "empty" reading would cause real harm.</div>
+  </section>
+
+</div>
+
+</body>
+</html>

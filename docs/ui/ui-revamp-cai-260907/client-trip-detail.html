@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DepartureDesk — Client Trip Detail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dd-navy: #002340; --dd-navy-3: #0b3c5e;
+    --dd-teal: #007080; --dd-teal-action: #006270;
+    --dd-amber: #f49a00;
+    --dd-background: #f6f7f5; --dd-surface: #ffffff;
+    --dd-surface-subtle: #eef2f1; --dd-surface-emphasis: #e2ebea;
+    --dd-text: #17212b; --dd-text-muted: #52616d; --dd-text-faint: #71808a;
+    --dd-text-on-dark: #ffffff; --dd-text-on-dark-muted: #aebfd0;
+    --dd-border: #d4dedf; --dd-border-strong: #aababd;
+    --dd-action: #006270; --dd-action-hover: #004f5b; --dd-action-active: #003f49;
+    --dd-focus: #f49a00; --dd-selection: #d7eff0; --dd-selection-text: #003c45;
+    --dd-success: #2f6b4f; --dd-success-surface: #e6f3eb; --dd-success-text: #24523d;
+    --dd-warning: #b87800; --dd-warning-surface: #fff2d6; --dd-warning-text: #694400;
+    --dd-danger: #b5473d; --dd-danger-surface: #fbe9e7; --dd-danger-text: #84332d;
+    --dd-info: #326a8a; --dd-info-surface: #e7f1f7; --dd-info-text: #264f67;
+    --dd-neutral-surface: #edf0f2; --dd-neutral-text: #46525a;
+    --dd-radius-sm: 4px; --dd-radius-md: 7px; --dd-radius-lg: 10px;
+    --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: var(--font-ui); background: var(--dd-background); color: var(--dd-text); font-size:13px; line-height:1.45; }
+  :focus-visible { outline: 2px solid var(--dd-focus); outline-offset:1px; }
+
+  .shell { display:grid; grid-template-columns: 208px 1fr; grid-template-rows: 52px 1fr; grid-template-areas: "topbar topbar" "nav main"; height:100vh; }
+  .topbar { grid-area: topbar; background: var(--dd-navy); display:flex; align-items:center; padding:0 16px; gap:16px; }
+  .brand { color: var(--dd-text-on-dark); font-weight:600; font-size:14px; display:flex; align-items:center; gap:8px; }
+  .brand-mark { width:20px; height:20px; border-radius:5px; background: linear-gradient(135deg, var(--dd-teal), var(--dd-navy-3)); }
+  .office-switch { color: var(--dd-text-on-dark-muted); font-size:12px; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius: var(--dd-radius-sm); padding:5px 10px; }
+  .global-search { flex:1; max-width:420px; display:flex; align-items:center; gap:6px; background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-radius: var(--dd-radius-sm); padding:6px 10px; color: var(--dd-text-on-dark-muted); font-size:12.5px; }
+  .spacer { flex:1; }
+  .avatar-top { width:28px; height:28px; border-radius:50%; background: var(--dd-teal); color:white; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+
+  .nav { grid-area: nav; background: var(--dd-navy); padding:14px 10px; }
+  .nav-section-label { color: rgba(255,255,255,0.38); font-size:10.5px; padding:10px 10px 6px; letter-spacing:0.03em; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius: var(--dd-radius-sm); color: var(--dd-text-on-dark-muted); font-size:13px; border-left:2px solid transparent; margin-bottom:1px; }
+  .nav-item.active { background: rgba(255,255,255,0.07); color: var(--dd-text-on-dark); border-left:2px solid var(--dd-teal); font-weight:500; }
+  .nav-item .dot { width:6px; height:6px; border-radius:50%; background: currentColor; opacity:0.55; }
+  .nav-item.active .dot { background: var(--dd-teal); opacity:1; }
+
+  .main { grid-area: main; overflow-y:auto; padding: 18px 24px 60px; }
+
+  .breadcrumb { font-size:12px; color: var(--dd-text-faint); margin-bottom:12px; }
+  .breadcrumb a { color: var(--dd-text-muted); text-decoration:none; }
+  .breadcrumb a:hover { color: var(--dd-action); }
+  .breadcrumb .sep { margin:0 6px; color: var(--dd-border-strong); }
+
+  /* Header */
+  .trip-header { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:16px; }
+  .trip-title-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .trip-title { font-size:19px; font-weight:600; color: var(--dd-navy); margin:0; }
+  .code-chip { font-family: var(--font-mono); font-size:11px; color: var(--dd-text-muted); background: var(--dd-surface-subtle); border:1px solid var(--dd-border); border-radius: var(--dd-radius-sm); padding:2px 7px; }
+  .status-pill { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:500; padding:3px 9px; border-radius:999px; }
+  .status-confirmed { background: var(--dd-success-surface); color: var(--dd-success-text); }
+  .trip-meta { margin-top:6px; color: var(--dd-text-muted); font-size:12.5px; display:flex; gap:6px; flex-wrap:wrap; }
+  .trip-meta a { color: var(--dd-text-muted); text-decoration: none; border-bottom: 1px dotted var(--dd-border-strong); }
+  .trip-meta a:hover { color: var(--dd-action); border-color: var(--dd-action); }
+  .trip-meta .sep { color: var(--dd-border-strong); }
+  .header-actions { display:flex; gap:8px; flex-shrink:0; }
+  .btn { font-family: var(--font-ui); font-size:12.5px; font-weight:500; padding:7px 13px; border-radius: var(--dd-radius-sm); border:1px solid var(--dd-border-strong); background: var(--dd-surface); color: var(--dd-text); cursor:pointer; }
+  .btn:hover { background: var(--dd-surface-subtle); }
+  .btn-primary { background: var(--dd-action); border-color: var(--dd-action); color:white; }
+  .btn-primary:hover { background: var(--dd-action-hover); border-color: var(--dd-action-hover); }
+  .btn-icon-only { width:32px; padding:0; display:flex; align-items:center; justify-content:center; }
+
+  /* Stat strip */
+  .stat-strip { display:grid; grid-template-columns: repeat(6, 1fr); background: var(--dd-surface); border:1px solid var(--dd-border); border-radius: var(--dd-radius-md); margin-bottom:18px; overflow:hidden; }
+  .stat { padding:11px 16px; border-right:1px solid var(--dd-border); }
+  .stat:last-child { border-right:none; }
+  .stat-label { font-size:10.5px; color: var(--dd-text-faint); margin-bottom:4px; }
+  .stat-value { font-family: var(--font-mono); font-size:16.5px; font-weight:600; color: var(--dd-navy); line-height:1.2; }
+  .stat-value.amber { color: #8a5a00; }
+  .stat-sub { font-size:10.5px; color: var(--dd-text-faint); margin-top:2px; font-family: var(--font-ui); }
+
+  /* Tabs */
+  .tabs { display:flex; gap:2px; border-bottom:1px solid var(--dd-border); margin-bottom:18px; }
+  .tab { padding:9px 4px; margin-right:20px; font-size:13px; color: var(--dd-text-muted); cursor:pointer; border-bottom:2px solid transparent; position:relative; top:1px; }
+  .tab.active { color: var(--dd-navy); font-weight:600; border-bottom:2px solid var(--dd-teal); }
+  .tab .badge { font-family: var(--font-mono); font-size:10px; color: var(--dd-text-faint); margin-left:4px; }
+
+  /* Section cards */
+  .section-grid { display:grid; grid-template-columns: 1.15fr 1fr; gap:18px; align-items:start; margin-bottom: 18px;}
+  .card { background: var(--dd-surface); border:1px solid var(--dd-border); border-radius: var(--dd-radius-md); }
+  .card-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--dd-border); }
+  .card-header h3 { font-size:12.5px; font-weight:600; margin:0; }
+  .card-header .count { font-family: var(--font-mono); font-size:10.5px; color: var(--dd-text-faint); margin-left:5px; }
+  .link-btn { font-size:11.5px; color: var(--dd-action); font-weight:500; cursor:pointer; }
+  .link-btn:hover { color: var(--dd-action-hover); text-decoration:underline; }
+  .card-body { padding: 4px 16px 14px; }
+  .full-width { margin-bottom: 18px; }
+
+  /* Party rows */
+  .party-row { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--dd-surface-subtle); }
+  .party-row:last-child { border-bottom:none; }
+  .party-avatar { width:28px; height:28px; border-radius:50%; background: var(--dd-navy-3); color:white; font-size:10.5px; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .party-avatar.traveler { background: var(--dd-surface-subtle); color: var(--dd-text-muted); }
+  .party-main { flex:1; }
+  .party-name { font-size:12.5px; font-weight:500; }
+  .party-role { font-size:11px; color: var(--dd-text-faint); }
+  .alloc-pct { font-family: var(--font-mono); font-size:12px; color: var(--dd-navy); font-weight:600; }
+  .primary-badge { font-size:9.5px; text-transform:uppercase; letter-spacing:0.02em; background: var(--dd-selection); color: var(--dd-selection-text); padding:1px 6px; border-radius:3px; margin-left:6px; }
+
+  .info-callout { display:flex; gap:8px; align-items:flex-start; background: var(--dd-info-surface); color: var(--dd-info-text); border-radius: var(--dd-radius-sm); padding:9px 11px; font-size:11.5px; margin-top:10px; }
+
+  /* Inline empty state (traveling party) */
+  .empty-inline { display:flex; align-items:center; gap:12px; padding: 6px 0; }
+  .empty-icon-sm { width:30px; height:30px; border-radius:50%; background: var(--dd-surface-subtle); color: var(--dd-text-muted); display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
+  .empty-title-sm { font-size:12.5px; font-weight:600; margin-bottom:2px; }
+  .empty-body-sm { font-size:11.5px; color: var(--dd-text-faint); }
+
+  /* Service components table */
+  table.comp-table { width:100%; border-collapse:collapse; }
+  .comp-table th { text-align:left; font-size:10.5px; color: var(--dd-text-faint); font-weight:600; text-transform:uppercase; letter-spacing:0.02em; padding:8px 6px; border-bottom:1px solid var(--dd-border); }
+  .comp-table th.num { text-align:right; }
+  .comp-table td { padding:9px 6px; border-bottom:1px solid var(--dd-surface-subtle); font-size:12.5px; vertical-align:top; }
+  .comp-table tr:last-child td { border-bottom:none; }
+  .comp-table td.num { text-align:right; font-family: var(--font-mono); }
+  .comp-name { font-weight:500; }
+  .comp-conf { font-size:10.5px; color: var(--dd-text-faint); margin-top:2px; font-family: var(--font-mono); }
+  .inclusion-tag { font-size:9.5px; text-transform:uppercase; letter-spacing:0.02em; padding:1px 6px; border-radius:3px; }
+  .inclusion-tag.included { background: var(--dd-neutral-surface); color: var(--dd-neutral-text); }
+  .inclusion-tag.optional { background: var(--dd-amber-surface, #fff2d6); color: #694400; }
+  .comp-status { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; }
+  .comp-status.confirmed { background: var(--dd-success-surface); color: var(--dd-success-text); }
+  .comp-status.requested { background: var(--dd-info-surface); color: var(--dd-info-text); }
+  .comp-status.notselected { background: var(--dd-neutral-surface); color: var(--dd-neutral-text); }
+
+  .add-optional-row { display:flex; align-items:center; gap:12px; padding:10px 6px; border-top: 1px dashed var(--dd-border); margin-top:4px; }
+
+  /* Payment schedule table */
+  table.pay-table { width:100%; border-collapse:collapse; }
+  .pay-table th { text-align:left; font-size:10.5px; color: var(--dd-text-faint); font-weight:600; text-transform:uppercase; letter-spacing:0.02em; padding:8px 6px; border-bottom:1px solid var(--dd-border); }
+  .pay-table th.num { text-align:right; }
+  .pay-table td { padding:9px 6px; border-bottom:1px solid var(--dd-surface-subtle); font-size:12.5px; }
+  .pay-table tr:last-child td { border-bottom:none; }
+  .pay-table td.num { text-align:right; font-family: var(--font-mono); }
+  .pay-status { font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; }
+  .pay-status.paid { background: var(--dd-success-surface); color: var(--dd-success-text); }
+  .pay-status.due { background: var(--dd-amber-surface, #fff2d6); color: #694400; }
+
+  .caption { font-size:11.5px; color: var(--dd-text-faint); margin-top:8px; padding: 0 2px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark"></span> DepartureDesk</div>
+    <div class="office-switch">Harbor office ▾</div>
+    <div class="global-search">🔍 Search travelers, clients, departures…</div>
+    <div class="spacer"></div>
+    <div class="avatar-top">CT</div>
+  </div>
+
+  <div class="nav">
+    <div class="nav-section-label">WORKSPACE</div>
+    <div class="nav-item"><span class="dot"></span> Dashboard</div>
+    <div class="nav-item"><span class="dot"></span> Departures</div>
+    <div class="nav-item active"><span class="dot"></span> Client trips</div>
+    <div class="nav-item"><span class="dot"></span> Parties</div>
+    <div class="nav-item"><span class="dot"></span> Suppliers</div>
+    <div class="nav-section-label">MONEY</div>
+    <div class="nav-item"><span class="dot"></span> Receipts</div>
+    <div class="nav-item"><span class="dot"></span> Supplier payments</div>
+    <div class="nav-item"><span class="dot"></span> Reports</div>
+  </div>
+
+  <div class="main">
+
+    <div class="breadcrumb">
+      <a href="#">Departures</a><span class="sep">/</span>
+      <a href="#">Smith Family Reunion Cruise — Jul 12, 2027</a><span class="sep">/</span>
+      Whitfield family
+    </div>
+
+    <div class="trip-header">
+      <div>
+        <div class="trip-title-row">
+          <h1 class="trip-title">Whitfield family</h1>
+          <span class="code-chip">CT-10422</span>
+          <span class="status-pill status-confirmed">Confirmed</span>
+        </div>
+        <div class="trip-meta">
+          <span>Primary client: <a href="#">Margaret Whitfield</a></span>
+          <span class="sep">·</span>
+          <span>Package: Ocean View — Deluxe</span>
+          <span class="sep">·</span>
+          <span>4 travelers</span>
+          <span class="sep">·</span>
+          <span>Harbor office</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn">＋ Add service component</button>
+        <button class="btn btn-primary">Record receipt</button>
+        <button class="btn btn-icon-only">⋯</button>
+      </div>
+    </div>
+
+    <!-- Stat strip -->
+    <div class="stat-strip">
+      <div class="stat">
+        <div class="stat-label">CLIENT PRICE</div>
+        <div class="stat-value">$7,580</div>
+        <div class="stat-sub">package + optional services</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">PAID TO DATE</div>
+        <div class="stat-value">$1,500</div>
+        <div class="stat-sub">1 receipt applied</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">CLIENT BALANCE</div>
+        <div class="stat-value amber">$6,080</div>
+        <div class="stat-sub">1 installment remaining</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">NEXT INSTALLMENT</div>
+        <div class="stat-value" style="font-size:14px;">Aug 1, 2027</div>
+        <div class="stat-sub">final payment · $6,080</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">TRAVELERS</div>
+        <div class="stat-value">4</div>
+        <div class="stat-sub">2 adults, 2 minors</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">RESPONSIBLE CLIENTS</div>
+        <div class="stat-value">1</div>
+        <div class="stat-sub">Margaret Whitfield · 100%</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active">Overview</div>
+      <div class="tab">Service components<span class="badge">3</span></div>
+      <div class="tab">Payment schedule &amp; receipts<span class="badge">2</span></div>
+      <div class="tab">Documents &amp; terms<span class="badge">2</span></div>
+      <div class="tab">Communications<span class="badge">3</span></div>
+    </div>
+
+    <!-- ===== OVERVIEW TAB CONTENT ===== -->
+
+    <div class="section-grid">
+
+      <!-- Parties -->
+      <div class="card">
+        <div class="card-header"><h3>Parties</h3></div>
+        <div class="card-body">
+
+          <div class="party-row">
+            <div class="party-avatar">MW</div>
+            <div class="party-main">
+              <div class="party-name">Margaret Whitfield <span class="primary-badge">Primary client</span></div>
+              <div class="party-role">Responsible client · Payer · Traveler</div>
+            </div>
+            <div class="alloc-pct">100%</div>
+          </div>
+
+          <div class="party-row">
+            <div class="party-avatar traveler">DW</div>
+            <div class="party-main">
+              <div class="party-name">Daniel Whitfield</div>
+              <div class="party-role">Traveler · Adult</div>
+            </div>
+          </div>
+
+          <div class="party-row">
+            <div class="party-avatar traveler">EW</div>
+            <div class="party-main">
+              <div class="party-name">Ella Whitfield</div>
+              <div class="party-role">Traveler · Child, age 11</div>
+            </div>
+          </div>
+
+          <div class="party-row">
+            <div class="party-avatar traveler">TW</div>
+            <div class="party-main">
+              <div class="party-name">Thomas Whitfield</div>
+              <div class="party-role">Traveler · Child, age 8</div>
+            </div>
+          </div>
+
+          <div class="info-callout">
+            ⓘ Daniel, Ella, and Thomas receive services on this client trip without being financially responsible for them — only Margaret carries a responsibility allocation.
+          </div>
+        </div>
+      </div>
+
+      <!-- Traveling party + household context -->
+      <div>
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-header"><h3>Traveling party</h3></div>
+          <div class="card-body">
+            <div class="empty-inline">
+              <div class="empty-icon-sm">⛴</div>
+              <div>
+                <div class="empty-title-sm">Not part of a traveling party</div>
+                <div class="empty-body-sm">This cabin isn't shared with another client trip.</div>
+              </div>
+              <span class="link-btn" style="margin-left:auto;">＋ Link</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Client-facing summary</h3></div>
+          <div class="card-body">
+            <div style="font-size:12px; color: var(--dd-text-muted); line-height:1.6;">
+              7-night Eastern Caribbean cruise aboard an Ocean View – Deluxe cabin for the Whitfield family, departing July 12, 2027. Includes all onboard meals and port transfers. One optional excursion added.
+            </div>
+            <div style="margin-top:8px;"><span class="link-btn">Edit client-facing description</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Service components -->
+    <div class="card full-width">
+      <div class="card-header">
+        <h3>Service components <span class="count">3</span></h3>
+        <span class="link-btn">＋ Add service component</span>
+      </div>
+      <div class="card-body">
+        <table class="comp-table">
+          <thead>
+            <tr>
+              <th style="width:34%;">Component</th>
+              <th>Travelers</th>
+              <th>Status</th>
+              <th class="num">Client price</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="comp-name">Ocean View — Deluxe cabin passage <span class="inclusion-tag included">Included</span></div>
+                <div class="comp-conf">Cabin confirmation: RC-8142-W</div>
+              </td>
+              <td>Margaret, Daniel, Ella, Thomas</td>
+              <td><span class="comp-status confirmed">Confirmed</span></td>
+              <td class="num">$7,340.00</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="comp-name">Vineyard excursion — Half day <span class="inclusion-tag optional">Optional</span></div>
+                <div class="comp-conf">Excursion reservation: VYD-2291</div>
+              </td>
+              <td>Margaret, Daniel</td>
+              <td><span class="comp-status requested">Requested</span></td>
+              <td class="num">$240.00</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="comp-name">Travel insurance <span class="inclusion-tag optional">Optional</span></div>
+                <div class="comp-conf">Not purchased</div>
+              </td>
+              <td>—</td>
+              <td><span class="comp-status notselected">Not selected</span></td>
+              <td class="num" style="color: var(--dd-text-faint);">—</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="add-optional-row">
+          <span style="font-size:11.5px; color: var(--dd-text-faint);">Household policy eligibility available for this cabin's occupants.</span>
+          <span class="link-btn" style="margin-left:auto;">＋ Add travel insurance</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment schedule -->
+    <div class="card full-width">
+      <div class="card-header">
+        <h3>Payment schedule &amp; receipts</h3>
+        <span class="link-btn">View all receipts</span>
+      </div>
+      <div class="card-body">
+        <table class="pay-table">
+          <thead>
+            <tr><th>Installment</th><th>Due date</th><th class="num">Amount</th><th class="num">Received</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Deposit</td>
+              <td>Jul 1, 2027</td>
+              <td class="num">$1,500.00</td>
+              <td class="num">$1,500.00</td>
+              <td><span class="pay-status paid">Paid</span></td>
+            </tr>
+            <tr>
+              <td>Final payment</td>
+              <td>Aug 1, 2027</td>
+              <td class="num">$6,080.00</td>
+              <td class="num" style="color: var(--dd-text-faint);">$0.00</td>
+              <td><span class="pay-status due">Due</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="caption">Receipt of $1,500.00 on Jul 3, 2027 via card, applied in full to the deposit installment.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
