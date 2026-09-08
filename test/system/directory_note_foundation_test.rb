@@ -4,9 +4,11 @@ class DirectoryNoteFoundationTest < ApplicationSystemTestCase
   test "standard note correction and administrator-only isolation" do
     sign_in_from_browser users(:one)
     open_directory_party "Alex Morgan"
-    within("nav[aria-label=Party]") { click_link "Notes" }
-    assert_field "New note"
+    click_party_tab "Notes"
     wait_for_turbo
+    click_link "Add note"
+    wait_for_turbo
+    assert_field "New note"
     fill_in "New note", with: "Likes aisle seats on the group air."
     click_button "Add note"
     assert_text "Likes aisle seats on the group air."
@@ -21,10 +23,14 @@ class DirectoryNoteFoundationTest < ApplicationSystemTestCase
     end
     assert_text "Prefers window seats on the group air."
     click_link "History"
+    wait_for_turbo
     assert_text "Likes aisle seats on the group air."
     assert_text "Superseded"
     click_link "Current"
-
+    wait_for_turbo
+    click_link "Add note"
+    wait_for_turbo
+    assert_field "New note"
     fill_in "New note", with: "Internal credit discussion."
     check "Administrator-only note"
     click_button "Add note"
@@ -33,9 +39,10 @@ class DirectoryNoteFoundationTest < ApplicationSystemTestCase
     click_button "Sign out"
     sign_in_from_browser users(:staff_one)
     open_directory_party "Alex Morgan"
-    within("nav[aria-label=Party]") { click_link "Notes" }
-    assert_field "New note"
+    click_party_tab "Notes"
     wait_for_turbo
+    assert_link "Add note"
+    assert_no_field "New note"
     assert_text "Prefers window seats on the group air."
     assert_no_text "Internal credit discussion."
     assert_no_text "Administrator only"

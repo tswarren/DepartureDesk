@@ -749,6 +749,9 @@
   }
 
   .dd-attention-callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     border: 1px solid var(--dd-warning);
     border-radius: var(--dd-radius-md);
     background: var(--dd-warning-surface);
@@ -1242,6 +1245,16 @@
     gap: 1rem;
   }
 
+  .dd-form-surface {
+    display: grid;
+    max-width: 42rem;
+    gap: 1rem;
+  }
+
+  .dd-form-surface .dd-form {
+    max-width: none;
+  }
+
   .dd-form-section {
     display: grid;
     gap: 1rem;
@@ -1580,6 +1593,44 @@
   .dd-contact-actions form {
     display: inline;
     margin: 0;
+  }
+
+  .dd-row-more {
+    position: relative;
+    display: inline-block;
+  }
+
+  .dd-row-more > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .dd-row-more > summary::-webkit-details-marker,
+  .dd-row-more > summary::marker {
+    display: none;
+    content: none;
+  }
+
+  .dd-row-more-panel {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    right: 0;
+    z-index: 12;
+    min-width: 10rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-md);
+    background: var(--dd-surface);
+    padding: 0.5rem 0.65rem;
+    box-shadow: var(--dd-shadow);
+  }
+
+  .dd-row-more-panel .dd-row-action,
+  .dd-row-more-panel form {
+    display: block;
   }
 
   .dd-contact-extra {

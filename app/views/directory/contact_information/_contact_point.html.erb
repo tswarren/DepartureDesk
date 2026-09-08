@@ -1,31 +1,61 @@
 <% purposes = current_purpose_assignments(contact_point, today) %>
-<% actions = capture do %>
-  <% if contact_point.active? %>
-    <%= link_to "Edit", edit_directory_party_contact_point_path(party, contact_point), class: "dd-row-action" %>
-    <%= link_to "Assign purpose", new_directory_party_contact_point_purpose_path(party, contact_point), class: "dd-row-action" %>
-    <% if contact_point.eligible_destination? %>
-      <%= link_to "Set primary",
-        directory_party_contact_information_path(party, acting: "set_primary", contact_id: contact_point.id, status: params[:status]),
-        class: "dd-row-action" %>
-    <% end %>
-    <% if contact_point.suppressed? %>
-      <%= button_to "Allow use",
-        unsuppress_directory_party_contact_point_path(party, contact_point),
-        method: :post,
-        class: "dd-row-action" %>
-    <% else %>
-      <%= link_to "Do not use",
-        directory_party_contact_information_path(party, acting: "suppress", contact_id: contact_point.id, status: params[:status]),
-        class: "dd-row-action" %>
-    <% end %>
-    <%= link_to "Deactivate",
-      directory_party_contact_information_path(party, acting: "deactivate", contact_id: contact_point.id, status: params[:status]),
-      class: "dd-row-action" %>
+<% actions = [] %>
+<% if contact_point.active? %>
+  <% actions << { type: :link, key: :edit, label: "Edit", url: edit_directory_party_contact_point_path(party, contact_point) } %>
+  <% actions << { type: :link, key: :assign_purpose, label: "Assign purpose", url: new_directory_party_contact_point_purpose_path(party, contact_point) } %>
+  <% if contact_point.eligible_destination? %>
+    <% actions << {
+      type: :link,
+      key: :set_primary,
+      label: "Set primary",
+      url: directory_party_contact_information_path(party, acting: "set_primary", contact_id: contact_point.id, status: params[:status])
+    } %>
+  <% end %>
+  <% if contact_point.suppressed? %>
+    <% actions << {
+      type: :button,
+      key: :allow_use,
+      label: "Allow use",
+      url: unsuppress_directory_party_contact_point_path(party, contact_point),
+      method: :post
+    } %>
   <% else %>
-    <%= button_to "Reactivate",
-      reactivate_directory_party_contact_point_path(party, contact_point),
-      method: :post,
-      class: "dd-row-action" %>
+    <% actions << {
+      type: :link,
+      key: :do_not_use,
+      label: "Do not use",
+      url: directory_party_contact_information_path(party, acting: "suppress", contact_id: contact_point.id, status: params[:status])
+    } %>
+  <% end %>
+  <% actions << {
+    type: :link,
+    key: :deactivate,
+    label: "Deactivate",
+    url: directory_party_contact_information_path(party, acting: "deactivate", contact_id: contact_point.id, status: params[:status])
+  } %>
+<% else %>
+  <% actions << {
+    type: :button,
+    key: :reactivate,
+    label: "Reactivate",
+    url: reactivate_directory_party_contact_point_path(party, contact_point),
+    method: :post
+  } %>
+<% end %>
+<% visible_actions, overflow_actions = split_contact_row_actions(actions) %>
+<% captured = capture do %>
+  <% visible_actions.each do |action| %>
+    <%= render "directory/contact_information/row_action", action: action %>
+  <% end %>
+  <% if overflow_actions.any? %>
+    <details class="dd-row-more">
+      <summary class="dd-row-action">More</summary>
+      <div class="dd-row-more-panel">
+        <% overflow_actions.each do |action| %>
+          <%= render "directory/contact_information/row_action", action: action %>
+        <% end %>
+      </div>
+    </details>
   <% end %>
 <% end %>
 <li class="dd-list-item dd-contact-item">
@@ -36,7 +66,7 @@
     compact: false,
     maintain: true,
     status: contact_point_status_badge(contact_point),
-    actions: actions %>
+    actions: captured %>
 
   <% if selected_action?("set_primary", id: contact_point.id, param: :contact_id) && contact_point.eligible_destination? %>
     <div class="dd-contact-extra">

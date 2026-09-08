@@ -45,6 +45,7 @@ class DirectoryContactFoundationTest < ApplicationSystemTestCase
     assert_text "Primary contact updated."
 
     within("li.dd-list-item", text: "alex.personal@example.com") do
+      find("summary", exact_text: "More").click
       click_link "Do not use"
     end
     within("li.dd-list-item", text: "alex.personal@example.com") do

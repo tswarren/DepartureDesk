@@ -1,6 +1,7 @@
 module Directory
   class PartiesController < ApplicationController
     class_attribute :page_size, default: 50
+    OVERVIEW_CONTACT_LIMIT = 4
 
     before_action :set_party, only: %i[show edit update confirm_deactivate deactivate reactivate]
 
@@ -44,10 +45,7 @@ module Directory
         .limit(3)
       @overview_note_count = @party.notes.visible_to(Current.agency_membership).active_records.count
       @overview_identifiers = @party.directory_external_identifiers.merge(ExternalIdentifier.current).order(:identifier_type, :id).limit(5)
-      @overview_contacts = @party.contact_points.current
-        .includes(:email_address, :phone_number, :postal_address, :purpose_assignments)
-        .order(:contact_kind, :id)
-        .select(&:eligible_destination?)
+      assign_overview_contacts
     end
 
     def new
@@ -218,6 +216,25 @@ module Directory
 
     def lifecycle_params
       params.permit(:reason, :lock_version)
+    end
+
+    def assign_overview_contacts
+      eligible = @party.contact_points.current
+        .includes(:email_address, :phone_number, :postal_address, :purpose_assignments)
+        .order(:contact_kind, :id)
+        .select(&:eligible_destination?)
+      by_id = eligible.index_by(&:id)
+      ordered_ids = []
+      @primary_assignments.each do |assignment|
+        id = assignment.contact_point_id
+        next unless by_id.key?(id)
+        ordered_ids << id unless ordered_ids.include?(id)
+      end
+      eligible.each do |contact_point|
+        ordered_ids << contact_point.id unless ordered_ids.include?(contact_point.id)
+      end
+      @overview_contact_total = ordered_ids.size
+      @overview_contacts = ordered_ids.first(OVERVIEW_CONTACT_LIMIT).filter_map { |id| by_id[id] }
     end
   end
 end

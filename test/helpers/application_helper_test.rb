@@ -91,6 +91,32 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_includes html, "currentColor"
   end
 
+  test "split_contact_row_actions keeps three or fewer visible and never emits empty overflow" do
+    three = [
+      { key: :edit, label: "Edit" },
+      { key: :assign_purpose, label: "Assign purpose" },
+      { key: :deactivate, label: "Deactivate" }
+    ]
+    visible, overflow = split_contact_row_actions(three)
+
+    assert_equal three, visible
+    assert_empty overflow
+  end
+
+  test "split_contact_row_actions keeps edit and a preferred action when more than three exist" do
+    actions = [
+      { key: :edit, label: "Edit" },
+      { key: :assign_purpose, label: "Assign purpose" },
+      { key: :set_primary, label: "Set primary" },
+      { key: :do_not_use, label: "Do not use" },
+      { key: :deactivate, label: "Deactivate" }
+    ]
+    visible, overflow = split_contact_row_actions(actions)
+
+    assert_equal [ "Edit", "Set primary" ], visible.map { |action| action[:label] }
+    assert_equal [ "Assign purpose", "Do not use", "Deactivate" ], overflow.map { |action| action[:label] }
+  end
+
   test "dots three icon fills circles with currentColor" do
     html = icon_tag("dots_three")
 

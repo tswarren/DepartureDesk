@@ -64,7 +64,7 @@
     ["commission_notes", "Commission notes", @profile.commission_notes, "commission"],
     ["cancellation_policy_notes", "Cancellation policy notes", @profile.cancellation_policy_notes, "cancellation"]
   ].each do |name, label, value, anchor| %>
-    <% open = @profile.errors[name].any? || params[:open].to_s == name || request.path.include?("##{anchor}") %>
+    <% open = @profile.errors[name].any? || params[:open].to_s == name %>
     <details class="dd-disclosure" id="<%= anchor %>" <%= "open" if open %>>
       <summary>
         <%= label %>

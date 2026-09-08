@@ -220,19 +220,18 @@ module ApplicationHelper
     end
   end
 
-  def overview_primary_contact_text(assignments)
-    direct = assignments.select { |row| row.general? && %w[email phone].include?(row.contact_kind) }
-    chosen = direct.first || assignments.find(&:general?) || assignments.first
-    return "None" unless chosen
+  CONTACT_ROW_PREFERRED_KEYS = %i[allow_use reactivate set_primary].freeze
 
-    chosen.contact_point.display_value.to_s.split("\n").first
-  end
+  def split_contact_row_actions(actions)
+    return [ actions, [] ] if actions.size <= 3
 
-  def overview_responsible_office_text(client_profile, supplier_profile)
-    profile = [ supplier_profile, client_profile ].compact.find(&:active?) || supplier_profile || client_profile
-    return "—" unless profile
-
-    responsible_office_text(profile)
+    first = actions.find { |action| action[:label] == "Edit" } || actions.first
+    remaining = actions.reject { |action| action.equal?(first) }
+    second = CONTACT_ROW_PREFERRED_KEYS.filter_map { |key| remaining.find { |action| action[:key] == key } }.first
+    second ||= remaining.first
+    visible = [ first, second ].compact.uniq
+    overflow = actions.reject { |action| visible.include?(action) }
+    [ visible, overflow ]
   end
 
   def overview_supplier_services_text(party, supplier_profile)

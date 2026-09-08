@@ -220,6 +220,8 @@ module Directory
       get directory_party_path(party)
       assert_response :success
       assert_includes response.body, "primary.inbox@example.com"
+      assert_select "a", text: "Manage"
+      assert_select "a", text: /View all \d+/, count: 0
 
       SuppressPartyContactPoint.new(
         agency: agencies(:one),
@@ -234,6 +236,8 @@ module Directory
       assert_not_includes response.body, "primary.inbox@example.com"
       assert_includes response.body, "need attention"
       assert_includes response.body, "marked do not use or deactivated"
+      assert_select ".dd-attention-callout"
+      assert_select ".dd-info-callout", count: 0
 
       UnsuppressPartyContactPoint.new(
         agency: agencies(:one),
@@ -253,6 +257,38 @@ module Directory
       assert_response :success
       assert_not_includes response.body, "primary.inbox@example.com"
       assert_includes response.body, "need attention"
+    end
+
+    test "overview caps distinct contacts and labels view all when more than four exist" do
+      sign_in_as(users(:one))
+      person = create_person!(agencies(:one), given_name: "Overview", family_name: "Contacts")
+      party = person.party
+      shared = create_email_contact!(party, address: "shared.primary@example.com", actor: users(:one))
+      SetContactPointPrimary.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        contact_point: shared,
+        purpose: "general"
+      ).call
+      SetContactPointPrimary.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        party:,
+        contact_point: shared,
+        purpose: "billing"
+      ).call
+      5.times do |index|
+        create_email_contact!(party, address: "extra#{index}@example.com", actor: users(:one))
+      end
+
+      get directory_party_path(party)
+      assert_response :success
+      assert_select "a", text: "View all 6"
+      assert_select ".dd-content-grid--main-aside > .dd-stack > article:first-child .dd-contact-value", count: 4
+      assert_includes response.body, "shared.primary@example.com"
+      assert_not_includes response.body, "extra3@example.com"
+      assert_not_includes response.body, "extra4@example.com"
     end
 
     test "staff can deactivate an unblocked party and include it when requested" do

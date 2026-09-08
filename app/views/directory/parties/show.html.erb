@@ -6,8 +6,12 @@
   <div class="dd-stack">
     <article class="dd-panel">
       <header class="dd-panel-header">
-        <h2 class="dd-panel-title">Contact information <span class="dd-count dd-type-mono"><%= @overview_contacts.size %></span></h2>
-        <%= link_to "Add", directory_party_contact_information_path(@party), class: "dd-row-action" %>
+        <h2 class="dd-panel-title">Contact information <span class="dd-count dd-type-mono"><%= @overview_contact_total %></span></h2>
+        <% if @overview_contact_total > 4 %>
+          <%= link_to "View all #{@overview_contact_total}", directory_party_contact_information_path(@party), class: "dd-row-action" %>
+        <% else %>
+          <%= link_to "Manage", directory_party_contact_information_path(@party), class: "dd-row-action" %>
+        <% end %>
       </header>
       <div class="dd-panel-body">
         <% if @overview_contacts.any? %>
@@ -65,7 +69,7 @@
 
   <aside class="dd-stack">
     <% if @attention.count.positive? %>
-      <div class="dd-info-callout" role="status">
+      <div class="dd-attention-callout">
         <%= icon_tag "warning_circle", html_class: "dd-icon dd-icon--sm" %>
         <div>
           <strong><%= pluralize(@attention.count, "item") %> need attention</strong>
@@ -81,7 +85,10 @@
     <article class="dd-panel dd-panel--compact dd-notes-panel">
       <header class="dd-panel-header">
         <h2 class="dd-panel-title">Notes <span class="dd-count dd-type-mono"><%= @overview_note_count %></span></h2>
-        <%= link_to "View all", directory_party_notes_path(@party), class: "dd-row-action" %>
+        <div class="dd-button-group">
+          <%= link_to "Add note", directory_party_notes_path(@party, adding: 1), class: "dd-row-action" %>
+          <%= link_to "View all", directory_party_notes_path(@party), class: "dd-row-action" %>
+        </div>
       </header>
       <div class="dd-notes-list">
         <% if @overview_notes.any? %>
@@ -89,10 +96,9 @@
             <%= render "directory/shared/note_row", party: @party, note: note, compact: true %>
           <% end %>
         <% else %>
-          <%= render "directory/shared/inline_empty", title: "No notes yet", copy: "Servicing context is recorded here." %>
+          <%= render "directory/shared/inline_empty", title: "No notes yet", copy: "Servicing context is recorded here.", action_label: "Add note", action_path: directory_party_notes_path(@party, adding: 1) %>
         <% end %>
       </div>
-      <%= render "directory/shared/add_note", party: @party, suffix: "overview", return_to: "overview" %>
     </article>
 
     <article class="dd-panel dd-panel--compact">

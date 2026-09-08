@@ -6,6 +6,7 @@
   show_primary_action: false,
   title: "Edit client details" %>
 
+<div class="dd-form-surface">
 <%= form_with url: directory_party_client_profile_path(@party), method: :patch, class: "dd-form" do %>
   <input type="hidden" name="client_profile[lock_version]" value="<%= @profile.lock_version %>">
   <article class="dd-panel">
@@ -83,3 +84,4 @@
     <% end %>
   </div>
 </article>
+</div>

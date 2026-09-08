@@ -24,8 +24,29 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     wait_until_turbo_session
   end
 
-  def click_link_and_expect(locator, heading:, **click_options)
-    expect_heading_after(heading) { click_link locator, **click_options }
+  def click_link_and_expect(locator, heading:, path: nil, **click_options)
+    TURBO_CLICK_ATTEMPTS.times do |attempt|
+      begin
+        wait_for_turbo
+        arrived = has_selector?("h1.dd-page-title", exact_text: heading, wait: 0)
+        arrived &&= path.nil? || current_path == path
+        unless arrived
+          link = find("a", exact_text: locator, **click_options)
+          if path
+            assert_equal path, URI.parse(link[:href]).path
+          end
+          scroll_to(link, align: :center)
+          link.click
+          wait_for_turbo
+        end
+        assert_selector "h1.dd-page-title", exact_text: heading
+        assert_equal path, current_path if path
+        wait_for_turbo
+        return
+      rescue Capybara::ExpectationNotMet, Capybara::ElementNotFound, Minitest::Assertion
+        raise if attempt == TURBO_CLICK_ATTEMPTS - 1
+      end
+    end
   end
 
   def click_button_and_expect(locator, text:, **click_options)
@@ -120,12 +141,14 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     TURBO_CLICK_ATTEMPTS.times do |attempt|
       begin
         wait_for_turbo
-        unless has_selector?("nav[aria-label=Party] a[aria-current=page]", exact_text: name, wait: 0)
-          href = within("nav[aria-label=Party]") { find("a", exact_text: name)[:href] }
+        href = within("nav[aria-label=Party]") { find("a", exact_text: name)[:href] }
+        target_path = URI.parse(href).path
+        unless current_path == target_path
           visit href
           wait_for_turbo
         end
         assert_selector "nav[aria-label=Party] a[aria-current=page]", exact_text: name
+        assert_equal target_path, current_path
         wait_for_turbo
         return
       rescue Capybara::ExpectationNotMet, Capybara::ElementNotFound, Minitest::Assertion

@@ -35,6 +35,10 @@ module Directory
       assert_select "li.dd-contact-item .dd-contact-row--maintain"
       assert_select "li.dd-contact-item .dd-contact-status", text: "Active"
       assert_select "li.dd-contact-item .dd-contact-actions a", text: "Edit"
+      assert_select "li.dd-contact-item .dd-contact-actions a", text: "Set primary"
+      assert_select "li.dd-contact-item details.dd-row-more summary", text: "More"
+      assert_select "li.dd-contact-item details.dd-row-more a", text: "Do not use"
+      assert_select "li.dd-contact-item .dd-contact-actions > a", text: "Do not use", count: 0
     end
 
     test "staff can create contact information" do

@@ -1,0 +1,5 @@
+<% if action[:type] == :button %>
+  <%= button_to action[:label], action[:url], method: action.fetch(:method, :post), class: "dd-row-action" %>
+<% else %>
+  <%= link_to action[:label], action[:url], class: "dd-row-action" %>
+<% end %>

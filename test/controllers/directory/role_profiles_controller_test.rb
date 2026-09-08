@@ -276,6 +276,17 @@ module Directory
       assert_equal "Weekday calls only.", profile.servicing_restrictions
     end
 
+    test "supplier edit opens a disclosure from the open parameter" do
+      sign_in_as(users(:one))
+      party = parties(:organization_one)
+      assign_supplier_role!(party, actor: users(:one))
+
+      get edit_directory_party_supplier_profile_path(party, open: "booking_instructions")
+      assert_response :success
+      assert_select "details#booking[open]"
+      assert_select "details#payment[open]", count: 0
+    end
+
     test "staff can add a supplier category from the party page" do
       sign_in_as(users(:staff_one))
       party = parties(:organization_one)
