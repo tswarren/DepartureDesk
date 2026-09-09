@@ -6,6 +6,11 @@ class DepartureCommand < MembershipCommand
     offices: [],
     program: nil,
     departure: nil,
+    supplier_arrangements: [],
+    supplier_reservations: [],
+    supplier_resources: [],
+    supplier_service_occurrences: [],
+    supplier_confirmations: [],
     parties: [],
     memberships: [],
     team_assignments: [],
@@ -29,6 +34,31 @@ class DepartureCommand < MembershipCommand
         departure.lock!
         departure.reload
         ensure_departure_belongs_to_agency!(agency, departure)
+      end
+      Array(supplier_arrangements).compact.uniq.sort_by(&:id).each do |arrangement|
+        arrangement.lock!
+        arrangement.reload
+        ensure_supplier_arrangement_belongs_to_agency!(agency, arrangement)
+      end
+      Array(supplier_reservations).compact.uniq.sort_by(&:id).each do |reservation|
+        reservation.lock!
+        reservation.reload
+        ensure_supplier_reservation_belongs_to_agency!(agency, reservation)
+      end
+      Array(supplier_resources).compact.uniq.sort_by(&:id).each do |resource|
+        resource.lock!
+        resource.reload
+        ensure_supplier_resource_belongs_to_agency!(agency, resource)
+      end
+      Array(supplier_service_occurrences).compact.uniq.sort_by(&:id).each do |occurrence|
+        occurrence.lock!
+        occurrence.reload
+        ensure_supplier_service_occurrence_belongs_to_agency!(agency, occurrence)
+      end
+      Array(supplier_confirmations).compact.uniq.sort_by(&:id).each do |confirmation|
+        confirmation.lock!
+        confirmation.reload
+        ensure_supplier_confirmation_belongs_to_agency!(agency, confirmation)
       end
       Array(parties).compact.uniq.sort_by(&:id).each do |party|
         party.lock!
@@ -82,6 +112,55 @@ class DepartureCommand < MembershipCommand
     return if party.agency_id == agency.id
 
     raise Error.new("That party is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_arrangement_belongs_to_agency!(agency, arrangement)
+    return if arrangement.agency_id == agency.id
+
+    raise Error.new("That supplier arrangement is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_reservation_belongs_to_agency!(agency, reservation)
+    return if reservation.agency_id == agency.id
+
+    raise Error.new("That supplier reservation is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_resource_belongs_to_agency!(agency, resource)
+    return if resource.agency_id == agency.id
+
+    raise Error.new("That supplier resource is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_service_occurrence_belongs_to_agency!(agency, occurrence)
+    return if occurrence.agency_id == agency.id
+
+    raise Error.new("That supplier service occurrence is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_confirmation_belongs_to_agency!(agency, confirmation)
+    return if confirmation.agency_id == agency.id
+
+    raise Error.new("That supplier confirmation is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_active_supplier_party!(party)
+    return if party&.active? && party.supplier_profile&.active?
+
+    raise Error.new("Choose an active supplier.", code: :invalid)
+  end
+
+  def ensure_active_same_agency_party!(party)
+    return if party&.active?
+
+    raise Error.new("Choose an active party.", code: :invalid)
+  end
+
+  def ensure_departure_can_receive_supplier_planning!(departure)
+    unless departure.nonterminal?
+      raise Error.new("Supplier planning can only be added to a draft or planning departure.", code: :invalid_state)
+    end
+    ensure_active_office!(departure.office)
   end
 
   def ensure_office_access!(membership, office)

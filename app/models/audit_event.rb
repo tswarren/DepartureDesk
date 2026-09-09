@@ -79,6 +79,22 @@ class AuditEvent < ApplicationRecord
     departure.party_role_assigned
     departure.party_role_ended
     departure.party_role_primary_changed
+    supplier_arrangement.created
+    supplier_arrangement.updated
+    supplier_arrangement.activated
+    supplier_arrangement.cancelled
+    supplier_arrangement.reparented
+    supplier_reservation.created
+    supplier_reservation.updated
+    supplier_reservation.submitted
+    supplier_reservation.confirmed
+    supplier_reservation.cancelled
+    supplier_resource.created
+    supplier_resource.updated
+    supplier_resource.deactivated
+    supplier_service_occurrence.created
+    supplier_confirmation.created
+    supplier_confirmation.superseded
   ].freeze
 
   ACTOR_KINDS = %w[

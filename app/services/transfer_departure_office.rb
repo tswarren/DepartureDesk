@@ -35,6 +35,10 @@ class TransferDepartureOffice < DepartureCommand
     ensure_active_office!(@office)
     return CommandResult.new(status: :accepted, departure: @departure) if @office.id == @departure.office_id
 
+    if @departure.supplier_arrangements.exists?
+      raise Error.new("This departure already has supplier planning and cannot change offices.", code: :office_transfer_frozen)
+    end
+
     inaccessible = @departure.team_assignments.current.includes(:agency_membership).filter_map { |assignment|
       membership = assignment.agency_membership
       next if membership.can_access_office?(@office)

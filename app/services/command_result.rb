@@ -1,7 +1,7 @@
 class CommandResult
-  attr_reader :status, :membership, :office, :assignment, :party, :message, :contact_point, :purpose_assignment, :relationship, :note, :client_profile, :supplier_profile, :duplicate_match, :travel_program, :departure
+  attr_reader :status, :membership, :office, :assignment, :party, :message, :contact_point, :purpose_assignment, :relationship, :note, :client_profile, :supplier_profile, :duplicate_match, :travel_program, :departure, :supplier_arrangement, :supplier_reservation, :supplier_resource, :supplier_service_occurrence, :supplier_confirmation
 
-  def initialize(status:, membership: nil, office: nil, assignment: nil, party: nil, message: nil, contact_point: nil, purpose_assignment: nil, relationship: nil, note: nil, client_profile: nil, supplier_profile: nil, duplicate_match: nil, travel_program: nil, departure: nil)
+  def initialize(status:, membership: nil, office: nil, assignment: nil, party: nil, message: nil, contact_point: nil, purpose_assignment: nil, relationship: nil, note: nil, client_profile: nil, supplier_profile: nil, duplicate_match: nil, travel_program: nil, departure: nil, supplier_arrangement: nil, supplier_reservation: nil, supplier_resource: nil, supplier_service_occurrence: nil, supplier_confirmation: nil)
     @status = status
     @membership = membership
     @office = office
@@ -17,6 +17,11 @@ class CommandResult
     @duplicate_match = duplicate_match
     @travel_program = travel_program
     @departure = departure
+    @supplier_arrangement = supplier_arrangement
+    @supplier_reservation = supplier_reservation
+    @supplier_resource = supplier_resource
+    @supplier_service_occurrence = supplier_service_occurrence
+    @supplier_confirmation = supplier_confirmation
   end
 
   def ok?

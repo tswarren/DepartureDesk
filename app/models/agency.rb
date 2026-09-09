@@ -23,6 +23,10 @@ class Agency < ApplicationRecord
     has_many :departures, dependent: :restrict_with_exception
     has_many :departure_team_assignments, dependent: :restrict_with_exception
     has_many :departure_party_role_assignments, dependent: :restrict_with_exception
+    has_many :supplier_arrangements, dependent: :restrict_with_exception
+    has_many :supplier_reservations, dependent: :restrict_with_exception
+    has_many :supplier_resources, dependent: :restrict_with_exception
+    has_many :supplier_confirmations, dependent: :restrict_with_exception
     has_one :departure_reference_counter, dependent: :restrict_with_exception
 
     STATUSES = %w[

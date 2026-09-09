@@ -117,6 +117,24 @@ PartyDeactivationDependencies.register("departure_party_roles") do |agency:, par
     }
 end
 
+PartyDeactivationDependencies.register("supplier_planning") do |agency:, party:, **|
+  supplier_items = SupplierArrangement.nonterminal
+    .joins(:departure)
+    .where(agency_id: agency.id, supplier_party_id: party.id, departures: { status: Departure::NONTERMINAL_STATUSES })
+    .includes(:departure)
+    .order(:id)
+    .map { |arrangement| "#{arrangement.departure.departure_reference} #{arrangement.name} (supplier arrangement)" }
+
+  provider_items = SupplierArrangement.nonterminal
+    .joins(:departure)
+    .where(agency_id: agency.id, service_provider_party_id: party.id, departures: { status: Departure::NONTERMINAL_STATUSES })
+    .includes(:departure)
+    .order(:id)
+    .map { |arrangement| "#{arrangement.departure.departure_reference} #{arrangement.name} (service provider)" }
+
+  supplier_items + provider_items
+end
+
 PartyDeactivationDependencies.register("primary_purposes") do |party:, today:, **|
   RelationshipPurposeAssignment.record_valid.primary
     .joins(:party_relationship)
