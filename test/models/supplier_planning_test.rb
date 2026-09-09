@@ -109,6 +109,56 @@ class SupplierPlanningTest < ActiveSupport::TestCase
     assert_equal :cycle, error.code
   end
 
+  test "cost term basis excludes committed stage at the database" do
+    arrangement = create_arrangement!
+    row = cost_term_row(arrangement:)
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierCostTerm.transaction(requires_new: true) do
+        SupplierCostTerm.insert_all!([ row.merge(basis: "committed") ])
+      end
+    end
+  end
+
+  test "per person details require explicit planning or guaranteed quantity" do
+    term = create_cost_term!(shape: "per_person", detail_attributes: { unit_amount_minor_units: 10_000, planning_person_quantity: 20 })
+    assert_equal 200_000, SupplierCostTermEvaluation.evaluate(term).amount_minor_units
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierCostTermPerPersonDetail.transaction(requires_new: true) do
+        SupplierCostTermPerPersonDetail.insert_all!([ detail_row(term:, unit_amount_minor_units: 10_000) ])
+      end
+    end
+  end
+
+  test "deadline must reference a deposit requirement source in this slice" do
+    arrangement = create_arrangement!
+    now = Time.current
+
+    assert_raises(ActiveRecord::NotNullViolation) do
+      SupplierDeadline.transaction(requires_new: true) do
+        SupplierDeadline.insert_all!([ {
+          id: SecureRandom.uuid_v7(extra_timestamp_bits: 12),
+          agency_id: agencies(:one).id,
+          office_id: arrangement.office_id,
+          departure_id: arrangement.departure_id,
+          arrangement_id: arrangement.id,
+          source_deposit_requirement_id: nil,
+          name: "Deposit deadline",
+          original_due_on: Date.new(2027, 1, 15),
+          due_on: Date.new(2027, 1, 15),
+          status: "open",
+          created_by_membership_id: agency_memberships(:one).id,
+          status_changed_at: now,
+          status_changed_by_membership_id: agency_memberships(:one).id,
+          lock_version: 0,
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+  end
+
   private
 
   def create_arrangement!(name: "Cruise Block", parent_arrangement: nil)
@@ -142,6 +192,24 @@ class SupplierPlanningTest < ActiveSupport::TestCase
     ).call.supplier_resource
   end
 
+  def create_cost_term!(shape:, detail_attributes:)
+    arrangement = create_arrangement!
+    term = CreateSupplierCostTerm.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      arrangement:,
+      shape:,
+      basis: "estimate",
+      cost_category: "lodging",
+      quantity_basis: "planning_quantity",
+      quantity_unit: "person",
+      detail_attributes:,
+      provenance: "Supplier worksheet"
+    ).call.supplier_cost_term
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term:).call
+    term.reload
+  end
+
   def arrangement_row
     now = Time.current
     {
@@ -157,6 +225,48 @@ class SupplierPlanningTest < ActiveSupport::TestCase
       status_changed_at: now,
       status_changed_by_membership_id: agency_memberships(:one).id,
       lock_version: 0,
+      created_at: now,
+      updated_at: now
+    }
+  end
+
+  def cost_term_row(arrangement:)
+    now = Time.current
+    {
+      id: SecureRandom.uuid_v7(extra_timestamp_bits: 12),
+      agency_id: agencies(:one).id,
+      office_id: arrangement.office_id,
+      departure_id: arrangement.departure_id,
+      arrangement_id: arrangement.id,
+      economic_item_id: SecureRandom.uuid_v7(extra_timestamp_bits: 12),
+      economic_item_key: "arrangement:#{arrangement.id}|category:test|basis:planning|unit:item|currency:USD",
+      cost_category: "test",
+      quantity_basis: "planning",
+      quantity_unit: "item",
+      shape: "fixed",
+      basis: "estimate",
+      status: "draft",
+      currency: "USD",
+      term_version: 1,
+      rounding_method: "nearest_minor_unit",
+      tax_fee_treatment: "excluded",
+      provenance: "Supplier worksheet",
+      created_by_membership_id: agency_memberships(:one).id,
+      status_changed_at: now,
+      status_changed_by_membership_id: agency_memberships(:one).id,
+      lock_version: 0,
+      created_at: now,
+      updated_at: now
+    }
+  end
+
+  def detail_row(term:, unit_amount_minor_units:)
+    now = Time.current
+    {
+      id: SecureRandom.uuid_v7(extra_timestamp_bits: 12),
+      agency_id: term.agency_id,
+      supplier_cost_term_id: term.id,
+      unit_amount_minor_units:,
       created_at: now,
       updated_at: now
     }

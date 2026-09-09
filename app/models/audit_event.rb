@@ -95,6 +95,23 @@ class AuditEvent < ApplicationRecord
     supplier_service_occurrence.created
     supplier_confirmation.created
     supplier_confirmation.superseded
+    supplier_cost_term.created
+    supplier_cost_term.activated
+    supplier_cost_term.superseded
+    supplier_cost_term.voided
+    supplier_commitment.opened
+    supplier_commitment.released
+    supplier_commitment.satisfied
+    supplier_commitment.superseded
+    supplier_commitment.cancelled
+    supplier_deposit_requirement.created
+    supplier_deposit_requirement.updated
+    supplier_deposit_requirement.cancelled
+    supplier_deadline.created
+    supplier_deadline.rescheduled
+    supplier_deadline.completed
+    supplier_deadline.waived
+    supplier_deadline.cancelled
   ].freeze
 
   ACTOR_KINDS = %w[

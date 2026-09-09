@@ -120,6 +120,101 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
     assert_equal before, agencies(:one).audit_events.where(action: "departure.office_transferred").count
   end
 
+  test "Napa fixed coach term is expressible as estimate then contracted" do
+    @departure = napa_wine_country_departure!(actor: users(:one))
+    arrangement = create_arrangement!(name: "Coach Contract")
+    estimate = create_fixed_term!(arrangement:, basis: "estimate", amount_minor_units: 250_000, cost_category: "coach")
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: estimate).call
+
+    contracted = create_fixed_term!(arrangement:, basis: "contracted", amount_minor_units: 275_000, cost_category: "coach")
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: contracted).call
+
+    assert_equal 250_000, SupplierCostTermEvaluation.evaluate(estimate).amount_minor_units
+    controlling = SupplierEconomicItemPrecedence.controlling_for(agency: agencies(:one), economic_item_key: contracted.economic_item_key)
+    assert_equal "contracted", controlling.stage
+    assert_equal 275_000, controlling.valuation.amount_minor_units
+  end
+
+  test "Smith minimum guarantee term is expressible as estimate then contracted" do
+    @departure = smith_family_reunion_departure!(actor: users(:one))
+    arrangement = create_arrangement!(name: "Cruise Guarantee")
+    estimate = create_minimum_guarantee_term!(arrangement:, basis: "estimate", minimum_quantity: 10, unit_amount_minor_units: 150_000)
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: estimate).call
+    contracted = create_minimum_guarantee_term!(arrangement:, basis: "contracted", minimum_quantity: 12, unit_amount_minor_units: 150_000)
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: contracted).call
+
+    assert_equal 1_500_000, SupplierCostTermEvaluation.evaluate(estimate).amount_minor_units
+    assert_equal 1_800_000, SupplierCostTermEvaluation.evaluate(contracted).amount_minor_units
+  end
+
+  test "deposit deadlines are linked and completion does not mark deposit paid" do
+    arrangement = create_arrangement!
+    deposit = CreateSupplierDepositRequirement.new(
+      agency: agencies(:one),
+      actor: users(:staff_one),
+      arrangement:,
+      name: "Initial deposit",
+      amount_minor_units: 50_000,
+      due_rule: "Due 30 days after contract signature",
+      due_on: Date.new(2027, 1, 15),
+      trigger_condition: "Contract signed",
+      provenance: "Supplier contract draft"
+    ).call.supplier_deposit_requirement
+    deadline = CreateSupplierDeadline.new(agency: agencies(:one), actor: users(:staff_one), deposit_requirement: deposit).call.supplier_deadline
+
+    CompleteSupplierDeadline.new(agency: agencies(:one), actor: users(:staff_one), deadline:, reason: "Task completed outside supplier payment records").call
+
+    assert_equal deposit.id, deadline.reload.source_deposit_requirement_id
+    assert deadline.completed?
+    assert_not deposit.reload.attributes.key?("paid")
+    assert_equal "active", deposit.status
+  end
+
+  test "precedence never sums estimate contracted and commitment stages" do
+    arrangement = create_arrangement!
+    estimate = create_fixed_term!(arrangement:, basis: "estimate", amount_minor_units: 100_000, cost_category: "coach")
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: estimate).call
+    contracted = create_fixed_term!(arrangement:, basis: "contracted", amount_minor_units: 125_000, cost_category: "coach")
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: contracted).call
+    commitment = CreateSupplierCommitment.new(agency: agencies(:one), actor: users(:one), governing_term: contracted, reason: "Supplier guarantee accepted").call.supplier_commitment
+
+    controlling = SupplierEconomicItemPrecedence.controlling_for(agency: agencies(:one), economic_item_key: estimate.economic_item_key)
+
+    assert_equal "commitment", controlling.stage
+    assert_equal commitment.id, controlling.record.id
+    assert_equal 125_000, controlling.valuation.amount_minor_units
+  end
+
+  test "staff can draft terms but cannot activate contracted terms or create commitments" do
+    arrangement = create_arrangement!(actor: users(:staff_one))
+    term = create_fixed_term!(arrangement:, actor: users(:staff_one), basis: "contracted")
+    assert term.draft?
+
+    error = assert_raises(MembershipCommand::Error) do
+      ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:staff_one), term:).call
+    end
+    assert_equal :unauthorized, error.code
+
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term:).call
+    error = assert_raises(MembershipCommand::Error) do
+      CreateSupplierCommitment.new(agency: agencies(:one), actor: users(:staff_one), governing_term: term.reload, reason: "Staff attempt").call
+    end
+    assert_equal :unauthorized, error.code
+  end
+
+  test "cross agency term activation is rejected without success audit" do
+    arrangement = create_arrangement!
+    term = create_fixed_term!(arrangement:)
+    before = agencies(:one).audit_events.where(action: "supplier_cost_term.activated").count
+
+    error = assert_raises(MembershipCommand::Error) do
+      ActivateSupplierCostTerm.new(agency: agencies(:two), actor: users(:two), term:).call
+    end
+
+    assert_equal :invalid, error.code
+    assert_equal before, agencies(:one).audit_events.where(action: "supplier_cost_term.activated").count
+  end
+
   private
 
   def create_arrangement!(name: "Cruise Block", parent_arrangement: nil, actor: users(:one))
@@ -131,5 +226,35 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
       parent_arrangement:,
       name:
     ).call.supplier_arrangement
+  end
+
+  def create_fixed_term!(arrangement:, actor: users(:one), basis: "estimate", amount_minor_units: 100_000, cost_category: "lodging")
+    CreateSupplierCostTerm.new(
+      agency: agencies(:one),
+      actor:,
+      arrangement:,
+      shape: "fixed",
+      basis:,
+      cost_category:,
+      quantity_basis: "arrangement",
+      quantity_unit: "contract",
+      detail_attributes: { amount_minor_units: },
+      provenance: "Supplier worksheet"
+    ).call.supplier_cost_term
+  end
+
+  def create_minimum_guarantee_term!(arrangement:, basis:, minimum_quantity:, unit_amount_minor_units:)
+    CreateSupplierCostTerm.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      arrangement:,
+      shape: "minimum_guarantee",
+      basis:,
+      cost_category: "cabin_guarantee",
+      quantity_basis: "guaranteed_quantity",
+      quantity_unit: "cabin",
+      detail_attributes: { minimum_quantity:, unit_amount_minor_units: },
+      provenance: "Supplier guarantee schedule"
+    ).call.supplier_cost_term
   end
 end

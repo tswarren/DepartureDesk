@@ -11,6 +11,10 @@ class DepartureCommand < MembershipCommand
     supplier_resources: [],
     supplier_service_occurrences: [],
     supplier_confirmations: [],
+    supplier_cost_terms: [],
+    supplier_commitments: [],
+    supplier_deposit_requirements: [],
+    supplier_deadlines: [],
     parties: [],
     memberships: [],
     team_assignments: [],
@@ -59,6 +63,26 @@ class DepartureCommand < MembershipCommand
         confirmation.lock!
         confirmation.reload
         ensure_supplier_confirmation_belongs_to_agency!(agency, confirmation)
+      end
+      Array(supplier_cost_terms).compact.uniq.sort_by(&:id).each do |term|
+        term.lock!
+        term.reload
+        ensure_supplier_cost_term_belongs_to_agency!(agency, term)
+      end
+      Array(supplier_commitments).compact.uniq.sort_by(&:id).each do |commitment|
+        commitment.lock!
+        commitment.reload
+        ensure_supplier_commitment_belongs_to_agency!(agency, commitment)
+      end
+      Array(supplier_deposit_requirements).compact.uniq.sort_by(&:id).each do |deposit|
+        deposit.lock!
+        deposit.reload
+        ensure_supplier_deposit_requirement_belongs_to_agency!(agency, deposit)
+      end
+      Array(supplier_deadlines).compact.uniq.sort_by(&:id).each do |deadline|
+        deadline.lock!
+        deadline.reload
+        ensure_supplier_deadline_belongs_to_agency!(agency, deadline)
       end
       Array(parties).compact.uniq.sort_by(&:id).each do |party|
         party.lock!
@@ -142,6 +166,30 @@ class DepartureCommand < MembershipCommand
     return if confirmation.agency_id == agency.id
 
     raise Error.new("That supplier confirmation is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_cost_term_belongs_to_agency!(agency, term)
+    return if term.agency_id == agency.id
+
+    raise Error.new("That supplier cost term is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_commitment_belongs_to_agency!(agency, commitment)
+    return if commitment.agency_id == agency.id
+
+    raise Error.new("That supplier commitment is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_deposit_requirement_belongs_to_agency!(agency, deposit)
+    return if deposit.agency_id == agency.id
+
+    raise Error.new("That supplier deposit requirement is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_deadline_belongs_to_agency!(agency, deadline)
+    return if deadline.agency_id == agency.id
+
+    raise Error.new("That supplier deadline is not part of this agency.", code: :invalid)
   end
 
   def ensure_active_supplier_party!(party)

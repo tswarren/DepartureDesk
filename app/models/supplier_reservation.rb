@@ -14,6 +14,8 @@ class SupplierReservation < ApplicationRecord
   has_many :supplier_reservation_resources, foreign_key: :reservation_id, inverse_of: :reservation, dependent: :restrict_with_exception
   has_many :supplier_resources, through: :supplier_reservation_resources, source: :resource
   has_many :supplier_confirmations, foreign_key: :reservation_id, inverse_of: :reservation, dependent: :restrict_with_exception
+  has_many :supplier_cost_terms, foreign_key: :reservation_id, inverse_of: :reservation, dependent: :restrict_with_exception
+  has_many :supplier_commitments, foreign_key: :reservation_id, inverse_of: :reservation, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

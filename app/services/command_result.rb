@@ -1,7 +1,7 @@
 class CommandResult
-  attr_reader :status, :membership, :office, :assignment, :party, :message, :contact_point, :purpose_assignment, :relationship, :note, :client_profile, :supplier_profile, :duplicate_match, :travel_program, :departure, :supplier_arrangement, :supplier_reservation, :supplier_resource, :supplier_service_occurrence, :supplier_confirmation
+  attr_reader :status, :membership, :office, :assignment, :party, :message, :contact_point, :purpose_assignment, :relationship, :note, :client_profile, :supplier_profile, :duplicate_match, :travel_program, :departure, :supplier_arrangement, :supplier_reservation, :supplier_resource, :supplier_service_occurrence, :supplier_confirmation, :supplier_cost_term, :supplier_commitment, :supplier_deposit_requirement, :supplier_deadline
 
-  def initialize(status:, membership: nil, office: nil, assignment: nil, party: nil, message: nil, contact_point: nil, purpose_assignment: nil, relationship: nil, note: nil, client_profile: nil, supplier_profile: nil, duplicate_match: nil, travel_program: nil, departure: nil, supplier_arrangement: nil, supplier_reservation: nil, supplier_resource: nil, supplier_service_occurrence: nil, supplier_confirmation: nil)
+  def initialize(status:, membership: nil, office: nil, assignment: nil, party: nil, message: nil, contact_point: nil, purpose_assignment: nil, relationship: nil, note: nil, client_profile: nil, supplier_profile: nil, duplicate_match: nil, travel_program: nil, departure: nil, supplier_arrangement: nil, supplier_reservation: nil, supplier_resource: nil, supplier_service_occurrence: nil, supplier_confirmation: nil, supplier_cost_term: nil, supplier_commitment: nil, supplier_deposit_requirement: nil, supplier_deadline: nil)
     @status = status
     @membership = membership
     @office = office
@@ -22,6 +22,10 @@ class CommandResult
     @supplier_resource = supplier_resource
     @supplier_service_occurrence = supplier_service_occurrence
     @supplier_confirmation = supplier_confirmation
+    @supplier_cost_term = supplier_cost_term
+    @supplier_commitment = supplier_commitment
+    @supplier_deposit_requirement = supplier_deposit_requirement
+    @supplier_deadline = supplier_deadline
   end
 
   def ok?
