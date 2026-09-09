@@ -15,8 +15,8 @@ class DepartureFoundationTest < ApplicationSystemTestCase
     click_link_and_expect "Departures", heading: "Departures", css: "nav.dd-subnav a"
     click_link_and_expect "New departure", heading: "New departure"
     fill_in "Name", with: "Smith Family Reunion Cruise"
-    fill_in_html_date "Start date", with: "2027-07-12"
-    fill_in_html_date "End date", with: "2027-07-19"
+    fill_in_html_date "Start date", "2027-07-12"
+    fill_in_html_date "End date", "2027-07-19"
     click_button "Create departure"
 
     assert_selector "h1.dd-page-title", text: "Smith Family Reunion Cruise"

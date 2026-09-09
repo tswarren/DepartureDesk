@@ -112,8 +112,11 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     wait_for_turbo
   end
 
-  def fill_in_html_date(locator, iso_date)
-    find_field(locator).execute_script("this.value = arguments[0]", iso_date)
+  def fill_in_html_date(locator, iso_date = nil, with: nil)
+    value = with.presence || iso_date
+    raise ArgumentError, "ISO date required" if value.blank?
+
+    find_field(locator).execute_script("this.value = arguments[0]", value.to_s)
   end
 
   def sign_in_from_browser(user)
