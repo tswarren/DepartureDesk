@@ -38,7 +38,7 @@ dd-app-shell
     dd-workspace
 ```
 
-* Brand, compact office link (`edit_current_office_path`), user initials plus name, and Sign out live in the topbar. There is no global search, notification bell, or invented office dropdown.
+* Brand, compact office link (`edit_current_office_path`), user initials plus name, and Sign out live in the topbar. There is no global search, notification bell, or invented office dropdown. The wordmark is `logo.png` (height-constrained, light lockup on navy chrome). Below 768px the topbar uses `favicon.png` as the compact mark. The document icon is `favicon.png`.
 * Sidebar groups: **Workspace** (Dashboard, Directory, Clients, Suppliers, disabled Departures / Travelers / Accounting) and **System** (Administration). Do not add an empty Money group.
 * Active nav uses a 2px teal left edge and restrained fill, with `aria-current="page"`. Party-local pages keep Directory current.
 * Below 768px the sidebar is the existing Stimulus drawer (`navigation_drawer_controller.js`): when open, the main region and the complete topbar are inert; Tab and Shift+Tab wrap inside the drawer; Escape, Close, backdrop click, and Turbo navigation close it and restore focus to Menu when the originating document remains active. Nav DOM is not duplicated.

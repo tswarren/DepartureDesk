@@ -3,7 +3,9 @@
   id="app-navigation"
   data-navigation-drawer-target="drawer">
   <div class="dd-sidebar-brand">
-    <span class="dd-brand-name">DepartureDesk</span>
+    <div class="dd-brand">
+      <%= render "layouts/brand", alt: "DepartureDesk" %>
+    </div>
     <button
       type="button"
       class="dd-drawer-close"

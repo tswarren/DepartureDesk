@@ -277,9 +277,12 @@
   .dd-brand {
     display: inline-flex;
     min-width: 0;
+    max-width: 100%;
     flex: none;
     align-items: center;
-    gap: var(--dd-space-2);
+    background: var(--dd-surface);
+    border-radius: var(--dd-radius-sm);
+    padding: 0.2rem 0.5rem;
     color: var(--dd-text-on-dark);
     text-decoration: none;
   }
@@ -288,15 +291,37 @@
     color: var(--dd-text-on-dark);
   }
 
-  .dd-brand-mark {
-    width: 20px;
-    height: 20px;
+  /* logo.png canvas is 2172×724; opaque artwork is ~1849×316. Cover crops the padding. */
+  .dd-brand-logo {
+    --dd-logo-height: 1.75rem;
+    --dd-logo-art-ratio: 5.85;
+    display: block;
+    height: var(--dd-logo-height);
+    width: calc(var(--dd-logo-height) * var(--dd-logo-art-ratio));
+    max-width: 12rem;
+    object-fit: cover;
+    object-position: center;
   }
 
-  .dd-brand-name {
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0;
+  .dd-brand-mark {
+    display: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    object-fit: contain;
+  }
+
+  .dd-auth-brand .dd-brand {
+    padding: 0.4rem 0.7rem;
+  }
+
+  .dd-auth-brand .dd-brand-logo {
+    --dd-logo-height: 2.75rem;
+    max-width: 18rem;
+  }
+
+  .dd-sidebar-brand .dd-brand-logo {
+    --dd-logo-height: 1.5rem;
+    max-width: 9.5rem;
   }
 
   .dd-sidebar-nav {
@@ -1955,6 +1980,12 @@
 
     .dd-auth-brand .dd-brand {
       margin: 0;
+      padding: 0.25rem 0.5rem;
+    }
+
+    .dd-auth-brand .dd-brand-logo {
+      --dd-logo-height: 1.75rem;
+      max-width: 12rem;
     }
   }
 
@@ -2018,8 +2049,12 @@
       padding: 0 12px;
     }
 
-    .dd-topbar .dd-brand-name {
+    .dd-topbar .dd-brand-logo {
       display: none;
+    }
+
+    .dd-topbar .dd-brand-mark {
+      display: block;
     }
 
     .dd-workspace {

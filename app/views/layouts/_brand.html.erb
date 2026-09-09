@@ -1,0 +1,6 @@
+<% alt_text = local_assigns.fetch(:alt, "") %>
+<% compact_mark = local_assigns.fetch(:compact_mark, false) %>
+<%= image_tag "logo.png", alt: alt_text, class: "dd-brand-logo" %>
+<% if compact_mark %>
+  <%= image_tag "favicon.png", alt: "", class: "dd-brand-mark" %>
+<% end %>

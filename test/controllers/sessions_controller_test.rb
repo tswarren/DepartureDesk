@@ -8,6 +8,9 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   test "new" do
     get new_session_path
     assert_response :success
+    assert_select "link[rel=icon][href*='favicon']"
+    assert_select "link[rel=apple-touch-icon][href*='favicon']"
+    assert_select ".dd-auth-brand .dd-brand-logo[src*='logo']"
   end
 
   test "create with valid credentials and a usable membership" do
