@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed implementation plan for the second slice of Phase 3. This revision incorporates the pre-acceptance remediation (term/commitment split, capacity transition matrix, capacity dimensions, parent-cancellation rule, authorization matrix, and related tightenings). It is not Accepted until that pass is signed off. Do not implement 3B domain persistence until Status is **Accepted**.
+**Accepted.** This revision incorporates the pre-acceptance remediation (term/commitment split, capacity transition matrix, capacity dimensions, parent-cancellation rule, authorization matrix, and related tightenings). Domain persistence may proceed in slices 3B.1–3B.6. Do not mark 3B shipped in `AGENTS.md` until the §18 exit gate is complete.
 
 This plan is subordinate to:
 
