@@ -4,7 +4,10 @@ class TravelProgramsController < ApplicationController
   def index
     @today = DirectoryDate.today(Current.agency)
     @programs = Current.agency.travel_programs.order(:name)
-    @query = DepartureQuery.new(agency: Current.agency, membership: Current.agency_membership)
+    @program_summaries = DepartureQuery.new(
+      agency: Current.agency,
+      membership: Current.agency_membership
+    ).upcoming_program_summaries(program_ids: @programs.map(&:id), on: @today)
   end
 
   def show

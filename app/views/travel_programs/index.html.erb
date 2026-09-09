@@ -31,14 +31,14 @@
           </thead>
           <tbody>
             <% @programs.each do |program| %>
-              <% next_departure = @query.upcoming_for_program(program, on: @today).first %>
+              <% summary = @program_summaries[program.id] %>
               <tr>
                 <td><%= link_to program.name, travel_program_path(program) %></td>
                 <td><%= travel_program_status_badge(program) %></td>
-                <td><%= @query.upcoming_for_program(program, on: @today).count %></td>
+                <td><%= summary&.upcoming_count || 0 %></td>
                 <td>
-                  <% if next_departure %>
-                    <%= next_departure.start_date.to_fs(:long) %>
+                  <% if summary&.next_start_date %>
+                    <%= summary.next_start_date.to_fs(:long) %>
                   <% else %>
                     —
                   <% end %>

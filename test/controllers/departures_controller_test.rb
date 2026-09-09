@@ -55,6 +55,22 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "new departure form leaves required dates blank" do
+    sign_in_as(users(:one))
+
+    get new_departure_path
+
+    assert_response :success
+    assert_select "input[name='departure[start_date]']" do |inputs|
+      assert_equal "", inputs.first["value"].to_s
+    end
+    assert_select "input[name='departure[end_date]']" do |inputs|
+      assert_equal "", inputs.first["value"].to_s
+    end
+    assert_not_includes response.body, "2027-07-12"
+    assert_not_includes response.body, "2027-07-19"
+  end
+
   test "creates a departure from the form and retains the idempotency key on error" do
     sign_in_as(users(:one))
     key = SecureRandom.uuid
@@ -147,7 +163,15 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
       default_timezone: agencies(:one).default_timezone
     ).call.office
     program = create_travel_program!(agencies(:one), actor: users(:one), name: "Atlantic Series")
-    create_departure!(agencies(:one), actor: users(:one), office: extra, travel_program: program, name: "Hidden Boston")
+    create_departure!(
+      agencies(:one),
+      actor: users(:one),
+      office: extra,
+      travel_program: program,
+      name: "Hidden Boston",
+      start_date: Date.new(2027, 8, 1),
+      end_date: Date.new(2027, 8, 8)
+    )
 
     sign_in_as(users(:staff_one))
     get travel_programs_path
@@ -155,6 +179,8 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "Atlantic Series"
     assert_select "td", text: "0"
+    assert_select "td", text: "—"
     assert_not_includes response.body, "Hidden Boston"
+    assert_not_includes response.body, "August 1, 2027"
   end
 end

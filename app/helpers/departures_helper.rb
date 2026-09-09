@@ -40,14 +40,4 @@ module DeparturesHelper
   def visible_program_departures(program)
     DepartureQuery.new(agency: Current.agency, membership: Current.agency_membership).for_program(program)
   end
-
-  def visible_program_upcoming_count(program, on:)
-    DepartureQuery.new(agency: Current.agency, membership: Current.agency_membership)
-      .upcoming_for_program(program, on:).count
-  end
-
-  def visible_program_next_departure(program, on:)
-    DepartureQuery.new(agency: Current.agency, membership: Current.agency_membership)
-      .upcoming_for_program(program, on:).first
-  end
 end

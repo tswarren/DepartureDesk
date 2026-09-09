@@ -44,8 +44,6 @@ class DeparturesController < ApplicationController
     office = default_create_office
     @departure = Current.agency.departures.new(
       office:,
-      start_date: Date.new(2027, 7, 12),
-      end_date: Date.new(2027, 7, 19),
       default_currency: Current.agency.default_currency
     )
     @creation_idempotency_key = SecureRandom.uuid
