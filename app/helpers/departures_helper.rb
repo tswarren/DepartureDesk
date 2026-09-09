@@ -9,6 +9,41 @@ module DeparturesHelper
     status_badge(departure.status.titleize, modifier:)
   end
 
+  def supplier_planning_status_badge(record)
+    modifier = case record.status
+    when "active", "confirmed", "completed", "open" then "success"
+    when "draft", "requested", "submitted" then "info"
+    when "cancelled", "declined", "unable_to_confirm", "void" then "warning"
+    else "neutral"
+    end
+
+    status_badge(record.status.titleize, modifier:)
+  end
+
+  def supplier_money_minor_units(amount_minor_units, currency)
+    return "—" if amount_minor_units.nil? || currency.blank?
+
+    Money.new(amount_minor_units, currency).format
+  end
+
+  def supplier_cost_term_value(term)
+    supplier_money_minor_units(SupplierCostTermEvaluation.evaluate(term).amount_minor_units, term.currency)
+  rescue MembershipCommand::Error, ActiveRecord::RecordInvalid
+    "Draft needs complete inputs"
+  end
+
+  def supplier_occurrence_label(occurrence)
+    if occurrence.night_slice?
+      [ occurrence.service_date&.to_fs(:medium), occurrence.label ].compact.join(" · ")
+    else
+      [ occurrence.segment_type&.humanize, occurrence.segment_identifier, occurrence.label ].compact.join(" · ")
+    end
+  end
+
+  def supplier_capacity_position_label(position)
+    "#{position.resource.name} · #{supplier_occurrence_label(position.service_occurrence)}"
+  end
+
   def travel_program_status_badge(program)
     status_badge(program.status.titleize, modifier: program.active? ? "success" : "neutral")
   end

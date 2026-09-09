@@ -1,0 +1,831 @@
+<% content_for :title, "#{@arrangement.name} · Supplier planning · DepartureDesk" %>
+<% manager_or_admin = Current.agency_membership.administrator? || @departure.current_group_manager_assignment&.agency_membership_id == Current.agency_membership.id %>
+<% occurrence_options = @resources.flat_map { |resource| resource.supplier_service_occurrences.map { |occurrence| [ "#{resource.name} · #{supplier_occurrence_label(occurrence)}", occurrence.id ] } } %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title"><%= @arrangement.name %></h1>
+    <p class="dd-page-description"><%= @departure.departure_reference %> · <%= @arrangement.supplier_display_name_snapshot %> · <%= supplier_planning_status_badge(@arrangement) %></p>
+    <%= link_to "Back to supplier planning", departure_supplier_arrangements_path(@departure), class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "departures/subnav", current: :supplier_planning, departure: @departure %>
+
+<section class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Arrangement controls</h2>
+      <p class="dd-field-hint">Routine planning is available to staff with office access. Activation, cancellation, commitments, and clause application require the group manager or an administrator.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Supplier</dt>
+        <dd><%= @arrangement.supplier_display_name_snapshot %></dd>
+      </div>
+      <div>
+        <dt>Service provider</dt>
+        <dd><%= @arrangement.service_provider_display_name_snapshot.presence || "Same as supplier or not recorded" %></dd>
+      </div>
+      <div>
+        <dt>Office</dt>
+        <dd><%= office_choice_label(@arrangement.office) %></dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd><%= supplier_planning_status_badge(@arrangement) %></dd>
+      </div>
+    </dl>
+
+    <% if manager_or_admin && @arrangement.draft? %>
+      <%= button_to "Activate arrangement", activate_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, params: { lock_version: @arrangement.lock_version }, class: "dd-button" %>
+    <% end %>
+
+    <% if manager_or_admin && @arrangement.nonterminal? %>
+      <%= form_with url: cancel_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @arrangement.lock_version %>">
+        <div class="dd-field-group">
+          <label class="dd-label" for="cancel_reason">Cancellation reason</label>
+          <input class="dd-field" id="cancel_reason" name="reason" required>
+        </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--danger">Cancel arrangement</button>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+
+<section class="dd-panel" id="resources">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Resources and occurrences</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @resources.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th>Resource</th>
+            <th>Kind</th>
+            <th>Unit</th>
+            <th>Occurrences</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @resources.each do |resource| %>
+            <tr>
+              <td><%= resource.name %></td>
+              <td><%= resource.resource_kind.humanize %></td>
+              <td><%= resource.capacity_unit %></td>
+              <td><%= resource.supplier_service_occurrences.map { |occurrence| supplier_occurrence_label(occurrence) }.presence&.join(", ") || "—" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-copy">No resources yet.</p>
+    <% end %>
+
+    <% if @arrangement.nonterminal? %>
+      <%= form_with url: create_resource_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @arrangement.lock_version %>">
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <label class="dd-label" for="resource_name">Resource name</label>
+            <input class="dd-field" id="resource_name" name="name" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="resource_kind">Resource kind</label>
+            <input class="dd-field" id="resource_kind" name="resource_kind" placeholder="coach, room_type, cabin_category" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="capacity_unit">Capacity unit</label>
+            <select class="dd-field" id="capacity_unit" name="capacity_unit" required>
+              <% SupplierResource::CAPACITY_UNITS.each do |unit| %>
+                <option value="<%= unit %>"><%= unit.humanize %></option>
+              <% end %>
+            </select>
+          </div>
+        </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary">Create resource</button>
+        </div>
+      <% end %>
+
+      <% if @resources.any? %>
+        <%= form_with url: create_occurrence_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+          <div class="dd-form-grid dd-form-grid--two-column">
+            <div class="dd-field-group">
+              <label class="dd-label" for="occurrence_resource_id">Resource</label>
+              <select class="dd-field" id="occurrence_resource_id" name="resource_id" required>
+                <% @resources.each do |resource| %>
+                  <option value="<%= resource.id %>"><%= resource.name %></option>
+                <% end %>
+              </select>
+            </div>
+            <div class="dd-field-group">
+              <label class="dd-label" for="occurrence_kind">Occurrence kind</label>
+              <select class="dd-field" id="occurrence_kind" name="occurrence_kind" required>
+                <option value="typed_segment">Typed segment</option>
+                <option value="night_slice">Night slice</option>
+              </select>
+            </div>
+            <div class="dd-field-group">
+              <label class="dd-label" for="service_date">Service date for night slice</label>
+              <input class="dd-field" type="date" id="service_date" name="service_date">
+            </div>
+            <div class="dd-field-group">
+              <label class="dd-label" for="segment_type">Segment type</label>
+              <input class="dd-field" id="segment_type" name="segment_type" placeholder="sailing, transfer, optional_extension">
+            </div>
+            <div class="dd-field-group">
+              <label class="dd-label" for="segment_identifier">Segment identifier</label>
+              <input class="dd-field" id="segment_identifier" name="segment_identifier" placeholder="MAIN, OUTBOUND">
+            </div>
+            <div class="dd-field-group">
+              <label class="dd-label" for="occurrence_label">Label</label>
+              <input class="dd-field" id="occurrence_label" name="label">
+            </div>
+          </div>
+          <div class="dd-form-actions">
+            <button type="submit" class="dd-button dd-button--secondary">Create occurrence</button>
+          </div>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+
+<section class="dd-panel" id="reservations">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Reservations</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @reservations.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Resources</th>
+            <th>Confirm</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @reservations.each do |reservation| %>
+            <tr>
+              <td><%= reservation.name %></td>
+              <td><%= supplier_planning_status_badge(reservation) %></td>
+              <td><%= reservation.supplier_resources.map(&:name).presence&.join(", ") || "—" %></td>
+              <td>
+                <% if reservation.requested? || reservation.submitted? %>
+                  <%= form_with url: confirm_reservation_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+                    <input type="hidden" name="reservation_id" value="<%= reservation.id %>">
+                    <input type="hidden" name="reservation_lock_version" value="<%= reservation.lock_version %>">
+                    <label class="dd-label" for="without_identifier_reason_<%= reservation.id %>">Reason if no identifier</label>
+                    <input class="dd-field" id="without_identifier_reason_<%= reservation.id %>" name="without_identifier_reason">
+                    <button type="submit" class="dd-button dd-button--small">Confirm</button>
+                  <% end %>
+                <% else %>
+                  —
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-copy">No supplier reservations yet.</p>
+    <% end %>
+
+    <% if @arrangement.nonterminal? %>
+      <%= form_with url: create_reservation_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @arrangement.lock_version %>">
+        <div class="dd-field-group">
+          <label class="dd-label" for="reservation_name">Reservation name</label>
+          <input class="dd-field" id="reservation_name" name="name" required>
+        </div>
+        <% if @resources.any? %>
+          <div class="dd-field-group">
+            <label class="dd-label" for="reservation_resource_ids">Linked resources</label>
+            <select class="dd-field" id="reservation_resource_ids" name="resource_ids[]" multiple>
+              <% @resources.each do |resource| %>
+                <option value="<%= resource.id %>"><%= resource.name %></option>
+              <% end %>
+            </select>
+            <p class="dd-field-hint">Hold Command on macOS to choose more than one resource.</p>
+          </div>
+        <% end %>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary">Create reservation</button>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+
+<section class="dd-panel" id="confirmations">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Confirmations</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @confirmations.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th>Identifier</th>
+            <th>Issuer</th>
+            <th>Owner</th>
+            <th>Context</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @confirmations.each do |confirmation| %>
+            <tr>
+              <td class="dd-type-mono"><%= confirmation.raw_value %></td>
+              <td><%= confirmation.issuer_display_name_snapshot %></td>
+              <td><%= confirmation.reservation&.name || @arrangement.name %></td>
+              <td><%= [ confirmation.identifier_type.humanize, confirmation.context ].join(" · ") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-copy">No confirmations recorded yet.</p>
+    <% end %>
+
+    <% if @arrangement.nonterminal? %>
+      <%= form_with url: record_confirmation_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <label class="dd-label" for="confirmation_reservation_id">Owner</label>
+            <select class="dd-field" id="confirmation_reservation_id" name="reservation_id">
+              <option value="">Arrangement: <%= @arrangement.name %></option>
+              <% @reservations.each do |reservation| %>
+                <option value="<%= reservation.id %>">Reservation: <%= reservation.name %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="issuer_party_id">Issuer</label>
+            <select class="dd-field" id="issuer_party_id" name="issuer_party_id" required>
+              <% @issuer_candidates.each do |candidate| %>
+                <option value="<%= candidate.party_id %>" <%= "selected" if candidate.party_id == @arrangement.supplier_party_id %>><%= party_selector_option_label(candidate) %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="identifier_type">Identifier type</label>
+            <input class="dd-field" id="identifier_type" name="identifier_type" value="supplier_confirmation" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="confirmation_context">Context</label>
+            <input class="dd-field" id="confirmation_context" name="context" value="supplier_portal" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="raw_value">Identifier</label>
+            <input class="dd-field" id="raw_value" name="raw_value" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="document_reference">Document or channel reference</label>
+            <input class="dd-field" id="document_reference" name="document_reference">
+          </div>
+        </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary">Record confirmation</button>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+
+<section class="dd-panel" id="terms">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Terms, deposits, and deadlines</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @terms.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th>Term</th>
+            <th>Status</th>
+            <th>Scope</th>
+            <th class="num">Evaluation</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @terms.each do |term| %>
+            <tr>
+              <td><%= term.basis.titleize %> <%= term.shape.humanize %> · <%= term.cost_category.humanize %></td>
+              <td><%= supplier_planning_status_badge(term) %></td>
+              <td><%= [ term.resource&.name, term.service_occurrence && supplier_occurrence_label(term.service_occurrence) ].compact.join(" · ").presence || "Arrangement" %></td>
+              <td class="num"><%= supplier_cost_term_value(term) %></td>
+              <td>
+                <% if term.draft? && manager_or_admin %>
+                  <%= button_to "Activate", activate_cost_term_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, params: { term_id: term.id, term_lock_version: term.lock_version }, class: "dd-button dd-button--small" %>
+                <% elsif term.active? && manager_or_admin %>
+                  <%= button_to "Open commitment", create_commitment_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, params: { term_id: term.id, term_lock_version: term.lock_version, reason: "Accepted supplier commitment" }, class: "dd-button dd-button--small dd-button--secondary" %>
+                <% else %>
+                  —
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-copy">No supplier terms yet.</p>
+    <% end %>
+
+    <% if @arrangement.nonterminal? %>
+      <%= form_with url: create_cost_term_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @arrangement.lock_version %>">
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <label class="dd-label" for="term_shape">Shape</label>
+            <select class="dd-field" id="term_shape" name="shape" required>
+              <option value="fixed">Fixed</option>
+              <option value="minimum_guarantee">Minimum guarantee</option>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="term_basis">Basis</label>
+            <select class="dd-field" id="term_basis" name="basis" required>
+              <option value="estimate">Estimate</option>
+              <option value="contracted">Contracted</option>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="term_currency">Currency</label>
+            <input class="dd-field dd-field--code" id="term_currency" name="currency" value="<%= @departure.default_currency %>" maxlength="3" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="cost_category">Cost category</label>
+            <input class="dd-field" id="cost_category" name="cost_category" value="lodging" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="quantity_basis">Quantity basis</label>
+            <input class="dd-field" id="quantity_basis" name="quantity_basis" value="arrangement" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="quantity_unit">Quantity unit</label>
+            <input class="dd-field" id="quantity_unit" name="quantity_unit" value="contract" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="amount_minor_units">Fixed amount minor units</label>
+            <input class="dd-field" type="number" id="amount_minor_units" name="amount_minor_units" min="0">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="minimum_quantity">Minimum quantity</label>
+            <input class="dd-field" type="number" id="minimum_quantity" name="minimum_quantity" min="0">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="unit_amount_minor_units">Guarantee unit amount minor units</label>
+            <input class="dd-field" type="number" id="unit_amount_minor_units" name="unit_amount_minor_units" min="0">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="term_resource_id">Resource scope</label>
+            <select class="dd-field" id="term_resource_id" name="resource_id">
+              <option value="">Arrangement-wide</option>
+              <% @resources.each do |resource| %>
+                <option value="<%= resource.id %>"><%= resource.name %></option>
+              <% end %>
+            </select>
+          </div>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="term_provenance">Provenance</label>
+          <input class="dd-field" id="term_provenance" name="provenance" value="Supplier worksheet" required>
+        </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary">Create cost term</button>
+        </div>
+      <% end %>
+
+      <%= form_with url: create_deposit_requirement_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @arrangement.lock_version %>">
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <label class="dd-label" for="deposit_name">Deposit name</label>
+            <input class="dd-field" id="deposit_name" name="name" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="deposit_amount">Amount minor units</label>
+            <input class="dd-field" type="number" id="deposit_amount" name="amount_minor_units" min="0" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="deposit_currency">Currency</label>
+            <input class="dd-field dd-field--code" id="deposit_currency" name="currency" value="<%= @departure.default_currency %>" maxlength="3" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="deposit_due_on">Due on</label>
+            <input class="dd-field" type="date" id="deposit_due_on" name="due_on">
+          </div>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="due_rule">Due rule</label>
+          <input class="dd-field" id="due_rule" name="due_rule" required>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="trigger_condition">Trigger condition</label>
+          <input class="dd-field" id="trigger_condition" name="trigger_condition" required>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="deposit_provenance">Provenance</label>
+          <input class="dd-field" id="deposit_provenance" name="provenance" required>
+        </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary">Create deposit requirement</button>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+
+<section class="dd-panel" id="commitments">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Commitments</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @commitments.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th>Commitment</th>
+            <th>Status</th>
+            <th class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @commitments.each do |commitment| %>
+            <tr>
+              <td><%= commitment.cost_category.humanize %></td>
+              <td><%= supplier_planning_status_badge(commitment) %></td>
+              <td class="num"><%= supplier_money_minor_units(commitment.valuation_amount_minor_units, commitment.currency) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-copy">No open commitments yet.</p>
+    <% end %>
+  </div>
+</section>
+
+<section class="dd-panel" id="deadlines">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Deposits and deadlines</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @deposits.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th>Deposit requirement</th>
+            <th>Status</th>
+            <th class="num">Amount</th>
+            <th>Due rule</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @deposits.each do |deposit| %>
+            <tr>
+              <td><%= deposit.name %></td>
+              <td><%= supplier_planning_status_badge(deposit) %></td>
+              <td class="num"><%= supplier_money_minor_units(deposit.amount_minor_units, deposit.currency) %></td>
+              <td><%= deposit.due_rule %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+
+    <% if @deadlines.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th>Deadline</th>
+            <th>Due</th>
+            <th>Status</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @deadlines.each do |deadline| %>
+            <tr>
+              <td><%= deadline.name %></td>
+              <td><%= deadline.due_on.to_fs(:medium) %></td>
+              <td><%= supplier_planning_status_badge(deadline) %></td>
+              <td><%= deadline.source_deposit_requirement&.name || deadline.source_clause&.name %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-copy">No deadline occurrences yet.</p>
+    <% end %>
+
+    <% if @deposits.any? || @clauses.any? %>
+      <%= form_with url: create_deadline_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <label class="dd-label" for="source_deposit_requirement_id">Deposit source</label>
+            <select class="dd-field" id="source_deposit_requirement_id" name="source_deposit_requirement_id">
+              <option value="">None</option>
+              <% @deposits.each do |deposit| %>
+                <option value="<%= deposit.id %>"><%= deposit.name %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="source_clause_id">Clause source</label>
+            <select class="dd-field" id="source_clause_id" name="source_clause_id">
+              <option value="">None</option>
+              <% @clauses.each do |clause| %>
+                <option value="<%= clause.id %>"><%= clause.name %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="deadline_name">Override name</label>
+            <input class="dd-field" id="deadline_name" name="name">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="deadline_due_on">Due on</label>
+            <input class="dd-field" type="date" id="deadline_due_on" name="due_on">
+          </div>
+        </div>
+        <p class="dd-field-hint">Choose exactly one source. Leaving due date blank uses the source due date when present.</p>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary">Create deadline</button>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+
+<section class="dd-panel" id="capacity">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Capacity positions</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @capacity_positions.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th>Position</th>
+            <th class="num">Held</th>
+            <th class="num">Pending</th>
+            <th class="num">Guaranteed</th>
+            <th class="num">Consumed</th>
+            <th class="num">Available</th>
+            <th>Recent events</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @capacity_positions.each do |position| %>
+            <tr>
+              <td><%= supplier_capacity_position_label(position) %></td>
+              <td class="num"><%= position.agency_held %></td>
+              <td class="num"><%= position.pending_request %></td>
+              <td class="num"><%= position.guaranteed %></td>
+              <td class="num"><%= position.consumed %></td>
+              <td class="num"><%= position.available %></td>
+              <td><%= position.supplier_capacity_events.order(commanded_at: :desc).limit(3).map { |event| "#{event.event_type.humanize} #{event.quantity}" }.join(", ") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-copy">No capacity positions yet. Create an occurrence, then hold capacity.</p>
+    <% end %>
+
+    <% if occurrence_options.any? %>
+      <%= form_with url: hold_capacity_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="idempotency_key" value="<%= @capacity_idempotency_key %>">
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <label class="dd-label" for="hold_resource_id">Resource</label>
+            <select class="dd-field" id="hold_resource_id" name="resource_id" required>
+              <% @resources.each do |resource| %>
+                <option value="<%= resource.id %>"><%= resource.name %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="hold_occurrence_id">Occurrence</label>
+            <select class="dd-field" id="hold_occurrence_id" name="service_occurrence_id" required>
+              <% occurrence_options.each do |label, id| %>
+                <option value="<%= id %>"><%= label %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="hold_quantity">Held quantity</label>
+            <input class="dd-field" type="number" id="hold_quantity" name="quantity" min="1" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="hold_guaranteed_quantity">Guaranteed quantity</label>
+            <input class="dd-field" type="number" id="hold_guaranteed_quantity" name="guaranteed_quantity" min="0" value="0">
+          </div>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="hold_reason">Reason</label>
+          <input class="dd-field" id="hold_reason" name="reason" required>
+        </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary">Hold capacity</button>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+
+<section class="dd-panel" id="clauses">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Clauses</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @clauses.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th>Clause</th>
+            <th>Type</th>
+            <th>Capacity consequence</th>
+            <th>Commitment consequence</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @clauses.each do |clause| %>
+            <tr>
+              <td><%= clause.name %></td>
+              <td><%= clause.clause_type.titleize %></td>
+              <td><%= clause.capacity_action == "none" ? "None" : "#{clause.capacity_action.humanize} #{clause.capacity_quantity || clause.guaranteed_quantity}" %></td>
+              <td><%= clause.commitment_action == "none" ? "None" : clause.commitment_action.humanize %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-copy">No supplier clauses yet.</p>
+    <% end %>
+
+    <% if @clause_preview %>
+      <div class="dd-alert dd-alert--info">
+        <strong>Preview:</strong>
+        <% if @clause_preview.capacity? %>
+          <%= @clause_preview.capacity_consequence.event_type.humanize %>
+          <%= @clause_preview.capacity_consequence.quantity %>
+          (<%= @clause_preview.capacity_consequence.deltas.map { |bucket, delta| "#{bucket.humanize}: #{delta}" }.join(", ") %>).
+        <% end %>
+        <% if @clause_preview.commitment? %>
+          <%= @clause_preview.commitment_consequence.action.humanize %>
+          <%= supplier_money_minor_units(@clause_preview.commitment_consequence.amount_minor_units, @clause_preview.commitment_consequence.currency) %>.
+        <% end %>
+      </div>
+    <% end %>
+
+    <% if @arrangement.nonterminal? %>
+      <%= form_with url: create_clause_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @arrangement.lock_version %>">
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <label class="dd-label" for="clause_name">Clause name</label>
+            <input class="dd-field" id="clause_name" name="name" required>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="clause_type">Clause type</label>
+            <select class="dd-field" id="clause_type" name="clause_type" required>
+              <% SupplierClause::CLAUSE_TYPES.each do |type| %>
+                <option value="<%= type %>"><%= type.titleize %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="capacity_action">Capacity action</label>
+            <select class="dd-field" id="capacity_action" name="capacity_action">
+              <% SupplierClause::CAPACITY_ACTIONS.each do |action| %>
+                <option value="<%= action %>"><%= action.humanize %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="commitment_action">Commitment action</label>
+            <select class="dd-field" id="commitment_action" name="commitment_action">
+              <% SupplierClause::COMMITMENT_ACTIONS.each do |action| %>
+                <option value="<%= action %>"><%= action.humanize %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="clause_resource_id">Resource for capacity consequence</label>
+            <select class="dd-field" id="clause_resource_id" name="resource_id">
+              <option value="">None</option>
+              <% @resources.each do |resource| %>
+                <option value="<%= resource.id %>"><%= resource.name %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="clause_occurrence_id">Occurrence for capacity consequence</label>
+            <select class="dd-field" id="clause_occurrence_id" name="service_occurrence_id">
+              <option value="">None</option>
+              <% occurrence_options.each do |label, id| %>
+                <option value="<%= id %>"><%= label %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="capacity_quantity">Capacity quantity</label>
+            <input class="dd-field" type="number" id="capacity_quantity" name="capacity_quantity" min="1">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="clause_guaranteed_quantity">Guaranteed quantity</label>
+            <input class="dd-field" type="number" id="clause_guaranteed_quantity" name="guaranteed_quantity" min="0">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="governing_term_id">Governing term to open commitment</label>
+            <select class="dd-field" id="governing_term_id" name="governing_term_id">
+              <option value="">None</option>
+              <% @terms.active.each do |term| %>
+                <option value="<%= term.id %>"><%= term.basis.titleize %> <%= term.shape.humanize %> · <%= term.cost_category %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="affected_commitment_id">Affected commitment</label>
+            <select class="dd-field" id="affected_commitment_id" name="affected_commitment_id">
+              <option value="">None</option>
+              <% @commitments.open.each do |commitment| %>
+                <option value="<%= commitment.id %>"><%= commitment.cost_category.humanize %> · <%= supplier_money_minor_units(commitment.valuation_amount_minor_units, commitment.currency) %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="deadline_due_on">Deadline due on</label>
+            <input class="dd-field" type="date" id="deadline_due_on" name="deadline_due_on">
+          </div>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="clause_provenance">Provenance</label>
+          <input class="dd-field" id="clause_provenance" name="provenance" required>
+        </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary">Create clause</button>
+        </div>
+      <% end %>
+
+      <% if @clauses.any? && manager_or_admin %>
+        <%= form_with url: preview_clause_departure_supplier_arrangement_path(@departure, @arrangement), method: :post, class: "dd-form" do %>
+          <input type="hidden" name="idempotency_key" value="<%= @clause_idempotency_key %>">
+          <div class="dd-form-grid dd-form-grid--two-column">
+            <div class="dd-field-group">
+              <label class="dd-label" for="preview_clause_id">Clause</label>
+              <select class="dd-field" id="preview_clause_id" name="clause_id" required>
+                <% @clauses.each do |clause| %>
+                  <option value="<%= clause.id %>"><%= clause.name %></option>
+                <% end %>
+              </select>
+            </div>
+            <div class="dd-field-group">
+              <label class="dd-label" for="preview_reason">Reason</label>
+              <input class="dd-field" id="preview_reason" name="reason" required>
+            </div>
+          </div>
+          <div class="dd-form-actions">
+            <button type="submit" class="dd-button dd-button--secondary">Preview clause</button>
+            <button type="submit" formaction="<%= apply_clause_departure_supplier_arrangement_path(@departure, @arrangement) %>" class="dd-button">Apply clause</button>
+          </div>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+
+<section class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Departure forecast</h2>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <% @forecast_report.totals_by_currency.sort.each do |currency, amount| %>
+        <div>
+          <dt>Forecast <%= currency %></dt>
+          <dd class="dd-type-mono"><%= supplier_money_minor_units(amount, currency) %></dd>
+        </div>
+      <% end %>
+      <% @exposure_report.monetary_totals_by_currency.sort.each do |currency, amount| %>
+        <div>
+          <dt>Exposure <%= currency %></dt>
+          <dd class="dd-type-mono"><%= supplier_money_minor_units(amount, currency) %></dd>
+        </div>
+      <% end %>
+    </dl>
+  </div>
+</section>

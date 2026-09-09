@@ -40,6 +40,27 @@ Rails.application.routes.draw do
   resources :invitation_acceptances, param: :token, only: %i[edit update]
 
   resources :departures, only: %i[index show new create edit update] do
+    resources :supplier_arrangements, only: %i[index show create] do
+      member do
+        post :activate
+        post :cancel
+        post :create_reservation
+        post :confirm_reservation
+        post :create_resource
+        post :create_occurrence
+        post :record_confirmation
+        post :create_cost_term
+        post :activate_cost_term
+        post :create_commitment
+        post :create_deposit_requirement
+        post :create_deadline
+        post :hold_capacity
+        post :create_clause
+        post :preview_clause
+        post :apply_clause
+      end
+    end
+
     member do
       post :start_planning
       post :cancel

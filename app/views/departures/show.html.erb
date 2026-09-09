@@ -18,7 +18,17 @@
   </div>
 </header>
 
-<%= render "departures/subnav", current: :departures %>
+<%= render "departures/subnav", current: :overview, departure: @departure %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Supplier planning</h2>
+      <p class="dd-panel-kicker">Arrange suppliers, capacity, guarantees, confirmations, and forecast exposure without creating client trips or payables.</p>
+    </div>
+    <%= link_to "Open supplier planning", departure_supplier_arrangements_path(@departure), class: "dd-button dd-button--secondary" %>
+  </header>
+</article>
 
 <article class="dd-panel">
   <header class="dd-panel-header">
@@ -273,12 +283,16 @@
     <% end %>
 
     <% if Current.agency_membership.administrator? && @transfer_offices %>
+      <% supplier_planning_exists = @departure.supplier_arrangements.exists? %>
       <%= form_with url: transfer_office_departure_path(@departure), method: :post, class: "dd-form" do %>
         <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
         <div class="dd-panel-body">
+          <% if supplier_planning_exists %>
+            <p class="dd-alert dd-alert--warning">Office transfer is unavailable because supplier arrangements exist for this departure. Supplier planning retains the original owning office.</p>
+          <% end %>
           <div class="dd-field-group">
             <label class="dd-label" for="transfer_office_id">Transfer office</label>
-            <select class="dd-field" name="office_id" id="transfer_office_id" required>
+            <select class="dd-field" name="office_id" id="transfer_office_id" <%= "disabled" if supplier_planning_exists %> required>
               <% @transfer_offices.each do |office| %>
                 <option value="<%= office.id %>"><%= office_choice_label(office) %></option>
               <% end %>
@@ -286,7 +300,7 @@
           </div>
         </div>
         <div class="dd-panel-footer dd-form-actions">
-          <%= submit_tag "Transfer office", class: "dd-button dd-button--secondary" %>
+          <%= submit_tag "Transfer office", class: "dd-button dd-button--secondary", disabled: supplier_planning_exists %>
         </div>
       <% end %>
     <% end %>

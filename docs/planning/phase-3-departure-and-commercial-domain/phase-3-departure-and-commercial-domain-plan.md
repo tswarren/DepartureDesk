@@ -309,7 +309,7 @@ An authorized user can create and operate a dated departure root without using a
 
 ## 8. Slice 3B — Supplier planning, capacity, and commitments
 
-Slice plan: [`phase-3b-supplier-planning-capacity.md`](phase-3b-supplier-planning-capacity.md) (**Accepted**). That document locks arrangement vs reservation, typed cost-term tables, economic-item precedence, deposit-as-requirement, dimensional capacity events with rebuildable positions, agency-provided-service deferral, and the office-transfer freeze rule.
+Slice plan: [`phase-3b-supplier-planning-capacity.md`](phase-3b-supplier-planning-capacity.md) (**Shipped through 3B.6**). That document locks arrangement vs reservation, typed cost-term tables, economic-item precedence, deposit-as-requirement, dimensional capacity events with rebuildable positions, agency-provided-service deferral, and the office-transfer freeze rule.
 
 ### Objective
 
