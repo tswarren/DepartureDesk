@@ -18,6 +18,7 @@ class SupplierArrangement < ApplicationRecord
   has_many :supplier_cost_terms, foreign_key: :arrangement_id, inverse_of: :arrangement, dependent: :restrict_with_exception
   has_many :supplier_commitments, foreign_key: :arrangement_id, inverse_of: :arrangement, dependent: :restrict_with_exception
   has_many :supplier_deposit_requirements, foreign_key: :arrangement_id, inverse_of: :arrangement, dependent: :restrict_with_exception
+  has_many :supplier_clauses, foreign_key: :arrangement_id, inverse_of: :arrangement, dependent: :restrict_with_exception
   has_many :supplier_deadlines, foreign_key: :arrangement_id, inverse_of: :arrangement, dependent: :restrict_with_exception
   has_many :supplier_capacity_positions, foreign_key: :arrangement_id, inverse_of: :arrangement, dependent: :restrict_with_exception
   has_many :supplier_capacity_events, foreign_key: :arrangement_id, inverse_of: :arrangement, dependent: :restrict_with_exception

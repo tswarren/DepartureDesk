@@ -14,6 +14,7 @@ class SupplierCommitment < ApplicationRecord
   belongs_to :status_changed_by_membership, class_name: "AgencyMembership", inverse_of: false
 
   has_many :superseding_commitments, class_name: "SupplierCommitment", foreign_key: :supersedes_commitment_id, inverse_of: :supersedes_commitment, dependent: :restrict_with_exception
+  has_many :supplier_clauses, foreign_key: :affected_commitment_id, inverse_of: :affected_commitment, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
   monetize :valuation_amount_minor_units, as: :valuation_amount, with_model_currency: :currency

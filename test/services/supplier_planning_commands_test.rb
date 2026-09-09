@@ -486,6 +486,221 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
     assert_equal :invalid, error.code
   end
 
+  test "Smith release clause preview is inert and apply emits capacity event" do
+    @departure = smith_family_reunion_departure!(actor: users(:one))
+    arrangement = create_arrangement!(name: "Cruise Cabin Guarantee", actor: users(:staff_one))
+    resource = create_resource!(arrangement:, name: "Balcony Cabins", resource_kind: "cabin_category", capacity_unit: "cabin")
+    occurrence = create_occurrence!(resource:, segment_identifier: "SAILING")
+    HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 12, guaranteed_quantity: 12, reason: "Guaranteed cabin block", idempotency_key: SecureRandom.uuid).call
+
+    clause = CreateSupplierClause.new(
+      agency: agencies(:one),
+      actor: users(:staff_one),
+      arrangement:,
+      resource:,
+      service_occurrence: occurrence,
+      clause_type: "release",
+      name: "90-day cabin release",
+      capacity_action: "release",
+      capacity_quantity: 4,
+      guaranteed_quantity: 4,
+      provenance: "Cruise contract release clause"
+    ).call.supplier_clause
+
+    position = SupplierCapacityPosition.find_by!(resource:, service_occurrence: occurrence)
+    event_count = SupplierCapacityEvent.count
+    audit_count = agencies(:one).audit_events.where(action: "supplier_clause.applied").count
+    preview = ApplySupplierClause.new(agency: agencies(:one), actor: users(:one), clause:, reason: "Apply 90-day release", idempotency_key: SecureRandom.uuid).preview
+
+    assert_equal "release", preview.capacity_consequence.event_type
+    assert_equal({ "agency_held" => -4, "released_current" => 4, "guaranteed" => -4 }, preview.capacity_consequence.deltas)
+    assert_equal event_count, SupplierCapacityEvent.count
+    assert_equal 12, position.reload.agency_held
+    assert_equal audit_count, agencies(:one).audit_events.where(action: "supplier_clause.applied").count
+
+    result = ApplySupplierClause.new(agency: agencies(:one), actor: users(:one), clause:, reason: "Apply 90-day release", idempotency_key: SecureRandom.uuid).call
+
+    assert_equal "release", result.supplier_capacity_event.event_type
+    assert_equal 8, position.reload.agency_held
+    assert_equal 8, position.guaranteed
+    assert_equal 4, position.released_current
+    assert_equal audit_count + 1, agencies(:one).audit_events.where(action: "supplier_clause.applied").count
+  end
+
+  test "attrition and cancellation clauses preview consequences without client trips" do
+    @departure = smith_family_reunion_departure!(actor: users(:one))
+    arrangement = create_arrangement!(name: "Cruise Guarantee")
+    resource = create_resource!(arrangement:)
+    occurrence = create_occurrence!(resource:)
+    HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 10, guaranteed_quantity: 10, reason: "Guaranteed cabins", idempotency_key: SecureRandom.uuid).call
+
+    contracted = create_minimum_guarantee_term!(arrangement:, basis: "contracted", minimum_quantity: 10, unit_amount_minor_units: 150_000)
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: contracted).call
+    commitment = CreateSupplierCommitment.new(agency: agencies(:one), actor: users(:one), governing_term: contracted.reload, reason: "Initial cabin guarantee").call.supplier_commitment
+
+    attrition = CreateSupplierClause.new(
+      agency: agencies(:one),
+      actor: users(:staff_one),
+      arrangement:,
+      resource:,
+      service_occurrence: occurrence,
+      clause_type: "attrition",
+      name: "Allowed attrition",
+      capacity_action: "reduction",
+      capacity_quantity: 2,
+      guaranteed_quantity: 2,
+      provenance: "Supplier attrition clause"
+    ).call.supplier_clause
+    cancellation = CreateSupplierClause.new(
+      agency: agencies(:one),
+      actor: users(:staff_one),
+      arrangement:,
+      affected_commitment: commitment,
+      clause_type: "cancellation",
+      name: "Group cancellation",
+      commitment_action: "cancel",
+      provenance: "Supplier cancellation clause"
+    ).call.supplier_clause
+
+    attrition_preview = ApplySupplierClause.new(agency: agencies(:one), actor: users(:one), clause: attrition, reason: "Preview attrition", idempotency_key: SecureRandom.uuid).preview
+    cancellation_preview = ApplySupplierClause.new(agency: agencies(:one), actor: users(:one), clause: cancellation, reason: "Preview cancellation", idempotency_key: SecureRandom.uuid).preview
+
+    assert_equal "reduction", attrition_preview.capacity_consequence.event_type
+    assert_equal "cancel", cancellation_preview.commitment_consequence.action
+    assert commitment.reload.open?
+    assert_equal 1, SupplierCapacityEvent.where(resource:, service_occurrence: occurrence).count
+  end
+
+  test "clause apply can change commitment and audits only the aggregate" do
+    arrangement = create_arrangement!
+    contracted = create_minimum_guarantee_term!(arrangement:, basis: "contracted", minimum_quantity: 4, unit_amount_minor_units: 150_000)
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: contracted).call
+    commitment = CreateSupplierCommitment.new(agency: agencies(:one), actor: users(:one), governing_term: contracted.reload, reason: "Supplier guarantee").call.supplier_commitment
+    clause = CreateSupplierClause.new(
+      agency: agencies(:one),
+      actor: users(:staff_one),
+      arrangement:,
+      affected_commitment: commitment,
+      clause_type: "cancellation",
+      name: "Release financial commitment",
+      commitment_action: "release",
+      provenance: "Supplier release clause"
+    ).call.supplier_clause
+
+    before_commitment_audits = agencies(:one).audit_events.where(action: "supplier_commitment.released").count
+    before_clause_audits = agencies(:one).audit_events.where(action: "supplier_clause.applied").count
+
+    ApplySupplierClause.new(agency: agencies(:one), actor: users(:one), clause:, reason: "Supplier accepted release", idempotency_key: SecureRandom.uuid).call
+
+    assert commitment.reload.released?
+    assert_equal before_commitment_audits, agencies(:one).audit_events.where(action: "supplier_commitment.released").count
+    assert_equal before_clause_audits + 1, agencies(:one).audit_events.where(action: "supplier_clause.applied").count
+  end
+
+  test "staff may draft clauses but cannot apply them" do
+    arrangement = create_arrangement!(actor: users(:staff_one))
+    clause = CreateSupplierClause.new(
+      agency: agencies(:one),
+      actor: users(:staff_one),
+      arrangement:,
+      clause_type: "release",
+      name: "Draft release",
+      provenance: "Supplier draft"
+    ).call.supplier_clause
+    before = agencies(:one).audit_events.where(action: "supplier_clause.applied").count
+
+    error = assert_raises(MembershipCommand::Error) do
+      ApplySupplierClause.new(agency: agencies(:one), actor: users(:staff_one), clause:, reason: "Unauthorized apply", idempotency_key: SecureRandom.uuid).call
+    end
+
+    assert_equal :unauthorized, error.code
+    assert_equal before, agencies(:one).audit_events.where(action: "supplier_clause.applied").count
+  end
+
+  test "rejected clause apply writes no success audit or child capacity event" do
+    arrangement = create_arrangement!
+    resource = create_resource!(arrangement:)
+    occurrence = create_occurrence!(resource:)
+    HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 2, guaranteed_quantity: 2, reason: "Small guarantee", idempotency_key: SecureRandom.uuid).call
+    clause = CreateSupplierClause.new(
+      agency: agencies(:one),
+      actor: users(:staff_one),
+      arrangement:,
+      resource:,
+      service_occurrence: occurrence,
+      clause_type: "release",
+      name: "Over release",
+      capacity_action: "release",
+      capacity_quantity: 3,
+      guaranteed_quantity: 3,
+      provenance: "Supplier release clause"
+    ).call.supplier_clause
+    before_events = SupplierCapacityEvent.count
+    before_audits = agencies(:one).audit_events.where(action: "supplier_clause.applied").count
+
+    error = assert_raises(MembershipCommand::Error) do
+      ApplySupplierClause.new(agency: agencies(:one), actor: users(:one), clause:, reason: "Too much release", idempotency_key: SecureRandom.uuid).call
+    end
+
+    assert_equal :invalid_transition, error.code
+    assert_equal before_events, SupplierCapacityEvent.count
+    assert_equal before_audits, agencies(:one).audit_events.where(action: "supplier_clause.applied").count
+  end
+
+  test "forecast and guarantee exposure reports group money by currency" do
+    arrangement = create_arrangement!
+    usd = create_minimum_guarantee_term!(arrangement:, basis: "contracted", minimum_quantity: 2, unit_amount_minor_units: 100_000)
+    eur = create_minimum_guarantee_term!(arrangement:, basis: "contracted", minimum_quantity: 3, unit_amount_minor_units: 80_000, currency: "EUR")
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: usd).call
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: eur).call
+    CreateSupplierCommitment.new(agency: agencies(:one), actor: users(:one), governing_term: usd.reload, reason: "USD guarantee").call
+
+    forecast = SupplierForecastCostReporter.call(agency: agencies(:one), departure: @departure)
+    exposure = SupplierGuaranteeExposureReporter.call(agency: agencies(:one), departure: @departure)
+
+    assert_equal 200_000, forecast.totals_by_currency.fetch("USD")
+    assert_equal 240_000, forecast.totals_by_currency.fetch("EUR")
+    assert_equal 200_000, exposure.monetary_totals_by_currency.fetch("USD")
+    assert_equal 240_000, exposure.monetary_totals_by_currency.fetch("EUR")
+    assert_nil forecast.totals_by_currency["total"]
+    assert_nil exposure.monetary_totals_by_currency["total"]
+  end
+
+  test "clause-sourced deadline is linked to its clause" do
+    arrangement = create_arrangement!
+    clause = CreateSupplierClause.new(
+      agency: agencies(:one),
+      actor: users(:staff_one),
+      arrangement:,
+      clause_type: "release",
+      name: "Final release",
+      deadline_due_on: Date.new(2027, 4, 1),
+      provenance: "Supplier release clause"
+    ).call.supplier_clause
+
+    deadline = CreateSupplierDeadline.new(agency: agencies(:one), actor: users(:staff_one), clause:).call.supplier_deadline
+
+    assert_equal clause.id, deadline.source_clause_id
+    assert_nil deadline.source_deposit_requirement_id
+    assert_equal Date.new(2027, 4, 1), deadline.due_on
+  end
+
+  test "cross agency clause create is rejected" do
+    arrangement = create_arrangement!
+
+    error = assert_raises(MembershipCommand::Error) do
+      CreateSupplierClause.new(
+        agency: agencies(:two),
+        actor: users(:two),
+        arrangement:,
+        clause_type: "release",
+        name: "Forged clause",
+        provenance: "Supplier draft"
+      ).call
+    end
+    assert_equal :invalid, error.code
+  end
+
   test "capacity events are append only and active positions block resource deactivation" do
     arrangement = create_arrangement!
     resource = create_resource!(arrangement:)
@@ -529,7 +744,7 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
     ).call.supplier_cost_term
   end
 
-  def create_minimum_guarantee_term!(arrangement:, basis:, minimum_quantity:, unit_amount_minor_units:)
+  def create_minimum_guarantee_term!(arrangement:, basis:, minimum_quantity:, unit_amount_minor_units:, currency: nil)
     CreateSupplierCostTerm.new(
       agency: agencies(:one),
       actor: users(:one),
@@ -539,6 +754,7 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
       cost_category: "cabin_guarantee",
       quantity_basis: "guaranteed_quantity",
       quantity_unit: "cabin",
+      currency:,
       detail_attributes: { minimum_quantity:, unit_amount_minor_units: },
       provenance: "Supplier guarantee schedule"
     ).call.supplier_cost_term

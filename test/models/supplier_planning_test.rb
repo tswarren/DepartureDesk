@@ -165,11 +165,20 @@ class SupplierPlanningTest < ActiveSupport::TestCase
     end
   end
 
-  test "deadline must reference a deposit requirement source in this slice" do
+  test "deadline must reference exactly one deposit or clause source" do
     arrangement = create_arrangement!
+    clause = CreateSupplierClause.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      arrangement:,
+      clause_type: "release",
+      name: "Release deadline source",
+      deadline_due_on: Date.new(2027, 1, 15),
+      provenance: "Supplier release clause"
+    ).call.supplier_clause
     now = Time.current
 
-    assert_raises(ActiveRecord::NotNullViolation) do
+    assert_raises(ActiveRecord::StatementInvalid) do
       SupplierDeadline.transaction(requires_new: true) do
         SupplierDeadline.insert_all!([ {
           id: SecureRandom.uuid_v7(extra_timestamp_bits: 12),
@@ -191,6 +200,34 @@ class SupplierPlanningTest < ActiveSupport::TestCase
         } ])
       end
     end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierDeadline.transaction(requires_new: true) do
+        SupplierDeadline.insert_all!([ {
+          id: SecureRandom.uuid_v7(extra_timestamp_bits: 12),
+          agency_id: agencies(:one).id,
+          office_id: arrangement.office_id,
+          departure_id: arrangement.departure_id,
+          arrangement_id: arrangement.id,
+          source_deposit_requirement_id: create_deposit_requirement!(arrangement:).id,
+          source_clause_id: clause.id,
+          name: "Too many sources",
+          original_due_on: Date.new(2027, 1, 15),
+          due_on: Date.new(2027, 1, 15),
+          status: "open",
+          created_by_membership_id: agency_memberships(:one).id,
+          status_changed_at: now,
+          status_changed_by_membership_id: agency_memberships(:one).id,
+          lock_version: 0,
+          created_at: now,
+          updated_at: now
+        } ])
+      end
+    end
+
+    deadline = CreateSupplierDeadline.new(agency: agencies(:one), actor: users(:one), clause:).call.supplier_deadline
+    assert_equal clause.id, deadline.source_clause_id
+    assert_nil deadline.source_deposit_requirement_id
   end
 
   private
@@ -230,6 +267,20 @@ class SupplierPlanningTest < ActiveSupport::TestCase
     term = create_draft_cost_term!(shape:, detail_attributes:)
     ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term:).call
     term.reload
+  end
+
+  def create_deposit_requirement!(arrangement:)
+    CreateSupplierDepositRequirement.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      arrangement:,
+      name: "Initial deposit",
+      amount_minor_units: 50_000,
+      due_rule: "Due at signing",
+      due_on: Date.new(2027, 1, 15),
+      trigger_condition: "Contract signed",
+      provenance: "Supplier contract"
+    ).call.supplier_deposit_requirement
   end
 
   def create_draft_cost_term!(shape:, detail_attributes:, evaluation_inputs: {})

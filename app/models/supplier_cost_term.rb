@@ -22,6 +22,7 @@ class SupplierCostTerm < ApplicationRecord
 
   has_many :superseding_terms, class_name: "SupplierCostTerm", foreign_key: :supersedes_term_id, inverse_of: :supersedes_term, dependent: :restrict_with_exception
   has_many :supplier_commitments, foreign_key: :governing_term_id, inverse_of: :governing_term, dependent: :restrict_with_exception
+  has_many :supplier_clauses, foreign_key: :governing_term_id, inverse_of: :governing_term, dependent: :restrict_with_exception
   has_many :supplier_deposit_requirements, dependent: :restrict_with_exception
 
   has_one :fixed_detail, class_name: "SupplierCostTermFixedDetail", dependent: :restrict_with_exception

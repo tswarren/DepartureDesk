@@ -27,6 +27,9 @@ class Departure < ApplicationRecord
   has_many :supplier_arrangements,
     inverse_of: :departure,
     dependent: :restrict_with_exception
+  has_many :supplier_clauses,
+    inverse_of: :departure,
+    dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

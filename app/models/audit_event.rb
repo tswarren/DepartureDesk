@@ -107,6 +107,9 @@ class AuditEvent < ApplicationRecord
     supplier_deposit_requirement.created
     supplier_deposit_requirement.updated
     supplier_deposit_requirement.cancelled
+    supplier_clause.created
+    supplier_clause.updated
+    supplier_clause.applied
     supplier_deadline.created
     supplier_deadline.rescheduled
     supplier_deadline.completed

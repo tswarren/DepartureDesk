@@ -1328,6 +1328,56 @@ CREATE TABLE public.supplier_capacity_positions (
 
 
 --
+-- Name: supplier_clauses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_clauses (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    resource_id uuid,
+    service_occurrence_id uuid,
+    governing_term_id uuid,
+    affected_commitment_id uuid,
+    clause_type character varying NOT NULL,
+    name character varying NOT NULL,
+    capacity_action character varying DEFAULT 'none'::character varying NOT NULL,
+    capacity_quantity integer,
+    guaranteed_quantity integer,
+    commitment_action character varying DEFAULT 'none'::character varying NOT NULL,
+    amount_minor_units bigint,
+    currency character varying(3),
+    effective_on date,
+    effective_until date,
+    trigger_on date,
+    deadline_due_on date,
+    provenance text NOT NULL,
+    application_rules jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_by_membership_id uuid NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_clauses_amount_nonnegative CHECK (((amount_minor_units IS NULL) OR (amount_minor_units >= 0))),
+    CONSTRAINT supplier_clauses_capacity_action_valid CHECK (((capacity_action)::text = ANY ((ARRAY['none'::character varying, 'release'::character varying, 'reduction'::character varying, 'expiration'::character varying, 'guarantee_adjustment'::character varying])::text[]))),
+    CONSTRAINT supplier_clauses_capacity_quantity_positive CHECK (((capacity_quantity IS NULL) OR (capacity_quantity > 0))),
+    CONSTRAINT supplier_clauses_capacity_target_complete CHECK ((((capacity_action)::text = 'none'::text) OR ((resource_id IS NOT NULL) AND (service_occurrence_id IS NOT NULL) AND ((capacity_quantity IS NOT NULL) OR (((capacity_action)::text = 'guarantee_adjustment'::text) AND (guaranteed_quantity IS NOT NULL)))))),
+    CONSTRAINT supplier_clauses_commitment_action_valid CHECK (((commitment_action)::text = ANY ((ARRAY['none'::character varying, 'open'::character varying, 'release'::character varying, 'satisfy'::character varying, 'cancel'::character varying])::text[]))),
+    CONSTRAINT supplier_clauses_currency_format CHECK (((currency IS NULL) OR ((currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT supplier_clauses_effective_interval CHECK (((effective_until IS NULL) OR (effective_on IS NULL) OR (effective_until > effective_on))),
+    CONSTRAINT supplier_clauses_existing_commitment_required CHECK ((((commitment_action)::text <> ALL ((ARRAY['release'::character varying, 'satisfy'::character varying, 'cancel'::character varying])::text[])) OR (affected_commitment_id IS NOT NULL))),
+    CONSTRAINT supplier_clauses_guarantee_substance CHECK ((((clause_type)::text <> 'guarantee'::text) OR ((guaranteed_quantity IS NOT NULL) OR (amount_minor_units IS NOT NULL) OR (governing_term_id IS NOT NULL)))),
+    CONSTRAINT supplier_clauses_guaranteed_quantity_nonnegative CHECK (((guaranteed_quantity IS NULL) OR (guaranteed_quantity >= 0))),
+    CONSTRAINT supplier_clauses_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_clauses_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT supplier_clauses_open_commitment_term_required CHECK ((((commitment_action)::text <> 'open'::text) OR (governing_term_id IS NOT NULL))),
+    CONSTRAINT supplier_clauses_provenance_not_blank CHECK ((btrim(provenance) <> ''::text)),
+    CONSTRAINT supplier_clauses_type_valid CHECK (((clause_type)::text = ANY ((ARRAY['release'::character varying, 'attrition'::character varying, 'cancellation'::character varying, 'guarantee'::character varying])::text[])))
+);
+
+
+--
 -- Name: supplier_commitments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1676,7 +1726,7 @@ CREATE TABLE public.supplier_deadlines (
     office_id uuid NOT NULL,
     departure_id uuid NOT NULL,
     arrangement_id uuid NOT NULL,
-    source_deposit_requirement_id uuid NOT NULL,
+    source_deposit_requirement_id uuid,
     name character varying NOT NULL,
     original_due_on date NOT NULL,
     due_on date NOT NULL,
@@ -1691,6 +1741,8 @@ CREATE TABLE public.supplier_deadlines (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    source_clause_id uuid,
+    CONSTRAINT supplier_deadlines_exactly_one_source CHECK (((((source_deposit_requirement_id IS NOT NULL))::integer + ((source_clause_id IS NOT NULL))::integer) = 1)),
     CONSTRAINT supplier_deadlines_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_deadlines_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
     CONSTRAINT supplier_deadlines_reschedule_metadata CHECK ((((rescheduled_at IS NULL) AND (rescheduled_by_membership_id IS NULL) AND (reschedule_reason IS NULL)) OR ((rescheduled_at IS NOT NULL) AND (rescheduled_by_membership_id IS NOT NULL) AND (btrim((reschedule_reason)::text) <> ''::text)))),
@@ -2311,6 +2363,14 @@ ALTER TABLE ONLY public.supplier_capacity_events
 
 ALTER TABLE ONLY public.supplier_capacity_positions
     ADD CONSTRAINT supplier_capacity_positions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_pkey PRIMARY KEY (id);
 
 
 --
@@ -3395,6 +3455,41 @@ CREATE UNIQUE INDEX index_sce_unique_idempotency ON public.supplier_capacity_eve
 
 
 --
+-- Name: index_scl_on_arrangement_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scl_on_arrangement_and_agency ON public.supplier_clauses USING btree (arrangement_id, agency_id);
+
+
+--
+-- Name: index_scl_on_commitment_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scl_on_commitment_and_agency ON public.supplier_clauses USING btree (affected_commitment_id, agency_id);
+
+
+--
+-- Name: index_scl_on_governing_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scl_on_governing_term_and_agency ON public.supplier_clauses USING btree (governing_term_id, agency_id);
+
+
+--
+-- Name: index_scl_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_scl_on_id_and_agency_id ON public.supplier_clauses USING btree (id, agency_id);
+
+
+--
+-- Name: index_scl_on_resource_occurrence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scl_on_resource_occurrence ON public.supplier_clauses USING btree (resource_id, service_occurrence_id);
+
+
+--
 -- Name: index_scom_on_arrangement_and_agency; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3567,6 +3662,13 @@ CREATE INDEX index_sct_tiers_on_term_and_agency ON public.supplier_cost_term_tie
 --
 
 CREATE UNIQUE INDEX index_sct_tiers_on_term_and_threshold ON public.supplier_cost_term_tiers USING btree (supplier_cost_term_id, threshold_quantity);
+
+
+--
+-- Name: index_sdl_on_clause_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sdl_on_clause_and_agency ON public.supplier_deadlines USING btree (source_clause_id, agency_id);
 
 
 --
@@ -3749,6 +3851,13 @@ CREATE INDEX index_supplier_capacity_events_on_agency_id ON public.supplier_capa
 --
 
 CREATE INDEX index_supplier_capacity_positions_on_agency_id ON public.supplier_capacity_positions USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_clauses_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_clauses_on_agency_id ON public.supplier_clauses USING btree (agency_id);
 
 
 --
@@ -4536,6 +4645,14 @@ ALTER TABLE ONLY public.supplier_cost_term_tiers
 
 ALTER TABLE ONLY public.supplier_cost_terms
     ADD CONSTRAINT fk_rails_7b4be51c40 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_clauses fk_rails_81780a5a66; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT fk_rails_81780a5a66 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -5331,6 +5448,62 @@ ALTER TABLE ONLY public.supplier_arrangements
 
 
 --
+-- Name: supplier_clauses supplier_clauses_affected_commitment_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_affected_commitment_fk FOREIGN KEY (affected_commitment_id, agency_id) REFERENCES public.supplier_commitments(id, agency_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_governing_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_governing_term_fk FOREIGN KEY (governing_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_occurrence_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_occurrence_scope_fk FOREIGN KEY (service_occurrence_id, agency_id) REFERENCES public.supplier_service_occurrences(id, agency_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_resource_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_resource_scope_fk FOREIGN KEY (resource_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_resources(id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
 -- Name: supplier_commitments supplier_commitments_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5496,6 +5669,14 @@ ALTER TABLE ONLY public.supplier_cost_terms
 
 ALTER TABLE ONLY public.supplier_deadlines
     ADD CONSTRAINT supplier_deadlines_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_deadlines supplier_deadlines_clause_source_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT supplier_deadlines_clause_source_fk FOREIGN KEY (source_clause_id, agency_id) REFERENCES public.supplier_clauses(id, agency_id);
 
 
 --
@@ -5705,6 +5886,7 @@ ALTER TABLE ONLY public.travel_programs
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909210000'),
 ('20260909200000'),
 ('20260909190000'),
 ('20260909180000'),

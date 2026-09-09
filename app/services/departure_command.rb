@@ -14,6 +14,7 @@ class DepartureCommand < MembershipCommand
     supplier_cost_terms: [],
     supplier_commitments: [],
     supplier_deposit_requirements: [],
+    supplier_clauses: [],
     supplier_deadlines: [],
     supplier_capacity_positions: [],
     supplier_capacity_events: [],
@@ -80,6 +81,11 @@ class DepartureCommand < MembershipCommand
         deposit.lock!
         deposit.reload
         ensure_supplier_deposit_requirement_belongs_to_agency!(agency, deposit)
+      end
+      Array(supplier_clauses).compact.uniq.sort_by(&:id).each do |clause|
+        clause.lock!
+        clause.reload
+        ensure_supplier_clause_belongs_to_agency!(agency, clause)
       end
       Array(supplier_deadlines).compact.uniq.sort_by(&:id).each do |deadline|
         deadline.lock!
@@ -196,6 +202,12 @@ class DepartureCommand < MembershipCommand
     return if deposit.agency_id == agency.id
 
     raise Error.new("That supplier deposit requirement is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_clause_belongs_to_agency!(agency, clause)
+    return if clause.agency_id == agency.id
+
+    raise Error.new("That supplier clause is not part of this agency.", code: :invalid)
   end
 
   def ensure_supplier_deadline_belongs_to_agency!(agency, deadline)

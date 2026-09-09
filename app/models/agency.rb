@@ -30,6 +30,7 @@ class Agency < ApplicationRecord
     has_many :supplier_cost_terms, dependent: :restrict_with_exception
     has_many :supplier_commitments, dependent: :restrict_with_exception
     has_many :supplier_deposit_requirements, dependent: :restrict_with_exception
+    has_many :supplier_clauses, dependent: :restrict_with_exception
     has_many :supplier_deadlines, dependent: :restrict_with_exception
     has_many :supplier_capacity_positions, dependent: :restrict_with_exception
     has_many :supplier_capacity_events, dependent: :restrict_with_exception

@@ -14,6 +14,7 @@ class SupplierResource < ApplicationRecord
   has_many :supplier_service_occurrences, foreign_key: :resource_id, inverse_of: :resource, dependent: :restrict_with_exception
   has_many :supplier_cost_terms, foreign_key: :resource_id, inverse_of: :resource, dependent: :restrict_with_exception
   has_many :supplier_commitments, foreign_key: :resource_id, inverse_of: :resource, dependent: :restrict_with_exception
+  has_many :supplier_clauses, foreign_key: :resource_id, inverse_of: :resource, dependent: :restrict_with_exception
   has_many :supplier_capacity_positions, foreign_key: :resource_id, inverse_of: :resource, dependent: :restrict_with_exception
   has_many :supplier_capacity_events, foreign_key: :resource_id, inverse_of: :resource, dependent: :restrict_with_exception
 
