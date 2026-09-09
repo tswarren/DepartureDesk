@@ -1410,10 +1410,13 @@ CREATE TABLE public.supplier_commitments (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_commitments_cost_category_valid CHECK (((cost_category)::text = ANY ((ARRAY['coach'::character varying, 'coach_seat'::character varying, 'cabin'::character varying, 'cabin_guarantee'::character varying, 'room'::character varying, 'lodging'::character varying, 'hotel_block'::character varying, 'transport'::character varying, 'tour'::character varying, 'vineyard_lunch'::character varying, 'vineyard_seats'::character varying, 'guide_ticket'::character varying, 'park_permit'::character varying, 'supplier_fee'::character varying, 'supplier_guarantee'::character varying, 'insurance'::character varying, 'other'::character varying])::text[]))),
     CONSTRAINT supplier_commitments_currency_format CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT supplier_commitments_key_not_blank CHECK ((btrim((economic_item_key)::text) <> ''::text)),
     CONSTRAINT supplier_commitments_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_commitments_opened_reason_not_blank CHECK ((btrim(opened_reason) <> ''::text)),
+    CONSTRAINT supplier_commitments_quantity_basis_valid CHECK (((quantity_basis)::text = ANY ((ARRAY['arrangement'::character varying, 'resource'::character varying, 'reservation'::character varying, 'occurrence'::character varying, 'planning_quantity'::character varying, 'guaranteed_quantity'::character varying, 'qualifying_quantity'::character varying, 'base_amount'::character varying, 'supplier_invoice'::character varying])::text[]))),
+    CONSTRAINT supplier_commitments_quantity_unit_valid CHECK (((quantity_unit)::text = ANY ((ARRAY['seat'::character varying, 'room'::character varying, 'cabin'::character varying, 'vehicle'::character varying, 'policy'::character varying, 'unit'::character varying, 'contract'::character varying, 'coach'::character varying, 'person'::character varying, 'guest'::character varying, 'fee'::character varying, 'permit'::character varying, 'night'::character varying])::text[]))),
     CONSTRAINT supplier_commitments_status_metadata CHECK (((((status)::text = 'open'::text) AND (status_reason IS NULL)) OR (((status)::text <> 'open'::text) AND (btrim((status_reason)::text) <> ''::text)))),
     CONSTRAINT supplier_commitments_status_valid CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'released'::character varying, 'satisfied'::character varying, 'superseded'::character varying, 'cancelled'::character varying])::text[]))),
     CONSTRAINT supplier_commitments_value_nonnegative CHECK ((valuation_amount_minor_units >= 0))
@@ -1450,7 +1453,9 @@ CREATE TABLE public.supplier_confirmations (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT supplier_confirmations_context_not_blank CHECK ((btrim((context)::text) <> ''::text)),
+    CONSTRAINT supplier_confirmations_context_valid CHECK (((context)::text = ANY ((ARRAY['supplier_portal'::character varying, 'email'::character varying, 'phone'::character varying, 'fax'::character varying, 'document'::character varying, 'other'::character varying])::text[]))),
     CONSTRAINT supplier_confirmations_exactly_one_owner CHECK (((arrangement_id IS NULL) <> (reservation_id IS NULL))),
+    CONSTRAINT supplier_confirmations_identifier_type_valid CHECK (((identifier_type)::text = ANY ((ARRAY['supplier_confirmation'::character varying, 'booking_reference'::character varying, 'pnr'::character varying, 'group_code'::character varying, 'allotment_code'::character varying])::text[]))),
     CONSTRAINT supplier_confirmations_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_confirmations_normalized_value_not_blank CHECK ((btrim((normalized_value)::text) <> ''::text)),
     CONSTRAINT supplier_confirmations_raw_value_not_blank CHECK ((btrim((raw_value)::text) <> ''::text)),
@@ -1701,17 +1706,19 @@ CREATE TABLE public.supplier_cost_terms (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT supplier_cost_terms_basis_valid CHECK (((basis)::text = ANY ((ARRAY['estimate'::character varying, 'contracted'::character varying])::text[]))),
-    CONSTRAINT supplier_cost_terms_category_not_blank CHECK ((btrim((cost_category)::text) <> ''::text)),
+    CONSTRAINT supplier_cost_terms_cost_category_valid CHECK (((cost_category)::text = ANY ((ARRAY['coach'::character varying, 'coach_seat'::character varying, 'cabin'::character varying, 'cabin_guarantee'::character varying, 'room'::character varying, 'lodging'::character varying, 'hotel_block'::character varying, 'transport'::character varying, 'tour'::character varying, 'vineyard_lunch'::character varying, 'vineyard_seats'::character varying, 'guide_ticket'::character varying, 'park_permit'::character varying, 'supplier_fee'::character varying, 'supplier_guarantee'::character varying, 'insurance'::character varying, 'other'::character varying])::text[]))),
     CONSTRAINT supplier_cost_terms_currency_format CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT supplier_cost_terms_effective_interval CHECK (((effective_until IS NULL) OR (effective_on IS NULL) OR (effective_until > effective_on))),
     CONSTRAINT supplier_cost_terms_key_not_blank CHECK ((btrim((economic_item_key)::text) <> ''::text)),
     CONSTRAINT supplier_cost_terms_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_cost_terms_provenance_not_blank CHECK ((btrim(provenance) <> ''::text)),
-    CONSTRAINT supplier_cost_terms_quantity_basis_not_blank CHECK ((btrim((quantity_basis)::text) <> ''::text)),
-    CONSTRAINT supplier_cost_terms_quantity_unit_not_blank CHECK ((btrim((quantity_unit)::text) <> ''::text)),
+    CONSTRAINT supplier_cost_terms_quantity_basis_valid CHECK (((quantity_basis)::text = ANY ((ARRAY['arrangement'::character varying, 'resource'::character varying, 'reservation'::character varying, 'occurrence'::character varying, 'planning_quantity'::character varying, 'guaranteed_quantity'::character varying, 'qualifying_quantity'::character varying, 'base_amount'::character varying, 'supplier_invoice'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_quantity_unit_valid CHECK (((quantity_unit)::text = ANY ((ARRAY['seat'::character varying, 'room'::character varying, 'cabin'::character varying, 'vehicle'::character varying, 'policy'::character varying, 'unit'::character varying, 'contract'::character varying, 'coach'::character varying, 'person'::character varying, 'guest'::character varying, 'fee'::character varying, 'permit'::character varying, 'night'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_rounding_method_valid CHECK (((rounding_method)::text = 'nearest_minor_unit'::text)),
     CONSTRAINT supplier_cost_terms_shape_valid CHECK (((shape)::text = ANY ((ARRAY['fixed'::character varying, 'per_resource'::character varying, 'per_person'::character varying, 'per_night'::character varying, 'minimum_guarantee'::character varying, 'tiered'::character varying, 'stepped'::character varying, 'percentage'::character varying, 'complimentary_ratio'::character varying, 'pass_through'::character varying, 'manual_estimate'::character varying])::text[]))),
     CONSTRAINT supplier_cost_terms_status_metadata CHECK (((((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying])::text[])) AND (status_reason IS NULL)) OR (((status)::text = ANY ((ARRAY['superseded'::character varying, 'void'::character varying])::text[])) AND (btrim((status_reason)::text) <> ''::text)))),
     CONSTRAINT supplier_cost_terms_status_valid CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'superseded'::character varying, 'void'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_tax_fee_treatment_valid CHECK (((tax_fee_treatment)::text = ANY ((ARRAY['included'::character varying, 'excluded'::character varying, 'separate'::character varying])::text[]))),
     CONSTRAINT supplier_cost_terms_version_positive CHECK ((term_version > 0))
 );
 
@@ -1906,6 +1913,7 @@ CREATE TABLE public.supplier_resources (
     CONSTRAINT supplier_resources_kind_not_blank CHECK ((btrim((resource_kind)::text) <> ''::text)),
     CONSTRAINT supplier_resources_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_resources_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT supplier_resources_resource_kind_valid CHECK (((resource_kind)::text = ANY ((ARRAY['cabin_category'::character varying, 'room_type'::character varying, 'coach'::character varying, 'tour_inventory'::character varying, 'vehicle'::character varying, 'insurance_product'::character varying, 'other'::character varying])::text[]))),
     CONSTRAINT supplier_resources_status_metadata CHECK (((((status)::text = 'active'::text) AND (status_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (btrim((status_reason)::text) <> ''::text)))),
     CONSTRAINT supplier_resources_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
 );
@@ -1948,7 +1956,8 @@ CREATE TABLE public.supplier_service_occurrences (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT supplier_occurrences_kind_identity CHECK (((((occurrence_kind)::text = 'night_slice'::text) AND (service_date IS NOT NULL) AND (segment_type IS NULL) AND (segment_identifier IS NULL)) OR (((occurrence_kind)::text = 'typed_segment'::text) AND (service_date IS NULL) AND (btrim((segment_type)::text) <> ''::text) AND (btrim((segment_identifier)::text) <> ''::text)))),
     CONSTRAINT supplier_occurrences_kind_valid CHECK (((occurrence_kind)::text = ANY ((ARRAY['night_slice'::character varying, 'typed_segment'::character varying])::text[]))),
-    CONSTRAINT supplier_occurrences_lock_version_nonnegative CHECK ((lock_version >= 0))
+    CONSTRAINT supplier_occurrences_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_service_occurrences_segment_type_valid CHECK (((segment_type IS NULL) OR ((segment_type)::text = ANY ((ARRAY['sailing'::character varying, 'transfer'::character varying, 'tour_day'::character varying, 'optional_extension'::character varying, 'flight_segment'::character varying, 'other'::character varying])::text[]))))
 );
 
 
@@ -5886,6 +5895,7 @@ ALTER TABLE ONLY public.travel_programs
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909220000'),
 ('20260909210000'),
 ('20260909200000'),
 ('20260909190000'),

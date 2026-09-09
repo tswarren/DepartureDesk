@@ -1,6 +1,15 @@
 class SupplierResource < ApplicationRecord
   STATUSES = %w[active inactive].freeze
   CAPACITY_UNITS = %w[seat room cabin vehicle policy unit].freeze
+  RESOURCE_KINDS = %w[
+    cabin_category
+    room_type
+    coach
+    tour_inventory
+    vehicle
+    insurance_product
+    other
+  ].freeze
 
   belongs_to :agency
   belongs_to :office
@@ -26,6 +35,7 @@ class SupplierResource < ApplicationRecord
   normalizes :description, :status_reason, with: ->(value) { value&.strip.presence }
 
   validates :name, :resource_kind, :status_changed_at, presence: true
+  validates :resource_kind, inclusion: { in: RESOURCE_KINDS }
   validates :capacity_unit, presence: true, inclusion: { in: CAPACITY_UNITS }
   validate :same_agency_scope
   validate :status_metadata

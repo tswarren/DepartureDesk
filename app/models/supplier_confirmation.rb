@@ -1,5 +1,20 @@
 class SupplierConfirmation < ApplicationRecord
   STATUSES = %w[effective superseded].freeze
+  IDENTIFIER_TYPES = %w[
+    supplier_confirmation
+    booking_reference
+    pnr
+    group_code
+    allotment_code
+  ].freeze
+  CONTEXTS = %w[
+    supplier_portal
+    email
+    phone
+    fax
+    document
+    other
+  ].freeze
 
   belongs_to :agency
   belongs_to :office
@@ -19,6 +34,8 @@ class SupplierConfirmation < ApplicationRecord
     :source_channel, :document_reference, :supersession_reason, with: ->(value) { value&.strip.presence }
 
   validates :issuer_display_name_snapshot, :identifier_type, :context, :raw_value, :normalized_value, presence: true
+  validates :identifier_type, inclusion: { in: IDENTIFIER_TYPES }
+  validates :context, inclusion: { in: CONTEXTS }
   validates :normalized_value, uniqueness: { scope: %i[agency_id issuer_party_id identifier_type context] }
   validate :exactly_one_owner
   validate :same_scope

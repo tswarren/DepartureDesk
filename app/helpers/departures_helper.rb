@@ -26,6 +26,10 @@ module DeparturesHelper
     Money.new(amount_minor_units, currency).format
   end
 
+  def supplier_vocab_options(values)
+    Array(values).map { |value| [ value.to_s.tr("_", " ").titleize, value ] }
+  end
+
   def supplier_cost_term_value(term)
     supplier_money_minor_units(SupplierCostTermEvaluation.evaluate(term).amount_minor_units, term.currency)
   rescue MembershipCommand::Error, ActiveRecord::RecordInvalid

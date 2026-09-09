@@ -13,7 +13,7 @@ class SupplierPlanningScenarioTest < ActiveSupport::TestCase
     departure = napa_wine_country_departure!(actor: @admin)
     arrangement = create_arrangement!(departure:, name: "Napa Coach Contract")
     coach = create_resource!(arrangement:, name: "30 Seat Motorcoach", resource_kind: "coach", capacity_unit: "seat")
-    coach_segment = create_occurrence!(resource: coach, occurrence_kind: "typed_segment", segment_type: "coach_leg", segment_identifier: "NAPA-LOOP")
+    coach_segment = create_occurrence!(resource: coach, occurrence_kind: "typed_segment", segment_type: "tour_day", segment_identifier: "NAPA-LOOP")
     HoldSupplierCapacity.new(agency: @agency, actor: @staff, resource: coach, service_occurrence: coach_segment, quantity: 30, guaranteed_quantity: 30, reason: "Thirty seat coach hold", idempotency_key: SecureRandom.uuid).call
 
     fixed_coach = create_fixed_term!(arrangement:, resource: coach, basis: "contracted", cost_category: "coach", quantity_basis: "resource", quantity_unit: "coach", amount_minor_units: 300_000, currency: "USD")
@@ -21,7 +21,7 @@ class SupplierPlanningScenarioTest < ActiveSupport::TestCase
     CreateSupplierCommitment.new(agency: @agency, actor: @admin, governing_term: fixed_coach.reload, reason: "Coach contract guarantee").call
 
     vineyard = create_resource!(arrangement:, name: "Vineyard Participant Seats", resource_kind: "tour_inventory", capacity_unit: "seat")
-    vineyard_segment = create_occurrence!(resource: vineyard, occurrence_kind: "typed_segment", segment_type: "vineyard_visit", segment_identifier: "DAY-2")
+    vineyard_segment = create_occurrence!(resource: vineyard, occurrence_kind: "typed_segment", segment_type: "tour_day", segment_identifier: "DAY-2")
     HoldSupplierCapacity.new(agency: @agency, actor: @staff, resource: vineyard, service_occurrence: vineyard_segment, quantity: 30, reason: "Planning seats", idempotency_key: SecureRandom.uuid).call
     stepped = create_stepped_term!(arrangement:, resource: vineyard, service_occurrence: vineyard_segment, currency: "EUR")
     ActivateSupplierCostTerm.new(agency: @agency, actor: @admin, term: stepped).call

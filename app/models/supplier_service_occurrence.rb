@@ -1,5 +1,13 @@
 class SupplierServiceOccurrence < ApplicationRecord
   KINDS = %w[night_slice typed_segment].freeze
+  SEGMENT_TYPES = %w[
+    sailing
+    transfer
+    tour_day
+    optional_extension
+    flight_segment
+    other
+  ].freeze
 
   belongs_to :agency
   belongs_to :office
@@ -20,6 +28,7 @@ class SupplierServiceOccurrence < ApplicationRecord
   normalizes :segment_type, :segment_identifier, :label, with: ->(value) { value&.strip.presence }
 
   validates :occurrence_kind, presence: true
+  validates :segment_type, inclusion: { in: SEGMENT_TYPES }, allow_nil: true
   validate :same_scope
   validate :kind_identity
 

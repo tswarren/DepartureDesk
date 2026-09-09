@@ -52,7 +52,7 @@ class SupplierPlanningTest < ActiveSupport::TestCase
       actor: users(:one),
       arrangement:,
       issuer_party: @supplier,
-      identifier_type: "group_contract",
+      identifier_type: "group_code",
       context: "supplier_portal",
       raw_value: "abc 123"
     ).call
@@ -82,7 +82,7 @@ class SupplierPlanningTest < ActiveSupport::TestCase
       actor: users(:one),
       resource:,
       occurrence_kind: "typed_segment",
-      segment_type: "coach_leg",
+      segment_type: "tour_day",
       segment_identifier: "SFO-NAPA"
     ).call.supplier_service_occurrence
     assert segment.typed_segment?
@@ -399,7 +399,7 @@ class SupplierPlanningTest < ActiveSupport::TestCase
       arrangement_id: arrangement.id,
       issuer_party_id: @supplier.id,
       issuer_display_name_snapshot: @supplier.display_name,
-      identifier_type: "group_contract",
+      identifier_type: "group_code",
       context: "supplier_portal",
       raw_value: "ABC 123",
       normalized_value: "ABC 123",

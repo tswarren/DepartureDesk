@@ -16,7 +16,7 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
       agency: agencies(:one), actor: users(:staff_one), arrangement:, name: "Cabin 101", resources: [ resource ]
     ).call.supplier_reservation
     confirmation = RecordSupplierConfirmation.new(
-      agency: agencies(:one), actor: users(:staff_one), reservation:, issuer_party: @supplier, identifier_type: "supplier_confirmation", context: "portal", raw_value: "CONF-1"
+      agency: agencies(:one), actor: users(:staff_one), reservation:, issuer_party: @supplier, identifier_type: "supplier_confirmation", context: "supplier_portal", raw_value: "CONF-1"
     ).call.supplier_confirmation
 
     ConfirmSupplierReservation.new(agency: agencies(:one), actor: users(:staff_one), reservation:).call
@@ -760,7 +760,7 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
     ).call.supplier_cost_term
   end
 
-  def create_advanced_term!(arrangement:, shape:, detail_attributes:, evaluation_inputs: {}, cost_category: "advanced_cost", quantity_basis: "qualifying_quantity", quantity_unit: "unit")
+  def create_advanced_term!(arrangement:, shape:, detail_attributes:, evaluation_inputs: {}, cost_category: "other", quantity_basis: "qualifying_quantity", quantity_unit: "unit")
     CreateSupplierCostTerm.new(
       agency: agencies(:one),
       actor: users(:one),

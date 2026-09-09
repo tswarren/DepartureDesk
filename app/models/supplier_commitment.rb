@@ -28,6 +28,9 @@ class SupplierCommitment < ApplicationRecord
   validates :economic_item_id, :economic_item_key, :cost_category, :quantity_basis, :quantity_unit, :currency,
     :valuation_amount_minor_units, :governing_term_snapshot, :opened_reason, :status_changed_at, presence: true
   validates :currency, format: { with: /\A[A-Z]{3}\z/ }
+  validates :cost_category, inclusion: { in: SupplierCostTerm::COST_CATEGORIES }
+  validates :quantity_basis, inclusion: { in: SupplierCostTerm::QUANTITY_BASES }
+  validates :quantity_unit, inclusion: { in: SupplierCostTerm::QUANTITY_UNITS }
   validates :valuation_amount_minor_units, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :currency_is_known
   validate :same_scope

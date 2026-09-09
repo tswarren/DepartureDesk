@@ -140,6 +140,8 @@ class SupplierArrangementsController < ApplicationController
       quantity_basis: params[:quantity_basis],
       quantity_unit: params[:quantity_unit],
       currency: params[:currency],
+      rounding_method: params[:rounding_method].presence || "nearest_minor_unit",
+      tax_fee_treatment: params[:tax_fee_treatment].presence || "excluded",
       detail_attributes: cost_term_detail_attributes,
       provenance: params[:provenance],
       evaluation_inputs: cost_term_evaluation_inputs,

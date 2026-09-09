@@ -99,14 +99,14 @@
           </div>
           <div class="dd-field-group">
             <label class="dd-label" for="resource_kind">Resource kind</label>
-            <input class="dd-field" id="resource_kind" name="resource_kind" placeholder="coach, room_type, cabin_category" required>
+            <select class="dd-field" id="resource_kind" name="resource_kind" required>
+              <%= options_for_select(supplier_vocab_options(SupplierResource::RESOURCE_KINDS), "cabin_category") %>
+            </select>
           </div>
           <div class="dd-field-group">
             <label class="dd-label" for="capacity_unit">Capacity unit</label>
             <select class="dd-field" id="capacity_unit" name="capacity_unit" required>
-              <% SupplierResource::CAPACITY_UNITS.each do |unit| %>
-                <option value="<%= unit %>"><%= unit.humanize %></option>
-              <% end %>
+              <%= options_for_select(supplier_vocab_options(SupplierResource::CAPACITY_UNITS), "cabin") %>
             </select>
           </div>
         </div>
@@ -139,7 +139,10 @@
             </div>
             <div class="dd-field-group">
               <label class="dd-label" for="segment_type">Segment type</label>
-              <input class="dd-field" id="segment_type" name="segment_type" placeholder="sailing, transfer, optional_extension">
+              <select class="dd-field" id="segment_type" name="segment_type">
+                <option value="">None</option>
+                <%= options_for_select(supplier_vocab_options(SupplierServiceOccurrence::SEGMENT_TYPES)) %>
+              </select>
             </div>
             <div class="dd-field-group">
               <label class="dd-label" for="segment_identifier">Segment identifier</label>
@@ -279,11 +282,15 @@
           </div>
           <div class="dd-field-group">
             <label class="dd-label" for="identifier_type">Identifier type</label>
-            <input class="dd-field" id="identifier_type" name="identifier_type" value="supplier_confirmation" required>
+            <select class="dd-field" id="identifier_type" name="identifier_type" required>
+              <%= options_for_select(supplier_vocab_options(SupplierConfirmation::IDENTIFIER_TYPES), "supplier_confirmation") %>
+            </select>
           </div>
           <div class="dd-field-group">
             <label class="dd-label" for="confirmation_context">Context</label>
-            <input class="dd-field" id="confirmation_context" name="context" value="supplier_portal" required>
+            <select class="dd-field" id="confirmation_context" name="context" required>
+              <%= options_for_select(supplier_vocab_options(SupplierConfirmation::CONTEXTS), "supplier_portal") %>
+            </select>
           </div>
           <div class="dd-field-group">
             <label class="dd-label" for="raw_value">Identifier</label>
@@ -366,15 +373,33 @@
           </div>
           <div class="dd-field-group">
             <label class="dd-label" for="cost_category">Cost category</label>
-            <input class="dd-field" id="cost_category" name="cost_category" value="lodging" required>
+            <select class="dd-field" id="cost_category" name="cost_category" required>
+              <%= options_for_select(supplier_vocab_options(SupplierCostTerm::COST_CATEGORIES), "lodging") %>
+            </select>
           </div>
           <div class="dd-field-group">
             <label class="dd-label" for="quantity_basis">Quantity basis</label>
-            <input class="dd-field" id="quantity_basis" name="quantity_basis" value="arrangement" required>
+            <select class="dd-field" id="quantity_basis" name="quantity_basis" required>
+              <%= options_for_select(supplier_vocab_options(SupplierCostTerm::QUANTITY_BASES), "arrangement") %>
+            </select>
           </div>
           <div class="dd-field-group">
             <label class="dd-label" for="quantity_unit">Quantity unit</label>
-            <input class="dd-field" id="quantity_unit" name="quantity_unit" value="contract" required>
+            <select class="dd-field" id="quantity_unit" name="quantity_unit" required>
+              <%= options_for_select(supplier_vocab_options(SupplierCostTerm::QUANTITY_UNITS), "contract") %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="rounding_method">Rounding method</label>
+            <select class="dd-field" id="rounding_method" name="rounding_method" required>
+              <%= options_for_select(supplier_vocab_options(SupplierCostTerm::ROUNDING_METHODS), "nearest_minor_unit") %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="tax_fee_treatment">Tax/fee treatment</label>
+            <select class="dd-field" id="tax_fee_treatment" name="tax_fee_treatment" required>
+              <%= options_for_select(supplier_vocab_options(SupplierCostTerm::TAX_FEE_TREATMENTS), "excluded") %>
+            </select>
           </div>
           <div class="dd-field-group">
             <label class="dd-label" for="amount_minor_units">Fixed amount minor units</label>

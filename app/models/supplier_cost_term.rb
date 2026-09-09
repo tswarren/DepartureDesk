@@ -8,6 +8,47 @@ class SupplierCostTerm < ApplicationRecord
   STATUSES = %w[draft active superseded void].freeze
   ROUNDING_METHODS = %w[nearest_minor_unit].freeze
   TAX_FEE_TREATMENTS = %w[included excluded separate].freeze
+  COST_CATEGORIES = %w[
+    coach
+    coach_seat
+    cabin
+    cabin_guarantee
+    room
+    lodging
+    hotel_block
+    transport
+    tour
+    vineyard_lunch
+    vineyard_seats
+    guide_ticket
+    park_permit
+    supplier_fee
+    supplier_guarantee
+    insurance
+    other
+  ].freeze
+  QUANTITY_BASES = %w[
+    arrangement
+    resource
+    reservation
+    occurrence
+    planning_quantity
+    guaranteed_quantity
+    qualifying_quantity
+    base_amount
+    supplier_invoice
+  ].freeze
+  QUANTITY_UNITS = (
+    SupplierResource::CAPACITY_UNITS + %w[
+      contract
+      coach
+      person
+      guest
+      fee
+      permit
+      night
+    ]
+  ).uniq.freeze
 
   belongs_to :agency
   belongs_to :office
@@ -51,6 +92,9 @@ class SupplierCostTerm < ApplicationRecord
   validates :economic_item_id, :economic_item_key, :cost_category, :quantity_basis, :quantity_unit, :currency,
     :rounding_method, :tax_fee_treatment, :provenance, :status_changed_at, presence: true
   validates :currency, format: { with: /\A[A-Z]{3}\z/ }
+  validates :cost_category, inclusion: { in: COST_CATEGORIES }
+  validates :quantity_basis, inclusion: { in: QUANTITY_BASES }
+  validates :quantity_unit, inclusion: { in: QUANTITY_UNITS }
   validates :rounding_method, inclusion: { in: ROUNDING_METHODS }
   validates :tax_fee_treatment, inclusion: { in: TAX_FEE_TREATMENTS }
   validates :term_version, numericality: { only_integer: true, greater_than: 0 }
