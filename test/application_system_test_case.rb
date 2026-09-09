@@ -28,14 +28,14 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     wait_until_turbo_session
   end
 
-  def click_link_and_expect(locator, heading:, path: nil, **click_options)
+  def click_link_and_expect(locator, heading:, path: nil, css: "a", **click_options)
     TURBO_CLICK_ATTEMPTS.times do |attempt|
       begin
         wait_for_turbo
         arrived = has_selector?("h1.dd-page-title", exact_text: heading, wait: 0)
         arrived &&= path.nil? || current_path == path
         unless arrived
-          link = find("a", exact_text: locator, **click_options)
+          link = find(css, exact_text: locator, **click_options)
           if path
             assert_equal path, URI.parse(link[:href]).path
           end
