@@ -1,0 +1,35 @@
+<% content_for :title, "Edit #{@travel_program.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Operations</p>
+    <h1 class="dd-page-title">Edit <%= @travel_program.name %></h1>
+    <%= link_to "Back to program", travel_program_path(@travel_program), class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "departures/subnav", current: :programs %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @travel_program, url: travel_program_path(@travel_program), method: :patch, class: "dd-form" do |form| %>
+      <%= form.hidden_field :lock_version %>
+      <div class="dd-field-group">
+        <%= form.label :name, class: "dd-label" %>
+        <%= form.text_field :name, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :description, "Internal description", class: "dd-label" %>
+        <%= form.text_area :description, class: "dd-field", rows: 3 %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :client_facing_description, class: "dd-label" %>
+        <%= form.text_area :client_facing_description, class: "dd-field", rows: 3 %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Save travel program", class: "dd-button" %>
+        <%= link_to "Cancel", travel_program_path(@travel_program), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

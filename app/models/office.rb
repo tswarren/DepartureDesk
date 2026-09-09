@@ -17,6 +17,7 @@ class Office < ApplicationRecord
     inverse_of: :responsible_office,
     dependent: :restrict_with_exception
   has_many :sessions, dependent: :restrict_with_exception
+  has_many :departures, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

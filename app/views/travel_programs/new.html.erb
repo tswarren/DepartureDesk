@@ -1,0 +1,35 @@
+<% content_for :title, "New travel program · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Operations</p>
+    <h1 class="dd-page-title">New travel program</h1>
+    <p class="dd-page-description">Programs never own balances, capacity, or settlement.</p>
+    <%= link_to "Back to travel programs", travel_programs_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "departures/subnav", current: :programs %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @travel_program, url: travel_programs_path, method: :post, class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :name, class: "dd-label" %>
+        <%= form.text_field :name, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :description, "Internal description", class: "dd-label" %>
+        <%= form.text_area :description, class: "dd-field", rows: 3 %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :client_facing_description, class: "dd-label" %>
+        <%= form.text_area :client_facing_description, class: "dd-field", rows: 3 %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Create travel program", class: "dd-button" %>
+        <%= link_to "Cancel", travel_programs_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

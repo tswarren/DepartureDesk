@@ -1,0 +1,4 @@
+<nav class="dd-subnav" aria-label="Departures">
+  <%= link_to "Departures", departures_path, class: "dd-subnav-item", aria: { current: ("page" if current == :departures) } %>
+  <%= link_to "Travel programs", travel_programs_path, class: "dd-subnav-item", aria: { current: ("page" if current == :programs) } %>
+</nav>

@@ -1,0 +1,80 @@
+<% content_for :title, "Edit #{@departure.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Operations</p>
+    <h1 class="dd-page-title">Edit <%= @departure.name %></h1>
+    <p class="dd-page-description">Reference <%= @departure.departure_reference %> cannot be changed. Office and assignments are managed separately.</p>
+    <%= link_to "Back to departure", departure_path(@departure), class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "departures/subnav", current: :departures %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @departure.errors.any? %>
+      <div class="dd-alert dd-alert--danger" role="alert">
+        <p>Please correct the following:</p>
+        <ul>
+          <% @departure.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <%= form_with model: @departure, url: departure_path(@departure), method: :patch, class: "dd-form" do |form| %>
+      <%= form.hidden_field :lock_version %>
+
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :name, class: "dd-label" %>
+          <%= form.text_field :name, required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :travel_program_id, "Travel program", class: "dd-label" %>
+          <%= form.collection_select :travel_program_id, @programs, :id, :name, { include_blank: "No program" }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :primary_destination, "Destination", class: "dd-label" %>
+          <%= form.text_field :primary_destination, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :default_currency, class: "dd-label" %>
+          <%= form.text_field :default_currency, required: true, maxlength: 3, class: "dd-field dd-field--code" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :start_date, class: "dd-label" %>
+          <%= form.date_field :start_date, required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :end_date, class: "dd-label" %>
+          <%= form.date_field :end_date, required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :sales_open_on, "Sales open", class: "dd-label" %>
+          <%= form.date_field :sales_open_on, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :sales_close_on, "Sales close", class: "dd-label" %>
+          <%= form.date_field :sales_close_on, class: "dd-field" %>
+        </div>
+      </div>
+
+      <div class="dd-field-group">
+        <%= form.label :description, "Internal description", class: "dd-label" %>
+        <%= form.text_area :description, class: "dd-field", rows: 3 %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :client_facing_description, class: "dd-label" %>
+        <%= form.text_area :client_facing_description, class: "dd-field", rows: 3 %>
+      </div>
+
+      <div class="dd-form-actions">
+        <%= form.submit "Save departure", class: "dd-button" %>
+        <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

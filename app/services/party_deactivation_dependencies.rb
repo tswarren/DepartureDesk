@@ -102,6 +102,21 @@ PartyDeactivationDependencies.register("organization_relationships") do |party:,
     }
 end
 
+PartyDeactivationDependencies.register("departure_party_roles") do |agency:, party:, **|
+  DeparturePartyRoleAssignment.current
+    .joins(:departure)
+    .where(
+      agency_id: agency.id,
+      party_id: party.id,
+      departures: { status: Departure::NONTERMINAL_STATUSES }
+    )
+    .includes(:departure)
+    .order(:id)
+    .map { |assignment|
+      "#{assignment.departure.departure_reference} #{assignment.departure.name} (#{assignment.role.tr("_", " ")})"
+    }
+end
+
 PartyDeactivationDependencies.register("primary_purposes") do |party:, today:, **|
   RelationshipPurposeAssignment.record_valid.primary
     .joins(:party_relationship)

@@ -77,6 +77,66 @@ module ActiveSupport
         office: office || party.agency.offices.active.order(:id).first
       ).call.supplier_profile
     end
+
+    def create_travel_program!(agency, actor:, name: "Atlantic Series", **attributes)
+      CreateTravelProgram.new(
+        agency:,
+        actor:,
+        name:,
+        **attributes
+      ).call.travel_program
+    end
+
+    def create_departure!(
+      agency,
+      actor:,
+      office: nil,
+      name: "July Departure",
+      start_date: Date.new(2027, 7, 12),
+      end_date: Date.new(2027, 7, 19),
+      creation_idempotency_key: SecureRandom.uuid,
+      **attributes
+    )
+      CreateDeparture.new(
+        agency:,
+        actor:,
+        office: office || begin
+          accessible = actor.usable_agency_membership.accessible_offices
+          accessible.find_by(code: "MAIN") || accessible.order(:code).first
+        end,
+        name:,
+        start_date:,
+        end_date:,
+        creation_idempotency_key:,
+        **attributes
+      ).call.departure
+    end
+
+    def smith_family_reunion_departure!(actor: users(:one))
+      program = create_travel_program!(agencies(:one), actor:, name: "Smith Family Reunion")
+      create_departure!(
+        agencies(:one),
+        actor:,
+        travel_program: program,
+        name: "Smith Family Reunion Cruise",
+        start_date: Date.new(2027, 7, 12),
+        end_date: Date.new(2027, 7, 19),
+        primary_destination: "Caribbean"
+      )
+    end
+
+    def napa_wine_country_departure!(actor: users(:one))
+      program = create_travel_program!(agencies(:one), actor:, name: "Napa Wine Country")
+      create_departure!(
+        agencies(:one),
+        actor:,
+        travel_program: program,
+        name: "Napa Wine Country Tour",
+        start_date: Date.new(2027, 9, 8),
+        end_date: Date.new(2027, 9, 12),
+        primary_destination: "Napa Valley"
+      )
+    end
   end
 end
 

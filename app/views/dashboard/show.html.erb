@@ -15,9 +15,7 @@
     </p>
   </div>
 
-  <button class="dd-button" type="button" disabled title="Available when departure management is added">
-    New departure
-  </button>
+  <%= link_to "New departure", new_departure_path, class: "dd-button" %>
 </header>
 
 <section class="dd-grid dd-grid--metrics" aria-label="Departure summary">

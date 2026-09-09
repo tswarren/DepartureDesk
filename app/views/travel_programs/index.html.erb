@@ -1,0 +1,58 @@
+<% content_for :title, "Travel programs · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Operations</p>
+    <h1 class="dd-page-title">Travel programs</h1>
+    <p class="dd-page-description">Reusable series. Linked departure counts only include records you can see.</p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "New travel program", new_travel_program_path, class: "dd-button" %>
+  </div>
+</header>
+
+<%= render "departures/subnav", current: :programs %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Programs</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @programs.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Upcoming departures</th>
+              <th>Next departure</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @programs.each do |program| %>
+              <% next_departure = @query.upcoming_for_program(program, on: @today).first %>
+              <tr>
+                <td><%= link_to program.name, travel_program_path(program) %></td>
+                <td><%= travel_program_status_badge(program) %></td>
+                <td><%= @query.upcoming_for_program(program, on: @today).count %></td>
+                <td>
+                  <% if next_departure %>
+                    <%= next_departure.start_date.to_fs(:long) %>
+                  <% else %>
+                    —
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No travel programs</h3>
+        <p class="dd-empty-copy">Programs are optional. Create one when a series should group multiple departures.</p>
+      </div>
+    <% end %>
+  </div>
+</article>

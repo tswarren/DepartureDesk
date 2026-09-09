@@ -532,6 +532,125 @@ CREATE TABLE public.delivery_intents (
 
 
 --
+-- Name: departure_party_role_assignments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.departure_party_role_assignments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    party_id uuid NOT NULL,
+    party_kind character varying NOT NULL,
+    role character varying NOT NULL,
+    party_display_name_snapshot character varying CONSTRAINT departure_party_role_assign_party_display_name_snapsho_not_null NOT NULL,
+    is_primary boolean DEFAULT false NOT NULL,
+    effective_from date NOT NULL,
+    effective_until date,
+    assigned_at timestamp with time zone NOT NULL,
+    assigned_by_membership_id uuid CONSTRAINT departure_party_role_assignm_assigned_by_membership_id_not_null NOT NULL,
+    ended_at timestamp with time zone,
+    ended_by_membership_id uuid,
+    ending_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT dpra_group_leader_person CHECK ((((role)::text <> 'group_leader'::text) OR ((party_kind)::text = 'person'::text))),
+    CONSTRAINT dpra_lifecycle_complete CHECK ((((effective_until IS NULL) AND (ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL)) OR ((effective_until IS NOT NULL) AND (ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text)))),
+    CONSTRAINT dpra_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT dpra_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'household'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT dpra_range_order CHECK (((effective_until IS NULL) OR (effective_until >= effective_from))),
+    CONSTRAINT dpra_role_valid CHECK (((role)::text = ANY ((ARRAY['organizer'::character varying, 'group_leader'::character varying, 'sponsor'::character varying])::text[]))),
+    CONSTRAINT dpra_snapshot_not_blank CHECK ((btrim((party_display_name_snapshot)::text) <> ''::text))
+);
+
+
+--
+-- Name: departure_reference_counters; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.departure_reference_counters (
+    agency_id uuid NOT NULL,
+    last_value bigint DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT drc_last_value_nonnegative CHECK ((last_value >= 0))
+);
+
+
+--
+-- Name: departure_team_assignments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.departure_team_assignments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    agency_membership_id uuid NOT NULL,
+    membership_status character varying,
+    assignment_role character varying NOT NULL,
+    member_name_snapshot character varying NOT NULL,
+    effective_from date NOT NULL,
+    effective_until date,
+    assigned_at timestamp with time zone NOT NULL,
+    assigned_by_membership_id uuid NOT NULL,
+    ended_at timestamp with time zone,
+    ended_by_membership_id uuid,
+    ending_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT dta_lifecycle_complete CHECK ((((effective_until IS NULL) AND (ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL) AND ((membership_status)::text = 'active'::text)) OR ((effective_until IS NOT NULL) AND (ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text) AND (membership_status IS NULL)))),
+    CONSTRAINT dta_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT dta_range_order CHECK (((effective_until IS NULL) OR (effective_until >= effective_from))),
+    CONSTRAINT dta_role_valid CHECK (((assignment_role)::text = ANY ((ARRAY['group_manager'::character varying, 'responsible_advisor'::character varying])::text[]))),
+    CONSTRAINT dta_snapshot_not_blank CHECK ((btrim((member_name_snapshot)::text) <> ''::text))
+);
+
+
+--
+-- Name: departures; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.departures (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    owning_office_status character varying,
+    travel_program_id uuid,
+    travel_program_status character varying,
+    departure_reference character varying NOT NULL,
+    creation_idempotency_key uuid NOT NULL,
+    name character varying NOT NULL,
+    description text,
+    client_facing_description text,
+    primary_destination character varying,
+    start_date date NOT NULL,
+    end_date date NOT NULL,
+    sales_open_on date,
+    sales_close_on date,
+    default_currency character varying(3) NOT NULL,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    created_by_membership_id uuid NOT NULL,
+    status_changed_at timestamp with time zone NOT NULL,
+    status_changed_by_membership_id uuid NOT NULL,
+    status_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT departures_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT departures_date_order CHECK ((end_date >= start_date)),
+    CONSTRAINT departures_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT departures_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT departures_owning_office_projection CHECK (((((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying])::text[])) AND (owning_office_status IS NOT NULL) AND ((owning_office_status)::text = 'active'::text)) OR (((status)::text = 'cancelled'::text) AND (owning_office_status IS NULL)))),
+    CONSTRAINT departures_program_projection CHECK ((((travel_program_id IS NULL) AND (travel_program_status IS NULL)) OR ((travel_program_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying])::text[])) AND (travel_program_status IS NOT NULL) AND ((travel_program_status)::text = 'active'::text)) OR ((travel_program_id IS NOT NULL) AND ((status)::text = 'cancelled'::text) AND (travel_program_status IS NULL)))),
+    CONSTRAINT departures_reference_format CHECK (((departure_reference)::text ~ '^D-[0-9]{6,}$'::text)),
+    CONSTRAINT departures_sales_date_order CHECK (((sales_open_on IS NULL) OR (sales_close_on IS NULL) OR (sales_close_on >= sales_open_on))),
+    CONSTRAINT departures_status_metadata CHECK (((((status)::text = 'cancelled'::text) AND (btrim((status_reason)::text) <> ''::text)) OR (((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying])::text[])) AND (status_reason IS NULL)))),
+    CONSTRAINT departures_status_valid CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
 -- Name: external_identifiers; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1040,6 +1159,30 @@ CREATE TABLE public.supplier_service_category_assignments (
 
 
 --
+-- Name: travel_programs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.travel_programs (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    name character varying NOT NULL,
+    description text,
+    client_facing_description text,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    inactivated_at timestamp with time zone,
+    inactivated_by_membership_id uuid,
+    inactivation_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT travel_programs_lifecycle_metadata CHECK (((((status)::text = 'active'::text) AND (inactivated_at IS NULL) AND (inactivated_by_membership_id IS NULL) AND (inactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (inactivated_at IS NOT NULL) AND (inactivated_by_membership_id IS NOT NULL) AND (btrim((inactivation_reason)::text) <> ''::text)))),
+    CONSTRAINT travel_programs_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT travel_programs_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT travel_programs_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+);
+
+
+--
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1170,6 +1313,54 @@ ALTER TABLE ONLY public.contact_point_purpose_assignments
 
 ALTER TABLE ONLY public.delivery_intents
     ADD CONSTRAINT delivery_intents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: departure_party_role_assignments departure_party_role_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_party_role_assignments
+    ADD CONSTRAINT departure_party_role_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: departure_reference_counters departure_reference_counters_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_reference_counters
+    ADD CONSTRAINT departure_reference_counters_pkey PRIMARY KEY (agency_id);
+
+
+--
+-- Name: departure_team_assignments departure_team_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_assignments
+    ADD CONSTRAINT departure_team_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: departures departures_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT departures_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: departure_party_role_assignments dpra_no_overlapping_intervals; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_party_role_assignments
+    ADD CONSTRAINT dpra_no_overlapping_intervals EXCLUDE USING gist (agency_id WITH =, departure_id WITH =, role WITH =, party_id WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&);
+
+
+--
+-- Name: departure_team_assignments dta_no_overlapping_intervals; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_assignments
+    ADD CONSTRAINT dta_no_overlapping_intervals EXCLUDE USING gist (agency_id WITH =, departure_id WITH =, assignment_role WITH =, agency_membership_id WITH =, daterange(effective_from, effective_until, '[)'::text) WITH &&);
 
 
 --
@@ -1362,6 +1553,14 @@ ALTER TABLE ONLY public.supplier_profiles
 
 ALTER TABLE ONLY public.supplier_service_category_assignments
     ADD CONSTRAINT supplier_service_category_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: travel_programs travel_programs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.travel_programs
+    ADD CONSTRAINT travel_programs_pkey PRIMARY KEY (id);
 
 
 --
@@ -1608,6 +1807,146 @@ CREATE UNIQUE INDEX index_delivery_intents_on_idempotency_key ON public.delivery
 --
 
 CREATE INDEX index_delivery_intents_on_subject ON public.delivery_intents USING btree (subject_type, subject_id);
+
+
+--
+-- Name: index_departure_party_role_assignments_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departure_party_role_assignments_on_agency_id ON public.departure_party_role_assignments USING btree (agency_id);
+
+
+--
+-- Name: index_departure_team_assignments_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departure_team_assignments_on_agency_id ON public.departure_team_assignments USING btree (agency_id);
+
+
+--
+-- Name: index_departures_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_id ON public.departures USING btree (agency_id);
+
+
+--
+-- Name: index_departures_on_agency_id_and_idempotency_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_departures_on_agency_id_and_idempotency_key ON public.departures USING btree (agency_id, creation_idempotency_key);
+
+
+--
+-- Name: index_departures_on_agency_id_and_reference; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_departures_on_agency_id_and_reference ON public.departures USING btree (agency_id, departure_reference);
+
+
+--
+-- Name: index_departures_on_agency_office_status_start; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_office_status_start ON public.departures USING btree (agency_id, office_id, status, start_date);
+
+
+--
+-- Name: index_departures_on_agency_program_start; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_program_start ON public.departures USING btree (agency_id, travel_program_id, start_date);
+
+
+--
+-- Name: index_departures_on_agency_status_start; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_status_start ON public.departures USING btree (agency_id, status, start_date);
+
+
+--
+-- Name: index_departures_on_destination_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_destination_trgm ON public.departures USING gin (primary_destination public.gin_trgm_ops);
+
+
+--
+-- Name: index_departures_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_departures_on_id_and_agency_id ON public.departures USING btree (id, agency_id);
+
+
+--
+-- Name: index_departures_on_name_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_name_trgm ON public.departures USING gin (name public.gin_trgm_ops);
+
+
+--
+-- Name: index_departures_on_reference_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_reference_trgm ON public.departures USING gin (departure_reference public.gin_trgm_ops);
+
+
+--
+-- Name: index_dpra_on_departure_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_dpra_on_departure_and_agency ON public.departure_party_role_assignments USING btree (departure_id, agency_id);
+
+
+--
+-- Name: index_dpra_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dpra_on_id_and_agency_id ON public.departure_party_role_assignments USING btree (id, agency_id);
+
+
+--
+-- Name: index_dpra_on_party_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_dpra_on_party_and_agency ON public.departure_party_role_assignments USING btree (party_id, agency_id);
+
+
+--
+-- Name: index_dpra_one_current_primary; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dpra_one_current_primary ON public.departure_party_role_assignments USING btree (departure_id, role) WHERE ((effective_until IS NULL) AND is_primary);
+
+
+--
+-- Name: index_dta_on_departure_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_dta_on_departure_and_agency ON public.departure_team_assignments USING btree (departure_id, agency_id);
+
+
+--
+-- Name: index_dta_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dta_on_id_and_agency_id ON public.departure_team_assignments USING btree (id, agency_id);
+
+
+--
+-- Name: index_dta_on_membership_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_dta_on_membership_and_agency ON public.departure_team_assignments USING btree (agency_membership_id, agency_id);
+
+
+--
+-- Name: index_dta_one_current_role; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dta_one_current_role ON public.departure_team_assignments USING btree (departure_id, assignment_role) WHERE (effective_until IS NULL);
 
 
 --
@@ -2059,6 +2398,41 @@ CREATE INDEX index_supplier_service_category_assignments_on_agency_id ON public.
 
 
 --
+-- Name: index_travel_programs_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_travel_programs_on_agency_id ON public.travel_programs USING btree (agency_id);
+
+
+--
+-- Name: index_travel_programs_on_agency_id_status_and_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_travel_programs_on_agency_id_status_and_name ON public.travel_programs USING btree (agency_id, status, name);
+
+
+--
+-- Name: index_travel_programs_on_id_agency_id_and_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_travel_programs_on_id_agency_id_and_status ON public.travel_programs USING btree (id, agency_id, status);
+
+
+--
+-- Name: index_travel_programs_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_travel_programs_on_id_and_agency_id ON public.travel_programs USING btree (id, agency_id);
+
+
+--
+-- Name: index_travel_programs_on_name_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_travel_programs_on_name_trgm ON public.travel_programs USING gin (name public.gin_trgm_ops);
+
+
+--
 -- Name: index_users_on_email_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2278,6 +2652,134 @@ ALTER TABLE ONLY public.contact_point_purpose_assignments
 
 
 --
+-- Name: departure_reference_counters departure_reference_counters_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_reference_counters
+    ADD CONSTRAINT departure_reference_counters_agency_fk FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: departures departures_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT departures_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: departures departures_office_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT departures_office_same_agency_fk FOREIGN KEY (office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
+-- Name: departures departures_owning_office_active_projection_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT departures_owning_office_active_projection_fk FOREIGN KEY (office_id, agency_id, owning_office_status) REFERENCES public.offices(id, agency_id, status);
+
+
+--
+-- Name: departures departures_program_active_projection_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT departures_program_active_projection_fk FOREIGN KEY (travel_program_id, agency_id, travel_program_status) REFERENCES public.travel_programs(id, agency_id, status);
+
+
+--
+-- Name: departures departures_program_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT departures_program_same_agency_fk FOREIGN KEY (travel_program_id, agency_id) REFERENCES public.travel_programs(id, agency_id);
+
+
+--
+-- Name: departures departures_status_changed_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT departures_status_changed_by_membership_fk FOREIGN KEY (status_changed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: departure_party_role_assignments dpra_assigned_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_party_role_assignments
+    ADD CONSTRAINT dpra_assigned_by_membership_fk FOREIGN KEY (assigned_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: departure_party_role_assignments dpra_departure_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_party_role_assignments
+    ADD CONSTRAINT dpra_departure_same_agency_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: departure_party_role_assignments dpra_ended_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_party_role_assignments
+    ADD CONSTRAINT dpra_ended_by_membership_fk FOREIGN KEY (ended_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: departure_party_role_assignments dpra_party_kind_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_party_role_assignments
+    ADD CONSTRAINT dpra_party_kind_same_agency_fk FOREIGN KEY (party_id, agency_id, party_kind) REFERENCES public.parties(id, agency_id, party_kind);
+
+
+--
+-- Name: departure_team_assignments dta_assigned_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_assignments
+    ADD CONSTRAINT dta_assigned_by_membership_fk FOREIGN KEY (assigned_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: departure_team_assignments dta_departure_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_assignments
+    ADD CONSTRAINT dta_departure_same_agency_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: departure_team_assignments dta_ended_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_assignments
+    ADD CONSTRAINT dta_ended_by_membership_fk FOREIGN KEY (ended_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: departure_team_assignments dta_membership_active_projection_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_assignments
+    ADD CONSTRAINT dta_membership_active_projection_fk FOREIGN KEY (agency_membership_id, agency_id, membership_status) REFERENCES public.agency_memberships(id, agency_id, status);
+
+
+--
+-- Name: departure_team_assignments dta_membership_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_assignments
+    ADD CONSTRAINT dta_membership_same_agency_fk FOREIGN KEY (agency_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
 -- Name: external_identifiers external_identifiers_client_profile_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2390,6 +2892,14 @@ ALTER TABLE ONLY public.party_email_addresses
 
 
 --
+-- Name: departure_party_role_assignments fk_rails_6248ee0923; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_party_role_assignments
+    ADD CONSTRAINT fk_rails_6248ee0923 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: client_profiles fk_rails_63be60e7aa; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2419,6 +2929,14 @@ ALTER TABLE ONLY public.sessions
 
 ALTER TABLE ONLY public.audit_events
     ADD CONSTRAINT fk_rails_8512cd9707 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: departure_team_assignments fk_rails_854a5d32fc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_assignments
+    ADD CONSTRAINT fk_rails_854a5d32fc FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -2502,6 +3020,14 @@ ALTER TABLE ONLY public.party_postal_addresses
 
 
 --
+-- Name: departures fk_rails_d0941bcf52; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT fk_rails_d0941bcf52 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_service_category_assignments fk_rails_d1256876d4; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2539,6 +3065,14 @@ ALTER TABLE ONLY public.party_notes
 
 ALTER TABLE ONLY public.party_phone_numbers
     ADD CONSTRAINT fk_rails_edd3d13317 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: travel_programs fk_rails_eeb062d829; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.travel_programs
+    ADD CONSTRAINT fk_rails_eeb062d829 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -2822,12 +3356,22 @@ ALTER TABLE ONLY public.supplier_profiles
 
 
 --
+-- Name: travel_programs travel_programs_inactivated_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.travel_programs
+    ADD CONSTRAINT travel_programs_inactivated_by_membership_fk FOREIGN KEY (inactivated_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909011000'),
+('20260909010000'),
 ('20260908010000'),
 ('20260907185600'),
 ('20260907185500'),
