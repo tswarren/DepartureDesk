@@ -11,8 +11,9 @@ class DeactivateSupplierResource < DepartureCommand
   def call
     raise Error.new("A deactivation reason is required.", code: :invalid) if @reason.blank?
     links = @resource.supplier_reservation_resources.includes(:reservation).select { |link| link.reservation&.nonterminal? }
+    positions = @resource.supplier_capacity_positions.to_a
     ActiveRecord::Base.transaction do
-      with_departure_locks(@agency, offices: [ @resource.office ], departure: @departure, supplier_resources: [ @resource ], supplier_reservations: links.map(&:reservation)) { perform }
+      with_departure_locks(@agency, offices: [ @resource.office ], departure: @departure, supplier_resources: [ @resource ], supplier_reservations: links.map(&:reservation), supplier_capacity_positions: positions) { perform }
     end
   rescue ActiveRecord::StaleObjectError
     raise Error.new("This supplier resource was updated by someone else.", code: :conflict)
@@ -31,9 +32,20 @@ class DeactivateSupplierResource < DepartureCommand
     if @resource.supplier_reservations.nonterminal.exists?
       raise Error.new("Resolve nonterminal supplier reservations before deactivating this resource.", code: :dependency)
     end
+    if @resource.supplier_capacity_positions.any? { |position| actionable_capacity?(position) }
+      raise Error.new("Release, restore, or reconcile active capacity before deactivating this resource.", code: :dependency)
+    end
 
     @resource.update!(status: "inactive", status_reason: @reason, status_changed_at: Time.current, status_changed_by_membership: actor)
     audit!(agency: @agency, action: "supplier_resource.deactivated", subject: @resource, details: { "supplier_resource_id" => @resource.id, "reason" => @reason }, **actor_audit_args)
     CommandResult.new(status: :accepted, departure: @departure, supplier_resource: @resource)
+  end
+
+  def actionable_capacity?(position)
+    position.agency_held.positive? ||
+      position.pending_request.positive? ||
+      position.guaranteed.positive? ||
+      position.consumed.positive? ||
+      position.released_current.positive?
   end
 end

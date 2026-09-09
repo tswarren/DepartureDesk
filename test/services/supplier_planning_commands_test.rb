@@ -215,6 +215,163 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
     assert_equal before, agencies(:one).audit_events.where(action: "supplier_cost_term.activated").count
   end
 
+  test "capacity transition matrix reconstructs hotel night position from events" do
+    arrangement = create_arrangement!
+    resource = create_resource!(arrangement:, name: "Hotel Rooms", resource_kind: "room_type", capacity_unit: "room")
+    occurrence = create_occurrence!(resource:, occurrence_kind: "night_slice", service_date: Date.new(2027, 7, 12))
+    reservation = CreateSupplierReservation.new(agency: agencies(:one), actor: users(:staff_one), arrangement:, name: "Room reservation", resources: [ resource ]).call.supplier_reservation
+
+    HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 10, guaranteed_quantity: 4, reason: "Initial room block", idempotency_key: SecureRandom.uuid).call
+    RequestSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 5, reason: "Extension request", idempotency_key: SecureRandom.uuid).call
+    ConfirmSupplierCapacityRequest.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 3, guaranteed_quantity: 2, reason: "Supplier confirmed extension", idempotency_key: SecureRandom.uuid).call
+    IncreaseSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 4, guaranteed_quantity: 1, reason: "Added rooms", idempotency_key: SecureRandom.uuid).call
+    ConsumeSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, reservation:, quantity: 6, reason: "Reservation consumes rooms", idempotency_key: SecureRandom.uuid).call
+    RestoreSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, reservation:, quantity: 2, reason: "Room restored", idempotency_key: SecureRandom.uuid).call
+    ReleaseSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 5, guaranteed_quantity: 2, reason: "Released unused rooms", idempotency_key: SecureRandom.uuid).call
+    ReinstateSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 2, guaranteed_quantity: 1, reason: "Supplier approved reinstatement", idempotency_key: SecureRandom.uuid, supplier_approval_reference: "EMAIL-123", supplier_approval_received_at: Time.current).call
+    ReduceSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 3, guaranteed_quantity: 1, reason: "Reduced block", idempotency_key: SecureRandom.uuid).call
+    ExpireSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 3, held_quantity: 1, pending_quantity: 2, guaranteed_quantity: 1, reason: "Cutoff expired", idempotency_key: SecureRandom.uuid).call
+    CorrectSupplierCapacity.new(agency: agencies(:one), actor: users(:one), resource:, service_occurrence: occurrence, pending_request_delta: 1, released_current_delta: -1, reason: "Correct supplier worksheet", idempotency_key: SecureRandom.uuid).call
+
+    position = SupplierCapacityPosition.find_by!(resource:, service_occurrence: occurrence)
+    assert_equal 10, position.agency_held
+    assert_equal 1, position.pending_request
+    assert_equal 4, position.guaranteed
+    assert_equal 4, position.consumed
+    assert_equal 3, position.released_current
+    assert_equal 6, position.available
+    assert_equal 5, position.released_cumulative
+
+    rebuilt = position.supplier_capacity_events.order(:commanded_at, :id).each_with_object(SupplierCapacityPosition::BUCKETS.index_with(0)) do |event, buckets|
+      SupplierCapacityPosition::BUCKETS.each { |bucket| buckets[bucket] += event.public_send("#{bucket}_delta") }
+    end
+    assert_equal position.attributes.slice(*SupplierCapacityPosition::BUCKETS), rebuilt
+  end
+
+  test "capacity supports coach seats without supplier reported total affecting availability" do
+    arrangement = create_arrangement!(name: "Coach Contract")
+    resource = create_resource!(arrangement:, name: "Motorcoach", resource_kind: "coach", capacity_unit: "seat")
+    occurrence = create_occurrence!(resource:, occurrence_kind: "typed_segment", segment_type: "transfer", segment_identifier: "OUTBOUND")
+
+    HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 30, reason: "Coach seat block", idempotency_key: SecureRandom.uuid).call
+    position = SupplierCapacityPosition.find_by!(resource:, service_occurrence: occurrence)
+    position.update!(supplier_reported_total: 56)
+
+    assert_equal 30, position.available
+    assert_equal 56, position.supplier_reported_total
+  end
+
+  test "capacity commands are idempotent and reject conflicting reuse" do
+    arrangement = create_arrangement!
+    resource = create_resource!(arrangement:)
+    occurrence = create_occurrence!(resource:)
+    key = SecureRandom.uuid
+
+    first = HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 3, reason: "Initial hold", idempotency_key: key).call
+    replay = HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 3, reason: "Initial hold", idempotency_key: key).call
+
+    assert_equal first.supplier_capacity_event.id, replay.supplier_capacity_event.id
+    assert_equal 1, SupplierCapacityEvent.where(idempotency_key: key).count
+    assert_equal 3, first.supplier_capacity_position.reload.agency_held
+
+    error = assert_raises(MembershipCommand::Error) do
+      HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 4, reason: "Different hold", idempotency_key: key).call
+    end
+    assert_equal :idempotency_conflict, error.code
+  end
+
+  test "missing position fails closed for noninitial mutations" do
+    arrangement = create_arrangement!
+    resource = create_resource!(arrangement:)
+    occurrence = create_occurrence!(resource:)
+
+    error = assert_raises(MembershipCommand::Error) do
+      IncreaseSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 1, reason: "Increase without projection", idempotency_key: SecureRandom.uuid).call
+    end
+    assert_equal :capacity_position_missing, error.code
+  end
+
+  test "consume requires a reservation using the resource" do
+    arrangement = create_arrangement!
+    resource = create_resource!(arrangement:)
+    occurrence = create_occurrence!(resource:)
+    HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 2, reason: "Initial hold", idempotency_key: SecureRandom.uuid).call
+
+    error = assert_raises(MembershipCommand::Error) do
+      ConsumeSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 1, reason: "No reservation", idempotency_key: SecureRandom.uuid).call
+    end
+    assert_equal :reservation_required, error.code
+  end
+
+  test "reinstate requires supplier-approved provenance" do
+    arrangement = create_arrangement!
+    resource = create_resource!(arrangement:)
+    occurrence = create_occurrence!(resource:)
+    HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 2, reason: "Initial hold", idempotency_key: SecureRandom.uuid).call
+    ReleaseSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 1, reason: "Release", idempotency_key: SecureRandom.uuid).call
+
+    error = assert_raises(MembershipCommand::Error) do
+      ReinstateSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 1, reason: "Reinstate", idempotency_key: SecureRandom.uuid).call
+    end
+    assert_equal :supplier_approval_required, error.code
+  end
+
+  test "reconcile rebuilds projection without rewriting events and audits repair" do
+    arrangement = create_arrangement!
+    resource = create_resource!(arrangement:)
+    occurrence = create_occurrence!(resource:)
+    HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 5, reason: "Initial hold", idempotency_key: SecureRandom.uuid).call
+    position = SupplierCapacityPosition.find_by!(resource:, service_occurrence: occurrence)
+    event_count = position.supplier_capacity_events.count
+    audit_count = agencies(:one).audit_events.where(action: "supplier_capacity_position.reconciled").count
+    position.update_columns(agency_held: 3, updated_at: Time.current)
+
+    ReconcileCapacityPosition.new(agency: agencies(:one), actor: users(:one), position:, reason: "Repair projection from event log").call
+
+    assert_equal 5, position.reload.agency_held
+    assert_equal event_count, position.supplier_capacity_events.count
+    assert_equal audit_count + 1, agencies(:one).audit_events.where(action: "supplier_capacity_position.reconciled").count
+  end
+
+  test "capacity expected failures write no repair audit" do
+    arrangement = create_arrangement!
+    resource = create_resource!(arrangement:)
+    occurrence = create_occurrence!(resource:)
+    before = agencies(:one).audit_events.where(action: "supplier_capacity_position.reconciled").count
+
+    assert_raises(MembershipCommand::Error) do
+      IncreaseSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 1, reason: "Missing projection", idempotency_key: SecureRandom.uuid).call
+    end
+
+    assert_equal before, agencies(:one).audit_events.where(action: "supplier_capacity_position.reconciled").count
+  end
+
+  test "capacity rejects cross agency mutation" do
+    arrangement = create_arrangement!
+    resource = create_resource!(arrangement:)
+    occurrence = create_occurrence!(resource:)
+
+    error = assert_raises(MembershipCommand::Error) do
+      HoldSupplierCapacity.new(agency: agencies(:two), actor: users(:two), resource:, service_occurrence: occurrence, quantity: 1, reason: "Forged hold", idempotency_key: SecureRandom.uuid).call
+    end
+    assert_equal :invalid, error.code
+  end
+
+  test "capacity events are append only and active positions block resource deactivation" do
+    arrangement = create_arrangement!
+    resource = create_resource!(arrangement:)
+    occurrence = create_occurrence!(resource:)
+    event = HoldSupplierCapacity.new(agency: agencies(:one), actor: users(:staff_one), resource:, service_occurrence: occurrence, quantity: 1, reason: "Initial hold", idempotency_key: SecureRandom.uuid).call.supplier_capacity_event
+
+    assert_raises(ActiveRecord::ReadonlyAttributeError) { event.update!(reason: "mutated") }
+    assert_not event.destroy
+
+    error = assert_raises(MembershipCommand::Error) do
+      DeactivateSupplierResource.new(agency: agencies(:one), actor: users(:one), resource:, reason: "Closed").call
+    end
+    assert_equal :dependency, error.code
+  end
+
   private
 
   def create_arrangement!(name: "Cruise Block", parent_arrangement: nil, actor: users(:one))
@@ -256,5 +413,28 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
       detail_attributes: { minimum_quantity:, unit_amount_minor_units: },
       provenance: "Supplier guarantee schedule"
     ).call.supplier_cost_term
+  end
+
+  def create_resource!(arrangement:, actor: users(:staff_one), name: "Cabin Category", resource_kind: "cabin_category", capacity_unit: "cabin")
+    CreateSupplierResource.new(
+      agency: agencies(:one),
+      actor:,
+      arrangement:,
+      name:,
+      resource_kind:,
+      capacity_unit:
+    ).call.supplier_resource
+  end
+
+  def create_occurrence!(resource:, actor: users(:staff_one), occurrence_kind: "typed_segment", service_date: nil, segment_type: "sailing", segment_identifier: "MAIN")
+    CreateSupplierServiceOccurrence.new(
+      agency: agencies(:one),
+      actor:,
+      resource:,
+      occurrence_kind:,
+      service_date:,
+      segment_type: occurrence_kind == "typed_segment" ? segment_type : nil,
+      segment_identifier: occurrence_kind == "typed_segment" ? segment_identifier : nil
+    ).call.supplier_service_occurrence
   end
 end

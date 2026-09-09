@@ -112,6 +112,7 @@ class AuditEvent < ApplicationRecord
     supplier_deadline.completed
     supplier_deadline.waived
     supplier_deadline.cancelled
+    supplier_capacity_position.reconciled
   ].freeze
 
   ACTOR_KINDS = %w[

@@ -15,6 +15,8 @@ class DepartureCommand < MembershipCommand
     supplier_commitments: [],
     supplier_deposit_requirements: [],
     supplier_deadlines: [],
+    supplier_capacity_positions: [],
+    supplier_capacity_events: [],
     parties: [],
     memberships: [],
     team_assignments: [],
@@ -83,6 +85,16 @@ class DepartureCommand < MembershipCommand
         deadline.lock!
         deadline.reload
         ensure_supplier_deadline_belongs_to_agency!(agency, deadline)
+      end
+      Array(supplier_capacity_positions).compact.uniq.sort_by(&:id).each do |position|
+        position.lock!
+        position.reload
+        ensure_supplier_capacity_position_belongs_to_agency!(agency, position)
+      end
+      Array(supplier_capacity_events).compact.uniq.sort_by(&:id).each do |event|
+        event.lock!
+        event.reload
+        ensure_supplier_capacity_event_belongs_to_agency!(agency, event)
       end
       Array(parties).compact.uniq.sort_by(&:id).each do |party|
         party.lock!
@@ -190,6 +202,18 @@ class DepartureCommand < MembershipCommand
     return if deadline.agency_id == agency.id
 
     raise Error.new("That supplier deadline is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_capacity_position_belongs_to_agency!(agency, position)
+    return if position.agency_id == agency.id
+
+    raise Error.new("That supplier capacity position is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_capacity_event_belongs_to_agency!(agency, event)
+    return if event.agency_id == agency.id
+
+    raise Error.new("That supplier capacity event is not part of this agency.", code: :invalid)
   end
 
   def ensure_active_supplier_party!(party)

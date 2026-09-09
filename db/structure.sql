@@ -308,6 +308,19 @@ $$;
 
 
 --
+-- Name: prevent_supplier_capacity_event_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.prevent_supplier_capacity_event_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'supplier_capacity_events are append-only';
+END;
+$$;
+
+
+--
 -- Name: role_profiles_prevent_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1234,6 +1247,87 @@ CREATE TABLE public.supplier_arrangements (
 
 
 --
+-- Name: supplier_capacity_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_capacity_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    resource_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    supplier_capacity_position_id uuid NOT NULL,
+    reservation_id uuid,
+    capacity_unit character varying NOT NULL,
+    event_type character varying NOT NULL,
+    quantity integer NOT NULL,
+    agency_held_delta integer DEFAULT 0 NOT NULL,
+    pending_request_delta integer DEFAULT 0 NOT NULL,
+    guaranteed_delta integer DEFAULT 0 NOT NULL,
+    consumed_delta integer DEFAULT 0 NOT NULL,
+    released_current_delta integer DEFAULT 0 NOT NULL,
+    commanded_at timestamp with time zone NOT NULL,
+    effective_on date NOT NULL,
+    actor_kind character varying NOT NULL,
+    actor_membership_id uuid,
+    actor_identifier character varying,
+    reason text NOT NULL,
+    idempotency_key character varying NOT NULL,
+    causation_event_id uuid,
+    corrected_event_id uuid,
+    supplier_approval_reference character varying,
+    supplier_approval_received_at timestamp with time zone,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sce_actor_consistency CHECK (((((actor_kind)::text = 'membership'::text) AND (actor_membership_id IS NOT NULL) AND (actor_identifier IS NULL)) OR (((actor_kind)::text = 'system'::text) AND (actor_membership_id IS NULL) AND (btrim((actor_identifier)::text) <> ''::text)))),
+    CONSTRAINT sce_capacity_unit_valid CHECK (((capacity_unit)::text = ANY ((ARRAY['seat'::character varying, 'room'::character varying, 'cabin'::character varying, 'vehicle'::character varying, 'policy'::character varying, 'unit'::character varying])::text[]))),
+    CONSTRAINT sce_consumption_reservation_required CHECK (((((event_type)::text <> 'consumption'::text) AND ((event_type)::text <> 'restoration'::text)) OR (reservation_id IS NOT NULL))),
+    CONSTRAINT sce_event_type_valid CHECK (((event_type)::text = ANY ((ARRAY['initial_hold'::character varying, 'request'::character varying, 'confirm_request'::character varying, 'increase'::character varying, 'reduction'::character varying, 'release'::character varying, 'reinstatement'::character varying, 'consumption'::character varying, 'restoration'::character varying, 'correction'::character varying, 'expiration'::character varying])::text[]))),
+    CONSTRAINT sce_idempotency_key_not_blank CHECK ((btrim((idempotency_key)::text) <> ''::text)),
+    CONSTRAINT sce_quantity_positive CHECK ((quantity > 0)),
+    CONSTRAINT sce_reason_not_blank CHECK ((btrim(reason) <> ''::text)),
+    CONSTRAINT sce_reinstatement_approval_required CHECK ((((event_type)::text <> 'reinstatement'::text) OR (supplier_approval_reference IS NOT NULL))),
+    CONSTRAINT sce_supplier_approval_complete CHECK (((supplier_approval_reference IS NULL) = (supplier_approval_received_at IS NULL)))
+);
+
+
+--
+-- Name: supplier_capacity_positions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_capacity_positions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    resource_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    capacity_unit character varying NOT NULL,
+    agency_held integer DEFAULT 0 NOT NULL,
+    pending_request integer DEFAULT 0 NOT NULL,
+    guaranteed integer DEFAULT 0 NOT NULL,
+    consumed integer DEFAULT 0 NOT NULL,
+    released_current integer DEFAULT 0 NOT NULL,
+    supplier_reported_total integer,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT scp_agency_held_nonnegative CHECK ((agency_held >= 0)),
+    CONSTRAINT scp_available_nonnegative CHECK ((agency_held >= consumed)),
+    CONSTRAINT scp_capacity_unit_valid CHECK (((capacity_unit)::text = ANY ((ARRAY['seat'::character varying, 'room'::character varying, 'cabin'::character varying, 'vehicle'::character varying, 'policy'::character varying, 'unit'::character varying])::text[]))),
+    CONSTRAINT scp_consumed_nonnegative CHECK ((consumed >= 0)),
+    CONSTRAINT scp_guaranteed_nonnegative CHECK ((guaranteed >= 0)),
+    CONSTRAINT scp_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT scp_pending_request_nonnegative CHECK ((pending_request >= 0)),
+    CONSTRAINT scp_released_current_nonnegative CHECK ((released_current >= 0)),
+    CONSTRAINT scp_supplier_total_nonnegative CHECK (((supplier_reported_total IS NULL) OR (supplier_reported_total >= 0)))
+);
+
+
+--
 -- Name: supplier_commitments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2093,6 +2187,22 @@ ALTER TABLE ONLY public.sessions
 
 ALTER TABLE ONLY public.supplier_arrangements
     ADD CONSTRAINT supplier_arrangements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_capacity_events supplier_capacity_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT supplier_capacity_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_capacity_positions supplier_capacity_positions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT supplier_capacity_positions_pkey PRIMARY KEY (id);
 
 
 --
@@ -3095,6 +3205,41 @@ CREATE UNIQUE INDEX index_sc_unique_issuer_context_value ON public.supplier_conf
 
 
 --
+-- Name: index_sce_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sce_on_id_and_agency_id ON public.supplier_capacity_events USING btree (id, agency_id);
+
+
+--
+-- Name: index_sce_on_position_commanded; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sce_on_position_commanded ON public.supplier_capacity_events USING btree (supplier_capacity_position_id, commanded_at, id);
+
+
+--
+-- Name: index_sce_on_reservation_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sce_on_reservation_and_agency ON public.supplier_capacity_events USING btree (reservation_id, agency_id);
+
+
+--
+-- Name: index_sce_on_resource_occurrence_unit; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sce_on_resource_occurrence_unit ON public.supplier_capacity_events USING btree (resource_id, service_occurrence_id, capacity_unit);
+
+
+--
+-- Name: index_sce_unique_idempotency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sce_unique_idempotency ON public.supplier_capacity_events USING btree (agency_id, idempotency_key);
+
+
+--
 -- Name: index_scom_on_arrangement_and_agency; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3120,6 +3265,20 @@ CREATE UNIQUE INDEX index_scom_on_id_and_agency_id ON public.supplier_commitment
 --
 
 CREATE UNIQUE INDEX index_scom_one_open_per_item ON public.supplier_commitments USING btree (agency_id, economic_item_key) WHERE ((status)::text = 'open'::text);
+
+
+--
+-- Name: index_scp_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_scp_on_id_and_agency_id ON public.supplier_capacity_positions USING btree (id, agency_id);
+
+
+--
+-- Name: index_scp_unique_resource_occurrence_unit; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_scp_unique_resource_occurrence_unit ON public.supplier_capacity_positions USING btree (resource_id, service_occurrence_id, capacity_unit);
 
 
 --
@@ -3372,6 +3531,20 @@ CREATE UNIQUE INDEX index_sso_unique_typed_segment ON public.supplier_service_oc
 --
 
 CREATE INDEX index_supplier_arrangements_on_agency_id ON public.supplier_arrangements USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_capacity_events_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_capacity_events_on_agency_id ON public.supplier_capacity_events USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_capacity_positions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_capacity_positions_on_agency_id ON public.supplier_capacity_positions USING btree (agency_id);
 
 
 --
@@ -3638,6 +3811,20 @@ CREATE TRIGGER party_relationships_identity_immutable BEFORE UPDATE ON public.pa
 --
 
 CREATE CONSTRAINT TRIGGER supplier_arrangements_cycle_guard AFTER INSERT OR UPDATE OF parent_arrangement_id ON public.supplier_arrangements DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION public.supplier_arrangements_prevent_cycle();
+
+
+--
+-- Name: supplier_capacity_events supplier_capacity_events_prevent_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_capacity_events_prevent_delete BEFORE DELETE ON public.supplier_capacity_events FOR EACH ROW EXECUTE FUNCTION public.prevent_supplier_capacity_event_mutation();
+
+
+--
+-- Name: supplier_capacity_events supplier_capacity_events_prevent_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_capacity_events_prevent_update BEFORE UPDATE ON public.supplier_capacity_events FOR EACH ROW EXECUTE FUNCTION public.prevent_supplier_capacity_event_mutation();
 
 
 --
@@ -4224,6 +4411,14 @@ ALTER TABLE ONLY public.people
 
 
 --
+-- Name: supplier_capacity_events fk_rails_c1ff2fa5e9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT fk_rails_c1ff2fa5e9 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: active_storage_attachments fk_rails_c3b3935057; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4325,6 +4520,14 @@ ALTER TABLE ONLY public.travel_programs
 
 ALTER TABLE ONLY public.supplier_resources
     ADD CONSTRAINT fk_rails_f4555dab68 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_capacity_positions fk_rails_ff46f0143c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT fk_rails_ff46f0143c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -4557,6 +4760,110 @@ ALTER TABLE ONLY public.relationship_purpose_assignments
 
 ALTER TABLE ONLY public.relationship_purpose_assignments
     ADD CONSTRAINT rpa_superseded_by_fk FOREIGN KEY (superseded_by_assignment_id, agency_id) REFERENCES public.relationship_purpose_assignments(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_actor_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_actor_membership_fk FOREIGN KEY (actor_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_capacity_events sce_causation_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_causation_event_fk FOREIGN KEY (causation_event_id, agency_id) REFERENCES public.supplier_capacity_events(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_corrected_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_corrected_event_fk FOREIGN KEY (corrected_event_id, agency_id) REFERENCES public.supplier_capacity_events(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_capacity_events sce_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_occurrence_fk FOREIGN KEY (service_occurrence_id, agency_id) REFERENCES public.supplier_service_occurrences(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_position_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_position_fk FOREIGN KEY (supplier_capacity_position_id, agency_id) REFERENCES public.supplier_capacity_positions(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_reservation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_reservation_fk FOREIGN KEY (reservation_id, agency_id) REFERENCES public.supplier_reservations(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_resource_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_resource_scope_fk FOREIGN KEY (resource_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_resources(id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: supplier_capacity_positions scp_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT scp_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_capacity_positions scp_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT scp_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_capacity_positions scp_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT scp_occurrence_fk FOREIGN KEY (service_occurrence_id, agency_id) REFERENCES public.supplier_service_occurrences(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_positions scp_resource_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT scp_resource_scope_fk FOREIGN KEY (resource_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_resources(id, agency_id, office_id, departure_id, arrangement_id);
 
 
 --
@@ -5086,6 +5393,7 @@ ALTER TABLE ONLY public.travel_programs
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909190000'),
 ('20260909180000'),
 ('20260909170000'),
 ('20260909120000'),

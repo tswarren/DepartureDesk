@@ -29,6 +29,8 @@ class DepartureOfficeRaceTest < ActiveSupport::TestCase
     departure_ids.uniq!
     connection.execute("SET session_replication_role = replica")
     SupplierConfirmation.where(departure_id: departure_ids).delete_all
+    SupplierCapacityEvent.where(departure_id: departure_ids).delete_all
+    SupplierCapacityPosition.where(departure_id: departure_ids).delete_all
     SupplierServiceOccurrence.where(departure_id: departure_ids).delete_all
     SupplierReservationResource.where(departure_id: departure_ids).delete_all
     SupplierResource.where(departure_id: departure_ids).delete_all
@@ -169,6 +171,85 @@ class DepartureOfficeRaceTest < ActiveSupport::TestCase
     else
       assert_equal @keep_office.id, departure.office_id
     end
+  ensure
+    if defined?(supplier_party) && supplier_party
+      connection = ActiveRecord::Base.connection
+      connection.execute("SET session_replication_role = replica")
+      SupplierProfile.where(party_id: supplier_party.id).delete_all
+      Organization.where(party_id: supplier_party.id).delete_all
+      Party.where(id: supplier_party.id).delete_all
+      connection.execute("SET session_replication_role = DEFAULT")
+    end
+  end
+
+  test "concurrent duplicate capacity hold applies once" do
+    supplier_party = create_organization!(
+      agencies(:one),
+      legal_name: "Capacity Race Supplier #{SecureRandom.hex(4)}"
+    ).party
+    assign_supplier_role!(supplier_party, actor: users(:one), office: @office)
+    departure = create_departure!(
+      agencies(:one),
+      actor: users(:one),
+      office: @office,
+      name: "Capacity Race Departure"
+    )
+    arrangement = CreateSupplierArrangement.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      departure:,
+      supplier_party:,
+      name: "Capacity Race Arrangement"
+    ).call.supplier_arrangement
+    resource = CreateSupplierResource.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      arrangement:,
+      name: "Race Rooms",
+      resource_kind: "room_type",
+      capacity_unit: "room"
+    ).call.supplier_resource
+    occurrence = CreateSupplierServiceOccurrence.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      resource:,
+      occurrence_kind: "night_slice",
+      service_date: Date.new(2027, 7, 12)
+    ).call.supplier_service_occurrence
+    key = SecureRandom.uuid
+    barrier = CyclicBarrier.new(2)
+
+    first = run_on_connection do
+      barrier.wait
+      HoldSupplierCapacity.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        resource: SupplierResource.find(resource.id),
+        service_occurrence: SupplierServiceOccurrence.find(occurrence.id),
+        quantity: 4,
+        reason: "Concurrent initial hold",
+        idempotency_key: key
+      ).call
+    end
+    second = run_on_connection do
+      barrier.wait
+      HoldSupplierCapacity.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        resource: SupplierResource.find(resource.id),
+        service_occurrence: SupplierServiceOccurrence.find(occurrence.id),
+        quantity: 4,
+        reason: "Concurrent initial hold",
+        idempotency_key: key
+      ).call
+    end
+
+    join_all!(first, second)
+
+    assert_nil first[:error]
+    assert_nil second[:error]
+    assert_equal 1, SupplierCapacityEvent.where(idempotency_key: key).count
+    assert_equal 4, SupplierCapacityPosition.find_by!(resource_id: resource.id, service_occurrence_id: occurrence.id).agency_held
   ensure
     if defined?(supplier_party) && supplier_party
       connection = ActiveRecord::Base.connection

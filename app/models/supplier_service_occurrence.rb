@@ -9,6 +9,8 @@ class SupplierServiceOccurrence < ApplicationRecord
   belongs_to :created_by_membership, class_name: "AgencyMembership", inverse_of: false
   has_many :supplier_cost_terms, foreign_key: :service_occurrence_id, inverse_of: :service_occurrence, dependent: :restrict_with_exception
   has_many :supplier_commitments, foreign_key: :service_occurrence_id, inverse_of: :service_occurrence, dependent: :restrict_with_exception
+  has_many :supplier_capacity_positions, foreign_key: :service_occurrence_id, inverse_of: :service_occurrence, dependent: :restrict_with_exception
+  has_many :supplier_capacity_events, foreign_key: :service_occurrence_id, inverse_of: :service_occurrence, dependent: :restrict_with_exception
 
   enum :occurrence_kind, KINDS.index_by(&:itself), validate: true
 
