@@ -1,0 +1,151 @@
+<% content_for :title, "Supplier planning · #{@departure.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description"><%= @departure.departure_reference %> · <%= departure_status_badge(@departure) %></p>
+    <%= link_to "Back to departure", departure_path(@departure), class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "departures/subnav", current: :supplier_planning, departure: @departure %>
+
+<section class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Forecast and exposure</h2>
+      <p class="dd-field-hint">Amounts stay grouped by supplier transaction currency. No client balances, cash, margin, or cross-currency totals are shown.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <div class="dd-form-grid dd-form-grid--two-column">
+      <div>
+        <h3 class="dd-section-title">Forecast cost</h3>
+        <% if @forecast_report.totals_by_currency.any? %>
+          <dl class="dd-definition-list">
+            <% @forecast_report.totals_by_currency.sort.each do |currency, amount| %>
+              <div>
+                <dt><%= currency %></dt>
+                <dd class="dd-type-mono"><%= supplier_money_minor_units(amount, currency) %></dd>
+              </div>
+            <% end %>
+          </dl>
+        <% else %>
+          <p class="dd-empty-copy">No active supplier cost terms or commitments yet.</p>
+        <% end %>
+      </div>
+      <div>
+        <h3 class="dd-section-title">Guarantee exposure</h3>
+        <% if @exposure_report.monetary_totals_by_currency.any? || @exposure_report.guaranteed_capacity_by_unit.any? %>
+          <dl class="dd-definition-list">
+            <% @exposure_report.monetary_totals_by_currency.sort.each do |currency, amount| %>
+              <div>
+                <dt><%= currency %></dt>
+                <dd class="dd-type-mono"><%= supplier_money_minor_units(amount, currency) %></dd>
+              </div>
+            <% end %>
+            <% @exposure_report.guaranteed_capacity_by_unit.sort.each do |unit, quantity| %>
+              <div>
+                <dt>Unsold guaranteed <%= unit.pluralize(quantity) %></dt>
+                <dd class="dd-type-mono"><%= quantity %></dd>
+              </div>
+            <% end %>
+          </dl>
+        <% else %>
+          <p class="dd-empty-copy">No guarantees are exposed yet.</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Arrangements</h2>
+      <p class="dd-field-hint">Supplier arrangements are commercial envelopes. Reservations and capacity remain separate child facts.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if @arrangements.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Supplier</th>
+            <th>Status</th>
+            <th>Parent</th>
+            <th class="num">Forecast items</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @arrangements.each do |arrangement| %>
+            <tr>
+              <td><%= link_to arrangement.name, departure_supplier_arrangement_path(@departure, arrangement) %></td>
+              <td><%= arrangement.supplier_display_name_snapshot %></td>
+              <td><%= supplier_planning_status_badge(arrangement) %></td>
+              <td><%= arrangement.parent_arrangement&.name || "—" %></td>
+              <td class="num"><%= arrangement.supplier_cost_terms.count + arrangement.supplier_commitments.count %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <div class="<%= class_names(empty_state_classes(family: :actionable)) %>">
+        <h3 class="dd-empty-title">No supplier arrangements yet</h3>
+        <p class="dd-empty-copy">Create the first draft only when supplier-side planning should freeze simple office transfer for this departure.</p>
+      </div>
+    <% end %>
+  </div>
+</section>
+
+<% if @departure.nonterminal? %>
+  <section class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Create draft arrangement</h2>
+    </header>
+    <div class="dd-panel-body">
+      <form method="get" action="<%= departure_supplier_arrangements_path(@departure) %>" class="dd-form">
+        <div class="dd-field-group">
+          <label class="dd-label" for="supplier_q">Search active suppliers</label>
+          <input class="dd-field" id="supplier_q" name="supplier_q" value="<%= @supplier_q %>" autocomplete="off">
+        </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary dd-button--small">Filter suppliers</button>
+        </div>
+      </form>
+
+      <%= form_with url: departure_supplier_arrangements_path(@departure), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+        <p class="dd-required-legend">Required fields are marked with an asterisk.</p>
+        <%= render "directory/shared/party_selector",
+          field_name: "supplier_party_id",
+          field_id: "supplier_party_id",
+          candidates: @supplier_candidates,
+          label: "Contracting supplier *",
+          hint: "Showing active supplier profiles for this agency." %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="parent_arrangement_id">Parent arrangement</label>
+          <select class="dd-field" name="parent_arrangement_id" id="parent_arrangement_id">
+            <option value="">None</option>
+            <% @arrangements.select(&:nonterminal?).each do |arrangement| %>
+              <option value="<%= arrangement.id %>"><%= arrangement.name %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="arrangement_name">Name <span class="dd-required">*</span></label>
+          <input class="dd-field" id="arrangement_name" name="name" required>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="arrangement_description">Internal description</label>
+          <textarea class="dd-field" id="arrangement_description" name="description" rows="3"></textarea>
+        </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button">Create draft arrangement</button>
+        </div>
+      <% end %>
+    </div>
+  </section>
+<% end %>

@@ -308,6 +308,19 @@ $$;
 
 
 --
+-- Name: prevent_supplier_capacity_event_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.prevent_supplier_capacity_event_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'supplier_capacity_events are append-only';
+END;
+$$;
+
+
+--
 -- Name: role_profiles_prevent_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -320,6 +333,48 @@ BEGIN
     OR NEW.party_kind IS DISTINCT FROM OLD.party_kind THEN
     RAISE EXCEPTION 'agency_id, party_id, and party_kind are immutable';
   END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: supplier_arrangements_prevent_cycle(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.supplier_arrangements_prevent_cycle() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.parent_arrangement_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.parent_arrangement_id = NEW.id THEN
+    RAISE EXCEPTION 'supplier arrangement cannot parent itself' USING ERRCODE = '23514';
+  END IF;
+
+  IF EXISTS (
+    WITH RECURSIVE ancestors(id, parent_arrangement_id) AS (
+      SELECT id, parent_arrangement_id
+      FROM supplier_arrangements
+      WHERE id = NEW.parent_arrangement_id
+        AND agency_id = NEW.agency_id
+        AND office_id = NEW.office_id
+        AND departure_id = NEW.departure_id
+      UNION ALL
+      SELECT parent.id, parent.parent_arrangement_id
+      FROM supplier_arrangements parent
+      JOIN ancestors child ON child.parent_arrangement_id = parent.id
+      WHERE parent.agency_id = NEW.agency_id
+        AND parent.office_id = NEW.office_id
+        AND parent.departure_id = NEW.departure_id
+    )
+    SELECT 1 FROM ancestors WHERE id = NEW.id LIMIT 1
+  ) THEN
+    RAISE EXCEPTION 'supplier arrangement hierarchy cannot contain cycles' USING ERRCODE = '23514';
+  END IF;
+
   RETURN NEW;
 END;
 $$;
@@ -514,12 +569,12 @@ CREATE TABLE public.client_profiles (
     billing_restrictions text,
     CONSTRAINT client_profiles_advisor_projection CHECK ((((primary_advisor_membership_id IS NULL) AND (primary_advisor_membership_status IS NULL)) OR ((primary_advisor_membership_id IS NOT NULL) AND ((primary_advisor_membership_status)::text = 'active'::text)))),
     CONSTRAINT client_profiles_billing_restrictions_length CHECK ((char_length(billing_restrictions) <= 2000)),
-    CONSTRAINT client_profiles_communication_preference_valid CHECK (((communication_preference)::text = ANY (ARRAY[('no_preference'::character varying)::text, ('email'::character varying)::text, ('phone'::character varying)::text, ('postal_mail'::character varying)::text]))),
+    CONSTRAINT client_profiles_communication_preference_valid CHECK (((communication_preference)::text = ANY ((ARRAY['no_preference'::character varying, 'email'::character varying, 'phone'::character varying, 'postal_mail'::character varying])::text[]))),
     CONSTRAINT client_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (primary_advisor_membership_id IS NULL) AND (primary_advisor_membership_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT client_profiles_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT client_profiles_party_kind_valid CHECK (((party_kind)::text = ANY (ARRAY[('person'::character varying)::text, ('household'::character varying)::text, ('organization'::character varying)::text]))),
+    CONSTRAINT client_profiles_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'household'::character varying, 'organization'::character varying])::text[]))),
     CONSTRAINT client_profiles_servicing_restrictions_length CHECK ((char_length(servicing_restrictions) <= 2000)),
-    CONSTRAINT client_profiles_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+    CONSTRAINT client_profiles_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
 );
 
 
@@ -611,9 +666,9 @@ CREATE TABLE public.departure_party_role_assignments (
     CONSTRAINT dpra_group_leader_person CHECK ((((role)::text <> 'group_leader'::text) OR ((party_kind)::text = 'person'::text))),
     CONSTRAINT dpra_lifecycle_complete CHECK ((((effective_until IS NULL) AND (ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL)) OR ((effective_until IS NOT NULL) AND (ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text)))),
     CONSTRAINT dpra_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT dpra_party_kind_valid CHECK (((party_kind)::text = ANY (ARRAY[('person'::character varying)::text, ('household'::character varying)::text, ('organization'::character varying)::text]))),
+    CONSTRAINT dpra_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'household'::character varying, 'organization'::character varying])::text[]))),
     CONSTRAINT dpra_range_order CHECK (((effective_until IS NULL) OR (effective_until >= effective_from))),
-    CONSTRAINT dpra_role_valid CHECK (((role)::text = ANY (ARRAY[('organizer'::character varying)::text, ('group_leader'::character varying)::text, ('sponsor'::character varying)::text]))),
+    CONSTRAINT dpra_role_valid CHECK (((role)::text = ANY ((ARRAY['organizer'::character varying, 'group_leader'::character varying, 'sponsor'::character varying])::text[]))),
     CONSTRAINT dpra_snapshot_not_blank CHECK ((btrim((party_display_name_snapshot)::text) <> ''::text))
 );
 
@@ -656,7 +711,7 @@ CREATE TABLE public.departure_team_assignments (
     CONSTRAINT dta_lifecycle_complete CHECK ((((effective_until IS NULL) AND (ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL) AND ((membership_status)::text = 'active'::text)) OR ((effective_until IS NOT NULL) AND (ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text) AND (membership_status IS NULL)))),
     CONSTRAINT dta_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT dta_range_order CHECK (((effective_until IS NULL) OR (effective_until >= effective_from))),
-    CONSTRAINT dta_role_valid CHECK (((assignment_role)::text = ANY (ARRAY[('group_manager'::character varying)::text, ('responsible_advisor'::character varying)::text]))),
+    CONSTRAINT dta_role_valid CHECK (((assignment_role)::text = ANY ((ARRAY['group_manager'::character varying, 'responsible_advisor'::character varying])::text[]))),
     CONSTRAINT dta_snapshot_not_blank CHECK ((btrim((member_name_snapshot)::text) <> ''::text))
 );
 
@@ -695,12 +750,12 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_date_order CHECK ((end_date >= start_date)),
     CONSTRAINT departures_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT departures_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
-    CONSTRAINT departures_owning_office_projection CHECK (((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('planning'::character varying)::text])) AND (owning_office_status IS NOT NULL) AND ((owning_office_status)::text = 'active'::text)) OR (((status)::text = 'cancelled'::text) AND (owning_office_status IS NULL)))),
-    CONSTRAINT departures_program_projection CHECK ((((travel_program_id IS NULL) AND (travel_program_status IS NULL)) OR ((travel_program_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('planning'::character varying)::text])) AND (travel_program_status IS NOT NULL) AND ((travel_program_status)::text = 'active'::text)) OR ((travel_program_id IS NOT NULL) AND ((status)::text = 'cancelled'::text) AND (travel_program_status IS NULL)))),
+    CONSTRAINT departures_owning_office_projection CHECK (((((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying])::text[])) AND (owning_office_status IS NOT NULL) AND ((owning_office_status)::text = 'active'::text)) OR (((status)::text = 'cancelled'::text) AND (owning_office_status IS NULL)))),
+    CONSTRAINT departures_program_projection CHECK ((((travel_program_id IS NULL) AND (travel_program_status IS NULL)) OR ((travel_program_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying])::text[])) AND (travel_program_status IS NOT NULL) AND ((travel_program_status)::text = 'active'::text)) OR ((travel_program_id IS NOT NULL) AND ((status)::text = 'cancelled'::text) AND (travel_program_status IS NULL)))),
     CONSTRAINT departures_reference_format CHECK (((departure_reference)::text ~ '^D-[0-9]{6,}$'::text)),
     CONSTRAINT departures_sales_date_order CHECK (((sales_open_on IS NULL) OR (sales_close_on IS NULL) OR (sales_close_on >= sales_open_on))),
-    CONSTRAINT departures_status_metadata CHECK (((((status)::text = 'cancelled'::text) AND (btrim((status_reason)::text) <> ''::text)) OR (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('planning'::character varying)::text])) AND (status_reason IS NULL)))),
-    CONSTRAINT departures_status_valid CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('planning'::character varying)::text, ('cancelled'::character varying)::text])))
+    CONSTRAINT departures_status_metadata CHECK (((((status)::text = 'cancelled'::text) AND (btrim((status_reason)::text) <> ''::text)) OR (((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying])::text[])) AND (status_reason IS NULL)))),
+    CONSTRAINT departures_status_valid CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying, 'cancelled'::character varying])::text[])))
 );
 
 
@@ -729,13 +784,13 @@ CREATE TABLE public.external_identifiers (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT external_identifiers_exactly_one_owner CHECK ((((((party_id IS NOT NULL))::integer + ((client_profile_id IS NOT NULL))::integer) + ((supplier_profile_id IS NOT NULL))::integer) = 1)),
-    CONSTRAINT external_identifiers_issuer_required CHECK ((((identifier_type)::text <> ALL (ARRAY[('legacy_client_id'::character varying)::text, ('external_crm_id'::character varying)::text, ('supplier_account_number'::character varying)::text, ('supplier_portal_id'::character varying)::text, ('industry_supplier_code'::character varying)::text])) OR ((issuer IS NOT NULL) AND (btrim((issuer)::text) <> ''::text)))),
+    CONSTRAINT external_identifiers_issuer_required CHECK ((((identifier_type)::text <> ALL ((ARRAY['legacy_client_id'::character varying, 'external_crm_id'::character varying, 'supplier_account_number'::character varying, 'supplier_portal_id'::character varying, 'industry_supplier_code'::character varying])::text[])) OR ((issuer IS NOT NULL) AND (btrim((issuer)::text) <> ''::text)))),
     CONSTRAINT external_identifiers_lifecycle CHECK (((((status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT external_identifiers_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT external_identifiers_office_id_null CHECK ((office_id IS NULL)),
     CONSTRAINT external_identifiers_source_valid CHECK (((source)::text = 'staff'::text)),
-    CONSTRAINT external_identifiers_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text]))),
-    CONSTRAINT external_identifiers_type_owner CHECK (((((identifier_type)::text = 'legacy_party_id'::text) AND (party_id IS NOT NULL) AND (client_profile_id IS NULL) AND (supplier_profile_id IS NULL)) OR (((identifier_type)::text = ANY (ARRAY[('legacy_client_id'::character varying)::text, ('external_crm_id'::character varying)::text])) AND (client_profile_id IS NOT NULL) AND (party_id IS NULL) AND (supplier_profile_id IS NULL)) OR (((identifier_type)::text = ANY (ARRAY[('supplier_account_number'::character varying)::text, ('supplier_portal_id'::character varying)::text, ('industry_supplier_code'::character varying)::text])) AND (supplier_profile_id IS NOT NULL) AND (party_id IS NULL) AND (client_profile_id IS NULL)))),
+    CONSTRAINT external_identifiers_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT external_identifiers_type_owner CHECK (((((identifier_type)::text = 'legacy_party_id'::text) AND (party_id IS NOT NULL) AND (client_profile_id IS NULL) AND (supplier_profile_id IS NULL)) OR (((identifier_type)::text = ANY ((ARRAY['legacy_client_id'::character varying, 'external_crm_id'::character varying])::text[])) AND (client_profile_id IS NOT NULL) AND (party_id IS NULL) AND (supplier_profile_id IS NULL)) OR (((identifier_type)::text = ANY ((ARRAY['supplier_account_number'::character varying, 'supplier_portal_id'::character varying, 'industry_supplier_code'::character varying])::text[])) AND (supplier_profile_id IS NOT NULL) AND (party_id IS NULL) AND (client_profile_id IS NULL)))),
     CONSTRAINT external_identifiers_values_not_blank CHECK (((btrim((original_value)::text) <> ''::text) AND (btrim((normalized_value)::text) <> ''::text)))
 );
 
@@ -1158,6 +1213,592 @@ CREATE TABLE public.sessions (
 
 
 --
+-- Name: supplier_arrangements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangements (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    parent_arrangement_id uuid,
+    supplier_party_id uuid NOT NULL,
+    service_provider_party_id uuid,
+    name character varying NOT NULL,
+    description text,
+    client_facing_description text,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    supplier_display_name_snapshot character varying NOT NULL,
+    service_provider_display_name_snapshot character varying,
+    created_by_membership_id uuid NOT NULL,
+    status_changed_at timestamp with time zone NOT NULL,
+    status_changed_by_membership_id uuid NOT NULL,
+    status_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_arrangements_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_arrangements_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT supplier_arrangements_no_self_parent CHECK (((parent_arrangement_id IS NULL) OR (parent_arrangement_id <> id))),
+    CONSTRAINT supplier_arrangements_provider_snapshot CHECK (((service_provider_party_id IS NULL) OR (service_provider_display_name_snapshot IS NOT NULL))),
+    CONSTRAINT supplier_arrangements_status_metadata CHECK (((((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying])::text[])) AND (status_reason IS NULL)) OR (((status)::text = 'cancelled'::text) AND (btrim((status_reason)::text) <> ''::text)))),
+    CONSTRAINT supplier_arrangements_status_valid CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_capacity_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_capacity_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    resource_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    supplier_capacity_position_id uuid NOT NULL,
+    reservation_id uuid,
+    capacity_unit character varying NOT NULL,
+    event_type character varying NOT NULL,
+    quantity integer NOT NULL,
+    agency_held_delta integer DEFAULT 0 NOT NULL,
+    pending_request_delta integer DEFAULT 0 NOT NULL,
+    guaranteed_delta integer DEFAULT 0 NOT NULL,
+    consumed_delta integer DEFAULT 0 NOT NULL,
+    released_current_delta integer DEFAULT 0 NOT NULL,
+    commanded_at timestamp with time zone NOT NULL,
+    effective_on date NOT NULL,
+    actor_kind character varying NOT NULL,
+    actor_membership_id uuid,
+    actor_identifier character varying,
+    reason text NOT NULL,
+    idempotency_key character varying NOT NULL,
+    causation_event_id uuid,
+    corrected_event_id uuid,
+    supplier_approval_reference character varying,
+    supplier_approval_received_at timestamp with time zone,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sce_actor_consistency CHECK (((((actor_kind)::text = 'membership'::text) AND (actor_membership_id IS NOT NULL) AND (actor_identifier IS NULL)) OR (((actor_kind)::text = 'system'::text) AND (actor_membership_id IS NULL) AND (btrim((actor_identifier)::text) <> ''::text)))),
+    CONSTRAINT sce_capacity_unit_valid CHECK (((capacity_unit)::text = ANY ((ARRAY['seat'::character varying, 'room'::character varying, 'cabin'::character varying, 'vehicle'::character varying, 'policy'::character varying, 'unit'::character varying])::text[]))),
+    CONSTRAINT sce_consumption_reservation_required CHECK (((((event_type)::text <> 'consumption'::text) AND ((event_type)::text <> 'restoration'::text)) OR (reservation_id IS NOT NULL))),
+    CONSTRAINT sce_event_type_valid CHECK (((event_type)::text = ANY ((ARRAY['initial_hold'::character varying, 'request'::character varying, 'confirm_request'::character varying, 'increase'::character varying, 'reduction'::character varying, 'release'::character varying, 'reinstatement'::character varying, 'consumption'::character varying, 'restoration'::character varying, 'correction'::character varying, 'expiration'::character varying])::text[]))),
+    CONSTRAINT sce_idempotency_key_not_blank CHECK ((btrim((idempotency_key)::text) <> ''::text)),
+    CONSTRAINT sce_quantity_positive CHECK ((quantity > 0)),
+    CONSTRAINT sce_reason_not_blank CHECK ((btrim(reason) <> ''::text)),
+    CONSTRAINT sce_reinstatement_approval_required CHECK ((((event_type)::text <> 'reinstatement'::text) OR (supplier_approval_reference IS NOT NULL))),
+    CONSTRAINT sce_supplier_approval_complete CHECK (((supplier_approval_reference IS NULL) = (supplier_approval_received_at IS NULL)))
+);
+
+
+--
+-- Name: supplier_capacity_positions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_capacity_positions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    resource_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    capacity_unit character varying NOT NULL,
+    agency_held integer DEFAULT 0 NOT NULL,
+    pending_request integer DEFAULT 0 NOT NULL,
+    guaranteed integer DEFAULT 0 NOT NULL,
+    consumed integer DEFAULT 0 NOT NULL,
+    released_current integer DEFAULT 0 NOT NULL,
+    supplier_reported_total integer,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT scp_agency_held_nonnegative CHECK ((agency_held >= 0)),
+    CONSTRAINT scp_available_nonnegative CHECK ((agency_held >= consumed)),
+    CONSTRAINT scp_capacity_unit_valid CHECK (((capacity_unit)::text = ANY ((ARRAY['seat'::character varying, 'room'::character varying, 'cabin'::character varying, 'vehicle'::character varying, 'policy'::character varying, 'unit'::character varying])::text[]))),
+    CONSTRAINT scp_consumed_nonnegative CHECK ((consumed >= 0)),
+    CONSTRAINT scp_guaranteed_nonnegative CHECK ((guaranteed >= 0)),
+    CONSTRAINT scp_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT scp_pending_request_nonnegative CHECK ((pending_request >= 0)),
+    CONSTRAINT scp_released_current_nonnegative CHECK ((released_current >= 0)),
+    CONSTRAINT scp_supplier_total_nonnegative CHECK (((supplier_reported_total IS NULL) OR (supplier_reported_total >= 0)))
+);
+
+
+--
+-- Name: supplier_clauses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_clauses (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    resource_id uuid,
+    service_occurrence_id uuid,
+    governing_term_id uuid,
+    affected_commitment_id uuid,
+    clause_type character varying NOT NULL,
+    name character varying NOT NULL,
+    capacity_action character varying DEFAULT 'none'::character varying NOT NULL,
+    capacity_quantity integer,
+    guaranteed_quantity integer,
+    commitment_action character varying DEFAULT 'none'::character varying NOT NULL,
+    amount_minor_units bigint,
+    currency character varying(3),
+    effective_on date,
+    effective_until date,
+    trigger_on date,
+    deadline_due_on date,
+    provenance text NOT NULL,
+    application_rules jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_by_membership_id uuid NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_clauses_amount_nonnegative CHECK (((amount_minor_units IS NULL) OR (amount_minor_units >= 0))),
+    CONSTRAINT supplier_clauses_capacity_action_valid CHECK (((capacity_action)::text = ANY ((ARRAY['none'::character varying, 'release'::character varying, 'reduction'::character varying, 'expiration'::character varying, 'guarantee_adjustment'::character varying])::text[]))),
+    CONSTRAINT supplier_clauses_capacity_quantity_positive CHECK (((capacity_quantity IS NULL) OR (capacity_quantity > 0))),
+    CONSTRAINT supplier_clauses_capacity_target_complete CHECK ((((capacity_action)::text = 'none'::text) OR ((resource_id IS NOT NULL) AND (service_occurrence_id IS NOT NULL) AND ((capacity_quantity IS NOT NULL) OR (((capacity_action)::text = 'guarantee_adjustment'::text) AND (guaranteed_quantity IS NOT NULL)))))),
+    CONSTRAINT supplier_clauses_commitment_action_valid CHECK (((commitment_action)::text = ANY ((ARRAY['none'::character varying, 'open'::character varying, 'release'::character varying, 'satisfy'::character varying, 'cancel'::character varying])::text[]))),
+    CONSTRAINT supplier_clauses_currency_format CHECK (((currency IS NULL) OR ((currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT supplier_clauses_effective_interval CHECK (((effective_until IS NULL) OR (effective_on IS NULL) OR (effective_until > effective_on))),
+    CONSTRAINT supplier_clauses_existing_commitment_required CHECK ((((commitment_action)::text <> ALL ((ARRAY['release'::character varying, 'satisfy'::character varying, 'cancel'::character varying])::text[])) OR (affected_commitment_id IS NOT NULL))),
+    CONSTRAINT supplier_clauses_guarantee_substance CHECK ((((clause_type)::text <> 'guarantee'::text) OR ((guaranteed_quantity IS NOT NULL) OR (amount_minor_units IS NOT NULL) OR (governing_term_id IS NOT NULL)))),
+    CONSTRAINT supplier_clauses_guaranteed_quantity_nonnegative CHECK (((guaranteed_quantity IS NULL) OR (guaranteed_quantity >= 0))),
+    CONSTRAINT supplier_clauses_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_clauses_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT supplier_clauses_open_commitment_term_required CHECK ((((commitment_action)::text <> 'open'::text) OR (governing_term_id IS NOT NULL))),
+    CONSTRAINT supplier_clauses_provenance_not_blank CHECK ((btrim(provenance) <> ''::text)),
+    CONSTRAINT supplier_clauses_type_valid CHECK (((clause_type)::text = ANY ((ARRAY['release'::character varying, 'attrition'::character varying, 'cancellation'::character varying, 'guarantee'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_commitments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_commitments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    reservation_id uuid,
+    resource_id uuid,
+    service_occurrence_id uuid,
+    governing_term_id uuid NOT NULL,
+    supersedes_commitment_id uuid,
+    economic_item_id uuid NOT NULL,
+    economic_item_key character varying NOT NULL,
+    cost_category character varying NOT NULL,
+    quantity_basis character varying NOT NULL,
+    quantity_unit character varying NOT NULL,
+    currency character varying(3) NOT NULL,
+    valuation_amount_minor_units bigint NOT NULL,
+    valuation_details jsonb DEFAULT '{}'::jsonb NOT NULL,
+    governing_term_snapshot character varying NOT NULL,
+    status character varying DEFAULT 'open'::character varying NOT NULL,
+    opened_reason text NOT NULL,
+    created_by_membership_id uuid NOT NULL,
+    status_changed_at timestamp with time zone NOT NULL,
+    status_changed_by_membership_id uuid NOT NULL,
+    status_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_commitments_cost_category_valid CHECK (((cost_category)::text = ANY ((ARRAY['coach'::character varying, 'coach_seat'::character varying, 'cabin'::character varying, 'cabin_guarantee'::character varying, 'room'::character varying, 'lodging'::character varying, 'hotel_block'::character varying, 'transport'::character varying, 'tour'::character varying, 'vineyard_lunch'::character varying, 'vineyard_seats'::character varying, 'guide_ticket'::character varying, 'park_permit'::character varying, 'supplier_fee'::character varying, 'supplier_guarantee'::character varying, 'insurance'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT supplier_commitments_currency_format CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT supplier_commitments_key_not_blank CHECK ((btrim((economic_item_key)::text) <> ''::text)),
+    CONSTRAINT supplier_commitments_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_commitments_opened_reason_not_blank CHECK ((btrim(opened_reason) <> ''::text)),
+    CONSTRAINT supplier_commitments_quantity_basis_valid CHECK (((quantity_basis)::text = ANY ((ARRAY['arrangement'::character varying, 'resource'::character varying, 'reservation'::character varying, 'occurrence'::character varying, 'planning_quantity'::character varying, 'guaranteed_quantity'::character varying, 'qualifying_quantity'::character varying, 'base_amount'::character varying, 'supplier_invoice'::character varying])::text[]))),
+    CONSTRAINT supplier_commitments_quantity_unit_valid CHECK (((quantity_unit)::text = ANY ((ARRAY['seat'::character varying, 'room'::character varying, 'cabin'::character varying, 'vehicle'::character varying, 'policy'::character varying, 'unit'::character varying, 'contract'::character varying, 'coach'::character varying, 'person'::character varying, 'guest'::character varying, 'fee'::character varying, 'permit'::character varying, 'night'::character varying])::text[]))),
+    CONSTRAINT supplier_commitments_status_metadata CHECK (((((status)::text = 'open'::text) AND (status_reason IS NULL)) OR (((status)::text <> 'open'::text) AND (btrim((status_reason)::text) <> ''::text)))),
+    CONSTRAINT supplier_commitments_status_valid CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'released'::character varying, 'satisfied'::character varying, 'superseded'::character varying, 'cancelled'::character varying])::text[]))),
+    CONSTRAINT supplier_commitments_value_nonnegative CHECK ((valuation_amount_minor_units >= 0))
+);
+
+
+--
+-- Name: supplier_confirmations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_confirmations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid,
+    reservation_id uuid,
+    issuer_party_id uuid NOT NULL,
+    issuer_display_name_snapshot character varying NOT NULL,
+    identifier_type character varying NOT NULL,
+    context character varying NOT NULL,
+    raw_value character varying NOT NULL,
+    normalized_value character varying NOT NULL,
+    issued_on date,
+    received_on date,
+    source_channel character varying,
+    document_reference character varying,
+    status character varying DEFAULT 'effective'::character varying NOT NULL,
+    entered_by_membership_id uuid NOT NULL,
+    superseded_at timestamp with time zone,
+    superseded_by_membership_id uuid,
+    supersession_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_confirmations_context_not_blank CHECK ((btrim((context)::text) <> ''::text)),
+    CONSTRAINT supplier_confirmations_context_valid CHECK (((context)::text = ANY ((ARRAY['supplier_portal'::character varying, 'email'::character varying, 'phone'::character varying, 'fax'::character varying, 'document'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT supplier_confirmations_exactly_one_owner CHECK (((arrangement_id IS NULL) <> (reservation_id IS NULL))),
+    CONSTRAINT supplier_confirmations_identifier_type_valid CHECK (((identifier_type)::text = ANY ((ARRAY['supplier_confirmation'::character varying, 'booking_reference'::character varying, 'pnr'::character varying, 'group_code'::character varying, 'allotment_code'::character varying])::text[]))),
+    CONSTRAINT supplier_confirmations_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_confirmations_normalized_value_not_blank CHECK ((btrim((normalized_value)::text) <> ''::text)),
+    CONSTRAINT supplier_confirmations_raw_value_not_blank CHECK ((btrim((raw_value)::text) <> ''::text)),
+    CONSTRAINT supplier_confirmations_status_metadata CHECK (((((status)::text = 'effective'::text) AND (superseded_at IS NULL) AND (superseded_by_membership_id IS NULL) AND (supersession_reason IS NULL)) OR (((status)::text = 'superseded'::text) AND (superseded_at IS NOT NULL) AND (superseded_by_membership_id IS NOT NULL) AND (btrim((supersession_reason)::text) <> ''::text)))),
+    CONSTRAINT supplier_confirmations_status_valid CHECK (((status)::text = ANY ((ARRAY['effective'::character varying, 'superseded'::character varying])::text[]))),
+    CONSTRAINT supplier_confirmations_type_not_blank CHECK ((btrim((identifier_type)::text) <> ''::text))
+);
+
+
+--
+-- Name: supplier_cost_term_complimentary_ratio_rules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_complimentary_ratio_rules (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_complimentary_supplier_cost_term_id_not_null NOT NULL,
+    minimum_qualifying_quantity integer DEFAULT 1 CONSTRAINT supplier_cost_term_complime_minimum_qualifying_quantit_not_null NOT NULL,
+    paid_unit_quantity integer CONSTRAINT supplier_cost_term_complimentary_ra_paid_unit_quantity_not_null NOT NULL,
+    complimentary_unit_quantity integer CONSTRAINT supplier_cost_term_complime_complimentary_unit_quantit_not_null NOT NULL,
+    unit_amount_minor_units bigint CONSTRAINT supplier_cost_term_complimenta_unit_amount_minor_units_not_null NOT NULL,
+    rounding_rule character varying DEFAULT 'floor'::character varying CONSTRAINT supplier_cost_term_complimentary_ratio_r_rounding_rule_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_cost_term_complimentary_ratio_rule_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_cost_term_complimentary_ratio_rule_updated_at_not_null NOT NULL,
+    CONSTRAINT sct_comp_rules_amount_nonnegative CHECK ((unit_amount_minor_units >= 0)),
+    CONSTRAINT sct_comp_rules_comp_positive CHECK ((complimentary_unit_quantity > 0)),
+    CONSTRAINT sct_comp_rules_minimum_positive CHECK ((minimum_qualifying_quantity > 0)),
+    CONSTRAINT sct_comp_rules_paid_positive CHECK ((paid_unit_quantity > 0)),
+    CONSTRAINT sct_comp_rules_rounding_valid CHECK (((rounding_rule)::text = ANY ((ARRAY['floor'::character varying, 'ceiling'::character varying, 'nearest'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_cost_term_fixed_details; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_fixed_details (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_cost_term_fixed_details_amount_nonnegative CHECK ((amount_minor_units >= 0))
+);
+
+
+--
+-- Name: supplier_cost_term_manual_estimate_details; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_manual_estimate_details (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_manual_estima_supplier_cost_term_id_not_null NOT NULL,
+    forecast_amount_minor_units bigint CONSTRAINT supplier_cost_term_manual_e_forecast_amount_minor_unit_not_null NOT NULL,
+    reason text NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sct_manual_estimate_reason_not_blank CHECK ((btrim(reason) <> ''::text)),
+    CONSTRAINT supplier_cost_term_manual_estimate_details_amount_nonnegative CHECK ((forecast_amount_minor_units >= 0))
+);
+
+
+--
+-- Name: supplier_cost_term_minimum_guarantee_details; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_minimum_guarantee_details (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_minimum_guara_supplier_cost_term_id_not_null NOT NULL,
+    minimum_quantity integer,
+    unit_amount_minor_units bigint,
+    minimum_amount_minor_units bigint,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_cost_term_minimum_guarantee_detail_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_cost_term_minimum_guarantee_detail_updated_at_not_null NOT NULL,
+    CONSTRAINT sct_minimum_guarantee_amount_nonnegative CHECK (((minimum_amount_minor_units IS NULL) OR (minimum_amount_minor_units >= 0))),
+    CONSTRAINT sct_minimum_guarantee_amount_or_quantity CHECK (((minimum_amount_minor_units IS NOT NULL) OR ((minimum_quantity IS NOT NULL) AND (unit_amount_minor_units IS NOT NULL)))),
+    CONSTRAINT sct_minimum_guarantee_quantity_positive CHECK (((minimum_quantity IS NULL) OR (minimum_quantity > 0))),
+    CONSTRAINT sct_minimum_guarantee_unit_nonnegative CHECK (((unit_amount_minor_units IS NULL) OR (unit_amount_minor_units >= 0)))
+);
+
+
+--
+-- Name: supplier_cost_term_pass_through_provenances; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_pass_through_provenances (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_pass_through__supplier_cost_term_id_not_null NOT NULL,
+    supplier_amount_minor_units bigint CONSTRAINT supplier_cost_term_pass_thr_supplier_amount_minor_unit_not_null NOT NULL,
+    supplier_amount_reference character varying CONSTRAINT supplier_cost_term_pass_thro_supplier_amount_reference_not_null NOT NULL,
+    provenance text NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sct_pass_throughs_amount_nonnegative CHECK ((supplier_amount_minor_units >= 0)),
+    CONSTRAINT sct_pass_throughs_provenance_not_blank CHECK ((btrim(provenance) <> ''::text)),
+    CONSTRAINT sct_pass_throughs_reference_not_blank CHECK ((btrim((supplier_amount_reference)::text) <> ''::text))
+);
+
+
+--
+-- Name: supplier_cost_term_per_night_details; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_per_night_details (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_per_night_det_supplier_cost_term_id_not_null NOT NULL,
+    unit_amount_minor_units bigint CONSTRAINT supplier_cost_term_per_night_d_unit_amount_minor_units_not_null NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_cost_term_per_night_details_amount_nonnegative CHECK ((unit_amount_minor_units >= 0))
+);
+
+
+--
+-- Name: supplier_cost_term_per_person_details; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_per_person_details (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_per_person_de_supplier_cost_term_id_not_null NOT NULL,
+    unit_amount_minor_units bigint CONSTRAINT supplier_cost_term_per_person__unit_amount_minor_units_not_null NOT NULL,
+    planning_person_quantity integer,
+    guaranteed_person_quantity integer,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sct_per_person_guaranteed_positive CHECK (((guaranteed_person_quantity IS NULL) OR (guaranteed_person_quantity > 0))),
+    CONSTRAINT sct_per_person_planning_positive CHECK (((planning_person_quantity IS NULL) OR (planning_person_quantity > 0))),
+    CONSTRAINT sct_per_person_quantity_present CHECK (((planning_person_quantity IS NOT NULL) OR (guaranteed_person_quantity IS NOT NULL))),
+    CONSTRAINT supplier_cost_term_per_person_details_amount_nonnegative CHECK ((unit_amount_minor_units >= 0))
+);
+
+
+--
+-- Name: supplier_cost_term_per_resource_details; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_per_resource_details (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_per_resource__supplier_cost_term_id_not_null NOT NULL,
+    unit_amount_minor_units bigint CONSTRAINT supplier_cost_term_per_resourc_unit_amount_minor_units_not_null NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_cost_term_per_resource_details_amount_nonnegative CHECK ((unit_amount_minor_units >= 0))
+);
+
+
+--
+-- Name: supplier_cost_term_percentage_base_refs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_percentage_base_refs (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_percentage_ba_supplier_cost_term_id_not_null NOT NULL,
+    rate_basis_points integer CONSTRAINT supplier_cost_term_percentage_base_r_rate_basis_points_not_null NOT NULL,
+    base_economic_item_id uuid,
+    base_economic_item_key character varying,
+    base_amount_minor_units bigint,
+    base_reference character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sct_percentage_refs_amount_nonnegative CHECK (((base_amount_minor_units IS NULL) OR (base_amount_minor_units >= 0))),
+    CONSTRAINT sct_percentage_refs_base_present CHECK (((base_amount_minor_units IS NOT NULL) OR (base_economic_item_id IS NOT NULL) OR (COALESCE(btrim((base_economic_item_key)::text), ''::text) <> ''::text))),
+    CONSTRAINT sct_percentage_refs_rate_nonnegative CHECK ((rate_basis_points >= 0)),
+    CONSTRAINT sct_percentage_refs_reference_not_blank CHECK ((btrim((base_reference)::text) <> ''::text))
+);
+
+
+--
+-- Name: supplier_cost_term_steps; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_steps (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid NOT NULL,
+    band_start_quantity integer NOT NULL,
+    band_end_quantity integer,
+    unit_amount_minor_units bigint NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sct_steps_amount_nonnegative CHECK ((unit_amount_minor_units >= 0)),
+    CONSTRAINT sct_steps_end_after_start CHECK (((band_end_quantity IS NULL) OR (band_end_quantity >= band_start_quantity))),
+    CONSTRAINT sct_steps_start_positive CHECK ((band_start_quantity > 0))
+);
+
+
+--
+-- Name: supplier_cost_term_tiers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_tiers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid NOT NULL,
+    threshold_quantity integer NOT NULL,
+    unit_amount_minor_units bigint NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sct_tiers_amount_nonnegative CHECK ((unit_amount_minor_units >= 0)),
+    CONSTRAINT sct_tiers_threshold_positive CHECK ((threshold_quantity > 0))
+);
+
+
+--
+-- Name: supplier_cost_terms; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_terms (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    reservation_id uuid,
+    resource_id uuid,
+    service_occurrence_id uuid,
+    economic_item_id uuid DEFAULT uuidv7() NOT NULL,
+    economic_item_key character varying NOT NULL,
+    cost_category character varying NOT NULL,
+    quantity_basis character varying NOT NULL,
+    quantity_unit character varying NOT NULL,
+    shape character varying NOT NULL,
+    basis character varying NOT NULL,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    currency character varying(3) NOT NULL,
+    effective_on date,
+    effective_until date,
+    term_version integer DEFAULT 1 NOT NULL,
+    rounding_method character varying DEFAULT 'nearest_minor_unit'::character varying NOT NULL,
+    tax_fee_treatment character varying DEFAULT 'excluded'::character varying NOT NULL,
+    source_reference character varying,
+    provenance text NOT NULL,
+    evaluation_inputs jsonb DEFAULT '{}'::jsonb NOT NULL,
+    supersedes_term_id uuid,
+    created_by_membership_id uuid NOT NULL,
+    status_changed_at timestamp with time zone NOT NULL,
+    status_changed_by_membership_id uuid NOT NULL,
+    status_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_cost_terms_basis_valid CHECK (((basis)::text = ANY ((ARRAY['estimate'::character varying, 'contracted'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_cost_category_valid CHECK (((cost_category)::text = ANY ((ARRAY['coach'::character varying, 'coach_seat'::character varying, 'cabin'::character varying, 'cabin_guarantee'::character varying, 'room'::character varying, 'lodging'::character varying, 'hotel_block'::character varying, 'transport'::character varying, 'tour'::character varying, 'vineyard_lunch'::character varying, 'vineyard_seats'::character varying, 'guide_ticket'::character varying, 'park_permit'::character varying, 'supplier_fee'::character varying, 'supplier_guarantee'::character varying, 'insurance'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_currency_format CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT supplier_cost_terms_effective_interval CHECK (((effective_until IS NULL) OR (effective_on IS NULL) OR (effective_until > effective_on))),
+    CONSTRAINT supplier_cost_terms_key_not_blank CHECK ((btrim((economic_item_key)::text) <> ''::text)),
+    CONSTRAINT supplier_cost_terms_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_cost_terms_provenance_not_blank CHECK ((btrim(provenance) <> ''::text)),
+    CONSTRAINT supplier_cost_terms_quantity_basis_valid CHECK (((quantity_basis)::text = ANY ((ARRAY['arrangement'::character varying, 'resource'::character varying, 'reservation'::character varying, 'occurrence'::character varying, 'planning_quantity'::character varying, 'guaranteed_quantity'::character varying, 'qualifying_quantity'::character varying, 'base_amount'::character varying, 'supplier_invoice'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_quantity_unit_valid CHECK (((quantity_unit)::text = ANY ((ARRAY['seat'::character varying, 'room'::character varying, 'cabin'::character varying, 'vehicle'::character varying, 'policy'::character varying, 'unit'::character varying, 'contract'::character varying, 'coach'::character varying, 'person'::character varying, 'guest'::character varying, 'fee'::character varying, 'permit'::character varying, 'night'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_rounding_method_valid CHECK (((rounding_method)::text = 'nearest_minor_unit'::text)),
+    CONSTRAINT supplier_cost_terms_shape_valid CHECK (((shape)::text = ANY ((ARRAY['fixed'::character varying, 'per_resource'::character varying, 'per_person'::character varying, 'per_night'::character varying, 'minimum_guarantee'::character varying, 'tiered'::character varying, 'stepped'::character varying, 'percentage'::character varying, 'complimentary_ratio'::character varying, 'pass_through'::character varying, 'manual_estimate'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_status_metadata CHECK (((((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying])::text[])) AND (status_reason IS NULL)) OR (((status)::text = ANY ((ARRAY['superseded'::character varying, 'void'::character varying])::text[])) AND (btrim((status_reason)::text) <> ''::text)))),
+    CONSTRAINT supplier_cost_terms_status_valid CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'superseded'::character varying, 'void'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_tax_fee_treatment_valid CHECK (((tax_fee_treatment)::text = ANY ((ARRAY['included'::character varying, 'excluded'::character varying, 'separate'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_version_positive CHECK ((term_version > 0))
+);
+
+
+--
+-- Name: supplier_deadlines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deadlines (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    source_deposit_requirement_id uuid,
+    name character varying NOT NULL,
+    original_due_on date NOT NULL,
+    due_on date NOT NULL,
+    status character varying DEFAULT 'open'::character varying NOT NULL,
+    created_by_membership_id uuid NOT NULL,
+    rescheduled_at timestamp with time zone,
+    rescheduled_by_membership_id uuid,
+    reschedule_reason character varying,
+    status_changed_at timestamp with time zone NOT NULL,
+    status_changed_by_membership_id uuid NOT NULL,
+    status_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    source_clause_id uuid,
+    CONSTRAINT supplier_deadlines_exactly_one_source CHECK (((((source_deposit_requirement_id IS NOT NULL))::integer + ((source_clause_id IS NOT NULL))::integer) = 1)),
+    CONSTRAINT supplier_deadlines_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_deadlines_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT supplier_deadlines_reschedule_metadata CHECK ((((rescheduled_at IS NULL) AND (rescheduled_by_membership_id IS NULL) AND (reschedule_reason IS NULL)) OR ((rescheduled_at IS NOT NULL) AND (rescheduled_by_membership_id IS NOT NULL) AND (btrim((reschedule_reason)::text) <> ''::text)))),
+    CONSTRAINT supplier_deadlines_status_metadata CHECK (((((status)::text = 'open'::text) AND (status_reason IS NULL)) OR (((status)::text <> 'open'::text) AND (btrim((status_reason)::text) <> ''::text)))),
+    CONSTRAINT supplier_deadlines_status_valid CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'completed'::character varying, 'waived'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_deposit_requirements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deposit_requirements (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    supplier_cost_term_id uuid,
+    name character varying NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    currency character varying(3) NOT NULL,
+    due_rule character varying NOT NULL,
+    due_on date,
+    refundable boolean DEFAULT false NOT NULL,
+    applies_to_final_balance boolean DEFAULT true NOT NULL,
+    trigger_condition character varying NOT NULL,
+    provenance text NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    created_by_membership_id uuid NOT NULL,
+    status_changed_by_membership_id uuid CONSTRAINT supplier_deposit_requiremen_status_changed_by_membersh_not_null NOT NULL,
+    status_changed_at timestamp with time zone NOT NULL,
+    status_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_deposits_amount_nonnegative CHECK ((amount_minor_units >= 0)),
+    CONSTRAINT supplier_deposits_currency_format CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT supplier_deposits_due_rule_not_blank CHECK ((btrim((due_rule)::text) <> ''::text)),
+    CONSTRAINT supplier_deposits_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_deposits_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT supplier_deposits_provenance_not_blank CHECK ((btrim(provenance) <> ''::text)),
+    CONSTRAINT supplier_deposits_status_metadata CHECK (((((status)::text = 'active'::text) AND (status_reason IS NULL)) OR (((status)::text = 'cancelled'::text) AND (btrim((status_reason)::text) <> ''::text)))),
+    CONSTRAINT supplier_deposits_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'cancelled'::character varying])::text[]))),
+    CONSTRAINT supplier_deposits_trigger_not_blank CHECK ((btrim((trigger_condition)::text) <> ''::text))
+);
+
+
+--
 -- Name: supplier_profiles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1189,11 +1830,92 @@ CREATE TABLE public.supplier_profiles (
     CONSTRAINT supplier_profiles_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT supplier_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT supplier_profiles_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT supplier_profiles_party_kind_valid CHECK (((party_kind)::text = ANY (ARRAY[('person'::character varying)::text, ('organization'::character varying)::text]))),
+    CONSTRAINT supplier_profiles_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'organization'::character varying])::text[]))),
     CONSTRAINT supplier_profiles_payment_instructions_length CHECK ((char_length(payment_instructions) <= 2000)),
     CONSTRAINT supplier_profiles_payment_term_notes_length CHECK ((char_length(payment_term_notes) <= 2000)),
     CONSTRAINT supplier_profiles_portal_url_https CHECK (((portal_url IS NULL) OR (((portal_url)::text ~ '^https://'::text) AND ((portal_url)::text !~ '^https://[^/]*@'::text)))),
-    CONSTRAINT supplier_profiles_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+    CONSTRAINT supplier_profiles_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_reservation_resources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_reservation_resources (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    reservation_id uuid NOT NULL,
+    resource_id uuid NOT NULL,
+    created_by_membership_id uuid CONSTRAINT supplier_reservation_resource_created_by_membership_id_not_null NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: supplier_reservations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_reservations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    name character varying NOT NULL,
+    status character varying DEFAULT 'requested'::character varying NOT NULL,
+    operational_notes text,
+    confirmed_without_identifier_reason character varying,
+    confirmed_without_identifier_at timestamp with time zone,
+    confirmed_without_identifier_by_membership_id uuid,
+    created_by_membership_id uuid NOT NULL,
+    status_changed_at timestamp with time zone NOT NULL,
+    status_changed_by_membership_id uuid NOT NULL,
+    status_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_reservations_confirmation_metadata CHECK (((((status)::text = 'confirmed'::text) AND (((confirmed_without_identifier_reason IS NULL) AND (confirmed_without_identifier_at IS NULL) AND (confirmed_without_identifier_by_membership_id IS NULL)) OR ((btrim((confirmed_without_identifier_reason)::text) <> ''::text) AND (confirmed_without_identifier_at IS NOT NULL) AND (confirmed_without_identifier_by_membership_id IS NOT NULL)))) OR (((status)::text <> 'confirmed'::text) AND (confirmed_without_identifier_reason IS NULL) AND (confirmed_without_identifier_at IS NULL) AND (confirmed_without_identifier_by_membership_id IS NULL)))),
+    CONSTRAINT supplier_reservations_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_reservations_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT supplier_reservations_status_metadata CHECK (((((status)::text = ANY ((ARRAY['cancelled'::character varying, 'declined'::character varying, 'unable_to_confirm'::character varying])::text[])) AND (btrim((status_reason)::text) <> ''::text)) OR (((status)::text = ANY ((ARRAY['requested'::character varying, 'submitted'::character varying, 'confirmed'::character varying])::text[])) AND (status_reason IS NULL)))),
+    CONSTRAINT supplier_reservations_status_valid CHECK (((status)::text = ANY ((ARRAY['requested'::character varying, 'submitted'::character varying, 'confirmed'::character varying, 'declined'::character varying, 'unable_to_confirm'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_resources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_resources (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    name character varying NOT NULL,
+    resource_kind character varying NOT NULL,
+    capacity_unit character varying NOT NULL,
+    description text,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    created_by_membership_id uuid NOT NULL,
+    status_changed_at timestamp with time zone NOT NULL,
+    status_changed_by_membership_id uuid NOT NULL,
+    status_reason character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_resources_capacity_unit_valid CHECK (((capacity_unit)::text = ANY ((ARRAY['seat'::character varying, 'room'::character varying, 'cabin'::character varying, 'vehicle'::character varying, 'policy'::character varying, 'unit'::character varying])::text[]))),
+    CONSTRAINT supplier_resources_kind_not_blank CHECK ((btrim((resource_kind)::text) <> ''::text)),
+    CONSTRAINT supplier_resources_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_resources_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT supplier_resources_resource_kind_valid CHECK (((resource_kind)::text = ANY ((ARRAY['cabin_category'::character varying, 'room_type'::character varying, 'coach'::character varying, 'tour_inventory'::character varying, 'vehicle'::character varying, 'insurance_product'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT supplier_resources_status_metadata CHECK (((((status)::text = 'active'::text) AND (status_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (btrim((status_reason)::text) <> ''::text)))),
+    CONSTRAINT supplier_resources_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
 );
 
 
@@ -1208,7 +1930,34 @@ CREATE TABLE public.supplier_service_category_assignments (
     category_code character varying NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT ssca_category_code_valid CHECK (((category_code)::text = ANY (ARRAY[('accommodation'::character varying)::text, ('air'::character varying)::text, ('cruise'::character varying)::text, ('rail'::character varying)::text, ('ground_transportation'::character varying)::text, ('tour_operator'::character varying)::text, ('activity'::character varying)::text, ('venue'::character varying)::text, ('dining'::character varying)::text, ('insurance'::character varying)::text, ('destination_management'::character varying)::text])))
+    CONSTRAINT ssca_category_code_valid CHECK (((category_code)::text = ANY ((ARRAY['accommodation'::character varying, 'air'::character varying, 'cruise'::character varying, 'rail'::character varying, 'ground_transportation'::character varying, 'tour_operator'::character varying, 'activity'::character varying, 'venue'::character varying, 'dining'::character varying, 'insurance'::character varying, 'destination_management'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_service_occurrences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_service_occurrences (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    office_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    arrangement_id uuid NOT NULL,
+    resource_id uuid NOT NULL,
+    occurrence_kind character varying NOT NULL,
+    service_date date,
+    segment_type character varying,
+    segment_identifier character varying,
+    label character varying,
+    created_by_membership_id uuid NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_occurrences_kind_identity CHECK (((((occurrence_kind)::text = 'night_slice'::text) AND (service_date IS NOT NULL) AND (segment_type IS NULL) AND (segment_identifier IS NULL)) OR (((occurrence_kind)::text = 'typed_segment'::text) AND (service_date IS NULL) AND (btrim((segment_type)::text) <> ''::text) AND (btrim((segment_identifier)::text) <> ''::text)))),
+    CONSTRAINT supplier_occurrences_kind_valid CHECK (((occurrence_kind)::text = ANY ((ARRAY['night_slice'::character varying, 'typed_segment'::character varying])::text[]))),
+    CONSTRAINT supplier_occurrences_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_service_occurrences_segment_type_valid CHECK (((segment_type IS NULL) OR ((segment_type)::text = ANY ((ARRAY['sailing'::character varying, 'transfer'::character varying, 'tour_day'::character varying, 'optional_extension'::character varying, 'flight_segment'::character varying, 'other'::character varying])::text[]))))
 );
 
 
@@ -1232,7 +1981,7 @@ CREATE TABLE public.travel_programs (
     CONSTRAINT travel_programs_lifecycle_metadata CHECK (((((status)::text = 'active'::text) AND (inactivated_at IS NULL) AND (inactivated_by_membership_id IS NULL) AND (inactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (inactivated_at IS NOT NULL) AND (inactivated_by_membership_id IS NOT NULL) AND (btrim((inactivation_reason)::text) <> ''::text)))),
     CONSTRAINT travel_programs_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT travel_programs_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
-    CONSTRAINT travel_programs_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+    CONSTRAINT travel_programs_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
 );
 
 
@@ -1586,11 +2335,179 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: supplier_cost_term_steps sct_steps_no_overlapping_bands; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_steps
+    ADD CONSTRAINT sct_steps_no_overlapping_bands EXCLUDE USING gist (supplier_cost_term_id WITH =, int4range(band_start_quantity, COALESCE(band_end_quantity, 2147483647), '[]'::text) WITH &&);
+
+
+--
 -- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_capacity_events supplier_capacity_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT supplier_capacity_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_capacity_positions supplier_capacity_positions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT supplier_capacity_positions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_confirmations supplier_confirmations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmations
+    ADD CONSTRAINT supplier_confirmations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_complimentary_ratio_rules supplier_cost_term_complimentary_ratio_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_complimentary_ratio_rules
+    ADD CONSTRAINT supplier_cost_term_complimentary_ratio_rules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_fixed_details supplier_cost_term_fixed_details_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_fixed_details
+    ADD CONSTRAINT supplier_cost_term_fixed_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_manual_estimate_details supplier_cost_term_manual_estimate_details_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_manual_estimate_details
+    ADD CONSTRAINT supplier_cost_term_manual_estimate_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_minimum_guarantee_details supplier_cost_term_minimum_guarantee_details_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_minimum_guarantee_details
+    ADD CONSTRAINT supplier_cost_term_minimum_guarantee_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_pass_through_provenances supplier_cost_term_pass_through_provenances_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_pass_through_provenances
+    ADD CONSTRAINT supplier_cost_term_pass_through_provenances_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_per_night_details supplier_cost_term_per_night_details_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_per_night_details
+    ADD CONSTRAINT supplier_cost_term_per_night_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_per_person_details supplier_cost_term_per_person_details_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_per_person_details
+    ADD CONSTRAINT supplier_cost_term_per_person_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_per_resource_details supplier_cost_term_per_resource_details_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_per_resource_details
+    ADD CONSTRAINT supplier_cost_term_per_resource_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_percentage_base_refs supplier_cost_term_percentage_base_refs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_percentage_base_refs
+    ADD CONSTRAINT supplier_cost_term_percentage_base_refs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_steps supplier_cost_term_steps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_steps
+    ADD CONSTRAINT supplier_cost_term_steps_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_tiers supplier_cost_term_tiers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_tiers
+    ADD CONSTRAINT supplier_cost_term_tiers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_terms supplier_cost_terms_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_terms
+    ADD CONSTRAINT supplier_cost_terms_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deadlines supplier_deadlines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT supplier_deadlines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deposit_requirements supplier_deposit_requirements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirements
+    ADD CONSTRAINT supplier_deposit_requirements_pkey PRIMARY KEY (id);
 
 
 --
@@ -1602,11 +2519,43 @@ ALTER TABLE ONLY public.supplier_profiles
 
 
 --
+-- Name: supplier_reservation_resources supplier_reservation_resources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_resources
+    ADD CONSTRAINT supplier_reservation_resources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_reservations supplier_reservations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT supplier_reservations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_resources supplier_resources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resources
+    ADD CONSTRAINT supplier_resources_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_service_category_assignments supplier_service_category_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.supplier_service_category_assignments
     ADD CONSTRAINT supplier_service_category_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_service_occurrences supplier_service_occurrences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_service_occurrences
+    ADD CONSTRAINT supplier_service_occurrences_pkey PRIMARY KEY (id);
 
 
 --
@@ -1623,6 +2572,20 @@ ALTER TABLE ONLY public.travel_programs
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_on_agency_id_56ed585f9d; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_agency_id_56ed585f9d ON public.supplier_cost_term_complimentary_ratio_rules USING btree (agency_id);
+
+
+--
+-- Name: idx_on_agency_id_7fe41b44ab; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_agency_id_7fe41b44ab ON public.supplier_cost_term_minimum_guarantee_details USING btree (agency_id);
 
 
 --
@@ -1924,6 +2887,13 @@ CREATE INDEX index_departures_on_agency_status_start ON public.departures USING 
 --
 
 CREATE INDEX index_departures_on_destination_trgm ON public.departures USING gin (primary_destination public.gin_trgm_ops);
+
+
+--
+-- Name: index_departures_on_id_agency_id_office_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_departures_on_id_agency_id_office_id ON public.departures USING btree (id, agency_id, office_id);
 
 
 --
@@ -2389,6 +3359,356 @@ CREATE INDEX index_rpa_on_relationship ON public.relationship_purpose_assignment
 
 
 --
+-- Name: index_sa_on_departure_agency_office; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sa_on_departure_agency_office ON public.supplier_arrangements USING btree (departure_id, agency_id, office_id);
+
+
+--
+-- Name: index_sa_on_id_agency_office_departure; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sa_on_id_agency_office_departure ON public.supplier_arrangements USING btree (id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: index_sa_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sa_on_id_and_agency_id ON public.supplier_arrangements USING btree (id, agency_id);
+
+
+--
+-- Name: index_sa_on_parent_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sa_on_parent_and_agency ON public.supplier_arrangements USING btree (parent_arrangement_id, agency_id);
+
+
+--
+-- Name: index_sa_on_provider_party_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sa_on_provider_party_and_agency ON public.supplier_arrangements USING btree (service_provider_party_id, agency_id);
+
+
+--
+-- Name: index_sa_on_supplier_party_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sa_on_supplier_party_and_agency ON public.supplier_arrangements USING btree (supplier_party_id, agency_id);
+
+
+--
+-- Name: index_sc_on_arrangement_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sc_on_arrangement_and_agency ON public.supplier_confirmations USING btree (arrangement_id, agency_id);
+
+
+--
+-- Name: index_sc_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sc_on_id_and_agency_id ON public.supplier_confirmations USING btree (id, agency_id);
+
+
+--
+-- Name: index_sc_on_reservation_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sc_on_reservation_and_agency ON public.supplier_confirmations USING btree (reservation_id, agency_id);
+
+
+--
+-- Name: index_sc_unique_issuer_context_value; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sc_unique_issuer_context_value ON public.supplier_confirmations USING btree (agency_id, issuer_party_id, identifier_type, context, normalized_value);
+
+
+--
+-- Name: index_sce_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sce_on_id_and_agency_id ON public.supplier_capacity_events USING btree (id, agency_id);
+
+
+--
+-- Name: index_sce_on_position_commanded; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sce_on_position_commanded ON public.supplier_capacity_events USING btree (supplier_capacity_position_id, commanded_at, id);
+
+
+--
+-- Name: index_sce_on_reservation_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sce_on_reservation_and_agency ON public.supplier_capacity_events USING btree (reservation_id, agency_id);
+
+
+--
+-- Name: index_sce_on_resource_occurrence_unit; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sce_on_resource_occurrence_unit ON public.supplier_capacity_events USING btree (resource_id, service_occurrence_id, capacity_unit);
+
+
+--
+-- Name: index_sce_unique_idempotency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sce_unique_idempotency ON public.supplier_capacity_events USING btree (agency_id, idempotency_key);
+
+
+--
+-- Name: index_scl_on_arrangement_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scl_on_arrangement_and_agency ON public.supplier_clauses USING btree (arrangement_id, agency_id);
+
+
+--
+-- Name: index_scl_on_commitment_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scl_on_commitment_and_agency ON public.supplier_clauses USING btree (affected_commitment_id, agency_id);
+
+
+--
+-- Name: index_scl_on_governing_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scl_on_governing_term_and_agency ON public.supplier_clauses USING btree (governing_term_id, agency_id);
+
+
+--
+-- Name: index_scl_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_scl_on_id_and_agency_id ON public.supplier_clauses USING btree (id, agency_id);
+
+
+--
+-- Name: index_scl_on_resource_occurrence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scl_on_resource_occurrence ON public.supplier_clauses USING btree (resource_id, service_occurrence_id);
+
+
+--
+-- Name: index_scom_on_arrangement_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scom_on_arrangement_and_agency ON public.supplier_commitments USING btree (arrangement_id, agency_id);
+
+
+--
+-- Name: index_scom_on_governing_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scom_on_governing_term_and_agency ON public.supplier_commitments USING btree (governing_term_id, agency_id);
+
+
+--
+-- Name: index_scom_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_scom_on_id_and_agency_id ON public.supplier_commitments USING btree (id, agency_id);
+
+
+--
+-- Name: index_scom_one_open_per_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_scom_one_open_per_item ON public.supplier_commitments USING btree (agency_id, economic_item_key) WHERE ((status)::text = 'open'::text);
+
+
+--
+-- Name: index_scp_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_scp_on_id_and_agency_id ON public.supplier_capacity_positions USING btree (id, agency_id);
+
+
+--
+-- Name: index_scp_unique_resource_occurrence_unit; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_scp_unique_resource_occurrence_unit ON public.supplier_capacity_positions USING btree (resource_id, service_occurrence_id, capacity_unit);
+
+
+--
+-- Name: index_sct_comp_ratio_rules_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sct_comp_ratio_rules_on_term_and_agency ON public.supplier_cost_term_complimentary_ratio_rules USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_comp_rules_on_term_and_min_qty; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_comp_rules_on_term_and_min_qty ON public.supplier_cost_term_complimentary_ratio_rules USING btree (supplier_cost_term_id, minimum_qualifying_quantity);
+
+
+--
+-- Name: index_sct_fixed_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_fixed_on_term_and_agency ON public.supplier_cost_term_fixed_details USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_manual_estimate_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_manual_estimate_on_term_and_agency ON public.supplier_cost_term_manual_estimate_details USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_minimum_guarantee_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_minimum_guarantee_on_term_and_agency ON public.supplier_cost_term_minimum_guarantee_details USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_on_arrangement_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sct_on_arrangement_and_agency ON public.supplier_cost_terms USING btree (arrangement_id, agency_id);
+
+
+--
+-- Name: index_sct_on_economic_item_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sct_on_economic_item_and_agency ON public.supplier_cost_terms USING btree (economic_item_id, agency_id);
+
+
+--
+-- Name: index_sct_on_id_agency_office_departure; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_on_id_agency_office_departure ON public.supplier_cost_terms USING btree (id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: index_sct_on_id_agency_office_departure_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_on_id_agency_office_departure_arrangement ON public.supplier_cost_terms USING btree (id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: index_sct_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_on_id_and_agency_id ON public.supplier_cost_terms USING btree (id, agency_id);
+
+
+--
+-- Name: index_sct_one_active_basis_per_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_one_active_basis_per_item ON public.supplier_cost_terms USING btree (agency_id, economic_item_key, basis) WHERE ((status)::text = 'active'::text);
+
+
+--
+-- Name: index_sct_pass_throughs_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_pass_throughs_on_term_and_agency ON public.supplier_cost_term_pass_through_provenances USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_per_night_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_per_night_on_term_and_agency ON public.supplier_cost_term_per_night_details USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_per_person_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_per_person_on_term_and_agency ON public.supplier_cost_term_per_person_details USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_per_resource_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_per_resource_on_term_and_agency ON public.supplier_cost_term_per_resource_details USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_percentage_refs_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_percentage_refs_on_term_and_agency ON public.supplier_cost_term_percentage_base_refs USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_steps_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sct_steps_on_term_and_agency ON public.supplier_cost_term_steps USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_tiers_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sct_tiers_on_term_and_agency ON public.supplier_cost_term_tiers USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_tiers_on_term_and_threshold; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_tiers_on_term_and_threshold ON public.supplier_cost_term_tiers USING btree (supplier_cost_term_id, threshold_quantity);
+
+
+--
+-- Name: index_sdl_on_clause_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sdl_on_clause_and_agency ON public.supplier_deadlines USING btree (source_clause_id, agency_id);
+
+
+--
+-- Name: index_sdl_on_deposit_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sdl_on_deposit_and_agency ON public.supplier_deadlines USING btree (source_deposit_requirement_id, agency_id);
+
+
+--
+-- Name: index_sdl_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sdl_on_id_and_agency_id ON public.supplier_deadlines USING btree (id, agency_id);
+
+
+--
+-- Name: index_sdr_on_arrangement_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sdr_on_arrangement_and_agency ON public.supplier_deposit_requirements USING btree (arrangement_id, agency_id);
+
+
+--
+-- Name: index_sdr_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sdr_on_id_and_agency_id ON public.supplier_deposit_requirements USING btree (id, agency_id);
+
+
+--
 -- Name: index_sessions_on_office_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2403,6 +3723,83 @@ CREATE INDEX index_sessions_on_user_id ON public.sessions USING btree (user_id);
 
 
 --
+-- Name: index_sr_on_arrangement_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sr_on_arrangement_and_agency ON public.supplier_reservations USING btree (arrangement_id, agency_id);
+
+
+--
+-- Name: index_sr_on_departure_agency_office; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sr_on_departure_agency_office ON public.supplier_reservations USING btree (departure_id, agency_id, office_id);
+
+
+--
+-- Name: index_sr_on_id_agency_office_departure; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sr_on_id_agency_office_departure ON public.supplier_reservations USING btree (id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: index_sr_on_id_agency_office_departure_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sr_on_id_agency_office_departure_arrangement ON public.supplier_reservations USING btree (id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: index_sr_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sr_on_id_and_agency_id ON public.supplier_reservations USING btree (id, agency_id);
+
+
+--
+-- Name: index_sres_on_arrangement_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sres_on_arrangement_and_agency ON public.supplier_resources USING btree (arrangement_id, agency_id);
+
+
+--
+-- Name: index_sres_on_id_agency_office_departure; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sres_on_id_agency_office_departure ON public.supplier_resources USING btree (id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: index_sres_on_id_agency_office_departure_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sres_on_id_agency_office_departure_arrangement ON public.supplier_resources USING btree (id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: index_sres_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sres_on_id_and_agency_id ON public.supplier_resources USING btree (id, agency_id);
+
+
+--
+-- Name: index_srr_on_reservation_and_resource; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_srr_on_reservation_and_resource ON public.supplier_reservation_resources USING btree (reservation_id, resource_id);
+
+
+--
+-- Name: index_srr_on_resource_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_srr_on_resource_and_agency ON public.supplier_reservation_resources USING btree (resource_id, agency_id);
+
+
+--
 -- Name: index_ssca_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2414,6 +3811,160 @@ CREATE UNIQUE INDEX index_ssca_on_id_and_agency_id ON public.supplier_service_ca
 --
 
 CREATE UNIQUE INDEX index_ssca_on_profile_and_category ON public.supplier_service_category_assignments USING btree (agency_id, supplier_profile_id, category_code);
+
+
+--
+-- Name: index_sso_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sso_on_id_and_agency_id ON public.supplier_service_occurrences USING btree (id, agency_id);
+
+
+--
+-- Name: index_sso_on_resource_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sso_on_resource_and_agency ON public.supplier_service_occurrences USING btree (resource_id, agency_id);
+
+
+--
+-- Name: index_sso_unique_night_slice; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sso_unique_night_slice ON public.supplier_service_occurrences USING btree (resource_id, occurrence_kind, service_date) WHERE ((occurrence_kind)::text = 'night_slice'::text);
+
+
+--
+-- Name: index_sso_unique_typed_segment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sso_unique_typed_segment ON public.supplier_service_occurrences USING btree (resource_id, occurrence_kind, segment_type, segment_identifier) WHERE ((occurrence_kind)::text = 'typed_segment'::text);
+
+
+--
+-- Name: index_supplier_arrangements_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_arrangements_on_agency_id ON public.supplier_arrangements USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_capacity_events_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_capacity_events_on_agency_id ON public.supplier_capacity_events USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_capacity_positions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_capacity_positions_on_agency_id ON public.supplier_capacity_positions USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_clauses_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_clauses_on_agency_id ON public.supplier_clauses USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_commitments_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_commitments_on_agency_id ON public.supplier_commitments USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_confirmations_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_confirmations_on_agency_id ON public.supplier_confirmations USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_fixed_details_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_fixed_details_on_agency_id ON public.supplier_cost_term_fixed_details USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_manual_estimate_details_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_manual_estimate_details_on_agency_id ON public.supplier_cost_term_manual_estimate_details USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_pass_through_provenances_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_pass_through_provenances_on_agency_id ON public.supplier_cost_term_pass_through_provenances USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_per_night_details_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_per_night_details_on_agency_id ON public.supplier_cost_term_per_night_details USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_per_person_details_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_per_person_details_on_agency_id ON public.supplier_cost_term_per_person_details USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_per_resource_details_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_per_resource_details_on_agency_id ON public.supplier_cost_term_per_resource_details USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_percentage_base_refs_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_percentage_base_refs_on_agency_id ON public.supplier_cost_term_percentage_base_refs USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_steps_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_steps_on_agency_id ON public.supplier_cost_term_steps USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_tiers_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_tiers_on_agency_id ON public.supplier_cost_term_tiers USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_terms_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_terms_on_agency_id ON public.supplier_cost_terms USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_deadlines_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_deadlines_on_agency_id ON public.supplier_deadlines USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_deposit_requirements_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_deposit_requirements_on_agency_id ON public.supplier_deposit_requirements USING btree (agency_id);
 
 
 --
@@ -2445,10 +3996,38 @@ CREATE UNIQUE INDEX index_supplier_profiles_on_party_id_and_agency_id ON public.
 
 
 --
+-- Name: index_supplier_reservation_resources_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_reservation_resources_on_agency_id ON public.supplier_reservation_resources USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_reservations_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_reservations_on_agency_id ON public.supplier_reservations USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_resources_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_resources_on_agency_id ON public.supplier_resources USING btree (agency_id);
+
+
+--
 -- Name: index_supplier_service_category_assignments_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_supplier_service_category_assignments_on_agency_id ON public.supplier_service_category_assignments USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_service_occurrences_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_service_occurrences_on_agency_id ON public.supplier_service_occurrences USING btree (agency_id);
 
 
 --
@@ -2575,6 +4154,27 @@ CREATE TRIGGER party_notes_body_identity_immutable BEFORE UPDATE ON public.party
 --
 
 CREATE TRIGGER party_relationships_identity_immutable BEFORE UPDATE ON public.party_relationships FOR EACH ROW EXECUTE FUNCTION public.party_relationships_prevent_immutable_change();
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_cycle_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER supplier_arrangements_cycle_guard AFTER INSERT OR UPDATE OF parent_arrangement_id ON public.supplier_arrangements DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION public.supplier_arrangements_prevent_cycle();
+
+
+--
+-- Name: supplier_capacity_events supplier_capacity_events_prevent_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_capacity_events_prevent_delete BEFORE DELETE ON public.supplier_capacity_events FOR EACH ROW EXECUTE FUNCTION public.prevent_supplier_capacity_event_mutation();
+
+
+--
+-- Name: supplier_capacity_events supplier_capacity_events_prevent_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_capacity_events_prevent_update BEFORE UPDATE ON public.supplier_capacity_events FOR EACH ROW EXECUTE FUNCTION public.prevent_supplier_capacity_event_mutation();
 
 
 --
@@ -2873,6 +4473,22 @@ ALTER TABLE ONLY public.external_identifiers
 
 
 --
+-- Name: supplier_arrangements fk_rails_089363381e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT fk_rails_089363381e FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_confirmations fk_rails_1d834ae4a2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmations
+    ADD CONSTRAINT fk_rails_1d834ae4a2 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: agency_memberships fk_rails_273f2f9052; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2921,11 +4537,27 @@ ALTER TABLE ONLY public.office_assignments
 
 
 --
+-- Name: supplier_cost_term_per_resource_details fk_rails_3a6c8a0318; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_per_resource_details
+    ADD CONSTRAINT fk_rails_3a6c8a0318 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: agency_memberships fk_rails_3bdac11d3b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.agency_memberships
     ADD CONSTRAINT fk_rails_3bdac11d3b FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_commitments fk_rails_3c8531ba76; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT fk_rails_3c8531ba76 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -2945,11 +4577,35 @@ ALTER TABLE ONLY public.relationship_purpose_assignments
 
 
 --
+-- Name: supplier_cost_term_complimentary_ratio_rules fk_rails_497524eca0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_complimentary_ratio_rules
+    ADD CONSTRAINT fk_rails_497524eca0 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_cost_term_percentage_base_refs fk_rails_4f3c5924f5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_percentage_base_refs
+    ADD CONSTRAINT fk_rails_4f3c5924f5 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: party_email_addresses fk_rails_51fb47a3a2; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.party_email_addresses
     ADD CONSTRAINT fk_rails_51fb47a3a2 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_deposit_requirements fk_rails_5649f47db3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirements
+    ADD CONSTRAINT fk_rails_5649f47db3 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -2985,6 +4641,30 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: supplier_cost_term_tiers fk_rails_7627d7033c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_tiers
+    ADD CONSTRAINT fk_rails_7627d7033c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_cost_terms fk_rails_7b4be51c40; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_terms
+    ADD CONSTRAINT fk_rails_7b4be51c40 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_clauses fk_rails_81780a5a66; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT fk_rails_81780a5a66 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: audit_events fk_rails_8512cd9707; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3001,6 +4681,22 @@ ALTER TABLE ONLY public.departure_team_assignments
 
 
 --
+-- Name: supplier_reservation_resources fk_rails_8743c41126; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_resources
+    ADD CONSTRAINT fk_rails_8743c41126 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_cost_term_per_person_details fk_rails_965b7508be; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_per_person_details
+    ADD CONSTRAINT fk_rails_965b7508be FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: sessions fk_rails_9866443dac; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3014,6 +4710,30 @@ ALTER TABLE ONLY public.sessions
 
 ALTER TABLE ONLY public.active_storage_variant_records
     ADD CONSTRAINT fk_rails_993965df05 FOREIGN KEY (blob_id) REFERENCES public.active_storage_blobs(id);
+
+
+--
+-- Name: supplier_service_occurrences fk_rails_9d4d023d39; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_service_occurrences
+    ADD CONSTRAINT fk_rails_9d4d023d39 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_reservations fk_rails_a1b8a7498f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT fk_rails_a1b8a7498f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_cost_term_steps fk_rails_a4dee77103; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_steps
+    ADD CONSTRAINT fk_rails_a4dee77103 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -3041,6 +4761,30 @@ ALTER TABLE ONLY public.organizations
 
 
 --
+-- Name: supplier_deadlines fk_rails_ae852b93f1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT fk_rails_ae852b93f1 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_cost_term_fixed_details fk_rails_af9064d71d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_fixed_details
+    ADD CONSTRAINT fk_rails_af9064d71d FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_cost_term_manual_estimate_details fk_rails_bc46a44dc3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_manual_estimate_details
+    ADD CONSTRAINT fk_rails_bc46a44dc3 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_profiles fk_rails_be0b77b682; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3057,11 +4801,27 @@ ALTER TABLE ONLY public.people
 
 
 --
+-- Name: supplier_capacity_events fk_rails_c1ff2fa5e9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT fk_rails_c1ff2fa5e9 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: active_storage_attachments fk_rails_c3b3935057; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.active_storage_attachments
     ADD CONSTRAINT fk_rails_c3b3935057 FOREIGN KEY (blob_id) REFERENCES public.active_storage_blobs(id);
+
+
+--
+-- Name: supplier_cost_term_per_night_details fk_rails_c81521e283; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_per_night_details
+    ADD CONSTRAINT fk_rails_c81521e283 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -3105,6 +4865,22 @@ ALTER TABLE ONLY public.client_advisor_assignments
 
 
 --
+-- Name: supplier_cost_term_minimum_guarantee_details fk_rails_def4b4e02f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_minimum_guarantee_details
+    ADD CONSTRAINT fk_rails_def4b4e02f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_cost_term_pass_through_provenances fk_rails_e2adec4f82; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_pass_through_provenances
+    ADD CONSTRAINT fk_rails_e2adec4f82 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: delivery_intents fk_rails_e89726e351; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3134,6 +4910,22 @@ ALTER TABLE ONLY public.party_phone_numbers
 
 ALTER TABLE ONLY public.travel_programs
     ADD CONSTRAINT fk_rails_eeb062d829 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_resources fk_rails_f4555dab68; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resources
+    ADD CONSTRAINT fk_rails_f4555dab68 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_capacity_positions fk_rails_ff46f0143c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT fk_rails_ff46f0143c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -3369,11 +5161,611 @@ ALTER TABLE ONLY public.relationship_purpose_assignments
 
 
 --
+-- Name: supplier_capacity_events sce_actor_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_actor_membership_fk FOREIGN KEY (actor_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_capacity_events sce_causation_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_causation_event_fk FOREIGN KEY (causation_event_id, agency_id) REFERENCES public.supplier_capacity_events(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_corrected_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_corrected_event_fk FOREIGN KEY (corrected_event_id, agency_id) REFERENCES public.supplier_capacity_events(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_capacity_events sce_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_occurrence_fk FOREIGN KEY (service_occurrence_id, agency_id) REFERENCES public.supplier_service_occurrences(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_position_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_position_fk FOREIGN KEY (supplier_capacity_position_id, agency_id) REFERENCES public.supplier_capacity_positions(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_reservation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_reservation_fk FOREIGN KEY (reservation_id, agency_id) REFERENCES public.supplier_reservations(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_events sce_resource_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_events
+    ADD CONSTRAINT sce_resource_scope_fk FOREIGN KEY (resource_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_resources(id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: supplier_capacity_positions scp_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT scp_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_capacity_positions scp_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT scp_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_capacity_positions scp_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT scp_occurrence_fk FOREIGN KEY (service_occurrence_id, agency_id) REFERENCES public.supplier_service_occurrences(id, agency_id);
+
+
+--
+-- Name: supplier_capacity_positions scp_resource_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_capacity_positions
+    ADD CONSTRAINT scp_resource_scope_fk FOREIGN KEY (resource_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_resources(id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: supplier_cost_term_complimentary_ratio_rules sct_comp_ratio_rules_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_complimentary_ratio_rules
+    ADD CONSTRAINT sct_comp_ratio_rules_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_fixed_details sct_fixed_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_fixed_details
+    ADD CONSTRAINT sct_fixed_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_manual_estimate_details sct_manual_estimate_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_manual_estimate_details
+    ADD CONSTRAINT sct_manual_estimate_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_minimum_guarantee_details sct_minimum_guarantee_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_minimum_guarantee_details
+    ADD CONSTRAINT sct_minimum_guarantee_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_pass_through_provenances sct_pass_throughs_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_pass_through_provenances
+    ADD CONSTRAINT sct_pass_throughs_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_per_night_details sct_per_night_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_per_night_details
+    ADD CONSTRAINT sct_per_night_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_per_person_details sct_per_person_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_per_person_details
+    ADD CONSTRAINT sct_per_person_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_per_resource_details sct_per_resource_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_per_resource_details
+    ADD CONSTRAINT sct_per_resource_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_percentage_base_refs sct_percentage_refs_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_percentage_base_refs
+    ADD CONSTRAINT sct_percentage_refs_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_steps sct_steps_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_steps
+    ADD CONSTRAINT sct_steps_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_tiers sct_tiers_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_tiers
+    ADD CONSTRAINT sct_tiers_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_reservation_resources srr_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_resources
+    ADD CONSTRAINT srr_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_reservation_resources srr_reservation_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_resources
+    ADD CONSTRAINT srr_reservation_scope_fk FOREIGN KEY (reservation_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_reservations(id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: supplier_reservation_resources srr_resource_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservation_resources
+    ADD CONSTRAINT srr_resource_scope_fk FOREIGN KEY (resource_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_resources(id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
 -- Name: supplier_service_category_assignments ssca_profile_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.supplier_service_category_assignments
     ADD CONSTRAINT ssca_profile_same_agency_fk FOREIGN KEY (supplier_profile_id, agency_id) REFERENCES public.supplier_profiles(id, agency_id);
+
+
+--
+-- Name: supplier_service_occurrences sso_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_service_occurrences
+    ADD CONSTRAINT sso_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_service_occurrences sso_resource_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_service_occurrences
+    ADD CONSTRAINT sso_resource_scope_fk FOREIGN KEY (resource_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_resources(id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_office_same_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_office_same_agency_fk FOREIGN KEY (office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_parent_same_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_parent_same_scope_fk FOREIGN KEY (parent_arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_provider_party_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_provider_party_fk FOREIGN KEY (service_provider_party_id, agency_id) REFERENCES public.parties(id, agency_id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_status_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_status_by_membership_fk FOREIGN KEY (status_changed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_supplier_party_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_supplier_party_fk FOREIGN KEY (supplier_party_id, agency_id) REFERENCES public.parties(id, agency_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_affected_commitment_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_affected_commitment_fk FOREIGN KEY (affected_commitment_id, agency_id) REFERENCES public.supplier_commitments(id, agency_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_governing_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_governing_term_fk FOREIGN KEY (governing_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_occurrence_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_occurrence_scope_fk FOREIGN KEY (service_occurrence_id, agency_id) REFERENCES public.supplier_service_occurrences(id, agency_id);
+
+
+--
+-- Name: supplier_clauses supplier_clauses_resource_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_clauses
+    ADD CONSTRAINT supplier_clauses_resource_scope_fk FOREIGN KEY (resource_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_resources(id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_governing_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_governing_term_fk FOREIGN KEY (governing_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_status_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_status_by_membership_fk FOREIGN KEY (status_changed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_supersedes_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_supersedes_fk FOREIGN KEY (supersedes_commitment_id, agency_id) REFERENCES public.supplier_commitments(id, agency_id);
+
+
+--
+-- Name: supplier_confirmations supplier_confirmations_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmations
+    ADD CONSTRAINT supplier_confirmations_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_confirmations supplier_confirmations_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmations
+    ADD CONSTRAINT supplier_confirmations_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_confirmations supplier_confirmations_entered_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmations
+    ADD CONSTRAINT supplier_confirmations_entered_by_membership_fk FOREIGN KEY (entered_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_confirmations supplier_confirmations_issuer_party_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmations
+    ADD CONSTRAINT supplier_confirmations_issuer_party_fk FOREIGN KEY (issuer_party_id, agency_id) REFERENCES public.parties(id, agency_id);
+
+
+--
+-- Name: supplier_confirmations supplier_confirmations_reservation_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmations
+    ADD CONSTRAINT supplier_confirmations_reservation_scope_fk FOREIGN KEY (reservation_id, agency_id, office_id, departure_id) REFERENCES public.supplier_reservations(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_confirmations supplier_confirmations_superseded_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmations
+    ADD CONSTRAINT supplier_confirmations_superseded_by_membership_fk FOREIGN KEY (superseded_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_cost_terms supplier_cost_terms_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_terms
+    ADD CONSTRAINT supplier_cost_terms_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_cost_terms supplier_cost_terms_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_terms
+    ADD CONSTRAINT supplier_cost_terms_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_cost_terms supplier_cost_terms_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_terms
+    ADD CONSTRAINT supplier_cost_terms_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_cost_terms supplier_cost_terms_occurrence_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_terms
+    ADD CONSTRAINT supplier_cost_terms_occurrence_scope_fk FOREIGN KEY (service_occurrence_id, agency_id) REFERENCES public.supplier_service_occurrences(id, agency_id);
+
+
+--
+-- Name: supplier_cost_terms supplier_cost_terms_reservation_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_terms
+    ADD CONSTRAINT supplier_cost_terms_reservation_scope_fk FOREIGN KEY (reservation_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_reservations(id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: supplier_cost_terms supplier_cost_terms_resource_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_terms
+    ADD CONSTRAINT supplier_cost_terms_resource_scope_fk FOREIGN KEY (resource_id, agency_id, office_id, departure_id, arrangement_id) REFERENCES public.supplier_resources(id, agency_id, office_id, departure_id, arrangement_id);
+
+
+--
+-- Name: supplier_cost_terms supplier_cost_terms_status_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_terms
+    ADD CONSTRAINT supplier_cost_terms_status_by_membership_fk FOREIGN KEY (status_changed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_cost_terms supplier_cost_terms_supersedes_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_terms
+    ADD CONSTRAINT supplier_cost_terms_supersedes_fk FOREIGN KEY (supersedes_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_deadlines supplier_deadlines_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT supplier_deadlines_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_deadlines supplier_deadlines_clause_source_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT supplier_deadlines_clause_source_fk FOREIGN KEY (source_clause_id, agency_id) REFERENCES public.supplier_clauses(id, agency_id);
+
+
+--
+-- Name: supplier_deadlines supplier_deadlines_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT supplier_deadlines_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_deadlines supplier_deadlines_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT supplier_deadlines_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_deadlines supplier_deadlines_deposit_source_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT supplier_deadlines_deposit_source_fk FOREIGN KEY (source_deposit_requirement_id, agency_id) REFERENCES public.supplier_deposit_requirements(id, agency_id);
+
+
+--
+-- Name: supplier_deadlines supplier_deadlines_rescheduled_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT supplier_deadlines_rescheduled_by_membership_fk FOREIGN KEY (rescheduled_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_deadlines supplier_deadlines_status_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT supplier_deadlines_status_by_membership_fk FOREIGN KEY (status_changed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirements supplier_deposits_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirements
+    ADD CONSTRAINT supplier_deposits_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_deposit_requirements supplier_deposits_cost_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirements
+    ADD CONSTRAINT supplier_deposits_cost_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirements supplier_deposits_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirements
+    ADD CONSTRAINT supplier_deposits_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirements supplier_deposits_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirements
+    ADD CONSTRAINT supplier_deposits_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_deposit_requirements supplier_deposits_status_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirements
+    ADD CONSTRAINT supplier_deposits_status_by_membership_fk FOREIGN KEY (status_changed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
 
 
 --
@@ -3417,6 +5809,78 @@ ALTER TABLE ONLY public.supplier_profiles
 
 
 --
+-- Name: supplier_reservations supplier_reservations_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT supplier_reservations_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_reservations supplier_reservations_confirmed_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT supplier_reservations_confirmed_by_membership_fk FOREIGN KEY (confirmed_without_identifier_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_reservations supplier_reservations_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT supplier_reservations_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_reservations supplier_reservations_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT supplier_reservations_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_reservations supplier_reservations_status_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_reservations
+    ADD CONSTRAINT supplier_reservations_status_by_membership_fk FOREIGN KEY (status_changed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_resources supplier_resources_arrangement_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resources
+    ADD CONSTRAINT supplier_resources_arrangement_scope_fk FOREIGN KEY (arrangement_id, agency_id, office_id, departure_id) REFERENCES public.supplier_arrangements(id, agency_id, office_id, departure_id);
+
+
+--
+-- Name: supplier_resources supplier_resources_created_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resources
+    ADD CONSTRAINT supplier_resources_created_by_membership_fk FOREIGN KEY (created_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
+-- Name: supplier_resources supplier_resources_departure_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resources
+    ADD CONSTRAINT supplier_resources_departure_office_fk FOREIGN KEY (departure_id, agency_id, office_id) REFERENCES public.departures(id, agency_id, office_id);
+
+
+--
+-- Name: supplier_resources supplier_resources_status_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resources
+    ADD CONSTRAINT supplier_resources_status_by_membership_fk FOREIGN KEY (status_changed_by_membership_id, agency_id) REFERENCES public.agency_memberships(id, agency_id);
+
+
+--
 -- Name: travel_programs travel_programs_inactivated_by_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3431,6 +5895,12 @@ ALTER TABLE ONLY public.travel_programs
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909220000'),
+('20260909210000'),
+('20260909200000'),
+('20260909190000'),
+('20260909180000'),
+('20260909170000'),
 ('20260909120000'),
 ('20260909011000'),
 ('20260909010000'),

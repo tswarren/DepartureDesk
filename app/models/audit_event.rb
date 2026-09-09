@@ -79,6 +79,43 @@ class AuditEvent < ApplicationRecord
     departure.party_role_assigned
     departure.party_role_ended
     departure.party_role_primary_changed
+    supplier_arrangement.created
+    supplier_arrangement.updated
+    supplier_arrangement.activated
+    supplier_arrangement.cancelled
+    supplier_arrangement.reparented
+    supplier_reservation.created
+    supplier_reservation.updated
+    supplier_reservation.submitted
+    supplier_reservation.confirmed
+    supplier_reservation.cancelled
+    supplier_resource.created
+    supplier_resource.updated
+    supplier_resource.deactivated
+    supplier_service_occurrence.created
+    supplier_confirmation.created
+    supplier_confirmation.superseded
+    supplier_cost_term.created
+    supplier_cost_term.activated
+    supplier_cost_term.superseded
+    supplier_cost_term.voided
+    supplier_commitment.opened
+    supplier_commitment.released
+    supplier_commitment.satisfied
+    supplier_commitment.superseded
+    supplier_commitment.cancelled
+    supplier_deposit_requirement.created
+    supplier_deposit_requirement.updated
+    supplier_deposit_requirement.cancelled
+    supplier_clause.created
+    supplier_clause.updated
+    supplier_clause.applied
+    supplier_deadline.created
+    supplier_deadline.rescheduled
+    supplier_deadline.completed
+    supplier_deadline.waived
+    supplier_deadline.cancelled
+    supplier_capacity_position.reconciled
   ].freeze
 
   ACTOR_KINDS = %w[

@@ -66,6 +66,21 @@ class Party < ApplicationRecord
   has_many :departure_party_role_assignments,
     inverse_of: :party,
     dependent: :restrict_with_exception
+  has_many :supplier_arrangements_as_supplier,
+    class_name: "SupplierArrangement",
+    foreign_key: :supplier_party_id,
+    inverse_of: :supplier_party,
+    dependent: :restrict_with_exception
+  has_many :supplier_arrangements_as_service_provider,
+    class_name: "SupplierArrangement",
+    foreign_key: :service_provider_party_id,
+    inverse_of: :service_provider_party,
+    dependent: :restrict_with_exception
+  has_many :supplier_confirmations_as_issuer,
+    class_name: "SupplierConfirmation",
+    foreign_key: :issuer_party_id,
+    inverse_of: :issuer_party,
+    dependent: :restrict_with_exception
 
   enum :party_kind, KINDS.index_by(&:itself), validate: true
   enum :status, STATUSES.index_by(&:itself), validate: true

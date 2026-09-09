@@ -40,6 +40,9 @@ Phase 2-owned participants, when 2E ships, include identities, kind profiles, co
 | Reference | Registered by | Until the 2E executor ships | When 2E implements the participant |
 | --- | --- | --- | --- |
 | `departure_party_role_assignments.party_id` | Phase 3A | Block merge as unsupported. Registration is not permission to guess, cascade, or silently repoint. 3A adds no merge persistence. | Preserve `party_display_name_snapshot`. Repoint the live Party FK only through this participant. Fail closed on overlapping same-role or two-current-primary conflicts. Do not alter `departure_team_assignments`; they reference memberships, not Party role identity. |
+| `supplier_arrangements.supplier_party_id` | Phase 3B.1 | Block merge as unsupported. Registration is not permission to guess, cascade, or silently repoint. 3B.1 adds no merge persistence. | Preserve `supplier_display_name_snapshot`. Repoint the live Party FK only through this participant after supplier-profile eligibility and duplicate commercial-reference checks. |
+| `supplier_arrangements.service_provider_party_id` | Phase 3B.1 | Block merge as unsupported. Registration is not permission to guess, cascade, or silently repoint. 3B.1 adds no merge persistence. | Preserve `service_provider_display_name_snapshot`. Repoint the live Party FK only through this participant after same-agency service-provider eligibility checks. |
+| `supplier_confirmations.issuer_party_id` | Phase 3B.1 | Block merge as unsupported. Registration is not permission to guess, cascade, or silently repoint. 3B.1 adds no merge persistence. | Preserve `issuer_display_name_snapshot`, `identifier_type`, `context`, `raw_value`, and `normalized_value`. Repoint only if the issuer/context uniqueness contract remains satisfied. |
 
 ### A merge must identify
 

@@ -6,6 +6,18 @@ class DepartureCommand < MembershipCommand
     offices: [],
     program: nil,
     departure: nil,
+    supplier_arrangements: [],
+    supplier_reservations: [],
+    supplier_resources: [],
+    supplier_service_occurrences: [],
+    supplier_confirmations: [],
+    supplier_cost_terms: [],
+    supplier_commitments: [],
+    supplier_deposit_requirements: [],
+    supplier_clauses: [],
+    supplier_deadlines: [],
+    supplier_capacity_positions: [],
+    supplier_capacity_events: [],
     parties: [],
     memberships: [],
     team_assignments: [],
@@ -29,6 +41,66 @@ class DepartureCommand < MembershipCommand
         departure.lock!
         departure.reload
         ensure_departure_belongs_to_agency!(agency, departure)
+      end
+      Array(supplier_arrangements).compact.uniq.sort_by(&:id).each do |arrangement|
+        arrangement.lock!
+        arrangement.reload
+        ensure_supplier_arrangement_belongs_to_agency!(agency, arrangement)
+      end
+      Array(supplier_reservations).compact.uniq.sort_by(&:id).each do |reservation|
+        reservation.lock!
+        reservation.reload
+        ensure_supplier_reservation_belongs_to_agency!(agency, reservation)
+      end
+      Array(supplier_resources).compact.uniq.sort_by(&:id).each do |resource|
+        resource.lock!
+        resource.reload
+        ensure_supplier_resource_belongs_to_agency!(agency, resource)
+      end
+      Array(supplier_service_occurrences).compact.uniq.sort_by(&:id).each do |occurrence|
+        occurrence.lock!
+        occurrence.reload
+        ensure_supplier_service_occurrence_belongs_to_agency!(agency, occurrence)
+      end
+      Array(supplier_confirmations).compact.uniq.sort_by(&:id).each do |confirmation|
+        confirmation.lock!
+        confirmation.reload
+        ensure_supplier_confirmation_belongs_to_agency!(agency, confirmation)
+      end
+      Array(supplier_cost_terms).compact.uniq.sort_by(&:id).each do |term|
+        term.lock!
+        term.reload
+        ensure_supplier_cost_term_belongs_to_agency!(agency, term)
+      end
+      Array(supplier_commitments).compact.uniq.sort_by(&:id).each do |commitment|
+        commitment.lock!
+        commitment.reload
+        ensure_supplier_commitment_belongs_to_agency!(agency, commitment)
+      end
+      Array(supplier_deposit_requirements).compact.uniq.sort_by(&:id).each do |deposit|
+        deposit.lock!
+        deposit.reload
+        ensure_supplier_deposit_requirement_belongs_to_agency!(agency, deposit)
+      end
+      Array(supplier_clauses).compact.uniq.sort_by(&:id).each do |clause|
+        clause.lock!
+        clause.reload
+        ensure_supplier_clause_belongs_to_agency!(agency, clause)
+      end
+      Array(supplier_deadlines).compact.uniq.sort_by(&:id).each do |deadline|
+        deadline.lock!
+        deadline.reload
+        ensure_supplier_deadline_belongs_to_agency!(agency, deadline)
+      end
+      Array(supplier_capacity_positions).compact.uniq.sort_by(&:id).each do |position|
+        position.lock!
+        position.reload
+        ensure_supplier_capacity_position_belongs_to_agency!(agency, position)
+      end
+      Array(supplier_capacity_events).compact.uniq.sort_by(&:id).each do |event|
+        event.lock!
+        event.reload
+        ensure_supplier_capacity_event_belongs_to_agency!(agency, event)
       end
       Array(parties).compact.uniq.sort_by(&:id).each do |party|
         party.lock!
@@ -82,6 +154,97 @@ class DepartureCommand < MembershipCommand
     return if party.agency_id == agency.id
 
     raise Error.new("That party is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_arrangement_belongs_to_agency!(agency, arrangement)
+    return if arrangement.agency_id == agency.id
+
+    raise Error.new("That supplier arrangement is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_reservation_belongs_to_agency!(agency, reservation)
+    return if reservation.agency_id == agency.id
+
+    raise Error.new("That supplier reservation is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_resource_belongs_to_agency!(agency, resource)
+    return if resource.agency_id == agency.id
+
+    raise Error.new("That supplier resource is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_service_occurrence_belongs_to_agency!(agency, occurrence)
+    return if occurrence.agency_id == agency.id
+
+    raise Error.new("That supplier service occurrence is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_confirmation_belongs_to_agency!(agency, confirmation)
+    return if confirmation.agency_id == agency.id
+
+    raise Error.new("That supplier confirmation is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_cost_term_belongs_to_agency!(agency, term)
+    return if term.agency_id == agency.id
+
+    raise Error.new("That supplier cost term is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_commitment_belongs_to_agency!(agency, commitment)
+    return if commitment.agency_id == agency.id
+
+    raise Error.new("That supplier commitment is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_deposit_requirement_belongs_to_agency!(agency, deposit)
+    return if deposit.agency_id == agency.id
+
+    raise Error.new("That supplier deposit requirement is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_clause_belongs_to_agency!(agency, clause)
+    return if clause.agency_id == agency.id
+
+    raise Error.new("That supplier clause is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_deadline_belongs_to_agency!(agency, deadline)
+    return if deadline.agency_id == agency.id
+
+    raise Error.new("That supplier deadline is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_capacity_position_belongs_to_agency!(agency, position)
+    return if position.agency_id == agency.id
+
+    raise Error.new("That supplier capacity position is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_supplier_capacity_event_belongs_to_agency!(agency, event)
+    return if event.agency_id == agency.id
+
+    raise Error.new("That supplier capacity event is not part of this agency.", code: :invalid)
+  end
+
+  def ensure_active_supplier_party!(party)
+    return if party&.active? && party.supplier_profile&.active?
+
+    raise Error.new("Choose an active supplier.", code: :invalid)
+  end
+
+  def ensure_active_same_agency_party!(party)
+    return if party&.active?
+
+    raise Error.new("Choose an active party.", code: :invalid)
+  end
+
+  def ensure_departure_can_receive_supplier_planning!(departure)
+    unless departure.nonterminal?
+      raise Error.new("Supplier planning can only be added to a draft or planning departure.", code: :invalid_state)
+    end
+    ensure_active_office!(departure.office)
   end
 
   def ensure_office_access!(membership, office)

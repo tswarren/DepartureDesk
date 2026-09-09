@@ -2,7 +2,7 @@
 
 ## Status
 
-**Accepted.** This revision incorporates the pre-acceptance remediation (term/commitment split, capacity transition matrix, capacity dimensions, parent-cancellation rule, authorization matrix, and related tightenings). Domain persistence may proceed in slices 3B.1–3B.6. Do not mark 3B shipped in `AGENTS.md` until the §18 exit gate is complete.
+**Shipped through 3B.6.** This revision incorporates the pre-acceptance remediation (term/commitment split, capacity transition matrix, capacity dimensions, parent-cancellation rule, authorization matrix, and related tightenings). Slices 3B.1–3B.6 are implemented, including the supplier-planning workspace, Smith/Napa scenario gates, and the §18 exit gate.
 
 This plan is subordinate to:
 
@@ -869,5 +869,7 @@ Do not create placeholder tables or statuses with side effects for later domains
 15. UI conforms to the interface contract without fabricated financial dashboards or later-domain nav.
 16. Agency-provided services remain excluded.
 17. Full automated tests and CI pass in the canonical Docker/CI environment.
+
+Exit-gate note: 3B.6 added the departure-nested supplier planning workspace, browser-visible system coverage for the create/confirm/hold/transfer-freeze flow, Smith and Napa supplier-planning scenario proofs without client trips, and full-suite verification. The shipped scope remains supplier planning only; client trips, packages, posted supplier obligations/payments, and functional-currency totals stay deferred to later Phase 3 slices.
 
 Only after this gate should 3C treat the departure as ready for offers and client trips alongside supplier planning.
