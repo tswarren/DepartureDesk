@@ -1411,6 +1411,29 @@ CREATE TABLE public.supplier_confirmations (
 
 
 --
+-- Name: supplier_cost_term_complimentary_ratio_rules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_complimentary_ratio_rules (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_complimentary_supplier_cost_term_id_not_null NOT NULL,
+    minimum_qualifying_quantity integer DEFAULT 1 CONSTRAINT supplier_cost_term_complime_minimum_qualifying_quantit_not_null NOT NULL,
+    paid_unit_quantity integer CONSTRAINT supplier_cost_term_complimentary_ra_paid_unit_quantity_not_null NOT NULL,
+    complimentary_unit_quantity integer CONSTRAINT supplier_cost_term_complime_complimentary_unit_quantit_not_null NOT NULL,
+    unit_amount_minor_units bigint CONSTRAINT supplier_cost_term_complimenta_unit_amount_minor_units_not_null NOT NULL,
+    rounding_rule character varying DEFAULT 'floor'::character varying CONSTRAINT supplier_cost_term_complimentary_ratio_r_rounding_rule_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_cost_term_complimentary_ratio_rule_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_cost_term_complimentary_ratio_rule_updated_at_not_null NOT NULL,
+    CONSTRAINT sct_comp_rules_amount_nonnegative CHECK ((unit_amount_minor_units >= 0)),
+    CONSTRAINT sct_comp_rules_comp_positive CHECK ((complimentary_unit_quantity > 0)),
+    CONSTRAINT sct_comp_rules_minimum_positive CHECK ((minimum_qualifying_quantity > 0)),
+    CONSTRAINT sct_comp_rules_paid_positive CHECK ((paid_unit_quantity > 0)),
+    CONSTRAINT sct_comp_rules_rounding_valid CHECK (((rounding_rule)::text = ANY ((ARRAY['floor'::character varying, 'ceiling'::character varying, 'nearest'::character varying])::text[])))
+);
+
+
+--
 -- Name: supplier_cost_term_fixed_details; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1459,6 +1482,25 @@ CREATE TABLE public.supplier_cost_term_minimum_guarantee_details (
     CONSTRAINT sct_minimum_guarantee_amount_or_quantity CHECK (((minimum_amount_minor_units IS NOT NULL) OR ((minimum_quantity IS NOT NULL) AND (unit_amount_minor_units IS NOT NULL)))),
     CONSTRAINT sct_minimum_guarantee_quantity_positive CHECK (((minimum_quantity IS NULL) OR (minimum_quantity > 0))),
     CONSTRAINT sct_minimum_guarantee_unit_nonnegative CHECK (((unit_amount_minor_units IS NULL) OR (unit_amount_minor_units >= 0)))
+);
+
+
+--
+-- Name: supplier_cost_term_pass_through_provenances; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_pass_through_provenances (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_pass_through__supplier_cost_term_id_not_null NOT NULL,
+    supplier_amount_minor_units bigint CONSTRAINT supplier_cost_term_pass_thr_supplier_amount_minor_unit_not_null NOT NULL,
+    supplier_amount_reference character varying CONSTRAINT supplier_cost_term_pass_thro_supplier_amount_reference_not_null NOT NULL,
+    provenance text NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sct_pass_throughs_amount_nonnegative CHECK ((supplier_amount_minor_units >= 0)),
+    CONSTRAINT sct_pass_throughs_provenance_not_blank CHECK ((btrim(provenance) <> ''::text)),
+    CONSTRAINT sct_pass_throughs_reference_not_blank CHECK ((btrim((supplier_amount_reference)::text) <> ''::text))
 );
 
 
@@ -1513,6 +1555,64 @@ CREATE TABLE public.supplier_cost_term_per_resource_details (
 
 
 --
+-- Name: supplier_cost_term_percentage_base_refs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_percentage_base_refs (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid CONSTRAINT supplier_cost_term_percentage_ba_supplier_cost_term_id_not_null NOT NULL,
+    rate_basis_points integer CONSTRAINT supplier_cost_term_percentage_base_r_rate_basis_points_not_null NOT NULL,
+    base_economic_item_id uuid,
+    base_economic_item_key character varying,
+    base_amount_minor_units bigint,
+    base_reference character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sct_percentage_refs_amount_nonnegative CHECK (((base_amount_minor_units IS NULL) OR (base_amount_minor_units >= 0))),
+    CONSTRAINT sct_percentage_refs_base_present CHECK (((base_amount_minor_units IS NOT NULL) OR (base_economic_item_id IS NOT NULL) OR (COALESCE(btrim((base_economic_item_key)::text), ''::text) <> ''::text))),
+    CONSTRAINT sct_percentage_refs_rate_nonnegative CHECK ((rate_basis_points >= 0)),
+    CONSTRAINT sct_percentage_refs_reference_not_blank CHECK ((btrim((base_reference)::text) <> ''::text))
+);
+
+
+--
+-- Name: supplier_cost_term_steps; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_steps (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid NOT NULL,
+    band_start_quantity integer NOT NULL,
+    band_end_quantity integer,
+    unit_amount_minor_units bigint NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sct_steps_amount_nonnegative CHECK ((unit_amount_minor_units >= 0)),
+    CONSTRAINT sct_steps_end_after_start CHECK (((band_end_quantity IS NULL) OR (band_end_quantity >= band_start_quantity))),
+    CONSTRAINT sct_steps_start_positive CHECK ((band_start_quantity > 0))
+);
+
+
+--
+-- Name: supplier_cost_term_tiers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_cost_term_tiers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_cost_term_id uuid NOT NULL,
+    threshold_quantity integer NOT NULL,
+    unit_amount_minor_units bigint NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT sct_tiers_amount_nonnegative CHECK ((unit_amount_minor_units >= 0)),
+    CONSTRAINT sct_tiers_threshold_positive CHECK ((threshold_quantity > 0))
+);
+
+
+--
 -- Name: supplier_cost_terms; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1559,7 +1659,7 @@ CREATE TABLE public.supplier_cost_terms (
     CONSTRAINT supplier_cost_terms_provenance_not_blank CHECK ((btrim(provenance) <> ''::text)),
     CONSTRAINT supplier_cost_terms_quantity_basis_not_blank CHECK ((btrim((quantity_basis)::text) <> ''::text)),
     CONSTRAINT supplier_cost_terms_quantity_unit_not_blank CHECK ((btrim((quantity_unit)::text) <> ''::text)),
-    CONSTRAINT supplier_cost_terms_shape_valid CHECK (((shape)::text = ANY ((ARRAY['fixed'::character varying, 'per_resource'::character varying, 'per_person'::character varying, 'per_night'::character varying, 'minimum_guarantee'::character varying, 'manual_estimate'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_terms_shape_valid CHECK (((shape)::text = ANY ((ARRAY['fixed'::character varying, 'per_resource'::character varying, 'per_person'::character varying, 'per_night'::character varying, 'minimum_guarantee'::character varying, 'tiered'::character varying, 'stepped'::character varying, 'percentage'::character varying, 'complimentary_ratio'::character varying, 'pass_through'::character varying, 'manual_estimate'::character varying])::text[]))),
     CONSTRAINT supplier_cost_terms_status_metadata CHECK (((((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying])::text[])) AND (status_reason IS NULL)) OR (((status)::text = ANY ((ARRAY['superseded'::character varying, 'void'::character varying])::text[])) AND (btrim((status_reason)::text) <> ''::text)))),
     CONSTRAINT supplier_cost_terms_status_valid CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'superseded'::character varying, 'void'::character varying])::text[]))),
     CONSTRAINT supplier_cost_terms_version_positive CHECK ((term_version > 0))
@@ -2174,6 +2274,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: supplier_cost_term_steps sct_steps_no_overlapping_bands; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_steps
+    ADD CONSTRAINT sct_steps_no_overlapping_bands EXCLUDE USING gist (supplier_cost_term_id WITH =, int4range(band_start_quantity, COALESCE(band_end_quantity, 2147483647), '[]'::text) WITH &&);
+
+
+--
 -- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2222,6 +2330,14 @@ ALTER TABLE ONLY public.supplier_confirmations
 
 
 --
+-- Name: supplier_cost_term_complimentary_ratio_rules supplier_cost_term_complimentary_ratio_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_complimentary_ratio_rules
+    ADD CONSTRAINT supplier_cost_term_complimentary_ratio_rules_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_cost_term_fixed_details supplier_cost_term_fixed_details_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2246,6 +2362,14 @@ ALTER TABLE ONLY public.supplier_cost_term_minimum_guarantee_details
 
 
 --
+-- Name: supplier_cost_term_pass_through_provenances supplier_cost_term_pass_through_provenances_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_pass_through_provenances
+    ADD CONSTRAINT supplier_cost_term_pass_through_provenances_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_cost_term_per_night_details supplier_cost_term_per_night_details_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2267,6 +2391,30 @@ ALTER TABLE ONLY public.supplier_cost_term_per_person_details
 
 ALTER TABLE ONLY public.supplier_cost_term_per_resource_details
     ADD CONSTRAINT supplier_cost_term_per_resource_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_percentage_base_refs supplier_cost_term_percentage_base_refs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_percentage_base_refs
+    ADD CONSTRAINT supplier_cost_term_percentage_base_refs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_steps supplier_cost_term_steps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_steps
+    ADD CONSTRAINT supplier_cost_term_steps_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_cost_term_tiers supplier_cost_term_tiers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_tiers
+    ADD CONSTRAINT supplier_cost_term_tiers_pkey PRIMARY KEY (id);
 
 
 --
@@ -2355,6 +2503,13 @@ ALTER TABLE ONLY public.travel_programs
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_on_agency_id_56ed585f9d; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_agency_id_56ed585f9d ON public.supplier_cost_term_complimentary_ratio_rules USING btree (agency_id);
 
 
 --
@@ -3282,6 +3437,20 @@ CREATE UNIQUE INDEX index_scp_unique_resource_occurrence_unit ON public.supplier
 
 
 --
+-- Name: index_sct_comp_ratio_rules_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sct_comp_ratio_rules_on_term_and_agency ON public.supplier_cost_term_complimentary_ratio_rules USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_comp_rules_on_term_and_min_qty; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_comp_rules_on_term_and_min_qty ON public.supplier_cost_term_complimentary_ratio_rules USING btree (supplier_cost_term_id, minimum_qualifying_quantity);
+
+
+--
 -- Name: index_sct_fixed_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3345,6 +3514,13 @@ CREATE UNIQUE INDEX index_sct_one_active_basis_per_item ON public.supplier_cost_
 
 
 --
+-- Name: index_sct_pass_throughs_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_pass_throughs_on_term_and_agency ON public.supplier_cost_term_pass_through_provenances USING btree (supplier_cost_term_id, agency_id);
+
+
+--
 -- Name: index_sct_per_night_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3363,6 +3539,34 @@ CREATE UNIQUE INDEX index_sct_per_person_on_term_and_agency ON public.supplier_c
 --
 
 CREATE UNIQUE INDEX index_sct_per_resource_on_term_and_agency ON public.supplier_cost_term_per_resource_details USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_percentage_refs_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_percentage_refs_on_term_and_agency ON public.supplier_cost_term_percentage_base_refs USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_steps_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sct_steps_on_term_and_agency ON public.supplier_cost_term_steps USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_tiers_on_term_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sct_tiers_on_term_and_agency ON public.supplier_cost_term_tiers USING btree (supplier_cost_term_id, agency_id);
+
+
+--
+-- Name: index_sct_tiers_on_term_and_threshold; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_sct_tiers_on_term_and_threshold ON public.supplier_cost_term_tiers USING btree (supplier_cost_term_id, threshold_quantity);
 
 
 --
@@ -3576,6 +3780,13 @@ CREATE INDEX index_supplier_cost_term_manual_estimate_details_on_agency_id ON pu
 
 
 --
+-- Name: index_supplier_cost_term_pass_through_provenances_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_pass_through_provenances_on_agency_id ON public.supplier_cost_term_pass_through_provenances USING btree (agency_id);
+
+
+--
 -- Name: index_supplier_cost_term_per_night_details_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3594,6 +3805,27 @@ CREATE INDEX index_supplier_cost_term_per_person_details_on_agency_id ON public.
 --
 
 CREATE INDEX index_supplier_cost_term_per_resource_details_on_agency_id ON public.supplier_cost_term_per_resource_details USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_percentage_base_refs_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_percentage_base_refs_on_agency_id ON public.supplier_cost_term_percentage_base_refs USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_steps_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_steps_on_agency_id ON public.supplier_cost_term_steps USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_cost_term_tiers_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_term_tiers_on_agency_id ON public.supplier_cost_term_tiers USING btree (agency_id);
 
 
 --
@@ -4227,6 +4459,22 @@ ALTER TABLE ONLY public.relationship_purpose_assignments
 
 
 --
+-- Name: supplier_cost_term_complimentary_ratio_rules fk_rails_497524eca0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_complimentary_ratio_rules
+    ADD CONSTRAINT fk_rails_497524eca0 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_cost_term_percentage_base_refs fk_rails_4f3c5924f5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_percentage_base_refs
+    ADD CONSTRAINT fk_rails_4f3c5924f5 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: party_email_addresses fk_rails_51fb47a3a2; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4272,6 +4520,14 @@ ALTER TABLE ONLY public.contact_point_purpose_assignments
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT fk_rails_758836b4f0 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: supplier_cost_term_tiers fk_rails_7627d7033c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_tiers
+    ADD CONSTRAINT fk_rails_7627d7033c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -4344,6 +4600,14 @@ ALTER TABLE ONLY public.supplier_service_occurrences
 
 ALTER TABLE ONLY public.supplier_reservations
     ADD CONSTRAINT fk_rails_a1b8a7498f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_cost_term_steps fk_rails_a4dee77103; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_steps
+    ADD CONSTRAINT fk_rails_a4dee77103 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -4480,6 +4744,14 @@ ALTER TABLE ONLY public.client_advisor_assignments
 
 ALTER TABLE ONLY public.supplier_cost_term_minimum_guarantee_details
     ADD CONSTRAINT fk_rails_def4b4e02f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_cost_term_pass_through_provenances fk_rails_e2adec4f82; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_pass_through_provenances
+    ADD CONSTRAINT fk_rails_e2adec4f82 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -4867,6 +5139,14 @@ ALTER TABLE ONLY public.supplier_capacity_positions
 
 
 --
+-- Name: supplier_cost_term_complimentary_ratio_rules sct_comp_ratio_rules_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_complimentary_ratio_rules
+    ADD CONSTRAINT sct_comp_ratio_rules_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
 -- Name: supplier_cost_term_fixed_details sct_fixed_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4891,6 +5171,14 @@ ALTER TABLE ONLY public.supplier_cost_term_minimum_guarantee_details
 
 
 --
+-- Name: supplier_cost_term_pass_through_provenances sct_pass_throughs_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_pass_through_provenances
+    ADD CONSTRAINT sct_pass_throughs_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
 -- Name: supplier_cost_term_per_night_details sct_per_night_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4912,6 +5200,30 @@ ALTER TABLE ONLY public.supplier_cost_term_per_person_details
 
 ALTER TABLE ONLY public.supplier_cost_term_per_resource_details
     ADD CONSTRAINT sct_per_resource_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_percentage_base_refs sct_percentage_refs_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_percentage_base_refs
+    ADD CONSTRAINT sct_percentage_refs_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_steps sct_steps_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_steps
+    ADD CONSTRAINT sct_steps_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
+
+
+--
+-- Name: supplier_cost_term_tiers sct_tiers_term_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_term_tiers
+    ADD CONSTRAINT sct_tiers_term_fk FOREIGN KEY (supplier_cost_term_id, agency_id) REFERENCES public.supplier_cost_terms(id, agency_id);
 
 
 --
@@ -5393,6 +5705,7 @@ ALTER TABLE ONLY public.travel_programs
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909200000'),
 ('20260909190000'),
 ('20260909180000'),
 ('20260909170000'),

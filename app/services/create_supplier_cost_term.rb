@@ -5,8 +5,27 @@ class CreateSupplierCostTerm < DepartureCommand
     "per_person" => :build_per_person_detail,
     "per_night" => :build_per_night_detail,
     "minimum_guarantee" => :build_minimum_guarantee_detail,
+    "tiered" => :build_tiers,
+    "stepped" => :build_steps,
+    "percentage" => :build_percentage_base_ref,
+    "complimentary_ratio" => :build_complimentary_ratio_rules,
+    "pass_through" => :build_pass_through_provenance,
     "manual_estimate" => :build_manual_estimate_detail
   }.freeze
+
+  def self.build_detail(term, shape, attributes, agency)
+    attributes = (attributes || {}).with_indifferent_access
+    case shape
+    when "tiered"
+      build_detail_rows(term.tiers, attributes[:tiers], agency, "At least one tier is required.")
+    when "stepped"
+      build_detail_rows(term.steps, attributes[:steps], agency, "At least one step is required.")
+    when "complimentary_ratio"
+      build_detail_rows(term.complimentary_ratio_rules, attributes[:rules], agency, "At least one complimentary ratio rule is required.")
+    else
+      term.public_send(DETAIL_BUILDERS.fetch(shape), attributes.merge(agency:))
+    end
+  end
 
   def initialize(agency:, arrangement:, shape:, basis:, cost_category:, quantity_basis:, quantity_unit:, currency: nil, detail_attributes:, reservation: nil, resource: nil, service_occurrence: nil, effective_on: nil, effective_until: nil, rounding_method: "nearest_minor_unit", tax_fee_treatment: "excluded", source_reference: nil, provenance:, evaluation_inputs: {}, lock_version: nil, actor: nil, actor_identifier: nil, privileged: false)
     @agency = agency
@@ -100,7 +119,7 @@ class CreateSupplierCostTerm < DepartureCommand
       status_changed_at: Time.current,
       status_changed_by_membership: actor
     )
-    term.public_send(DETAIL_BUILDERS.fetch(@shape), @detail_attributes.merge(agency: @agency))
+    self.class.build_detail(term, @shape, @detail_attributes, @agency)
     term.save!
     audit!(agency: @agency, action: "supplier_cost_term.created", subject: term, details: details_for(term), **actor_audit_args)
     CommandResult.new(status: :created, departure: @departure, supplier_cost_term: term)
@@ -111,6 +130,14 @@ class CreateSupplierCostTerm < DepartureCommand
 
     raise Error.new("Choose a supported cost term shape.", code: :invalid)
   end
+
+  def self.build_detail_rows(association, rows, agency, blank_message)
+    rows = Array(rows).reject(&:blank?)
+    raise Error.new(blank_message, code: :invalid) if rows.empty?
+
+    rows.each { |attributes| association.build(attributes.with_indifferent_access.merge(agency:)) }
+  end
+  private_class_method :build_detail_rows
 
   def details_for(term)
     {

@@ -65,6 +65,6 @@ class CreateSupplierCommitment < DepartureCommand
   end
 
   def symbolized_valuation_inputs
-    @valuation_inputs.symbolize_keys.slice(:resource_quantity, :person_quantity, :night_count)
+    @valuation_inputs.symbolize_keys.slice(:resource_quantity, :person_quantity, :night_count, :qualifying_quantity, :base_amount_minor_units)
   end
 end

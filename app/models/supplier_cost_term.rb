@@ -1,5 +1,9 @@
 class SupplierCostTerm < ApplicationRecord
-  SHAPES = %w[fixed per_resource per_person per_night minimum_guarantee manual_estimate].freeze
+  SHAPES = %w[
+    fixed per_resource per_person per_night minimum_guarantee
+    tiered stepped percentage complimentary_ratio pass_through
+    manual_estimate
+  ].freeze
   BASES = %w[estimate contracted].freeze
   STATUSES = %w[draft active superseded void].freeze
   ROUNDING_METHODS = %w[nearest_minor_unit].freeze
@@ -25,6 +29,11 @@ class SupplierCostTerm < ApplicationRecord
   has_one :per_person_detail, class_name: "SupplierCostTermPerPersonDetail", dependent: :restrict_with_exception
   has_one :per_night_detail, class_name: "SupplierCostTermPerNightDetail", dependent: :restrict_with_exception
   has_one :minimum_guarantee_detail, class_name: "SupplierCostTermMinimumGuaranteeDetail", dependent: :restrict_with_exception
+  has_many :tiers, class_name: "SupplierCostTermTier", dependent: :restrict_with_exception
+  has_many :steps, class_name: "SupplierCostTermStep", dependent: :restrict_with_exception
+  has_one :percentage_base_ref, class_name: "SupplierCostTermPercentageBaseRef", dependent: :restrict_with_exception
+  has_many :complimentary_ratio_rules, class_name: "SupplierCostTermComplimentaryRatioRule", dependent: :restrict_with_exception
+  has_one :pass_through_provenance, class_name: "SupplierCostTermPassThroughProvenance", dependent: :restrict_with_exception
   has_one :manual_estimate_detail, class_name: "SupplierCostTermManualEstimateDetail", dependent: :restrict_with_exception
 
   enum :shape, SHAPES.index_by(&:itself), validate: true

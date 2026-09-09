@@ -131,6 +131,40 @@ class SupplierPlanningTest < ActiveSupport::TestCase
     end
   end
 
+  test "advanced cost term detail constraints reject invalid rows" do
+    term = create_draft_cost_term!(shape: "tiered", detail_attributes: { tiers: [ { threshold_quantity: 1, unit_amount_minor_units: 10_000 } ] }, evaluation_inputs: { "qualifying_quantity" => 1 })
+
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      SupplierCostTermTier.transaction(requires_new: true) do
+        SupplierCostTermTier.insert_all!([ advanced_tier_row(term:).merge(agency_id: agencies(:two).id) ])
+      end
+    end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierCostTermTier.transaction(requires_new: true) do
+        SupplierCostTermTier.insert_all!([ advanced_tier_row(term:, threshold_quantity: 2, unit_amount_minor_units: -1) ])
+      end
+    end
+  end
+
+  test "stepped detail bands cannot overlap" do
+    term = create_draft_cost_term!(
+      shape: "stepped",
+      detail_attributes: {
+        steps: [
+          { band_start_quantity: 1, band_end_quantity: 10, unit_amount_minor_units: 10_000 }
+        ]
+      },
+      evaluation_inputs: { "qualifying_quantity" => 10 }
+    )
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierCostTermStep.transaction(requires_new: true) do
+        SupplierCostTermStep.insert_all!([ advanced_step_row(term:, band_start_quantity: 10, band_end_quantity: 20) ])
+      end
+    end
+  end
+
   test "deadline must reference a deposit requirement source in this slice" do
     arrangement = create_arrangement!
     now = Time.current
@@ -193,8 +227,14 @@ class SupplierPlanningTest < ActiveSupport::TestCase
   end
 
   def create_cost_term!(shape:, detail_attributes:)
+    term = create_draft_cost_term!(shape:, detail_attributes:)
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term:).call
+    term.reload
+  end
+
+  def create_draft_cost_term!(shape:, detail_attributes:, evaluation_inputs: {})
     arrangement = create_arrangement!
-    term = CreateSupplierCostTerm.new(
+    CreateSupplierCostTerm.new(
       agency: agencies(:one),
       actor: users(:one),
       arrangement:,
@@ -204,10 +244,9 @@ class SupplierPlanningTest < ActiveSupport::TestCase
       quantity_basis: "planning_quantity",
       quantity_unit: "person",
       detail_attributes:,
+      evaluation_inputs:,
       provenance: "Supplier worksheet"
     ).call.supplier_cost_term
-    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term:).call
-    term.reload
   end
 
   def arrangement_row
@@ -266,6 +305,33 @@ class SupplierPlanningTest < ActiveSupport::TestCase
       id: SecureRandom.uuid_v7(extra_timestamp_bits: 12),
       agency_id: term.agency_id,
       supplier_cost_term_id: term.id,
+      unit_amount_minor_units:,
+      created_at: now,
+      updated_at: now
+    }
+  end
+
+  def advanced_tier_row(term:, threshold_quantity: 2, unit_amount_minor_units: 10_000)
+    now = Time.current
+    {
+      id: SecureRandom.uuid_v7(extra_timestamp_bits: 12),
+      agency_id: term.agency_id,
+      supplier_cost_term_id: term.id,
+      threshold_quantity:,
+      unit_amount_minor_units:,
+      created_at: now,
+      updated_at: now
+    }
+  end
+
+  def advanced_step_row(term:, band_start_quantity:, band_end_quantity:, unit_amount_minor_units: 10_000)
+    now = Time.current
+    {
+      id: SecureRandom.uuid_v7(extra_timestamp_bits: 12),
+      agency_id: term.agency_id,
+      supplier_cost_term_id: term.id,
+      band_start_quantity:,
+      band_end_quantity:,
       unit_amount_minor_units:,
       created_at: now,
       updated_at: now

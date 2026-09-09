@@ -147,6 +147,135 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
     assert_equal 1_800_000, SupplierCostTermEvaluation.evaluate(contracted).amount_minor_units
   end
 
+  test "Napa tiered and stepped bands evaluate qualifying quantities" do
+    @departure = napa_wine_country_departure!(actor: users(:one))
+    arrangement = create_arrangement!(name: "Tour Operator Contract")
+
+    tiered = create_advanced_term!(
+      arrangement:,
+      shape: "tiered",
+      cost_category: "vineyard_lunch",
+      quantity_unit: "guest",
+      evaluation_inputs: { "qualifying_quantity" => 18 },
+      detail_attributes: {
+        tiers: [
+          { threshold_quantity: 1, unit_amount_minor_units: 12_000 },
+          { threshold_quantity: 15, unit_amount_minor_units: 10_000 },
+          { threshold_quantity: 25, unit_amount_minor_units: 8_500 }
+        ]
+      }
+    )
+    stepped = create_advanced_term!(
+      arrangement:,
+      shape: "stepped",
+      cost_category: "coach_seat",
+      quantity_unit: "seat",
+      evaluation_inputs: { "qualifying_quantity" => 30 },
+      detail_attributes: {
+        steps: [
+          { band_start_quantity: 1, band_end_quantity: 15, unit_amount_minor_units: 9_000 },
+          { band_start_quantity: 16, band_end_quantity: 30, unit_amount_minor_units: 7_500 }
+        ]
+      }
+    )
+
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: tiered).call
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: stepped).call
+
+    assert_equal 180_000, SupplierCostTermEvaluation.evaluate(tiered.reload).amount_minor_units
+    assert_equal 247_500, SupplierCostTermEvaluation.evaluate(stepped.reload).amount_minor_units
+  end
+
+  test "percentage term uses explicit base economic item valuation" do
+    arrangement = create_arrangement!
+    base = create_fixed_term!(arrangement:, amount_minor_units: 250_000, cost_category: "coach")
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: base).call
+
+    term = create_advanced_term!(
+      arrangement:,
+      shape: "percentage",
+      cost_category: "supplier_fee",
+      quantity_basis: "base_amount",
+      quantity_unit: "fee",
+      detail_attributes: {
+        rate_basis_points: 1_250,
+        base_economic_item_key: base.economic_item_key,
+        base_reference: "Coach base term"
+      }
+    )
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term:).call
+
+    assert_equal 31_250, SupplierCostTermEvaluation.evaluate(term.reload).amount_minor_units
+  end
+
+  test "complimentary ratio applies rounding rule to paid quantity" do
+    arrangement = create_arrangement!
+    term = create_advanced_term!(
+      arrangement:,
+      shape: "complimentary_ratio",
+      cost_category: "guide_ticket",
+      quantity_unit: "person",
+      evaluation_inputs: { "qualifying_quantity" => 20 },
+      detail_attributes: {
+        rules: [
+          {
+            minimum_qualifying_quantity: 1,
+            paid_unit_quantity: 20,
+            complimentary_unit_quantity: 1,
+            unit_amount_minor_units: 10_000,
+            rounding_rule: "ceiling"
+          }
+        ]
+      }
+    )
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term:).call
+
+    evaluation = SupplierCostTermEvaluation.evaluate(term.reload)
+    assert_equal 190_000, evaluation.amount_minor_units
+    assert_equal 19, evaluation.quantity
+  end
+
+  test "pass through term evaluates supplier amount without markup" do
+    arrangement = create_arrangement!
+    term = create_advanced_term!(
+      arrangement:,
+      shape: "pass_through",
+      cost_category: "park_permit",
+      quantity_basis: "supplier_invoice",
+      quantity_unit: "permit",
+      detail_attributes: {
+        supplier_amount_minor_units: 123_456,
+        supplier_amount_reference: "Supplier invoice INV-42",
+        provenance: "Supplier invoice"
+      }
+    )
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term:).call
+
+    assert_equal 123_456, SupplierCostTermEvaluation.evaluate(term.reload).amount_minor_units
+  end
+
+  test "advanced term shapes can supersede active terms" do
+    arrangement = create_arrangement!
+    original = create_fixed_term!(arrangement:, amount_minor_units: 100_000, cost_category: "coach")
+    ActivateSupplierCostTerm.new(agency: agencies(:one), actor: users(:one), term: original).call
+
+    replacement = SupersedeSupplierCostTerm.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      term: original.reload,
+      shape: "tiered",
+      detail_attributes: { tiers: [ { threshold_quantity: 1, unit_amount_minor_units: 9_000 } ] },
+      evaluation_inputs: { "qualifying_quantity" => 12 },
+      provenance: "Revised supplier schedule",
+      reason: "Supplier issued tiered pricing"
+    ).call.supplier_cost_term
+
+    assert original.reload.superseded?
+    assert replacement.active?
+    assert_equal 2, replacement.term_version
+    assert_equal 108_000, SupplierCostTermEvaluation.evaluate(replacement).amount_minor_units
+  end
+
   test "deposit deadlines are linked and completion does not mark deposit paid" do
     arrangement = create_arrangement!
     deposit = CreateSupplierDepositRequirement.new(
@@ -412,6 +541,22 @@ class SupplierPlanningCommandsTest < ActiveSupport::TestCase
       quantity_unit: "cabin",
       detail_attributes: { minimum_quantity:, unit_amount_minor_units: },
       provenance: "Supplier guarantee schedule"
+    ).call.supplier_cost_term
+  end
+
+  def create_advanced_term!(arrangement:, shape:, detail_attributes:, evaluation_inputs: {}, cost_category: "advanced_cost", quantity_basis: "qualifying_quantity", quantity_unit: "unit")
+    CreateSupplierCostTerm.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      arrangement:,
+      shape:,
+      basis: "estimate",
+      cost_category:,
+      quantity_basis:,
+      quantity_unit:,
+      detail_attributes:,
+      evaluation_inputs:,
+      provenance: "Supplier advanced schedule"
     ).call.supplier_cost_term
   end
 

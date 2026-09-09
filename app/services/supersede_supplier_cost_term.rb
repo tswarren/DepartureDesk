@@ -88,7 +88,7 @@ class SupersedeSupplierCostTerm < DepartureCommand
       status_changed_at: Time.current,
       status_changed_by_membership: actor
     )
-    replacement.public_send(DETAIL_BUILDERS.fetch(@shape), @detail_attributes.merge(agency: @agency))
+    CreateSupplierCostTerm.build_detail(replacement, @shape, @detail_attributes, @agency)
     replacement.save!
     audit!(agency: @agency, action: "supplier_cost_term.superseded", subject: replacement, details: { "superseded_supplier_cost_term_id" => @term.id, "replacement_supplier_cost_term_id" => replacement.id, "reason" => @reason }, **actor_audit_args)
     CommandResult.new(status: :accepted, departure: @departure, supplier_cost_term: replacement)
