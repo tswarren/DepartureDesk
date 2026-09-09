@@ -1,0 +1,310 @@
+<% content_for :title, "#{@departure.name} · Departures · DepartureDesk" %>
+<% manager_or_admin = Current.agency_membership.administrator? || @departure.current_group_manager_assignment&.agency_membership_id == Current.agency_membership.id %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Operations</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">
+      <%= @departure.departure_reference %>
+      · <%= departure_status_badge(@departure) %>
+    </p>
+    <%= link_to "Back to departures", departures_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+  <div class="dd-page-actions">
+    <% if @departure.nonterminal? %>
+      <%= link_to "Edit departure", edit_departure_path(@departure), class: "dd-button" %>
+    <% end %>
+  </div>
+</header>
+
+<%= render "departures/subnav", current: :departures %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Departure details</h2>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Reference</dt>
+        <dd class="dd-type-mono"><%= @departure.departure_reference %></dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd><%= departure_status_badge(@departure) %></dd>
+      </div>
+      <div>
+        <dt>Dates</dt>
+        <dd><%= departure_date_range(@departure) %></dd>
+      </div>
+      <div>
+        <dt>Destination</dt>
+        <dd><%= @departure.primary_destination.presence || "—" %></dd>
+      </div>
+      <div>
+        <dt>Program</dt>
+        <dd>
+          <% if @departure.travel_program %>
+            <%= link_to @departure.travel_program.name, travel_program_path(@departure.travel_program) %>
+          <% else %>
+            —
+          <% end %>
+        </dd>
+      </div>
+      <div>
+        <dt>Office</dt>
+        <dd><%= office_choice_label(@departure.office) %></dd>
+      </div>
+      <div>
+        <dt>Default currency</dt>
+        <dd><%= @departure.default_currency %></dd>
+      </div>
+      <div>
+        <dt>Group manager</dt>
+        <dd><%= departure_team_member_label(@departure.current_group_manager_assignment) %></dd>
+      </div>
+      <div>
+        <dt>Responsible advisor</dt>
+        <dd><%= departure_team_member_label(@departure.current_responsible_advisor_assignment) %></dd>
+      </div>
+      <div>
+        <dt>Internal description</dt>
+        <dd><%= @departure.description.presence || "—" %></dd>
+      </div>
+      <div>
+        <dt>Client-facing description</dt>
+        <dd><%= @departure.client_facing_description.presence || "—" %></dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<% if @departure.nonterminal? %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Team assignments</h2>
+    </header>
+    <div class="dd-panel-body">
+      <% if @departure.current_responsible_advisor_assignment %>
+        <% if manager_or_admin %>
+          <%= form_with url: replace_team_member_departure_path(@departure), method: :post, class: "dd-form" do %>
+            <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+            <input type="hidden" name="role" value="responsible_advisor">
+            <div class="dd-form-grid dd-form-grid--two-column">
+              <div class="dd-field-group">
+                <label class="dd-label" for="replace_advisor_membership">Replace advisor</label>
+                <select class="dd-field" name="agency_membership_id" id="replace_advisor_membership" required>
+                  <% @eligible_memberships.each do |membership| %>
+                    <option value="<%= membership.id %>"><%= team_membership_option_label(membership) %></option>
+                  <% end %>
+                </select>
+              </div>
+              <div class="dd-field-group">
+                <label class="dd-label" for="replace_advisor_reason">Reason</label>
+                <input class="dd-field" type="text" name="reason" id="replace_advisor_reason" required>
+              </div>
+            </div>
+            <div class="dd-form-actions">
+              <%= submit_tag "Replace advisor", class: "dd-button dd-button--secondary" %>
+            </div>
+          <% end %>
+          <%= form_with url: end_team_assignment_departure_path(@departure), method: :post, class: "dd-form" do %>
+            <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+            <input type="hidden" name="assignment_id" value="<%= @departure.current_responsible_advisor_assignment.id %>">
+            <div class="dd-field-group">
+              <label class="dd-label" for="end_advisor_reason">End advisor</label>
+              <input class="dd-field" type="text" name="reason" id="end_advisor_reason" required>
+            </div>
+            <div class="dd-form-actions">
+              <%= submit_tag "End advisor", class: "dd-button dd-button--quiet" %>
+            </div>
+          <% end %>
+        <% end %>
+      <% elsif manager_or_admin %>
+        <%= form_with url: assign_team_member_departure_path(@departure), method: :post, class: "dd-form" do %>
+          <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+          <input type="hidden" name="role" value="responsible_advisor">
+          <div class="dd-field-group">
+            <label class="dd-label" for="assign_advisor_membership">Assign advisor</label>
+            <select class="dd-field" name="agency_membership_id" id="assign_advisor_membership" required>
+              <% @eligible_memberships.each do |membership| %>
+                <option value="<%= membership.id %>"><%= team_membership_option_label(membership) %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-form-actions">
+            <%= submit_tag "Assign advisor", class: "dd-button dd-button--secondary" %>
+          </div>
+        <% end %>
+      <% end %>
+
+      <% if manager_or_admin %>
+        <%= form_with url: replace_team_member_departure_path(@departure), method: :post, class: "dd-form" do %>
+          <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+          <input type="hidden" name="role" value="group_manager">
+          <div class="dd-form-grid dd-form-grid--two-column">
+            <div class="dd-field-group">
+              <label class="dd-label" for="replace_manager_membership">Replace group manager</label>
+              <select class="dd-field" name="agency_membership_id" id="replace_manager_membership" required>
+                <% @eligible_memberships.each do |membership| %>
+                  <option value="<%= membership.id %>"><%= team_membership_option_label(membership) %></option>
+                <% end %>
+              </select>
+            </div>
+            <div class="dd-field-group">
+              <label class="dd-label" for="replace_manager_reason">Reason</label>
+              <input class="dd-field" type="text" name="reason" id="replace_manager_reason" required>
+            </div>
+          </div>
+          <div class="dd-form-actions">
+            <%= submit_tag "Replace group manager", class: "dd-button dd-button--secondary" %>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Organizers, group leaders, and sponsors</h2>
+    </header>
+    <div class="dd-panel-body">
+      <% if @party_roles.any? %>
+        <ul class="dd-list">
+          <% @party_roles.each do |assignment| %>
+            <li class="dd-list-item">
+              <span>
+                <strong class="dd-list-title"><%= assignment.party_display_name_snapshot %></strong>
+                <span class="dd-list-detail"><%= assignment.role.tr("_", " ").titleize %><%= " · Primary" if assignment.is_primary? %></span>
+              </span>
+              <% unless assignment.is_primary? %>
+                <%= button_to "Set primary", set_primary_party_role_departure_path(@departure), method: :post, params: { assignment_id: assignment.id, lock_version: @departure.lock_version }, class: "dd-button dd-button--quiet dd-button--small" %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="dd-empty-copy">No contextual party roles yet.</p>
+      <% end %>
+
+      <form method="get" action="<%= departure_path(@departure) %>" class="dd-form">
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <label class="dd-label" for="party_role">Role</label>
+            <select class="dd-field" name="role" id="party_role">
+              <% DeparturePartyRoleAssignment::ROLES.each do |role| %>
+                <option value="<%= role %>" <%= "selected" if @party_role == role %>><%= role.tr("_", " ").titleize %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="party_q">Search parties</label>
+            <input class="dd-field" id="party_q" name="q" value="<%= @party_q %>" autocomplete="off">
+          </div>
+        </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary dd-button--small">Filter parties</button>
+        </div>
+      </form>
+
+      <%= form_with url: assign_party_role_departure_path(@departure), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+        <input type="hidden" name="role" value="<%= @party_role %>">
+        <%= render "directory/shared/party_selector",
+          field_name: "party_id",
+          field_id: "party_id",
+          candidates: @party_candidates,
+          label: "Party",
+          hint: @party_role == "group_leader" ? "Showing people. Group leaders must be people." : "Showing active parties. Filter to Group leader to restrict the list to people." %>
+        <div class="dd-form-actions">
+          <%= submit_tag "Assign party role", class: "dd-button dd-button--secondary" %>
+        </div>
+      <% end %>
+
+      <% if @party_roles.any? %>
+        <%= form_with url: end_party_role_departure_path(@departure), method: :post, class: "dd-form" do %>
+          <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+          <div class="dd-form-grid dd-form-grid--two-column">
+            <div class="dd-field-group">
+              <label class="dd-label" for="end_party_assignment">End assignment</label>
+              <select class="dd-field" name="assignment_id" id="end_party_assignment" required>
+                <% @party_roles.each do |assignment| %>
+                  <option value="<%= assignment.id %>"><%= assignment.party_display_name_snapshot %> · <%= assignment.role.tr("_", " ").titleize %></option>
+                <% end %>
+              </select>
+            </div>
+            <div class="dd-field-group">
+              <label class="dd-label" for="replacement_id">Replacement primary</label>
+              <select class="dd-field" name="replacement_id" id="replacement_id">
+                <option value="">None</option>
+                <% @party_roles.each do |assignment| %>
+                  <option value="<%= assignment.id %>"><%= assignment.party_display_name_snapshot %></option>
+                <% end %>
+              </select>
+            </div>
+            <div class="dd-field-group">
+              <label class="dd-label" for="end_party_reason">Reason</label>
+              <input class="dd-field" type="text" name="reason" id="end_party_reason" required>
+            </div>
+          </div>
+          <div class="dd-form-actions">
+            <%= submit_tag "End party role", class: "dd-button dd-button--quiet" %>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Lifecycle</h2>
+    </header>
+    <% if @departure.draft? %>
+      <%= form_with url: start_planning_departure_path(@departure), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+        <div class="dd-panel-body">
+          <p class="dd-field-hint">Start planning when the dated root is ready for supplier work. This does not create capacity or financial facts.</p>
+        </div>
+        <div class="dd-panel-footer dd-form-actions">
+          <%= submit_tag "Start planning", class: "dd-button" %>
+        </div>
+      <% end %>
+    <% end %>
+
+    <% if Current.agency_membership.administrator? && @transfer_offices %>
+      <%= form_with url: transfer_office_departure_path(@departure), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+        <div class="dd-panel-body">
+          <div class="dd-field-group">
+            <label class="dd-label" for="transfer_office_id">Transfer office</label>
+            <select class="dd-field" name="office_id" id="transfer_office_id" required>
+              <% @transfer_offices.each do |office| %>
+                <option value="<%= office.id %>"><%= office_choice_label(office) %></option>
+              <% end %>
+            </select>
+          </div>
+        </div>
+        <div class="dd-panel-footer dd-form-actions">
+          <%= submit_tag "Transfer office", class: "dd-button dd-button--secondary" %>
+        </div>
+      <% end %>
+    <% end %>
+
+    <% if manager_or_admin %>
+      <%= form_with url: cancel_departure_path(@departure), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+        <div class="dd-panel-body">
+          <p class="dd-field-hint">Early cancellation is available only before later Phase 3 children exist. The reference is retained.</p>
+          <div class="dd-field-group">
+            <label class="dd-label" for="cancel_reason">Reason</label>
+            <input class="dd-field" type="text" name="reason" id="cancel_reason" required>
+          </div>
+        </div>
+        <div class="dd-panel-footer dd-form-actions">
+          <%= submit_tag "Cancel departure", class: "dd-button dd-button--danger", data: { turbo_confirm: "Cancel #{@departure.name}?" } %>
+        </div>
+      <% end %>
+    <% end %>
+  </article>
+<% end %>

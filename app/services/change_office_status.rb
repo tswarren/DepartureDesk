@@ -27,6 +27,7 @@ class ChangeOfficeStatus < MembershipCommand
     raise Error.new("This office was updated by someone else.", code: :conflict)
   rescue ActiveRecord::InvalidForeignKey, ActiveRecord::StatementInvalid => error
     raise Error.new(role_dependency_message, code: :role_dependency) if office_status_fk_violation?(error)
+    raise Error.new(departure_dependency_message, code: :departure_dependency) if owning_office_fk_violation?(error)
 
     raise
   end
@@ -44,6 +45,7 @@ class ChangeOfficeStatus < MembershipCommand
       raise Error.new("An agency must keep at least one active office.", code: :last_office)
     end
     reject_active_role_dependency! if @to == "inactive"
+    reject_nonterminal_departure_dependency! if @to == "inactive"
 
     previous = @office.status
     @office.update!(status: @to)
@@ -114,7 +116,40 @@ class ChangeOfficeStatus < MembershipCommand
   def office_status_fk_violation?(error)
     cause = error.is_a?(ActiveRecord::InvalidForeignKey) ? error : error.cause
     message = [ error.message, cause&.message ].compact.join(" ")
-    message.include?("office_active_projection_fk")
+    message.include?("office_active_projection_fk") && !message.include?("departures_owning_office_active_projection_fk")
+  end
+
+  def owning_office_fk_violation?(error)
+    cause = error.is_a?(ActiveRecord::InvalidForeignKey) ? error : error.cause
+    message = [ error.message, cause&.message ].compact.join(" ")
+    message.include?("departures_owning_office_active_projection_fk")
+  end
+
+  def reject_nonterminal_departure_dependency!
+    summary = dependent_departure_summary
+    return if summary[:total].zero?
+
+    raise Error.new(departure_dependency_message(summary), code: :departure_dependency)
+  end
+
+  def dependent_departure_summary
+    scope = @agency.departures.nonterminal.where(office_id: @office.id)
+    labels = scope.order(:id).limit(ROLE_DEPENDENCY_SAMPLE).map { |departure|
+      "#{departure.departure_reference} #{departure.name}"
+    }
+    { total: scope.count, labels: }
+  end
+
+  def departure_dependency_message(summary = nil)
+    summary ||= dependent_departure_summary
+    total = summary[:total].to_i
+    labels = Array(summary[:labels])
+    return "Complete or cancel departures before deactivating this office." if total.zero?
+
+    noun = total == 1 ? "departure" : "departures"
+    extra = total - labels.size
+    suffix = extra.positive? ? ", and #{extra} more" : ""
+    "Complete or cancel #{total} #{noun} before deactivating this office: #{labels.join(", ")}#{suffix}."
   end
 
   def apply_deactivation_fan_out!

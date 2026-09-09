@@ -21,6 +21,7 @@ class SuspendMembership < MembershipCommand
     CommandResult.new(status: :accepted, membership: @membership.reload)
   rescue ActiveRecord::InvalidForeignKey, ActiveRecord::StatementInvalid => error
     raise Error.new(advisor_dependency_message, code: :advisor_dependency) if advisor_status_fk_violation?(error)
+    raise Error.new(departure_dependency_message, code: :departure_dependency) if departure_status_fk_violation?(error)
 
     raise
   end
@@ -34,6 +35,7 @@ class SuspendMembership < MembershipCommand
 
     ensure_not_last_administrator!(@agency, @membership)
     reject_current_advisor_dependency!
+    reject_current_departure_dependency!
 
     @membership.update!(status: "suspended")
     audit!(
@@ -86,5 +88,42 @@ class SuspendMembership < MembershipCommand
     cause = error.is_a?(ActiveRecord::InvalidForeignKey) ? error : error.cause
     message = [ error.message, cause&.message ].compact.join(" ")
     message.include?("advisor_active_projection_fk")
+  end
+
+  def reject_current_departure_dependency!
+    summary = dependent_departure_summary
+    return if summary[:total].zero?
+
+    raise Error.new(departure_dependency_message(summary), code: :departure_dependency)
+  end
+
+  def dependent_departure_summary
+    scope = DepartureTeamAssignment.current.joins(:departure).where(
+      agency_id: @agency.id,
+      agency_membership_id: @membership.id,
+      departures: { status: Departure::NONTERMINAL_STATUSES }
+    ).includes(:departure)
+    labels = scope.order(:id).limit(ADVISOR_DEPENDENCY_SAMPLE).map { |assignment|
+      "#{assignment.departure.departure_reference} #{assignment.departure.name} (#{assignment.assignment_role.tr("_", " ")})"
+    }
+    { total: scope.count, labels: }
+  end
+
+  def departure_dependency_message(summary = nil)
+    summary ||= dependent_departure_summary
+    total = summary[:total].to_i
+    labels = Array(summary[:labels])
+    return "Reassign current departure responsibilities before suspending this membership." if total.zero?
+
+    noun = total == 1 ? "departure assignment" : "departure assignments"
+    extra = total - labels.size
+    suffix = extra.positive? ? ", and #{extra} more" : ""
+    "Reassign #{total} current #{noun} before suspending this membership: #{labels.join(", ")}#{suffix}."
+  end
+
+  def departure_status_fk_violation?(error)
+    cause = error.is_a?(ActiveRecord::InvalidForeignKey) ? error : error.cause
+    message = [ error.message, cause&.message ].compact.join(" ")
+    message.include?("dta_membership_active_projection_fk")
   end
 end

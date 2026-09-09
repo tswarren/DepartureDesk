@@ -39,6 +39,27 @@ Rails.application.routes.draw do
 
   resources :invitation_acceptances, param: :token, only: %i[edit update]
 
+  resources :departures, only: %i[index show new create edit update] do
+    member do
+      post :start_planning
+      post :cancel
+      post :transfer_office
+      post :assign_team_member
+      post :replace_team_member
+      post :end_team_assignment
+      post :assign_party_role
+      post :end_party_role
+      post :set_primary_party_role
+    end
+  end
+
+  resources :travel_programs, only: %i[index show new create edit update] do
+    member do
+      post :deactivate
+      post :reactivate
+    end
+  end
+
   root "dashboard#show"
 
   namespace :directory do

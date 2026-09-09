@@ -1,0 +1,114 @@
+<% content_for :title, "New departure · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Operations</p>
+    <h1 class="dd-page-title">New departure</h1>
+    <p class="dd-page-description">The departure reference is issued when you save. Party roles are added after creation.</p>
+    <%= link_to "Back to departures", departures_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+</header>
+
+<%= render "departures/subnav", current: :departures %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @departure.errors.any? %>
+      <div class="dd-alert dd-alert--danger" role="alert">
+        <p>Please correct the following:</p>
+        <ul>
+          <% @departure.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <%= form_with model: @departure, url: departures_path, method: :post, class: "dd-form" do |form| %>
+      <%= form.hidden_field :creation_idempotency_key, value: @creation_idempotency_key %>
+
+      <h2 class="dd-panel-title">Identity</h2>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :name, class: "dd-label" %>
+          <%= form.text_field :name, required: true, class: "dd-field", aria: field_aria(@departure, :name) %>
+          <%= field_error @departure, :name %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :travel_program_id, "Travel program", class: "dd-label" %>
+          <%= form.collection_select :travel_program_id, @programs, :id, :name, { include_blank: "No program" }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :primary_destination, "Destination", class: "dd-label" %>
+          <%= form.text_field :primary_destination, class: "dd-field" %>
+        </div>
+      </div>
+
+      <h2 class="dd-panel-title">Dates</h2>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :start_date, class: "dd-label" %>
+          <%= form.date_field :start_date, required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :end_date, class: "dd-label" %>
+          <%= form.date_field :end_date, required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :sales_open_on, "Sales open", class: "dd-label" %>
+          <%= form.date_field :sales_open_on, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :sales_close_on, "Sales close", class: "dd-label" %>
+          <%= form.date_field :sales_close_on, class: "dd-field" %>
+        </div>
+      </div>
+
+      <h2 class="dd-panel-title">Ownership</h2>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :office_id, "Office", class: "dd-label" %>
+          <%= form.collection_select :office_id, @offices, :id, :name, {}, required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="departure_group_manager_membership_id">Group manager</label>
+          <select class="dd-field" name="departure[group_manager_membership_id]" id="departure_group_manager_membership_id" required>
+            <% @eligible_memberships.each do |membership| %>
+              <option value="<%= membership.id %>" <%= "selected" if membership.id == @group_manager_membership_id %>><%= team_membership_option_label(membership) %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="departure_responsible_advisor_membership_id">Responsible advisor</label>
+          <select class="dd-field" name="departure[responsible_advisor_membership_id]" id="departure_responsible_advisor_membership_id">
+            <option value="">None</option>
+            <% @eligible_memberships.each do |membership| %>
+              <option value="<%= membership.id %>" <%= "selected" if membership.id == @responsible_advisor_membership_id %>><%= team_membership_option_label(membership) %></option>
+            <% end %>
+          </select>
+        </div>
+      </div>
+
+      <h2 class="dd-panel-title">Presentation</h2>
+      <div class="dd-field-group">
+        <%= form.label :description, "Internal description", class: "dd-label" %>
+        <%= form.text_area :description, class: "dd-field", rows: 3 %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :client_facing_description, class: "dd-label" %>
+        <%= form.text_area :client_facing_description, class: "dd-field", rows: 3 %>
+      </div>
+
+      <h2 class="dd-panel-title">Defaults</h2>
+      <div class="dd-field-group">
+        <%= form.label :default_currency, class: "dd-label" %>
+        <%= form.text_field :default_currency, required: true, maxlength: 3, class: "dd-field dd-field--code" %>
+      </div>
+
+      <div class="dd-form-actions">
+        <%= form.submit "Create departure", class: "dd-button" %>
+        <%= link_to "Cancel", departures_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

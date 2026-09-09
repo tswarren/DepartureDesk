@@ -19,6 +19,11 @@ class Agency < ApplicationRecord
     has_many :client_advisor_assignments, dependent: :restrict_with_exception
     has_many :supplier_service_category_assignments, dependent: :restrict_with_exception
     has_many :external_identifiers, dependent: :restrict_with_exception
+    has_many :travel_programs, dependent: :restrict_with_exception
+    has_many :departures, dependent: :restrict_with_exception
+    has_many :departure_team_assignments, dependent: :restrict_with_exception
+    has_many :departure_party_role_assignments, dependent: :restrict_with_exception
+    has_one :departure_reference_counter, dependent: :restrict_with_exception
 
     STATUSES = %w[
       active

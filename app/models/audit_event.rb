@@ -64,6 +64,21 @@ class AuditEvent < ApplicationRecord
     directory.external_identifier_deactivated
     directory.external_identifier_reactivated
     team.person_linked
+    travel_program.created
+    travel_program.updated
+    travel_program.deactivated
+    travel_program.reactivated
+    departure.created
+    departure.updated
+    departure.planning_started
+    departure.cancelled
+    departure.office_transferred
+    departure.team_member_assigned
+    departure.team_member_replaced
+    departure.team_assignment_ended
+    departure.party_role_assigned
+    departure.party_role_ended
+    departure.party_role_primary_changed
   ].freeze
 
   ACTOR_KINDS = %w[

@@ -63,6 +63,9 @@ class Party < ApplicationRecord
     class_name: "PartyNote",
     inverse_of: :party,
     dependent: :restrict_with_exception
+  has_many :departure_party_role_assignments,
+    inverse_of: :party,
+    dependent: :restrict_with_exception
 
   enum :party_kind, KINDS.index_by(&:itself), validate: true
   enum :status, STATUSES.index_by(&:itself), validate: true

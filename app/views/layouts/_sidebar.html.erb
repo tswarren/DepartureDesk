@@ -34,10 +34,10 @@
       <%= icon_tag "boat" %>
       <span>Suppliers</span>
     <% end %>
-    <span class="dd-sidebar-item" aria-disabled="true">
+    <%= link_to departures_path, class: "dd-sidebar-item", aria: { current: primary_nav_current_for(:departures) } do %>
       <%= icon_tag "calendar_blank" %>
       <span>Departures</span>
-    </span>
+    <% end %>
     <span class="dd-sidebar-item" aria-disabled="true">
       <%= icon_tag "suitcase" %>
       <span>Travelers</span>

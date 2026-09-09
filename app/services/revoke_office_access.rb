@@ -33,6 +33,7 @@ class RevokeOfficeAccess < MembershipCommand
     unless assignment.active?
       raise Error.new("That office assignment is already revoked.", code: :invalid_state)
     end
+    reject_current_departure_dependency!
 
     if assignment.is_default?
       remaining = @membership.office_assignments.active.where.not(id: assignment.id)
@@ -63,6 +64,29 @@ class RevokeOfficeAccess < MembershipCommand
         "user_id" => @membership.user_id
       },
       **actor_audit_args
+    )
+  end
+
+  def reject_current_departure_dependency!
+    return if @membership.administrator?
+
+    scope = DepartureTeamAssignment.current.joins(:departure).where(
+      agency_id: @agency.id,
+      agency_membership_id: @membership.id,
+      departures: { office_id: @office.id, status: Departure::NONTERMINAL_STATUSES }
+    ).includes(:departure)
+    total = scope.count
+    return if total.zero?
+
+    labels = scope.order(:id).limit(5).map { |assignment|
+      "#{assignment.departure.departure_reference} #{assignment.departure.name}"
+    }
+    extra = total - labels.size
+    suffix = extra.positive? ? ", and #{extra} more" : ""
+    noun = total == 1 ? "departure" : "departures"
+    raise Error.new(
+      "Reassign #{total} current #{noun} before revoking access to this office: #{labels.join(", ")}#{suffix}.",
+      code: :departure_dependency
     )
   end
 end

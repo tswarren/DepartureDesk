@@ -1,0 +1,116 @@
+<% content_for :title, "#{@travel_program.name} · Travel programs · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Operations</p>
+    <h1 class="dd-page-title"><%= @travel_program.name %></h1>
+    <p class="dd-page-description"><%= travel_program_status_badge(@travel_program) %></p>
+    <%= link_to "Back to travel programs", travel_programs_path, class: "dd-button dd-button--quiet dd-button--small" %>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Edit program", edit_travel_program_path(@travel_program), class: "dd-button" %>
+  </div>
+</header>
+
+<%= render "departures/subnav", current: :programs %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Program details</h2>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Name</dt>
+        <dd><%= @travel_program.name %></dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd><%= travel_program_status_badge(@travel_program) %></dd>
+      </div>
+      <div>
+        <dt>Internal description</dt>
+        <dd><%= @travel_program.description.presence || "—" %></dd>
+      </div>
+      <div>
+        <dt>Client-facing description</dt>
+        <dd><%= @travel_program.client_facing_description.presence || "—" %></dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Linked departures</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @departures.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th>Reference</th>
+              <th>Departure</th>
+              <th>Dates</th>
+              <th>Office</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @departures.each do |departure| %>
+              <tr>
+                <td class="dd-type-mono"><%= link_to departure.departure_reference, departure_path(departure) %></td>
+                <td><%= link_to departure.name, departure_path(departure) %></td>
+                <td><%= departure_date_range(departure) %></td>
+                <td><%= office_choice_label(departure.office) %></td>
+                <td><%= departure_status_badge(departure) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No linked departures</h3>
+        <p class="dd-empty-copy">Departures you cannot access are omitted from this list.</p>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<% if Current.agency_membership.administrator? %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Program lifecycle</h2>
+    </header>
+    <% if @travel_program.active? %>
+      <%= form_with url: deactivate_travel_program_path(@travel_program), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @travel_program.lock_version %>">
+        <div class="dd-panel-body">
+          <p class="dd-field-hint">A program cannot become inactive while a nonterminal departure remains linked.</p>
+          <div class="dd-field-group">
+            <label class="dd-label" for="reason">Reason</label>
+            <input class="dd-field" type="text" name="reason" id="reason" required>
+          </div>
+        </div>
+        <div class="dd-panel-footer dd-form-actions">
+          <%= submit_tag "Deactivate program", class: "dd-button dd-button--danger", data: { turbo_confirm: "Deactivate #{@travel_program.name}?" } %>
+        </div>
+      <% end %>
+    <% else %>
+      <%= form_with url: reactivate_travel_program_path(@travel_program), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @travel_program.lock_version %>">
+        <div class="dd-panel-body">
+          <div class="dd-field-group">
+            <label class="dd-label" for="reason">Reason</label>
+            <input class="dd-field" type="text" name="reason" id="reason" required>
+          </div>
+        </div>
+        <div class="dd-panel-footer dd-form-actions">
+          <%= submit_tag "Reactivate program", class: "dd-button" %>
+        </div>
+      <% end %>
+    <% end %>
+  </article>
+<% end %>

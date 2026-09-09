@@ -12,6 +12,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.dd-brand[aria-label='DepartureDesk home'] .dd-brand-logo[src*='logo']"
     assert_select "a.dd-brand[aria-label='DepartureDesk home'] .dd-brand-mark[src*='favicon']"
     assert_select "nav[aria-label='Primary navigation'] a[href=?]", directory_clients_path, text: "Clients"
+    assert_select "nav[aria-label='Primary navigation'] a[href=?]", departures_path, text: "Departures"
     assert_select "nav[aria-label='Primary navigation'] span[aria-disabled=true]", text: "Travelers"
   end
 

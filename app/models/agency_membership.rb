@@ -22,6 +22,7 @@ class AgencyMembership < ApplicationRecord
     foreign_key: :person_party_id,
     inverse_of: :agency_membership
   has_many :office_assignments, dependent: :restrict_with_exception
+  has_many :departure_team_assignments, dependent: :restrict_with_exception
   has_many :advised_client_profiles,
     class_name: "ClientProfile",
     foreign_key: :primary_advisor_membership_id,

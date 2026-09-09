@@ -1,0 +1,114 @@
+<% content_for :title, "Departures · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Operations</p>
+    <h1 class="dd-page-title">Departures</h1>
+    <p class="dd-page-description">Dated operating records for <%= Current.agency.name %>.</p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "New departure", new_departure_path, class: "dd-button" %>
+  </div>
+</header>
+
+<%= render "departures/subnav", current: :departures %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Find a departure</h2>
+  </header>
+  <div class="dd-panel-body">
+    <%= form_with url: departures_path, method: :get, class: "dd-form" do %>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <label class="dd-label" for="q">Search</label>
+          <input class="dd-field" type="search" name="q" id="q" value="<%= @q %>" placeholder="Reference, name, program, or destination">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="status">Status</label>
+          <select class="dd-field" name="status" id="status">
+            <option value="">All statuses</option>
+            <% Departure::STATUSES.each do |status| %>
+              <option value="<%= status %>" <%= "selected" if @status == status %>><%= status.titleize %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="office_id">Office</label>
+          <select class="dd-field" name="office_id" id="office_id">
+            <option value="">All offices</option>
+            <% @offices.each do |office| %>
+              <option value="<%= office.id %>" <%= "selected" if @office_id == office.id %>><%= office_choice_label(office) %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="from">From</label>
+          <input class="dd-field" type="date" name="from" id="from" value="<%= @from %>">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="to">To</label>
+          <input class="dd-field" type="date" name="to" id="to" value="<%= @to %>">
+        </div>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Apply filter", class: "dd-button dd-button--secondary" %>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Departures</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @departures.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th>Reference</th>
+              <th>Departure</th>
+              <th>Dates</th>
+              <th>Program</th>
+              <th>Office</th>
+              <th>Status</th>
+              <th>Group manager</th>
+              <th>Destination</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @departures.each do |departure| %>
+              <tr>
+                <td class="dd-type-mono"><%= link_to departure.departure_reference, departure_path(departure) %></td>
+                <td><%= link_to departure.name, departure_path(departure) %></td>
+                <td><%= departure_date_range(departure) %></td>
+                <td><%= departure.travel_program&.name || "—" %></td>
+                <td><%= office_choice_label(departure.office) %></td>
+                <td><%= departure_status_badge(departure) %></td>
+                <td><%= departure_team_member_label(departure.current_group_manager_assignment) %></td>
+                <td><%= departure.primary_destination.presence || "—" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <% if @page > 1 || @has_next_page %>
+        <nav class="dd-button-group" aria-label="Pagination">
+          <% if @page > 1 %>
+            <%= link_to "Previous", departures_path(q: @q, status: @status, office_id: @office_id, from: @from, to: @to, page: @page - 1), class: "dd-button dd-button--secondary" %>
+          <% end %>
+          <% if @has_next_page %>
+            <%= link_to "Next", departures_path(q: @q, status: @status, office_id: @office_id, from: @from, to: @to, page: @page + 1), class: "dd-button dd-button--secondary" %>
+          <% end %>
+        </nav>
+      <% end %>
+    <% else %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No departures</h3>
+        <p class="dd-empty-copy">Create a dated departure to begin supplier and client planning.</p>
+      </div>
+    <% end %>
+  </div>
+</article>
