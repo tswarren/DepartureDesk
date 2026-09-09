@@ -309,6 +309,8 @@ An authorized user can create and operate a dated departure root without using a
 
 ## 8. Slice 3B — Supplier planning, capacity, and commitments
 
+Slice plan: [`phase-3b-supplier-planning-capacity.md`](phase-3b-supplier-planning-capacity.md) (proposed until Accepted). That document locks arrangement vs reservation, typed cost-term tables, economic-item precedence, deposit-as-requirement, dimensional capacity events with rebuildable positions, agency-provided-service deferral, and the office-transfer freeze rule.
+
 ### Objective
 
 Represent what the agency requests, holds, guarantees, or purchases from suppliers before client fulfillment is added.
@@ -326,7 +328,7 @@ Represent what the agency requests, holds, guarantees, or purchases from supplie
 - Supplier planning, arrangement detail, capacity, deadline, and exposure surfaces.
 - Forecast cost and exposure projections; no posted supplier payable yet.
 - Merge/deactivation participation for supplier, service-provider, and contact Party references.
-- Freeze or replace the simple 3A office-transfer command before introducing the first office-owned child beneath a departure.
+- Freeze `TransferDepartureOffice` once any supplier arrangement has ever existed on the departure (concrete rule in the 3B slice plan). Aggregate-wide ownership transfer remains deferred.
 - Audit catalog additions and a 3B command lock-order appendix.
 
 ### Required invariants

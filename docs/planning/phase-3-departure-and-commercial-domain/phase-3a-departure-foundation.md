@@ -455,7 +455,7 @@ It must:
 - Update office ownership, maintain the owning-office projection, and audit atomically.
 - Never copy or recreate the departure.
 
-3B must freeze or replace this simple 3A office-transfer command before introducing the first office-owned child beneath a departure. Once supplier arrangements or other office-owned children exist, changing only `departures.office_id` is insufficient—even before receipts or obligations ship. Later transfer requires an aggregate-wide ownership-transfer contract or should be prohibited. No later implementation may silently move posted financial records by changing `departures.office_id`.
+3B freezes this simple office-transfer command once any supplier arrangement has ever existed on the departure. While no arrangement row exists, transfer remains available under the 3A rules above. Creating the first arrangement permanently prohibits further transfer for that departure—even if every arrangement is later cancelled or released—because children and audit retain original office ownership. `CreateSupplierArrangement` and `TransferDepartureOffice` share the lock boundary `agency → old/new offices by UUID → departure → arrangement dependencies`, and a concurrency test must prove they cannot produce mixed ownership. Aggregate-wide ownership transfer is deferred; see [`phase-3b-supplier-planning-capacity.md`](phase-3b-supplier-planning-capacity.md). No later implementation may silently move posted financial records by changing `departures.office_id`.
 
 ### 6.4 Membership suspension and access revocation
 
