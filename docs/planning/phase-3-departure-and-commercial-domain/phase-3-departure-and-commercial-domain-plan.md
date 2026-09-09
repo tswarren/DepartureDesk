@@ -115,7 +115,7 @@ DepartureDesk owns client, supplier, cash, commission, settlement, margin, and e
 - Organizer, group leader, sponsor, and other external or contextual participants reference agency-owned `Party` records through a separate Party-role concept.
 - Do not use one polymorphic row with nullable `agency_membership_id` and `party_id` to represent both systems.
 - These assignments provide attribution and workflow ownership. They never grant posting, refund, close, or other authorization.
-- `ClientAdvisorAssignment` remains the client's general advisor assignment. A departure or client-trip advisor is contextual and must declare how it defaults from, differs from, and coexists with that existing assignment.
+- `ClientAdvisorAssignment` remains the client's general advisor assignment. A departure or client-trip advisor is contextual. 3A does not read, copy, default from, update, or otherwise use `ClientAdvisorAssignment`. Slice 3C owns client-trip advisor defaulting and its relationship to client and departure advisors.
 
 ### 3.10 Office ownership does not partition Party identity
 
@@ -275,8 +275,10 @@ Create the stable dated operating root that every later Phase 3 record reference
 - `TravelProgram` with agency ownership and lifecycle appropriate to a reusable concept.
 - `Departure` with agency, owning office, optional program, default transaction-entry currency, dates, destination, description, sales window, and lifecycle. Do not persist functional-currency amounts in 3A.
 - Separate internal departure team assignments to `AgencyMembership` and contextual departure Party-role assignments to `Party`.
-- An explicit relationship among the existing `ClientAdvisorAssignment`, any departure-responsible advisor, and any later client-trip advisor. No duplicate advisor identity.
-- Explicit lifecycle commands and transition policy.
+- 3A does not use `ClientAdvisorAssignment`. Slice 3C owns the relationship among client, departure, and client-trip advisors. No duplicate advisor identity.
+- Explicit lifecycle commands. Persist only `draft`, `planning`, and `cancelled` until later slices add statuses.
+- State-bearing owning-office projection on nonterminal departures.
+- Staff-visible program-linked departure data filtered by office access.
 - Human-readable `departure_reference` decision under ADR 0004.
 - Agency tenancy and office-owned departure authorization; agency-wide Party lookup remains unchanged.
 - Departure index, create, detail, edit, and lifecycle surfaces using the adopted interface contract.
@@ -284,12 +286,14 @@ Create the stable dated operating root that every later Phase 3 record reference
 
 ### Required decisions in the slice plan
 
+Resolved in `phase-3a-departure-foundation.md`:
+
 - Departure reference scope, format, issuance event, reuse rule, and concurrency strategy.
-- Whether one-day departures use the same start/end date or permit a null end date; prefer required start and end dates with `end_date >= start_date`.
-- Which fields remain editable after sales open and after operation begins.
-- Whether a program may be deactivated while it has active departures; prefer restrict with dependency explanation.
-- Merge/deactivation participation for organizer, group leader, sponsor, and every other Party FK added by 3A.
-- A command lock-order appendix covering Party, membership, office, program, and departure locks, including the outer command and any non-locking nested primitives.
+- One-day departures use required start and end dates with `end_date >= start_date`.
+- 3A fields remain editable while `draft` or `planning`; later slices freeze fields once sale, operation, or posted children exist.
+- A program cannot become inactive while it has a nonterminal departure.
+- Merge/deactivation participation for organizer, group leader, and sponsor, including the 2E catalog registration for `departure_party_role_assignments.party_id`.
+- Command lock-order appendix for ordinary Phase 3A commands. Existing membership and office lifecycle commands retain their shipped outer lock orders and use non-locking departure dependency helpers.
 
 ### Exclusions
 
@@ -322,6 +326,7 @@ Represent what the agency requests, holds, guarantees, or purchases from supplie
 - Supplier planning, arrangement detail, capacity, deadline, and exposure surfaces.
 - Forecast cost and exposure projections; no posted supplier payable yet.
 - Merge/deactivation participation for supplier, service-provider, and contact Party references.
+- Freeze or replace the simple 3A office-transfer command before introducing the first office-owned child beneath a departure.
 - Audit catalog additions and a 3B command lock-order appendix.
 
 ### Required invariants
