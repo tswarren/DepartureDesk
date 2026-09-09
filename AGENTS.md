@@ -12,14 +12,16 @@ The application should feel operationally calm, financially trustworthy, and tra
 
 Foundation 1 (agency membership, derived tenant context, profile administration, team invitations, and privileged provisioning/recovery) is shipped on `main`.
 
-Phase 2A (agency-owned party identity, kind profiles, membership-to-person linkage, and the operational Directory) is implemented in this repository. Phase 2B (party contact information, effective-dated relationships, and retained notes) is implemented in this repository. Phase 2C (typed client and supplier profiles, advisors, client and supplier directories, role-aware selector, and external identifiers) is implemented in this repository through 2C.4. Phase 2D (party lifecycle, `pg_trgm` search, and create-time duplicate warnings) is implemented in this repository through 2D.3. Executable merge is Phase 2E. Do not assume that departures, travelers, reservations, or money objects already exist. Before changing behavior, inspect routes, models, migrations, schema dumps, controllers, views, jobs, and tests. Describe planned features as planned until code and tests ship them.
+Phase 2A (agency-owned party identity, kind profiles, membership-to-person linkage, and the operational Directory) is implemented in this repository. Phase 2B (party contact information, effective-dated relationships, and retained notes) is implemented in this repository. Phase 2C (typed client and supplier profiles, advisors, client and supplier directories, role-aware selector, and external identifiers) is implemented in this repository through 2C.4. Phase 2D (party lifecycle, `pg_trgm` search, and create-time duplicate warnings) is implemented in this repository through 2D.3. Executable merge is Phase 2E policy only; do not describe or depend on it as shipped behavior.
+
+Phase 3 (departure and commercial domain) is planned in [docs/planning/phase-3-departure-and-commercial-domain/phase-3-departure-and-commercial-domain-plan.md](docs/planning/phase-3-departure-and-commercial-domain/phase-3-departure-and-commercial-domain-plan.md). Vocabulary follows [docs/terminology.md](docs/terminology.md). Do not assume that travel programs, departures, client trips, service components, supplier arrangements, or posted money objects already exist. Before changing behavior, inspect routes, models, migrations, schema dumps, controllers, views, jobs, and tests. Describe planned features as planned until code and tests ship them.
 
 ## Architecture decisions
 
 Accepted ADRs under `docs/adr` are authoritative. Read the relevant ADR before designing or changing its domain.
 
-- [ADR 0001: Money and currency representation](docs/adr/0001-money-and-currency.md) accepts `money-rails`, `bigint` minor-unit persistence, explicit currencies, strict parsing, and explicit historical conversion facts. The dependency is not considered installed until `Gemfile`, the lockfile, initializer, and tests contain the implementation.
-- [ADR 0004: Human-readable references and numbering](docs/adr/0004-human-readable-references.md) keeps UUIDv7 as internal identity, requires qualified reference names, and forbids a generic numbering engine. Foundation 1E implements office codes only.
+- [ADR 0001: Money and currency representation](docs/adr/0001-money-and-currency.md) accepts `money-rails`, `bigint` minor-unit persistence, explicit currencies, strict parsing, and explicit historical conversion facts. The gem, initializer, and mismatch tests are installed. Do not persist functional-currency translations until that ADR is amended (Phase 3E gate).
+- [ADR 0004: Human-readable references and numbering](docs/adr/0004-human-readable-references.md) keeps UUIDv7 as internal identity, requires qualified reference names, and forbids a generic numbering engine. Foundation 1E implements office codes only. Phase 3 locks `departure_reference`, `client_trip_reference`, and financial document numbers in the slice that introduces each record.
 
 ## Canonical domain language
 
@@ -33,19 +35,26 @@ Use these terms consistently in code, migrations, UI labels, tests, and document
 | Person | An individual party. Agency team members link to a person through `agency_memberships.person_party_id`. A person is not automatically a traveler, client, or payer. |
 | Household | A servicing and communication collective stored as a party kind. Household membership is a later relationship. Do not treat directory household as an insurance household, traveling party, occupancy group, or payer group. Never infer household membership from shared occupancy. |
 | Organization | A legal or trading entity stored as a party kind. Client and supplier remain later profiles of an organization or person. |
-| Departure | The top-level operational container for one group trip. Do not use `Group` as the primary model name; it is too ambiguous. |
-| Supplier | An external travel provider. |
-| Travel component | One supplied part of a trip. A client reservation can include multiple components and suppliers. |
+| Travel program | An optional reusable concept or series. A program does not own operational balances, capacity, or settlement. |
+| Departure | One dated occurrence of coordinated travel. Do not use `Group` as the primary model name; it is too ambiguous. |
+| Supplier | The contracting commercial party, represented through a supplier profile of a party. |
+| Service provider | The operating property, vessel, carrier, venue, or entity when it differs from the contracting supplier. Still a party; not a second identity type. |
+| Package | A client-facing offer. Departure-owned packages are operational; program templates copy or materialize and do not inherit live. |
+| Service component | One instantiated client-trip service. A client trip may include multiple components and suppliers. Do not name this `TravelComponent`. |
 | Supplier arrangement | The commercial agreement between agency and supplier: rates, capacity, guarantees, deadlines, deposits, and cancellation terms. |
-| Supplier reservation | A supplier-facing confirmation or booking. It is not the client reservation. |
+| Supplier reservation | A supplier-facing confirmation or booking. It is not the client trip. |
 | Client | A purchasing party. A client may be an individual, household, or organization and need not travel. |
-| Client reservation | The agency-facing sale/trip record for a client within a departure. |
-| Traveler | A person participating in travel. A traveler is not automatically the client or payer. |
-| Payer / responsibility allocation | The party and amount or share responsible for client charges. |
-| Occupancy assignment | Travelers sharing a cabin, room, or similar unit. Never infer financial responsibility from occupancy. |
+| Client trip | The agency-facing sale/trip record for one primary client within a departure. Do not name this `ClientReservation`. |
+| Traveler | A person participating in travel. A traveler is not automatically the client, payer, or responsible client. |
+| Payer | The party from whom a particular payment is received. A payer need not be the primary client, a responsible client, or a traveler. |
+| Responsible client | A client assigned financial responsibility for some or all of a charge. |
+| Responsibility allocation | The amount or share a responsible client owes on a charge. |
+| Resource occupancy assignment | A traveler-to-resource placement for applicable dates or segments. Never infer household, insurance eligibility, payer, or responsibility. Do not infer occupancy from a traveling party. |
+| Traveling party | An operational companion or share relationship. It does not merge client trips, balances, households, or insurance. |
 | Client charge | An amount billed by the agency. |
-| Client receipt | Money received from a client or payer. |
-| Receipt application | The explicit allocation of a receipt to one or more client charges. |
+| Client receipt | Money received from a client or payer into agency-controlled cash. |
+| Supplier collection | Client money collected by a supplier. It may satisfy a client balance but never increases agency-controlled cash. |
+| Receipt application | The explicit allocation of a receipt or supplier collection to one or more client charges. |
 | Supplier obligation | An amount owed or expected to be owed to a supplier. |
 | Supplier payment | Money sent to a supplier. |
 | Payment application | The explicit allocation of a supplier payment to obligations. |
@@ -54,21 +63,27 @@ Use these terms consistently in code, migrations, UI labels, tests, and document
 ## Invariants agents must preserve
 
 1. Supplier-side and client-side records are distinct even when they describe the same travel.
-2. One client reservation may use zero, one, or many supplier reservations and suppliers.
-3. A cabin or room may contain multiple travelers with separate payers or responsibility allocations.
-4. Insurance is optional, separately sold inventory. Coverage grouping follows insurer/household rules rather than cabin occupancy.
+2. One client trip may use zero, one, or many supplier reservations and suppliers.
+3. A cabin or room may contain travelers from separate client trips, with separate payers or responsibility allocations.
+4. Insurance is optional, separately sold inventory. Coverage grouping follows insurer/household rules rather than cabin occupancy or traveling-party membership.
 5. Standard blocked hotel nights and optional extension nights must remain distinguishable.
 6. Fixed supplier costs, per-unit costs, per-person costs, estimates, and guarantees must remain distinguishable.
-7. Reservation, fulfillment, invoicing, receipt, and settlement statuses are independent state dimensions.
+7. Client-trip, fulfillment, invoicing, receipt, and settlement statuses are independent state dimensions.
 8. Never infer payment merely because travel is confirmed, ticketed, departed, or completed.
-9. Client receipts and supplier payments require explicit applications.
+9. Client receipts, supplier collections, and supplier payments require explicit applications.
 10. Financial corrections should preserve history through reversal or adjustment rather than silent mutation once posted.
 11. Air ticket records must be able to retain the ARC/BSP settlement amount per ticket without requiring full ARC/BSP reconciliation.
 12. Parties are agency-owned. Load them through `Current.agency`. Do not use a tenant `default_scope`, and do not accept ownership from `params[:agency_id]`.
 13. Party kind is immutable after create. Do not convert a person into a household or organization. Kind-profile rows carry a fixed `party_kind` and reference `parties (id, agency_id, party_kind)`.
 14. Every agency membership, including invited, has exactly one same-agency person. Do not add `users.person_id`. Invitation acceptance and reactivation revalidate the link and must not create a person.
-15. The operational Directory is agency-wide. Office selection does not partition party visibility.
-16. Client, supplier, traveler, organizer, and payer are later roles or profiles. Do not duplicate party identity for those roles.
+15. The operational Directory is agency-wide. Office selection does not partition party visibility. Client, traveler, supplier, organizer, payer, and service-provider selectors stay `Current.agency` scoped.
+16. Client, supplier, traveler, organizer, and payer are roles or profiles of a party. Do not duplicate party identity for those roles.
+17. Traveler assignment, responsibility allocation, inventory allocation, and fulfillment allocation are independent. No one relationship implies another.
+18. Typed financial records are authoritative. Do not introduce a generic polymorphic `transactions` table. A shared posting projection or outbox, if added, must be rebuildable and must not own monetary meaning.
+19. Supplier-collected client money may satisfy a client balance and must never increase agency-controlled cash.
+20. Historical trip and financial records keep ordinary same-agency party foreign keys plus snapshots. Do not use a live `party_status = 'active'` projection on those rows. Every new party foreign key must register `PartyDeactivationDependencies` and the Phase 2E fail-closed merge-participant catalog before that slice is complete.
+21. Internal departure team assignments reference `AgencyMembership`. Contextual participant roles (organizer, group leader, sponsor) reference `Party`. Do not use one polymorphic row for both. Neither grants posting, refund, close, or other authorization. `ClientAdvisorAssignment` remains the client's general advisor.
+22. External confirmation, PNR, ticket, and policy identifiers belong to their operational owner. Do not reuse Phase 2C `ExternalIdentifier` for those records.
 
 ## Working examples
 
@@ -205,14 +220,15 @@ flowchart LR
     SO[Supplier obligations] --> SP[Supplier payments]
 ```
 
-The exact implementation will evolve, but agents must not collapse these into one generic paid flag.
+The exact implementation will evolve, but agents must not collapse these into one generic paid flag. Phase 3 also reserves supplier collections (client money that never enters agency cash) and commission stages as distinct facts.
 
 - Charges and obligations describe what is owed.
 - Receipts and payments describe cash movement.
-- Applications describe which cash movement settles which item.
+- Supplier collections may reduce a client balance without becoming agency-controlled cash.
+- Applications describe which cash movement or collection settles which item.
 - Estimates, commitments, actuals, commissions, service fees, and margin require explicit provenance.
 - Posted financial facts should be immutable; correct them through linked reversal/adjustment facts.
-- Preserve original currency, applicable exchange-rate facts, and agency reporting currency when multi-currency support is introduced.
+- Preserve original currency. Do not persist functional-currency translations until ADR 0001 is amended for that purpose.
 - Use `money-rails` as a value-object and Rails-integration layer only. It is not a ledger, settlement engine, or accounting model.
 - Use `with_model_currency` (or an equally explicit immutable owner) for persisted amounts; never rely on a global default currency to interpret stored financial facts.
 - Disable implicit currency conversion. Mismatched-currency arithmetic must fail unless an explicit workflow supplies and persists the conversion facts required by ADR 0001.
@@ -242,7 +258,9 @@ The exact implementation will evolve, but agents must not collapse these into on
 - Agency provisioning, lifecycle, and administrator recovery are privileged commands (`ProvisionAgency`, `ChangeAgencyStatus`, `RecoverAgencyAdministrator`), not tenant-facing routes. System audit events require `actor_identifier` and must not invent a platform user. Command output may print identifiers only—never passwords or invitation tokens.
 - Audit subjects are narrowly typed: an `Agency` subject must equal the event agency; an `AgencyMembership`, `Office`, `OfficeAssignment`, `Party`, `Person`, `Household`, `Organization`, `PartyAlternateName`, `PartyContactPoint`, `ContactPointPurposeAssignment`, `PartyRelationship`, `RelationshipPurposeAssignment`, `PartyNote`, `ClientProfile`, `ClientAdvisorAssignment`, `SupplierProfile`, `SupplierServiceCategoryAssignment`, or `ExternalIdentifier` subject must belong to it. Unknown subject types raise. Do not infer tenancy for unknown subject types. Contact-point detail tables are not audit subjects.
 - An office belongs to exactly one agency. Staff operate only in offices with an active assignment. Administrators may use every active office without an assignment per office; they still have one default assignment when any active office exists. Office access is not a role.
-- Later office-owned records must carry a direct `agency_id` and enforce matching `(office_id, agency_id)` with a composite foreign key. Do not infer tenant ownership only through `office_id`. Human-readable office codes never authorize. See [ADR 0004](docs/adr/0004-human-readable-references.md).
+- Later office-owned records must carry a direct `agency_id` and enforce matching `(office_id, agency_id)` with a composite foreign key. Do not infer tenant ownership only through `office_id`. `Current.office` is a default or navigation context, never an authorization grant. Human-readable office codes never authorize. See [ADR 0004](docs/adr/0004-human-readable-references.md).
+- Phase 3 slice plans must include a command lock-order appendix. Preserve existing membership/activation and directory/role-profile lock orders. Do not invent one universal Phase 3 lock order. Nested public commands must not reacquire earlier locks.
+- `AuditEvent::ACTIONS` and `RecordAdministrativeAudit` subject types are closed catalogs. Extend both in the same change that first writes a new supported action or subject. Audit the command aggregate; do not make every capacity, allocation, or snapshot row an administrative-audit subject. `AuditEvent#details` is not a document-version or snapshot store.
 - Administrative mutations write append-only `AuditEvent` records in the same transaction. Audit events reject update and destroy in the application and in PostgreSQL.
 - Business records must be loaded through `Current.agency`. Do not use a tenant `default_scope`. Do not rely on a client-supplied agency ID without authorization against the current user/session.
 - Action Cable identifies `current_user` and `current_agency` from the same resolver. It must not copy request `Current` onto a long-lived connection and must not persist `Current.office` on the connection. Future office-scoped channel actions must reload the current session selection and reapply office authorization for each action; connection-time `current_agency` is not sufficient.
@@ -265,7 +283,7 @@ Testing rules:
 
 - Test database constraints as well as model validations for important invariants.
 - Test cross-agency authorization whenever agency-scoped records are introduced.
-- Test fixed versus per-person pricing, unsold guarantee exposure, shared occupancy with split responsibility, household-specific insurance, and multi-supplier client reservations when those features ship.
+- Test fixed versus per-person pricing, unsold guarantee exposure, shared occupancy with split responsibility, household-specific insurance, and multi-supplier client trips when those features ship.
 - Test successful, invalid, duplicate, reversal, and concurrent paths for financial workflows.
 - Fixtures must satisfy column limits and database constraints. Because Rails may load all fixtures before every test, one invalid fixture can break unrelated tests before assertions run.
 - Avoid assertions tied only to CSS implementation details; assert accessible roles, labels, visible states, and outcomes.
@@ -319,7 +337,7 @@ Before editing:
 
 1. Read the relevant model, migration, schema, route, controller/view/job, and tests.
 2. State whether the change affects current behavior or planned requirements.
-3. Identify affected supplier, client, traveler, reservation, and financial boundaries.
+3. Identify affected supplier, client, traveler, client-trip, and financial boundaries.
 
 While editing:
 
@@ -342,11 +360,13 @@ Before handing off:
 Do not:
 
 - Model a departure as one supplier booking.
-- Model a client reservation as belonging to only one supplier.
+- Model a client trip as belonging to only one supplier.
+- Name models `ClientReservation` or `TravelComponent`.
 - Treat every traveler as a payer or every payer as a traveler.
-- Infer household membership from cabin/room sharing.
-- Infer payment state from reservation or travel state.
+- Infer household membership, insurance eligibility, payer, or responsibility from cabin/room sharing or a traveling party.
+- Infer payment state from client-trip or travel state.
 - Use a single `paid` boolean for client and supplier accounting.
+- Introduce a generic polymorphic `transactions` table as financial authority.
 - Hide agency guarantees or unsold exposure inside estimated margin.
 - Use floating point for money.
 - Use `_cents` as the general persistence suffix; DepartureDesk uses `_minor_units` because supported currencies do not all have cents.

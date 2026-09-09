@@ -11,7 +11,8 @@ DepartureDesk terminology should follow these rules:
 5. **Use “traveler assignment” for who receives a service.**  
 6. **Use “responsibility allocation” for who owes the agency.**  
 7. **Use “service component” for an individual travel service.**  
-8. Avoid using **group**, **booking**, or **reservation** without a qualifier when the meaning could be ambiguous.
+8. **Use “resource occupancy assignment” for traveler-to-resource placement.** Do not infer it from a traveling party.  
+9. Avoid using **group**, **booking**, or **reservation** without a qualifier when the meaning could be ambiguous.
 
 # 2\. Primary operating concepts
 
@@ -604,6 +605,20 @@ Examples:
 * Traveler assigned to Coach 1  
 * Traveler assigned to the July 11 hotel room
 
+## Resource occupancy assignment
+
+A **resource occupancy assignment** places a traveler into a supplier resource for applicable service dates or segments. It is a qualified traveler-to-resource fact on the traveler-assignment axis.
+
+It is not:
+
+* A traveling party or companion relationship  
+* A household  
+* Insurance eligibility  
+* Client ownership  
+* A payer or responsibility allocation  
+
+Traveling-party membership does not create occupancy. Occupancy does not create those other relationships.
+
 ## Utilization
 
 **Utilization** compares allocated or used capacity with committed or available capacity.
@@ -859,6 +874,9 @@ These should be derived from financial facts where possible rather than manually
 | Cost per person for a fixed resource | Effective cost per sold traveler |
 | Profit, before facts are final | Projected margin |
 | Inventory for every service | Blocked capacity, on-request service, or supplier resource |
+| Occupancy assignment, without qualification | Resource occupancy assignment |
+| Travel component | Service component |
+| Client reservation | Client trip |
 
 # 12\. Canonical relationship statement
 

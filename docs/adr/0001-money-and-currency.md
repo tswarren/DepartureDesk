@@ -26,7 +26,7 @@ DepartureDesk will adopt `money-rails` as the Rails integration and value-object
 
 The gem will not define the accounting model and will not be the sole enforcement layer. PostgreSQL columns and constraints remain authoritative; DepartureDesk domain records define the meaning, provenance, state, and relationships of each amount.
 
-This ADR accepts the dependency and persistence convention. Until the gem appears in `Gemfile` and its initializer and tests are committed, installation remains an implementation task rather than shipped functionality.
+This ADR accepts the dependency and persistence convention. The gem is installed (`Gemfile`, lockfile, `config/initializers/money.rb`, and mismatch tests). Domain monetary tables, posting, and historical conversion facts remain later implementation. Do not persist functional-currency translations until this ADR is amended for that purpose (Phase 3E gate).
 
 ## Persistence contract
 
@@ -209,11 +209,12 @@ Rejected for accounting. Current rate services may assist quoting or estimates l
 
 ## Implementation checklist
 
-- Add `money-rails` to `Gemfile` and commit the resolved lockfile.
-- Add an initializer enabling strict parsing and disabling implicit conversion.
-- Add a focused test proving same-currency arithmetic and mismatched-currency rejection.
-- Establish a reusable migration/model pattern for `*_minor_units` plus currency.
+- [x] Add `money-rails` to `Gemfile` and commit the resolved lockfile.
+- [x] Add an initializer enabling strict parsing and disabling implicit conversion.
+- [x] Add a focused test proving same-currency arithmetic and mismatched-currency rejection.
+- Establish a reusable migration/model pattern for `*_minor_units` plus currency when the first monetary table ships.
 - Add database constraints with each monetary table.
 - Document rounding and currency ownership in each financial aggregate.
+- Amend this ADR before Phase 3E if functional-currency posting or historical conversion facts are introduced.
 - Update this ADR if a later requirement changes the persistence or conversion policy.
 

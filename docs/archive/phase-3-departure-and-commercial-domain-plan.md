@@ -33,14 +33,11 @@ Phase 3 extends, and does not supersede:
 
 - The Phase 1 agency, membership, office, authorization, audit, money, time, and lifecycle contracts.
 - ADR 0004 for human-readable references and numbering.
-- The shipped Phase 2 agency-owned Party model, client and supplier roles, relationships, contact information, lifecycle, search, and duplicate handling.
-- The Phase 2E merge policy. Executable merge is not shipped when this plan is written; Phase 3 must not describe or depend on it as shipped behavior.
+- The Phase 2 agency-owned Party model, client and supplier roles, relationships, contact information, lifecycle, duplicate handling, and merge semantics.
 - `docs/terminology.md` for travel program, departure, client trip, service component, supplier arrangement, traveler assignment, responsibility allocation, and related vocabulary.
 - `docs/ui/interface-contract.md` and the adopted design system for interface behavior.
 
 Use **departure**, not `group`, for the primary application record. Industry-specific labels such as group contract, group leader, and group air remain valid when qualified.
-
-`AGENTS.md` is the repository contract and now uses **client trip**, **service component**, **payer**, **responsible client**, **responsibility allocation**, and qualified **resource occupancy assignment** consistently with `docs/terminology.md`. Payer and responsibility are separate entries. Do not ship Phase 3 models that restore `ClientReservation` or `TravelComponent` names.
 
 ---
 
@@ -68,7 +65,6 @@ Use **departure**, not `group`, for the primary application record. Industry-spe
 - A client trip may contain package-derived and standalone service components.
 - Selection snapshots the applicable offer version, pricing, inclusions, exclusions, schedule, and client terms.
 - Later offer edits do not rewrite an existing client trip.
-- Packages are departure-owned. A travel program may own reusable package templates, but using a template copies or materializes a new departure-owned package; there is no live inheritance into a departure or accepted client trip.
 
 ### 3.4 Four independent allocation axes
 
@@ -107,49 +103,7 @@ DepartureDesk owns client, supplier, cash, commission, settlement, margin, and e
 - Posted financial events are immutable.
 - Later changes use amendments, applications, adjustments, credits, or reversals.
 - Cancellation preserves both the original sale and the independent supplier consequence.
-- Party edits and any later executable merge do not rewrite historical snapshots or posted financial identities.
-
-### 3.9 Internal team assignments and external Party roles are separate
-
-- Departure-responsible advisors, group managers, or other internal assignees reference `AgencyMembership` through a dedicated internal-team assignment concept.
-- Organizer, group leader, sponsor, and other external or contextual participants reference agency-owned `Party` records through a separate Party-role concept.
-- Do not use one polymorphic row with nullable `agency_membership_id` and `party_id` to represent both systems.
-- These assignments provide attribution and workflow ownership. They never grant posting, refund, close, or other authorization.
-- `ClientAdvisorAssignment` remains the client's general advisor assignment. A departure or client-trip advisor is contextual and must declare how it defaults from, differs from, and coexists with that existing assignment.
-
-### 3.10 Office ownership does not partition Party identity
-
-- A departure and its office-owned operational or financial records carry `agency_id`, `office_id`, and a tenant-safe composite office foreign key where applicable.
-- Staff access is checked against the actor membership's current accessible offices after locking; `Current.office` is a default or navigation context, never an authorization grant.
-- Directory and Party selectors remain `Current.agency` scoped and agency-wide. Do not filter clients, travelers, suppliers, organizers, payers, or service providers by the departure office.
-
-### 3.11 Every Party foreign key declares lifecycle and merge participation
-
-- Do not use a live state-bearing `party_status = 'active'` projection on historical trip or financial records.
-- Commands revalidate that a Party and required active role are eligible when establishing a new operational relationship; the durable record keeps an ordinary same-agency Party foreign key plus any required historical snapshot.
-- Every slice that adds a Party foreign key must register or specify its participation in `PartyDeactivationDependencies` and the Phase 2E fail-closed merge-participant contract before that slice is complete.
-- If executable merge infrastructure has not shipped, amend the Phase 2E participant catalog and require merge to remain blocked for that reference until its participant exists. Do not guess, cascade, or silently repoint.
-- Each reference must state whether it is historical, current operational state, or an active role dependency and whether deactivation blocks, requires disposition, or is permitted.
-
-### 3.12 External operational identifiers are not directory identifiers
-
-Supplier confirmation numbers, PNRs, ticket numbers, policy numbers, and similar arrangement/reservation identifiers belong to their operational owner with issuer and context provenance. They do not use or expand Phase 2C `ExternalIdentifier`, whose ownership remains Party/client-profile/supplier-profile and whose `office_id` remains blank.
-
-### 3.13 Audit and snapshots have different jobs
-
-- `AuditEvent` records an authorized action and its affected aggregate; it is not a document-version or snapshot store.
-- Accepted offer versions, client terms, supplier terms, traveler submissions, confirmations, and financial posting evidence use typed or purpose-specific persistence.
-- Every slice extends the closed `AuditEvent::ACTIONS` and `RecordAdministrativeAudit` subject catalogs in the same change that first writes a new supported action or subject.
-- Do not make every capacity event, allocation, or snapshot row an administrative-audit subject. Audit the meaningful command aggregate and reference affected child identities in structured details when appropriate.
-- If financial posting requires a domain event trail distinct from administrative audit, 3E must specify it explicitly rather than weakening the closed administrative catalog.
-
-### 3.14 One amendment identity coordinates one business change
-
-A client upgrade, downgrade, addition, removal, promotion, surcharge, concession, traveler change, resource move, or cancellation uses one `ClientTripAmendment` identity. The amendment may acquire operational, capacity, fulfillment, supplier, and financial consequences as later slices ship. Do not create separate operational and pricing amendment histories for the same business change.
-
-### 3.15 Occupancy is a qualified resource assignment
-
-Resource occupancy is a traveler-to-resource fact with applicable service dates or segments and status. It belongs within the traveler-assignment axis but is not inferred from a traveling-party or companion relationship. It never establishes household, insurance eligibility, client ownership, payer, or responsibility.
+- Party edits and merges do not rewrite historical snapshots or posted financial identities.
 
 ---
 
@@ -157,10 +111,8 @@ Resource occupancy is a traveler-to-resource fact with applicable service dates 
 
 ```text
 TravelProgram (optional)
-├── PackageTemplate (optional reusable source)
 └── Departure
-    ├── DepartureTeamAssignment → AgencyMembership
-    ├── DeparturePartyRoleAssignment → Party
+    ├── DeparturePartyRole
     ├── Package / PackageVersion
     │   ├── PackageComponent
     │   └── PackageOption
@@ -170,7 +122,7 @@ TravelProgram (optional)
     │   │   ├── TravelerAssignment
     │   │   ├── InventoryAllocation
     │   │   └── FulfillmentAllocation
-    │   ├── ClientTripAmendment
+    │   ├── Amendment
     │   └── Client financial records
     ├── TravelingParty
     ├── SupplierArrangement
@@ -200,13 +152,11 @@ Phase 3 must preserve four distinct financial views:
 
 Planning estimates do not post balances.
 
-### 5.2 Typed posting architecture
+### 5.2 Shared posting architecture
 
-- Domain-specific typed financial records are authoritative. Design `ClientCharge`, `ClientReceipt`, `SupplierCollection`, `ClientRefund`, `SupplierObligation`, `SupplierPayment`, commission, reversal, and application persistence before introducing shared posting infrastructure.
-- A shared append-only projection, posting index, or outbox is permitted only when 3E demonstrates a concrete need. It must be derived or rebuildable infrastructure, not the monetary source of truth.
-- A shared structure must not use a type discriminator plus nullable domain columns to become the generic ledger this plan forbids.
+- Use domain-specific financial records backed by a shared immutable financial-event registry.
 - Use explicit application records to connect payments, credits, refunds, or collections to charges and obligations.
-- Authoritative balances are derived from typed posted records and applications.
+- Authoritative balances are derived from posted events and applications.
 - Cached summaries must be rebuildable and must never become independent financial truth.
 - Posting, numbering, and reversal commands are transactional and idempotent.
 - Do not introduce one generic polymorphic `transactions` table with unrelated nullable fields.
@@ -217,7 +167,7 @@ Planning estimates do not post balances.
 - Client acceptance alone does not silently post a charge.
 - An explicit agency command finalizes an accepted and complete charge.
 - Posted economic fields cannot be edited.
-- Upgrades, downgrades, promotions, surcharges, concessions, cancellations, and responsibility changes use the one linked `ClientTripAmendment` identity established in 3D.
+- Upgrades, downgrades, promotions, surcharges, concessions, cancellations, and responsibility changes use linked amendments.
 - A genuine posting error uses reversal and corrected posting, not a business concession.
 
 ### 5.4 Principal and agent treatment
@@ -228,10 +178,9 @@ Supplier-collected client money may satisfy a client balance but never increases
 
 ### 5.5 Currency
 
-- ADR 0001 remains authoritative until amended. Agency `default_currency` is a data-entry and reporting default, not an implicit currency for stored facts.
+- Agency functional currency remains authoritative for agency reporting.
 - A departure has a default currency but does not overwrite transaction currencies.
-- Before 3E persists functional-currency translations, amend ADR 0001 to define agency reporting/functional currency semantics, native and functional amounts, rate direction, precision and scale, effective date, source, rate type, rounding boundary and remainder allocation, posting immutability, settlement differences, and explicit conversion events.
-- After that amendment, every posted foreign-currency fact preserves the approved native and functional values and exchange-rate provenance. Operational rows must not persist speculative functional amounts in 3A–3D.
+- Every posted foreign-currency event preserves native amount and currency, functional amount and currency, locked exchange rate, rate direction, effective date, source, rate type, and rounding result.
 - Applications normally require matching currency.
 - Conversion is explicit; realized exchange differences are recorded separately.
 - Periodic unrealized revaluation is deferred.
@@ -271,14 +220,13 @@ Create the stable dated operating root that every later Phase 3 record reference
 
 ### Deliverables
 
-- Phase 3 authority documents and the required `AGENTS.md` terminology/invariant amendment before domain models are named.
+- Phase 3 authority documents and ADR amendments.
 - `TravelProgram` with agency ownership and lifecycle appropriate to a reusable concept.
-- `Departure` with agency, owning office, optional program, default transaction-entry currency, dates, destination, description, sales window, and lifecycle. Do not persist functional-currency amounts in 3A.
-- Separate internal departure team assignments to `AgencyMembership` and contextual departure Party-role assignments to `Party`.
-- An explicit relationship among the existing `ClientAdvisorAssignment`, any departure-responsible advisor, and any later client-trip advisor. No duplicate advisor identity.
+- `Departure` with agency, owning office, optional program, functional/default currency context, dates, destination, description, sales window, and lifecycle.
+- Departure team/party roles for responsible advisor, group manager, organizer, and group leader without duplicating Party identity.
 - Explicit lifecycle commands and transition policy.
 - Human-readable `departure_reference` decision under ADR 0004.
-- Agency tenancy and office-owned departure authorization; agency-wide Party lookup remains unchanged.
+- Agency- and office-scoped authorization.
 - Departure index, create, detail, edit, and lifecycle surfaces using the adopted interface contract.
 - Audit coverage, optimistic locking, and tenant-safe composite foreign keys.
 
@@ -288,8 +236,6 @@ Create the stable dated operating root that every later Phase 3 record reference
 - Whether one-day departures use the same start/end date or permit a null end date; prefer required start and end dates with `end_date >= start_date`.
 - Which fields remain editable after sales open and after operation begins.
 - Whether a program may be deactivated while it has active departures; prefer restrict with dependency explanation.
-- Merge/deactivation participation for organizer, group leader, sponsor, and every other Party FK added by 3A.
-- A command lock-order appendix covering Party, membership, office, program, and departure locks, including the outer command and any non-locking nested primitives.
 
 ### Exclusions
 
@@ -314,15 +260,13 @@ Represent what the agency requests, holds, guarantees, or purchases from supplie
 - Supplier arrangements with supplier and optional distinct service provider.
 - Parent/child arrangement hierarchy with cycle prevention.
 - Supplier reservations and resources.
-- Arrangement- or reservation-owned confirmation records or qualified fields with issuer/context provenance; do not reuse Phase 2C `ExternalIdentifier`.
+- External confirmation identifiers with issuer/context provenance.
 - Service dates and date/segment-aware resource availability.
 - Cost estimates, contracted terms, commitments, deposits, deadlines, guarantees, releases, attrition, and cancellation terms.
 - Capacity events or equivalent rebuildable positions.
 - Fixed, per-resource, per-person, per-night, minimum-guarantee, tiered, stepped-capacity, percentage, complimentary-ratio, pass-through, and manual-estimate term shapes without forcing every service into one formula.
 - Supplier planning, arrangement detail, capacity, deadline, and exposure surfaces.
 - Forecast cost and exposure projections; no posted supplier payable yet.
-- Merge/deactivation participation for supplier, service-provider, and contact Party references.
-- Audit catalog additions and a 3B command lock-order appendix.
 
 ### Required invariants
 
@@ -332,7 +276,6 @@ Represent what the agency requests, holds, guarantees, or purchases from supplie
 - Released capacity is not available unless release terms and supplier state permit it.
 - Estimates, commitments, and final costs are never added together for the same economic item.
 - External supplier identifiers remain separate from DepartureDesk references.
-- Supplier confirmation records do not violate the ownership or `office_id` contract of directory `ExternalIdentifier`.
 
 ### Gate
 
@@ -348,7 +291,6 @@ Represent what the agency offers and sells to a primary client without yet posti
 
 ### Deliverables
 
-- Optional program-level package templates and explicit copy/materialization into new departure-owned package versions. Templates never become live parents of departure packages or accepted services.
 - Packages, package versions, package components, and package options.
 - Per-person, per-resource, per-household, occupancy/category, and flat client pricing structures.
 - Sales dates, eligibility, capacity limits, deposit/final-payment schedule templates, inclusions, exclusions, and client terms.
@@ -358,9 +300,6 @@ Represent what the agency offers and sells to a primary client without yet posti
 - Service components created from accepted package versions or added independently.
 - Quote/version and acceptance evidence sufficient for later financial finalization.
 - Client-facing price and terms snapshots.
-- Purpose-specific snapshot records; do not store accepted pricing or terms only in `AuditEvent#details`.
-- Merge/deactivation participation for primary client, travelers, coordinators, and every other Party reference.
-- Audit catalog additions and a 3C command lock-order appendix.
 - Client-trip, offer, roster, and service-component surfaces.
 
 ### Required decisions in the slice plan
@@ -392,17 +331,14 @@ Connect client-facing services to travelers, capacity, and supplier fulfillment 
 
 ### Deliverables
 
-- Traveler assignments to service components and qualified resource-occupancy assignments to supplier resources for applicable dates or segments.
+- Traveler assignments to service components and supplier resources.
 - Soft and firm inventory allocations with expiry, confirmation, release, and waitlist behavior.
 - Many-to-many fulfillment allocations between service components and supplier reservations/resources.
 - Date-, night-, segment-, and quantity-scoped fulfillment.
 - Requested, quoted, awaiting-approval, submitted, confirmed, declined, unable-to-confirm, cancelled, and delivered outcomes as appropriate to the owning record.
-- One `ClientTripAmendment` framework for upgrades, downgrades, additions, removals, promotions, surcharges, concessions, traveler changes, resource moves, and cancellations. It is the durable identity to which later financial consequences attach.
+- Operational amendment framework for upgrades, downgrades, additions, removals, traveler changes, resource moves, and cancellations.
 - Atomic commands that coordinate service, assignment, capacity, and fulfillment consequences.
 - Confirmation snapshots and audit history.
-- Purpose-specific confirmation snapshot persistence; audit details may reference but may not replace it.
-- Merge/deactivation participation for every Party reference and audit catalog additions.
-- A 3D command lock-order appendix, including atomic amendment commands spanning Party, client trip, service, capacity, supplier fulfillment, and snapshot records.
 
 ### Required invariants
 
@@ -412,7 +348,6 @@ Connect client-facing services to travelers, capacity, and supplier fulfillment 
 - Internal capacity release and supplier-accepted release are distinct facts.
 - One supplier resource may serve travelers from multiple client trips.
 - One client service may be fulfilled by multiple supplier records.
-- Traveling-party membership does not create or imply resource occupancy; occupancy does not imply household, insurance, payer, or responsibility.
 
 ### Gate
 
@@ -428,7 +363,7 @@ Post what responsible clients owe and record how agency or supplier collections 
 
 ### Deliverables
 
-- A physical-design decision record proving that typed financial tables are authoritative. Any optional shared posting projection, index, or outbox is rebuildable and cannot own monetary meaning.
+- Shared immutable financial-event registry.
 - Departure-scoped client accounts by responsible client and currency.
 - Client charges and charge lines.
 - Line-level responsibility allocations with whole-charge convenience behavior.
@@ -437,13 +372,10 @@ Post what responsible clients owe and record how agency or supplier collections 
 - Agency receipts, receipt numbers, receipt applications, and unapplied funds.
 - Supplier collections and applications that reduce client balances without entering agency cash.
 - Client credits, refunds, chargebacks, transfers, write-offs, reversals, and correction workflow.
-- Financial effects attached to the existing `ClientTripAmendment` for upgrade, downgrade, promotion, surcharge, goodwill, cancellation, and supplier-penalty recovery; do not introduce a second pricing-amendment aggregate.
+- Client pricing amendments for upgrade, downgrade, promotion, surcharge, goodwill, cancellation, and supplier-penalty recovery.
 - One receipt per agency, receiving office, payer, departure, and currency; applications may span eligible client trips within that departure.
-- ADR 0001 amendment before functional-currency posting, followed by foreign-currency posting snapshots and the explicit conversion boundary it authorizes.
+- Foreign-currency posting snapshots and explicit conversion boundary.
 - Statements, balances, aging/due views, receipt documents, and posting previews.
-- Merge/deactivation participation for responsible clients, payers, refund recipients, and every other Party reference. Historical posted records keep ordinary same-agency Party FKs and identity snapshots; they do not hold live active-role projections.
-- Purpose-specific financial snapshots rather than audit-detail JSON storage.
-- Audit/event catalog design appropriate to financial postings and a 3E command lock-order appendix.
 
 ### Required invariants
 
@@ -455,7 +387,6 @@ Post what responsible clients owe and record how agency or supplier collections 
 - Posted financial events are not edited or deleted.
 - A reversal references and neutralizes a posted event without erasing it.
 - Posting and reference issuance are atomic and idempotent.
-- Any shared financial projection can be rebuilt from typed postings and applications and cannot replace them as authority.
 
 ### Gate
 
@@ -482,8 +413,6 @@ Post supplier obligations and settlements, track agency earnings, and calculate 
 - Estimated, committed, and final cost precedence.
 - Gross client value, confirmed client sales, agency revenue, cash received, supplier-collected amount, supplier cost, commission, cash position, exposure, projected margin, confirmed margin, and reconciled departure margin.
 - Event-level accounting export provenance and an initial summarized export contract; no vendor-specific integration required.
-- Merge/deactivation participation for suppliers, service providers, commission counterparties, payment recipients, and every other Party reference.
-- Audit/event catalog additions and a 3F command lock-order appendix.
 
 ### Required invariants
 
@@ -511,7 +440,7 @@ Complete the operational workflow and establish an auditable departure-close bou
 
 - Operational deadlines attached to departure, arrangement, client trip, traveler, or service component.
 - Required and optional tasks with ownership and completion evidence.
-- Operational document requirements and ordinary attachment relationships without duplicating Party identity. Phase 3G does not store passport images, visas, payment credentials, medical records, or other sensitive identity documents without a separate approved access, encryption, audit, retention, and deletion contract.
+- Document requirements and attachment relationships without duplicating Party identity.
 - Manifest, rooming, assignment, final-count, and exception views from authoritative records.
 - Service delivery, unused, no-show, disruption, and final-disposition commands.
 - Reconciliation workspace for client, supplier, commission, capacity, and cost exceptions.
@@ -519,7 +448,6 @@ Complete the operational workflow and establish an auditable departure-close bou
 - `completed`, `reconciliation`, and `closed` boundaries.
 - Authorized close, reopen, correction, and re-close commands.
 - Final closeout report and audit evidence.
-- Merge/deactivation participation for task owners, operational contacts, and every other Party reference; audit catalog additions; and a 3G command lock-order appendix.
 
 ### Close blockers
 
@@ -551,37 +479,18 @@ Every slice must include, as applicable:
 - Explicit agency ownership on persisted tenant records.
 - Tenant-safe composite foreign keys and named database constraints.
 - No reliance on tenant `default_scope` or controller-supplied agency IDs.
-- Office-owned operational authorization independent of references or `Current.office`; staff access is revalidated against current membership office access.
-- Agency-wide `Current.agency` Party lookup. Office ownership never partitions the Directory or Party selectors.
-- A Party-reference matrix listing each new Party FK, its same-agency enforcement, required snapshot, eligibility check at establishment, merge participation, and deactivation dependency behavior.
-- Registration with `PartyDeactivationDependencies` and the Phase 2E fail-closed merge-participant contract for every applicable Party FK; an unregistered reference blocks merge rather than being silently repointed.
+- Office-scope authorization independent of references.
 - UUIDv7 internal identity.
 - Integer minor-unit monetary storage; no floating-point money.
 - `timestamptz` timestamps and explicit business/effective dates.
 - Optimistic locking for mutable records.
 - Transactional command objects for consequential state changes.
-- Stable actor membership, subject, agency, source, before/after or event payload, and reason in audit events. Extend the closed `AuditEvent::ACTIONS` and `RecordAdministrativeAudit` subject catalogs in the same change that first writes each supported action or subject.
-- Purpose-specific version and snapshot storage. Audit `details` may identify or summarize a snapshot but is never its authoritative store.
+- Stable actor membership, subject, agency, source, before/after or event payload, and reason in audit events.
 - Idempotency for posting, payment, reference issuance, imports, and retryable external callbacks.
 - Database enforcement of same-agency and same-departure relationships wherever practical.
 - No silent profile, package, supplier-term, price, cost, assignment, or financial-history rewrite.
 - Accessible server-rendered workflows with Turbo/Stimulus enhancement rather than JavaScript-only correctness.
 - Clear empty, loading, conflict, stale-write, authorization, and validation states.
-
-### 14.1 Required command lock-order appendix
-
-Every slice plan must include a lock-order appendix that:
-
-- Lists the canonical order for every multi-record command.
-- Identifies the outer command that owns the transaction and locks.
-- Provides explicitly named locked primitives for nested work where needed.
-- Revalidates agency, office access, Party eligibility, role state, lifecycle, and last-known state after locks are acquired.
-- Locks unordered collections in stable UUID order.
-- Prevents nested public commands from reacquiring earlier locks or using a conflicting order.
-- Preserves existing command-specific contracts, including membership/activation and directory/role-profile lock orders, rather than inventing one universal Phase 3 order.
-- Includes concurrency tests for commands that mix Party, membership, office, operational, allocation, and financial records.
-
-A slice may refine a predecessor's documented order only through an explicit reviewed amendment and corresponding concurrency tests.
 
 ---
 
@@ -599,9 +508,6 @@ A slice may refine a predecessor's documented order only through an explicit rev
 - Allocation/application balancing.
 - Reference uniqueness, issuance, retry, and cross-agency reuse.
 - Optimistic-lock conflicts.
-- Party merge/deactivation registration and fail-closed behavior for every new Party FK.
-- Historical Party references survive later Party or role deactivation without a live state-bearing projection.
-- Operational confirmation identifiers remain separate from directory external identifiers.
 
 ### Command/service tests
 
@@ -611,7 +517,6 @@ A slice may refine a predecessor's documented order only through an explicit rev
 - Cancellation keeps client and supplier consequences independent.
 - Estimate, commitment, final cost, and payment do not double-count.
 - Supplier collection satisfies the correct client balance without affecting agency cash.
-- Concurrent commands follow the slice lock-order appendix and do not partially apply nested work.
 
 ### Authorization and request tests
 
@@ -619,7 +524,6 @@ A slice may refine a predecessor's documented order only through an explicit rev
 - Cross-agency UUID and human-reference access returns no disclosure.
 - Unauthorized posting, refund, payment, concession, reversal, close, and reopen are rejected.
 - Stale and invalid transitions return useful domain errors rather than generic failures.
-- Party selectors remain agency-wide while departure-owned records enforce current office access.
 
 ### System tests
 
@@ -688,18 +592,13 @@ Air reservations, tickets, insurance-policy specialization, detailed hotel-night
 
 Before or alongside implementation, maintain:
 
-- Keep `AGENTS.md` aligned with this plan's canonical language and invariants.
 - Phase 3 aggregate and relationship map.
 - Lifecycle and command-transition matrix.
-- Typed financial-record, application, reversal, projection/outbox, and classification decision record.
+- Financial event and classification catalog.
 - Capacity versus commitment glossary.
 - Snapshot and retention matrix.
-- Party-reference merge/deactivation participation matrix.
-- Internal membership-assignment versus external Party-role matrix.
-- Per-slice audit action/subject catalog changes.
-- Per-slice command lock-order appendix.
 - Principal/agent and money-custody decision record.
-- ADR 0001 amendment before functional-currency posting.
+- Foreign-currency posting decision record.
 - Human-readable reference specifications introduced by each slice.
 - Authorization matrix.
 - Closeout blocker/warning matrix.
@@ -726,11 +625,6 @@ Phase 3 is complete only when:
 11. Both named worked scenarios pass end-to-end operational and financial tests.
 12. A departure can be reconciled, closed, reopened, corrected, and re-closed through authorized, auditable commands.
 13. The full automated test suite and CI pass on the canonical Ruby and PostgreSQL versions.
-14. Internal team assignments reference memberships, contextual participant roles reference Parties, and neither grants authorization.
-15. Every Phase 3 Party FK has documented and tested same-agency, snapshot, merge, and deactivation behavior.
-16. Typed domain financial records remain authoritative; any shared projection, index, or outbox is rebuildable and does not become a discriminator-based generic ledger.
-17. One client-trip amendment identity connects each business change to all resulting operational and financial consequences.
-18. Resource occupancy is explicit and never inferred from traveling-party, household, insurance, payer, or responsibility relationships.
 
 ---
 
@@ -739,22 +633,11 @@ Phase 3 is complete only when:
 Before coding 3A, reviewers must approve:
 
 - This parent plan and its non-goals.
-- Confirmation that `AGENTS.md` uses client-trip / service-component language and splits payer from responsibility.
 - Departure and travel-program lifecycle vocabulary.
 - The aggregate map and independent allocation axes.
-- The separation of internal membership assignments from contextual Party roles, with both remaining non-authorizing.
-- The agency-wide Directory rule alongside office-owned departure authorization.
-- The Phase 2E status correction and the required fail-closed merge/deactivation participation process for every new Party FK.
 - Departure reference scope and issuance proposal.
 - Phase 3 branch policy.
 - The Smith and Napa scenario facts used as acceptance fixtures.
 - The rule that later slice plans may add detail but may not collapse or bypass the reserved financial and fulfillment architecture.
 
-Before 3E coding, reviewers must additionally approve:
-
-- The typed financial source-of-truth physical design and any narrowly justified projection or outbox.
-- The single amendment identity's operational-to-financial extension.
-- The ADR 0001 amendment authorizing functional-currency posting and exchange-rate provenance.
-- Financial audit/event boundaries and the 3E lock-order appendix.
-
-Once the Phase 3A gate is met, 3A may proceed without blocking on detailed supplier formulas, accounting mappings, air schemas, insurance rules, the later 3E approvals, or final closeout implementation.
+Once this gate is met, 3A may proceed without blocking on detailed supplier formulas, accounting mappings, air schemas, insurance rules, or final closeout implementation.
