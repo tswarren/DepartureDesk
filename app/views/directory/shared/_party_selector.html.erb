@@ -1,6 +1,8 @@
-<%# locals: field_name:, field_id:, candidates:, selected_id: nil %>
+<%# locals: (field_name:, field_id:, candidates:, selected_id: nil, label: nil, hint: nil) %>
+<% label = label.presence || "Related party" %>
+<% hint = hint.presence || "Results are party UUIDs with role metadata. Prefix matching is not fuzzy search." %>
 <div class="dd-field-group">
-  <label class="dd-label" for="<%= field_id %>">Related party</label>
+  <label class="dd-label" for="<%= field_id %>"><%= label %></label>
   <select name="<%= field_name %>" id="<%= field_id %>" class="dd-field" required>
     <option value="">Choose a party</option>
     <% candidates.each do |candidate| %>
@@ -9,5 +11,5 @@
       </option>
     <% end %>
   </select>
-  <p class="dd-field-hint">Results are party UUIDs with role metadata. Prefix matching is not fuzzy search.</p>
+  <p class="dd-field-hint"><%= hint %></p>
 </div>

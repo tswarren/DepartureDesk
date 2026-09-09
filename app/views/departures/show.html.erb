@@ -188,26 +188,35 @@
         <p class="dd-empty-copy">No contextual party roles yet.</p>
       <% end %>
 
-      <%= form_with url: assign_party_role_departure_path(@departure), method: :post, class: "dd-form" do %>
-        <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+      <form method="get" action="<%= departure_path(@departure) %>" class="dd-form">
         <div class="dd-form-grid dd-form-grid--two-column">
           <div class="dd-field-group">
             <label class="dd-label" for="party_role">Role</label>
-            <select class="dd-field" name="role" id="party_role" required>
+            <select class="dd-field" name="role" id="party_role">
               <% DeparturePartyRoleAssignment::ROLES.each do |role| %>
-                <option value="<%= role %>"><%= role.tr("_", " ").titleize %></option>
+                <option value="<%= role %>" <%= "selected" if @party_role == role %>><%= role.tr("_", " ").titleize %></option>
               <% end %>
             </select>
           </div>
           <div class="dd-field-group">
-            <label class="dd-label" for="party_id">Party</label>
-            <select class="dd-field" name="party_id" id="party_id" required>
-              <% @party_candidates.each do |party| %>
-                <option value="<%= party.id %>"><%= party.display_name %> (<%= party.kind_label %>)</option>
-              <% end %>
-            </select>
+            <label class="dd-label" for="party_q">Search parties</label>
+            <input class="dd-field" id="party_q" name="q" value="<%= @party_q %>" autocomplete="off">
           </div>
         </div>
+        <div class="dd-form-actions">
+          <button type="submit" class="dd-button dd-button--secondary dd-button--small">Filter parties</button>
+        </div>
+      </form>
+
+      <%= form_with url: assign_party_role_departure_path(@departure), method: :post, class: "dd-form" do %>
+        <input type="hidden" name="lock_version" value="<%= @departure.lock_version %>">
+        <input type="hidden" name="role" value="<%= @party_role %>">
+        <%= render "directory/shared/party_selector",
+          field_name: "party_id",
+          field_id: "party_id",
+          candidates: @party_candidates,
+          label: "Party",
+          hint: @party_role == "group_leader" ? "Showing people. Group leaders must be people." : "Showing active parties. Filter to Group leader to restrict the list to people." %>
         <div class="dd-form-actions">
           <%= submit_tag "Assign party role", class: "dd-button dd-button--secondary" %>
         </div>

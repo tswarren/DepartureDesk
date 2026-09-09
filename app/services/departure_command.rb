@@ -133,4 +133,10 @@ class DepartureCommand < MembershipCommand
   rescue Money::Currency::UnknownCurrency
     raise Error.new("Choose a supported currency.", code: :invalid)
   end
+
+  def overlapping_party_role_interval_violation?(error)
+    cause = error.cause
+    message = [ error.message, cause&.message ].compact.join(" ")
+    cause.is_a?(PG::ExclusionViolation) && message.include?("dpra_no_overlapping_intervals")
+  end
 end

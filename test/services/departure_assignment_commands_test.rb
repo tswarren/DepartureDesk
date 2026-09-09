@@ -147,6 +147,58 @@ class DepartureAssignmentCommandsTest < ActiveSupport::TestCase
     assert second.reload.is_primary?
   end
 
+  test "reassigning the same party to the same role is a conflict" do
+    departure = create_departure!(agencies(:one), actor: users(:one))
+    AssignDeparturePartyRole.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      departure:,
+      party: parties(:unlinked),
+      role: "organizer"
+    ).call
+
+    error = assert_raises(MembershipCommand::Error) do
+      AssignDeparturePartyRole.new(
+        agency: agencies(:one),
+        actor: users(:one),
+        departure:,
+        party: parties(:unlinked),
+        role: "organizer"
+      ).call
+    end
+
+    assert_equal :conflict, error.code
+    assert_match(/overlapping period/, error.message)
+  end
+
+  test "overlapping interval exclusion is translated to conflict" do
+    departure = create_departure!(agencies(:one), actor: users(:one))
+    AssignDeparturePartyRole.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      departure:,
+      party: parties(:unlinked),
+      role: "organizer"
+    ).call
+    command = AssignDeparturePartyRole.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      departure:,
+      party: parties(:unlinked),
+      role: "organizer"
+    )
+    def command.overlapping_party_role_assignment?(*)
+      false
+    end
+
+    error = assert_raises(MembershipCommand::Error) do
+      command.call
+    end
+
+    assert_equal :conflict, error.code
+    assert_match(/overlapping period/, error.message)
+  end
+
   test "group leader must be a person" do
     departure = create_departure!(agencies(:one), actor: users(:one))
 

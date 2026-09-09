@@ -37,7 +37,7 @@ class DeparturesController < ApplicationController
     @ended_team = @departure.team_assignments.where.not(effective_until: nil).order(ended_at: :desc)
     @eligible_memberships = eligible_memberships_for(@departure.office)
     @transfer_offices = Current.agency.offices.active.order(:name) if Current.agency_membership.administrator?
-    @party_candidates = Current.agency.parties.active.order(:sort_name).limit(100)
+    load_party_selector
   end
 
   def new
@@ -259,6 +259,17 @@ class DeparturesController < ApplicationController
     @offices = Current.agency.offices.active.order(:name) if Current.agency_membership.administrator?
     @programs = Current.agency.travel_programs.active.order(:name)
     @eligible_memberships = office ? eligible_memberships_for(office) : Current.agency.agency_memberships.none
+  end
+
+  def load_party_selector
+    @party_q = params[:q].to_s.strip.presence
+    requested_role = params[:role].to_s
+    @party_role = DeparturePartyRoleAssignment::ROLES.include?(requested_role) ? requested_role : "organizer"
+    @party_candidates = DirectoryPartySelector.new(
+      agency: Current.agency,
+      mode: @party_role == "group_leader" ? "person" : "any",
+      q: @party_q
+    ).results
   end
 
   def eligible_memberships_for(office)

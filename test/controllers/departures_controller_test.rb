@@ -97,6 +97,47 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     assert_match(/\AD-\d{6,}\z/, departure.departure_reference)
   end
 
+  test "party role selector searches agency parties and restricts group leaders to people" do
+    departure = create_departure!(agencies(:one), actor: users(:one))
+    distinctive = create_person!(agencies(:one), given_name: "Quorum", family_name: "Zebrafilter").party
+    sign_in_as(users(:one))
+
+    get departure_path(departure), params: { q: "Zebrafilter", role: "organizer" }
+
+    assert_response :success
+    assert_select "option[value=?]", distinctive.id
+    assert_select "option", text: /Horizon Tours/, count: 0
+    assert_select "option", text: /Casey Nguyen/, count: 0
+
+    get departure_path(departure), params: { role: "group_leader" }
+
+    assert_response :success
+    assert_select "option[value=?]", parties(:unlinked).id
+    assert_select "option[value=?]", parties(:organization_one).id, count: 0
+    assert_select "option", text: /Horizon Tours/, count: 0
+  end
+
+  test "reassigning the same party role returns a conflict instead of a server error" do
+    departure = create_departure!(agencies(:one), actor: users(:one))
+    AssignDeparturePartyRole.new(
+      agency: agencies(:one),
+      actor: users(:one),
+      departure:,
+      party: parties(:unlinked),
+      role: "organizer"
+    ).call
+    sign_in_as(users(:one))
+
+    post assign_party_role_departure_path(departure), params: {
+      party_id: parties(:unlinked).id,
+      role: "organizer",
+      lock_version: departure.lock_version
+    }
+
+    assert_redirected_to departure_path(departure)
+    assert_match(/overlapping period/, flash[:alert])
+  end
+
   test "staff program index does not disclose inaccessible linked departures" do
     extra = CreateOffice.new(
       agency: agencies(:one),

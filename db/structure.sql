@@ -132,6 +132,60 @@ $$;
 
 
 --
+-- Name: departure_party_role_assert_one_primary(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.departure_party_role_assert_one_primary(target_departure_id uuid, target_role text) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  current_count integer;
+  primary_count integer;
+BEGIN
+  SELECT COUNT(*)::integer,
+         COUNT(*) FILTER (WHERE is_primary)::integer
+    INTO current_count, primary_count
+    FROM departure_party_role_assignments
+    WHERE departure_id = target_departure_id
+      AND role = target_role
+      AND effective_until IS NULL;
+
+  IF current_count > 0 AND primary_count <> 1 THEN
+    RAISE EXCEPTION 'a role with current assignments must have exactly one primary'
+      USING ERRCODE = 'check_violation';
+  END IF;
+END;
+$$;
+
+
+--
+-- Name: departure_party_role_current_has_one_primary(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.departure_party_role_current_has_one_primary() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP <> 'DELETE' THEN
+    PERFORM departure_party_role_assert_one_primary(NEW.departure_id, NEW.role);
+  END IF;
+
+  IF TG_OP = 'DELETE' OR (
+    TG_OP = 'UPDATE'
+    AND (
+      OLD.departure_id IS DISTINCT FROM NEW.departure_id
+      OR OLD.role IS DISTINCT FROM NEW.role
+    )
+  ) THEN
+    PERFORM departure_party_role_assert_one_primary(OLD.departure_id, OLD.role);
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+
+--
 -- Name: external_identifiers_prevent_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -460,12 +514,12 @@ CREATE TABLE public.client_profiles (
     billing_restrictions text,
     CONSTRAINT client_profiles_advisor_projection CHECK ((((primary_advisor_membership_id IS NULL) AND (primary_advisor_membership_status IS NULL)) OR ((primary_advisor_membership_id IS NOT NULL) AND ((primary_advisor_membership_status)::text = 'active'::text)))),
     CONSTRAINT client_profiles_billing_restrictions_length CHECK ((char_length(billing_restrictions) <= 2000)),
-    CONSTRAINT client_profiles_communication_preference_valid CHECK (((communication_preference)::text = ANY ((ARRAY['no_preference'::character varying, 'email'::character varying, 'phone'::character varying, 'postal_mail'::character varying])::text[]))),
+    CONSTRAINT client_profiles_communication_preference_valid CHECK (((communication_preference)::text = ANY (ARRAY[('no_preference'::character varying)::text, ('email'::character varying)::text, ('phone'::character varying)::text, ('postal_mail'::character varying)::text]))),
     CONSTRAINT client_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (primary_advisor_membership_id IS NULL) AND (primary_advisor_membership_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT client_profiles_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT client_profiles_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'household'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT client_profiles_party_kind_valid CHECK (((party_kind)::text = ANY (ARRAY[('person'::character varying)::text, ('household'::character varying)::text, ('organization'::character varying)::text]))),
     CONSTRAINT client_profiles_servicing_restrictions_length CHECK ((char_length(servicing_restrictions) <= 2000)),
-    CONSTRAINT client_profiles_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT client_profiles_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -557,9 +611,9 @@ CREATE TABLE public.departure_party_role_assignments (
     CONSTRAINT dpra_group_leader_person CHECK ((((role)::text <> 'group_leader'::text) OR ((party_kind)::text = 'person'::text))),
     CONSTRAINT dpra_lifecycle_complete CHECK ((((effective_until IS NULL) AND (ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL)) OR ((effective_until IS NOT NULL) AND (ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text)))),
     CONSTRAINT dpra_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT dpra_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'household'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT dpra_party_kind_valid CHECK (((party_kind)::text = ANY (ARRAY[('person'::character varying)::text, ('household'::character varying)::text, ('organization'::character varying)::text]))),
     CONSTRAINT dpra_range_order CHECK (((effective_until IS NULL) OR (effective_until >= effective_from))),
-    CONSTRAINT dpra_role_valid CHECK (((role)::text = ANY ((ARRAY['organizer'::character varying, 'group_leader'::character varying, 'sponsor'::character varying])::text[]))),
+    CONSTRAINT dpra_role_valid CHECK (((role)::text = ANY (ARRAY[('organizer'::character varying)::text, ('group_leader'::character varying)::text, ('sponsor'::character varying)::text]))),
     CONSTRAINT dpra_snapshot_not_blank CHECK ((btrim((party_display_name_snapshot)::text) <> ''::text))
 );
 
@@ -602,7 +656,7 @@ CREATE TABLE public.departure_team_assignments (
     CONSTRAINT dta_lifecycle_complete CHECK ((((effective_until IS NULL) AND (ended_at IS NULL) AND (ended_by_membership_id IS NULL) AND (ending_reason IS NULL) AND ((membership_status)::text = 'active'::text)) OR ((effective_until IS NOT NULL) AND (ended_at IS NOT NULL) AND (ended_by_membership_id IS NOT NULL) AND (btrim((ending_reason)::text) <> ''::text) AND (membership_status IS NULL)))),
     CONSTRAINT dta_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT dta_range_order CHECK (((effective_until IS NULL) OR (effective_until >= effective_from))),
-    CONSTRAINT dta_role_valid CHECK (((assignment_role)::text = ANY ((ARRAY['group_manager'::character varying, 'responsible_advisor'::character varying])::text[]))),
+    CONSTRAINT dta_role_valid CHECK (((assignment_role)::text = ANY (ARRAY[('group_manager'::character varying)::text, ('responsible_advisor'::character varying)::text]))),
     CONSTRAINT dta_snapshot_not_blank CHECK ((btrim((member_name_snapshot)::text) <> ''::text))
 );
 
@@ -641,12 +695,12 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_date_order CHECK ((end_date >= start_date)),
     CONSTRAINT departures_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT departures_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
-    CONSTRAINT departures_owning_office_projection CHECK (((((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying])::text[])) AND (owning_office_status IS NOT NULL) AND ((owning_office_status)::text = 'active'::text)) OR (((status)::text = 'cancelled'::text) AND (owning_office_status IS NULL)))),
-    CONSTRAINT departures_program_projection CHECK ((((travel_program_id IS NULL) AND (travel_program_status IS NULL)) OR ((travel_program_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying])::text[])) AND (travel_program_status IS NOT NULL) AND ((travel_program_status)::text = 'active'::text)) OR ((travel_program_id IS NOT NULL) AND ((status)::text = 'cancelled'::text) AND (travel_program_status IS NULL)))),
+    CONSTRAINT departures_owning_office_projection CHECK (((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('planning'::character varying)::text])) AND (owning_office_status IS NOT NULL) AND ((owning_office_status)::text = 'active'::text)) OR (((status)::text = 'cancelled'::text) AND (owning_office_status IS NULL)))),
+    CONSTRAINT departures_program_projection CHECK ((((travel_program_id IS NULL) AND (travel_program_status IS NULL)) OR ((travel_program_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('planning'::character varying)::text])) AND (travel_program_status IS NOT NULL) AND ((travel_program_status)::text = 'active'::text)) OR ((travel_program_id IS NOT NULL) AND ((status)::text = 'cancelled'::text) AND (travel_program_status IS NULL)))),
     CONSTRAINT departures_reference_format CHECK (((departure_reference)::text ~ '^D-[0-9]{6,}$'::text)),
     CONSTRAINT departures_sales_date_order CHECK (((sales_open_on IS NULL) OR (sales_close_on IS NULL) OR (sales_close_on >= sales_open_on))),
-    CONSTRAINT departures_status_metadata CHECK (((((status)::text = 'cancelled'::text) AND (btrim((status_reason)::text) <> ''::text)) OR (((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying])::text[])) AND (status_reason IS NULL)))),
-    CONSTRAINT departures_status_valid CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'planning'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT departures_status_metadata CHECK (((((status)::text = 'cancelled'::text) AND (btrim((status_reason)::text) <> ''::text)) OR (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('planning'::character varying)::text])) AND (status_reason IS NULL)))),
+    CONSTRAINT departures_status_valid CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('planning'::character varying)::text, ('cancelled'::character varying)::text])))
 );
 
 
@@ -675,13 +729,13 @@ CREATE TABLE public.external_identifiers (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT external_identifiers_exactly_one_owner CHECK ((((((party_id IS NOT NULL))::integer + ((client_profile_id IS NOT NULL))::integer) + ((supplier_profile_id IS NOT NULL))::integer) = 1)),
-    CONSTRAINT external_identifiers_issuer_required CHECK ((((identifier_type)::text <> ALL ((ARRAY['legacy_client_id'::character varying, 'external_crm_id'::character varying, 'supplier_account_number'::character varying, 'supplier_portal_id'::character varying, 'industry_supplier_code'::character varying])::text[])) OR ((issuer IS NOT NULL) AND (btrim((issuer)::text) <> ''::text)))),
+    CONSTRAINT external_identifiers_issuer_required CHECK ((((identifier_type)::text <> ALL (ARRAY[('legacy_client_id'::character varying)::text, ('external_crm_id'::character varying)::text, ('supplier_account_number'::character varying)::text, ('supplier_portal_id'::character varying)::text, ('industry_supplier_code'::character varying)::text])) OR ((issuer IS NOT NULL) AND (btrim((issuer)::text) <> ''::text)))),
     CONSTRAINT external_identifiers_lifecycle CHECK (((((status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT external_identifiers_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT external_identifiers_office_id_null CHECK ((office_id IS NULL)),
     CONSTRAINT external_identifiers_source_valid CHECK (((source)::text = 'staff'::text)),
-    CONSTRAINT external_identifiers_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
-    CONSTRAINT external_identifiers_type_owner CHECK (((((identifier_type)::text = 'legacy_party_id'::text) AND (party_id IS NOT NULL) AND (client_profile_id IS NULL) AND (supplier_profile_id IS NULL)) OR (((identifier_type)::text = ANY ((ARRAY['legacy_client_id'::character varying, 'external_crm_id'::character varying])::text[])) AND (client_profile_id IS NOT NULL) AND (party_id IS NULL) AND (supplier_profile_id IS NULL)) OR (((identifier_type)::text = ANY ((ARRAY['supplier_account_number'::character varying, 'supplier_portal_id'::character varying, 'industry_supplier_code'::character varying])::text[])) AND (supplier_profile_id IS NOT NULL) AND (party_id IS NULL) AND (client_profile_id IS NULL)))),
+    CONSTRAINT external_identifiers_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text]))),
+    CONSTRAINT external_identifiers_type_owner CHECK (((((identifier_type)::text = 'legacy_party_id'::text) AND (party_id IS NOT NULL) AND (client_profile_id IS NULL) AND (supplier_profile_id IS NULL)) OR (((identifier_type)::text = ANY (ARRAY[('legacy_client_id'::character varying)::text, ('external_crm_id'::character varying)::text])) AND (client_profile_id IS NOT NULL) AND (party_id IS NULL) AND (supplier_profile_id IS NULL)) OR (((identifier_type)::text = ANY (ARRAY[('supplier_account_number'::character varying)::text, ('supplier_portal_id'::character varying)::text, ('industry_supplier_code'::character varying)::text])) AND (supplier_profile_id IS NOT NULL) AND (party_id IS NULL) AND (client_profile_id IS NULL)))),
     CONSTRAINT external_identifiers_values_not_blank CHECK (((btrim((original_value)::text) <> ''::text) AND (btrim((normalized_value)::text) <> ''::text)))
 );
 
@@ -1135,11 +1189,11 @@ CREATE TABLE public.supplier_profiles (
     CONSTRAINT supplier_profiles_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT supplier_profiles_lifecycle_and_status_projections CHECK (((((status)::text = 'active'::text) AND (party_status IS NOT NULL) AND ((party_status)::text = 'active'::text) AND (responsible_office_status IS NOT NULL) AND ((responsible_office_status)::text = 'active'::text) AND (deactivated_at IS NULL) AND (deactivated_by_membership_id IS NULL) AND (deactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (party_status IS NULL) AND (responsible_office_status IS NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_by_membership_id IS NOT NULL) AND (btrim((deactivation_reason)::text) <> ''::text)))),
     CONSTRAINT supplier_profiles_lock_version_nonnegative CHECK ((lock_version >= 0)),
-    CONSTRAINT supplier_profiles_party_kind_valid CHECK (((party_kind)::text = ANY ((ARRAY['person'::character varying, 'organization'::character varying])::text[]))),
+    CONSTRAINT supplier_profiles_party_kind_valid CHECK (((party_kind)::text = ANY (ARRAY[('person'::character varying)::text, ('organization'::character varying)::text]))),
     CONSTRAINT supplier_profiles_payment_instructions_length CHECK ((char_length(payment_instructions) <= 2000)),
     CONSTRAINT supplier_profiles_payment_term_notes_length CHECK ((char_length(payment_term_notes) <= 2000)),
     CONSTRAINT supplier_profiles_portal_url_https CHECK (((portal_url IS NULL) OR (((portal_url)::text ~ '^https://'::text) AND ((portal_url)::text !~ '^https://[^/]*@'::text)))),
-    CONSTRAINT supplier_profiles_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT supplier_profiles_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -1154,7 +1208,7 @@ CREATE TABLE public.supplier_service_category_assignments (
     category_code character varying NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT ssca_category_code_valid CHECK (((category_code)::text = ANY ((ARRAY['accommodation'::character varying, 'air'::character varying, 'cruise'::character varying, 'rail'::character varying, 'ground_transportation'::character varying, 'tour_operator'::character varying, 'activity'::character varying, 'venue'::character varying, 'dining'::character varying, 'insurance'::character varying, 'destination_management'::character varying])::text[])))
+    CONSTRAINT ssca_category_code_valid CHECK (((category_code)::text = ANY (ARRAY[('accommodation'::character varying)::text, ('air'::character varying)::text, ('cruise'::character varying)::text, ('rail'::character varying)::text, ('ground_transportation'::character varying)::text, ('tour_operator'::character varying)::text, ('activity'::character varying)::text, ('venue'::character varying)::text, ('dining'::character varying)::text, ('insurance'::character varying)::text, ('destination_management'::character varying)::text])))
 );
 
 
@@ -1178,7 +1232,7 @@ CREATE TABLE public.travel_programs (
     CONSTRAINT travel_programs_lifecycle_metadata CHECK (((((status)::text = 'active'::text) AND (inactivated_at IS NULL) AND (inactivated_by_membership_id IS NULL) AND (inactivation_reason IS NULL)) OR (((status)::text = 'inactive'::text) AND (inactivated_at IS NOT NULL) AND (inactivated_by_membership_id IS NOT NULL) AND (btrim((inactivation_reason)::text) <> ''::text)))),
     CONSTRAINT travel_programs_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT travel_programs_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
-    CONSTRAINT travel_programs_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT travel_programs_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -2482,6 +2536,13 @@ CREATE TRIGGER client_profiles_identity_immutable BEFORE UPDATE ON public.client
 
 
 --
+-- Name: departure_party_role_assignments dpra_current_role_has_one_primary; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER dpra_current_role_has_one_primary AFTER INSERT OR DELETE OR UPDATE ON public.departure_party_role_assignments DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.departure_party_role_current_has_one_primary();
+
+
+--
 -- Name: external_identifiers external_identifiers_identity_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -3370,6 +3431,7 @@ ALTER TABLE ONLY public.travel_programs
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909120000'),
 ('20260909011000'),
 ('20260909010000'),
 ('20260908010000'),

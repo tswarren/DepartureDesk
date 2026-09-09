@@ -368,7 +368,7 @@ Constraints and indexes:
 - Prevent duplicate overlapping same-party/same-role assignment.
 - Named check requires `party_kind = 'person'` when `role = 'group_leader'`; command validation provides the same domain message.
 
-Whenever a role has one or more current assignments, exactly one must be primary. The unique partial index enforces at most one current primary. Commands enforce at least one: the first assignment becomes primary; additional assignments default nonprimary; ending the primary requires choosing a replacement or ending all current assignments for that role; `SetPrimaryDeparturePartyRole` switches atomically.
+Whenever a role has one or more current assignments, exactly one must be primary. The unique partial index enforces at most one current primary. A deferred constraint trigger enforces the remainder at transaction commit: if current assignments exist for a departure and role, exactly one of them must be primary. Commands maintain the same invariant operationally: the first assignment becomes primary; additional assignments default nonprimary; ending the primary requires choosing a replacement or ending all current assignments for that role; `SetPrimaryDeparturePartyRole` switches atomically. `AssignDeparturePartyRole` rejects an overlapping same-party/same-role interval before insert and translates `dpra_no_overlapping_intervals` to `:conflict`.
 
 Organizer and sponsor may reference a person, household, or organization. Group leader references a person.
 

@@ -20,6 +20,10 @@ class AssignDeparturePartyRole < DepartureCommand
     end
   rescue ActiveRecord::StaleObjectError
     raise Error.new("This departure was updated by someone else.", code: :conflict)
+  rescue ActiveRecord::StatementInvalid => error
+    raise overlapping_party_role_error if overlapping_party_role_interval_violation?(error)
+
+    raise
   rescue ActiveRecord::RecordInvalid => error
     raise Error.new(error.record.errors.full_messages.to_sentence, code: :invalid)
   end
@@ -43,6 +47,11 @@ class AssignDeparturePartyRole < DepartureCommand
       raise Error.new("A group leader must be a person.", code: :invalid)
     end
 
+    effective_from = @effective_from.presence || OfficeDate.today(@departure.office)
+    if overlapping_party_role_assignment?(effective_from)
+      raise overlapping_party_role_error
+    end
+
     current_for_role = @departure.party_role_assignments.current.where(role: @role)
     assignment = @departure.party_role_assignments.create!(
       agency: @agency,
@@ -51,7 +60,7 @@ class AssignDeparturePartyRole < DepartureCommand
       role: @role,
       party_display_name_snapshot: @party.display_name,
       is_primary: current_for_role.none?,
-      effective_from: @effective_from.presence || OfficeDate.today(@departure.office),
+      effective_from:,
       assigned_at: Time.current,
       assigned_by_membership: actor
     )
@@ -69,5 +78,16 @@ class AssignDeparturePartyRole < DepartureCommand
       **actor_audit_args
     )
     CommandResult.new(status: :created, departure: @departure, assignment:)
+  end
+
+  def overlapping_party_role_assignment?(effective_from)
+    @departure.party_role_assignments
+      .where(role: @role, party_id: @party.id)
+      .where("effective_until IS NULL OR effective_until > ?", effective_from)
+      .exists?
+  end
+
+  def overlapping_party_role_error
+    Error.new("That party is already assigned to this role for an overlapping period.", code: :conflict)
   end
 end
