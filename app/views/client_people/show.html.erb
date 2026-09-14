@@ -48,3 +48,6 @@
   <%= render "client_people/contact_channel", heading: "Phone numbers", records: @phone_numbers, new_path: new_client_person_phone_number_path(@client_person), channel: :phone %>
   <%= render "client_people/contact_channel", heading: "Postal addresses", records: @postal_addresses, new_path: new_client_person_postal_address_path(@client_person), channel: :postal %>
 <% end %>
+
+<%= render "client_people/organization_assignments", heading: "Current organization assignments", records: @current_organization_contacts %>
+<%= render "client_people/organization_assignments", heading: "Historical organization assignments", records: @historical_organization_contacts %>

@@ -1,5 +1,13 @@
 class DirectoryDuplicateGate
-  CONTACT_CLASSES = %w[ClientPersonEmailAddress ClientPersonPhoneNumber ClientPersonPostalAddress].freeze
+  CONTACT_CLASSES = %w[
+    ClientPersonEmailAddress
+    ClientPersonPhoneNumber
+    ClientPersonPostalAddress
+    ClientOrganizationEmailAddress
+    ClientOrganizationPhoneNumber
+    ClientOrganizationPostalAddress
+    ClientOrganizationWebsite
+  ].freeze
 
   def initialize(agency:, actor:, command:, token:, reason:, fingerprint:, proposed_ids: {}, target: nil, current_fingerprint: nil)
     @agency = agency
@@ -40,13 +48,14 @@ class DirectoryDuplicateGate
     return replay_contact_create(payload) if payload["contact_point_id"].present?
 
     person = find_person(payload["person_id"])
+    organization = find_organization(payload["organization_id"])
     client = find_client(payload["client_id"])
-    expected = [ payload["person_id"], payload["client_id"] ].compact
-    found = [ person, client ].compact
+    expected = [ payload["person_id"], payload["organization_id"], payload["client_id"] ].compact
+    found = [ person, organization, client ].compact
     return if found.empty?
-    raise conflict! if found.size != expected.size || !related?(person, client, nil)
+    raise conflict! if found.size != expected.size || !related?(person, organization, client, nil)
 
-    AgencyCommand::Result.new(status: :replayed, record: client || person)
+    AgencyCommand::Result.new(status: :replayed, record: client || organization || person)
   end
 
   def replay_contact_create(payload)
@@ -54,7 +63,8 @@ class DirectoryDuplicateGate
     return if contact.nil?
 
     person = find_person(payload["person_id"])
-    raise conflict! unless person && contact.client_person_id == person.id
+    organization = find_organization(payload["organization_id"])
+    raise conflict! unless related?(person, organization, nil, contact)
 
     AgencyCommand::Result.new(status: :replayed, record: contact)
   end
@@ -121,6 +131,12 @@ class DirectoryDuplicateGate
     @agency.clients.find_by(id: id)
   end
 
+  def find_organization(id)
+    return if id.blank?
+
+    @agency.client_organizations.find_by(id: id)
+  end
+
   def find_contact(payload)
     id = payload["contact_point_id"]
     class_name = payload["contact_class"]
@@ -138,10 +154,12 @@ class DirectoryDuplicateGate
     AgencyCommand::Error.new("That acknowledgement does not match an existing result.", code: :conflict)
   end
 
-  def related?(person, client, contact)
+  def related?(person, organization, client, contact)
     return false if client && person && client.client_person_id != person.id
+    return false if client && organization && client.client_organization_id != organization.id
     return false if contact && person && contact.client_person_id != person.id
+    return false if contact && organization && contact.client_organization_id != organization.id
 
-    true
+    person.present? || organization.present? || client.present?
   end
 end

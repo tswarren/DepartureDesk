@@ -52,6 +52,40 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :client_organizations, path: "clients/organizations", param: :client_organization_id, only: %i[index new create show edit update] do
+    member do
+      get "status/edit", action: :edit_status
+      patch :status, action: :update_status
+      post :client, action: :create_client
+      get "client/status/edit", action: :edit_client_status
+      patch "client/status", action: :update_client_status
+    end
+  end
+  scope "/clients/organizations/:client_organization_id", as: :client_organization do
+    resources :contacts, controller: "client_organization_contacts", param: :organization_contact_id, only: %i[index new create show edit update] do
+      member do
+        get "end", action: :edit_end
+        patch :end, action: :end
+        patch :primary, action: :primary
+      end
+    end
+
+    {
+      email_addresses: "email-addresses",
+      phone_numbers: "phone-numbers",
+      postal_addresses: "postal-addresses",
+      websites: "websites"
+    }.each do |name, path|
+      resources name, path: path, param: :contact_point_id, only: %i[new create edit update], controller: "client_organization_#{name}" do
+        member do
+          get "status/edit", action: :edit_status
+          patch :status, action: :update_status
+          post :set_primary
+        end
+      end
+    end
+  end
+
   root "dashboard#show"
 
   if Rails.env.development?

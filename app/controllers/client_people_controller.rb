@@ -27,6 +27,8 @@ class ClientPeopleController < ApplicationController
   end
 
   def show
+    @current_organization_contacts = @client_person.organization_contacts.current.includes(:client_organization).primary_first
+    @historical_organization_contacts = @client_person.organization_contacts.historical.includes(:client_organization).primary_first
     return unless can_view_contact_details?
 
     @email_addresses = @client_person.email_addresses.preferred_first

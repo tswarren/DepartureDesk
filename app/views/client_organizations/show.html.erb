@@ -1,0 +1,58 @@
+<% content_for :title, "#{@client_organization.display_name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Clients</p>
+    <h1 class="dd-page-title"><%= @client_organization.display_name %></h1>
+    <p class="dd-page-description"><%= @client_organization.legal_name.presence || "Organization" %></p>
+  </div>
+  <% if Current.agency_user.permitted?(:manage_client_directory) %>
+    <div class="dd-page-actions">
+      <%= link_to "Edit organization", edit_client_organization_path(@client_organization), class: "dd-button" %>
+      <%= link_to "Change organization status", status_edit_client_organization_path(@client_organization), class: "dd-button dd-button--quiet" %>
+      <% if @client_organization.client %>
+        <%= link_to "Change Client status", client_status_edit_client_organization_path(@client_organization), class: "dd-button dd-button--quiet" %>
+      <% elsif @client_organization.active? %>
+        <%= button_to "Create Client", client_client_organization_path(@client_organization), method: :post, class: "dd-button" %>
+      <% end %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Status</dt>
+        <dd><%= directory_status_badge(@client_organization.status) %></dd>
+      </div>
+      <div>
+        <dt>Legal name</dt>
+        <dd><%= @client_organization.legal_name.presence || "-" %></dd>
+      </div>
+      <div>
+        <dt>Client</dt>
+        <dd>
+          <% if @client_organization.client %>
+            <span class="dd-inline-actions">
+              <span class="dd-type-mono"><%= @client_organization.client.client_reference %></span>
+              <%= directory_status_badge(@client_organization.client.status) %>
+            </span>
+          <% else %>
+            No Client
+          <% end %>
+        </dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<% if Current.agency_user.permitted?(:view_client_contact_details) %>
+  <%= render "contact_channel", heading: "Email addresses", records: @email_addresses, new_path: new_client_organization_email_address_path(@client_organization) %>
+  <%= render "contact_channel", heading: "Phone numbers", records: @phone_numbers, new_path: new_client_organization_phone_number_path(@client_organization) %>
+  <%= render "contact_channel", heading: "Postal addresses", records: @postal_addresses, new_path: new_client_organization_postal_address_path(@client_organization) %>
+  <%= render "contact_channel", heading: "Websites", records: @websites, new_path: new_client_organization_website_path(@client_organization) %>
+<% end %>
+
+<%= render "organization_contacts", heading: "Current contacts", records: @current_contacts, current: true %>
+<%= render "organization_contacts", heading: "Historical contacts", records: @historical_contacts, current: false %>

@@ -3,13 +3,14 @@
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Clients</p>
-    <h1 class="dd-page-title">People</h1>
-    <p class="dd-page-description">Search people in this agency. A person is not a Client until one is created.</p>
+    <h1 class="dd-page-title">Clients</h1>
+    <p class="dd-page-description">Search people and organizations in this agency. A source is not a Client until one is created.</p>
   </div>
   <% if Current.agency_user.permitted?(:manage_client_directory) %>
     <div class="dd-page-actions">
       <%= link_to "New Client", new_client_path, class: "dd-button" %>
       <%= link_to "Add person", new_client_person_path, class: "dd-button dd-button--quiet" %>
+      <%= link_to "Add organization", new_client_organization_path, class: "dd-button dd-button--quiet" %>
     </div>
   <% end %>
 </header>
@@ -20,6 +21,10 @@
       <div class="dd-field-group">
         <%= form.label :q, "Search", class: "dd-label" %>
         <%= form.search_field :q, value: params[:q], maxlength: 100, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :kind, "Record type", class: "dd-label" %>
+        <%= form.select :kind, [ [ "All", "all" ], [ "People", "people" ], [ "Organizations", "organizations" ] ], { selected: @kind }, class: "dd-field" %>
       </div>
       <div class="dd-field-group">
         <%= form.label :status, "Status", class: "dd-label" %>
@@ -34,43 +39,32 @@
 </article>
 
 <% if @search %>
-  <p><%= @search.truncated ? "Showing the first 50 matches. Narrow the search to see the rest." : "#{pluralize(@search.records.size, "match")}." %></p>
+  <p><%= @search.truncated ? "Showing the first 50 records matched. Narrow the #{params[:q].present? ? "search" : "filters"} to see the rest." : "#{pluralize(@search.records.size, "record")} matched." %></p>
   <article class="dd-panel">
     <table class="dd-table">
       <thead>
         <tr>
           <th>Name</th>
+          <th>Record type</th>
           <th>Client reference</th>
-          <th>Status</th>
+          <th>Source status</th>
+          <th>Client status</th>
         </tr>
       </thead>
       <tbody>
-        <% @search.records.each do |person| %>
+        <% @search.records.each do |record| %>
           <tr>
-            <td><%= link_to person.display_name, client_person_path(person.id) %></td>
-            <td><%= person.client_reference.presence || "No Client" %></td>
-            <td><%= directory_status_badge(person.status) %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </article>
-<% elsif @people %>
-  <article class="dd-panel">
-    <table class="dd-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Client reference</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @people.each do |person| %>
-          <tr>
-            <td><%= link_to person.display_name, client_person_path(person) %></td>
-            <td><%= person.client&.client_reference || "No Client" %></td>
-            <td><%= directory_status_badge(person.status) %></td>
+            <td>
+              <% if record.record_type == "organization" %>
+                <%= link_to record.display_name, client_organization_path(record.id) %>
+              <% else %>
+                <%= link_to record.display_name, client_person_path(record.id) %>
+              <% end %>
+            </td>
+            <td><%= record.record_type == "organization" ? "Organization" : "Person" %></td>
+            <td><%= record.client_reference.presence || "No Client" %></td>
+            <td><%= directory_status_badge(record.status) %></td>
+            <td><%= record.client_status.present? ? directory_status_badge(record.client_status) : "—" %></td>
           </tr>
         <% end %>
       </tbody>

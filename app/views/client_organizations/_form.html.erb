@@ -1,0 +1,10 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<div class="dd-field-group">
+  <%= form.label :display_name, "Display name", class: "dd-label" %>
+  <%= form.text_field :display_name, required: true, class: "dd-field" %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :legal_name, "Legal name", class: "dd-label" %>
+  <%= form.text_field :legal_name, class: "dd-field" %>
+</div>
+<%= render "shared/duplicate_review" %>

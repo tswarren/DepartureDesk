@@ -1,0 +1,44 @@
+<% content_for :title, "Organization Contact · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Clients</p>
+    <h1 class="dd-page-title"><%= @organization_contact.client_person.display_name %></h1>
+    <p class="dd-page-description"><%= @client_organization.display_name %></p>
+  </div>
+  <% if Current.agency_user.permitted?(:manage_client_directory) %>
+    <div class="dd-page-actions">
+      <%= link_to "Edit contact", edit_client_organization_contact_path(@client_organization, @organization_contact), class: "dd-button" %>
+      <% if @organization_contact.current? %>
+        <%= link_to "End contact", end_client_organization_contact_path(@client_organization, @organization_contact), class: "dd-button dd-button--quiet" %>
+      <% end %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Person</dt>
+        <dd><%= link_to @organization_contact.client_person.display_name, client_person_path(@organization_contact.client_person) %></dd>
+      </div>
+      <div>
+        <dt>Role</dt>
+        <dd><%= @organization_contact.role_label.presence || "-" %></dd>
+      </div>
+      <div>
+        <dt>Title</dt>
+        <dd><%= @organization_contact.title.presence || "-" %></dd>
+      </div>
+      <div>
+        <dt>Dates</dt>
+        <dd><%= [@organization_contact.starts_on, @organization_contact.ends_on || "Current"].join(" to ") %></dd>
+      </div>
+      <div>
+        <dt>Primary</dt>
+        <dd><%= @organization_contact.primary? ? "Primary" : "-" %></dd>
+      </div>
+    </dl>
+  </div>
+</article>

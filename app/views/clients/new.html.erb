@@ -3,19 +3,36 @@
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Clients</p>
-    <h1 class="dd-page-title">New individual Client</h1>
-    <p class="dd-page-description">Creates a person and that person's one Client. This is not an organization.</p>
+    <h1 class="dd-page-title">New Client</h1>
+    <p class="dd-page-description">Creates a person or organization and its one Client.</p>
   </div>
 </header>
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <%= form_with model: @client_person, url: clients_path, class: "dd-form" do |form| %>
-      <%= render "client_people/form", form: form %>
-      <div class="dd-form-actions">
-        <%= form.submit "Create Client", class: "dd-button" %>
-        <%= link_to "Cancel", clients_path, class: "dd-button dd-button--quiet" %>
-      </div>
+    <div class="dd-inline-actions" role="navigation" aria-label="Client source">
+      <%= link_to "Individual", new_client_path(source: "individual"), class: "dd-button #{@source == 'individual' ? '' : 'dd-button--quiet'}" %>
+      <%= link_to "Organization", new_client_path(source: "organization"), class: "dd-button #{@source == 'organization' ? '' : 'dd-button--quiet'}" %>
+    </div>
+
+    <% if @source == "organization" %>
+      <%= form_with model: @client_organization, url: clients_path, class: "dd-form" do |form| %>
+        <%= hidden_field_tag :source, "organization" %>
+        <%= render "client_organizations/form", form: form %>
+        <div class="dd-form-actions">
+          <%= form.submit "Create Client", class: "dd-button" %>
+          <%= link_to "Cancel", clients_path, class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    <% else %>
+      <%= form_with model: @client_person, url: clients_path, class: "dd-form" do |form| %>
+        <%= hidden_field_tag :source, "individual" %>
+        <%= render "client_people/form", form: form %>
+        <div class="dd-form-actions">
+          <%= form.submit "Create Client", class: "dd-button" %>
+          <%= link_to "Cancel", clients_path, class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
     <% end %>
   </div>
 </article>

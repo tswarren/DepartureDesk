@@ -36,7 +36,8 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/commercial-domain-decision-register.md`](planning/commercial-domain-decision-register.md) | Detailed commercial and financial rules. |
 | [`planning/roadmap.md`](planning/roadmap.md) | Milestone order and entry/exit gates. |
 | [`planning/m1-client-and-supplier-directories.md`](planning/m1-client-and-supplier-directories.md) | Accepted M1 directory contract. Slice code waits for an accepted slice plan. |
-| [`planning/m1a-individual-client.md`](planning/m1a-individual-client.md) | Accepted and implemented individual-Client slice. Organizations and Suppliers remain unbuilt. |
+| [`planning/m1a-individual-client.md`](planning/m1a-individual-client.md) | Implemented individual-Client slice, merged to main. |
+| [`planning/m1b-client-organizations.md`](planning/m1b-client-organizations.md) | Implemented on branch Client Organization slice; shipped when merged. Suppliers remain unbuilt. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |

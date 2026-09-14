@@ -1,6 +1,6 @@
 # M1A — Individual Client
 
-**Status:** Accepted slice plan. Implementation authority for the individual-Client vertical slice only.
+**Status:** Implemented. Merged to main on 2026-09-14 in pull request #30. This document remains the individual-Client contract. It is not authority to extend the directory.
 
 **Parent:** [M1 — Client and Supplier directories](m1-client-and-supplier-directories.md), accepted 2026-09-14. The parent status line must read Accepted. This slice plan is not implementation authority while it remains Draft, and it cannot become implementation authority if the parent returns to Draft.
 
@@ -252,8 +252,8 @@ Development fixtures and seeds are obviously fictional and idempotent. Do not se
 
 ## When this slice ships
 
-Update `AGENTS.md`, current architecture, terminology, the interface contract navigation section, and [docs/README.md](../README.md) so Client Person and individual Client are distinguishable from the rest of M1. Do not describe organizations or Suppliers as shipped.
+`AGENTS.md`, current architecture, terminology, the interface contract navigation section, and [docs/README.md](../README.md) distinguish Client Person and individual Client from the rest of M1. Do not describe organizations or Suppliers as shipped.
 
 ## Acceptance of this plan
 
-Product review accepted this slice plan on 2026-09-14. That acceptance authorizes M1A implementation only. It does not authorize M1B–M1E.
+Product review accepted this slice plan on 2026-09-14. The slice merged to main on 2026-09-14. That does not authorize M1B–M1E.

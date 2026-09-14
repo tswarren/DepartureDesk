@@ -1,14 +1,14 @@
 <% if @acknowledgement_token.present? %>
   <section class="dd-callout" aria-labelledby="duplicate-review-heading">
     <h2 id="duplicate-review-heading" class="dd-panel-title">Possible duplicates</h2>
-    <p>These records may be the same person. Saving continues only after you record why they are distinct.</p>
+    <p>These records may already exist. Saving continues only after you record why they are distinct.</p>
     <ul>
       <% @duplicate_candidates.each do |candidate| %>
         <li>
           <%= candidate.display_name %>
           <span><%= candidate.status.titleize %></span>
           <span><%= candidate.signals.join(", ").humanize %></span>
-          <%= link_to "View existing", client_person_path(candidate.id) %>
+          <%= link_to "View existing", duplicate_candidate_path(candidate) %>
         </li>
       <% end %>
     </ul>

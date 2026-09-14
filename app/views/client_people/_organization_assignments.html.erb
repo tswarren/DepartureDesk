@@ -1,0 +1,33 @@
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title"><%= heading %></h2>
+  </header>
+  <% if records.any? %>
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th scope="col">Organization</th>
+          <th scope="col">Role</th>
+          <th scope="col">Title</th>
+          <th scope="col">Dates</th>
+          <th scope="col">Primary</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% records.each do |assignment| %>
+          <tr>
+            <td><%= link_to assignment.client_organization.display_name, client_organization_path(assignment.client_organization) %></td>
+            <td><%= assignment.role_label.presence || "-" %></td>
+            <td><%= assignment.title.presence || "-" %></td>
+            <td><%= [assignment.starts_on, assignment.ends_on || "Current"].join(" to ") %></td>
+            <td><%= assignment.primary? ? "Primary" : "-" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <div class="dd-panel-body">
+      <p>No assignments.</p>
+    </div>
+  <% end %>
+</article>

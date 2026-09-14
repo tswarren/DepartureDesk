@@ -15,8 +15,20 @@ module DirectoryAccess
     Current.agency.client_people
   end
 
+  def directory_organizations
+    Current.agency.client_organizations
+  end
+
+  def directory_organization_contacts
+    Current.agency.client_organization_contacts
+  end
+
   def set_client_person
     @client_person = directory_people.find(params[:client_person_id] || params[:id])
+  end
+
+  def set_client_organization
+    @client_organization = directory_organizations.find(params[:client_organization_id] || params[:id])
   end
 
   def can_view_contact_details?
@@ -39,6 +51,10 @@ module DirectoryAccess
 
   def person_params
     params.expect(client_person: %i[first_name middle_name last_name suffix preferred_name lock_version])
+  end
+
+  def organization_params
+    params.expect(client_organization: %i[display_name legal_name lock_version])
   end
 
   def acknowledgement_params

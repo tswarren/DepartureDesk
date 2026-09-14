@@ -1,0 +1,52 @@
+<% manage = Current.agency_user.permitted?(:manage_client_directory) %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title"><%= heading %></h2>
+    <% if manage && @client_organization.active? %>
+      <%= link_to "Add", new_path, class: "dd-button dd-button--quiet" %>
+    <% end %>
+  </header>
+  <table class="dd-table dd-table--channels">
+    <colgroup>
+      <col class="dd-col-destination">
+      <col class="dd-col-label">
+      <col class="dd-col-preferred">
+      <col class="dd-col-status">
+      <% if manage %>
+        <col class="dd-col-actions">
+      <% end %>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="dd-col-destination" scope="col">Destination</th>
+        <th class="dd-col-label" scope="col">Label</th>
+        <th class="dd-col-preferred" scope="col">Preferred</th>
+        <th class="dd-col-status" scope="col">Status</th>
+        <% if manage %>
+          <th class="dd-col-actions" scope="col">Actions</th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody>
+      <% records.each do |record| %>
+        <tr class="<%= "is-inactive" unless record.active? %>">
+          <td class="dd-col-destination"><%= contact_destination(record) %></td>
+          <td class="dd-col-label"><%= record.label.presence || "—" %></td>
+          <td class="dd-col-preferred"><%= preferred_indicator(record) %></td>
+          <td class="dd-col-status"><%= directory_status_badge(record.status) %></td>
+          <% if manage %>
+            <td class="dd-col-actions">
+              <div class="dd-inline-actions">
+                <%= link_to "Edit", organization_contact_edit_path(record), class: "dd-row-action dd-row-action--edit" %>
+                <% if @client_organization.active? && record.active? && !record.preferred? %>
+                  <%= button_to "Set primary", organization_contact_set_primary_path(record), method: :post, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { lock_version: record.lock_version } %>
+                <% end %>
+              </div>
+            </td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</article>

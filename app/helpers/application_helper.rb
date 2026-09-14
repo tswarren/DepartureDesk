@@ -38,10 +38,22 @@ module ApplicationHelper
   def contact_destination(record)
     case record
     when ClientPersonEmailAddress then record.address
+    when ClientOrganizationEmailAddress then record.address
     when ClientPersonPhoneNumber
       record.formatted_number(viewer_country: Current.agency&.country_code)
+    when ClientOrganizationPhoneNumber
+      PhoneNumberNormalizer.display(
+        normalized_number: record.normalized_number,
+        country_code: record.country_code,
+        extension: record.extension,
+        viewer_country: Current.agency&.country_code
+      )
     when ClientPersonPostalAddress
       [ record.line_1, record.line_2, record.locality, record.region, record.postal_code, record.country_code ].compact_blank.join(", ")
+    when ClientOrganizationPostalAddress
+      [ record.line_1, record.line_2, record.locality, record.region, record.postal_code, record.country_code ].compact_blank.join(", ")
+    when ClientOrganizationWebsite
+      record.url
     end
   end
 
@@ -80,9 +92,67 @@ module ApplicationHelper
     end
   end
 
+  def organization_contact_form_url(organization, record)
+    case record
+    when ClientOrganizationEmailAddress
+      record.persisted? ? client_organization_email_address_path(organization, record) : client_organization_email_addresses_path(organization)
+    when ClientOrganizationPhoneNumber
+      record.persisted? ? client_organization_phone_number_path(organization, record) : client_organization_phone_numbers_path(organization)
+    when ClientOrganizationPostalAddress
+      record.persisted? ? client_organization_postal_address_path(organization, record) : client_organization_postal_addresses_path(organization)
+    when ClientOrganizationWebsite
+      record.persisted? ? client_organization_website_path(organization, record) : client_organization_websites_path(organization)
+    end
+  end
+
+  def organization_contact_edit_path(record)
+    case record
+    when ClientOrganizationEmailAddress then edit_client_organization_email_address_path(record.client_organization_id, record)
+    when ClientOrganizationPhoneNumber then edit_client_organization_phone_number_path(record.client_organization_id, record)
+    when ClientOrganizationPostalAddress then edit_client_organization_postal_address_path(record.client_organization_id, record)
+    when ClientOrganizationWebsite then edit_client_organization_website_path(record.client_organization_id, record)
+    end
+  end
+
+  def organization_contact_set_primary_path(record)
+    case record
+    when ClientOrganizationEmailAddress then set_primary_client_organization_email_address_path(record.client_organization_id, record)
+    when ClientOrganizationPhoneNumber then set_primary_client_organization_phone_number_path(record.client_organization_id, record)
+    when ClientOrganizationPostalAddress then set_primary_client_organization_postal_address_path(record.client_organization_id, record)
+    when ClientOrganizationWebsite then set_primary_client_organization_website_path(record.client_organization_id, record)
+    end
+  end
+
+  def organization_contact_status_path(record)
+    case record
+    when ClientOrganizationEmailAddress then status_edit_client_organization_email_address_path(record.client_organization_id, record)
+    when ClientOrganizationPhoneNumber then status_edit_client_organization_phone_number_path(record.client_organization_id, record)
+    when ClientOrganizationPostalAddress then status_edit_client_organization_postal_address_path(record.client_organization_id, record)
+    when ClientOrganizationWebsite then status_edit_client_organization_website_path(record.client_organization_id, record)
+    end
+  end
+
+  def duplicate_candidate_path(candidate)
+    if candidate.class.name.include?("Organization")
+      client_organization_path(candidate.id)
+    else
+      client_person_path(candidate.id)
+    end
+  end
+
   def preferred_indicator(record)
     label = record.preferred? ? "Preferred" : "Not preferred"
     tag.span class: "dd-preferred-mark#{ " is-preferred" if record.preferred? }", title: label do
+      safe_join([
+        icon_tag("star", html_class: "dd-icon dd-icon--sm"),
+        tag.span(label, class: "dd-visually-hidden")
+      ])
+    end
+  end
+
+  def primary_contact_indicator(assignment)
+    label = assignment.primary? ? "Primary" : "Not primary"
+    tag.span class: "dd-preferred-mark#{ " is-preferred" if assignment.primary? }", title: label do
       safe_join([
         icon_tag("star", html_class: "dd-icon dd-icon--sm"),
         tag.span(label, class: "dd-visually-hidden")
