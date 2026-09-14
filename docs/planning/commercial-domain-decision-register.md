@@ -1,7 +1,9 @@
 # DepartureDesk Commercial Domain Decision Register
 
-**Status:** Accepted planning contract  
-**Scope:** Departure, Client Trip, Supplier planning, capacity, commercial terms, financial ledgers, amendments, documents, reporting, and closeout  
+**Status:** Accepted planning contract
+
+**Scope:** Departure, Client Trip, Supplier planning, capacity, commercial terms, financial ledgers, amendments, documents, reporting, and closeout
+
 **Purpose:** Consolidate the product decisions required before detailed implementation planning. This document is normative where it uses **must**, **must not**, **may**, or **requires**.
 
 ## 1. Governing principles

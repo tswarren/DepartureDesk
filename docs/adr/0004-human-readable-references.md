@@ -100,7 +100,7 @@ No generator may infer these rules from a generic global default.
 
 ### Office codes
 
-Foundation 1E introduces the first governed human-readable identifier:
+The agency-identity baseline introduces the first governed human-readable identifier:
 
 - office codes are operator-entered at office creation, except deterministic `MAIN` used by backfill and provisioning;
 - they are unique within an agency;
@@ -188,6 +188,6 @@ Rejected. Reuse makes external communication, audit, and reconciliation ambiguou
 - Test parallel issuance, retry, void/cancel, cross-agency reuse, and unauthorized lookup.
 - Add reference lookup to search only through agency-scoped queries.
 
-## Relationship to Foundation 1E
+## Relationship to the current roadmap
 
-Foundation 1E implements the office-code portion of this ADR and establishes office scope vocabulary. It does not create generic sequence tables or counters. The first generated sequential operational reference should be designed with departures; the first strict posted-document sequence should be designed with the relevant financial domain.
+The agency-identity baseline implements the office-code portion of this ADR and establishes Office context vocabulary. It does not create generic sequence tables or counters. The accepted commercial register requires one system-wide generated-reference format without an Office-code prefix and assigns a durable reference at the record's first consequential transition. Each record type must still define its exact prefix, scope, issuance event, and void behavior in the slice that introduces it. The first generated operational reference should be designed with Departures; the first strict posted-document sequence should be designed with the relevant financial domain.
