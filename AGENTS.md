@@ -12,7 +12,7 @@ The application should feel operationally calm, financially trustworthy, and tra
 
 The shipped domain is agency identity only: `Agency`, `Office`, `AgencyUser`, invitation and password-reset tokens, `Session`, the permission catalog, and append-only `AuditEvent` records for `Agency`, `AgencyUser`, and `Office`.
 
-Product authority is [docs/planning/departure-desk-mvp.md](docs/planning/departure-desk-mvp.md) and [docs/planning/DepartureDesk-commercial-domain-decision-register.md](docs/planning/DepartureDesk-commercial-domain-decision-register.md). Do not implement clients, suppliers, departures, MFA, platform support, or a workforce-role taxonomy from those documents until a later slice says they are in scope. [docs/terminology.md](docs/terminology.md) is an archived Party glossary, not current vocabulary.
+Documentation authority and status are indexed in [docs/README.md](docs/README.md). Product authority is [docs/planning/departure-desk-mvp.md](docs/planning/departure-desk-mvp.md) and [docs/planning/commercial-domain-decision-register.md](docs/planning/commercial-domain-decision-register.md). Do not implement clients, suppliers, departures, MFA, platform support, or a workforce-role taxonomy from those documents until an accepted milestone or slice says they are in scope. [docs/terminology.md](docs/terminology.md) is the current vocabulary; Party-era terminology is archived.
 
 There is no migration path from the Party and membership schema. Do not add a compatibility layer, dual-schema period, or upgrade of a Party database.
 
@@ -20,8 +20,9 @@ There is no migration path from the Party and membership schema. Do not add a co
 
 Accepted ADRs under `docs/adr` are authoritative. Read the relevant ADR before designing or changing its domain.
 
-- [ADR 0001: Money and currency representation](docs/adr/0001-money-and-currency.md) accepts `money-rails`, `bigint` minor-unit persistence, explicit currencies, strict parsing, and explicit historical conversion facts. The gem is installed. This slice has no money records. Do not persist functional-currency translations. One operating currency per Departure is a later amendment to that ADR.
+- [ADR 0001: Money and currency representation](docs/adr/0001-money-and-currency.md) accepts `money-rails`, `bigint` minor-unit persistence, explicit currencies, strict parsing, and explicit historical conversion facts. The gem is installed. This slice has no money records. Do not persist functional-currency translations. The MVP commercial contract later limits each Departure to one operating currency and excludes FX.
 - [ADR 0005: Agency identity](docs/adr/0005-agency-identity.md) is the tenancy, invitation, session, permission, and office-context contract. Implement it. Do not invent alternatives.
+- [ADR 0006: Separate identity domains](docs/adr/0006-separate-identity-domains.md) rejects a universal Party identity and separates AgencyUser, Client, Supplier, and Traveler contexts. It is an accepted future-domain boundary, not permission to implement those records before an accepted slice.
 - [ADR 0002](docs/adr/0002-agency-tenancy-and-membership.md) and [ADR 0003](docs/adr/0003-membership-lifecycle-and-invitations.md) are **Superseded by ADR 0005**. Do not implement them.
 
 ## Canonical domain language
@@ -38,7 +39,7 @@ Use these terms consistently in code, migrations, UI labels, tests, and document
 | Session | Authentication root. It derives its agency through the agency user and does not store `agency_id`. |
 | Current office | A session preference, then the user's default office, then nil. Changing it changes no permission. |
 
-Commercial terms in the planning documents (client, supplier, traveler, departure, receipt, obligation) are planned vocabulary. Do not add those models in this slice.
+Commercial terms in [docs/terminology.md](docs/terminology.md) and the planning documents (Client, Supplier, Traveler, Departure, Receipt, Obligation) are planned vocabulary. Do not add those models in this slice.
 
 ## Invariants agents must preserve
 

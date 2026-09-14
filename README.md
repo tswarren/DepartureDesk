@@ -9,9 +9,9 @@ The application is intended to connect four views of the same departure without 
 3. Which travelers are participating and who is financially responsible.
 4. How reservations, client receipts, supplier obligations, and supplier payments progress over time.
 
-The shipped domain is agency identity: an agency workspace, agency users, invitations, sessions, offices as context, and administrator maintenance of the profile, offices, and users. Product authority is [`docs/planning/departure-desk-mvp.md`](docs/planning/departure-desk-mvp.md) and [`docs/planning/DepartureDesk-commercial-domain-decision-register.md`](docs/planning/DepartureDesk-commercial-domain-decision-register.md). Clients, suppliers, departures, and posted money objects are not implemented. The Party glossary in [`docs/terminology.md`](docs/terminology.md) is archived. PostgreSQL, Solid Queue, Docker development, UUIDv7 support, `money-rails`, and the application theme are present.
+The shipped domain is agency identity: an agency workspace, agency users, invitations, sessions, offices as context, and administrator maintenance of the profile, offices, and users. [`docs/README.md`](docs/README.md) maps documentation authority; product authority is [`docs/planning/departure-desk-mvp.md`](docs/planning/departure-desk-mvp.md) and [`docs/planning/commercial-domain-decision-register.md`](docs/planning/commercial-domain-decision-register.md). Clients, suppliers, departures, and posted money objects are not implemented. [`docs/terminology.md`](docs/terminology.md) defines current vocabulary. PostgreSQL, Solid Queue, Docker development, UUIDv7 support, `money-rails`, and the application theme are present.
 
-Architecture decisions are recorded in [`docs/adr`](docs/adr). [ADR 0001](docs/adr/0001-money-and-currency.md) accepts `money-rails`; this slice has no money records. [ADR 0005](docs/adr/0005-agency-identity.md) is the tenancy contract. [ADR 0002](docs/adr/0002-agency-tenancy-and-membership.md) and [ADR 0003](docs/adr/0003-membership-lifecycle-and-invitations.md) are superseded by ADR 0005.
+Architecture decisions are indexed in [`docs/adr`](docs/adr/README.md). [ADR 0001](docs/adr/0001-money-and-currency.md) accepts `money-rails`; this slice has no money records. [ADR 0005](docs/adr/0005-agency-identity.md) is the tenancy contract. [ADR 0006](docs/adr/0006-separate-identity-domains.md) governs the separation of planned identity domains. [ADR 0002](docs/adr/0002-agency-tenancy-and-membership.md) and [ADR 0003](docs/adr/0003-membership-lifecycle-and-invitations.md) are superseded by ADR 0005.
 
 ## Product model
 
@@ -23,7 +23,7 @@ flowchart TD
     D --> SA[Supplier arrangements]
     D --> CT[Client trips]
     SA --> SR[Supplier reservations, resources, and obligations]
-    CT --> SC[Service components, travelers, charges, and receipts]
+    CT --> SC[Client Trip Services, Travelers, Charges, and Receipts]
 ```
 
 ### Core terminology
@@ -33,18 +33,18 @@ flowchart TD
 | Agency | The travel agency operating DepartureDesk and responsible for the departure. |
 | Travel program | An optional reusable concept or series. It does not own operational balances, capacity, or settlement. |
 | Departure | One dated occurrence of coordinated travel, with shared dates, purpose, operational status, and financial reporting. |
-| Supplier | The contracting commercial party (cruise line, hotel, motorcoach company, vineyard, insurer, airline, or other provider). |
-| Service component | A distinct service on a client trip, such as a cruise passage, hotel stay, motorcoach seat, tasting, insurance policy, or air ticket. |
+| Supplier | The contracting commercial counterparty, such as a cruise line, hotel, motorcoach company, vineyard, insurer, airline, or other provider. |
+| Client Trip Service | A distinct service selected, included, required, or added on a Client Trip, such as cruise passage, hotel stay, motorcoach seat, tasting, insurance, or air. |
 | Supplier arrangement | The agency’s commercial terms with a supplier, including pricing, capacity, guarantees, release dates, deposits, and cancellation exposure. |
 | Supplier reservation | A supplier-facing confirmation or booking record. One client trip can be fulfilled by multiple supplier reservations. |
-| Client | The person, household, organization, or other party purchasing travel from the agency. A client is not necessarily a traveler. |
-| Client trip | The agency-facing sale or trip record for one primary client within a departure. It can contain multiple service components from multiple suppliers. |
+| Client | A payer/responsibility identity based on exactly one Client Person or Client Organization. A Client is not necessarily a Traveler. |
+| Client trip | The agency-facing commercial and operational record for one primary Client within a Departure. It can contain multiple Client Trip Services fulfilled by multiple Suppliers. |
 | Traveler | A person who will travel. Travelers can share accommodations while retaining separate financial responsibility. |
-| Payer | The party from whom a particular payment is received. A payer need not be the primary client, a responsible client, or a traveler. |
+| Payer | The actual source of a particular Receipt. A Payer need not be the primary Client, a Responsible Client, or a Traveler. |
 | Responsible client | A client assigned financial responsibility for some or all of a charge. |
 | Responsibility allocation | The amount or share a responsible client owes on a charge. |
 | Resource occupancy assignment | The placement of a traveler into a cabin, room, or other resource for applicable dates. Occupancy does not determine payment responsibility, household, or insurance. |
-| Household | A servicing collective stored as a party kind. It is not automatically a cabin, traveling party, or insurance household. |
+| Household | A servicing and communication grouping of Client Persons. It is not automatically a cabin, Traveling Party, payment account, or insurance household. |
 | Client charge | An amount the agency bills to a client. |
 | Client receipt | Money received from a client or payer into agency-controlled cash, later applied to one or more charges. |
 | Supplier obligation | An amount the agency owes or expects to owe a supplier. |
@@ -76,7 +76,7 @@ DepartureDesk does not intend to reproduce full ARC/BSP reconciliation. It shoul
 ### Modeling principles
 
 - Supplier-side and client-side arrangements are related but remain distinct.
-- A client trip may contain any number of supplier-fulfilled service components.
+- A Client Trip may contain any number of Supplier-fulfilled Client Trip Services.
 - Travelers, clients, payers, responsible clients, households, and resource occupants are separate roles.
 - Client-trip state and payment state are tracked independently.
 - Client receipts are applied explicitly rather than inferred from a client-trip status.
@@ -248,7 +248,7 @@ The application uses `db/structure.sql` rather than `db/schema.rb`. Queue tables
 - Application-owned durable records use UUID primary keys with PostgreSQL 18 `uuidv7()` defaults.
 - Rails may assign a UUIDv7 before persistence when workflows need an ID early; the database default remains the safety net.
 - Foreign keys referencing UUID records must declare `type: :uuid`.
-- Framework-owned tables, including Solid Queue and Active Storage internals, may retain bigint identifiers.
+- Framework-owned Solid Queue tables may retain bigint identifiers. Active Storage is not installed.
 - Rails timestamps are handled in UTC and domain tables use PostgreSQL `timestamptz`.
 - Database constraints enforce durable invariants in addition to model validations.
 - Currency codes use uppercase ISO-style three-character values such as `USD`.

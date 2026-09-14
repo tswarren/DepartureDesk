@@ -1,3 +1,7 @@
+# DepartureDesk Harbor & Waypoint palette
+
+**Status:** Active visual contract
+
 ## Core brand palette
 
 These values closely reflect the generated logo:
@@ -15,8 +19,8 @@ These values closely reflect the generated logo:
 
 The three logo colors should retain consistent meaning:
 
-* **Navy:** structure and authority  
-* **Teal:** movement and action  
+* **Navy:** structure and authority
+* **Teal:** movement and action
 * **Amber:** a significant waypoint or item requiring notice
 
 ## Application neutrals
@@ -42,10 +46,10 @@ Avoid extremely pale borders. DepartureDesk will contain dense tables and financ
 
 I would use navy for the persistent application frame:
 
-* Navy header or left navigation  
-* White primary navigation labels  
-* Teal active indicator  
-* Amber only for a genuinely important alert or deadline  
+* Navy header or left navigation
+* White primary navigation labels
+* Teal active indicator
+* Amber only for a genuinely important alert or deadline
 * Cloud-colored workspace behind white content surfaces
 
 This makes the frame feel stable while allowing the departure itself to remain the visual focus.
@@ -83,12 +87,12 @@ Both navy and dark teal support white button text comfortably. The logo teal `#0
 
 Waypoint Amber is distinctive, but it is not dark enough for small text on white. Use it for:
 
-* Focus rings  
-* Timeline milestones  
-* Deadline markers  
-* Small indicator fills  
-* Chart highlights  
-* Progress waypoints  
+* Focus rings
+* Timeline milestones
+* Deadline markers
+* Small indicator fills
+* Chart highlights
+* Progress waypoints
 * Icons paired with a dark label
 
 For amber callouts, use dark text:
@@ -116,14 +120,16 @@ Brand colors should not carry all status meaning. Operational states need conven
 
 Use both color and text or iconography:
 
-* Green check \+ **Confirmed**  
-* Amber clock \+ **Due soon**  
-* Red alert \+ **Overdue**  
+* Green check \+ **Confirmed**
+* Amber clock \+ **Due soon**
+* Red alert \+ **Overdue**
 * Gray pause \+ **Option held**
 
 Color alone should never communicate status.
 
-## Departure status treatments
+## Illustrative Departure status treatments
+
+These treatments demonstrate the semantic palette. Exact status names remain governed by the accepted slice that introduces the Departure lifecycle.
 
 | Departure status | Treatment |
 | :---- | :---- |
@@ -163,13 +169,13 @@ Use symbols and labels alongside color. A negative amount should retain a minus 
 
 Tables will be central to the product. I’d use:
 
-* White table background  
-* Navy column headings  
-* `#EEF2F1` header fill  
-* `#D4DEDF` horizontal separators  
-* Minimal vertical rules  
-* Pale teal selected rows  
-* Pale amber rows requiring attention  
+* White table background
+* Navy column headings
+* `#EEF2F1` header fill
+* `#D4DEDF` horizontal separators
+* Minimal vertical rules
+* Pale teal selected rows
+* Pale amber rows requiring attention
 * A narrow semantic indicator at the left edge when needed
 
 Recommended row states:
@@ -187,11 +193,11 @@ Recommended row states:
 
 Inputs should remain mostly neutral so teal retains meaning as interaction:
 
-* White field background  
-* Strong neutral border  
-* Navy or ink text  
-* Teal border on focus  
-* Amber outer focus ring for keyboard visibility  
+* White field background
+* Strong neutral border
+* Navy or ink text
+* Teal border on focus
+* Amber outer focus ring for keyboard visibility
 * Red border and accompanying message for validation errors
 
 Required fields should be identified textually or with a conventional marker—not by amber alone.
@@ -200,19 +206,19 @@ Required fields should be identified textually or with a conventional marker—n
 
 A coordinated chart palette could be:
 
-1. Navy — `#002F54`  
-2. Teal — `#007D87`  
-3. Amber — `#F49A00`  
-4. Blue — `#4C78A8`  
-5. Green — `#4D8061`  
-6. Plum — `#765A78`  
-7. Coral — `#C66555`  
+1. Navy — `#002F54`
+2. Teal — `#007D87`
+3. Amber — `#F49A00`
+4. Blue — `#4C78A8`
+5. Green — `#4D8061`
+6. Plum — `#765A78`
+7. Coral — `#C66555`
 8. Slate — `#687980`
 
 For projected versus actual values:
 
-* Projected: lighter fill or dashed line  
-* Confirmed: full brand color  
+* Projected: lighter fill or dashed line
+* Confirmed: full brand color
 * Actual: darker full-strength color
 
 Do not communicate projected versus actual merely by changing hue.
@@ -221,22 +227,22 @@ Do not communicate projected versus actual merely by changing hue.
 
 The application should feel:
 
-* Operational, but not industrial  
-* Financially trustworthy, but not like accounting software  
-* Travel-oriented, but not recreational  
-* Information-dense, but calm  
+* Operational, but not industrial
+* Financially trustworthy, but not like accounting software
+* Travel-oriented, but not recreational
+* Information-dense, but calm
 * Modern, but not overly minimalist
 
 I would use:
 
-* Modest corner radii around `6–8px`  
-* Very restrained shadows  
-* Clear section borders  
-* Generous internal spacing  
-* Compact but readable tables  
-* Navy headings  
-* Teal controls  
-* Amber waypoint markers  
+* Modest corner radii around `6–8px`
+* Very restrained shadows
+* Clear section borders
+* Generous internal spacing
+* Compact but readable tables
+* Navy headings
+* Teal controls
+* Amber waypoint markers
 * Line icons with rounded geometry similar to the logo paths
 
 ## Initial design tokens
@@ -289,4 +295,4 @@ I would use:
 }
 ```
 
-My recommended default appearance is a navy application frame surrounding a warm-cloud workspace, with white operational surfaces, teal actions, and tightly controlled amber waypoints. That would feel directly related to the logo without saturating every screen in brand color.  
+My recommended default appearance is a navy application frame surrounding a warm-cloud workspace, with white operational surfaces, teal actions, and tightly controlled amber waypoints. That would feel directly related to the logo without saturating every screen in brand color.
