@@ -1,0 +1,9 @@
+harbor_client:
+  agency: harbor
+  namespace: client
+  next_value: 1
+
+cove_client:
+  agency: cove
+  namespace: client
+  next_value: 1

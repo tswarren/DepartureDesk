@@ -1,0 +1,26 @@
+<% if @acknowledgement_token.present? %>
+  <section class="dd-callout" aria-labelledby="duplicate-review-heading">
+    <h2 id="duplicate-review-heading" class="dd-panel-title">Possible duplicates</h2>
+    <p>These records may be the same person. Saving continues only after you record why they are distinct.</p>
+    <ul>
+      <% @duplicate_candidates.each do |candidate| %>
+        <li>
+          <%= candidate.display_name %>
+          <span><%= candidate.status.titleize %></span>
+          <span><%= candidate.signals.join(", ").humanize %></span>
+          <%= link_to "View existing", client_person_path(candidate.id) %>
+        </li>
+      <% end %>
+    </ul>
+    <%= hidden_field_tag :acknowledgement_token, @acknowledgement_token %>
+    <div class="dd-field-group">
+      <%= label_tag :acknowledgement_reason, "Why these are not the same record", class: "dd-label" %>
+      <%= select_tag :acknowledgement_reason, options_for_select([
+            [ "Confirmed distinct", "confirmed_distinct" ],
+            [ "Shared contact", "shared_contact" ],
+            [ "Insufficient match", "insufficient_match" ],
+            [ "Reviewed another way", "other_reviewed" ]
+          ], params[:acknowledgement_reason]), include_blank: "Choose a reason", required: true, class: "dd-field" %>
+    </div>
+  </section>
+<% end %>

@@ -26,6 +26,32 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :clients, only: %i[index new create]
+  resources :client_people, path: "clients/people", param: :client_person_id, only: %i[new create show edit update] do
+    member do
+      get "status/edit", action: :edit_status
+      patch :status, action: :update_status
+      post :client, action: :create_client
+      get "client/status/edit", action: :edit_client_status
+      patch "client/status", action: :update_client_status
+    end
+  end
+  scope "/clients/people/:client_person_id", as: :client_person do
+    {
+      email_addresses: "email-addresses",
+      phone_numbers: "phone-numbers",
+      postal_addresses: "postal-addresses"
+    }.each do |name, path|
+      resources name, path: path, param: :contact_point_id, only: %i[new create edit update], controller: "client_person_#{name}" do
+        member do
+          get "status/edit", action: :edit_status
+          patch :status, action: :update_status
+          post :set_primary
+        end
+      end
+    end
+  end
+
   root "dashboard#show"
 
   if Rails.env.development?

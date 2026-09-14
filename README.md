@@ -192,6 +192,8 @@ Use the helper for application commands:
 # agency-identity baseline. Do not migrate a Party/membership database forward.
 ./dev/rails-docker bin/rails db:drop db:create db:migrate
 ./dev/rails-docker bin/rails test
+./dev/rails-docker bin/rails dbconsole --database primary
+./dev/rails-docker bin/rails dbconsole --database queue
 ```
 
 The helper uses `docker compose exec web` when the web service is running and an ephemeral `docker compose run --rm web` otherwise.

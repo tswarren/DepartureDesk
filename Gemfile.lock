@@ -410,7 +410,7 @@ DEPENDENCIES
   brakeman
   bundler-audit
   capybara
-  countries
+  countries (= 8.1.0)
   debug
   image_processing (~> 2.1)
   importmap-rails

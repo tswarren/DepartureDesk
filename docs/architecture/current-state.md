@@ -2,9 +2,9 @@
 
 **Status:** Implemented baseline
 
-**Scope:** Current `main`; planned commercial domains are excluded
+**Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk currently ships agency identity and administration only. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, and the individual-Client directory. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -14,7 +14,11 @@ DepartureDesk currently ships agency identity and administration only. The MVP a
 | `Office` | Agency-owned operating and reporting context. It grants no permission. |
 | `AgencyUser` | One agency-scoped login account with independent credentials, lifecycle, and access role. |
 | `Session` | Authentication root and optional current-Office preference. It derives Agency through AgencyUser. |
-| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, and Office administrative commands. |
+| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, and Client commands. |
+| `ClientPerson` | Agency-scoped person known to the directory. Not a Client, AgencyUser, or Traveler. |
+| `Client` | Explicit individual commercial identity for one Client Person, with an immutable `CL-` reference. |
+| `ClientPersonEmailAddress`, `ClientPersonPhoneNumber`, `ClientPersonPostalAddress` | Person-owned contact points. They are not Agency User credentials. |
+| `ReferenceSequence` | Agency-scoped `client` reference counter. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed permission catalog mapping administrator, staff, and viewer roles to capabilities. It is application code, not a persisted record. |
 
 Invitation and password-reset token facts are stored on `AgencyUser`; they are not separate identity records.
@@ -42,6 +46,9 @@ Office is operational context, not authorization. `Current.office` resolves from
 | Manage Agency profile | Yes | No | No |
 | Manage Offices | Yes | No | No |
 | Manage AgencyUsers | Yes | No | No |
+| View Client directory | Yes | Yes | Yes |
+| View Client contact details | Yes | Yes | No |
+| Manage Client directory | Yes | Yes | No |
 
 Application code checks named permissions, not role strings.
 
@@ -55,6 +62,6 @@ Application code checks named permissions, not role strings.
 
 ## Not shipped
 
-The current application has no Client, Traveler, Household, Supplier, Departure, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored.
+The current application has no Client Organization, organization contact, Supplier, Traveler, Household, Departure, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.

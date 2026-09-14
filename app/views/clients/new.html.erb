@@ -1,0 +1,21 @@
+<% content_for :title, "New Client · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Clients</p>
+    <h1 class="dd-page-title">New individual Client</h1>
+    <p class="dd-page-description">Creates a person and that person's one Client. This is not an organization.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @client_person, url: clients_path, class: "dd-form" do |form| %>
+      <%= render "client_people/form", form: form %>
+      <div class="dd-form-actions">
+        <%= form.submit "Create Client", class: "dd-button" %>
+        <%= link_to "Cancel", clients_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

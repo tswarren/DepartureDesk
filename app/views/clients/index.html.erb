@@ -1,0 +1,79 @@
+<% content_for :title, "Clients · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Clients</p>
+    <h1 class="dd-page-title">People</h1>
+    <p class="dd-page-description">Search people in this agency. A person is not a Client until one is created.</p>
+  </div>
+  <% if Current.agency_user.permitted?(:manage_client_directory) %>
+    <div class="dd-page-actions">
+      <%= link_to "New Client", new_client_path, class: "dd-button" %>
+      <%= link_to "Add person", new_client_person_path, class: "dd-button dd-button--quiet" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: clients_path, method: :get, class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :q, "Search", class: "dd-label" %>
+        <%= form.search_field :q, value: params[:q], maxlength: 100, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :status, "Status", class: "dd-label" %>
+        <%= form.select :status, [ [ "Active", "active" ], [ "Inactive", "inactive" ], [ "Active and inactive", "all" ] ], { selected: @status }, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Apply", class: "dd-button" %>
+        <%= link_to "Reset", clients_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<% if @search %>
+  <p><%= @search.truncated ? "Showing the first 50 matches. Narrow the search to see the rest." : "#{pluralize(@search.records.size, "match")}." %></p>
+  <article class="dd-panel">
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Client reference</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @search.records.each do |person| %>
+          <tr>
+            <td><%= link_to person.display_name, client_person_path(person.id) %></td>
+            <td><%= person.client_reference.presence || "No Client" %></td>
+            <td><%= directory_status_badge(person.status) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </article>
+<% elsif @people %>
+  <article class="dd-panel">
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Client reference</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @people.each do |person| %>
+          <tr>
+            <td><%= link_to person.display_name, client_person_path(person) %></td>
+            <td><%= person.client&.client_reference || "No Client" %></td>
+            <td><%= directory_status_badge(person.status) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </article>
+<% end %>

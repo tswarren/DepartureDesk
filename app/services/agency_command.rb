@@ -13,6 +13,16 @@ class AgencyCommand
 
   Result = Data.define(:status, :record)
 
+  class DuplicateReviewRequired < Error
+    attr_reader :token, :candidates
+
+    def initialize(token:, candidates:)
+      @token = token
+      @candidates = candidates
+      super("Review possible duplicates before saving.", code: :duplicate_review_required)
+    end
+  end
+
   private
 
   def audit!(agency:, action:, subject:, details: {}, actor: nil, actor_identifier: nil)
@@ -30,6 +40,21 @@ class AgencyCommand
     return if actor&.permitted?(permission)
 
     raise Error.new(UNAUTHORIZED, code: :unauthorized)
+  end
+
+  def ensure_directory_actor!(actor, agency, permission)
+    return if actor&.active? && actor.agency_id == agency&.id && actor.permitted?(permission)
+
+    raise Error.new(UNAUTHORIZED, code: :unauthorized)
+  end
+
+  def duplicate_override_details(decision, reason:, extra: {})
+    candidates = Array(decision.is_a?(Hash) ? decision["reviewed_candidates"] : nil)
+    {
+      "reason_code" => reason,
+      "candidate_ids" => candidates.map { |candidate| candidate["id"] },
+      "signals" => candidates.flat_map { |candidate| Array(candidate["signals"]) }.uniq.sort
+    }.merge(extra)
   end
 
   def ensure_active_agency!(agency)

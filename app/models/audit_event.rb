@@ -22,10 +22,19 @@ class AuditEvent < ApplicationRecord
     agency_user.password_changed
     agency_user.password_reset
     session.office_selected
+    client_person.created
+    client_person.updated
+    client_person.inactivated
+    client_person.reactivated
+    client_person.contact_updated
+    client_person.duplicate_override
+    client.created
+    client.inactivated
+    client.reactivated
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true

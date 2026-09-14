@@ -10,9 +10,9 @@ The application should feel operationally calm, financially trustworthy, and tra
 
 ## Current boundary
 
-The shipped domain is agency identity only: `Agency`, `Office`, `AgencyUser`, invitation and password-reset tokens, `Session`, the permission catalog, and append-only `AuditEvent` records for `Agency`, `AgencyUser`, and `Office`.
+The shipped domain is agency identity plus the individual-Client directory: `Agency`, `Office`, `AgencyUser`, invitation and password-reset tokens, `Session`, the permission catalog, `ClientPerson`, individual `Client`, person-owned email, phone, and postal contact points, the `client` reference sequence, and append-only `AuditEvent` records for `Agency`, `AgencyUser`, `Office`, `ClientPerson`, and `Client`.
 
-Documentation authority and status are indexed in [docs/README.md](docs/README.md). Product authority is [docs/planning/departure-desk-mvp.md](docs/planning/departure-desk-mvp.md) and [docs/planning/commercial-domain-decision-register.md](docs/planning/commercial-domain-decision-register.md). Do not implement clients, suppliers, departures, MFA, platform support, or a workforce-role taxonomy from those documents until an accepted milestone or slice says they are in scope. [docs/terminology.md](docs/terminology.md) is the current vocabulary; Party-era terminology is archived.
+Documentation authority and status are indexed in [docs/README.md](docs/README.md). Product authority is [docs/planning/departure-desk-mvp.md](docs/planning/departure-desk-mvp.md) and [docs/planning/commercial-domain-decision-register.md](docs/planning/commercial-domain-decision-register.md). Do not implement clients, suppliers, departures, MFA, platform support, or a workforce-role taxonomy from those documents until an accepted slice plan names that work. An accepted milestone contract is not enough. The accepted [M1A slice plan](docs/planning/m1a-individual-client.md) places Client Person, individual Client, and person-owned email, phone, and postal contact points in scope. Client Organization and Supplier records stay out of scope until their slice plans are accepted. [docs/terminology.md](docs/terminology.md) is the current vocabulary; Party-era terminology is archived.
 
 There is no migration path from the Party and membership schema. Do not add a compatibility layer, dual-schema period, or upgrade of a Party database.
 
@@ -57,7 +57,7 @@ Commercial terms in [docs/terminology.md](docs/terminology.md) and the planning 
 12. Load tenant records through `Current.agency`. An identifier from another agency returns not found, not forbidden.
 13. Tenant records that carry `agency_id` must prove same-agency foreign keys. Default office uses a composite foreign key `(default_office_id, agency_id)`. Database triggers reject changes to `Agency.workspace_code`, `AgencyUser.agency_id`, `Office.agency_id`, and `Office.code`. Stored email must equal `lower(btrim(email_address))`.
 14. `ProvisionAgency` and agency lifecycle changes are privileged. They require an actor identifier, invent no platform user, and never return or log a plaintext password or token.
-15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, and `Office` only. Do not audit expected failures.
+15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, `Office`, `ClientPerson`, and `Client` only. Do not audit expected failures.
 16. Do not infer household, payer, occupancy, or payment state. Those records do not exist yet.
 
 ## Development environment
@@ -235,7 +235,7 @@ Rules:
 - Keep inputs neutral until interaction. Use teal for active interaction and amber for the keyboard focus ring.
 - Maintain WCAG-conscious contrast and complete keyboard access.
 - Keep the skip link and meaningful focus indicators functional.
-- Disabled navigation placeholders must become real links only when corresponding authorized routes exist. This slice shows Dashboard, and Administration for administrators. Do not show Directory, Departures, or Accounting navigation.
+- Disabled navigation placeholders must become real links only when corresponding authorized routes exist. Show Dashboard, Clients for `view_client_directory`, and Administration for administrators. Do not show Directory, Suppliers, Departures, or Accounting navigation.
 - Do not introduce an external font, icon library, or JavaScript UI framework without an explicit product decision.
 - Administration page, panel, button, and field anatomy is defined in [docs/ui/interface-contract.md](docs/ui/interface-contract.md). Reuse that contract before adding presentation classes.
 

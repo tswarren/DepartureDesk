@@ -2,7 +2,7 @@
 
 **Status:** Accepted product vocabulary
 
-**Implementation note:** Only Agency, Agency User, Office, Session, permission, and Audit Event terminology is currently shipped.
+**Implementation note:** Agency, Agency User, Office, Session, permission, and Audit Event terminology is shipped. Client Person, individual Client, and person-owned email, phone, and postal contact points are shipped. Client Organization, Supplier, and later commercial terms are not.
 
 Use these terms consistently in requirements, code, migrations, UI labels, tests, and reports. A planned term does not authorize its implementation without an accepted slice plan.
 

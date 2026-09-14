@@ -1,0 +1,22 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<div class="dd-field-group">
+  <%= form.label :first_name, class: "dd-label" %>
+  <%= form.text_field :first_name, required: true, class: "dd-field" %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :middle_name, class: "dd-label" %>
+  <%= form.text_field :middle_name, class: "dd-field" %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :last_name, class: "dd-label" %>
+  <%= form.text_field :last_name, required: true, class: "dd-field" %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :suffix, class: "dd-label" %>
+  <%= form.text_field :suffix, class: "dd-field" %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :preferred_name, class: "dd-label" %>
+  <%= form.text_field :preferred_name, class: "dd-field" %>
+</div>
+<%= render "shared/duplicate_review" %>
