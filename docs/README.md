@@ -9,10 +9,10 @@ When documents conflict, use this order:
 1. Accepted architecture decision records in [`adr/`](adr/README.md) for the decision they govern.
 2. The accepted commercial contract in [`planning/commercial-domain-decision-register.md`](planning/commercial-domain-decision-register.md).
 3. The current MVP scope in [`planning/departure-desk-mvp.md`](planning/departure-desk-mvp.md).
-4. An accepted milestone or slice plan for work explicitly placed in scope.
+4. An accepted slice plan for the work it explicitly places in scope. An accepted milestone contract sets the rules; it does not authorize its slices.
 5. Current operational and interface documentation.
 
-`AGENTS.md` defines the shipped boundary and contributor rules. A broad product requirement does not authorize implementation until an accepted milestone or slice places it in scope.
+`AGENTS.md` defines the shipped boundary and contributor rules. A broad product requirement or accepted milestone contract does not authorize implementation until an accepted slice plan places that work in scope.
 
 ## Document status
 
@@ -35,7 +35,8 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/departure-desk-mvp.md`](planning/departure-desk-mvp.md) | MVP product scope and acceptance requirements. |
 | [`planning/commercial-domain-decision-register.md`](planning/commercial-domain-decision-register.md) | Detailed commercial and financial rules. |
 | [`planning/roadmap.md`](planning/roadmap.md) | Milestone order and entry/exit gates. |
-| [`planning/m1-client-and-supplier-directories.md`](planning/m1-client-and-supplier-directories.md) | Draft contract for the next domain milestone. |
+| [`planning/m1-client-and-supplier-directories.md`](planning/m1-client-and-supplier-directories.md) | Accepted M1 directory contract. Slice code waits for an accepted slice plan. |
+| [`planning/m1a-individual-client.md`](planning/m1a-individual-client.md) | Accepted and implemented individual-Client slice. Organizations and Suppliers remain unbuilt. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |

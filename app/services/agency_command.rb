@@ -13,6 +13,16 @@ class AgencyCommand
 
   Result = Data.define(:status, :record)
 
+  class DuplicateReviewRequired < Error
+    attr_reader :token, :candidates
+
+    def initialize(token:, candidates:)
+      @token = token
+      @candidates = candidates
+      super("Review possible duplicates before saving.", code: :duplicate_review_required)
+    end
+  end
+
   private
 
   def audit!(agency:, action:, subject:, details: {}, actor: nil, actor_identifier: nil)

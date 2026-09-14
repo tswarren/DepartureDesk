@@ -1,0 +1,29 @@
+<% content_for :title, "Change person status · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Clients</p>
+    <h1 class="dd-page-title">Change status for <%= @client_person.display_name %></h1>
+    <p class="dd-page-description">Current status: <%= @client_person.status %>.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @client_person.active? && @client_person.client&.active? %>
+      <p>An active Client blocks inactivation. Inactivate the Client first.</p>
+    <% elsif @client_person.active? %>
+      <p>Inactivation also inactivates this person's email, phone, and postal records and clears their preferred flags. Reactivation does not restore them.</p>
+    <% else %>
+      <p>Reactivation restores this person only. It does not restore contact records or the Client.</p>
+    <% end %>
+    <%= form_with url: status_client_person_path(@client_person), method: :patch, class: "dd-form" do %>
+      <%= hidden_field_tag :lock_version, @client_person.lock_version %>
+      <%= hidden_field_tag :status, (@client_person.active? ? "inactive" : "active") %>
+      <div class="dd-form-actions">
+        <%= submit_tag (@client_person.active? ? "Inactivate person" : "Reactivate person"), class: "dd-button" %>
+        <%= link_to "Cancel", client_person_path(@client_person), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

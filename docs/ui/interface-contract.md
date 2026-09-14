@@ -22,7 +22,8 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Dashboard is available to authenticated AgencyUsers.
 - Administration is shown only when the current AgencyUser has an applicable management permission.
 - Current Office selection is available to authenticated users and changes no authorization.
-- Directory, Departures, Travelers, and Accounting are absent until accepted slices ship their authorized routes.
+- Clients is shown when the current AgencyUser has `view_client_directory`.
+- Directory, Suppliers, Departures, Travelers, and Accounting are absent until accepted slices ship their authorized routes.
 - Active navigation uses `aria-current="page"` and a visible teal indicator.
 
 ## Page composition

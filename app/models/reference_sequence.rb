@@ -1,0 +1,9 @@
+class ReferenceSequence < ApplicationRecord
+  CLIENT_NAMESPACE = "client"
+  EXHAUSTED_AT = 1_000_000
+
+  belongs_to :agency
+
+  validates :namespace, inclusion: { in: [ CLIENT_NAMESPACE ] }
+  validates :next_value, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: EXHAUSTED_AT }
+end

@@ -44,7 +44,7 @@ gem "money-rails", "~> 3.0"
 # Call Phonelib only through PhoneNumberNormalizer. Use ISO3166::Country, not a global Country constant.
 # The countries gem's currency data is not an accounting authority; ADR 0001 remains money-rails.
 gem "phonelib"
-gem "countries", require: "countries"
+gem "countries", "8.1.0", require: "countries"
 
 # Use Image_Processing for image processing [https://github.com/janko/image_processing]
 gem "image_processing", "~> 2.1"

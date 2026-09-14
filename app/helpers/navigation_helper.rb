@@ -5,6 +5,8 @@ module NavigationHelper
       controller_name == "dashboard"
     when :administration
       controller_path.start_with?("administration/")
+    when :clients
+      controller_path.in?(%w[clients client_people]) || controller_path.start_with?("client_person_")
     else
       false
     end

@@ -1,0 +1,25 @@
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Clients</p>
+    <h1 class="dd-page-title"><%= heading %></h1>
+    <p class="dd-page-description"><%= contact_destination(@contact_point) %>. Current status: <%= @contact_point.status %>.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @contact_point.active? %>
+      <p>Inactivation clears the preferred flag. It does not delete the record.</p>
+    <% elsif @client_person.inactive? %>
+      <p>Reactivate the person before reactivating this record.</p>
+    <% end %>
+    <%= form_with url: request.path.delete_suffix("/edit"), method: :patch, class: "dd-form" do %>
+      <%= hidden_field_tag :lock_version, @contact_point.lock_version %>
+      <%= hidden_field_tag :status, (@contact_point.active? ? "inactive" : "active") %>
+      <div class="dd-form-actions">
+        <%= submit_tag (@contact_point.active? ? "Inactivate" : "Reactivate"), class: "dd-button" %>
+        <%= link_to "Cancel", client_person_path(@client_person), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

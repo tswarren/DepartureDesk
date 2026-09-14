@@ -9,7 +9,7 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 | Milestone | Status | Outcome |
 | --- | --- | --- |
 | M0 — Agency identity baseline | Complete | Agency-scoped authentication, administration, Office context, audit, tenant isolation, and hardening. |
-| M1 — Separate directories | Next | Maintain Client and Supplier identities without restoring Party or prematurely creating Household/Traveler records. |
+| M1 — Separate directories | Accepted plan; M1A implemented | Maintain Client and Supplier identities without restoring Party or prematurely creating Household/Traveler records. M1A shipped individual Clients only. |
 | M2 — Departure core | Planned | Create and govern reusable Travel Programs and dated Departures. |
 | M3 — Supplier planning | Planned | Represent arrangements, items, occurrences, resources, commitments, capacity, deadlines, and exposure. |
 | M4 — Offers and pricing | Planned | Describe Packages and standalone services the Agency intends to sell. |
@@ -39,9 +39,9 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 
 ## Immediate work
 
-1. Accept the M1 directory plan.
-2. Implement Client Person, Client commercial-responsibility identity, contact destinations, search, duplicate review, and lifecycle as the first vertical directory slice.
-3. Add Client Organization and its Client Person contact assignments without introducing Household or standalone Traveler persistence.
+1. The M1 directory plan is accepted. It does not authorize slice code.
+2. The [M1A individual-Client slice plan](m1a-individual-client.md) is implemented. Client Person, individual Client, person contact points, search, duplicate review, and lifecycle are shipped. Organizations and Suppliers are not.
+3. Write and accept an M1B slice plan before adding Client Organization or Client Person contact assignments. Do not introduce Household or standalone Traveler persistence.
 4. Add Supplier, Supplier Location, and Supplier Contact in reviewable follow-up slices.
 5. Validate M1 against the explicit fictional directory-fixture set mapped to both reference scenario shapes before beginning M2.
 

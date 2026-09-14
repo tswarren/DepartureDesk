@@ -6,6 +6,7 @@ class SignInTest < ApplicationSystemTestCase
 
     assert_text "Harbor Travel"
     assert_link "Administration"
+    assert_link "Clients"
     assert_no_link "Directory"
     assert_no_link "Departures"
     assert_no_text "Accounting"
@@ -15,6 +16,7 @@ class SignInTest < ApplicationSystemTestCase
     sign_in_from_browser(agency_users(:harbor_staff))
 
     assert_text "Dashboard"
+    assert_link "Clients"
     assert_no_link "Administration"
     click_link "Change current office"
     choose "Harbor West (WEST)"

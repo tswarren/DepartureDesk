@@ -22,6 +22,12 @@
       <%= icon_tag "house" %>
       <span>Dashboard</span>
     <% end %>
+    <% if Current.agency_user&.permitted?(:view_client_directory) %>
+      <%= link_to clients_path, class: "dd-sidebar-item", aria: { current: primary_nav_current_for(:clients) } do %>
+        <%= icon_tag "users" %>
+        <span>Clients</span>
+      <% end %>
+    <% end %>
   </nav>
 
   <div class="dd-sidebar-footer">
