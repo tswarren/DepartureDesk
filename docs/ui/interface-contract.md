@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the Client directory through M1A, and M1B Client Organization surfaces implemented on the current branch
+**Scope:** Agency identity and the Client directory through M1B. Suppliers navigation remains absent until M1C ships authorized routes.
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -23,7 +23,7 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Administration is shown only when the current AgencyUser has an applicable management permission.
 - Current Office selection is available to authenticated users and changes no authorization.
 - Clients is shown when the current AgencyUser has `view_client_directory`.
-- Directory, Suppliers, Departures, Travelers, and Accounting are absent until accepted slices ship their authorized routes.
+- Directory, Suppliers, Departures, Travelers, and Accounting are absent until accepted slices ship their authorized routes. M1C is Accepted but Suppliers navigation must not appear until Supplier routes ship.
 - Active navigation uses `aria-current="page"` and a visible teal indicator.
 
 ## Client directory
