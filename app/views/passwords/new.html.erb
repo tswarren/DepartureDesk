@@ -5,14 +5,23 @@
 <% end %>
 
 <h1>Forgot your password?</h1>
-<p class="dd-auth-intro">Enter your email address and we’ll send reset instructions.</p>
+<p class="dd-auth-intro">Enter the workspace code and email address for the account.</p>
 
 <%= form_with url: passwords_path, class: "dd-form" do |form| %>
+  <div class="dd-field-group">
+    <%= form.label :workspace_code, "Workspace code", class: "dd-label" %>
+    <%= form.text_field :workspace_code,
+      required: true,
+      autofocus: true,
+      autocomplete: "organization",
+      value: params[:workspace_code],
+      class: "dd-field" %>
+  </div>
+
   <div class="dd-field-group">
     <%= form.label :email_address, "Email address", class: "dd-label" %>
     <%= form.email_field :email_address,
       required: true,
-      autofocus: true,
       autocomplete: "username",
       placeholder: "you@example.com",
       value: params[:email_address],

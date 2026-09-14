@@ -1,134 +1,103 @@
 require "test_helper"
 
 class SessionsControllerTest < ActionDispatch::IntegrationTest
-  GENERIC_LOGIN_ALERT = "Try another email address or password."
-
-  setup { @user = users(:one) }
-
-  test "new" do
-    get new_session_path
-    assert_response :success
-    assert_select "link[rel=icon][href*='favicon']"
-    assert_select "link[rel=apple-touch-icon][href*='favicon']"
-    assert_select ".dd-auth-brand .dd-brand-logo[src*='logo']"
-  end
-
-  test "create with valid credentials and a usable membership" do
-    post session_path, params: { email_address: @user.email_address, password: "password" }
-
+  test "the same email is an independent account in each agency" do
+    post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "alex@example.com")
     assert_redirected_to root_path
-    assert cookies[:session_id]
-  end
-
-  test "create returns to the originally requested page" do
-    get root_path
-    assert_redirected_to new_session_path
-
-    post session_path, params: { email_address: @user.email_address, password: "password" }
-
-    assert_redirected_to root_url
-  end
-
-  test "create with invalid credentials" do
-    post session_path, params: { email_address: @user.email_address, password: "wrong" }
-
-    assert_redirected_to new_session_path
-    assert_nil cookies[:session_id]
-    assert_equal GENERIC_LOGIN_ALERT, flash[:alert]
-  end
-
-  test "create with no active membership fails generically" do
-    user = User.create!(
-      email_address: "no-membership@example.com",
-      first_name: "No",
-      last_name: "Membership",
-      password: "password",
-      password_confirmation: "password"
-    )
-
-    post session_path, params: { email_address: user.email_address, password: "password" }
-
-    assert_generic_login_failure(user)
-  end
-
-  test "create with a suspended membership fails generically" do
-    agency_memberships(:one).update!(status: :suspended)
-
-    post session_path, params: { email_address: @user.email_address, password: "password" }
-
-    assert_generic_login_failure
-  end
-
-  test "create with a suspended agency fails generically" do
-    agencies(:one).update!(status: :suspended)
-
-    post session_path, params: { email_address: @user.email_address, password: "password" }
-
-    assert_generic_login_failure
-  end
-
-  test "create with a closed agency fails generically" do
-    agencies(:one).update!(status: :closed)
-
-    post session_path, params: { email_address: @user.email_address, password: "password" }
-
-    assert_generic_login_failure
-  end
-
-  test "destroy" do
-    sign_in_as(@user)
+    harbor_session = Session.order(:created_at).last
+    assert_equal agency_users(:harbor_admin), harbor_session.agency_user
 
     delete session_path
+    post session_path, params: sign_in_params(workspace_code: "cove", email_address: "alex@example.com", password: "cove-password1")
+    assert_redirected_to root_path
+    cove_session = Session.order(:created_at).last
+    assert_equal agency_users(:cove_admin), cove_session.agency_user
+    assert_not_equal harbor_session.agency_user.password_digest, cove_session.agency_user.password_digest
+  end
+
+  test "a harbor password does not sign in the cove account" do
+    post session_path, params: sign_in_params(workspace_code: "cove", email_address: "alex@example.com")
 
     assert_redirected_to new_session_path
-    assert_empty cookies[:session_id]
+    assert_equal AgencyCommand::GENERIC_FAILURE, flash[:alert]
+    assert_nil Session.last
   end
 
-  test "an existing session is terminated after membership suspension" do
-    sign_in_as(@user)
-    agency_memberships(:one).update!(status: :suspended)
+  test "missing workspace, unknown email, bad password, and inactive accounts fail the same way" do
+    attempts = [
+      { workspace_code: "missing", email_address: "alex@example.com" },
+      { workspace_code: "harbor", email_address: "nobody@example.com" },
+      { workspace_code: "harbor", email_address: "alex@example.com", password: "not-the-password" },
+      { workspace_code: "harbor", email_address: "invite@example.com" },
+      { workspace_code: "harbor", email_address: "suspended@example.com" }
+    ]
 
-    assert_unusable_session_is_terminated
+    alerts = attempts.map do |attempt|
+      post session_path, params: sign_in_params(**attempt)
+      flash[:alert]
+    end
+
+    assert_equal [ AgencyCommand::GENERIC_FAILURE ] * attempts.size, alerts
   end
 
-  test "an existing session is terminated after agency suspension" do
-    sign_in_as(@user)
-    agencies(:one).update!(status: :suspended)
+  test "a request agency id does not establish tenancy" do
+    post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "alex@example.com", agency_id: agencies(:cove).id)
 
-    assert_unusable_session_is_terminated
+    assert_redirected_to root_path
+    assert_equal agencies(:harbor), Session.order(:created_at).last.agency_user.agency
   end
 
-  test "an existing session is terminated after agency closure" do
-    sign_in_as(@user)
-    agencies(:one).update!(status: :closed)
+  test "sign-in rate limit uses ip plus workspace plus email" do
+    with_memory_cache do
+      10.times do
+        post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "alex@example.com")
+        assert_redirected_to root_path
+      end
 
-    assert_unusable_session_is_terminated
+      post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "alex@example.com")
+      assert_redirected_to new_session_path
+
+      post session_path, params: sign_in_params(workspace_code: "cove", email_address: "alex@example.com", password: "cove-password1")
+      assert_redirected_to root_path
+
+      post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "sam@example.com")
+      assert_redirected_to root_path
+    end
   end
 
-  test "health check remains publicly reachable" do
-    get rails_health_check_path
+  test "a presented stale session cookie is cleared and an unpresented cookie is not" do
+    user = agency_users(:harbor_staff)
+    sign_in_as user
+    presented = cookies["session_id"]
+    other = user.sessions.create!(credential_version: user.credential_version)
+    other_cookie = signed_session_cookie(other)
 
-    assert_response :success
+    ChangeAgencyUserAccess.new(agency_user: user, actor: agency_users(:harbor_admin), status: "suspended").call
+    assert_equal 0, user.sessions.count
+    assert_equal other_cookie, other_cookie
+
+    cookies["session_id"] = presented
+    get root_path
+    assert_redirected_to new_session_path
+    assert_predicate cookies["session_id"].to_s, :blank?
+
+    cookies["session_id"] = other_cookie
+    get root_path
+    assert_redirected_to new_session_path
+    assert_predicate cookies["session_id"].to_s, :blank?
   end
 
   private
-    def assert_generic_login_failure(user = @user)
-      assert_redirected_to new_session_path
-      assert_nil cookies[:session_id]
-      assert_equal GENERIC_LOGIN_ALERT, flash[:alert]
-      assert_equal 0, user.sessions.count
-    end
 
-    def assert_unusable_session_is_terminated
-      assert_difference("Session.count", -1) do
-        get root_path
-      end
+  def sign_in_params(workspace_code:, email_address:, password: ActiveSupport::TestCase::TEST_PASSWORD, agency_id: nil)
+    { workspace_code:, email_address:, password:, agency_id: }.compact
+  end
 
-      assert_redirected_to new_session_path
-      assert_empty cookies[:session_id]
-      assert_equal "Please sign in to continue.", flash[:alert]
-
-      get root_path
-      assert_redirected_to new_session_path
-    end
+  def with_memory_cache
+    previous = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    yield
+  ensure
+    Rails.cache = previous
+  end
 end

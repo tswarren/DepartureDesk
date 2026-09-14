@@ -1,13 +1,13 @@
 module Administration
   class BaseController < ApplicationController
-    before_action :require_administrator
+    before_action :require_workspace_administration!
 
     private
 
-    def require_administrator
-      return if Current.agency_membership&.administrator?
+    def require_workspace_administration!
+      return if Current.agency_user&.permitted?(:manage_agency_profile)
 
-      redirect_to root_url, alert: "You are not authorized to do that."
+      redirect_to root_path, alert: AgencyCommand::UNAUTHORIZED
     end
   end
 end

@@ -1,5 +1,9 @@
 # DepartureDesk terminology standard
 
+> **Archived Party glossary.** This document describes the earlier Party, membership, and Directory vocabulary. It is not the current application vocabulary. Product authority is [departure-desk-mvp.md](planning/departure-desk-mvp.md) and [DepartureDesk-commercial-domain-decision-register.md](planning/DepartureDesk-commercial-domain-decision-register.md). Do not implement terms from this glossary unless a later slice explicitly revives them.
+
+
+
 ## 1\. Naming principles
 
 DepartureDesk terminology should follow these rules:

@@ -1,6 +1,8 @@
 # DepartureDesk Presentation and Interface Contract
 
-This is the presentation contract for implemented application layouts after the CAI 2026-09-07 adoption. Domain commands, tenancy, authorization, and terminology are unchanged. The design system in `docs/ui/ui-revamp-cai-260907/departuredesk-design-system.md` remains the visual authority for in-scope surfaces.
+This is the presentation contract for implemented application layouts after the CAI 2026-09-07 adoption. The design system in `docs/ui/ui-revamp-cai-260907/departuredesk-design-system.md` remains the visual authority for in-scope surfaces.
+
+The Party workspace, Directory, Clients, Suppliers, Departures, Travelers, and Accounting navigation described below are archived with the Party glossary. The current shell shows Dashboard, and Administration for administrators. Do not restore those links until a later slice ships the routes.
 
 Reuse these `.dd-` classes before adding new presentation rules. Do not introduce ViewComponent, third-party icon fonts/gems, or view-specific CSS files. Tokens and component CSS live in `app/assets/tailwind/application.css`.
 

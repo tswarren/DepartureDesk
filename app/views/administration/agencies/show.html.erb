@@ -4,12 +4,8 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title">Agency profile</h1>
-    <p class="dd-page-description">
-      Identity and defaults for <%= @agency.name %>. Timezone and currency
-      apply to future data entry only.
-    </p>
+    <p class="dd-page-description">Identity and defaults for <%= @agency.name %>.</p>
   </div>
-
   <div class="dd-page-actions">
     <%= link_to "Edit profile", edit_administration_agency_path, class: "dd-button" %>
   </div>
@@ -29,8 +25,8 @@
         <dd><%= @agency.legal_name.presence || "Not provided" %></dd>
       </div>
       <div>
-        <dt>Formal name</dt>
-        <dd><%= @agency.formal_name %></dd>
+        <dt>Workspace code</dt>
+        <dd class="dd-type-mono"><%= @agency.workspace_code %></dd>
       </div>
       <div>
         <dt>Country code</dt>

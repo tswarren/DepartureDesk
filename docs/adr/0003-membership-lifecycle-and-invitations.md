@@ -1,7 +1,9 @@
 # ADR 0003: Membership lifecycle and invitations
 
-- Status: Accepted
+- Status: Superseded by ADR 0005
 - Date: 2026-09-05
+
+This decision is retained unchanged for history. [ADR 0005](0005-agency-identity.md) replaces it. Do not implement the membership invitation model described below.
 - Decision owners: DepartureDesk maintainers
 
 ## Context

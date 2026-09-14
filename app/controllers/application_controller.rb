@@ -1,9 +1,16 @@
 class ApplicationController < ActionController::Base
   include Authentication
-  helper DeparturesHelper
-  # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
-  allow_browser versions: :modern
 
-  # Changes to the importmap will invalidate the etag for HTML responses
+  allow_browser versions: :modern
   stale_when_importmap_changes
+
+  private
+
+  def agency_users
+    Current.agency.agency_users
+  end
+
+  def offices
+    Current.agency.offices
+  end
 end

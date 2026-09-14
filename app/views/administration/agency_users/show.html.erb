@@ -1,0 +1,47 @@
+<% content_for :title, "#{@agency_user.display_name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title"><%= @agency_user.display_name %></h1>
+    <p class="dd-page-description">
+      <%= agency_user_role_badge(@agency_user) %>
+      <%= agency_user_status_badge(@agency_user) %>
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Edit", edit_administration_agency_user_path(@agency_user), class: "dd-button dd-button--secondary" %>
+    <% if @agency_user.invited? %>
+      <%= button_to "Replace invitation", replace_invitation_administration_agency_user_path(@agency_user), method: :post, class: "dd-button dd-button--secondary" %>
+      <%= button_to "Revoke invitation", revoke_invitation_administration_agency_user_path(@agency_user), method: :post, class: "dd-button dd-button--danger" %>
+    <% elsif @agency_user.active? %>
+      <%= button_to "Suspend", suspend_administration_agency_user_path(@agency_user), method: :post, params: { lock_version: @agency_user.lock_version }, class: "dd-button dd-button--danger" %>
+      <%= button_to "Close", close_administration_agency_user_path(@agency_user), method: :post, params: { lock_version: @agency_user.lock_version }, class: "dd-button dd-button--quiet" %>
+    <% elsif @agency_user.suspended? %>
+      <%= button_to "Reactivate", reactivate_administration_agency_user_path(@agency_user), method: :post, params: { lock_version: @agency_user.lock_version }, class: "dd-button" %>
+      <%= button_to "Close", close_administration_agency_user_path(@agency_user), method: :post, params: { lock_version: @agency_user.lock_version }, class: "dd-button dd-button--quiet" %>
+    <% end %>
+  </div>
+</header>
+
+<%= render "administration/shared/subnav", current: :users %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Email</dt>
+        <dd><%= @agency_user.email_address %></dd>
+      </div>
+      <div>
+        <dt>Relationship</dt>
+        <dd><%= @agency_user.relationship.presence || "Not provided" %></dd>
+      </div>
+      <div>
+        <dt>Default office</dt>
+        <dd><%= @agency_user.default_office ? office_choice_label(@agency_user.default_office) : "None" %></dd>
+      </div>
+    </dl>
+    <p class="dd-page-description">Relationship is descriptive only. It does not grant access.</p>
+  </div>
+</article>

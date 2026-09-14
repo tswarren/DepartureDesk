@@ -1,5 +1,5 @@
-# app/controllers/dashboard_controller.rb
 class DashboardController < ApplicationController
-    def show
-    end
+  def show
+    @offices = Current.agency.offices.order(:name)
+  end
 end

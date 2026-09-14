@@ -1,0 +1,32 @@
+<% content_for :title, "Change password · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Account</p>
+    <h1 class="dd-page-title">Change password</h1>
+    <p class="dd-page-description">A new password signs you out everywhere.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: account_password_path, method: :patch, class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :current_password, "Current password", class: "dd-label" %>
+        <%= form.password_field :current_password, required: true, autocomplete: "current-password", maxlength: 72, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :password, "New password", class: "dd-label" %>
+        <%= form.password_field :password, required: true, autocomplete: "new-password", maxlength: 72, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :password_confirmation, "Confirm new password", class: "dd-label" %>
+        <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", maxlength: 72, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Save password", class: "dd-button" %>
+        <%= link_to "Cancel", root_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

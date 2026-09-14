@@ -22,9 +22,10 @@
   <% end %>
 
   <div class="dd-topbar-account">
+    <%= link_to "Password", edit_account_password_path, class: "dd-topbar-office" %>
     <span class="dd-account-agency"><%= Current.agency.name %></span>
-    <span class="dd-avatar" aria-hidden="true"><%= user_initials(Current.user) %></span>
-    <span class="dd-account-user"><%= Current.user.display_name %></span>
+    <span class="dd-avatar" aria-hidden="true"><%= user_initials(Current.agency_user) %></span>
+    <span class="dd-account-user"><%= Current.agency_user.display_name %></span>
     <%= button_to "Sign out",
       session_path,
       method: :delete,

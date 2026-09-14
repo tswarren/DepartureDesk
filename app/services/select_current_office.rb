@@ -1,30 +1,16 @@
-class SelectCurrentOffice
-  class Error < StandardError
-    attr_reader :code
-
-    def initialize(message, code: :unauthorized)
-      super(message)
-      @code = code
-    end
-  end
-
+class SelectCurrentOffice < AgencyCommand
   def initialize(session:, office:)
     @session = session
     @office = office
   end
 
   def call
-    membership = @session.user.usable_agency_membership
-    raise Error.new("You are not authorized to do that.") unless membership
-
-    @office.lock!
-    @office.reload
-
-    unless @office.agency_id == membership.agency_id && membership.can_access_office?(@office)
-      raise Error.new("You are not authorized to do that.")
-    end
+    user = @session.agency_user
+    ensure_permitted!(user, :select_office_context)
+    raise Error.new("Choose an active office in this agency.", code: :not_found) unless @office&.active? && @office.agency_id == user.agency_id
 
     @session.update!(office: @office)
-    @office
+    audit!(agency: user.agency, action: "session.office_selected", subject: @office, actor: user, details: { "office_id" => @office.id })
+    Result.new(status: :accepted, record: @session)
   end
 end

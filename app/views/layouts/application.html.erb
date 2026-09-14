@@ -35,7 +35,7 @@
         <%= render "layouts/topbar" %>
         <%= render "layouts/sidebar" %>
         <div class="dd-main" data-navigation-drawer-target="main">
-          <main id="main-content" class="dd-workspace<%= " dd-workspace--party" if party_workspace? %>">
+          <main id="main-content" class="dd-workspace">
             <% if notice = flash[:notice] %>
               <p class="dd-alert dd-alert--success" role="status"><%= notice %></p>
             <% end %>

@@ -7,27 +7,29 @@ module AgencyOperationsTask
 end
 
 namespace :agency do
-  desc "Provision a new agency and invite its first administrator"
+  desc "Provision a new agency, first office, and first administrator"
   task provision: :environment do
     result = ProvisionAgency.new(
-      idempotency_key: AgencyOperationsTask.required_env("AGENCY_PROVISIONING_KEY"),
-      actor_identifier: AgencyOperationsTask.required_env("AGENCY_OPERATOR"),
       name: AgencyOperationsTask.required_env("AGENCY_NAME"),
-      legal_name: ENV["AGENCY_LEGAL_NAME"],
+      workspace_code: AgencyOperationsTask.required_env("AGENCY_WORKSPACE_CODE"),
       country_code: ENV.fetch("AGENCY_COUNTRY_CODE", "US"),
-      default_timezone: ENV.fetch("AGENCY_TIMEZONE", "UTC"),
       default_currency: ENV.fetch("AGENCY_CURRENCY", "USD"),
-      email: AgencyOperationsTask.required_env("AGENCY_ADMIN_EMAIL"),
-      first_name: AgencyOperationsTask.required_env("AGENCY_ADMIN_FIRST_NAME"),
-      last_name: AgencyOperationsTask.required_env("AGENCY_ADMIN_LAST_NAME"),
-      preferred_name: ENV["AGENCY_ADMIN_PREFERRED_NAME"]
+      default_timezone: ENV.fetch("AGENCY_TIMEZONE", "UTC"),
+      office_name: ENV.fetch("AGENCY_OFFICE_NAME", AgencyOperationsTask.required_env("AGENCY_NAME")),
+      office_code: ENV.fetch("AGENCY_OFFICE_CODE", "MAIN"),
+      office_timezone: ENV.fetch("AGENCY_OFFICE_TIMEZONE", ENV.fetch("AGENCY_TIMEZONE", "UTC")),
+      administrator_email: AgencyOperationsTask.required_env("AGENCY_ADMIN_EMAIL"),
+      administrator_first_name: AgencyOperationsTask.required_env("AGENCY_ADMIN_FIRST_NAME"),
+      administrator_last_name: AgencyOperationsTask.required_env("AGENCY_ADMIN_LAST_NAME"),
+      administrator_password: AgencyOperationsTask.required_env("AGENCY_ADMIN_PASSWORD"),
+      actor_identifier: AgencyOperationsTask.required_env("AGENCY_OPERATOR")
     ).call
 
-    puts "Agency ID: #{result.agency.id}"
-    puts "Agency name: #{result.agency.name}"
-    puts "Membership ID: #{result.membership.id}"
-    puts "Reused existing provisioning request: #{result.reused}"
-    puts "Next: the invited administrator must accept the invitation email."
+    agency = result.record
+    puts "Agency ID: #{agency.id}"
+    puts "Workspace code: #{agency.workspace_code}"
+    puts "Office ID: #{agency.offices.order(:created_at).first.id}"
+    puts "Administrator ID: #{agency.agency_users.order(:created_at).first.id}"
   end
 
   desc "Change an agency lifecycle status"
@@ -35,35 +37,11 @@ namespace :agency do
     agency = Agency.find(AgencyOperationsTask.required_env("AGENCY_ID"))
     ChangeAgencyStatus.new(
       agency: agency,
-      to: AgencyOperationsTask.required_env("AGENCY_STATUS"),
-      reason: AgencyOperationsTask.required_env("AGENCY_REASON"),
+      status: AgencyOperationsTask.required_env("AGENCY_STATUS"),
       actor_identifier: AgencyOperationsTask.required_env("AGENCY_OPERATOR")
     ).call
 
     puts "Agency ID: #{agency.id}"
     puts "Status: #{agency.reload.status}"
-  end
-
-  desc "Recover administrative access for an active agency"
-  task recover_administrator: :environment do
-    agency = Agency.find(AgencyOperationsTask.required_env("AGENCY_ID"))
-    membership_id = ENV["AGENCY_MEMBERSHIP_ID"].presence
-    membership = membership_id && AgencyMembership.find(membership_id)
-    result = RecoverAgencyAdministrator.new(
-      agency: agency,
-      actor_identifier: AgencyOperationsTask.required_env("AGENCY_OPERATOR"),
-      reason: AgencyOperationsTask.required_env("AGENCY_REASON"),
-      mode: AgencyOperationsTask.required_env("AGENCY_RECOVERY_MODE"),
-      membership: membership,
-      email: ENV["AGENCY_ADMIN_EMAIL"],
-      first_name: ENV["AGENCY_ADMIN_FIRST_NAME"],
-      last_name: ENV["AGENCY_ADMIN_LAST_NAME"],
-      preferred_name: ENV["AGENCY_ADMIN_PREFERRED_NAME"]
-    ).call
-
-    puts "Agency ID: #{agency.id}"
-    puts "Recovery mode: #{ENV.fetch("AGENCY_RECOVERY_MODE")}"
-    puts "Membership ID: #{result.membership&.id}"
-    puts "Next: confirm the matching audit events and any invitation email."
   end
 end

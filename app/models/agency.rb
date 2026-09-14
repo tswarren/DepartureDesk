@@ -1,71 +1,54 @@
 class Agency < ApplicationRecord
-    has_many :agency_memberships, dependent: :restrict_with_exception
-    has_many :users, through: :agency_memberships
-    has_many :parties, dependent: :restrict_with_exception
-    has_many :people, dependent: :restrict_with_exception
-    has_many :households, dependent: :restrict_with_exception
-    has_many :organizations, dependent: :restrict_with_exception
-    has_many :offices, dependent: :restrict_with_exception
-    has_many :office_assignments, dependent: :restrict_with_exception
-    has_many :audit_events, dependent: :restrict_with_exception
-    has_many :agency_provisioning_requests, dependent: :restrict_with_exception
-    has_many :party_contact_points, dependent: :restrict_with_exception
-    has_many :contact_point_purpose_assignments, dependent: :restrict_with_exception
-    has_many :party_relationships, dependent: :restrict_with_exception
-    has_many :relationship_purpose_assignments, dependent: :restrict_with_exception
-    has_many :party_notes, dependent: :restrict_with_exception
-    has_many :client_profiles, dependent: :restrict_with_exception
-    has_many :supplier_profiles, dependent: :restrict_with_exception
-    has_many :client_advisor_assignments, dependent: :restrict_with_exception
-    has_many :supplier_service_category_assignments, dependent: :restrict_with_exception
-    has_many :external_identifiers, dependent: :restrict_with_exception
-    has_many :travel_programs, dependent: :restrict_with_exception
-    has_many :departures, dependent: :restrict_with_exception
-    has_many :departure_team_assignments, dependent: :restrict_with_exception
-    has_many :departure_party_role_assignments, dependent: :restrict_with_exception
-    has_one :departure_reference_counter, dependent: :restrict_with_exception
+  STATUSES = %w[active suspended closed].freeze
+  WORKSPACE_CODE_FORMAT = /\A[a-z][a-z0-9-]{1,39}\z/
+  COUNTRY_CODE_FORMAT = /\A[A-Z]{2}\z/
+  CURRENCY_FORMAT = /\A[A-Z]{3}\z/
 
-    STATUSES = %w[
-      active
-      suspended
-      closed
-    ].freeze
+  has_many :offices, dependent: :restrict_with_exception
+  has_many :agency_users, dependent: :restrict_with_exception
+  has_many :audit_events, dependent: :restrict_with_exception
 
-    enum :status, STATUSES.index_by(&:itself)
+  enum :status, STATUSES.index_by(&:itself), validate: true
 
-    normalizes :name, with: ->(value) { value&.strip }
-    normalizes :legal_name, with: ->(value) { value&.strip.presence }
-    normalizes :country_code, with: ->(value) { value&.strip&.upcase }
+  attr_readonly :workspace_code
 
-    validates :name, presence: true
-    validates :default_timezone, presence: true
-    validates :default_currency,
-      presence: true,
-      format: {
-        with: /\A[A-Z]{3}\z/,
-        message: "must be a three-letter uppercase currency code"
-      }
-    validates :country_code,
-      presence: true,
-      format: {
-        with: /\A[A-Z]{2}\z/,
-        message: "must be a two-letter uppercase country code"
-      }
+  normalizes :name, with: ->(value) { value.to_s.strip }
+  normalizes :legal_name, with: ->(value) { value.to_s.strip.presence }
+  normalizes :workspace_code, with: ->(value) { normalize_workspace_code(value) }
+  normalizes :country_code, with: ->(value) { value.to_s.strip.upcase }
+  normalizes :default_currency, with: ->(value) { value.to_s.strip.upcase }
+  normalizes :default_timezone, with: ->(value) { value.to_s.strip }
 
-    validate :default_timezone_must_be_valid
+  validates :name, :workspace_code, :country_code, :default_currency, :default_timezone, presence: true
+  validates :workspace_code, uniqueness: true, format: { with: WORKSPACE_CODE_FORMAT }
+  validates :country_code, format: { with: COUNTRY_CODE_FORMAT }
+  validates :default_currency, format: { with: CURRENCY_FORMAT }
+  validate :timezone_is_iana
+  validate :currency_is_known
 
-    def formal_name
-      legal_name.presence || name
-    end
+  def self.normalize_workspace_code(value)
+    value.to_s.strip.downcase
+  end
 
-    private
+  def operational?
+    active?
+  end
 
-    def default_timezone_must_be_valid
-      TZInfo::Timezone.get(default_timezone)
-    rescue TZInfo::InvalidTimezoneIdentifier
-      errors.add(
-        :default_timezone,
-        "is not a recognized IANA timezone"
-      )
-    end
+  private
+
+  def timezone_is_iana
+    return if default_timezone.blank?
+
+    TZInfo::Timezone.get(default_timezone)
+  rescue TZInfo::InvalidTimezoneIdentifier
+    errors.add(:default_timezone, "is not a recognized IANA timezone")
+  end
+
+  def currency_is_known
+    return if default_currency.blank?
+
+    Money::Currency.find(default_currency)
+  rescue Money::Currency::UnknownCurrency
+    errors.add(:default_currency, "is not a supported currency")
+  end
 end
