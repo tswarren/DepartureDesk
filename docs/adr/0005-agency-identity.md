@@ -12,9 +12,9 @@ There is no migration path from the Party and membership schema. Agency identity
 
 ## Decision
 
-`Agency` is the tenant. Sign-in looks up the agency by an immutable, normalized `workspace_code` before email or password lookup. `params[:agency_id]` never establishes tenancy.
+`Agency` is the tenant. Sign-in looks up the agency by an immutable, normalized `workspace_code` before email or password lookup. A database trigger rejects a later change to `workspace_code`, `AgencyUser.agency_id`, `Office.agency_id`, or `Office.code`. `params[:agency_id]` never establishes tenancy.
 
-`AgencyUser` belongs to exactly one agency. The same normalized email in two agencies is two accounts, with independent passwords and sessions. Email is stored already stripped and downcased. Uniqueness is `(agency_id, email_address)` on that stored value. There is no `citext` column.
+`AgencyUser` belongs to exactly one agency. The same normalized email in two agencies is two accounts, with independent passwords and sessions. Email is stored already stripped and downcased. Uniqueness is `(agency_id, email_address)` on that stored value, and the database requires `email_address = lower(btrim(email_address))`. There is no `citext` column.
 
 Access roles are exactly `administrator`, `staff`, and `viewer`. Application code checks the permission catalog, not role names:
 
@@ -39,7 +39,7 @@ Invitation creates an `AgencyUser` in `invited` for that agency only. It never l
 
 Store only a token digest. Acceptance requires the current unexpired token, sets the password, moves the user to `active`, clears the digest, and bumps a credential version. Replacement and revocation apply only while the user is `invited`. Replacement issues a new digest and invalidates the previous token. Revocation closes the invited user, clears the digest, and rejects later acceptance.
 
-Password reset is agency-scoped, single-use, and hashed. Only an active agency user may request or use it. Every other state, including missing accounts, receives the same generic response and creates no token. A successful password change or reset bumps the credential version and destroys all sessions for that user.
+Password reset is agency-scoped, single-use, and hashed. Only an active agency user of an active agency may request or use it. A token issued before the agency is suspended or closed cannot be used. Every other state, including missing accounts, receives the same generic response and creates no token. A successful password change or reset bumps the credential version and destroys all sessions for that user.
 
 Sign-in and password-reset attempts are rate-limited to 10 per 3 minutes per client IP plus normalized workspace code plus normalized email. Missing workspace, unknown email, bad password, and inactive user or agency all return the same generic failure.
 

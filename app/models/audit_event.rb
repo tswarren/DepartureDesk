@@ -14,6 +14,7 @@ class AuditEvent < ApplicationRecord
     agency_user.invitation_revoked
     agency_user.invitation_accepted
     agency_user.role_changed
+    agency_user.updated
     agency_user.suspended
     agency_user.reactivated
     agency_user.closed

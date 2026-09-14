@@ -12,6 +12,26 @@ class AdministrationAccessTest < ActionDispatch::IntegrationTest
     assert_equal name, agencies(:harbor).reload.name
   end
 
+  test "a rejected user edit does not save a later field" do
+    sign_in_as agency_users(:harbor_admin)
+    user = agency_users(:harbor_admin)
+
+    patch administration_agency_user_path(user), params: {
+      agency_user: {
+        access_role: "staff",
+        relationship: "Former administrator",
+        default_office_id: offices(:harbor_west).id,
+        lock_version: user.lock_version
+      }
+    }
+
+    assert_response :unprocessable_entity
+    user.reload
+    assert user.role_administrator?
+    assert_nil user.relationship
+    assert_equal offices(:harbor_main), user.default_office
+  end
+
   test "staff cannot administer users" do
     sign_in_as agency_users(:harbor_staff)
 

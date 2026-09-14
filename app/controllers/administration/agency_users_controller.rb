@@ -39,19 +39,18 @@ module Administration
     end
 
     def update
-      if @agency_user.active? || @agency_user.suspended?
-        ChangeAgencyUserAccess.new(
-          agency_user: @agency_user,
-          actor: Current.agency_user,
-          access_role: agency_user_params[:access_role],
-          lock_version: agency_user_params[:lock_version]
-        ).call
-      end
-      office = agency_user_params[:default_office_id].present? ? offices.find(agency_user_params[:default_office_id]) : nil
-      SetAgencyUserDefaultOffice.new(agency_user: @agency_user, actor: Current.agency_user, office: office).call
-      @agency_user.update!(relationship: agency_user_params[:relationship])
+      UpdateAgencyUser.new(
+        agency_user: @agency_user,
+        actor: Current.agency_user,
+        access_role: agency_user_params[:access_role],
+        relationship: agency_user_params[:relationship],
+        default_office_id: agency_user_params[:default_office_id],
+        lock_version: agency_user_params[:lock_version]
+      ).call
       redirect_to administration_agency_user_path(@agency_user), notice: "User updated."
     rescue AgencyCommand::Error => error
+      raise ActiveRecord::RecordNotFound if error.code == :not_found
+
       @offices = offices.order(:name)
       flash.now[:alert] = error.message
       render :edit, status: :unprocessable_entity
