@@ -21,6 +21,20 @@ class PhoneNumberNormalizerTest < ActiveSupport::TestCase
     assert_equal "01 42 68 53 00", phone.number
   end
 
+  test "a pasted extension conflicts with a different extension field" do
+    error = assert_raises(AgencyCommand::Error) do
+      PhoneNumberNormalizer.call(number: "202-555-0100 ext 123", extension: "456", country_code: "US")
+    end
+    assert_equal :invalid, error.code
+
+    agreed = PhoneNumberNormalizer.call(number: "202-555-0100 ext 123", extension: "123", country_code: "US")
+    assert_equal "123", agreed.extension
+    assert_equal "+12025550100", agreed.normalized_number
+
+    pasted = PhoneNumberNormalizer.call(number: "202-555-0100 x 123", country_code: "US")
+    assert_equal "123", pasted.extension
+  end
+
   test "display uses national format at home and international format abroad" do
     assert_equal "(202) 555-0100", PhoneNumberNormalizer.display(
       normalized_number: "+12025550100", country_code: "US", viewer_country: "US"

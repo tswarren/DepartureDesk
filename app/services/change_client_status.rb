@@ -8,7 +8,7 @@ class ChangeClientStatus < AgencyCommand
   end
 
   def call
-    ensure_permitted!(@actor, :manage_client_directory)
+    ensure_directory_actor!(@actor, @agency, :manage_client_directory)
     ensure_active_agency!(@agency)
     raise Error.new("Choose active or inactive.", code: :invalid) unless Client::STATUSES.include?(@status)
 

@@ -6,7 +6,7 @@ class UpdateClientPersonPhoneNumber < ClientPersonContactPointCommand
     ActiveRecord::Base.transaction do
       @agency.lock!
       person = locked_person
-      point = person.phone_numbers.lock.find(@record.id)
+      point = locked_channel_row(person.phone_numbers, @record)
       point.lock_version = @lock_version
       phone = PhoneNumberNormalizer.call(number: @attributes[:number], extension: @attributes[:extension], country_code: @attributes[:country_code])
       preferred = ActiveModel::Type::Boolean.new.cast(@attributes[:preferred])
@@ -28,9 +28,9 @@ class UpdateClientPersonPhoneNumber < ClientPersonContactPointCommand
 
         point.update!(number: phone.number, normalized_number: phone.normalized_number, extension: phone.extension, country_code: phone.country_code, label: @attributes[:label])
       end
-      apply_preferred!(person.phone_numbers, point, preferred)
+      apply_preferred!(person.phone_numbers, point, preferred, lock_version: identity_unchanged ? @lock_version : nil)
       audit_contact!(person, changed_fields: [ "phone_number" ])
-      audit_override!(person) if decision
+      audit_override!(person, decision) if decision
       Result.new(status: :updated, record: point)
     end
   rescue ActiveRecord::StaleObjectError

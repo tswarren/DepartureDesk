@@ -8,6 +8,7 @@
           <%= candidate.display_name %>
           <span><%= candidate.status.titleize %></span>
           <span><%= candidate.signals.join(", ").humanize %></span>
+          <%= link_to "View existing", client_person_path(candidate.id) %>
         </li>
       <% end %>
     </ul>

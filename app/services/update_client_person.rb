@@ -12,7 +12,7 @@ class UpdateClientPerson < AgencyCommand
   end
 
   def call
-    ensure_permitted!(@actor, :manage_client_directory)
+    ensure_directory_actor!(@actor, @agency, :manage_client_directory)
     ensure_active_agency!(@agency)
 
     ActiveRecord::Base.transaction do
@@ -26,7 +26,7 @@ class UpdateClientPerson < AgencyCommand
 
       person.update!(normalized_names)
       audit!(agency: @agency, action: "client_person.updated", subject: person, actor: @actor, details: { "client_person_id" => person.id, "changed_fields" => normalized_names.keys.map(&:to_s) })
-      audit_override!(person) if decision
+      audit_override!(person, decision) if decision
       Result.new(status: :updated, record: person)
     end
   rescue ActiveRecord::StaleObjectError
@@ -72,7 +72,13 @@ class UpdateClientPerson < AgencyCommand
     )
   end
 
-  def audit_override!(person)
-    audit!(agency: @agency, action: "client_person.duplicate_override", subject: person, actor: @actor, details: { "reason_code" => @acknowledgement_reason })
+  def audit_override!(person, decision)
+    audit!(
+      agency: @agency,
+      action: "client_person.duplicate_override",
+      subject: person,
+      actor: @actor,
+      details: duplicate_override_details(decision, reason: @acknowledgement_reason)
+    )
   end
 end

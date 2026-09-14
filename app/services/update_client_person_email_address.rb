@@ -6,7 +6,7 @@ class UpdateClientPersonEmailAddress < ClientPersonContactPointCommand
     ActiveRecord::Base.transaction do
       @agency.lock!
       person = locked_person
-      point = person.email_addresses.lock.find(@record.id)
+      point = locked_channel_row(person.email_addresses, @record)
       point.lock_version = @lock_version
       address = @attributes[:address].to_s.strip
       preferred = ActiveModel::Type::Boolean.new.cast(@attributes[:preferred])
@@ -25,9 +25,9 @@ class UpdateClientPersonEmailAddress < ClientPersonContactPointCommand
 
         point.update!(address: address, label: @attributes[:label])
       end
-      apply_preferred!(person.email_addresses, point, preferred)
+      apply_preferred!(person.email_addresses, point, preferred, lock_version: identity_unchanged ? @lock_version : nil)
       audit_contact!(person, changed_fields: [ "email_address" ])
-      audit_override!(person) if decision
+      audit_override!(person, decision) if decision
       Result.new(status: :updated, record: point)
     end
   rescue ActiveRecord::StaleObjectError

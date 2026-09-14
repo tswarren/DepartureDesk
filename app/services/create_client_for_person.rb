@@ -8,7 +8,7 @@ class CreateClientForPerson < AgencyCommand
   end
 
   def call
-    ensure_permitted!(@actor, :manage_client_directory)
+    ensure_directory_actor!(@actor, @agency, :manage_client_directory)
     ensure_active_agency!(@agency)
     raise Error.new("That person could not be found.", code: :invalid) unless @client_person&.agency_id == @agency.id
 

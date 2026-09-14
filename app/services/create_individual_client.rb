@@ -11,7 +11,7 @@ class CreateIndividualClient < AgencyCommand
   end
 
   def call
-    ensure_permitted!(@actor, :manage_client_directory)
+    ensure_directory_actor!(@actor, @agency, :manage_client_directory)
     ensure_active_agency!(@agency)
 
     ActiveRecord::Base.transaction do
@@ -30,7 +30,7 @@ class CreateIndividualClient < AgencyCommand
       )
       audit!(agency: @agency, action: "client_person.created", subject: person, actor: @actor, details: { "client_person_id" => person.id })
       audit!(agency: @agency, action: "client.created", subject: client, actor: @actor, details: { "client_id" => client.id, "client_person_id" => person.id })
-      audit_override!(person, client) if decision
+      audit_override!(person, client, decision) if decision
       Result.new(status: :created, record: client)
     end
   rescue ActiveRecord::RecordInvalid => error
@@ -63,13 +63,13 @@ class CreateIndividualClient < AgencyCommand
     DuplicateAcknowledgement.fingerprint(normalized_names.transform_values { |value| SearchNormalizer.normalize(value) })
   end
 
-  def audit_override!(person, client)
+  def audit_override!(person, client, decision)
     audit!(
       agency: @agency,
       action: "client_person.duplicate_override",
       subject: person,
       actor: @actor,
-      details: { "client_id" => client.id, "reason_code" => @acknowledgement_reason }
+      details: duplicate_override_details(decision, reason: @acknowledgement_reason, extra: { "client_id" => client.id })
     )
   end
 end

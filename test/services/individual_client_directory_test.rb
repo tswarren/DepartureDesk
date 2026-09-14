@@ -186,9 +186,170 @@ class IndividualClientDirectoryTest < ActiveSupport::TestCase
     assert_match(/agency_id, name_search_key/, definition)
   end
 
+  test "acknowledged contact creates continue and replay for the signed person" do
+    email_owner = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Mail", last_name: "Owner" }).call.record
+    CreateClientPersonEmailAddress.new(agency: @agency, actor: @admin, client_person: email_owner, attributes: { address: "shared@example.com" }).call
+    email_person = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Mail", last_name: "Other" }).call.record
+    assert_contact_acknowledgement(
+      command: CreateClientPersonEmailAddress,
+      person: email_person,
+      attributes: { address: "shared@example.com" },
+      candidate: email_owner,
+      signal: "exact_email"
+    )
+
+    phone_owner = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Phone", last_name: "Owner" }).call.record
+    CreateClientPersonPhoneNumber.new(
+      agency: @agency, actor: @admin, client_person: phone_owner,
+      attributes: { number: "202-555-0100", country_code: "US" }
+    ).call
+    phone_person = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Phone", last_name: "Other" }).call.record
+    assert_contact_acknowledgement(
+      command: CreateClientPersonPhoneNumber,
+      person: phone_person,
+      attributes: { number: "202-555-0100", country_code: "US" },
+      candidate: phone_owner,
+      signal: "exact_phone"
+    )
+
+    postal_owner = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Ada", last_name: "Postal" }).call.record
+    CreateClientPersonPostalAddress.new(
+      agency: @agency, actor: @admin, client_person: postal_owner,
+      attributes: { line_1: "1 Dock", postal_code: "02139", country_code: "US" }
+    ).call
+    name_review = assert_raises(AgencyCommand::DuplicateReviewRequired) do
+      CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Ada", last_name: "Postal" }).call
+    end
+    postal_person = CreateClientPerson.new(
+      agency: @agency, actor: @admin, names: { first_name: "Ada", last_name: "Postal" },
+      acknowledgement_token: name_review.token, acknowledgement_reason: "confirmed_distinct"
+    ).call.record
+    assert_contact_acknowledgement(
+      command: CreateClientPersonPostalAddress,
+      person: postal_person,
+      attributes: { line_1: "2 Pier", postal_code: "02139", country_code: "US" },
+      candidate: postal_owner,
+      signal: "exact_full_name_and_postal_code",
+      signals: %w[exact_full_name exact_full_name_and_postal_code]
+    )
+  end
+
+  test "a contact acknowledgement is a conflict when the point belongs to another person" do
+    owner = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Held", last_name: "Owner" }).call.record
+    CreateClientPersonEmailAddress.new(agency: @agency, actor: @admin, client_person: owner, attributes: { address: "held@example.com" }).call
+    person = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Held", last_name: "Other" }).call.record
+    error = assert_raises(AgencyCommand::DuplicateReviewRequired) do
+      CreateClientPersonEmailAddress.new(agency: @agency, actor: @admin, client_person: person, attributes: { address: "held@example.com" }).call
+    end
+    payload = DuplicateAcknowledgement.verify!(error.token, agency: @agency, actor: @admin, command: "CreateClientPersonEmailAddress")
+    owner.email_addresses.create!(
+      id: payload.fetch("contact_point_id"), agency: @agency, address: "elsewhere@example.com", status: "active"
+    )
+
+    conflict = assert_raises(AgencyCommand::Error) do
+      CreateClientPersonEmailAddress.new(
+        agency: @agency, actor: @admin, client_person: person, attributes: { address: "held@example.com" },
+        acknowledgement_token: error.token, acknowledgement_reason: "shared_contact"
+      ).call
+    end
+    assert_equal :conflict, conflict.code
+    assert_equal 0, person.email_addresses.count
+  end
+
+  test "directory reads and writes reject an actor from another agency" do
+    person = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Harbor", last_name: "Only" }).call.record
+    email = CreateClientPersonEmailAddress.new(
+      agency: @agency, actor: @admin, client_person: person, attributes: { address: "harbor@example.com" }
+    ).call.record
+    client = create_client(first_name: "Bound", last_name: "Client").record
+    CreateClientPerson.new(agency: @other, actor: agency_users(:cove_admin), names: { first_name: "Cove", last_name: "Secret" }).call
+    audits = AuditEvent.count
+
+    [
+      -> { SearchClientDirectory.call(agency: @other, actor: @admin, query: "Cove Secret") },
+      -> { FindClientPersonDuplicates.call(agency: @other, actor: @admin, names: { first_name: "Cove", last_name: "Secret" }) },
+      -> { CreateClientPerson.new(agency: @other, actor: @admin, names: { first_name: "Nope", last_name: "Nope" }).call },
+      -> { CreateIndividualClient.new(agency: @other, actor: @admin, names: { first_name: "Nope", last_name: "Nope" }).call },
+      -> { UpdateClientPerson.new(agency: @other, actor: @admin, client_person: person, names: { first_name: "Nope", last_name: "Nope" }, lock_version: person.lock_version).call },
+      -> { ChangeClientPersonStatus.new(agency: @other, actor: @admin, client_person: person, status: "inactive", lock_version: person.lock_version).call },
+      -> { ChangeClientStatus.new(agency: @other, actor: @admin, client: client, status: "inactive", lock_version: client.lock_version).call },
+      -> { CreateClientForPerson.new(agency: @other, actor: @admin, client_person: person).call },
+      -> { CreateClientPersonEmailAddress.new(agency: @other, actor: @admin, client_person: person, attributes: { address: "nope@example.com" }).call },
+      -> { UpdateClientPersonEmailAddress.new(agency: @other, actor: @admin, client_person: person, record: email, attributes: { address: "changed@example.com" }, lock_version: email.lock_version).call },
+      -> { ChangeClientPersonEmailAddressStatus.new(agency: @other, actor: @admin, client_person: person, record: email, status: "inactive", lock_version: email.lock_version).call }
+    ].each do |attempt|
+      error = assert_raises(AgencyCommand::Error, &attempt)
+      assert_equal :unauthorized, error.code
+      assert_equal AgencyCommand::UNAUTHORIZED, error.message
+    end
+
+    assert_equal audits, AuditEvent.count
+    assert_equal "Cove", @other.client_people.pick(:first_name)
+    assert_equal "active", person.reload.status
+  end
+
+  test "search caps ranked people in SQL" do
+    51.times do |index|
+      CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Trunc", last_name: format("%03d", index) }).call
+    end
+
+    queries = []
+    callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?("search_rank") }
+    result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+      SearchClientDirectory.call(agency: @agency, actor: @admin, query: "Trunc")
+    end
+
+    assert_equal 50, result.records.size
+    assert result.truncated
+    assert queries.any? { |sql| sql.match?(/LIMIT 51/i) }
+  end
+
+  test "set primary submits a lock version and does not audit an already preferred point" do
+    person = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Primary", last_name: "Lock" }).call.record
+    email = CreateClientPersonEmailAddress.new(
+      agency: @agency, actor: @admin, client_person: person, attributes: { address: "lock@example.com" }
+    ).call.record
+    audits = AuditEvent.where(action: "client_person.contact_updated", subject_id: person.id).count
+
+    updated = SetPreferredClientPersonEmailAddress.new(
+      agency: @agency, actor: @admin, client_person: person, record: email, lock_version: email.lock_version
+    ).call
+    noop = SetPreferredClientPersonEmailAddress.new(
+      agency: @agency, actor: @admin, client_person: person, record: email, lock_version: email.reload.lock_version
+    ).call
+
+    assert_equal :updated, updated.status
+    assert_equal :noop, noop.status
+    assert email.reload.preferred?
+    assert_equal audits + 1, AuditEvent.where(action: "client_person.contact_updated", subject_id: person.id).count
+  end
+
   private
 
   def create_client(actor: @admin, **names)
     CreateIndividualClient.new(agency: @agency, actor: actor, names: names).call
+  end
+
+  def assert_contact_acknowledgement(command:, person:, attributes:, candidate:, signal:, signals: nil)
+    error = assert_raises(AgencyCommand::DuplicateReviewRequired) do
+      command.new(agency: @agency, actor: @admin, client_person: person, attributes: attributes).call
+    end
+    created = command.new(
+      agency: @agency, actor: @admin, client_person: person, attributes: attributes,
+      acknowledgement_token: error.token, acknowledgement_reason: "shared_contact"
+    ).call
+    replayed = command.new(
+      agency: @agency, actor: @admin, client_person: person, attributes: attributes,
+      acknowledgement_token: error.token, acknowledgement_reason: "shared_contact"
+    ).call
+    override = AuditEvent.where(action: "client_person.duplicate_override", subject_id: person.id).order(:created_at).last
+
+    assert_equal :created, created.status
+    assert_equal :replayed, replayed.status
+    assert_equal created.record, replayed.record
+    assert_equal [ candidate.id ], override.details["candidate_ids"]
+    assert_equal (signals || [ signal ]), override.details["signals"]
+    assert_equal "shared_contact", override.details["reason_code"]
+    assert_not override.details.to_json.include?(candidate.display_name)
   end
 end

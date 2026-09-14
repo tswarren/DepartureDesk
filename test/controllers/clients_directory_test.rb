@@ -62,9 +62,10 @@ class ClientsDirectoryTest < ActionDispatch::IntegrationTest
     sign_in_as @admin
     get client_person_path(person)
     assert_select "button", text: "Set primary"
+    assert_select "input[name=lock_version][value=?]", email.lock_version.to_s
     assert_select "a", text: "Change status", count: 0
 
-    post set_primary_client_person_email_address_path(person, email)
+    post set_primary_client_person_email_address_path(person, email), params: { lock_version: email.lock_version }
     assert_redirected_to client_person_path(person)
     assert email.reload.preferred?
 
@@ -93,6 +94,7 @@ class ClientsDirectoryTest < ActionDispatch::IntegrationTest
     post clients_path, params: { client_person: { first_name: "Ada", last_name: "Lovelace" } }
     assert_response :unprocessable_entity
     assert_select "input[name=acknowledgement_token]"
+    assert_select "a", text: "View existing"
     assert_equal 1, agencies(:harbor).clients.count
   end
 end

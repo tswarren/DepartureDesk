@@ -31,6 +31,46 @@ class IndividualClientConstraintsTest < ActiveSupport::TestCase
     end
   end
 
+  test "reference sequence agency and namespace are immutable but the counter is not" do
+    sequence = reference_sequences(:harbor_client)
+
+    agency_error = assert_raises(ActiveRecord::StatementInvalid) do
+      ReferenceSequence.transaction(requires_new: true) do
+        ReferenceSequence.where(id: sequence.id).update_all(agency_id: agencies(:cove).id)
+      end
+    end
+    namespace_error = assert_raises(ActiveRecord::StatementInvalid) do
+      ReferenceSequence.transaction(requires_new: true) do
+        ReferenceSequence.where(id: sequence.id).update_all(namespace: "supplier")
+      end
+    end
+    assert_match(/reference sequence identity is immutable/, agency_error.message)
+    assert_match(/reference sequence identity is immutable/, namespace_error.message)
+
+    sequence.update!(next_value: 4)
+    assert_equal 4, sequence.reload.next_value
+  end
+
+  test "contact labels are limited to 40 characters" do
+    assert_raises(ActiveRecord::RecordInvalid) do
+      @person.email_addresses.create!(agency: @agency, address: "long@example.com", label: "l" * 41, status: "active")
+    end
+    assert_raises(ActiveRecord::StatementInvalid) do
+      ClientPersonEmailAddress.insert!({
+        id: SecureRandom.uuid_v7,
+        agency_id: @agency.id,
+        client_person_id: @person.id,
+        address: "direct@example.com",
+        label: "l" * 41,
+        status: "active",
+        preferred: false,
+        lock_version: 0,
+        created_at: Time.current,
+        updated_at: Time.current
+      })
+    end
+  end
+
   test "reference and tenant columns are immutable" do
     client = @agency.clients.create!(client_person: @person, client_reference: "CL-000009", status: "active")
 

@@ -6,7 +6,7 @@ class UpdateClientPersonPostalAddress < ClientPersonContactPointCommand
     ActiveRecord::Base.transaction do
       @agency.lock!
       person = locked_person
-      point = person.postal_addresses.lock.find(@record.id)
+      point = locked_channel_row(person.postal_addresses, @record)
       point.lock_version = @lock_version
       raise Error.new("Enter an accepted country.", code: :invalid) unless CountryCode.accepted?(@attributes[:country_code])
 
@@ -38,9 +38,9 @@ class UpdateClientPersonPostalAddress < ClientPersonContactPointCommand
 
         point.update!(line_1: @attributes[:line_1], line_2: @attributes[:line_2], locality: @attributes[:locality], region: @attributes[:region], postal_code: @attributes[:postal_code], country_code: @attributes[:country_code], label: @attributes[:label])
       end
-      apply_preferred!(person.postal_addresses, point, preferred)
+      apply_preferred!(person.postal_addresses, point, preferred, lock_version: identity_unchanged ? @lock_version : nil)
       audit_contact!(person, changed_fields: [ "postal_address" ])
-      audit_override!(person) if decision
+      audit_override!(person, decision) if decision
       Result.new(status: :updated, record: point)
     end
   rescue ActiveRecord::StaleObjectError

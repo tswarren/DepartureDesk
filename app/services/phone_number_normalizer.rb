@@ -51,8 +51,6 @@ class PhoneNumberNormalizer
   private
 
   def extract_pasted_extension
-    return [ @number, nil ] if @extension.present?
-
     match = @number.match(PASTED_EXTENSION)
     return [ @number, nil ] unless match
 

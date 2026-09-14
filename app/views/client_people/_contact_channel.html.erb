@@ -40,7 +40,7 @@
               <div class="dd-inline-actions">
                 <%= link_to "Edit", contact_edit_path(record), class: "dd-row-action dd-row-action--edit" %>
                 <% if @client_person.active? && record.active? && !record.preferred? %>
-                  <%= button_to "Set primary", contact_set_primary_path(record), method: :post, class: "dd-row-action", form: { class: "dd-inline-form" } %>
+                  <%= button_to "Set primary", contact_set_primary_path(record), method: :post, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { lock_version: record.lock_version } %>
                 <% end %>
               </div>
             </td>

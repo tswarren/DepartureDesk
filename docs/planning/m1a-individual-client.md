@@ -8,6 +8,15 @@
 
 This slice implements the individual-Client vertical slice only. The parent contract governs lifecycle, duplicate acknowledgement, search permissions, phone and country normalization, reference issuance, and Office exclusion. This plan narrows that contract to Client Person and does not reopen it.
 
+## Amendments after acceptance
+
+These two behaviors were requested after this slice was accepted. They supersede the original accepted sentences they touch. They were not part of the pre-implementation contract.
+
+- **Phone country (2026-09-14).** A Client Person phone country is required. The form selects it and defaults to the agency country. An entered number, including a pasted international number, must be valid for that country. Display uses the national format when the number’s country matches the viewer’s agency, and the international format otherwise.
+- **Set primary (2026-09-14).** Preference may still change through the ordinary contact edit PATCH. The people list also posts `set_primary` with the submitted `lock_version`. That action is not a `/preferred` route. The command locks that channel’s rows in UUID order and writes no second audit when the point is already preferred.
+
+The phone-country requirement belongs in the single M1A migration. Do not add a follow-up migration for it.
+
 ## In scope
 
 M1A ships:
@@ -40,9 +49,9 @@ No M1A table stores `office_id`.
 | `client_person_email_addresses` | owner, display value, normalized address | Normalized value is `lower(btrim(value))` and is checked in the database. |
 | `client_person_phone_numbers` | owner, display `number`, E.164 `normalized_number`, `country_code` | Optional digits-only `extension` of at most 10 digits. Country is a required accepted ISO code. The base number never contains the extension. `normalized_number` is E.164: `+`, then a digit `1`–`9`, then at most 14 further digits. `number` stores that country’s national display format. |
 | `client_person_postal_addresses` | owner, `line_1`, `country_code` | Additional lines, locality, region, and postal code are optional. Country is required uppercase ISO 3166-1 alpha-2. A country-only row is invalid. The database checks a nonblank uppercase ASCII country shape. |
-| `reference_sequences` | `agency_id`, namespace, `next_value` | Unique `(agency_id, namespace)`. Namespace check is `client` only. `next_value` is the next unissued positive integer. A new row starts at 1. |
+| `reference_sequences` | `agency_id`, namespace, `next_value` | Unique `(agency_id, namespace)`. Namespace check is `client` only. `agency_id` and `namespace` are immutable (`attr_readonly` and a `BEFORE UPDATE` trigger). `next_value` stays mutable. `next_value` is the next unissued positive integer. A new row starts at 1. |
 
-Contact-point rows carry immutable `agency_id`, immutable owner ID, label, status, `preferred`, nonnegative `lock_version`, and UTC `timestamptz` timestamps. A partial unique index allows at most one preferred active point per owner and channel. Zero preferred points is valid.
+Contact-point rows carry immutable `agency_id`, immutable owner ID, a label of at most 40 characters, status, `preferred`, nonnegative `lock_version`, and UTC `timestamptz` timestamps. A partial unique index allows at most one preferred active point per owner and channel. Zero preferred points is valid.
 
 Immutable columns, enforced by trigger and `attr_readonly`:
 
@@ -72,7 +81,7 @@ Each contact-point family has explicit public commands:
 - `CreateClientPersonEmailAddress`, `UpdateClientPersonEmailAddress`, `ChangeClientPersonEmailAddressStatus`, `SetPreferredClientPersonEmailAddress`
 - the same four commands for phone numbers and postal addresses
 
-Contact-point create and update commands review that channel's email, phone, or postal change. They do not call `UpdateClientPerson` to perform that review. Shared private implementation is allowed. Public commands accept only a Client Person owner. Setting preferred locks the owner and channel rows and clears the former preference. There is no `/preferred` route. The people list posts `set_primary`, which calls the existing set-preferred command. Status confirmation stays on `/status/edit` and is linked from the contact edit page, not from the list row. The edit `PATCH` may still change preferred.
+Contact-point create and update commands review that channel's email, phone, or postal change. They do not call `UpdateClientPerson` to perform that review. Shared private implementation is allowed. Public commands accept only a Client Person owner. Setting preferred locks the owner, then that channel’s rows in UUID order, and clears the former preference. There is no `/preferred` route. The people list posts `set_primary` with the submitted `lock_version`, which calls the existing set-preferred command. If the point is already preferred, that command returns success without another audit. Status confirmation stays on `/status/edit` and is linked from the contact edit page, not from the list row. The edit `PATCH` may still change preferred. See the amendments above.
 
 Lock order is Agency, then the person, then child rows by UUID. Domain error codes are `unauthorized`, `invalid`, `invalid_state`, `dependency_exists`, `duplicate_review_required`, `already_exists`, `conflict`, and `reference_exhausted`. `reference_exhausted` is not a duplicate-review error.
 
@@ -113,7 +122,7 @@ Implement only these paths. Member parameters are descriptive. `new` and `edit` 
 - `GET /clients/people/:client_person_id/client/status/edit` — Client lifecycle confirmation.
 - `PATCH /clients/people/:client_person_id/client/status` — inactivate or reactivate Client.
 
-Person contact-point routes use this grammar for `email-addresses`, `phone-numbers`, and `postal-addresses`. Do not add a channel or a preferred member route.
+Person contact-point routes use this grammar for `email-addresses`, `phone-numbers`, and `postal-addresses`. Do not add a channel or a `/preferred` route. The accepted `set_primary` amendment adds one POST member action.
 
 - `GET /clients/people/:client_person_id/<channel>/new`
 - `POST /clients/people/:client_person_id/<channel>`
@@ -121,14 +130,15 @@ Person contact-point routes use this grammar for `email-addresses`, `phone-numbe
 - `PATCH /clients/people/:client_person_id/<channel>/:contact_point_id`
 - `GET /clients/people/:client_person_id/<channel>/:contact_point_id/status/edit`
 - `PATCH /clients/people/:client_person_id/<channel>/:contact_point_id/status`
+- `POST /clients/people/:client_person_id/<channel>/:contact_point_id/set_primary` — mark preferred. Requires submitted `lock_version`. This is the accepted amendment, not a `/preferred` route.
 
-Do not add `/duplicate-review/:token`, a contact-point preferred route, or a standalone Client detail page. Duplicate review renders from the failing POST or PATCH with HTTP 422 and a signed hidden token. Create anyway resubmits to the same action. Submitted data and tokens never appear in the URL.
+Do not add `/duplicate-review/:token`, a `/preferred` route, or a standalone Client detail page. Duplicate review renders from the failing POST or PATCH with HTTP 422 and a signed hidden token. Create anyway resubmits to the same action. Submitted data and tokens never appear in the URL.
 
 Add a real **Clients** sidebar link for users who have `view_client_directory`. Do not show Directory, Suppliers, Departures, Travelers, or Accounting. Update `NavigationHelper` and the interface contract's current-navigation section when the link ships. Keep Administration gated on `manage_agency_profile`.
 
 ## Normalization
 
-Add `PhoneNumberNormalizer` and call `phonelib` only through it. Persist E.164 `normalized_number`, the country national display format in `number`, optional extension, and a required accepted `country_code`. The phone form chooses that country from the accepted country list and defaults it to the agency country. Parse the entered number in the selected country; a pasted international number must belong to that country. Display uses the national format when the number’s country matches the viewer’s agency, and the international format when it does not. Extract an unambiguous pasted `ext`, `extension`, or `x` suffix only when the extension field is blank. A conflict, invalid number, or implausible number is a validation error. Do not store a digits-only approximation.
+Add `PhoneNumberNormalizer` and call `phonelib` only through it. Persist E.164 `normalized_number`, the country national display format in `number`, optional extension, and a required accepted `country_code`. The phone form chooses that country from the accepted country list and defaults it to the agency country. Parse the entered number in the selected country; a pasted international number must belong to that country. Display uses the national format when the number’s country matches the viewer’s agency, and the international format when it does not. Always detect and remove a recognized pasted `ext`, `extension`, or `x` suffix, including when the extension field is filled. Use that suffix when the field is blank, accept it when both values agree, and return invalid when they differ. A conflict, invalid number, or implausible number is a validation error. Do not store a digits-only approximation.
 
 The database checks `normalized_number` with `^\+[1-9][0-9]{0,14}$`: `+`, then a digit `1`–`9`, then at most 14 further digits. That shape check is not a plausibility check. `PhoneNumberNormalizer` remains authoritative for whether the value is a plausible telephone number.
 
@@ -192,7 +202,7 @@ Accept one free-text `q`. Reject blank or over-100-character queries without sca
 
 Administrators and staff may match Client reference, person name, email, phone, and postal fields. Viewers match only visible fields, such as reference and display name. Hidden fields do not affect Viewer results, ranking, excerpts, counts, or duplicate responses. A permitted name match must not expose a hidden destination. An email-shaped Viewer query normally returns no results.
 
-Default to active records. Status can be Active, Inactive, or both, and that filter does not require a search string. Reset clears both. Rank exact reference, email, phone, full name, then all-token prefix. Break ties by active status, display name, and UUID. Cap at 50 results and state when truncated. Digit-heavy phone matching uses the E.164 base number only after seven digits, and only when the actor may search phone fields. Extensions do not participate. Name queries require every token to match a normalized word prefix. No trigram or fuzzy matching. `EXPLAIN` assertions prove this index design; they do not replace it.
+Default to active records. Status can be Active, Inactive, or both, and that filter does not require a search string. Reset clears both. Rank exact reference, email, phone, full name, then all-token prefix. Break ties by active status, display name, and UUID. Enforce the 50-result cap in SQL, fetching at most 51 ranked unique People so truncation can be reported. Do not load every match into Ruby before applying that cap. Digit-heavy phone matching uses the E.164 base number only after seven digits, and only when the actor may search phone fields. Extensions do not participate. Name queries require every token to match a normalized word prefix. No trigram or fuzzy matching. `EXPLAIN` assertions prove this index design; they do not replace it.
 
 PostgreSQL 18 generated columns are virtual by default and cannot be indexed. Every search key below is a stored generated column.
 
@@ -221,19 +231,19 @@ Do not add organization or Supplier subject types. Contact-point commands use th
 
 ## UI
 
-Follow [docs/ui/interface-contract.md](../ui/interface-contract.md) and existing `dd-` classes. Pages are display-first. Lifecycle confirmation lists blockers and cascade effects and does not share an edit footer. Search works without JavaScript. Contact editors use a dedicated page or one open inline form. Viewer profiles omit contact destinations rather than masking them. Pair status color with text.
+Follow [docs/ui/interface-contract.md](../ui/interface-contract.md) and existing `dd-` classes. Pages are display-first. Lifecycle confirmation lists blockers and cascade effects and does not share an edit footer. Search works without JavaScript. Contact editors use a dedicated page or one open inline form. Viewer profiles omit contact destinations rather than masking them. Pair status color with text. Duplicate review lists each candidate and links **View existing** to that Person’s Agency-scoped profile.
 
 ## Tests
 
 Cover the M1A subset of the parent matrix:
 
 - UUIDv7, timestamptz, named constraints, generated search keys, sequence start at 1, and absence of `office_id`;
-- composite foreign keys reject cross-Agency pairing, and triggers reject tenant, source, owner, and reference mutation;
+- composite foreign keys reject cross-Agency pairing, and triggers reject tenant, source, owner, reference, and reference-sequence identity mutation;
 - phone shape and plausibility rejection, country-only postal rejection, contact preference, and no implicit link to `AgencyUser`;
 - a missing `client` sequence row fails issuance and does not create a row; provisioning and migration create that row;
 - success, invalid, unauthorized, inactive Agency, stale, not found, dependency, person-contact cascade, Client reactivation order, no-op, duplicate review, composite create that rolls back both records when review is required, create-token replay that does not double-issue, composite replay that returns `conflict` when only one proposed result exists, update-token replay that does not write again when the acknowledged values are already present, sequence exhaustion at `1000000`, and audit atomicity;
 - parallel Client creation, reference issuance, preferred changes, and parallel submissions of one token producing one reference and one audit set;
-- Viewer email-shaped query returning no hidden match; staff and administrator search of permitted fields; truncation, inactive filter, and cross-Agency isolation;
+- Viewer email-shaped query returning no hidden match; staff and administrator search of permitted fields; SQL truncation at 51 fetched rows, inactive filter, and actor/Agency mismatch returning unauthorized with no results or audit;
 - request coverage for Viewer redaction and mutation rejection, staff and administrator success, 404 isolation, preserved errors, and duplicate-token states.
 
 Add system tests for the browser workflows. They run in CI. The local Docker image has no Chrome, so a local browser run is not required for this slice. Existing authentication, administration, Office, invitation, audit, and isolation tests must remain green. Do not weaken them to add directory coverage.

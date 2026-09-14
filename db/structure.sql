@@ -116,6 +116,23 @@ $$;
 
 
 --
+-- Name: reject_reference_sequence_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_reference_sequence_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.namespace IS DISTINCT FROM OLD.namespace THEN
+    RAISE EXCEPTION 'reference sequence identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_office_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -264,7 +281,7 @@ CREATE TABLE public.client_person_email_addresses (
     id uuid DEFAULT uuidv7() NOT NULL,
     agency_id uuid NOT NULL,
     client_person_id uuid NOT NULL,
-    label character varying,
+    label character varying(40),
     status character varying DEFAULT 'active'::character varying NOT NULL,
     preferred boolean DEFAULT false NOT NULL,
     lock_version integer DEFAULT 0 NOT NULL,
@@ -272,6 +289,7 @@ CREATE TABLE public.client_person_email_addresses (
     updated_at timestamp(6) with time zone NOT NULL,
     address character varying NOT NULL,
     normalized_address text GENERATED ALWAYS AS (lower(btrim((address)::text))) STORED,
+    CONSTRAINT client_person_email_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_person_email_addresses_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT client_person_email_addresses_normalized CHECK (((normalized_address = lower(btrim((address)::text))) AND (normalized_address <> ''::text))),
     CONSTRAINT client_person_email_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
@@ -286,7 +304,7 @@ CREATE TABLE public.client_person_phone_numbers (
     id uuid DEFAULT uuidv7() NOT NULL,
     agency_id uuid NOT NULL,
     client_person_id uuid NOT NULL,
-    label character varying,
+    label character varying(40),
     status character varying DEFAULT 'active'::character varying NOT NULL,
     preferred boolean DEFAULT false NOT NULL,
     lock_version integer DEFAULT 0 NOT NULL,
@@ -300,6 +318,7 @@ CREATE TABLE public.client_person_phone_numbers (
     CONSTRAINT client_person_phone_numbers_country_shape CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
     CONSTRAINT client_person_phone_numbers_e164_shape CHECK (((normalized_number)::text ~ '^\+[1-9][0-9]{0,14}$'::text)),
     CONSTRAINT client_person_phone_numbers_extension CHECK (((extension IS NULL) OR ((extension)::text ~ '^[0-9]{1,10}$'::text))),
+    CONSTRAINT client_person_phone_numbers_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_person_phone_numbers_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT client_person_phone_numbers_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
 );
@@ -313,7 +332,7 @@ CREATE TABLE public.client_person_postal_addresses (
     id uuid DEFAULT uuidv7() NOT NULL,
     agency_id uuid NOT NULL,
     client_person_id uuid NOT NULL,
-    label character varying,
+    label character varying(40),
     status character varying DEFAULT 'active'::character varying NOT NULL,
     preferred boolean DEFAULT false NOT NULL,
     lock_version integer DEFAULT 0 NOT NULL,
@@ -328,6 +347,7 @@ CREATE TABLE public.client_person_postal_addresses (
     postal_code_search_key text GENERATED ALWAYS AS (public.dd_search_normalize((postal_code)::text)) STORED,
     locality_search_key text GENERATED ALWAYS AS (public.dd_search_normalize((locality)::text)) STORED,
     CONSTRAINT client_person_postal_addresses_country_shape CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
+    CONSTRAINT client_person_postal_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_person_postal_addresses_line_1 CHECK ((btrim((line_1)::text) <> ''::text)),
     CONSTRAINT client_person_postal_addresses_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT client_person_postal_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
@@ -849,6 +869,13 @@ CREATE TRIGGER client_person_postal_addresses_reject_owner_change BEFORE UPDATE 
 
 
 --
+-- Name: reference_sequences reference_sequences_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER reference_sequences_reject_identity_change BEFORE UPDATE ON public.reference_sequences FOR EACH ROW EXECUTE FUNCTION public.reject_reference_sequence_identity_change();
+
+
+--
 -- Name: clients clients_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1005,7 +1032,6 @@ ALTER TABLE ONLY public.sessions
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20260914040000'),
 ('20260914030000'),
 ('20260914020000'),
 ('20260914010000');

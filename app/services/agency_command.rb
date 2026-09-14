@@ -42,6 +42,21 @@ class AgencyCommand
     raise Error.new(UNAUTHORIZED, code: :unauthorized)
   end
 
+  def ensure_directory_actor!(actor, agency, permission)
+    return if actor&.active? && actor.agency_id == agency&.id && actor.permitted?(permission)
+
+    raise Error.new(UNAUTHORIZED, code: :unauthorized)
+  end
+
+  def duplicate_override_details(decision, reason:, extra: {})
+    candidates = Array(decision.is_a?(Hash) ? decision["reviewed_candidates"] : nil)
+    {
+      "reason_code" => reason,
+      "candidate_ids" => candidates.map { |candidate| candidate["id"] },
+      "signals" => candidates.flat_map { |candidate| Array(candidate["signals"]) }.uniq.sort
+    }.merge(extra)
+  end
+
   def ensure_active_agency!(agency)
     return if agency&.active?
 

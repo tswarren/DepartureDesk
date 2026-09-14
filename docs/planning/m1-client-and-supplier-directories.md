@@ -4,6 +4,8 @@
 
 **Decision posture:** Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. The first slice plan is [M1A](m1a-individual-client.md), accepted and implemented 2026-09-14. It covers only the individual-Client slice. M1B–M1E remain unaccepted.
 
+**M1A amendments (2026-09-14):** After M1A acceptance, product review requested two changes. They supersede the original sentences they touch and are recorded as amendments in the slice plan, not as text that was always in this contract. A Client Person phone country is required and must match the selected country. The individual-Client people list may `POST .../set_primary` with `lock_version`; that is not a `/preferred` route, and the rest of this contract still does not add one.
+
 **Prerequisites:** [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [MVP requirements](departure-desk-mvp.md), [current architecture](../architecture/current-state.md), and [interface contract](../ui/interface-contract.md)
 
 ## Goal
@@ -257,7 +259,7 @@ Use aggregate-specific tables, not polymorphic ownership:
 Each row carries direct immutable `agency_id`, immutable owner ID, label, active/inactive status, `preferred`, nonnegative lock version, and timestamps.
 
 - Email stores trimmed display value and lowercase-trimmed normalized address.
-- Phone stores E.164 `normalized_number`, a country national display `number`, optional digits-only `extension` of at most 10 digits, and a required uppercase ISO `country_code`. The Client Person phone form chooses that country from the accepted list and defaults it to the agency country. Persist the E.164 number independently of display grouping. The normalized base number never contains extension digits. The database checks that `normalized_number` is `+` followed by a digit `1`–`9` and at most 14 further digits. `PhoneNumberNormalizer` remains authoritative for whether that shape is a plausible telephone number.
+- Phone stores E.164 `normalized_number`, a country national display `number`, optional digits-only `extension` of at most 10 digits, and a required uppercase ISO `country_code` (M1A amendment). The Client Person phone form chooses that country from the accepted list and defaults it to the agency country. An entered number must be valid for that country. Always detect a pasted `ext`, `extension`, or `x` suffix: use it when the extension field is blank, accept it when both agree, and reject the number when they differ. Persist the E.164 number independently of display grouping. The normalized base number never contains extension digits. The database checks that `normalized_number` is `+` followed by a digit `1`–`9` and at most 14 further digits. `PhoneNumberNormalizer` remains authoritative for whether that shape is a plausible telephone number.
 - Website contact points store a display value and a normalized HTTP(S) URL.
 - Postal address stores a required `line_1`, optional additional lines, optional locality, optional region, optional postal code, and a required uppercase ISO 3166-1 alpha-2 country code. A country-only row is invalid.
 - Partial unique indexes allow at most one preferred active point per owner/channel. Setting preferred locks the owner/channel set and clears the former preference atomically. Zero preferred points is allowed.
@@ -571,7 +573,7 @@ Channels are `email-addresses`, `phone-numbers`, `postal-addresses`, and `websit
 - Supplier: those three plus `websites` under `/suppliers/:supplier_id`
 - Supplier Contact: `email-addresses` and `phone-numbers` under `/suppliers/:supplier_id/contacts/:supplier_contact_id`
 
-Example: `GET /suppliers/:supplier_id/contacts/:supplier_contact_id/phone-numbers/:contact_point_id/edit`. Organization and Supplier website routes replace the single optional website column with this same contact-point lifecycle. Do not add a contact-point preferred route beyond this structure.
+Example: `GET /suppliers/:supplier_id/contacts/:supplier_contact_id/phone-numbers/:contact_point_id/edit`. Organization and Supplier website routes replace the single optional website column with this same contact-point lifecycle. Do not add a contact-point `/preferred` route beyond this structure. The M1A amendment adds `POST .../set_primary` only for individual-Client contact points.
 
 ## Accessibility and states
 

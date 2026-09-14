@@ -17,6 +17,10 @@ class FindClientPersonDuplicates
   end
 
   def call
+    unless @actor&.active? && @actor.agency_id == @agency&.id && @actor.permitted?(:manage_client_directory)
+      raise AgencyCommand::Error.new(AgencyCommand::UNAUTHORIZED, code: :unauthorized)
+    end
+
     match_names
     match_contacts if @actor.permitted?(:view_client_contact_details)
     load_candidates

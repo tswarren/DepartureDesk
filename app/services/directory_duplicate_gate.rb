@@ -21,8 +21,8 @@ class DirectoryDuplicateGate
     replayed = replay(payload)
     return replayed if replayed
 
-    enforce!(payload)
-    payload
+    reviewed = enforce!(payload)
+    payload.merge("reviewed_candidates" => candidate_evidence(reviewed))
   end
 
   private
@@ -37,16 +37,26 @@ class DirectoryDuplicateGate
   end
 
   def replay_create(payload)
+    return replay_contact_create(payload) if payload["contact_point_id"].present?
+
     person = find_person(payload["person_id"])
     client = find_client(payload["client_id"])
-    contact = find_contact(payload)
-    expected = [ payload["person_id"], payload["client_id"], payload["contact_point_id"] ].compact
-    found = [ person, client, contact ].compact
+    expected = [ payload["person_id"], payload["client_id"] ].compact
+    found = [ person, client ].compact
     return if found.empty?
-    raise AgencyCommand::Error.new("That acknowledgement does not match an existing result.", code: :conflict) if found.size != expected.size
-    raise AgencyCommand::Error.new("That acknowledgement does not match an existing result.", code: :conflict) unless related?(person, client, contact)
+    raise conflict! if found.size != expected.size || !related?(person, client, nil)
 
-    AgencyCommand::Result.new(status: :replayed, record: client || contact || person)
+    AgencyCommand::Result.new(status: :replayed, record: client || person)
+  end
+
+  def replay_contact_create(payload)
+    contact = find_contact(payload)
+    return if contact.nil?
+
+    person = find_person(payload["person_id"])
+    raise conflict! unless person && contact.client_person_id == person.id
+
+    AgencyCommand::Result.new(status: :replayed, record: contact)
   end
 
   def replay_update(payload)
@@ -66,7 +76,7 @@ class DirectoryDuplicateGate
       payload["fingerprint"] != @fingerprint ||
       payload["candidate_digest"] != DuplicateAcknowledgement.candidate_digest(found)
     require_review!(found) if fresh_needed
-    return if DuplicateAcknowledgement::REASONS.include?(@reason)
+    return found if DuplicateAcknowledgement::REASONS.include?(@reason)
 
     raise AgencyCommand::Error.new("Choose why this record is distinct.", code: :invalid)
   end
@@ -117,6 +127,15 @@ class DirectoryDuplicateGate
     return if id.blank? || !CONTACT_CLASSES.include?(class_name)
 
     class_name.constantize.find_by(id: id, agency_id: @agency.id)
+  end
+
+  def candidate_evidence(found)
+    found.map { |candidate| { "id" => candidate.id, "signals" => Array(candidate.signals).sort } }
+      .sort_by { |candidate| candidate["id"] }
+  end
+
+  def conflict!
+    AgencyCommand::Error.new("That acknowledgement does not match an existing result.", code: :conflict)
   end
 
   def related?(person, client, contact)

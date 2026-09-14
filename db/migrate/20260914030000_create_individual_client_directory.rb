@@ -118,7 +118,7 @@ class CreateIndividualClientDirectory < ActiveRecord::Migration[8.1]
     add_column :client_person_phone_numbers, :number, :string, null: false
     add_column :client_person_phone_numbers, :normalized_number, :string, null: false
     add_column :client_person_phone_numbers, :extension, :string
-    add_column :client_person_phone_numbers, :country_code, :string
+    add_column :client_person_phone_numbers, :country_code, :string, null: false
     add_check_constraint :client_person_phone_numbers,
       "normalized_number ~ '^\\+[1-9][0-9]{0,14}$'",
       name: "client_person_phone_numbers_e164_shape"
@@ -126,7 +126,7 @@ class CreateIndividualClientDirectory < ActiveRecord::Migration[8.1]
       "extension IS NULL OR extension ~ '^[0-9]{1,10}$'",
       name: "client_person_phone_numbers_extension"
     add_check_constraint :client_person_phone_numbers,
-      "country_code IS NULL OR country_code ~ '^[A-Z]{2}$'",
+      "country_code ~ '^[A-Z]{2}$'",
       name: "client_person_phone_numbers_country_shape"
     execute <<~SQL
       ALTER TABLE client_person_phone_numbers
@@ -193,6 +193,21 @@ class CreateIndividualClientDirectory < ActiveRecord::Migration[8.1]
       CREATE TRIGGER client_person_postal_addresses_reject_owner_change
       BEFORE UPDATE ON client_person_postal_addresses
       FOR EACH ROW EXECUTE FUNCTION reject_client_person_contact_owner_change();
+
+      CREATE FUNCTION reject_reference_sequence_identity_change() RETURNS trigger
+      LANGUAGE plpgsql AS $$
+      BEGIN
+        IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+          OR NEW.namespace IS DISTINCT FROM OLD.namespace THEN
+          RAISE EXCEPTION 'reference sequence identity is immutable';
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+      CREATE TRIGGER reference_sequences_reject_identity_change
+      BEFORE UPDATE ON reference_sequences
+      FOR EACH ROW EXECUTE FUNCTION reject_reference_sequence_identity_change();
     SQL
   end
 
@@ -206,6 +221,7 @@ class CreateIndividualClientDirectory < ActiveRecord::Migration[8.1]
     execute <<~SQL
       DROP FUNCTION reject_client_person_contact_owner_change();
       DROP FUNCTION reject_client_identity_change();
+      DROP FUNCTION reject_reference_sequence_identity_change();
       DROP FUNCTION reject_directory_agency_change();
       DROP FUNCTION dd_search_normalize(text);
     SQL
@@ -217,7 +233,7 @@ class CreateIndividualClientDirectory < ActiveRecord::Migration[8.1]
     create_table name, id: :uuid, default: -> { "uuidv7()" } do |table|
       table.references :agency, null: false, type: :uuid, foreign_key: true
       table.uuid :client_person_id, null: false
-      table.string :label
+      table.string :label, limit: 40
       table.string :status, null: false, default: "active"
       table.boolean :preferred, null: false, default: false
       table.integer :lock_version, null: false, default: 0
@@ -232,5 +248,6 @@ class CreateIndividualClientDirectory < ActiveRecord::Migration[8.1]
       name: "index_#{name}_on_one_preferred_active"
     add_check_constraint name, "status IN ('active', 'inactive')", name: "#{name}_status"
     add_check_constraint name, "lock_version >= 0", name: "#{name}_lock_version"
+    add_check_constraint name, "label IS NULL OR char_length(label) <= 40", name: "#{name}_label_length"
   end
 end

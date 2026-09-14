@@ -13,6 +13,8 @@ module ClientPersonContactPoint
 
     normalizes :label, with: ->(value) { value.to_s.strip.presence }
 
+    validates :label, length: { maximum: 40 }, allow_nil: true
+
     scope :preferred_first, -> { order(preferred: :desc, created_at: :asc, id: :asc) }
   end
 end

@@ -10,7 +10,7 @@ class CreateClientPerson < AgencyCommand
   end
 
   def call
-    ensure_permitted!(@actor, :manage_client_directory)
+    ensure_directory_actor!(@actor, @agency, :manage_client_directory)
     ensure_active_agency!(@agency)
 
     ActiveRecord::Base.transaction do
@@ -21,7 +21,7 @@ class CreateClientPerson < AgencyCommand
 
       person = @agency.client_people.create!(id: decision&.dig("person_id") || person_id, **normalized_names, status: "active")
       audit!(agency: @agency, action: "client_person.created", subject: person, actor: @actor, details: { "client_person_id" => person.id })
-      audit_override!(person) if decision
+      audit_override!(person, decision) if decision
       Result.new(status: :created, record: person)
     end
   rescue ActiveRecord::RecordInvalid => error
@@ -54,13 +54,13 @@ class CreateClientPerson < AgencyCommand
     DuplicateAcknowledgement.fingerprint(normalized_names.transform_values { |value| SearchNormalizer.normalize(value) })
   end
 
-  def audit_override!(person)
+  def audit_override!(person, decision)
     audit!(
       agency: @agency,
       action: "client_person.duplicate_override",
       subject: person,
       actor: @actor,
-      details: { "reason_code" => @acknowledgement_reason }
+      details: duplicate_override_details(decision, reason: @acknowledgement_reason)
     )
   end
 end

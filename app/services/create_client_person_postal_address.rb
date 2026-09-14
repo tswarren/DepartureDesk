@@ -45,7 +45,7 @@ class CreateClientPersonPostalAddress < ClientPersonContactPointCommand
       )
       prefer!(person, point) if ActiveModel::Type::Boolean.new.cast(@attributes[:preferred])
       audit_contact!(person, changed_fields: [ "postal_address" ])
-      audit_override!(person) if decision
+      audit_override!(person, decision) if decision
       Result.new(status: :created, record: point)
     end
   rescue ActiveRecord::RecordInvalid => error

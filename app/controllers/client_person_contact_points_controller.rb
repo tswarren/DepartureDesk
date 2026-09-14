@@ -51,13 +51,15 @@ class ClientPersonContactPointsController < ApplicationController
   end
 
   def set_primary
-    set_primary_command.new(
+    result = set_primary_command.new(
       agency: Current.agency,
       actor: Current.agency_user,
       client_person: @client_person,
-      record: @contact_point
+      record: @contact_point,
+      lock_version: params.expect(:lock_version)
     ).call
-    redirect_to client_person_path(@client_person), notice: "#{channel_label} set as primary."
+    notice = result.status == :noop ? "#{channel_label} is already primary." : "#{channel_label} set as primary."
+    redirect_to client_person_path(@client_person), notice: notice
   rescue AgencyCommand::Error => error
     redirect_to client_person_path(@client_person), alert: error.message
   end
