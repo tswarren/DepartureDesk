@@ -1,7 +1,8 @@
 <%= form.hidden_field :lock_version if form.object.persisted? %>
+<% name_required = local_assigns.fetch(:required, true) %>
 <div class="dd-field-group">
   <%= form.label :first_name, class: "dd-label" %>
-  <%= form.text_field :first_name, required: true, class: "dd-field" %>
+  <%= form.text_field :first_name, required: name_required, class: "dd-field" %>
 </div>
 <div class="dd-field-group">
   <%= form.label :middle_name, class: "dd-label" %>
@@ -9,7 +10,7 @@
 </div>
 <div class="dd-field-group">
   <%= form.label :last_name, class: "dd-label" %>
-  <%= form.text_field :last_name, required: true, class: "dd-field" %>
+  <%= form.text_field :last_name, required: name_required, class: "dd-field" %>
 </div>
 <div class="dd-field-group">
   <%= form.label :suffix, class: "dd-label" %>

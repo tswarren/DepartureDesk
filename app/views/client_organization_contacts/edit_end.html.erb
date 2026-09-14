@@ -1,0 +1,27 @@
+<% content_for :title, "End Organization Contact · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Clients</p>
+    <h1 class="dd-page-title">End organization contact</h1>
+    <p class="dd-page-description"><%= @organization_contact.client_person.display_name %> for <%= @client_organization.display_name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: end_client_organization_contact_path(@client_organization, @organization_contact), method: :patch, class: "dd-form" do |form| %>
+      <%= hidden_field_tag :lock_version, @organization_contact.lock_version %>
+      <% if @organization_contact.primary? && @replacement_contacts.any? %>
+        <div class="dd-field-group">
+          <%= label_tag :replacement_primary_contact_id, "Replacement primary contact", class: "dd-label" %>
+          <%= select_tag :replacement_primary_contact_id, options_from_collection_for_select(@replacement_contacts, :id, ->(assignment) { assignment.client_person.display_name }), include_blank: "No primary contact", class: "dd-field" %>
+        </div>
+      <% end %>
+      <div class="dd-form-actions">
+        <%= form.submit "End contact", class: "dd-button dd-button--destructive" %>
+        <%= link_to "Cancel", client_organization_path(@client_organization), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

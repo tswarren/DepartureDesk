@@ -1,0 +1,37 @@
+<% content_for :title, "Add Organization Contact · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Clients</p>
+    <h1 class="dd-page-title">Add organization contact</h1>
+    <p class="dd-page-description"><%= @client_organization.display_name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @organization_contact, url: client_organization_contacts_path(@client_organization), class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :client_person_id, "Existing person", class: "dd-label" %>
+        <%= form.select :client_person_id, @person_choices.map { |person| [person.display_name, person.id] }, { include_blank: "Create a new person" }, class: "dd-field" %>
+      </div>
+
+      <section class="dd-panel">
+        <div class="dd-panel-body">
+          <h2 class="dd-panel-title">New person</h2>
+          <p>Leave these fields blank when selecting an existing person.</p>
+          <%= fields_for :client_person, @client_person do |person_form| %>
+            <%= render "client_people/form", form: person_form, required: false %>
+          <% end %>
+        </div>
+      </section>
+
+      <%= render "assignment_fields", form: form %>
+
+      <div class="dd-form-actions">
+        <%= form.submit "Save contact", class: "dd-button" %>
+        <%= link_to "Cancel", client_organization_path(@client_organization), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

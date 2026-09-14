@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, and the individual-Client directory. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, and the Client directory through M1B. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -14,10 +14,13 @@ DepartureDesk ships agency identity, administration, and the individual-Client d
 | `Office` | Agency-owned operating and reporting context. It grants no permission. |
 | `AgencyUser` | One agency-scoped login account with independent credentials, lifecycle, and access role. |
 | `Session` | Authentication root and optional current-Office preference. It derives Agency through AgencyUser. |
-| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, and Client commands. |
+| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, Client, and ClientOrganization commands. |
 | `ClientPerson` | Agency-scoped person known to the directory. Not a Client, AgencyUser, or Traveler. |
-| `Client` | Explicit individual commercial identity for one Client Person, with an immutable `CL-` reference. |
+| `ClientOrganization` | Agency-scoped organization known to the directory. Not a Supplier. |
+| `Client` | Explicit commercial identity for exactly one Client Person or Client Organization, with an immutable `CL-` reference. |
 | `ClientPersonEmailAddress`, `ClientPersonPhoneNumber`, `ClientPersonPostalAddress` | Person-owned contact points. They are not Agency User credentials. |
+| `ClientOrganizationEmailAddress`, `ClientOrganizationPhoneNumber`, `ClientOrganizationPostalAddress`, `ClientOrganizationWebsite` | Organization-owned contact points. |
+| `ClientOrganizationContact` | Effective-dated assignment of a Client Person to a Client Organization. Current means `ends_on IS NULL`. |
 | `ReferenceSequence` | Agency-scoped `client` reference counter. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed permission catalog mapping administrator, staff, and viewer roles to capabilities. It is application code, not a persisted record. |
 
@@ -57,11 +60,12 @@ Application code checks named permissions, not role strings.
 - Application records use PostgreSQL 18 UUIDv7 identifiers and `timestamptz` timestamps.
 - The primary database and Solid Queue database are separate.
 - Database constraints and triggers protect normalized identity values, same-Agency references, append-only audits, and immutable tenant identifiers.
+- `btree_gist` is enabled on the primary database only for `client_org_contacts_no_overlapping_history`.
 - Consequential multi-record changes use explicit commands, transactions, lock ordering, and same-transaction audit events.
 - Last-active-administrator protection locks Agency, then AgencyUser, then rechecks current state.
 
 ## Not shipped
 
-The current application has no Client Organization, organization contact, Supplier, Traveler, Household, Departure, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored.
+The current application has no Supplier, Traveler, Household, Departure, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.

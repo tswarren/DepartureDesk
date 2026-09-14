@@ -6,6 +6,7 @@ class ClientPerson < ApplicationRecord
   has_many :email_addresses, class_name: "ClientPersonEmailAddress", dependent: :restrict_with_exception
   has_many :phone_numbers, class_name: "ClientPersonPhoneNumber", dependent: :restrict_with_exception
   has_many :postal_addresses, class_name: "ClientPersonPostalAddress", dependent: :restrict_with_exception
+  has_many :organization_contacts, class_name: "ClientOrganizationContact", dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "active"
 

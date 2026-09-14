@@ -1,0 +1,85 @@
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Clients</p>
+    <h1 class="dd-page-title"><%= heading %></h1>
+    <p class="dd-page-description"><%= @client_organization.display_name %></p>
+  </div>
+  <% if @contact_point.persisted? %>
+    <div class="dd-page-actions">
+      <%= link_to "Change status", organization_contact_status_path(@contact_point), class: "dd-button dd-button--quiet" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @contact_point, url: organization_contact_form_url(@client_organization, @contact_point), method: (@contact_point.persisted? ? :patch : :post), class: "dd-form" do |form| %>
+      <%= form.hidden_field :lock_version if form.object.persisted? %>
+      <% if @contact_point.is_a?(ClientOrganizationEmailAddress) %>
+        <div class="dd-field-group">
+          <%= form.label :address, "Email address", class: "dd-label" %>
+          <%= form.email_field :address, required: true, class: "dd-field" %>
+        </div>
+      <% elsif @contact_point.is_a?(ClientOrganizationPhoneNumber) %>
+        <div class="dd-field-group">
+          <%= form.label :country_code, "Country", class: "dd-label" %>
+          <%= form.select :country_code, CountryCode.options, { selected: form.object.country_code.presence || Current.agency.country_code }, required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :number, "Phone number", class: "dd-label" %>
+          <%= form.telephone_field :number, required: true, class: "dd-field" %>
+          <p class="dd-field-hint">Enter the number as dialed in the selected country. It is stored in international E.164 form.</p>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :extension, class: "dd-label" %>
+          <%= form.text_field :extension, class: "dd-field" %>
+        </div>
+      <% elsif @contact_point.is_a?(ClientOrganizationWebsite) %>
+        <div class="dd-field-group">
+          <%= form.label :url, "Website", class: "dd-label" %>
+          <%= form.url_field :url, required: true, class: "dd-field" %>
+        </div>
+      <% else %>
+        <div class="dd-field-group">
+          <%= form.label :line_1, "Address line 1", class: "dd-label" %>
+          <%= form.text_field :line_1, required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :line_2, "Address line 2", class: "dd-label" %>
+          <%= form.text_field :line_2, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :locality, class: "dd-label" %>
+          <%= form.text_field :locality, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :region, class: "dd-label" %>
+          <%= form.text_field :region, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :postal_code, class: "dd-label" %>
+          <%= form.text_field :postal_code, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :country_code, "Country", class: "dd-label" %>
+          <%= form.text_field :country_code, required: true, maxlength: 2, class: "dd-field dd-field--code" %>
+        </div>
+      <% end %>
+      <div class="dd-field-group">
+        <%= form.label :label, class: "dd-label" %>
+        <%= form.text_field :label, class: "dd-field" %>
+      </div>
+      <% if @contact_point.persisted? %>
+        <div class="dd-field-group">
+          <%= form.label :preferred, "Preferred", class: "dd-label" %>
+          <%= form.check_box :preferred %>
+        </div>
+      <% end %>
+      <%= render "shared/duplicate_review" %>
+      <div class="dd-form-actions">
+        <%= form.submit submit_label, class: "dd-button" %>
+        <%= link_to "Cancel", client_organization_path(@client_organization), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

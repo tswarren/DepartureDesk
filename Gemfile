@@ -45,6 +45,8 @@ gem "money-rails", "~> 3.0"
 # The countries gem's currency data is not an accounting authority; ADR 0001 remains money-rails.
 gem "phonelib"
 gem "countries", "8.1.0", require: "countries"
+# Website normalization for organization contact points. Call Addressable only through WebsiteNormalizer.
+gem "addressable"
 
 # Use Image_Processing for image processing [https://github.com/janko/image_processing]
 gem "image_processing", "~> 2.1"

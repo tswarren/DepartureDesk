@@ -1,0 +1,20 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<% if form.object.persisted? %>
+  <div class="dd-field-group">
+    <%= form.label :starts_on, "Starts on", class: "dd-label" %>
+    <%= form.date_field :starts_on, required: true, class: "dd-field" %>
+  </div>
+<% else %>
+  <div class="dd-field-group">
+    <%= form.label :primary, "Primary contact", class: "dd-label" %>
+    <%= form.check_box :primary %>
+  </div>
+<% end %>
+<div class="dd-field-group">
+  <%= form.label :role_label, "Role", class: "dd-label" %>
+  <%= form.text_field :role_label, class: "dd-field" %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :title, class: "dd-label" %>
+  <%= form.text_field :title, class: "dd-field" %>
+</div>

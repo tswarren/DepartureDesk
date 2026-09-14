@@ -1,0 +1,49 @@
+<% manage = Current.agency_user.permitted?(:manage_client_directory) %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title"><%= heading %></h2>
+    <% if local_assigns[:current] && manage && @client_organization.active? %>
+      <%= link_to "Add", new_client_organization_contact_path(@client_organization), class: "dd-button dd-button--quiet" %>
+    <% end %>
+  </header>
+  <table class="dd-table">
+    <thead>
+      <tr>
+        <th scope="col">Person</th>
+        <th scope="col">Role</th>
+        <th scope="col">Title</th>
+        <th scope="col">Dates</th>
+        <th scope="col">Primary</th>
+        <% if manage %>
+          <th scope="col">Actions</th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody>
+      <% records.each do |assignment| %>
+        <tr>
+          <td><%= link_to assignment.client_person.display_name, client_person_path(assignment.client_person) %></td>
+          <td><%= assignment.role_label.presence || "-" %></td>
+          <td><%= assignment.title.presence || "-" %></td>
+          <td><%= [assignment.starts_on, assignment.ends_on || "Current"].join(" to ") %></td>
+          <td><%= primary_contact_indicator(assignment) %></td>
+          <% if manage %>
+            <td>
+              <div class="dd-inline-actions">
+                <%= link_to "View", client_organization_contact_path(@client_organization, assignment), class: "dd-row-action" %>
+                <%= link_to "Edit", edit_client_organization_contact_path(@client_organization, assignment), class: "dd-row-action dd-row-action--edit" %>
+                <% if assignment.current? %>
+                  <%= link_to "End", end_client_organization_contact_path(@client_organization, assignment), class: "dd-row-action" %>
+                  <% unless assignment.primary? %>
+                    <%= button_to "Set primary", primary_client_organization_contact_path(@client_organization, assignment), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { lock_version: assignment.lock_version } %>
+                  <% end %>
+                <% end %>
+              </div>
+            </td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</article>

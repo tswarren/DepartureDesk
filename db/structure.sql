@@ -11,6 +11,20 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- Name: btree_gist; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION btree_gist; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiST';
+
+
+--
 -- Name: dd_search_normalize(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -74,8 +88,44 @@ CREATE FUNCTION public.reject_client_identity_change() RETURNS trigger
 BEGIN
   IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
     OR NEW.client_person_id IS DISTINCT FROM OLD.client_person_id
+    OR NEW.client_organization_id IS DISTINCT FROM OLD.client_organization_id
     OR NEW.client_reference IS DISTINCT FROM OLD.client_reference THEN
     RAISE EXCEPTION 'client identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_client_organization_contact_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_client_organization_contact_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.client_organization_id IS DISTINCT FROM OLD.client_organization_id
+    OR NEW.client_person_id IS DISTINCT FROM OLD.client_person_id THEN
+    RAISE EXCEPTION 'organization contact identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_client_organization_contact_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_client_organization_contact_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.client_organization_id IS DISTINCT FROM OLD.client_organization_id THEN
+    RAISE EXCEPTION 'contact-point owner is immutable';
   END IF;
   RETURN NEW;
 END;
@@ -116,6 +166,22 @@ $$;
 
 
 --
+-- Name: reject_office_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_office_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id OR NEW.code IS DISTINCT FROM OLD.code THEN
+    RAISE EXCEPTION 'office identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_reference_sequence_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -126,22 +192,6 @@ BEGIN
   IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
     OR NEW.namespace IS DISTINCT FROM OLD.namespace THEN
     RAISE EXCEPTION 'reference sequence identity is immutable';
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-
---
--- Name: reject_office_identity_change(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.reject_office_identity_change() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id OR NEW.code IS DISTINCT FROM OLD.code THEN
-    RAISE EXCEPTION 'office identity is immutable';
   END IF;
   RETURN NEW;
 END;
@@ -250,6 +300,157 @@ CREATE TABLE public.audit_events (
 
 
 --
+-- Name: client_organization_contacts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_organization_contacts (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_organization_id uuid NOT NULL,
+    client_person_id uuid NOT NULL,
+    starts_on date NOT NULL,
+    ends_on date,
+    title character varying,
+    role_label character varying,
+    "primary" boolean DEFAULT false NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT client_org_contacts_date_order CHECK (((ends_on IS NULL) OR (ends_on >= starts_on))),
+    CONSTRAINT client_org_contacts_lock_version CHECK ((lock_version >= 0))
+);
+
+
+--
+-- Name: client_organization_email_addresses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_organization_email_addresses (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_organization_id uuid CONSTRAINT client_organization_email_addre_client_organization_id_not_null NOT NULL,
+    label character varying(40),
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    preferred boolean DEFAULT false NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    address character varying NOT NULL,
+    normalized_address text GENERATED ALWAYS AS (lower(btrim((address)::text))) STORED,
+    CONSTRAINT client_org_email_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
+    CONSTRAINT client_org_email_addresses_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT client_org_email_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT client_organization_email_addresses_normalized CHECK (((normalized_address = lower(btrim((address)::text))) AND (normalized_address <> ''::text)))
+);
+
+
+--
+-- Name: client_organization_phone_numbers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_organization_phone_numbers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_organization_id uuid CONSTRAINT client_organization_phone_numbe_client_organization_id_not_null NOT NULL,
+    label character varying(40),
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    preferred boolean DEFAULT false NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    number character varying NOT NULL,
+    normalized_number character varying NOT NULL,
+    extension character varying,
+    country_code character varying NOT NULL,
+    phone_digits_reversed text GENERATED ALWAYS AS (reverse(SUBSTRING(normalized_number FROM 2))) STORED,
+    CONSTRAINT client_org_phone_numbers_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
+    CONSTRAINT client_org_phone_numbers_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT client_org_phone_numbers_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT client_organization_phone_numbers_country_shape CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
+    CONSTRAINT client_organization_phone_numbers_e164_shape CHECK (((normalized_number)::text ~ '^\+[1-9][0-9]{0,14}$'::text)),
+    CONSTRAINT client_organization_phone_numbers_extension CHECK (((extension IS NULL) OR ((extension)::text ~ '^[0-9]{1,10}$'::text)))
+);
+
+
+--
+-- Name: client_organization_postal_addresses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_organization_postal_addresses (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_organization_id uuid CONSTRAINT client_organization_postal_addr_client_organization_id_not_null NOT NULL,
+    label character varying(40),
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    preferred boolean DEFAULT false NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    line_1 character varying NOT NULL,
+    line_2 character varying,
+    locality character varying,
+    region character varying,
+    postal_code character varying,
+    country_code character varying NOT NULL,
+    postal_code_search_key text GENERATED ALWAYS AS (public.dd_search_normalize((postal_code)::text)) STORED,
+    locality_search_key text GENERATED ALWAYS AS (public.dd_search_normalize((locality)::text)) STORED,
+    CONSTRAINT client_org_postal_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
+    CONSTRAINT client_org_postal_addresses_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT client_org_postal_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT client_organization_postal_addresses_country_shape CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
+    CONSTRAINT client_organization_postal_addresses_line_1 CHECK ((btrim((line_1)::text) <> ''::text))
+);
+
+
+--
+-- Name: client_organization_websites; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_organization_websites (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_organization_id uuid NOT NULL,
+    label character varying(40),
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    preferred boolean DEFAULT false NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    url character varying NOT NULL,
+    normalized_url character varying NOT NULL,
+    normalized_host character varying NOT NULL,
+    CONSTRAINT client_org_websites_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
+    CONSTRAINT client_org_websites_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT client_org_websites_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT client_organization_websites_normalized_host_present CHECK ((btrim((normalized_host)::text) <> ''::text)),
+    CONSTRAINT client_organization_websites_normalized_url_present CHECK ((btrim((normalized_url)::text) <> ''::text)),
+    CONSTRAINT client_organization_websites_url_present CHECK ((btrim((url)::text) <> ''::text))
+);
+
+
+--
+-- Name: client_organizations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_organizations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    display_name character varying NOT NULL,
+    legal_name character varying,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    display_name_search_key text GENERATED ALWAYS AS (public.dd_search_normalize((display_name)::text)) STORED,
+    legal_name_search_key text GENERATED ALWAYS AS (public.dd_search_normalize((legal_name)::text)) STORED,
+    name_search_vector tsvector GENERATED ALWAYS AS (to_tsvector('simple'::regconfig, ((COALESCE(public.dd_search_normalize((display_name)::text), ''::text) || ' '::text) || COALESCE(public.dd_search_normalize((legal_name)::text), ''::text)))) STORED,
+    CONSTRAINT client_organizations_display_name_present CHECK ((btrim((display_name)::text) <> ''::text)),
+    CONSTRAINT client_organizations_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT client_organizations_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+);
+
+
+--
 -- Name: client_people; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -269,7 +470,7 @@ CREATE TABLE public.client_people (
     name_search_vector tsvector GENERATED ALWAYS AS (to_tsvector('simple'::regconfig, public.dd_search_normalize((((((((((first_name)::text || ' '::text) || (COALESCE(middle_name, ''::character varying))::text) || ' '::text) || (last_name)::text) || ' '::text) || (COALESCE(suffix, ''::character varying))::text) || ' '::text) || (COALESCE(preferred_name, ''::character varying))::text)))) STORED,
     CONSTRAINT client_people_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT client_people_names_present CHECK (((btrim((first_name)::text) <> ''::text) AND (btrim((last_name)::text) <> ''::text))),
-    CONSTRAINT client_people_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT client_people_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -292,7 +493,7 @@ CREATE TABLE public.client_person_email_addresses (
     CONSTRAINT client_person_email_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_person_email_addresses_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT client_person_email_addresses_normalized CHECK (((normalized_address = lower(btrim((address)::text))) AND (normalized_address <> ''::text))),
-    CONSTRAINT client_person_email_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT client_person_email_addresses_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -320,7 +521,7 @@ CREATE TABLE public.client_person_phone_numbers (
     CONSTRAINT client_person_phone_numbers_extension CHECK (((extension IS NULL) OR ((extension)::text ~ '^[0-9]{1,10}$'::text))),
     CONSTRAINT client_person_phone_numbers_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_person_phone_numbers_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT client_person_phone_numbers_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT client_person_phone_numbers_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -350,7 +551,7 @@ CREATE TABLE public.client_person_postal_addresses (
     CONSTRAINT client_person_postal_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_person_postal_addresses_line_1 CHECK ((btrim((line_1)::text) <> ''::text)),
     CONSTRAINT client_person_postal_addresses_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT client_person_postal_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT client_person_postal_addresses_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -361,15 +562,17 @@ CREATE TABLE public.client_person_postal_addresses (
 CREATE TABLE public.clients (
     id uuid DEFAULT uuidv7() NOT NULL,
     agency_id uuid NOT NULL,
-    client_person_id uuid NOT NULL,
+    client_person_id uuid,
     client_reference character varying NOT NULL,
     status character varying DEFAULT 'active'::character varying NOT NULL,
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    client_organization_id uuid,
+    CONSTRAINT clients_exactly_one_source CHECK ((num_nonnulls(client_person_id, client_organization_id) = 1)),
     CONSTRAINT clients_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT clients_reference_format CHECK (((client_reference)::text ~ '^CL-[0-9]{6}$'::text)),
-    CONSTRAINT clients_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT clients_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -465,6 +668,62 @@ ALTER TABLE ONLY public.ar_internal_metadata
 
 ALTER TABLE ONLY public.audit_events
     ADD CONSTRAINT audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_organization_contacts client_org_contacts_no_overlapping_history; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_contacts
+    ADD CONSTRAINT client_org_contacts_no_overlapping_history EXCLUDE USING gist (agency_id WITH =, client_organization_id WITH =, client_person_id WITH =, daterange(starts_on, COALESCE((ends_on + 1), 'infinity'::date), '[)'::text) WITH &&);
+
+
+--
+-- Name: client_organization_contacts client_organization_contacts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_contacts
+    ADD CONSTRAINT client_organization_contacts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_organization_email_addresses client_organization_email_addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_email_addresses
+    ADD CONSTRAINT client_organization_email_addresses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_organization_phone_numbers client_organization_phone_numbers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_phone_numbers
+    ADD CONSTRAINT client_organization_phone_numbers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_organization_postal_addresses client_organization_postal_addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_postal_addresses
+    ADD CONSTRAINT client_organization_postal_addresses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_organization_websites client_organization_websites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_websites
+    ADD CONSTRAINT client_organization_websites_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_organizations client_organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organizations
+    ADD CONSTRAINT client_organizations_pkey PRIMARY KEY (id);
 
 
 --
@@ -593,6 +852,237 @@ CREATE INDEX index_audit_events_on_agency_id ON public.audit_events USING btree 
 --
 
 CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_events USING btree (agency_id, created_at);
+
+
+--
+-- Name: index_client_org_contacts_on_organization_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_contacts_on_organization_and_agency ON public.client_organization_contacts USING btree (client_organization_id, agency_id);
+
+
+--
+-- Name: index_client_org_contacts_on_person_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_contacts_on_person_and_agency ON public.client_organization_contacts USING btree (client_person_id, agency_id);
+
+
+--
+-- Name: index_client_org_contacts_one_current_pair; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_org_contacts_one_current_pair ON public.client_organization_contacts USING btree (agency_id, client_organization_id, client_person_id) WHERE (ends_on IS NULL);
+
+
+--
+-- Name: index_client_org_contacts_one_current_primary; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_org_contacts_one_current_primary ON public.client_organization_contacts USING btree (agency_id, client_organization_id) WHERE ((ends_on IS NULL) AND "primary");
+
+
+--
+-- Name: index_client_org_email_addresses_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_org_email_addresses_on_id_and_agency_id ON public.client_organization_email_addresses USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_org_email_addresses_on_one_preferred_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_org_email_addresses_on_one_preferred_active ON public.client_organization_email_addresses USING btree (agency_id, client_organization_id) WHERE (preferred AND ((status)::text = 'active'::text));
+
+
+--
+-- Name: index_client_org_email_addresses_on_organization_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_email_addresses_on_organization_and_agency ON public.client_organization_email_addresses USING btree (client_organization_id, agency_id);
+
+
+--
+-- Name: index_client_org_emails_on_agency_and_normalized; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_emails_on_agency_and_normalized ON public.client_organization_email_addresses USING btree (agency_id, normalized_address);
+
+
+--
+-- Name: index_client_org_phone_numbers_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_org_phone_numbers_on_id_and_agency_id ON public.client_organization_phone_numbers USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_org_phone_numbers_on_one_preferred_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_org_phone_numbers_on_one_preferred_active ON public.client_organization_phone_numbers USING btree (agency_id, client_organization_id) WHERE (preferred AND ((status)::text = 'active'::text));
+
+
+--
+-- Name: index_client_org_phone_numbers_on_organization_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_phone_numbers_on_organization_and_agency ON public.client_organization_phone_numbers USING btree (client_organization_id, agency_id);
+
+
+--
+-- Name: index_client_org_phones_on_agency_and_e164; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_phones_on_agency_and_e164 ON public.client_organization_phone_numbers USING btree (agency_id, normalized_number);
+
+
+--
+-- Name: index_client_org_phones_on_agency_and_reversed_digits; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_phones_on_agency_and_reversed_digits ON public.client_organization_phone_numbers USING btree (agency_id, phone_digits_reversed text_pattern_ops);
+
+
+--
+-- Name: index_client_org_postal_addresses_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_org_postal_addresses_on_id_and_agency_id ON public.client_organization_postal_addresses USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_org_postal_addresses_on_one_preferred_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_org_postal_addresses_on_one_preferred_active ON public.client_organization_postal_addresses USING btree (agency_id, client_organization_id) WHERE (preferred AND ((status)::text = 'active'::text));
+
+
+--
+-- Name: index_client_org_postal_addresses_on_organization_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_postal_addresses_on_organization_and_agency ON public.client_organization_postal_addresses USING btree (client_organization_id, agency_id);
+
+
+--
+-- Name: index_client_org_postals_on_agency_and_locality; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_postals_on_agency_and_locality ON public.client_organization_postal_addresses USING btree (agency_id, locality_search_key text_pattern_ops);
+
+
+--
+-- Name: index_client_org_postals_on_agency_and_postal_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_postals_on_agency_and_postal_code ON public.client_organization_postal_addresses USING btree (agency_id, postal_code_search_key);
+
+
+--
+-- Name: index_client_org_websites_on_agency_and_host; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_websites_on_agency_and_host ON public.client_organization_websites USING btree (agency_id, normalized_host);
+
+
+--
+-- Name: index_client_org_websites_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_org_websites_on_id_and_agency_id ON public.client_organization_websites USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_org_websites_on_one_preferred_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_org_websites_on_one_preferred_active ON public.client_organization_websites USING btree (agency_id, client_organization_id) WHERE (preferred AND ((status)::text = 'active'::text));
+
+
+--
+-- Name: index_client_org_websites_on_organization_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_org_websites_on_organization_and_agency ON public.client_organization_websites USING btree (client_organization_id, agency_id);
+
+
+--
+-- Name: index_client_organization_contacts_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_organization_contacts_on_agency_id ON public.client_organization_contacts USING btree (agency_id);
+
+
+--
+-- Name: index_client_organization_contacts_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_organization_contacts_on_id_and_agency_id ON public.client_organization_contacts USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_organization_email_addresses_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_organization_email_addresses_on_agency_id ON public.client_organization_email_addresses USING btree (agency_id);
+
+
+--
+-- Name: index_client_organization_phone_numbers_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_organization_phone_numbers_on_agency_id ON public.client_organization_phone_numbers USING btree (agency_id);
+
+
+--
+-- Name: index_client_organization_postal_addresses_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_organization_postal_addresses_on_agency_id ON public.client_organization_postal_addresses USING btree (agency_id);
+
+
+--
+-- Name: index_client_organization_websites_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_organization_websites_on_agency_id ON public.client_organization_websites USING btree (agency_id);
+
+
+--
+-- Name: index_client_organizations_on_agency_and_display_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_organizations_on_agency_and_display_name_key ON public.client_organizations USING btree (agency_id, display_name_search_key);
+
+
+--
+-- Name: index_client_organizations_on_agency_and_legal_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_organizations_on_agency_and_legal_name_key ON public.client_organizations USING btree (agency_id, legal_name_search_key);
+
+
+--
+-- Name: index_client_organizations_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_organizations_on_agency_id ON public.client_organizations USING btree (agency_id);
+
+
+--
+-- Name: index_client_organizations_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_organizations_on_id_and_agency_id ON public.client_organizations USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_organizations_on_name_search_vector; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_organizations_on_name_search_vector ON public.client_organizations USING gin (name_search_vector);
 
 
 --
@@ -757,6 +1247,13 @@ CREATE INDEX index_clients_on_agency_id ON public.clients USING btree (agency_id
 
 
 --
+-- Name: index_clients_on_client_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clients_on_client_organization_id ON public.clients USING btree (client_organization_id) WHERE (client_organization_id IS NOT NULL);
+
+
+--
 -- Name: index_clients_on_client_person_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -841,6 +1338,48 @@ CREATE TRIGGER audit_events_reject_update BEFORE DELETE OR UPDATE ON public.audi
 
 
 --
+-- Name: client_organization_email_addresses client_org_email_addresses_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_org_email_addresses_reject_owner_change BEFORE UPDATE ON public.client_organization_email_addresses FOR EACH ROW EXECUTE FUNCTION public.reject_client_organization_contact_owner_change();
+
+
+--
+-- Name: client_organization_phone_numbers client_org_phone_numbers_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_org_phone_numbers_reject_owner_change BEFORE UPDATE ON public.client_organization_phone_numbers FOR EACH ROW EXECUTE FUNCTION public.reject_client_organization_contact_owner_change();
+
+
+--
+-- Name: client_organization_postal_addresses client_org_postal_addresses_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_org_postal_addresses_reject_owner_change BEFORE UPDATE ON public.client_organization_postal_addresses FOR EACH ROW EXECUTE FUNCTION public.reject_client_organization_contact_owner_change();
+
+
+--
+-- Name: client_organization_websites client_org_websites_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_org_websites_reject_owner_change BEFORE UPDATE ON public.client_organization_websites FOR EACH ROW EXECUTE FUNCTION public.reject_client_organization_contact_owner_change();
+
+
+--
+-- Name: client_organization_contacts client_organization_contacts_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_organization_contacts_reject_identity_change BEFORE UPDATE ON public.client_organization_contacts FOR EACH ROW EXECUTE FUNCTION public.reject_client_organization_contact_identity_change();
+
+
+--
+-- Name: client_organizations client_organizations_reject_agency_id_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_organizations_reject_agency_id_change BEFORE UPDATE ON public.client_organizations FOR EACH ROW EXECUTE FUNCTION public.reject_directory_agency_change();
+
+
+--
 -- Name: client_people client_people_reject_agency_id_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -869,13 +1408,6 @@ CREATE TRIGGER client_person_postal_addresses_reject_owner_change BEFORE UPDATE 
 
 
 --
--- Name: reference_sequences reference_sequences_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER reference_sequences_reject_identity_change BEFORE UPDATE ON public.reference_sequences FOR EACH ROW EXECUTE FUNCTION public.reject_reference_sequence_identity_change();
-
-
---
 -- Name: clients clients_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -887,6 +1419,13 @@ CREATE TRIGGER clients_reject_identity_change BEFORE UPDATE ON public.clients FO
 --
 
 CREATE TRIGGER offices_reject_identity_change BEFORE UPDATE ON public.offices FOR EACH ROW EXECUTE FUNCTION public.reject_office_identity_change();
+
+
+--
+-- Name: reference_sequences reference_sequences_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER reference_sequences_reject_identity_change BEFORE UPDATE ON public.reference_sequences FOR EACH ROW EXECUTE FUNCTION public.reject_reference_sequence_identity_change();
 
 
 --
@@ -903,6 +1442,54 @@ ALTER TABLE ONLY public.agency_users
 
 ALTER TABLE ONLY public.audit_events
     ADD CONSTRAINT audit_events_actor_agency_user_fk FOREIGN KEY (actor_agency_user_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: client_organization_contacts client_org_contacts_organization_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_contacts
+    ADD CONSTRAINT client_org_contacts_organization_agency_fk FOREIGN KEY (client_organization_id, agency_id) REFERENCES public.client_organizations(id, agency_id);
+
+
+--
+-- Name: client_organization_contacts client_org_contacts_person_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_contacts
+    ADD CONSTRAINT client_org_contacts_person_agency_fk FOREIGN KEY (client_person_id, agency_id) REFERENCES public.client_people(id, agency_id);
+
+
+--
+-- Name: client_organization_email_addresses client_org_email_addresses_organization_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_email_addresses
+    ADD CONSTRAINT client_org_email_addresses_organization_agency_fk FOREIGN KEY (client_organization_id, agency_id) REFERENCES public.client_organizations(id, agency_id);
+
+
+--
+-- Name: client_organization_phone_numbers client_org_phone_numbers_organization_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_phone_numbers
+    ADD CONSTRAINT client_org_phone_numbers_organization_agency_fk FOREIGN KEY (client_organization_id, agency_id) REFERENCES public.client_organizations(id, agency_id);
+
+
+--
+-- Name: client_organization_postal_addresses client_org_postal_addresses_organization_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_postal_addresses
+    ADD CONSTRAINT client_org_postal_addresses_organization_agency_fk FOREIGN KEY (client_organization_id, agency_id) REFERENCES public.client_organizations(id, agency_id);
+
+
+--
+-- Name: client_organization_websites client_org_websites_organization_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_websites
+    ADD CONSTRAINT client_org_websites_organization_agency_fk FOREIGN KEY (client_organization_id, agency_id) REFERENCES public.client_organizations(id, agency_id);
 
 
 --
@@ -930,6 +1517,14 @@ ALTER TABLE ONLY public.client_person_postal_addresses
 
 
 --
+-- Name: clients clients_organization_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clients
+    ADD CONSTRAINT clients_organization_agency_fk FOREIGN KEY (client_organization_id, agency_id) REFERENCES public.client_organizations(id, agency_id);
+
+
+--
 -- Name: clients clients_person_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -946,6 +1541,14 @@ ALTER TABLE ONLY public.client_person_postal_addresses
 
 
 --
+-- Name: client_organization_phone_numbers fk_rails_1f83ac8034; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_phone_numbers
+    ADD CONSTRAINT fk_rails_1f83ac8034 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: offices fk_rails_29d71841aa; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -954,11 +1557,35 @@ ALTER TABLE ONLY public.offices
 
 
 --
+-- Name: client_organization_contacts fk_rails_3c145b85a0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_contacts
+    ADD CONSTRAINT fk_rails_3c145b85a0 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: client_organizations fk_rails_4e204305ef; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organizations
+    ADD CONSTRAINT fk_rails_4e204305ef FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: reference_sequences fk_rails_4fafc1651c; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.reference_sequences
     ADD CONSTRAINT fk_rails_4fafc1651c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: client_organization_websites fk_rails_7b1ea3ba3f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_websites
+    ADD CONSTRAINT fk_rails_7b1ea3ba3f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -986,6 +1613,14 @@ ALTER TABLE ONLY public.agency_users
 
 
 --
+-- Name: client_organization_email_addresses fk_rails_b2180601e2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_email_addresses
+    ADD CONSTRAINT fk_rails_b2180601e2 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: client_people fk_rails_ca3cbcb220; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -999,6 +1634,14 @@ ALTER TABLE ONLY public.client_people
 
 ALTER TABLE ONLY public.client_person_email_addresses
     ADD CONSTRAINT fk_rails_d40f0804a1 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: client_organization_postal_addresses fk_rails_da4da8a391; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_organization_postal_addresses
+    ADD CONSTRAINT fk_rails_da4da8a391 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -1032,6 +1675,7 @@ ALTER TABLE ONLY public.sessions
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260914150000'),
 ('20260914030000'),
 ('20260914020000'),
 ('20260914010000');

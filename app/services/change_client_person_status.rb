@@ -14,11 +14,22 @@ class ChangeClientPersonStatus < AgencyCommand
 
     ActiveRecord::Base.transaction do
       @agency.lock!
+
+      current_assignments = []
+      if @status == "inactive"
+        current_assignments = @agency.client_organization_contacts.current.where(client_person_id: @client_person.id).order(:id).to_a
+        @agency.client_organizations.where(id: current_assignments.map(&:client_organization_id).uniq.sort).order(:id).lock.to_a
+        current_assignments = @agency.client_organization_contacts.current.where(client_person_id: @client_person.id).order(:id).lock.to_a
+      end
+
       person = @agency.client_people.lock.find(@client_person.id)
       return Result.new(status: :noop, record: person) if person.status == @status
 
       if @status == "inactive" && person.client&.active?
         raise Error.new("Inactivate the Client before inactivating this person.", code: :dependency_exists)
+      end
+      if @status == "inactive" && current_assignments.any?
+        raise Error.new("End current organization contact assignments before inactivating this person.", code: :dependency_exists)
       end
 
       person.lock_version = @lock_version

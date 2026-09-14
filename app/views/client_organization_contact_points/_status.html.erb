@@ -1,0 +1,26 @@
+<% label = @contact_point.model_name.human %>
+<% content_for :title, "Change #{label} Status · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Clients</p>
+    <h1 class="dd-page-title">Change <%= label.downcase %> status</h1>
+    <p class="dd-page-description"><%= @client_organization.display_name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: organization_contact_status_path(@contact_point), method: :patch, class: "dd-form" do |form| %>
+      <%= hidden_field_tag :lock_version, @contact_point.lock_version %>
+      <div class="dd-field-group">
+        <%= label_tag :status, "Status", class: "dd-label" %>
+        <%= select_tag :status, options_for_select(%w[active inactive].map { |status| [status.titleize, status] }, @contact_point.status), class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Update status", class: "dd-button" %>
+        <%= link_to "Cancel", client_organization_path(@client_organization), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

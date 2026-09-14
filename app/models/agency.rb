@@ -8,7 +8,9 @@ class Agency < ApplicationRecord
   has_many :agency_users, dependent: :restrict_with_exception
   has_many :audit_events, dependent: :restrict_with_exception
   has_many :client_people, dependent: :restrict_with_exception
+  has_many :client_organizations, dependent: :restrict_with_exception
   has_many :clients, dependent: :restrict_with_exception
+  has_many :client_organization_contacts, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true

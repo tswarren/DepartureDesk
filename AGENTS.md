@@ -10,9 +10,9 @@ The application should feel operationally calm, financially trustworthy, and tra
 
 ## Current boundary
 
-The shipped domain is agency identity plus the individual-Client directory: `Agency`, `Office`, `AgencyUser`, invitation and password-reset tokens, `Session`, the permission catalog, `ClientPerson`, individual `Client`, person-owned email, phone, and postal contact points, the `client` reference sequence, and append-only `AuditEvent` records for `Agency`, `AgencyUser`, `Office`, `ClientPerson`, and `Client`.
+The shipped domain is agency identity plus the Client directory through M1B: `Agency`, `Office`, `AgencyUser`, invitation and password-reset tokens, `Session`, the permission catalog, `ClientPerson`, `ClientOrganization`, individual and organization-backed `Client`, person-owned and organization-owned contact points including organization websites, effective-dated organization contacts, the `client` reference sequence, and append-only `AuditEvent` records for `Agency`, `AgencyUser`, `Office`, `ClientPerson`, `Client`, and `ClientOrganization`.
 
-Documentation authority and status are indexed in [docs/README.md](docs/README.md). Product authority is [docs/planning/departure-desk-mvp.md](docs/planning/departure-desk-mvp.md) and [docs/planning/commercial-domain-decision-register.md](docs/planning/commercial-domain-decision-register.md). Do not implement clients, suppliers, departures, MFA, platform support, or a workforce-role taxonomy from those documents until an accepted slice plan names that work. An accepted milestone contract is not enough. The accepted [M1A slice plan](docs/planning/m1a-individual-client.md) places Client Person, individual Client, and person-owned email, phone, and postal contact points in scope. Client Organization and Supplier records stay out of scope until their slice plans are accepted. [docs/terminology.md](docs/terminology.md) is the current vocabulary; Party-era terminology is archived.
+Documentation authority and status are indexed in [docs/README.md](docs/README.md). Product authority is [docs/planning/departure-desk-mvp.md](docs/planning/departure-desk-mvp.md) and [docs/planning/commercial-domain-decision-register.md](docs/planning/commercial-domain-decision-register.md). Do not implement Suppliers, Departures, MFA, platform support, or a workforce-role taxonomy from those documents until an accepted slice plan names that work. An accepted milestone contract is not enough. [M1A](docs/planning/m1a-individual-client.md) and [M1B](docs/planning/m1b-client-organizations.md) are shipped. Supplier records stay out of scope until their slice plans are accepted. [docs/terminology.md](docs/terminology.md) is the current vocabulary; Party-era terminology is archived.
 
 There is no migration path from the Party and membership schema. Do not add a compatibility layer, dual-schema period, or upgrade of a Party database.
 
@@ -20,7 +20,7 @@ There is no migration path from the Party and membership schema. Do not add a co
 
 Accepted ADRs under `docs/adr` are authoritative. Read the relevant ADR before designing or changing its domain.
 
-- [ADR 0001: Money and currency representation](docs/adr/0001-money-and-currency.md) accepts `money-rails`, `bigint` minor-unit persistence, explicit currencies, strict parsing, and explicit historical conversion facts. The gem is installed. This slice has no money records. Do not persist functional-currency translations. The MVP commercial contract later limits each Departure to one operating currency and excludes FX.
+- [ADR 0001: Money and currency representation](docs/adr/0001-money-and-currency.md) accepts `money-rails`, `bigint` minor-unit persistence, explicit currencies, strict parsing, and explicit historical conversion facts. The gem is installed. The shipped application has no money records. Do not persist functional-currency translations. The MVP commercial contract later limits each Departure to one operating currency and excludes FX.
 - [ADR 0005: Agency identity](docs/adr/0005-agency-identity.md) is the tenancy, invitation, session, permission, and office-context contract. Implement it. Do not invent alternatives.
 - [ADR 0006: Separate identity domains](docs/adr/0006-separate-identity-domains.md) rejects a universal Party identity and separates AgencyUser, Client, Supplier, and Traveler contexts. It is an accepted future-domain boundary, not permission to implement those records before an accepted slice.
 - [ADR 0002](docs/adr/0002-agency-tenancy-and-membership.md) and [ADR 0003](docs/adr/0003-membership-lifecycle-and-invitations.md) are **Superseded by ADR 0005**. Do not implement them.
@@ -39,7 +39,7 @@ Use these terms consistently in code, migrations, UI labels, tests, and document
 | Session | Authentication root. It derives its agency through the agency user and does not store `agency_id`. |
 | Current office | A session preference, then the user's default office, then nil. Changing it changes no permission. |
 
-Commercial terms in [docs/terminology.md](docs/terminology.md) and the planning documents (Client, Supplier, Traveler, Departure, Receipt, Obligation) are planned vocabulary. Do not add those models in this slice.
+Client Person, Client Organization, Client (person-backed or organization-backed), person-owned and organization-owned contact points, and organization-contact assignments are shipped vocabulary. Supplier, Traveler, Departure, Receipt, and Obligation remain planned vocabulary in [docs/terminology.md](docs/terminology.md). Do not add those models until an accepted slice plan names that work.
 
 ## Invariants agents must preserve
 
@@ -57,7 +57,7 @@ Commercial terms in [docs/terminology.md](docs/terminology.md) and the planning 
 12. Load tenant records through `Current.agency`. An identifier from another agency returns not found, not forbidden.
 13. Tenant records that carry `agency_id` must prove same-agency foreign keys. Default office uses a composite foreign key `(default_office_id, agency_id)`. Database triggers reject changes to `Agency.workspace_code`, `AgencyUser.agency_id`, `Office.agency_id`, and `Office.code`. Stored email must equal `lower(btrim(email_address))`.
 14. `ProvisionAgency` and agency lifecycle changes are privileged. They require an actor identifier, invent no platform user, and never return or log a plaintext password or token.
-15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, `Office`, `ClientPerson`, and `Client` only. Do not audit expected failures.
+15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, `Office`, `ClientPerson`, `Client`, and `ClientOrganization` only. Do not audit expected failures.
 16. Do not infer household, payer, occupancy, or payment state. Those records do not exist yet.
 
 ## Development environment
@@ -105,7 +105,7 @@ After checking out this identity baseline, recreate the primary development and 
 
 - PostgreSQL 18 is authoritative. Do not reduce the design to cross-database compatibility.
 - `config.active_record.schema_format` is `:sql`; commit updated `db/structure.sql` after migrations.
-- The identity baseline does not enable `citext`, `pg_trgm`, or `btree_gist`. Enforce workspace-code and email uniqueness on normalized text columns. M1B may enable `btree_gist` only for the Client Organization contact-history exclusion constraint. Do not enable `citext` or `pg_trgm` for that slice.
+- The identity baseline does not enable `citext` or `pg_trgm`. Enforce workspace-code and email uniqueness on normalized text columns. `btree_gist` is enabled on the primary database only for the named Client Organization contact-history exclusion `client_org_contacts_no_overlapping_history`. Do not add other `btree_gist` uses, and do not enable that extension in the queue database. Do not enable `citext` or `pg_trgm` for directory work.
 - Application-owned durable tables use UUID primary keys with database defaults of `uuidv7()`.
 - When an ID is needed before persistence, assign UUIDv7 in Rails and retain the database default as a safety net.
 - Every UUID foreign key must declare `type: :uuid` in its migration.
@@ -167,7 +167,7 @@ table.references :agency,
 
 ## Financial design
 
-No money records exist in this slice. When later slices add them, keep client charges and supplier obligations distinct, store integer minor units, and do not persist functional-currency translations until ADR 0001 is amended. `money-rails` is a value-object layer only.
+No money records exist in the shipped application. When later slices add them, keep client charges and supplier obligations distinct, store integer minor units, and do not persist functional-currency translations until ADR 0001 is amended. `money-rails` is a value-object layer only.
 
 ## Authentication and tenancy
 
