@@ -1,19 +1,12 @@
 class Session < ApplicationRecord
-  belongs_to :user
+  belongs_to :agency_user
   belongs_to :office, optional: true
 
-  def self.persist_initial_office!(session, user)
-    membership = user.usable_agency_membership
-    return session unless membership
+  validates :credential_version, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
-    default = membership.default_office
-    if default&.active? && membership.can_access_office?(default)
-      session.update!(office: default)
-      return session
-    end
-
-    offices = membership.accessible_offices.limit(2).to_a
-    session.update!(office: offices.first) if offices.one?
-    session
+  def current?
+    agency_user.active? &&
+      agency_user.agency.active? &&
+      credential_version == agency_user.credential_version
   end
 end

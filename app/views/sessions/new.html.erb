@@ -9,14 +9,24 @@
 <% end %>
 
 <h1>Sign in</h1>
-<p class="dd-auth-intro">Continue to your group travel workspace.</p>
+<p class="dd-auth-intro">Continue to your agency workspace.</p>
 
 <%= form_with url: session_url, class: "dd-form" do |form| %>
+  <div class="dd-field-group">
+    <%= form.label :workspace_code, "Workspace code", class: "dd-label" %>
+    <%= form.text_field :workspace_code,
+      required: true,
+      autofocus: true,
+      autocomplete: "organization",
+      placeholder: "harbor",
+      value: params[:workspace_code],
+      class: "dd-field" %>
+  </div>
+
   <div class="dd-field-group">
     <%= form.label :email_address, "Email address", class: "dd-label" %>
     <%= form.email_field :email_address,
       required: true,
-      autofocus: true,
       autocomplete: "username",
       placeholder: "you@example.com",
       value: params[:email_address],

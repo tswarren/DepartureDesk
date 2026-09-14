@@ -4,11 +4,7 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title">Edit agency profile</h1>
-    <p class="dd-page-description">
-      Changing timezone or currency does not rewrite existing operational or
-      financial records.
-    </p>
-    <%= link_to "Back to agency profile", administration_agency_path, class: "dd-button dd-button--quiet dd-button--small" %>
+    <p class="dd-page-description">Workspace code cannot be changed.</p>
   </div>
 </header>
 
@@ -16,76 +12,28 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <% if @agency.errors.any? %>
-      <div class="dd-alert dd-alert--danger" role="alert">
-        <p>Please correct the following:</p>
-        <ul>
-          <% @agency.errors.full_messages.each do |message| %>
-            <li><%= message %></li>
-          <% end %>
-        </ul>
-      </div>
-    <% end %>
-
-    <%= form_with model: @agency,
-      url: administration_agency_path,
-      method: :patch,
-      class: "dd-form" do |form| %>
+    <%= form_with model: @agency, url: administration_agency_path, class: "dd-form" do |form| %>
       <%= form.hidden_field :lock_version %>
-
-      <div class="dd-form-grid dd-form-grid--two-column">
-        <div class="dd-field-group">
-          <%= form.label :name, "Display name", class: "dd-label" %>
-          <%= form.text_field :name,
-            required: true,
-            class: "dd-field",
-            aria: field_aria(@agency, :name) %>
-          <%= field_error @agency, :name %>
-        </div>
-
-        <div class="dd-field-group">
-          <%= form.label :legal_name, "Legal name", class: "dd-label" %>
-          <%= form.text_field :legal_name,
-            class: "dd-field",
-            aria: field_aria(@agency, :legal_name) %>
-          <%= field_error @agency, :legal_name %>
-        </div>
+      <div class="dd-field-group">
+        <%= form.label :name, "Display name", class: "dd-label" %>
+        <%= form.text_field :name, required: true, class: "dd-field" %>
       </div>
-
-      <div class="dd-form-grid dd-form-grid--two-column">
-        <div class="dd-field-group">
-          <%= form.label :country_code, "Country", class: "dd-label" %>
-          <%= form.select :country_code,
-            agency_country_code_choices(@agency.country_code),
-            {},
-            required: true,
-            class: "dd-field",
-            aria: field_aria(@agency, :country_code) %>
-          <%= field_error @agency, :country_code %>
-        </div>
-
-        <div class="dd-field-group">
-          <%= form.label :default_timezone, "Default timezone", class: "dd-label" %>
-          <%= form.select :default_timezone,
-            agency_timezone_choices(@agency.default_timezone),
-            {},
-            required: true,
-            class: "dd-field",
-            aria: field_aria(@agency, :default_timezone) %>
-          <%= field_error @agency, :default_timezone %>
-        </div>
+      <div class="dd-field-group">
+        <%= form.label :legal_name, "Legal name", class: "dd-label" %>
+        <%= form.text_field :legal_name, class: "dd-field" %>
       </div>
-
+      <div class="dd-field-group">
+        <%= form.label :country_code, "Country code", class: "dd-label" %>
+        <%= form.text_field :country_code, required: true, maxlength: 2, class: "dd-field dd-field--code" %>
+      </div>
       <div class="dd-field-group">
         <%= form.label :default_currency, "Default currency", class: "dd-label" %>
-        <%= form.text_field :default_currency,
-          required: true,
-          maxlength: 3,
-          class: "dd-field dd-field--code",
-          aria: field_aria(@agency, :default_currency) %>
-        <%= field_error @agency, :default_currency %>
+        <%= form.text_field :default_currency, required: true, maxlength: 3, class: "dd-field dd-field--code" %>
       </div>
-
+      <div class="dd-field-group">
+        <%= form.label :default_timezone, "Default timezone", class: "dd-label" %>
+        <%= form.text_field :default_timezone, required: true, class: "dd-field" %>
+      </div>
       <div class="dd-form-actions">
         <%= form.submit "Save profile", class: "dd-button" %>
         <%= link_to "Cancel", administration_agency_path, class: "dd-button dd-button--quiet" %>

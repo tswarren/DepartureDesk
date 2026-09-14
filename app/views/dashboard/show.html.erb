@@ -1,89 +1,31 @@
 <% content_for :title, "Dashboard · DepartureDesk" %>
 
-<% if Current.agency_membership.accessible_offices.many? && Current.session.office_id.blank? %>
-  <p class="dd-alert dd-alert--info" role="status">
-    <%= link_to "Choose the office you are working in", edit_current_office_path, class: "dd-auth-link" %>
-  </p>
-<% end %>
-
 <header class="dd-page-header">
-  <div>
-    <p class="dd-eyebrow">Operations</p>
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Workspace</p>
     <h1 class="dd-page-title">Dashboard</h1>
     <p class="dd-page-description">
-      Your overview of active departures, upcoming commitments, and financial exposure.
+      <%= Current.agency.name %> · <%= Current.agency_user.access_role.titleize %>
     </p>
   </div>
-
-  <%= link_to "New departure", new_departure_path, class: "dd-button" %>
 </header>
-
-<section class="dd-grid dd-grid--metrics" aria-label="Departure summary">
-  <article class="dd-panel dd-metric">
-    <span class="dd-metric-label">Active departures</span>
-    <strong class="dd-metric-value">0</strong>
-    <span class="dd-metric-detail">No departures in operation</span>
-  </article>
-
-  <article class="dd-panel dd-metric">
-    <span class="dd-metric-label">Travelers booked</span>
-    <strong class="dd-metric-value">0</strong>
-    <span class="dd-metric-detail">Across open departures</span>
-  </article>
-
-  <article class="dd-panel dd-metric">
-    <span class="dd-metric-label">Client balance due</span>
-    <strong class="dd-metric-value">$0.00</strong>
-    <span class="dd-metric-detail">Confirmed client charges</span>
-  </article>
-
-  <article class="dd-panel dd-metric">
-    <span class="dd-metric-label">Guaranteed exposure</span>
-    <strong class="dd-metric-value">$0.00</strong>
-    <span class="dd-metric-detail">Uncovered supplier commitments</span>
-  </article>
-</section>
 
 <section class="dd-grid dd-grid--main">
   <article class="dd-panel">
     <header class="dd-panel-header">
-      <h2 class="dd-panel-title">Upcoming departures</h2>
-      <span class="dd-badge dd-badge--neutral">No records</span>
+      <h2 class="dd-panel-title">Current office</h2>
     </header>
-
-    <div class="dd-empty-state">
-      <div class="dd-empty-icon" aria-hidden="true">↗</div>
-      <h3 class="dd-empty-title">No departures yet</h3>
-      <p class="dd-empty-copy">
-        Departure records will bring supplier commitments, client trips,
-        travelers, and payment tracking together.
-      </p>
+    <div class="dd-panel-body">
+      <% if Current.office %>
+        <p><%= office_choice_label(Current.office) %></p>
+        <p class="dd-page-description"><%= Current.office.default_timezone %></p>
+      <% else %>
+        <div class="dd-empty-state">
+          <h3 class="dd-empty-title">No active office</h3>
+          <p class="dd-empty-copy">This workspace has no active office selected. You can still sign in.</p>
+        </div>
+      <% end %>
+      <%= link_to "Change current office", edit_current_office_path, class: "dd-button dd-button--secondary" %>
     </div>
   </article>
-
-  <aside class="dd-panel">
-    <header class="dd-panel-header">
-      <h2 class="dd-panel-title">Waypoints</h2>
-      <span class="dd-badge dd-badge--warning">Attention</span>
-    </header>
-
-    <div class="dd-panel-body">
-      <ul class="dd-list">
-        <li class="dd-list-item">
-          <span class="dd-waypoint" aria-hidden="true"></span>
-          <span>
-            <strong class="dd-list-title">Foundation ready</strong>
-            <span class="dd-list-detail">Authentication, PostgreSQL, and background jobs are configured.</span>
-          </span>
-        </li>
-        <li class="dd-list-item">
-          <span class="dd-waypoint" aria-hidden="true"></span>
-          <span>
-            <strong class="dd-list-title">Define the first departure</strong>
-            <span class="dd-list-detail">The domain workflow will become the first operational waypoint.</span>
-          </span>
-        </li>
-      </ul>
-    </div>
-  </aside>
 </section>

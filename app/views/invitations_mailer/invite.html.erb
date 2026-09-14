@@ -1,5 +1,3 @@
-<p>You have been invited to join <%= @agency.name %> on DepartureDesk.</p>
-
-<p><%= link_to "Set your password and join", edit_invitation_acceptance_url(@token) %></p>
-
-<p>This invitation expires and can be replaced by an administrator.</p>
+<h1>You are invited</h1>
+<p><%= @agency_user.display_name %>, you have been invited to <%= @agency.name %>.</p>
+<p><%= link_to "Accept invitation", @url %></p>

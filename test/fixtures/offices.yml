@@ -1,15 +1,20 @@
-one:
-  agency: one
-  name: Sunrise Travel
+harbor_main:
+  agency: harbor
+  name: Harbor Main
   code: MAIN
-  status: active
   default_timezone: America/New_York
-  lock_version: 0
-
-two:
-  agency: two
-  name: Pacific Travel
-  code: MAIN
   status: active
+
+harbor_west:
+  agency: harbor
+  name: Harbor West
+  code: WEST
   default_timezone: America/Los_Angeles
-  lock_version: 0
+  status: active
+
+cove_main:
+  agency: cove
+  name: Cove Main
+  code: MAIN
+  default_timezone: America/Chicago
+  status: active

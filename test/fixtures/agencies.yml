@@ -1,13 +1,16 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
-
-one:
-  name: Sunrise Travel
-  default_timezone: America/New_York
+harbor:
+  name: Harbor Travel
+  legal_name: Harbor Travel LLC
+  workspace_code: harbor
+  country_code: US
   default_currency: USD
-  lock_version: 0
+  default_timezone: America/New_York
+  status: active
 
-two:
-  name: Pacific Travel
-  default_timezone: America/Los_Angeles
-  default_currency: CAD
-  lock_version: 0
+cove:
+  name: Cove Travel
+  workspace_code: cove
+  country_code: US
+  default_currency: USD
+  default_timezone: America/Chicago
+  status: active

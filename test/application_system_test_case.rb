@@ -119,10 +119,11 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     find_field(locator).execute_script("this.value = arguments[0]", value.to_s)
   end
 
-  def sign_in_from_browser(user)
+  def sign_in_from_browser(agency_user, password: ActiveSupport::TestCase::TEST_PASSWORD)
     visit new_session_path
-    fill_in "Email address", with: user.email_address
-    fill_in "Password", with: "password"
+    fill_in "Workspace code", with: agency_user.agency.workspace_code
+    fill_in "Email address", with: agency_user.email_address
+    fill_in "Password", with: password
     click_button "Sign in"
     assert_selector "h1.dd-page-title", text: "Dashboard"
     wait_for_turbo

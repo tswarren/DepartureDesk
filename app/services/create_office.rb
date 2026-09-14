@@ -1,41 +1,22 @@
-class CreateOffice < MembershipCommand
-  def initialize(agency:, name:, code:, default_timezone: nil, actor: nil, actor_identifier: nil, privileged: false)
+class CreateOffice < AgencyCommand
+  def initialize(agency:, actor:, name:, code:, default_timezone:)
     @agency = agency
+    @actor = actor
     @name = name
     @code = code
     @default_timezone = default_timezone
-    assign_command_actors(actor:, actor_identifier:, privileged:)
   end
 
   def call
     ActiveRecord::Base.transaction do
-      with_agency_office_lock(@agency) { perform }
+      @agency.with_lock do
+        ensure_permitted!(@actor, :manage_offices)
+        ensure_active_agency!(@agency)
+        office = @agency.offices.create!(name: @name, code: @code, default_timezone: @default_timezone, status: "active")
+        audit!(agency: @agency, action: "office.created", subject: office, actor: @actor, details: { "office_id" => office.id, "code" => office.code })
+        Result.new(status: :accepted, record: office)
+      end
     end
-  rescue ActiveRecord::RecordNotUnique
-    raise Error.new("That office code is already used.", code: :conflict)
-  end
-
-  private
-
-  def perform
-    office = @agency.offices.create!(
-      name: @name,
-      code: @code,
-      status: "active",
-      default_timezone: @default_timezone.presence || @agency.default_timezone
-    )
-    audit!(
-      agency: @agency,
-      action: "office.created",
-      subject: office,
-      details: {
-        "office_id" => office.id,
-        "office_code" => office.code,
-        "name" => office.name
-      },
-      **actor_audit_args
-    )
-    CommandResult.new(status: :created, office: office)
   rescue ActiveRecord::RecordInvalid => error
     raise Error.new(error.record.errors.full_messages.to_sentence, code: :invalid)
   end

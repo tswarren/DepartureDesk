@@ -1,35 +1,36 @@
 class PasswordsController < ApplicationController
   allow_unauthenticated_access
-  before_action :set_user_by_token, only: %i[ edit update ]
-  rate_limit to: 10, within: 3.minutes, only: :create, with: -> { redirect_to new_password_path, alert: "Try again later." }
+  rate_limit to: 10, within: 3.minutes, only: :create, by: -> { password_rate_limit_key }, with: -> { redirect_to new_password_path, notice: RequestPasswordReset::GENERIC_RESPONSE }
 
   def new
   end
 
   def create
-    if user = User.find_by(email_address: params[:email_address])
-      IssuePasswordReset.new(user: user).call
-    end
-
-    redirect_to new_session_path, notice: "Password reset instructions sent (if user with that email address exists)."
+    RequestPasswordReset.new(workspace_code: params[:workspace_code], email_address: params[:email_address]).call
+    redirect_to new_session_path, notice: RequestPasswordReset::GENERIC_RESPONSE
   end
 
   def edit
   end
 
   def update
-    if @user.update(params.permit(:password, :password_confirmation))
-      @user.sessions.destroy_all
-      redirect_to new_session_path, notice: "Password has been reset."
-    else
-      redirect_to edit_password_path(params[:token]), alert: "Passwords did not match."
-    end
+    ResetPassword.new(
+      token: params[:token],
+      password: params[:password],
+      password_confirmation: params[:password_confirmation]
+    ).call
+    redirect_to new_session_path, notice: "Password updated. Sign in with the new password."
+  rescue AgencyCommand::Error => error
+    redirect_to edit_password_path(params[:token]), alert: error.message
   end
 
   private
-    def set_user_by_token
-      @user = User.find_by_password_reset_token!(params[:token])
-    rescue ActiveSupport::MessageVerifier::InvalidSignature
-      redirect_to new_password_path, alert: "Password reset link is invalid or has expired."
-    end
+
+  def password_rate_limit_key
+    [
+      request.remote_ip,
+      Agency.normalize_workspace_code(params[:workspace_code]),
+      AgencyUser.normalize_email(params[:email_address])
+    ].join(":")
+  end
 end

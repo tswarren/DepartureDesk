@@ -16,8 +16,8 @@
   <div class="dd-panel-body">
     <% if @offices.empty? %>
       <div class="dd-empty-state">
-        <h3 class="dd-empty-title">No office access is assigned</h3>
-        <p class="dd-empty-copy">Ask an administrator to grant access to an active office.</p>
+        <h3 class="dd-empty-title">No active office</h3>
+        <p class="dd-empty-copy">This agency has no active office to select. Current office stays unset.</p>
       </div>
     <% else %>
       <%= form_with url: current_office_path, method: :patch, class: "dd-form" do %>

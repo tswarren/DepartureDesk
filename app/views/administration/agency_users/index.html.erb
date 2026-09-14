@@ -1,0 +1,37 @@
+<% content_for :title, "Users · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">Users</h1>
+    <p class="dd-page-description">Agency accounts. The same email in another agency is a different account.</p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Invite user", new_administration_agency_user_path, class: "dd-button" %>
+  </div>
+</header>
+
+<%= render "administration/shared/subnav", current: :users %>
+
+<article class="dd-panel">
+  <table class="dd-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @agency_users.each do |agency_user| %>
+        <tr>
+          <td><%= link_to agency_user.display_name, administration_agency_user_path(agency_user) %></td>
+          <td><%= agency_user.email_address %></td>
+          <td><%= agency_user_role_badge(agency_user) %></td>
+          <td><%= agency_user_status_badge(agency_user) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</article>

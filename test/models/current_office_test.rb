@@ -1,67 +1,25 @@
 require "test_helper"
 
 class CurrentOfficeTest < ActiveSupport::TestCase
-  setup { Current.reset }
-  teardown { Current.reset }
-
-  test "uses a stored session office when it is active and accessible" do
-    session = users(:one).sessions.create!(office: offices(:one))
-    Current.session = session
-
-    assert_equal offices(:one), Current.office
-    assert_equal offices(:one).id, session.reload.office_id
-  end
-
-  test "auto-selects a sole accessible office in memory without persisting" do
-    session = users(:one).sessions.create!
-    Current.session = session
-
-    assert_equal offices(:one), Current.office
-    assert_nil session.reload.office_id
-  end
-
-  test "uses the default office in memory when more than one office is accessible" do
-    create_second_office
-    session = users(:one).sessions.create!
-    Current.session = session
-
-    assert_equal offices(:one), Current.office
-    assert_nil session.reload.office_id
-  end
-
-  test "does not invent a current office when several offices are accessible and none is default" do
-    extra = create_second_office
-    office_assignments(:one).update!(is_default: false)
-    GrantOfficeAccess.new(
-      agency: agencies(:one),
-      actor: users(:one),
-      membership: agency_memberships(:one),
-      office: extra
-    ).call
-    session = users(:one).sessions.create!
+  test "an agency with no active office leaves current office nil" do
+    user = agency_users(:harbor_admin)
+    agencies(:harbor).offices.update_all(status: "inactive")
+    user.update!(default_office: nil)
+    session = user.sessions.create!(credential_version: user.credential_version, office: nil)
     Current.session = session
 
     assert_nil Current.office
-    assert_nil session.reload.office_id
+    assert user.reload.active?
   end
 
-  test "ignores a stored office from another agency" do
-    session = users(:one).sessions.create!(office: offices(:two))
-    Current.session = session
+  test "selecting an office does not change permissions" do
+    user = agency_users(:harbor_viewer)
+    session = user.sessions.create!(credential_version: user.credential_version)
+    before = AccessPermission::CATALOG.select { |_permission, roles| roles.include?(user.access_role) }.keys
 
-    assert_equal offices(:one), Current.office
-    assert_equal offices(:two).id, session.reload.office_id
-  end
+    SelectCurrentOffice.new(session: session, office: offices(:harbor_west)).call
 
-  private
-
-  def create_second_office
-    CreateOffice.new(
-      agency: agencies(:one),
-      actor: users(:one),
-      name: "Boston",
-      code: "BOS",
-      default_timezone: agencies(:one).default_timezone
-    ).call.office
+    assert_equal offices(:harbor_west), session.reload.office
+    assert_equal before, AccessPermission::CATALOG.select { |_permission, roles| roles.include?(user.reload.access_role) }.keys
   end
 end

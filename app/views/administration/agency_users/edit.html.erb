@@ -1,0 +1,35 @@
+<% content_for :title, "Edit user · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">Edit <%= @agency_user.display_name %></h1>
+    <p class="dd-page-description">Email and access role are independent of the descriptive relationship.</p>
+  </div>
+</header>
+
+<%= render "administration/shared/subnav", current: :users %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @agency_user, url: administration_agency_user_path(@agency_user), class: "dd-form" do |form| %>
+      <%= form.hidden_field :lock_version %>
+      <div class="dd-field-group">
+        <%= form.label :access_role, "Access role", class: "dd-label" %>
+        <%= form.select :access_role, AgencyUser::ACCESS_ROLES.map { |role| [ role.titleize, role ] }, {}, disabled: @agency_user.invited? || @agency_user.closed?, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :relationship, "Relationship", class: "dd-label" %>
+        <%= form.text_field :relationship, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :default_office_id, "Default office", class: "dd-label" %>
+        <%= form.collection_select :default_office_id, @offices, :id, :name, { include_blank: "None" }, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Save user", class: "dd-button" %>
+        <%= link_to "Cancel", administration_agency_user_path(@agency_user), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

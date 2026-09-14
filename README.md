@@ -9,9 +9,9 @@ The application is intended to connect four views of the same departure without 
 3. Which travelers are participating and who is financially responsible.
 4. How reservations, client receipts, supplier obligations, and supplier payments progress over time.
 
-Foundation 1 and Phase 2 through 2D.3 are shipped: authentication, agency membership, derived tenant context, administration, team invitations, privileged provisioning/recovery, and the agency-owned Directory (parties, contacts, relationships, notes, client and supplier roles, advisors, external identifiers, search, and lifecycle). Executable party merge is Phase 2E policy and is not shipped. Phase 3A is shipped: travel programs, dated office-owned departures, departure references, internal team assignments, and contextual Party roles. Client trips, supplier arrangements, and posted money objects remain later Phase 3 work. PostgreSQL, Solid Queue, Docker development, UUIDv7 support, `money-rails`, and the application theme are present.
+The shipped domain is agency identity: an agency workspace, agency users, invitations, sessions, offices as context, and administrator maintenance of the profile, offices, and users. Product authority is [`docs/planning/departure-desk-mvp.md`](docs/planning/departure-desk-mvp.md) and [`docs/planning/DepartureDesk-commercial-domain-decision-register.md`](docs/planning/DepartureDesk-commercial-domain-decision-register.md). Clients, suppliers, departures, and posted money objects are not implemented. The Party glossary in [`docs/terminology.md`](docs/terminology.md) is archived. PostgreSQL, Solid Queue, Docker development, UUIDv7 support, `money-rails`, and the application theme are present.
 
-Architecture decisions are recorded in [`docs/adr`](docs/adr). [ADR 0001](docs/adr/0001-money-and-currency.md) accepts `money-rails` and the application’s money/currency persistence contract; the gem is installed. [ADR 0002](docs/adr/0002-agency-tenancy-and-membership.md) accepts agency memberships and derived tenant context. [ADR 0003](docs/adr/0003-membership-lifecycle-and-invitations.md) accepts invited/active/suspended/revoked memberships and invitation onboarding. Domain vocabulary is defined in [`docs/terminology.md`](docs/terminology.md). The Phase 3 parent plan is [`docs/planning/phase-3-departure-and-commercial-domain/phase-3-departure-and-commercial-domain-plan.md`](docs/planning/phase-3-departure-and-commercial-domain/phase-3-departure-and-commercial-domain-plan.md).
+Architecture decisions are recorded in [`docs/adr`](docs/adr). [ADR 0001](docs/adr/0001-money-and-currency.md) accepts `money-rails`; this slice has no money records. [ADR 0005](docs/adr/0005-agency-identity.md) is the tenancy contract. [ADR 0002](docs/adr/0002-agency-tenancy-and-membership.md) and [ADR 0003](docs/adr/0003-membership-lifecycle-and-invitations.md) are superseded by ADR 0005.
 
 ## Product model
 
@@ -89,19 +89,16 @@ DepartureDesk does not intend to reproduce full ARC/BSP reconciliation. It shoul
 The repository currently provides:
 
 - Rails 8.1 on Ruby 3.4.
-- PostgreSQL 18 with `pg_trgm`, `citext`, and native `uuidv7()` support.
+- PostgreSQL 18 with native `uuidv7()` support. The identity baseline does not use `pg_trgm`, `citext`, or `btree_gist`.
 - SQL schema dumps to preserve PostgreSQL-specific constraints and defaults.
 - UUIDv7 defaults for application-owned domain records.
-- Password authentication using Rails’ authentication generator and `has_secure_password`.
-- Agency memberships that derive one trusted current agency from the authenticated user.
-- Current-agency profile administration for administrators, with an append-only administrative audit trail.
-- Team invitations and membership administration for the current agency.
-- Privileged agency provisioning, lifecycle, and administrator-recovery commands. See [agency-provisioning-and-recovery.md](docs/planning/agency-provisioning-and-recovery.md).
+- Agency-scoped password authentication. The same email in two agencies is two accounts.
+- Administrator maintenance of the agency profile, offices, and agency users, with an append-only audit trail.
+- Privileged `ProvisionAgency` and agency lifecycle commands. They are not tenant routes.
 - A separate Solid Queue database and worker process.
 - Tailwind CSS 4 with the DepartureDesk “Harbor and Waypoint” theme.
 - A Docker-only local development workflow.
-- The agency-owned Directory: parties, contacts, relationships, notes, client and supplier roles, advisors, external identifiers, search, and party lifecycle.
-- An initial authenticated dashboard and themed authentication screens.
+- Checkout of this identity baseline requires recreating the primary development and test databases. Do not migrate a Party/membership database forward.
 
 ## Technology
 
@@ -191,7 +188,9 @@ Use the helper for application commands:
 ```bash
 ./dev/rails-docker bin/rails routes
 ./dev/rails-docker bin/rails console
-./dev/rails-docker bin/rails db:migrate
+# Recreate the primary development and test databases after checking out the
+# agency-identity baseline. Do not migrate a Party/membership database forward.
+./dev/rails-docker bin/rails db:drop db:create db:migrate
 ./dev/rails-docker bin/rails test
 ```
 

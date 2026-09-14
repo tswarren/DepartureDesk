@@ -22,35 +22,11 @@
       <%= icon_tag "house" %>
       <span>Dashboard</span>
     <% end %>
-    <%= link_to directory_parties_path, class: "dd-sidebar-item", aria: { current: primary_nav_current_for(:directory) } do %>
-      <%= icon_tag "users" %>
-      <span>Directory</span>
-    <% end %>
-    <%= link_to directory_clients_path, class: "dd-sidebar-item", aria: { current: primary_nav_current_for(:clients) } do %>
-      <%= icon_tag "briefcase" %>
-      <span>Clients</span>
-    <% end %>
-    <%= link_to directory_suppliers_path, class: "dd-sidebar-item", aria: { current: primary_nav_current_for(:suppliers) } do %>
-      <%= icon_tag "boat" %>
-      <span>Suppliers</span>
-    <% end %>
-    <%= link_to departures_path, class: "dd-sidebar-item", aria: { current: primary_nav_current_for(:departures) } do %>
-      <%= icon_tag "calendar_blank" %>
-      <span>Departures</span>
-    <% end %>
-    <span class="dd-sidebar-item" aria-disabled="true">
-      <%= icon_tag "suitcase" %>
-      <span>Travelers</span>
-    </span>
-    <span class="dd-sidebar-item" aria-disabled="true">
-      <%= icon_tag "coins" %>
-      <span>Accounting</span>
-    </span>
   </nav>
 
   <div class="dd-sidebar-footer">
     <p class="dd-nav-section-label">System</p>
-    <% if Current.agency_membership&.administrator? %>
+    <% if Current.agency_user&.permitted?(:manage_agency_profile) %>
       <%= link_to administration_agency_path, class: "dd-sidebar-item", aria: { current: primary_nav_current_for(:administration) } do %>
         <%= icon_tag "gear" %>
         <span>Administration</span>

@@ -1,0 +1,47 @@
+<% content_for :title, "Invite user · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">Invite user</h1>
+    <p class="dd-page-description">Creates an account in this agency only.</p>
+  </div>
+</header>
+
+<%= render "administration/shared/subnav", current: :users %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @agency_user, url: administration_agency_users_path, class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :email_address, "Email address", class: "dd-label" %>
+        <%= form.email_field :email_address, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :first_name, class: "dd-label" %>
+        <%= form.text_field :first_name, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :last_name, class: "dd-label" %>
+        <%= form.text_field :last_name, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :access_role, "Access role", class: "dd-label" %>
+        <%= form.select :access_role, AgencyUser::ACCESS_ROLES.map { |role| [ role.titleize, role ] }, {}, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :relationship, "Relationship", class: "dd-label" %>
+        <%= form.text_field :relationship, class: "dd-field" %>
+        <p class="dd-page-description">Descriptive only. This does not grant access.</p>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :default_office_id, "Default office", class: "dd-label" %>
+        <%= form.collection_select :default_office_id, @offices, :id, :name, { include_blank: "None" }, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Send invitation", class: "dd-button" %>
+        <%= link_to "Cancel", administration_agency_users_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

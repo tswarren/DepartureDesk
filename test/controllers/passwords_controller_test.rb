@@ -1,70 +1,65 @@
 require "test_helper"
 
 class PasswordsControllerTest < ActionDispatch::IntegrationTest
-  setup { @user = User.take }
-
-  test "new" do
-    get new_password_path
-    assert_response :success
-  end
-
-  test "create" do
-    post passwords_path, params: { email_address: @user.email_address }
-    intent = DeliveryIntent.order(:created_at).last
-    assert_equal @user, intent.subject
-    assert_equal "password_reset", intent.purpose
-    assert_enqueued_with job: DeliveryIntentJob, args: [ intent.id ]
-    assert_redirected_to new_session_path
-
-    follow_redirect!
-    assert_notice "reset instructions sent"
-  end
-
-  test "create for an unknown user redirects but sends no mail" do
-    post passwords_path, params: { email_address: "missing-user@example.com" }
-    assert_enqueued_emails 0
-    assert_redirected_to new_session_path
-
-    follow_redirect!
-    assert_notice "reset instructions sent"
-  end
-
-  test "edit" do
-    get edit_password_path(@user.password_reset_token)
-    assert_response :success
-  end
-
-  test "edit with invalid password reset token" do
-    get edit_password_path("invalid token")
-    assert_redirected_to new_password_path
-
-    follow_redirect!
-    assert_notice "reset link is invalid"
-  end
-
-  test "update" do
-    assert_changes -> { @user.reload.password_digest } do
-      put password_path(@user.password_reset_token), params: { password: "new", password_confirmation: "new" }
-      assert_redirected_to new_session_path
+  test "only an active user in the named workspace receives a reset token" do
+    assert_no_difference -> { AgencyUser.where.not(password_reset_token_digest: nil).count } do
+      post passwords_path, params: { workspace_code: "harbor", email_address: "nobody@example.com" }
+      post passwords_path, params: { workspace_code: "harbor", email_address: "invite@example.com" }
+      post passwords_path, params: { workspace_code: "harbor", email_address: "suspended@example.com" }
+      post passwords_path, params: { workspace_code: "missing", email_address: "alex@example.com" }
     end
 
-    follow_redirect!
-    assert_notice "Password has been reset"
+    user = agency_users(:harbor_admin)
+    user.update!(password_reset_token_digest: nil, password_reset_sent_at: nil, password_reset_expires_at: nil)
+    post passwords_path, params: { workspace_code: "harbor", email_address: "alex@example.com" }
+
+    assert user.reload.password_reset_token_digest.present?
+    assert_equal RequestPasswordReset::GENERIC_RESPONSE, flash[:notice]
+    assert_nil agency_users(:cove_admin).reload.password_reset_token_digest
   end
 
-  test "update with non matching passwords" do
-    token = @user.password_reset_token
-    assert_no_changes -> { @user.reload.password_digest } do
-      put password_path(token), params: { password: "no", password_confirmation: "match" }
-      assert_redirected_to edit_password_path(token)
-    end
+  test "password-reset rate limit uses ip plus workspace plus email" do
+    with_memory_cache do
+      10.times { post passwords_path, params: { workspace_code: "harbor", email_address: "alex@example.com" } }
+      digest = agency_users(:harbor_admin).reload.password_reset_token_digest
 
-    follow_redirect!
-    assert_notice "Passwords did not match"
+      post passwords_path, params: { workspace_code: "harbor", email_address: "alex@example.com" }
+      assert_equal digest, agency_users(:harbor_admin).reload.password_reset_token_digest
+
+      post passwords_path, params: { workspace_code: "harbor", email_address: "sam@example.com" }
+      assert agency_users(:harbor_staff).reload.password_reset_token_digest.present?
+    end
+  end
+
+  test "a successful reset bumps the credential version and destroys sessions" do
+    user = agency_users(:harbor_admin)
+    sign_in_as user
+    other = user.sessions.create!(credential_version: user.credential_version)
+    other_cookie = signed_session_cookie(other)
+    raw = user.issue_password_reset_token
+    user.save!
+
+    patch password_path(raw), params: { password: "replacement123", password_confirmation: "replacement123" }
+
+    assert_redirected_to new_session_path
+    assert_equal 0, user.sessions.count
+    assert_nil user.reload.password_reset_token_digest
+    assert_equal 2, user.credential_version
+    assert user.authenticate("replacement123")
+
+    cookies["session_id"] = other_cookie
+    get root_path
+    assert_redirected_to new_session_path
+    assert_predicate cookies["session_id"].to_s, :blank?
   end
 
   private
-    def assert_notice(text)
-      assert_select "div", /#{text}/
-    end
+
+  def with_memory_cache
+    previous = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    yield
+  ensure
+    Rails.cache = previous
+  end
 end

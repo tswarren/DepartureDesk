@@ -1,0 +1,68 @@
+<% password = BCrypt::Password.create("password12345", cost: 4) %>
+<% cove_password = BCrypt::Password.create("cove-password1", cost: 4) %>
+
+harbor_admin:
+  agency: harbor
+  default_office: harbor_main
+  email_address: alex@example.com
+  password_digest: <%= password %>
+  first_name: Alex
+  last_name: Mariner
+  access_role: administrator
+  status: active
+  credential_version: 1
+
+harbor_staff:
+  agency: harbor
+  default_office: harbor_main
+  email_address: sam@example.com
+  password_digest: <%= password %>
+  first_name: Sam
+  last_name: Carter
+  access_role: staff
+  status: active
+  credential_version: 1
+
+harbor_viewer:
+  agency: harbor
+  default_office: harbor_main
+  email_address: val@example.com
+  password_digest: <%= password %>
+  first_name: Val
+  last_name: Nguyen
+  access_role: viewer
+  status: active
+  credential_version: 1
+
+harbor_invited:
+  agency: harbor
+  email_address: invite@example.com
+  first_name: Iris
+  last_name: Cole
+  access_role: staff
+  status: invited
+  invitation_token_digest: <%= AgencyUser.digest_token("invite-token-harbor") %>
+  invitation_sent_at: <%= Time.current %>
+  invitation_expires_at: <%= 7.days.from_now %>
+  credential_version: 0
+
+harbor_suspended:
+  agency: harbor
+  email_address: suspended@example.com
+  password_digest: <%= password %>
+  first_name: Sid
+  last_name: Lane
+  access_role: staff
+  status: suspended
+  credential_version: 1
+
+cove_admin:
+  agency: cove
+  default_office: cove_main
+  email_address: alex@example.com
+  password_digest: <%= cove_password %>
+  first_name: Alex
+  last_name: Cove
+  access_role: administrator
+  status: active
+  credential_version: 1

@@ -1,29 +1,23 @@
 class Current < ActiveSupport::CurrentAttributes
   attribute :session
 
-  delegate :user, to: :session, allow_nil: true
-
-  def agency_membership
-    user&.usable_agency_membership
+  def agency_user
+    session&.agency_user
   end
 
   def agency
-    agency_membership&.agency
+    agency_user&.agency
   end
 
   def office
-    membership = agency_membership
-    return unless session && membership && agency
+    return unless session && agency_user&.active? && agency&.active?
 
-    if session.office_id
-      stored = agency.offices.find_by(id: session.office_id)
-      return stored if stored&.active? && membership.can_access_office?(stored)
-    end
+    stored = session.office
+    return stored if stored&.active? && stored.agency_id == agency.id
 
-    default = membership.default_office
-    return default if default&.active? && membership.can_access_office?(default)
+    default = agency_user.default_office
+    return default if default&.active? && default.agency_id == agency.id
 
-    offices = membership.accessible_offices.limit(2).to_a
-    offices.first if offices.one?
+    nil
   end
 end
