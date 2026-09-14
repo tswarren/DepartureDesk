@@ -42,6 +42,8 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
     patch password_path(raw), params: { password: "replacement123", password_confirmation: "replacement123" }
 
     assert_redirected_to new_session_path
+    assert_equal 1, AuditEvent.where(action: "agency_user.password_reset", subject_id: user.id).count
+    assert_equal 0, AuditEvent.where(action: "agency_user.password_changed", subject_id: user.id).count
     assert_equal 0, user.sessions.count
     assert_nil user.reload.password_reset_token_digest
     assert_equal 2, user.credential_version

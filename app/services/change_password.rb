@@ -23,10 +23,10 @@ class ChangePassword < AgencyCommand
         destroy_sessions!(@agency_user)
         audit!(
           agency: @agency_user.agency,
-          action: "agency_user.password_reset",
+          action: "agency_user.password_changed",
           subject: @agency_user,
           actor: @agency_user,
-          details: { "agency_user_id" => @agency_user.id, "source" => "password_change" }
+          details: { "agency_user_id" => @agency_user.id }
         )
       end
     end

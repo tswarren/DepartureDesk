@@ -19,6 +19,7 @@ class AuditEvent < ApplicationRecord
     agency_user.reactivated
     agency_user.closed
     agency_user.default_office_changed
+    agency_user.password_changed
     agency_user.password_reset
     session.office_selected
   ].freeze

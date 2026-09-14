@@ -14,6 +14,8 @@ class AccountPasswordsControllerTest < ActionDispatch::IntegrationTest
     }
 
     assert_redirected_to new_session_path
+    assert_equal 1, AuditEvent.where(action: "agency_user.password_changed", subject_id: user.id).count
+    assert_equal 0, AuditEvent.where(action: "agency_user.password_reset", subject_id: user.id).count
     assert_equal 0, user.sessions.count
     assert_predicate cookies["session_id"].to_s, :blank?
     assert_equal 2, user.reload.credential_version

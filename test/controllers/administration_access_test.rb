@@ -51,6 +51,26 @@ class AdministrationAccessTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
+  test "a supplied missing office does not create an invitation" do
+    sign_in_as agency_users(:harbor_admin)
+
+    assert_no_difference [ "AgencyUser.count", "AuditEvent.count" ] do
+      post administration_agency_users_path, params: invitation_params(default_office_id: SecureRandom.uuid)
+    end
+
+    assert_response :not_found
+  end
+
+  test "a supplied office from another agency does not create an invitation" do
+    sign_in_as agency_users(:harbor_admin)
+
+    assert_no_difference [ "AgencyUser.count", "AuditEvent.count" ] do
+      post administration_agency_users_path, params: invitation_params(default_office_id: offices(:cove_main).id)
+    end
+
+    assert_response :not_found
+  end
+
   test "an office from another agency is not found" do
     sign_in_as agency_users(:harbor_admin)
 
@@ -98,5 +118,19 @@ class AdministrationAccessTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal offices(:harbor_main).id, session.reload.office_id
+  end
+
+  private
+
+  def invitation_params(default_office_id:)
+    {
+      agency_user: {
+        email_address: "new@example.com",
+        first_name: "New",
+        last_name: "User",
+        access_role: "staff",
+        default_office_id: default_office_id
+      }
+    }
   end
 end

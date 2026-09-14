@@ -21,7 +21,7 @@ class AgencyUser < ApplicationRecord
 
   validates :email_address, :first_name, :last_name, presence: true
   validates :email_address, uniqueness: { scope: :agency_id }, format: { with: URI::MailTo::EMAIL_REGEXP }
-  validates :password, length: { minimum: 12, maximum: 72 }, confirmation: true, if: -> { password.present? }
+  validates :password, length: { minimum: 10, maximum: 72 }, confirmation: true, if: -> { password.present? }
   validate :default_office_belongs_to_agency
   validate :active_password_present
 

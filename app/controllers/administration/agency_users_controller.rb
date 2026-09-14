@@ -15,7 +15,7 @@ module Administration
     end
 
     def create
-      office = offices.find_by(id: agency_user_params[:default_office_id])
+      office = invitation_office
       result = InviteAgencyUser.new(
         agency: Current.agency,
         actor: Current.agency_user,
@@ -98,6 +98,13 @@ module Administration
 
     def set_agency_user
       @agency_user = agency_users.find(params[:id])
+    end
+
+    def invitation_office
+      office_id = agency_user_params[:default_office_id]
+      return if office_id.blank?
+
+      offices.find(office_id)
     end
 
     def agency_user_params
