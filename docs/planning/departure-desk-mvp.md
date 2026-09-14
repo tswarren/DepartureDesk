@@ -1,6 +1,6 @@
 # **DepartureDesk MVP Requirements**
 
-## **Version 0.5 Organized Requirements Draft**
+## **Version 0.6 Organized Requirements Draft**
 
 This document is the current working specification for the DepartureDesk MVP. It consolidates accepted requirements into the sections they govern, identifies the few remaining choices, and records exclusions in the deferred-scope section. Appendix B retains a compact index of earlier scoping decisions without functioning as a second requirements source.
 
@@ -12,12 +12,13 @@ DepartureDesk explains the departure. It calculates deterministic results from r
 
 | Field | Current requirement |
 | :---- | :---- |
-| Document status | Working specification for acceptance, version 0.5 |
+| Document status | Working specification for acceptance, version 0.6 |
 | Primary audience | Product, design, engineering, implementation planning, and acceptance-test authors |
 | Supersedes within the compiled notes | The Legacy Infrastructure section and embedded Party-based terminology standard |
 | Preserved authorities | Agency isolation, auditability, immutable posted money, explicit currency, historical snapshots, and command-level authorization unless amended here |
 | Example Departures | Celebrity Beyond Eastern Caribbean Cruise and Vineyard Tour, used to test generality across Departure types rather than define a literal feature list |
-| v0.5 organization | The v0.4 addendum is folded into governing sections; resolved and deferred items are removed from the open register; Appendix B becomes a non-governing decision index |
+| v0.5 organization | The v0.4 addendum was folded into governing sections; resolved and deferred items moved out of the open register; Appendix B became a non-governing decision index. |
+| v0.6 amendment | Refines the M1 directory boundary: Client is responsibility rather than universal Payer identity; Household and standalone Traveler persistence are deferred; contact purposes/snapshots move to their consuming contexts; merge receives an M8 disposition. |
 
 ## **Document map**
 
@@ -78,7 +79,7 @@ DepartureDesk is an agency-scoped operational and commercial subledger for group
 
 * What packages and services are offered?
 
-* Which client trips and travelers participate, and who is the responsible payer for each?
+* Which Client Trips and Traveler Assignments participate, which Client is responsible, and who actually paid?
 
 * How is each service fulfilled and what inventory does it consume?
 
@@ -95,13 +96,13 @@ DepartureDesk is an agency-scoped operational and commercial subledger for group
 | Layer | Primary records | Governing question |
 | :---- | :---- | :---- |
 | Tenant and access | Agency, Office, Agency User, Access Role, Support Access Grant | Who owns the data and who may act? |
-| Directory | Client Person, Client, Client Organization, Household, Supplier, Supplier Contact | Who is involved and in what bounded business context? |
+| Directory | Client Person, Client, Client Organization, Supplier, Supplier Location, Supplier Contact | Who is involved and in what bounded business context? |
 | Departure operations | Travel Program, Departure, Package, Client Trip, Client Trip Service | What is offered, selected, and coordinated? |
 | Fulfillment | Supplier Arrangement, Supplier Reservation, Service Occurrence, Supplier Resource, assignments | How is each service provided and who receives it? |
 | Financial | Charge, Receipt, Supplier Obligation, Supplier Payment, credits, refunds, commission | Who owes, who paid, and what remains? |
 | Change and closeout | Cancellation Case, adjustments, reconciliation, closeout | How are later consequences preserved and resolved? |
 
-**Locked for MVP.** Agency is the tenant; Departure is the dated operational unit; Client is the payer identity for a commercial relationship (its own record, distinct from Client Person and Client Organization); Client Trip is the client-facing commercial record; Client Trip Service is the common service envelope; posted financial history is corrected through explicit subsequent records.
+**Locked for MVP.** Agency is the tenant; Departure is the dated operational unit; Client is the stable commercial-responsibility identity for a commercial relationship (its own record, distinct from Client Person and Client Organization); Payer is the actual source of a Receipt; Client Trip is the client-facing commercial record; Client Trip Service is the common service envelope; posted financial history is corrected through explicit subsequent records.
 
 # **2 Governing domain and integrity principles**
 
@@ -109,7 +110,7 @@ Agency is the sole tenant and business-data boundary. Office is an operating and
 
 Client, supplier, and agency-user domains remain separate. No universal Party identity links them merely because they describe the same physical person or organization.
 
-Traveler, responsible Client, payer, booking contact, household member, and resource occupant are distinct roles.
+Traveler Assignment, responsible Client, Payer, booking contact, Traveling Party membership, and resource occupancy are distinct facts.
 
 Client price and supplier cost are independent. Neither changes silently when the other changes.
 
@@ -228,33 +229,28 @@ DepartureDesk maintains separate agency-owned client and supplier contexts. Simi
 
 | Record | Purpose | MVP distinction |
 | :---- | :---- | :---- |
-| Client Person | Individual in the consumer-side directory | May later act as Client, Traveler, payer, contact, organizer, or leader through explicit contextual roles. |
+| Client Person | Individual in the consumer-side directory | May later become a Client source or be referenced by a Traveler Assignment, Payer, contact, organizer, or leader fact through explicit contextual records. |
 | Client Organization | Company, school, church, club, or association | May sponsor, organize, purchase, or pay for travel. Can be a Client. Can never be a Traveler. |
-| Client | The payer identity for a commercial relationship | Its own record: references exactly one Client Person or Client Organization, plus commercial-only fields (billing terms, credit-hold status, statement preferences). Owns Charges, pays, sponsors Travelers, and owns Client Trips; not necessarily a Traveler. |
-| Client Household | Agency-maintained servicing and communication grouping | Not a Client, account, payer group, trip, rooming group, or insurance household. |
+| Client | Stable commercial-responsibility identity | References exactly one Client Person or Client Organization. A Client may be responsible for Client Trips and Charges but is not necessarily a Traveler or the actual Payer of a Receipt. |
 | Supplier | Legal or commercial entity from which the Agency procures service | Separate from Client Organizations and Agency Users. |
 | Supplier Location | Property, venue, terminal, or place associated with a Supplier | Not necessarily the legal contracting Supplier. |
 | Supplier Contact | Person representing a Supplier in a work context | Not linked to a Client Person or Agency User merely because contact values match. |
 
-**Locked for MVP.** A Client is its own record \- agency, a reference to exactly one Client Person or Client Organization, and commercial-only fields \- not a role flag added directly to Client Person or Client Organization. Every Charge and Client Trip references a Client. A Traveler Assignment always resolves to a Client Person; a Client Organization can never be a Traveler. Whether a Traveler is also the trip's responsible Client is incidental, not structural (see acceptance examples 3, 4, and 13 in Section 16).
+**Locked for MVP.** A Client is its own recordâ€”Agency, a reference to exactly one Client Person or Client Organization, lifecycle, and durable referenceâ€”not a role flag added directly to Client Person or Client Organization. Every Charge and Client Trip references a Client. Billing terms, credit-hold status, statement preferences, balances, and payment methods are not M1 directory facts; M6A introduces only those Client-commercial settings it actually uses. A Traveler Assignment always resolves to a Client Person; a Client Organization can never be a Traveler. Whether the same physical person is also the trip's responsible Client is incidental, not structural.
 
-## **Households**
+## **Deferred reusable consumer grouping**
 
-A current Household has at least one current member and exactly one current primary contact.
+MVP introduces no Household, Family, familial-relationship, reusable consumer servicing-group, or shared household-contact record. The identified MVP workflows require contextual facts instead:
 
-Membership is effective-dated and historical changes are preserved.
+- Client Trip and Charge identify their responsible Client.
+- Receipt preserves its actual Payer.
+- Traveler Assignment identifies the Client Person receiving a service.
+- Resource Assignment identifies occupancy or placement.
+- Traveling Party records coordination or companionship only.
+- Booking, billing, on-trip, emergency, and group-leader contacts belong to the applicable Client Trip, service, document, or Communication context.
+- Insurance eligibility and covered people come from an explicit policy/eligibility snapshot.
 
-A person may appear in more than one Household for a legitimate servicing reason.
-
-Primary contact must be a current member.
-
-Familial relationships are separate from Household membership.
-
-Membership never implies travel, responsibility, payment, occupancy, communication authority, or insurance eligibility.
-
-Client Trips and Charges identify an individual or organization Client explicitly.
-
-Travelers on a Client Trip need not share any Household relationship with each other or with the responsible Client \- a Client Organization sponsoring unrelated employee Travelers is a normal case, not an exception.
+A future reusable consumer group requires a separate accepted decision defining the facts it owns. None of the preceding facts may be inferred from co-residence, family description, shared contact data, or repeated travel.
 
 ## **Traveler identity data**
 
@@ -266,17 +262,15 @@ Traveler Assignment snapshots the trip-specific facts needed to fulfill and pric
 
 Supported contact points are email, phone, and postal address.
 
-A simple label, one preferred active destination per owner/channel, verification, consent, suppression, bounce, and disconnection may be recorded.
+A directory contact point records a simple label and at most one preferred active destination per owner/channel. M7 Communications owns any required verification, consent, suppression, bounce, or disconnection state; those facts are not part of M1.
 
-Contact purpose is contextual: booking contact, billing contact, on-trip contact, emergency contact, Supplier Arrangement contact, remittance contact, or group leader / trip coordinator.
-
-A Household may use its primary contact or a genuinely shared destination; the interface identifies the source.
+Contact purpose is contextual rather than a directory assignment. M5â€“M7 records may identify booking contact, billing contact, on-trip contact, emergency contact, Supplier Arrangement contact, remittance contact, or group leader/trip coordinator and select the actual destination used.
 
 Every sent or attempted Communication snapshots recipient display name, contextual role, actual destination, related records, content/template version, actor, time, status, and external reference. The actor may be a human Agency User or the system/scheduled process for automated, transactional communications (see Section 11, Deadlines and reminders).
 
 Directory email is not login identity merely because the literal value matches.
 
-***New this revision.** Group leader / trip coordinator added as a contact purpose (not a distinct access role or portal login \- see Section 13). This gives staff a place to record and reach the group's coordinating contact without building portal-style external access.*
+***Clarified for sequencing.** Group leader / trip coordinator is not a directory contact-purpose assignment. M5 records it in Client Trip context and M7 Communications select and snapshot an actual destination. It remains neither an access role nor a portal login.*
 
 ## **References search duplicates merge and lifecycle**
 
@@ -285,11 +279,11 @@ Directory email is not login identity merely because the literal value matches.
 | References | Immutable Agency-scoped human references; prefixes finalized through numbering policy; UUID remains relational identifier |
 | Search | Agency-scoped and domain-aware; client search does not silently mix Supplier Contacts or Agency Users |
 | Duplicate handling | Warn, allow eligible existing selection, and permit audited create-anyway; never auto-merge or disclose cross-agency data |
-| Merge | Same Agency and compatible domain only; retain tombstone, aliases, and history; no cross-domain merge or automatic unmerge |
+| Merge | Not implemented in M1. M8 must either define same-domain merge with retained aliases/tombstones/history or explicitly accept warning/prevention without merge as production policy; cross-domain and automatic merge remain prohibited. |
 | Lifecycle | Active/inactive with dependency checks; historical records resolve after inactivation |
-| Snapshots | Preserve supplier-facing names, statement addressee, responsible-client and payer names, contracting Supplier, confirmation issuer, communication destination, and document branding where consequential |
+| Snapshots | Directory rows are current identities, not generic snapshots. M3â€“M7 preserve names, terms, addressees, responsible Client, Payer, contracting Supplier, confirmation issuer, communication destination, and branding on the consequential record that consumes them. |
 
-**Deferred.** Universal Party identity, cross-domain linking, automatic contact synchronization, Household financial accounts, generalized contact-purpose systems, client/supplier portals (including a Group Leader access role), automatic waitlisting, marketing automation, organization trees, shared global Supplier masters, and external identity enrichment.
+**Deferred.** Universal Party identity, cross-domain linking, automatic contact synchronization, reusable Household/Family/servicing groups, generalized directory contact-purpose systems, client/supplier portals (including a Group Leader access role), automatic waitlisting, marketing automation, organization trees, shared global Supplier masters, and external identity enrichment.
 
 # **5 Departures packages client trips and services**
 
@@ -330,7 +324,7 @@ Traveler Assignment identifies who receives a Client Trip Service. It always res
 
 Resource Assignment places a Traveler into a specific cabin, room, seat, vehicle, or other resource for applicable dates.
 
-Traveling Party describes coordination or companionship only and does not create service, resource, Household, privacy, or financial facts.
+Traveling Party describes coordination or companionship only and does not create service, resource, reusable directory-group, privacy, or financial facts.
 
 Primary Client, responsible Client, payer, booking contact, and trip coordinator remain independent.
 
@@ -500,7 +494,7 @@ A Client Trip may contain required or optional services not drawn from a Departu
 
 * Transferred bookings do not use group pricing or inventory merely because they carry the group number.
 
-* Insurance household eligibility is snapshotted from the policy and never inferred from Client Household membership.
+* Insurance eligibility and covered-person facts are snapshotted from the policy or eligibility evidence and never inferred from directory relationships or shared contact values.
 
 * One PNR may include several Travelers, but each issued Ticket belongs to one Traveler.
 
@@ -714,7 +708,7 @@ Closing creates an immutable, versioned closeout snapshot and rejects new financ
 | Workstream | Included scope |
 | :---- | :---- |
 | Foundation rework | Agency-scoped login identity, Office as reporting/default context only, roles/permissions, Platform Users, Support Access Grants, tenant and audit hardening |
-| Directories | Separate Client Person, Client Organization, and Client (payer identity) records, Households, contact points (including group leader as a contact purpose), search, duplicate warnings, lifecycle, snapshots, and domain-safe merge where required before production |
+| Directories | Separate Client Person, Client Organization, Client (commercial-responsibility identity), Supplier, Supplier Location, and Supplier Contact records; destination-only contact points; search; duplicate warnings with acknowledged create-anyway; lifecycle; Agency-scoped references; and tenant-safe audit |
 | Departure operations | Travel Programs, Departures, Packages, Client Trips (with assigned Agency User), Client Trip Services, general-purpose choice groups, assignments, service occurrences, confirmations, deadlines, and readiness |
 | Supplier planning | Arrangements with composable typed cost components, Reservations, Resources with date-scoped capacity, fixed/per-unit/per-night/minimum cost patterns, general threshold-triggered capacity calculation, block/guarantee/allocation, commitment and exposure, cancelable\_below\_minimum flag |
 | Client financials | One responsible Client per Charge, per-installment Payment Schedule/Charge posting with Deposit as a Charge category, immutable posted Charges, Receipts (hard one-per-Departure boundary), applications, same-Departure credits/refunds, balances |
@@ -728,9 +722,13 @@ Closing creates an immutable, versioned closeout snapshot and rejects new financ
 
 * Custom and per-user roles; restricted Office visibility; external collaborators; global identity and cross-agency sharing
 
-* Household financial accounts, universal Party identity, cross-domain merge, automatic contact synchronization, client/supplier portals, and marketing automation
+* Household/Family/reusable consumer servicing groups, standalone Traveler profiles, universal Party identity, cross-domain merge, automatic contact synchronization, client/supplier portals, and marketing automation
 
-* Group Leader / trip coordinator as a distinct access role or portal login (captured only as a contact purpose for MVP)
+* Directory contact verification, consent, suppression, bounce/disconnection processing, and generalized purpose assignments until M7 Communications defines the facts it consumes
+
+* Executable same-domain merge, aliases, and tombstones until M8 either implements domain-safe resolution or explicitly accepts warning/prevention without merge as the production policy
+
+* Group Leader / trip coordinator as a distinct access role or portal login; M5 may record the person as a contextual Client Trip contact without granting access
 
 * Waitlisting when a capacity category is sold out (the Client Trip Service selection-treatment field can accept a waitlisted value later without a schema change)
 
@@ -815,7 +813,7 @@ Supplier planning precedes packages and client offers so availability, contractu
 
 * An inactive Office remains on history but cannot receive a new responsible-Office assignment, and its historical presence carries no access implication.
 
-* Martha Smith is a Client Person and, via her own Client record, an individual Client; her Household includes Daniel and Emily, while only selected people become Travelers.
+* Martha Smith is a Client Person and, via her own Client record, an individual Client; Daniel and Emily are separate Client People and become Travelers only through explicit later Traveler Assignments.
 
 * Olivia Brown's Client record is the responsible Client for Noah Brown's Traveler Assignment without Olivia herself traveling.
 
@@ -835,7 +833,7 @@ Supplier planning precedes packages and client offers so availability, contractu
 
 * A Platform User cannot enter a tenant without a valid grant; read-only support cannot mutate; all support activity is attributed correctly.
 
-* A Client Organization sponsors and pays for five employee Travelers who share no Household relationship with each other or with the organization's contact; the Client Organization itself is never a Traveler.
+* A Client Organization is responsible for a Client Trip containing five employee Traveler Assignments; the organization contact, actual Payer, Travelers, and resource occupants remain independently explicit, and the Client Organization itself is never a Traveler.
 
 * An excursion configured with cancelable\_below\_minimum \= false requires the Agency to pay the minimum guarantee even though only three of five required paid Travelers confirmed.
 
@@ -852,7 +850,7 @@ Supplier planning precedes packages and client offers so availability, contractu
 | Tenancy and authentication | Agency-scoped lookup, cross-agency non-disclosure, invitations/resets/session binding, jobs and broadcasts |
 | Authorization | Permission checks at query, endpoint, command, job, export, and delivery layers; Viewer causes no side effects; last Administrator protected |
 | Support access | Grant scope, expiry, revocation, read-only enforcement, sensitive masking, banner, platform and tenant audit |
-| Directory | Domain separation, Client/Client Person/Client Organization distinction, Household invariants, contact ownership, contextual routing, snapshots, duplicate safety, merge/tombstones, lifecycle dependencies |
+| Directory | Domain separation; Client/Client Person/Client Organization distinction; contact ownership; deterministic duplicate safety; lifecycle dependencies; Viewer redaction; reference issuance; tenant isolation; and no inferred trip, Payer, Traveler, communication, or occupancy facts |
 | Departure and service | Package and trip-specific sources, fulfillment methods, Traveler and Resource Assignments, general choice groups (arbitrary min/max), confirmation dimensions |
 | Capacity and commitment | Date-scoped occurrences, blocked/guaranteed/on-request distinctions, threshold-triggered unit calculation, allocations, utilization, release without silent financial mutation, cancelable\_below\_minimum |
 | Client ledger | Immutable posting, per-installment Charge/Deposit posting, applications, unapplied funds, reversals, refunds/credits, payer/responsibility independence, one-Receipt-per-Departure, currency |
@@ -908,7 +906,7 @@ This index preserves the provenance of settled scoping decisions without duplica
 | Documents | Generated by DepartureDesk (itinerary, invoice, confirmation, waiver), not upload-only (Section 5). |
 | Waiver execution | Upload or in-app checkbox for MVP; native e-signature deferred (Section 5). |
 | Deadline reminders | Internal: in-app only. Client-facing: email only, payment deadlines only, fixed set (Section 11). |
-| Group Leader | Deferred as an access role; captured as a contact purpose (Section 4, 13). |
+| Group Leader | Deferred as an access role; M5 may record a contextual Client Trip contact and M7 snapshots the destination actually used (Sections 4, 5, 13). |
 | Waitlisting | Deferred; extensible later via the existing selection-treatment field (Section 13). |
 | Assigned agent per Client Trip | Added: one Agency User per Client Trip as primary contact, no commission-split logic (Section 3, 5). |
 | Seller-of-Travel field | Added to Agency identity (Section 3). |

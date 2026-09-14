@@ -25,9 +25,8 @@ Use these terms consistently in requirements, code, migrations, UI labels, tests
 | --- | --- |
 | Client Person | A consumer-side person known to an Agency. |
 | Client Organization | A consumer-side organization known to an Agency. |
-| Client | The consumer-side identity responsible for a commercial relationship or amount. A Client is based on either a Client Person or Client Organization. |
-| Traveler | A person receiving or expected to receive a travel service. Traveler facts remain distinct from payment responsibility. |
-| Household | A servicing and communication grouping of Client Persons. Household membership does not imply travel, occupancy, payment responsibility, or insurance eligibility. |
+| Client | The stable consumer-side identity responsible for a commercial relationship or amount. A Client is based on either a Client Person or Client Organization; it is not necessarily a Traveler or the Payer of a Receipt. |
+| Traveler | Contextual meaning for a Client Person referenced by a Traveler Assignment as receiving or expected to receive a travel service. MVP introduces no standalone Traveler identity record. |
 | Responsible Client | The Client responsible for a particular Client Trip, Charge, or other explicitly named obligation. |
 | Payer | The actual source of a Receipt. The Payer need not be the Responsible Client. |
 
@@ -71,7 +70,8 @@ Use these terms consistently in requirements, code, migrations, UI labels, tests
 ## Terms requiring qualification
 
 - Do not use **Party** as a model or universal identity root. Use Agency User, Client Person, Client Organization, Client, Traveler, Supplier, or Supplier Contact.
-- Do not use **Group** as a record name when Departure, Client Trip, Household, or Traveling Party is intended.
+- Do not use **Group** as a record name when Departure, Client Trip, or Traveling Party is intended.
+- Household, Family, and reusable consumer servicing group are deferred concepts, not current MVP records. Do not infer responsibility, travel, contact authority, occupancy, or insurance eligibility from informal relationships or shared contact values.
 - Qualify **booking** as Client Trip, Supplier Reservation, air reservation, or another specific record.
 - Qualify **reservation** by its owner and purpose.
 - Qualify **payment** as Receipt, Supplier Payment, Supplier-collected payment, refund, or the applicable Application.

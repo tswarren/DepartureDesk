@@ -9,15 +9,15 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 | Milestone | Status | Outcome |
 | --- | --- | --- |
 | M0 — Agency identity baseline | Complete | Agency-scoped authentication, administration, Office context, audit, tenant isolation, and hardening. |
-| M1 — Separate directories | Next | Maintain Client and Supplier identities without restoring Party. |
+| M1 — Separate directories | Next | Maintain Client and Supplier identities without restoring Party or prematurely creating Household/Traveler records. |
 | M2 — Departure core | Planned | Create and govern reusable Travel Programs and dated Departures. |
 | M3 — Supplier planning | Planned | Represent arrangements, items, occurrences, resources, commitments, capacity, deadlines, and exposure. |
 | M4 — Offers and pricing | Planned | Describe Packages and standalone services the Agency intends to sell. |
-| M5 — Client Trips and fulfillment | Planned | Confirm a Client Trip, Travelers, services, Holds, Allocations, Assignments, and Supplier fulfillment. |
-| M6A — Client subledger | Planned | Explain Charges, Receipts, Applications, Credits, refunds, reversals, and responsibility. |
+| M5 — Client Trips and fulfillment | Planned | Confirm a Client Trip, contextual Traveler Assignments and contacts, services, Holds, Allocations, Assignments, and Supplier fulfillment. |
+| M6A — Client subledger | Planned | Introduce any required Client billing/credit/statement settings and explain Charges, Receipts, Applications, Credits, refunds, reversals, and responsibility. |
 | M6B — Supplier subledger | Planned | Explain Supplier Obligations, invoices, Payments, Applications, deposits, Credits, and commission. |
-| M7 — Changes and operations | Planned | Preserve amendments, substitutions, cancellations, documents, Communications, deadlines, and readiness. |
-| M8 — Reconciliation and pilot readiness | Planned | Reconcile, close, report, export, support, secure, and operate a pilot deployment. |
+| M7 — Changes and operations | Planned | Preserve amendments, substitutions, cancellations, documents, Communications, destination status, deadlines, and readiness. |
+| M8 — Reconciliation and pilot readiness | Planned | Reconcile, close, report, export, resolve the directory-merge production policy, support, secure, and operate a pilot deployment. |
 
 ## Release checkpoints
 
@@ -40,9 +40,9 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 ## Immediate work
 
 1. Accept the M1 directory plan.
-2. Implement Client Person, Client payer identity, and Client profile as the first vertical directory slice.
-3. Add Traveler and Household behavior only after their independence from Client and responsibility is proven.
+2. Implement Client Person, Client commercial-responsibility identity, contact destinations, search, duplicate review, and lifecycle as the first vertical directory slice.
+3. Add Client Organization and its Client Person contact assignments without introducing Household or standalone Traveler persistence.
 4. Add Supplier, Supplier Location, and Supplier Contact in reviewable follow-up slices.
-5. Validate M1 against both reference scenarios before beginning M2.
+5. Validate M1 against the explicit fictional directory-fixture set mapped to both reference scenario shapes before beginning M2.
 
 The [MVP specification](departure-desk-mvp.md) defines scope. The [commercial decision register](commercial-domain-decision-register.md) defines cross-cutting commercial rules. This roadmap controls sequence, not record-level implementation.
