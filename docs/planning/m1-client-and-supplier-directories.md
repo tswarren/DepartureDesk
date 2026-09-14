@@ -155,8 +155,8 @@ Mutable aggregate tables include UUIDv7 `id`, immutable `agency_id`, constrained
 
 | Table | Required business columns | Optional columns and critical constraints |
 | --- | --- | --- |
-| `client_people` | `first_name`, `last_name` | `middle_name`, `suffix`, `preferred_name`, `pronouns`; required names trimmed/nonblank. |
-| `client_organizations` | `display_name` | `legal_name`, `website`; display name trimmed/nonblank. |
+| `client_people` | `first_name`, `last_name` | `middle_name`, `suffix`, `preferred_forename`, <del>`pronouns`</del>; required names trimmed/nonblank. |
+| `client_organizations` | `display_name` | `legal_name`; display name trimmed/nonblank. |
 | `clients` | exactly one source ID; `client_reference` | Same-Agency source FKs; unique non-null source IDs; reference unique per Agency. |
 | `travelers` | `client_person_id` | Same-Agency FK; one per person. |
 | `households` | `name` | Active membership invariant enforced by deferred constraint trigger. |
