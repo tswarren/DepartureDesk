@@ -50,11 +50,11 @@ Commercial terms in the planning documents (client, supplier, traveler, departur
 6. Viewer has no mutations except those in the catalog (`view_workspace`, `select_office_context`). Staff cannot manage users, roles, offices, or the agency profile.
 7. Only an active administrator counts. Suspend, close, and demotion of the last active administrator are rejected after locking the agency, then the user, then rechecking the count.
 8. Suspending or closing an agency or agency user destroys affected session rows. A stale cookie is rejected and cleared only when that browser presents it.
-9. Invitation and password-reset tokens are stored as digests. Replacement and revocation invalidate the previous invitation token. Password change or reset bumps the credential version and destroys that user's sessions.
+9. Invitation and password-reset tokens are stored as digests. Replacement and revocation invalidate the previous invitation token. Password change or reset bumps the credential version and destroys that user's sessions. A password-reset token cannot be used unless the agency is active.
 10. An agency may have zero active offices. `Current.office` is then nil. Commands must not require a later active office. `ProvisionAgency` still creates the first office.
 11. Office selection writes only the session preference. A query parameter never authorizes and never selects an office on GET.
 12. Load tenant records through `Current.agency`. An identifier from another agency returns not found, not forbidden.
-13. Tenant records that carry `agency_id` must prove same-agency foreign keys. Default office uses a composite foreign key `(default_office_id, agency_id)`.
+13. Tenant records that carry `agency_id` must prove same-agency foreign keys. Default office uses a composite foreign key `(default_office_id, agency_id)`. Database triggers reject changes to `Agency.workspace_code`, `AgencyUser.agency_id`, `Office.agency_id`, and `Office.code`. Stored email must equal `lower(btrim(email_address))`.
 14. `ProvisionAgency` and agency lifecycle changes are privileged. They require an actor identifier, invent no platform user, and never return or log a plaintext password or token.
 15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, and `Office` only. Do not audit expected failures.
 16. Do not infer household, payer, occupancy, or payment state. Those records do not exist yet.

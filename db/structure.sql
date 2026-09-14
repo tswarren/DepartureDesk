@@ -11,6 +11,38 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- Name: reject_agency_user_agency_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_agency_user_agency_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id THEN
+    RAISE EXCEPTION 'agency_id is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_agency_workspace_code_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_agency_workspace_code_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.workspace_code IS DISTINCT FROM OLD.workspace_code THEN
+    RAISE EXCEPTION 'workspace_code is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_audit_event_mutation(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -19,6 +51,22 @@ CREATE FUNCTION public.reject_audit_event_mutation() RETURNS trigger
     AS $$
 BEGIN
   RAISE EXCEPTION 'audit events are append-only';
+END;
+$$;
+
+
+--
+-- Name: reject_office_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_office_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id OR NEW.code IS DISTINCT FROM OLD.code THEN
+    RAISE EXCEPTION 'office identity is immutable';
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -47,7 +95,7 @@ CREATE TABLE public.agencies (
     CONSTRAINT agencies_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT agencies_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT agencies_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
-    CONSTRAINT agencies_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'suspended'::character varying, 'closed'::character varying])::text[]))),
+    CONSTRAINT agencies_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text]))),
     CONSTRAINT agencies_workspace_code_format CHECK (((workspace_code)::text ~ '^[a-z][a-z0-9-]{1,39}$'::text))
 );
 
@@ -80,13 +128,14 @@ CREATE TABLE public.agency_users (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT agency_users_access_role_valid CHECK (((access_role)::text = ANY ((ARRAY['administrator'::character varying, 'staff'::character varying, 'viewer'::character varying])::text[]))),
+    CONSTRAINT agency_users_access_role_valid CHECK (((access_role)::text = ANY (ARRAY[('administrator'::character varying)::text, ('staff'::character varying)::text, ('viewer'::character varying)::text]))),
     CONSTRAINT agency_users_credential_version_nonnegative CHECK ((credential_version >= 0)),
+    CONSTRAINT agency_users_email_normalized CHECK (((email_address)::text = lower(btrim((email_address)::text)))),
     CONSTRAINT agency_users_email_not_blank CHECK ((btrim((email_address)::text) <> ''::text)),
     CONSTRAINT agency_users_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT agency_users_name_not_blank CHECK (((btrim((first_name)::text) <> ''::text) AND (btrim((last_name)::text) <> ''::text))),
-    CONSTRAINT agency_users_status_credentials CHECK (((((status)::text = 'invited'::text) AND (invitation_token_digest IS NOT NULL) AND (invitation_expires_at IS NOT NULL) AND (password_digest IS NULL)) OR (((status)::text = 'active'::text) AND (password_digest IS NOT NULL) AND (invitation_token_digest IS NULL)) OR (((status)::text = ANY ((ARRAY['suspended'::character varying, 'closed'::character varying])::text[])) AND (invitation_token_digest IS NULL)))),
-    CONSTRAINT agency_users_status_valid CHECK (((status)::text = ANY ((ARRAY['invited'::character varying, 'active'::character varying, 'suspended'::character varying, 'closed'::character varying])::text[])))
+    CONSTRAINT agency_users_status_credentials CHECK (((((status)::text = 'invited'::text) AND (invitation_token_digest IS NOT NULL) AND (invitation_expires_at IS NOT NULL) AND (password_digest IS NULL)) OR (((status)::text = 'active'::text) AND (password_digest IS NOT NULL) AND (invitation_token_digest IS NULL)) OR (((status)::text = ANY (ARRAY[('suspended'::character varying)::text, ('closed'::character varying)::text])) AND (invitation_token_digest IS NULL)))),
+    CONSTRAINT agency_users_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text])))
 );
 
 
@@ -118,7 +167,7 @@ CREATE TABLE public.audit_events (
     details jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT audit_events_actor_kind_valid CHECK (((actor_kind)::text = ANY ((ARRAY['agency_user'::character varying, 'system'::character varying])::text[]))),
+    CONSTRAINT audit_events_actor_kind_valid CHECK (((actor_kind)::text = ANY (ARRAY[('agency_user'::character varying)::text, ('system'::character varying)::text]))),
     CONSTRAINT audit_events_actor_present CHECK (((((actor_kind)::text = 'agency_user'::text) AND (actor_agency_user_id IS NOT NULL) AND (actor_identifier IS NULL)) OR (((actor_kind)::text = 'system'::text) AND (actor_identifier IS NOT NULL) AND (btrim((actor_identifier)::text) <> ''::text) AND (actor_agency_user_id IS NULL))))
 );
 
@@ -140,7 +189,7 @@ CREATE TABLE public.offices (
     CONSTRAINT offices_code_format CHECK (((code)::text ~ '^[A-Z][A-Z0-9]{1,9}$'::text)),
     CONSTRAINT offices_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT offices_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
-    CONSTRAINT offices_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT offices_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -317,10 +366,31 @@ CREATE INDEX index_sessions_on_office_id ON public.sessions USING btree (office_
 
 
 --
+-- Name: agencies agencies_reject_workspace_code_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER agencies_reject_workspace_code_change BEFORE UPDATE ON public.agencies FOR EACH ROW EXECUTE FUNCTION public.reject_agency_workspace_code_change();
+
+
+--
+-- Name: agency_users agency_users_reject_agency_id_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER agency_users_reject_agency_id_change BEFORE UPDATE ON public.agency_users FOR EACH ROW EXECUTE FUNCTION public.reject_agency_user_agency_change();
+
+
+--
 -- Name: audit_events audit_events_reject_update; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER audit_events_reject_update BEFORE DELETE OR UPDATE ON public.audit_events FOR EACH ROW EXECUTE FUNCTION public.reject_audit_event_mutation();
+
+
+--
+-- Name: offices offices_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER offices_reject_identity_change BEFORE UPDATE ON public.offices FOR EACH ROW EXECUTE FUNCTION public.reject_office_identity_change();
 
 
 --
@@ -386,5 +456,6 @@ ALTER TABLE ONLY public.sessions
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260914020000'),
 ('20260914010000');
 
