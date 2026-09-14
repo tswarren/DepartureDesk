@@ -2,7 +2,7 @@
 
 **Status:** Draft planning contract; not implementation authority
 
-**Decision posture:** The choices below are recommended defaults. Change the status to **Accepted** only after product review and the prerequisite documentation amendments listed in the exit gate.
+**Decision posture:** The choices below are recommended defaults. Change the status to **Accepted** only after product review confirms them, including the contract closures in this document. Documentation amendments listed in the exit gate are part of this coordinated change, not outstanding prerequisites.
 
 **Prerequisites:** [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [MVP requirements](departure-desk-mvp.md), [current architecture](../architecture/current-state.md), and [interface contract](../ui/interface-contract.md)
 
@@ -28,7 +28,7 @@ M1 maintains:
 - Client Organization contact assignments;
 - organization and individual Suppliers;
 - Supplier Locations and Supplier Contacts;
-- aggregate-owned email, phone, and postal contact points;
+- aggregate-owned email, phone, postal, and, where the owner stores them, website contact points;
 - fixed Supplier categories;
 - Agency-scoped references, search, duplicate review, lifecycle, permissions, and audit history.
 
@@ -52,7 +52,7 @@ Each slice includes its migration, schema dump, permissions, commands, audit act
 | Slice | Working outcome |
 | --- | --- |
 | M1A | Individual Client vertical slice: Client Person, explicit Client, contact points, lifecycle, search, and duplicate review. |
-| M1B | Client Organization, organization-backed Client, organization contacts, and expanded Client search. |
+| M1B | Client Organization, organization-backed Client, organization contacts, and expanded Client search. This is the only slice that enables `btree_gist`, and only for the organization-contact history exclusion constraint. |
 | M1C | Supplier core: organization/individual Suppliers, fixed categories, lifecycle, search, and duplicate review. |
 | M1D | Supplier Locations and Supplier Contacts with contact methods and contextual roles. |
 | M1E | Cross-directory hardening, scenario fixtures, accessibility/system proof, performance checks, and documentation acceptance. |
@@ -72,7 +72,7 @@ Duplicate and lifecycle protection ship with the first governed record. M1E does
 9. A Client Organization contact assignment references a Client Person in the same Agency. It grants no Client responsibility, travel status, payment authority, or application access.
 10. Supplier is the contracting or settlement counterparty. A later Supplier Arrangement may identify another Supplier through an explicitly named Service Provider reference.
 11. Supplier Location is an operational place. It is not a Supplier or Service Provider.
-12. Office may provide defaults, attribution, or reporting context only. It grants no directory access.
+12. M1 directory tables do not store `office_id`. Directory commands do not accept an Office identifier. `Current.office` does not default, attribute, filter, scope, or authorize directory records. A Supplier Location is not an Agency Office. Inactivating an Office does not affect directory rows. A later milestone may add an explicitly named servicing or responsibility relationship.
 13. Search and duplicate detection never cross Agency or identity-domain boundaries.
 14. M1 exposes no tenant-facing hard delete.
 
@@ -109,18 +109,40 @@ Client Organization references Client People through effective-dated contact ass
 
 - Client is a stable commercial-responsibility identity based on exactly one Client Person or Client Organization.
 - Client creation is explicit. “New individual client” may create a Client Person and Client atomically; an eligible existing person or organization may be promoted to Client.
-- A source may have at most one Client in an Agency.
+- A Client Person or Client Organization may have at most one Client across all lifecycle states. Status is not part of that uniqueness. An inactive Client permanently occupies that source slot and retains its reference and history. Creating a Client when an inactive one already exists returns `already_exists` and points to reactivation of that record. Replacement Client creation is prohibited.
+- To retire both, inactivate the Client before the source. To restore both, reactivate the source before explicitly reactivating the existing Client. Source reactivation never cascades to the Client. Reactivating a Client whose source is inactive returns `dependency_exists`. Those transitions lock Agency, then the source, then the Client, and recheck the source after locking.
 - Client stores no balance, billing terms, payment method, credit status, statement preference, trip responsibility, or Payer fact in M1.
 - `CL-000001` is issued at successful Client creation, Agency-scoped, non-resetting, immutable, gap-tolerant, and never reused.
 
 ### Client Organization
 
-- Requires display name. Legal name and website are optional.
+- Requires display name. Legal name is optional. Websites are optional contact points, not a single column on the organization.
 - May have at most one Client responsibility identity.
 - An active organization may have effective-dated contact assignments to Client People in the same Agency.
-- Each assignment stores start date, optional end date, optional title, and optional contextual role label.
-- Zero or one current assignment may be primary. Primary is a servicing default only; it grants no communication authority, application access, payment authority, travel status, or Client responsibility.
-- Adding a new organization contact may create a person-only Client Person. It never automatically creates a Client or any trip-specific role.
+- Each assignment stores `starts_on`, optional `ends_on`, optional title, and optional contextual role label.
+- A Client Organization contact assignment is current exactly when `ends_on IS NULL`. M1 does not support future-scheduled assignments. `starts_on` and `ends_on` are inclusive Agency-local business dates, using the Agency’s stored IANA `default_timezone`, and `starts_on` cannot be after that business date when recorded. Ending an assignment sets `ends_on` to that business date immediately; M1 does not permit a future `ends_on`. `ends_on` is null or on/after `starts_on`. Ending never deletes the row.
+- Historical periods for the same Agency, Client Organization, and Client Person may not overlap. A previously ended person may later receive a new assignment to the same organization. January 1–January 31 followed by February 1–February 28 is allowed; January 1–January 31 overlapping January 15–February 15 is rejected.
+- Partial unique indexes enforce one current row per organization/person pair and at most one current primary per organization:
+
+```sql
+UNIQUE (agency_id, client_organization_id, client_person_id) WHERE ends_on IS NULL
+UNIQUE (agency_id, client_organization_id) WHERE ends_on IS NULL AND primary
+```
+
+A named `btree_gist` exclusion constraint, enabled only for this M1B constraint, enforces nonoverlapping history for the same Agency, organization, and person. It is not a global date exclusion:
+
+```sql
+EXCLUDE USING gist (
+  agency_id WITH =,
+  client_organization_id WITH =,
+  client_person_id WITH =,
+  daterange(starts_on, COALESCE(ends_on + 1, 'infinity'), '[)') WITH &&
+)
+```
+
+Zero current primary contacts is valid. Nothing becomes primary automatically. Primary is a servicing default only; it grants no communication authority, application access, payment authority, travel status, or Client responsibility.
+- Organization-contact commands lock Agency, then Client Organization, then the relevant assignment rows ordered by UUID. An already-current pair returns `already_exists`. An overlapping historical period returns `invalid`. Selecting a new primary clears the former primary in the same transaction. Ending the primary may leave the organization with no primary unless another current assignment is explicitly selected in the same command.
+- Adding a new organization contact may create a person-only Client Person through the same person duplicate-review path. It never automatically creates a Client or any trip-specific role.
 
 ## Supplier contracts
 
@@ -135,7 +157,7 @@ Supplier uses one table with constrained `kind` values `organization` and `indiv
 
 Organization rows must not store individual-name fields. Individual rows must not store organization display/legal-name fields. UI display uses `doing_business_as` when present, otherwise organization `display_name` or the individual's full name. Every stored name is independently searchable where applicable.
 
-Website is optional for either kind. `SUP-000001` is issued at successful Supplier creation under the same rules as Client references. M1 stores no contracts, settlement instructions, tax IDs, credentials, or bank data.
+Websites are optional contact points for either kind, not a column on the Supplier. `SUP-000001` is issued at successful Supplier creation under the same rules as Client references. M1 stores no contracts, settlement instructions, tax IDs, credentials, or bank data.
 
 ### Categories
 
@@ -158,7 +180,7 @@ M1 uses an application-owned, fixed multi-select catalog, not Agency-configurabl
 ### Supplier Location
 
 - Belongs immutably to one Supplier.
-- Requires name and stores optional IANA timezone, structured postal address, and one location-level phone number.
+- Requires name and stores optional IANA timezone, a structured postal address, and one location-level phone. The phone uses the same number, E.164, extension, and country fields as a phone contact point, stored on the Location itself.
 - Postal information identifies the operational place; it is not a Supplier remittance or general correspondence address.
 - Cannot move between Suppliers and cannot act as a Service Provider.
 
@@ -186,10 +208,10 @@ M1 stores destinations, not generalized communication authority or purpose assig
 ### Ownership
 
 - Client Person: email addresses, phone numbers, and postal addresses.
-- Client Organization: email addresses, phone numbers, and postal addresses.
-- Supplier: general email addresses, phone numbers, and postal addresses used for organization-level contact.
+- Client Organization: email addresses, phone numbers, postal addresses, and websites.
+- Supplier: general email addresses, phone numbers, postal addresses, and websites used for organization-level contact.
 - Supplier Contact: email addresses and phone numbers used to reach that named person.
-- Supplier Location: structured place address and one location-level phone stored on the Location itself.
+- Supplier Location: structured place address and one location-level phone stored on the Location itself. It has no contact-point collection.
 
 Contact values are deliberately copied when independently supplied to multiple owners. M1 introduces no shared contact row or automatic synchronization.
 
@@ -205,38 +227,39 @@ Contact values are deliberately copied when independently supplied to multiple o
 
 ### Shared columns
 
-Mutable aggregate tables include UUIDv7 `id`, immutable `agency_id`, constrained status (`active` or `inactive`), nonnegative `lock_version`, and UTC `timestamptz` timestamps. Every tenant parent exposes unique `(id, agency_id)` for composite foreign keys.
+Mutable aggregate tables include UUIDv7 `id`, immutable `agency_id`, constrained status (`active` or `inactive`), nonnegative `lock_version`, and UTC `timestamptz` timestamps. Every tenant parent exposes unique `(id, agency_id)` for composite foreign keys. No M1 directory table stores `office_id`.
 
-Effective-dated assignment rows use `starts_on` and optional `ends_on`; `ends_on` cannot precede `starts_on`. They do not use a redundant lifecycle status.
+Effective-dated assignment rows use inclusive Agency-local `starts_on` and optional `ends_on`. An assignment is current exactly when `ends_on IS NULL`. Do not define current relative to `CURRENT_DATE`. `ends_on` is null or on/after `starts_on`. They do not use a redundant lifecycle status.
 
 ### Tables
 
 | Table | Required business columns | Optional columns and critical constraints |
 | --- | --- | --- |
 | `client_people` | `first_name`, `last_name` | `middle_name`, `suffix`, `preferred_name`; required names trimmed/nonblank. |
-| `client_organizations` | `display_name` | `legal_name`, `website`; display name trimmed/nonblank. |
-| `clients` | exactly one source ID; `client_reference` | Same-Agency source FKs; one Client per non-null source; reference unique per Agency. |
-| `client_organization_contacts` | organization/person IDs, `starts_on`, `primary` | `ends_on`, title, role label; unique current pair; at most one current primary. |
-| `suppliers` | `kind`, `supplier_reference`, kind-appropriate names | `legal_name`, `doing_business_as`, `website`; database name-shape check. |
-| `supplier_locations` | `supplier_id`, `name` | IANA timezone, address fields, phone display/search value; same-Agency Supplier FK. |
+| `client_organizations` | `display_name` | `legal_name`; display name trimmed/nonblank. No `office_id` or website column. |
+| `clients` | exactly one source ID; `client_reference` | Same-Agency source FKs; one Client per non-null source across all statuses; reference unique per Agency. |
+| `client_organization_contacts` | organization/person IDs, `starts_on`, `primary` | `ends_on`, title, role label; current means `ends_on IS NULL`; one current pair; at most one current primary; nonoverlapping history. |
+| `suppliers` | `kind`, `supplier_reference`, kind-appropriate names | `legal_name`, `doing_business_as`; database name-shape check. No `office_id` or website column. |
+| `supplier_locations` | `supplier_id`, `name` | IANA timezone, postal fields, location phone number/E.164/extension/country; same-Agency Supplier FK. No contact-point collection. |
 | `supplier_contacts` | `supplier_id`, first/last name, `preferred` | Title, department, role label; same-Agency Supplier FK; at most one active preferred Contact per Supplier. |
-| `supplier_category_assignments` | Supplier ID, category code | Unique pair; `other_label` required only for `other`. |
-| `reference_sequences` | namespace, `next_value` | Unique Agency/namespace; positive bigint; namespaces `client`, `supplier`. |
+| `supplier_category_assignments` | Supplier ID, category code | Unique pair; `other_label` required only for `other`. Categories remain assigned when the Supplier is inactivated. |
+| `reference_sequences` | namespace, `next_value` | Unique Agency/namespace; `next_value` is the next unissued positive integer, starting at 1; namespaces `client`, `supplier`. |
 
 ### Contact-point tables
 
 Use aggregate-specific tables, not polymorphic ownership:
 
 - Client Person: `client_person_email_addresses`, `client_person_phone_numbers`, `client_person_postal_addresses`.
-- Client Organization: corresponding `client_organization_*` tables.
-- Supplier: `supplier_email_addresses`, `supplier_phone_numbers`, `supplier_postal_addresses`.
+- Client Organization: corresponding `client_organization_*` tables, including `client_organization_websites`.
+- Supplier: `supplier_email_addresses`, `supplier_phone_numbers`, `supplier_postal_addresses`, `supplier_websites`.
 - Supplier Contact: `supplier_contact_email_addresses`, `supplier_contact_phone_numbers`.
 
 Each row carries direct immutable `agency_id`, immutable owner ID, label, active/inactive status, `preferred`, nonnegative lock version, and timestamps.
 
 - Email stores trimmed display value and lowercase-trimmed normalized address.
-- Phone stores trimmed display value and a digits-only search key; the search key is not an E.164 validity claim.
-- Postal address stores lines, locality, region, postal code, and uppercase two-character country code.
+- Phone stores display `number`, E.164 `normalized_number`, optional digits-only `extension` of at most 10 digits, and optional uppercase ISO `country_code`. Require `country_code` when national-format input needs parsing context. Persist the E.164 number independently of that context. The normalized base number never contains extension digits.
+- Website contact points store a display value and a normalized HTTP(S) URL.
+- Postal address stores lines, locality, region, postal code, and a required uppercase ISO 3166-1 alpha-2 country code.
 - Partial unique indexes allow at most one preferred active point per owner/channel. Setting preferred locks the owner/channel set and clears the former preference atomically. Zero preferred points is allowed.
 
 ### Normalization and search keys
@@ -245,8 +268,9 @@ Each row carries direct immutable `agency_id`, immutable owner ID, label, active
 - Define one versioned SQL function, `dd_search_normalize(text)`, for Unicode NFKC normalization, case folding, trim, and whitespace collapse. Verify its PostgreSQL 18 implementation and immutability in the first M1 migration.
 - Database-generated stored columns use that function for name and organization search keys so direct writes cannot leave stale keys.
 - Email normalized value is `lower(btrim(value))` and enforced by a database check.
-- Phone search value removes non-digits in a generated stored column.
-- Website host is stored lowercase without scheme, credentials, path, query, fragment, or trailing dot.
+- Telephone extensions are stored separately from E.164-normalized base numbers and never participate in base-number normalization. Use the direct `phonelib` dependency only behind a DepartureDesk normalizer. E.164 input needs no country. National-format input requires a valid `country_code`. Extract an unambiguous pasted `ext`, `extension`, or `x` suffix only when the extension field is blank; a conflict with a separately entered extension is invalid. Invalid or implausible numbers are validation errors. Do not store a digits-only approximation.
+- Website input is parsed and validated as HTTP(S). Accept an absolute `http://` or `https://` URL, or a hostname/path without a scheme. Add `https://` when the scheme is omitted. Require a valid hostname. Reject unsupported schemes, embedded credentials, control characters, whitespace inside the URL, and malformed ports. Lowercase the scheme and hostname, convert internationalized hostnames to ASCII, remove default ports, discard fragments, and remove a trailing root slash. Preserve meaningful paths and query strings. Malformed or unsupported URLs are rejected, never saved as unvalidated display text. If implementation calls Addressable directly, add `addressable` to the Gemfile rather than relying on it as a transitive dependency. Hostname comparison is a weak duplicate signal, not a unique constraint, and does not treat `www` and apex as identical.
+- Country codes use a pinned ISO 3166-1 alpha-2 set, are persisted uppercase, and are required whenever an address or national-format telephone number needs country context. Include officially assigned territories in that set. Do not accept `XX`, `ZZ`, or another invented placeholder without an explicit contract amendment. The database enforces a nonblank uppercase ASCII shape. Application membership is not implied by `Gemfile.lock` alone: pin the relevant `countries` version in the Gemfile, or define an application-owned accepted-code set with tests. The `countries` gem, if used, is never a currency authority. Do not add a PostgreSQL country enum.
 - References are uppercase and match `CL-[0-9]{6}` or `SUP-[0-9]{6}`.
 - Names and contact values are not Agency-unique.
 
@@ -279,6 +303,8 @@ Models mirror durable immutability with read-only attributes.
 | Retry | Existing reference consumes no number | Existing reference consumes no number |
 | Import | Preserve a future legacy value in a separately named external-reference record | Same |
 
+`reference_sequences.next_value` is the next unissued positive integer, not the last issued value. A new sequence row starts at 1. Issuance locks the `(agency_id, namespace)` row, assigns the formatted reference, and increments `next_value` in the same transaction. Rollback does not consume a number. Idempotent replay of an already persisted create does not increment the sequence. Inactive records permanently retain their references. Issuing `1000000` fails with `reference_exhausted`. Widening the format or resetting a namespace requires an amendment to ADR 0004.
+
 ## Same-Agency guarantees
 
 | Child | Composite parent keys |
@@ -296,15 +322,19 @@ Cross-Agency combinations fail at the database even if application scoping is by
 
 M1 uses reversible active/inactive states only; it introduces no `closed` state or hard deletion.
 
+Activation proceeds from parent to dependent records. Deactivation either blocks on independently meaningful dependents or cascades through records wholly owned by the parent. Reactivation never cascades silently. Parents must be active before dependents activate. Parent reactivation never revives stale dependents. An independent Client blocks source inactivation. Owned operational records cascade downward during parent deactivation.
+
 | Record | Transition contract |
 | --- | --- |
-| Client Person | Inactivation is blocked by an active Client or current organization-contact assignment. Owned contact points inactivate atomically. Reactivation does not restore contacts or assignments. |
-| Client | Source must be active to create or reactivate. Later Client Trips, Charges, and financial records add blockers. |
-| Client Organization | Inactivation is blocked by an active Client. Successful inactivation ends current contact assignments and inactivates owned contact points atomically. Reactivation restores neither. |
-| Organization contact assignment | Ending is idempotent. Ending the primary assignment leaves the organization with no primary unless another current assignment is explicitly selected in the same command. |
-| Supplier | Later Arrangements and Obligations add blockers. In M1, successful inactivation atomically inactivates Locations, Contacts, and Supplier-owned contact points. Reactivation restores none of them. |
-| Supplier Location/Contact | Supplier must be active to create or reactivate. Contact inactivation also inactivates its owned contact points. |
+| Client Person | Inactivation is blocked by an active Client or current organization-contact assignment. Owned contact points inactivate atomically. Reactivation does not restore contacts, assignments, or the Client. |
+| Client | Source must be active to create or reactivate. An inactive source returns `dependency_exists`. Later Client Trips, Charges, and financial records add blockers. Reactivating the source does not reactivate the Client. |
+| Client Organization | Inactivation is blocked by an active Client. Successful inactivation ends current contact assignments and inactivates owned contact points atomically. Reactivation restores neither assignments, contact points, nor the Client. |
+| Organization contact assignment | Ending is idempotent and sets `ends_on` to the Agency-local business date. Ending the primary assignment leaves the organization with no primary unless another current assignment is explicitly selected in the same command. |
+| Supplier | Later Arrangements and Obligations add blockers. In M1, successful inactivation atomically inactivates Locations, Contacts, Supplier-owned email, phone, postal, and website destinations, and every Contact-owned email and phone destination, and clears all affected preferred flags. Categories remain assigned. Any failure rolls back the entire transition. Reactivation restores only the Supplier. |
+| Supplier Location/Contact | Supplier must be active to create or reactivate. Contact inactivation also inactivates its owned contact points and clears their preferred flags. Reactivation does not restore those points. |
 | Contact point | Owner must be active to create or reactivate. Inactivation clears preferred atomically. |
+
+`ChangeSupplierStatus` to inactive locks Agency, then Supplier, then Locations, Contacts, and affected contact-point rows in UUID order. It inactivates every active descendant, clears affected preferred flags, inactivates the Supplier, and writes one Supplier lifecycle audit event containing affected record IDs and types but no contact values. Commit everything or nothing.
 
 Aggregate-root lifecycle audit events list affected child IDs and field names but copy no contact values or free text. Expected failures are not audited; successful transitions are audited in the same transaction.
 
@@ -317,15 +347,15 @@ The recommended default treats Viewer as read-only for directory identity but do
 | `view_client_directory` | Yes | Yes | Yes |
 | `view_client_contact_details` | Yes | Yes | No |
 | `manage_client_directory` | Yes | Yes | No |
-| `override_client_duplicate` | Yes | Yes | No |
 | `view_supplier_directory` | Yes | Yes | Yes |
 | `view_supplier_contact_details` | Yes | Yes | No |
 | `manage_supplier_directory` | Yes | Yes | No |
-| `override_supplier_duplicate` | Yes | Yes | No |
+
+Acknowledged create-anyway is part of `manage_client_directory` or `manage_supplier_directory`. M1 has no separate override permission. Those three roles do not distinguish “may edit” from “may create through a duplicate warning.” Introduce an `override_*` permission only when a later role can edit but must not create through a warning. A contractually unique external identifier remains a hard conflict no role can override. M1 has no such identifier.
 
 Viewing inactive identities is included through an explicit filter. M1 adds no merge, export, or sensitive-Traveler-data permission. Code checks catalog permissions, never role names. Viewer mutation produces no side effect or audit.
 
-Viewer search never accepts or matches hidden email, phone, postal, website, or named-contact fields. Lists and profiles hide those values rather than rendering masked hints that disclose their existence.
+Directory search accepts one normalized free-text query. Searchable fields are permission-dependent. For a Viewer, hidden contact destinations, postal fields, websites, and named Supplier Contact fields are excluded from matching, ranking, result excerpts, and counts. Query text is never rejected merely because it resembles a hidden field. Lists and profiles hide those values rather than rendering masked hints that disclose their existence.
 
 ## Commands, locking, and errors
 
@@ -333,16 +363,19 @@ Commands start from `Current.agency`, require an active Agency and named permiss
 
 | Command family | Behavior and idempotency |
 | --- | --- |
-| Create person/organization/Supplier | Normalize and recompute duplicates. Not an automated-retry API; repeated submission re-enters duplicate review. |
-| Create Client | Lock active source; an existing Client returns `already_exists` with the Agency-scoped record. |
+| Create person/organization/Supplier | Normalize and recompute duplicates. An ordinary create with no candidates does not require a duplicate-acknowledgement token. Not an automated-retry API; a changed submission re-enters duplicate review. |
+| Create individual/organization Client | Own the whole transaction. Do not call another public create command. Apply the source duplicate-review contract before persisting either the source or the Client. |
+| Create Client for an existing source | Lock the active source. Do not repeat source-identity duplicate review. An existing Client, including an inactive one, returns `already_exists` with the Agency-scoped record. |
 | Update aggregate | Require `lock_version`; material identity/contact changes recompute duplicates; same values are a no-op; stale returns `conflict`. |
 | Change status | Enforce dependency/effect table; already at target is a no-op without another audit. |
 | Manage contact point | Lock owner/channel rows; create, update, inactivate, reactivate, or set preferred atomically. |
-| Manage organization contacts | Add/end assignment and explicitly select an optional primary. An existing current pair returns `already_exists`. |
+| Manage organization contacts | Add/end assignment and explicitly select an optional primary. An existing current pair returns `already_exists`. An overlapping historical period returns `invalid`. Creating a person-only contact uses person duplicate review and does not create a Client. |
 | Replace categories | Replace submitted set under Supplier lock; same set is a no-op. |
-| Issue reference | Lock namespace sequence and assign in the creation transaction; an existing reference consumes no number. |
+| Issue reference | Lock the sequence row and assign in the creation transaction. An existing reference, including an idempotent replay, consumes no number. |
 
-Cross-Agency or missing IDs raise not found. Domain error codes are `unauthorized`, `invalid`, `invalid_state`, `dependency_exists`, `duplicate_review_required`, `already_exists`, and `conflict`.
+`CreateIndividualClient` and `CreateOrganizationClient` lock the Agency, validate any signed duplicate-acknowledgement token, normalize the proposed source, recompute source duplicates, require a valid acknowledgement when candidates exist, then create the source, create its Client, issue the reference, and write all required audit events. Source creation, Client creation, reference issuance, and audit events commit atomically. The source and Client must not exist before duplicate review succeeds. A duplicate override may record source-created, Client-created, and duplicate-override events.
+
+Cross-Agency or missing IDs raise not found. Domain error codes are `unauthorized`, `invalid`, `invalid_state`, `dependency_exists`, `duplicate_review_required`, `already_exists`, `conflict`, and `reference_exhausted`. `reference_exhausted` remains separate from duplicate-review errors.
 
 ### Command inventory
 
@@ -358,7 +391,7 @@ Each contact-point family has explicit public create, update, change-status, and
 
 ## Audit contract
 
-Extend `AuditEvent::SUBJECT_TYPES` only as slices introduce aggregate roots. Child/contact commands use their aggregate owner as subject.
+Extend `AuditEvent::SUBJECT_TYPES` only as slices introduce aggregate roots. The same change must extend `RecordAdministrativeAudit#ensure_subject_belongs_to_agency!`, which otherwise still accepts only `Agency`, `AgencyUser`, and `Office`. New subject class names stay top-level and match the catalog. Child/contact commands use their aggregate owner as subject.
 
 | Subject type | Closed action catalog additions |
 | --- | --- |
@@ -375,18 +408,18 @@ Audit details contain IDs, status transitions, changed field names, candidate ID
 
 Client and Supplier search are separate, permission-gated query objects scoped from `Current.agency`.
 
-- Normalize text with `dd_search_normalize`; reject blank or over-100-character queries without scanning.
-- References and email addresses use exact normalized matching.
-- Digit-heavy input uses exact or suffix phone-digit matching only after a minimum of seven digits.
+- Accept one free-text `q`. Normalize it with `dd_search_normalize`; reject blank or over-100-character queries without scanning. Do not reject a query because it looks like an email address or phone number.
+- Administrators and staff may match references, names, email addresses, phone numbers, postal fields, websites, and permitted Supplier Contact fields. Viewers may match only fields they may see, such as reference and display name.
+- Hidden fields never affect a Viewer's results, ranking, excerpts, counts, or duplicate responses. An email-shaped Viewer query is ordinary text and normally returns no results. A permitted name match must not expose a hidden contact destination.
+- References and email addresses use exact normalized matching when the actor may search those fields.
+- Digit-heavy input uses exact or suffix matching on the E.164 base number only after a minimum of seven digits, and only when the actor may search phone fields. Extensions do not participate in that match.
 - Name queries require every token to match a normalized word prefix; no trigram or fuzzy matching.
 - Default to active; an explicit filter includes inactive.
 - Rank exact reference, email, phone, full name, then all-token prefix; break ties by active status, display name, and UUID.
 - Cap at 50 results and state when results are truncated.
 - Search plans must use indexes for every supported query shape and pass representative `EXPLAIN` assertions before a slice exits.
 
-Client search covers Client reference, Person name/contact, and Organization name/contact/website. Supplier search covers Supplier reference/name/contact/category, Location name/locality/postal code, and Supplier Contact name/contact. Results show record type and lifecycle status; subordinate results link to their owner. Neither directory returns records from the other domain or AgencyUsers.
-
-Search considers only fields the actor may view. Viewer searches therefore exclude all contact destinations and named Supplier Contact fields.
+Client search covers Client reference, Person name/contact, and Organization name/contact/website, limited to fields the actor may view. Supplier search covers Supplier reference/name/contact/category, Location name/locality/postal code, and Supplier Contact name/contact, with the same permission limit. Results show record type and lifecycle status; subordinate results link to their owner. Neither directory returns records from the other domain or AgencyUsers. `Current.office` does not filter directory search.
 
 ## Duplicate-review contract
 
@@ -394,23 +427,32 @@ Duplicate detection runs on create and material identity/contact changes within 
 
 | Kind | Strong warning | Possible warning |
 | --- | --- | --- |
-| Client Person | Exact normalized email or phone | Exact normalized full name plus matching postal code; exact full name alone |
-| Client Organization | Exact normalized email, phone, or website host | Exact display/legal name; name plus matching locality/postal code |
-| Supplier | Exact normalized email, phone, website host, or legal name | Exact display/DBA name; name plus matching locality/postal code |
+| Client Person | Exact normalized email, or same E.164 base number and extension | Exact normalized full name plus matching postal code; exact full name alone; same base number with a different or blank extension |
+| Client Organization | Exact normalized email, or same E.164 base number and extension | Exact display/legal name; name plus matching locality/postal code; same website hostname; same base number with a different or blank extension |
+| Supplier | Exact normalized email, same E.164 base number and extension, or exact legal name | Exact display/DBA name; name plus matching locality/postal code; same website hostname; same base number with a different or blank extension |
 | Location within one Supplier | Exact normalized postal address | Exact name plus matching locality |
-| Contact within one Supplier | Exact normalized email or phone | Exact normalized full name |
+| Contact within one Supplier | Exact normalized email, or same E.164 base number and extension | Exact normalized full name; same base number with a different or blank extension |
+
+Website hostname matches are weak signals, not unique constraints. `www.example.com` and `example.com` are not treated as identical. Same normalized base number with different extensions, or one blank extension, is a weak signal only.
 
 Signals are warnings, never identity claims or uniqueness rules. Inactive candidates remain visible and labeled to actors authorized to view them. Duplicate responses expose only fields already authorized for that actor.
 
-When candidates exist, return `duplicate_review_required`. The response includes a short-lived signed acknowledgement token bound to:
+When candidates exist, return `duplicate_review_required`. The response includes a short-lived signed acknowledgement token. Ordinary creates with no candidates do not require that token. Every duplicate-acknowledgement token contains preassigned UUIDv7 result IDs, and no names or contact values. It is bound to:
 
 - Agency and actor;
-- record kind;
+- command kind;
+- preassigned UUIDv7 result IDs, including the proposed source ID and, for composite creation, the proposed Client ID;
 - normalized submitted identity fingerprint;
-- candidate IDs and named signals; and
-- expiration.
+- ordered candidate IDs and named signals, as a digest;
+- issuance, expiration, and a random nonce.
 
-The user may select an existing record or resubmit **Create anyway** with the token and one fixed reason code: `confirmed_distinct`, `shared_contact`, `insufficient_match`, or `other_reviewed`. The command recomputes candidates inside its transaction. A changed submission, expired token, or changed candidate/signals set requires a new review. Successful override audits candidate IDs, signals, and reason code without PII or free text.
+The user may select an existing record or resubmit **Create anyway** to the same POST or PATCH action with the token and one fixed reason code: `confirmed_distinct`, `shared_contact`, `insufficient_match`, or `other_reviewed`. Under the Agency lock, process the token in this order:
+
+1. Verify signature, purpose, Agency, actor, and command kind. A failure returns `invalid` or `unauthorized`. Do not silently issue a fresh token.
+2. If the signed proposed result already exists in the same Agency and matches the expected kind, return that result without applying expiration and without another write, reference, or audit event.
+3. If it does not exist, enforce expiration, fingerprint, and candidate/signal agreement before creating. A changed submission, expired unused token, or changed candidate/signal set returns `duplicate_review_required` with a fresh review and token.
+
+Check the proposed result ID before ordinary candidate recomputation so the new row does not invalidate its own replay. Two parallel submissions of one token produce one reference and one set of audit events: the first creates the proposed records; the second waits, then returns that result. Successful override audits candidate IDs, signals, and reason code without PII or free text. A composite override may record source-created, Client-created, and duplicate-override events.
 
 M1 has no contractually unique external identifiers. Executable merge remains deferred and automatic merge remains prohibited. M8 must either provide domain-safe duplicate resolution before production or explicitly accept warning/prevention without merge as the production policy.
 
@@ -428,21 +470,108 @@ M1 has no contractually unique external identifiers. Executable merge remains de
 
 Add separate **Clients** and **Suppliers** navigation. Do not restore a Party-oriented Directory route.
 
+Directory routes live outside `/administration`. Authorize each action with the named directory permission. Directory controllers must not inherit `Administration::BaseController`: that controller requires `manage_agency_profile` and would lock staff out of records they may manage. `new` and `edit` are GET. Creates are POST. Updates and lifecycle changes are PATCH. Lifecycle confirmation is `/status/edit`; the mutation is `/status`. Member parameters are descriptive and never bare `:id`. Contact-point channels exist only under the owner that stores them. Supplier Location stores its postal address and one phone on the Location row and has no contact-point collection routes.
+
 | Surface | Contract |
 | --- | --- |
-| `/clients` | Client-domain landing page with unified search, record-type/status filters, and People/Organizations views. It may include person-only and organization-only identities but labels Client state explicitly. |
-| New Client | Primary action asks Individual or Organization, then creates the source and Client atomically or selects an eligible existing source. |
-| New person only | Secondary/contextual action for organization contacts and future Traveler use; it clearly states that no Client or trip role is created. |
-| `/clients/people/:id` | Display-first person identity, contact points, Client state/reference, and current/historical organization-contact assignments. |
-| `/clients/organizations/:id` | Display-first organization identity, contact points, Client state/reference, and current/historical contact assignments. |
-| Client state | Managed on its source profile in M1. The Client reference links there; M1 creates no empty standalone Client detail page. |
-| `/suppliers` and `/:id` | Category/status filters; contracting identity, categories, organization-level contact points, Locations, Contacts, and lifecycle. |
-| Duplicate review | Preserves submission; explains authorized signals; offers View existing, Return to edit, or Create anyway with fixed reason. |
+| `GET /clients` | Client-domain landing page with unified search, record-type/status filters, and People/Organizations views. It may include person-only and organization-only identities but labels Client state explicitly. |
+| `GET /clients/new` and `POST /clients` | Primary action asks Individual or Organization, then creates the selected source and Client atomically or creates a Client for an eligible existing source. |
+| Person or organization without a Client | Secondary/contextual create under `/clients/people` or `/clients/organizations`. It clearly states that no Client or trip role is created. |
+| Person and organization profiles | Display-first identity, contact points, Client state/reference, and current/historical organization-contact assignments. M1 creates no standalone Client detail page. Client lifecycle confirmation and mutation live under the source's `/client/status` routes. |
+| `GET /suppliers` and `GET /suppliers/:supplier_id` | Category/status filters; contracting identity, categories, organization-level contact points, Locations, Contacts, and lifecycle. |
+| Duplicate review | Preserves submission; explains authorized signals; offers View existing, Return to edit, or Create anyway with a fixed reason. |
 | Lifecycle confirmation | Lists blockers and cascade effects; lifecycle actions stay out of ordinary edit footers. |
 
 Viewer surfaces show identity, reference, kind/category, and lifecycle status but omit contact destinations and named Supplier Contact details under the recommended permission default.
 
 Use desktop tables and accessible narrow stacked rows. Search works without JavaScript. Contact editors use dedicated pages or one open inline form, never many simultaneously expanded forms.
+
+### Duplicate review
+
+Do not add a generic `/duplicate-review/:token` route. A create or update submission first reaches its ordinary POST or PATCH action. When duplicate review is required, that action renders the form's duplicate-review state with HTTP 422 and a signed hidden acknowledgement token. Create anyway resubmits to the same POST or PATCH action. Duplicate review has no GET route, places no submitted data or token in the URL, and cannot be opened apart from its originating form.
+
+The following paths are the M1 route inventory, not illustrative examples. Do not add member routes, field parameters, or dual URL shapes that are absent from this list.
+
+### Client
+
+- `GET /clients` — landing page and search
+- `GET /clients/new` — choose Individual or Organization and enter a new Client
+- `POST /clients` — atomically create the selected source and Client, or create a Client for an existing source
+- `GET /clients/people/new` — person without a Client
+- `POST /clients/people` — create that person
+- `GET /clients/people/:client_person_id` — person profile
+- `GET /clients/people/:client_person_id/edit` — person identity editor
+- `PATCH /clients/people/:client_person_id` — update person identity
+- `GET /clients/people/:client_person_id/status/edit` — person lifecycle confirmation
+- `PATCH /clients/people/:client_person_id/status` — inactivate or reactivate person
+- `POST /clients/people/:client_person_id/client` — add the one permitted Client identity
+- `GET /clients/people/:client_person_id/client/status/edit` — Client lifecycle confirmation
+- `PATCH /clients/people/:client_person_id/client/status` — inactivate or reactivate Client
+- `GET /clients/organizations/new` — organization without a Client
+- `POST /clients/organizations` — create that organization
+- `GET /clients/organizations/:client_organization_id` — organization profile
+- `GET /clients/organizations/:client_organization_id/edit` — organization identity editor
+- `PATCH /clients/organizations/:client_organization_id` — update organization identity
+- `GET /clients/organizations/:client_organization_id/status/edit` — organization lifecycle confirmation
+- `PATCH /clients/organizations/:client_organization_id/status` — inactivate or reactivate organization
+- `POST /clients/organizations/:client_organization_id/client` — add the one permitted Client identity
+- `GET /clients/organizations/:client_organization_id/client/status/edit` — Client lifecycle confirmation
+- `PATCH /clients/organizations/:client_organization_id/client/status` — inactivate or reactivate Client
+- `GET /clients/organizations/:client_organization_id/contacts/new` — new organization-contact assignment
+- `POST /clients/organizations/:client_organization_id/contacts` — create that assignment
+- `GET /clients/organizations/:client_organization_id/contacts/:organization_contact_id/edit` — edit assignment
+- `PATCH /clients/organizations/:client_organization_id/contacts/:organization_contact_id` — update assignment
+- `GET /clients/organizations/:client_organization_id/contacts/:organization_contact_id/end` — end confirmation
+- `PATCH /clients/organizations/:client_organization_id/contacts/:organization_contact_id/end` — end assignment
+- `PATCH /clients/organizations/:client_organization_id/contacts/:organization_contact_id/primary` — select current primary
+
+### Supplier
+
+- `GET /suppliers` — landing page and search
+- `GET /suppliers/new` — creation form
+- `POST /suppliers` — create Supplier
+- `GET /suppliers/:supplier_id` — Supplier profile
+- `GET /suppliers/:supplier_id/edit` — Supplier editor
+- `PATCH /suppliers/:supplier_id` — update Supplier
+- `GET /suppliers/:supplier_id/status/edit` — lifecycle confirmation
+- `PATCH /suppliers/:supplier_id/status` — inactivate or reactivate Supplier
+- `GET /suppliers/:supplier_id/categories/edit` — category editor
+- `PATCH /suppliers/:supplier_id/categories` — replace category assignments
+- `GET /suppliers/:supplier_id/locations/new` — new Location
+- `POST /suppliers/:supplier_id/locations` — create Location
+- `GET /suppliers/:supplier_id/locations/:supplier_location_id` — Location profile
+- `GET /suppliers/:supplier_id/locations/:supplier_location_id/edit` — Location editor
+- `PATCH /suppliers/:supplier_id/locations/:supplier_location_id` — update Location
+- `GET /suppliers/:supplier_id/locations/:supplier_location_id/status/edit` — Location lifecycle confirmation
+- `PATCH /suppliers/:supplier_id/locations/:supplier_location_id/status` — inactivate or reactivate Location
+- `GET /suppliers/:supplier_id/contacts/new` — new Supplier Contact
+- `POST /suppliers/:supplier_id/contacts` — create Supplier Contact
+- `GET /suppliers/:supplier_id/contacts/:supplier_contact_id` — Contact profile
+- `GET /suppliers/:supplier_id/contacts/:supplier_contact_id/edit` — Contact editor
+- `PATCH /suppliers/:supplier_id/contacts/:supplier_contact_id` — update Contact
+- `GET /suppliers/:supplier_id/contacts/:supplier_contact_id/status/edit` — Contact lifecycle confirmation
+- `PATCH /suppliers/:supplier_id/contacts/:supplier_contact_id/status` — inactivate or reactivate Contact
+- `PATCH /suppliers/:supplier_id/contacts/:supplier_contact_id/preferred` — set preferred Contact
+
+### Contact points
+
+Use this structure for each supported owner and channel. Do not add a channel the owner does not store.
+
+- `GET <owner-path>/<channel>/new`
+- `POST <owner-path>/<channel>`
+- `GET <owner-path>/<channel>/:contact_point_id/edit`
+- `PATCH <owner-path>/<channel>/:contact_point_id`
+- `GET <owner-path>/<channel>/:contact_point_id/status/edit`
+- `PATCH <owner-path>/<channel>/:contact_point_id/status`
+
+Channels are `email-addresses`, `phone-numbers`, `postal-addresses`, and `websites` only where that owner stores that destination:
+
+- Client Person: `email-addresses`, `phone-numbers`, and `postal-addresses` under `/clients/people/:client_person_id`
+- Client Organization: those three plus `websites` under `/clients/organizations/:client_organization_id`
+- Supplier: those three plus `websites` under `/suppliers/:supplier_id`
+- Supplier Contact: `email-addresses` and `phone-numbers` under `/suppliers/:supplier_id/contacts/:supplier_contact_id`
+
+Example: `GET /suppliers/:supplier_id/contacts/:supplier_contact_id/phone-numbers/:contact_point_id/edit`. Organization and Supplier website routes replace the single optional website column with this same contact-point lifecycle. Do not add a contact-point preferred route beyond this structure.
 
 ## Accessibility and states
 
@@ -463,12 +592,12 @@ Every surface requires:
 
 | Layer | Minimum proof |
 | --- | --- |
-| Migration/schema | UUIDv7/timestamptz, named constraints, exact-one Client source, conditional Supplier names, assignment dates, partial preferred indexes, references, normalized/generated keys. |
-| Database isolation | Composite FKs reject every cross-Agency pairing; triggers reject tenant/source/owner/kind/reference mutation. |
-| Model | Supplier name shapes, normalization, assignment dates, lifecycle, contact preference, and no implicit cross-domain association. |
-| Command | Success, invalid, unauthorized, inactive Agency, stale, not found, dependency, cascade, no-op, duplicate review/override, and audit atomicity. |
-| Concurrency | Parallel Client creation, reference issuance, preferred changes, organization-primary changes, lifecycle conflicts, and duplicate candidate changes. |
-| Search | Ranking, supported shapes, index use, truncation, inactive filter, permission-safe fields, domain separation, bounds, and cross-Agency isolation. |
+| Migration/schema | UUIDv7/timestamptz, named constraints, exact-one Client source, conditional Supplier names, assignment dates, partial preferred indexes, references, normalized/generated keys, the organization-contact exclusion constraint, sequence start at 1, and absence of `office_id` on directory tables. |
+| Database isolation | Composite FKs reject every cross-Agency pairing; triggers reject tenant/source/owner/kind/reference mutation; overlapping organization-contact history is rejected and January 31 followed by February 1 is allowed. |
+| Model | Supplier name shapes, website/phone/country rejection, assignment dates, lifecycle, contact preference, and no implicit cross-domain association. |
+| Command | Success, invalid, unauthorized, inactive Agency, stale, not found, dependency, cascade including Contact-owned destinations, Client reactivation order, no-op, duplicate review/override, composite create that rolls back both records when review is required, token replay that does not double-issue a reference, sequence exhaustion at `1000000`, and audit atomicity. |
+| Concurrency | Parallel Client creation, reference issuance, preferred changes, organization-primary changes, lifecycle conflicts, duplicate candidate changes, and parallel submissions of one acknowledgement token producing one reference and one audit set. |
+| Search | Ranking, supported shapes, index use, truncation, inactive filter, permission-safe fields, a Viewer email-shaped query returning no hidden match, domain separation, bounds, and cross-Agency isolation. |
 | Request/system | Viewer redaction/mutation rejection, Staff/Admin success, 404 isolation, preserved errors, duplicate-token states, keyboard workflows, and responsive navigation. |
 | Regression | Existing authentication, administration, Office, invitation/recovery, audit, and isolation tests remain green. |
 
@@ -476,7 +605,7 @@ Each UI slice runs the Rails suite, CI browser tests, and Tailwind build. Migrat
 
 ## Acceptance scenarios
 
-M1 demonstrates only directory facts; it does not pretend to prove future Client Trip, Payer, Traveler Assignment, occupancy, or insurance behavior.
+M1 demonstrates only directory facts; it does not pretend to prove future Client Trip, Payer, Traveler Assignment, occupancy, or insurance behavior. The named illustrations below stay in this planning contract. Do not copy them into the scenario documents.
 
 - Martha Smith has a Client Person and Client responsibility identity. Daniel and Emily are separate Client People available for later trip selection; M1 creates no Household or implied relationship among them.
 - Olivia Brown has a Client responsibility identity, while Noah Brown is a separate Client Person. M1 records no responsibility link between them; that is proven when Client Trips arrive.
@@ -502,18 +631,15 @@ Confirm or amend these recommended defaults:
 7. Duplicate review uses named deterministic signals and signed acknowledgement, not weighted scoring.
 8. Supplier inactivation cascades to its M1-owned subordinate records rather than requiring manual child-by-child inactivation.
 9. Domain-safe merge remains outside M1 and must receive an explicit production-readiness disposition in M8.
+10. The lifecycle, duplicate-token, search, normalization, reference, Office, and route contracts in this document are the defaults to confirm. They are not alternative options left open by this draft.
 
 ## Exit gate
 
-The plan may become **Accepted** only after product review confirms the preceding decisions and the same documentation change:
+The ADR 0006, MVP, terminology, roadmap, and M8 merge amendments are completed by this coordinated documentation change and are not outstanding acceptance prerequisites.
 
-- adds an ADR amendment that defers Household and standalone Traveler persistence without weakening ADR 0006's identity-domain separation;
-- amends MVP uses of “payer identity” to **commercial-responsibility identity**, leaving Payer as the source of a future Receipt;
-- removes Household and standalone Traveler from the MVP directory implementation scope and assigns their contextual replacements to later milestones;
-- updates terminology, roadmap, and reference-scenario wording consistently; and
-- records the production milestone responsible for the deferred merge decision.
+The plan may become **Accepted** only after product review confirms the recommended defaults, including the contract closures in this document. Do not mark this draft Accepted before that confirmation.
 
-M1 implementation is complete only when every slice is accepted and implemented; both scenarios contain enough Client and Supplier directory fixtures for Departure modeling; lifecycle, permission, audit, normalization, duplicate, reference, and tenancy contracts pass; no Party/global User/polymorphic identity/Office authorization/cross-domain sync/automatic merge has returned; shipped documentation is current; and full CI is green.
+M1 implementation is complete only when every slice is accepted and implemented; an explicit fictional fixture set, mapped to the Celebrity Beyond and Vineyard Tour shapes, satisfies the directory contracts; lifecycle, permission, audit, normalization, duplicate, reference, and tenancy contracts pass; no Party/global User/polymorphic identity/Office authorization/cross-domain sync/automatic merge has returned; shipped documentation is current; and full CI is green. That fixture set is not a requirement to add named people, organizations, a DMC, or a motorcoach company to the scenario documents. Those documents still say unconfirmed hotel and vehicle facts must not be guessed.
 
 As each slice ships, update `AGENTS.md`, current architecture, terminology, interface navigation, and the documentation index so implemented scope remains distinguishable from the rest of M1.
 

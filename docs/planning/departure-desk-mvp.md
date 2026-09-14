@@ -236,7 +236,7 @@ DepartureDesk maintains separate agency-owned client and supplier contexts. Simi
 | Supplier Location | Property, venue, terminal, or place associated with a Supplier | Not necessarily the legal contracting Supplier. |
 | Supplier Contact | Person representing a Supplier in a work context | Not linked to a Client Person or Agency User merely because contact values match. |
 
-**Locked for MVP.** A Client is its own recordâ€”Agency, a reference to exactly one Client Person or Client Organization, lifecycle, and durable referenceâ€”not a role flag added directly to Client Person or Client Organization. Every Charge and Client Trip references a Client. Billing terms, credit-hold status, statement preferences, balances, and payment methods are not M1 directory facts; M6A introduces only those Client-commercial settings it actually uses. A Traveler Assignment always resolves to a Client Person; a Client Organization can never be a Traveler. Whether the same physical person is also the trip's responsible Client is incidental, not structural.
+**Locked for MVP.** A Client is its own record—Agency, a reference to exactly one Client Person or Client Organization, lifecycle, and durable reference—not a role flag added directly to Client Person or Client Organization. Every Charge and Client Trip references a Client. Billing terms, credit-hold status, statement preferences, balances, and payment methods are not M1 directory facts; M6A introduces only those Client-commercial settings it actually uses. A Traveler Assignment always resolves to a Client Person; a Client Organization can never be a Traveler. Whether the same physical person is also the trip's responsible Client is incidental, not structural.
 
 ## **Deferred reusable consumer grouping**
 
@@ -264,7 +264,7 @@ Supported contact points are email, phone, and postal address.
 
 A directory contact point records a simple label and at most one preferred active destination per owner/channel. M7 Communications owns any required verification, consent, suppression, bounce, or disconnection state; those facts are not part of M1.
 
-Contact purpose is contextual rather than a directory assignment. M5â€“M7 records may identify booking contact, billing contact, on-trip contact, emergency contact, Supplier Arrangement contact, remittance contact, or group leader/trip coordinator and select the actual destination used.
+Contact purpose is contextual rather than a directory assignment. M5–M7 records may identify booking contact, billing contact, on-trip contact, emergency contact, Supplier Arrangement contact, remittance contact, or group leader/trip coordinator and select the actual destination used.
 
 Every sent or attempted Communication snapshots recipient display name, contextual role, actual destination, related records, content/template version, actor, time, status, and external reference. The actor may be a human Agency User or the system/scheduled process for automated, transactional communications (see Section 11, Deadlines and reminders).
 
@@ -281,7 +281,7 @@ Directory email is not login identity merely because the literal value matches.
 | Duplicate handling | Warn, allow eligible existing selection, and permit audited create-anyway; never auto-merge or disclose cross-agency data |
 | Merge | Not implemented in M1. M8 must either define same-domain merge with retained aliases/tombstones/history or explicitly accept warning/prevention without merge as production policy; cross-domain and automatic merge remain prohibited. |
 | Lifecycle | Active/inactive with dependency checks; historical records resolve after inactivation |
-| Snapshots | Directory rows are current identities, not generic snapshots. M3â€“M7 preserve names, terms, addressees, responsible Client, Payer, contracting Supplier, confirmation issuer, communication destination, and branding on the consequential record that consumes them. |
+| Snapshots | Directory rows are current identities, not generic snapshots. M3–M7 preserve names, terms, addressees, responsible Client, Payer, contracting Supplier, confirmation issuer, communication destination, and branding on the consequential record that consumes them. |
 
 **Deferred.** Universal Party identity, cross-domain linking, automatic contact synchronization, reusable Household/Family/servicing groups, generalized directory contact-purpose systems, client/supplier portals (including a Group Leader access role), automatic waitlisting, marketing automation, organization trees, shared global Supplier masters, and external identity enrichment.
 

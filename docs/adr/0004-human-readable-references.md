@@ -17,7 +17,7 @@ Different records have different issuance semantics:
 - imported legacy references may not follow DepartureDesk formatting;
 - legal or operational rules may prohibit reusing voided financial numbers even when gaps remain.
 
-A single generic â€œnumberâ€ field or universal counter would conceal these differences. Using public references as tenant authorization would also create an enumeration and cross-agency disclosure risk.
+A single generic “number” field or universal counter would conceal these differences. Using public references as tenant authorization would also create an enumeration and cross-agency disclosure risk.
 
 ## Decision
 
@@ -123,9 +123,11 @@ M1 introduces the first two generated operational-reference consumers and demons
 | Reuse and gaps | Never reused; gaps accepted | Never reused; gaps accepted |
 | Concurrency | Lock `(agency_id, namespace)` sequence row | Same |
 | Retry | Existing reference consumes no number | Same |
+| `next_value` | Next unissued positive integer; a new row starts at 1 | Same |
+| Exhaustion | Issuing `1000000` fails with `reference_exhausted`; widening the format requires an amendment | Same |
 | Import | Preserve legacy value in a separately named future external-reference record | Same |
 
-Successful creation is the consequential transition for these records. They have no persisted pre-creation draft; after creation they are searchable, selectable, auditable, and externally discussable. Assigning the reference in the creation transaction therefore does not number an abandoned draft.
+Successful creation is the consequential transition for these records. They have no persisted pre-creation draft; after creation they are searchable, selectable, auditable, and externally discussable. Assigning the reference in the creation transaction therefore does not number an abandoned draft. Issuance locks the `(agency_id, namespace)` row, assigns the formatted reference, and increments `next_value` in that same transaction. Rollback does not consume the number. Idempotent replay of an already persisted create does not increment. Inactive records keep their issued numbers.
 
 Client and Supplier demonstrate identical Agency scope, no reset, immutable issuance, accepted gaps, and sequence-row locking. A shared `reference_sequences` table keyed by `(agency_id, namespace)` is accepted for them and for a later domain only when that domain explicitly adopts these semantics. This remains separate namespaces, not one Agency-wide counter.
 
