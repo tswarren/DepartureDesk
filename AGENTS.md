@@ -105,7 +105,7 @@ After checking out this identity baseline, recreate the primary development and 
 
 - PostgreSQL 18 is authoritative. Do not reduce the design to cross-database compatibility.
 - `config.active_record.schema_format` is `:sql`; commit updated `db/structure.sql` after migrations.
-- The identity baseline does not enable `citext`, `pg_trgm`, or `btree_gist`. Enforce workspace-code and email uniqueness on normalized text columns.
+- The identity baseline does not enable `citext`, `pg_trgm`, or `btree_gist`. Enforce workspace-code and email uniqueness on normalized text columns. M1B may enable `btree_gist` only for the Client Organization contact-history exclusion constraint. Do not enable `citext` or `pg_trgm` for that slice.
 - Application-owned durable tables use UUID primary keys with database defaults of `uuidv7()`.
 - When an ID is needed before persistence, assign UUIDv7 in Rails and retain the database default as a safety net.
 - Every UUID foreign key must declare `type: :uuid` in its migration.

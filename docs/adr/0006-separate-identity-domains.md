@@ -1,6 +1,6 @@
 # ADR 0006: Separate agency-user, client, and supplier identity domains
 
-- Status: Accepted product boundary; implementation deferred
+- Status: Accepted product boundary; amended 2026-09-14; implementation deferred
 - Date: 2026-09-14
 - Decision owners: DepartureDesk maintainers
 
@@ -26,11 +26,12 @@ The Client directory will use consumer-side identities:
 
 - `ClientPerson` for a natural person known on the consumer side;
 - `ClientOrganization` for an organization known on the consumer side;
-- `Client` for the payer/responsibility identity based on one Client Person or Client Organization;
-- `Traveler` for a person who receives or may receive travel services; and
-- `Household` for servicing and communication grouping.
+- `Client` for the stable commercial-responsibility identity based on one Client Person or Client Organization; and
+- future contextual records that reference Client Person when that person travels, receives a service, acts as a contact, or fills another trip-specific role.
 
-Client, Traveler, Household membership, payment responsibility, communication authority, and occupancy remain separate facts. One must not be inferred from another.
+`Client` is not a universal Payer identity. A future Receipt records its actual Payer independently of the Client responsible for a Client Trip or Charge.
+
+MVP introduces no standalone `Traveler`, `Household`, `Family`, or reusable consumer servicing-group record. A future `TravelerAssignment` references Client Person directly and owns the applicable trip/service context. Payment responsibility, Payer, communication authority, trip participation, companionship, occupancy, and insurance eligibility remain separate facts. One must not be inferred from another.
 
 ### Supplier domain
 
@@ -41,11 +42,11 @@ The Supplier directory will use supplier-side identities:
 - `SupplierLocation` for a Supplier-owned operational place; and
 - an explicitly named Service Provider reference when fulfillment is performed by someone other than the contracting Supplier.
 
-A Supplier Contact is not silently shared with Client Person, Traveler, or AgencyUser.
+A Supplier Contact is not reused as a Client Person, AgencyUser, or other identity-domain record. Do not substitute Traveler Assignment; an assignment is not another person identity.
 
 ### Same physical subject in multiple domains
 
-The same physical person or organization may legitimately have separate records in multiple identity domains. For example, an Agency User who travels may also have a Client Person and Traveler record. Those records have independent lifecycle, permissions, contact use, and history.
+The same physical person or organization may legitimately have separate records in multiple identity domains. For example, an Agency User who travels may also have a Client Person record and later be referenced by a Traveler Assignment. The authenticated account and consumer-side record have independent lifecycle, permissions, contact use, and history.
 
 MVP will not automatically synchronize, merge, or deduplicate across identity domains. A future cross-domain link may record that two records describe the same subject only if a later accepted decision defines its authority, privacy, lifecycle, unlinking, and conflict rules. Such a link must not collapse the records or make one domain's fields authoritative for another.
 
@@ -88,3 +89,13 @@ Rejected. Email reuse, shared addresses, independently managed records, and priv
 ## Implementation boundary
 
 This ADR establishes vocabulary and separation only. It does not create directory tables or routes. The accepted M1 plan must define exact persistence, lifecycle, permissions, normalization, duplicate behavior, and test gates before implementation.
+
+## 2026-09-14 amendment
+
+The initial accepted text named Client as a combined payer/responsibility identity and anticipated standalone Traveler and Household records. M1 planning demonstrated that those records would own no authoritative MVP facts:
+
+- Payer is consequential only when a Receipt exists and must preserve the actual source of funds.
+- Travel participation and service receipt become consequential in Traveler Assignment.
+- Client Trip contacts, Traveling Party, Resource Assignment, and insurance eligibility each require their own contextual facts and must not be inferred from a durable Household grouping.
+
+This amendment narrows MVP persistence without weakening the original rejection of Party, AgencyUser-as-person, email auto-linking, or cross-domain synchronization. A Supplier Contact is not reused as a Client Person, AgencyUser, or other identity-domain record. Traveler Assignment is not a substitute person identity. A later accepted ADR may introduce a reusable consumer grouping or traveler profile only after defining the facts it owns and why contextual records are insufficient.

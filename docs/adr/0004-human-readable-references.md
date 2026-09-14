@@ -1,6 +1,6 @@
 # ADR 0004: Human-readable references and numbering
 
-- Status: Accepted
+- Status: Accepted; amended 2026-09-14 for Client and Supplier references
 - Date: 2026-09-05
 - Decision owners: DepartureDesk maintainers
 
@@ -48,7 +48,7 @@ Avoid a generic `number`, `code`, `confirmation`, or `reference` when the owning
 
 Application-generated references and externally assigned identifiers are separate facts.
 
-- DepartureDesk may generate departure, client-trip, receipt, or supplier-payment references.
+- DepartureDesk may generate Client, Supplier, Departure, Client Trip, Receipt, or Supplier Payment references.
 - Suppliers or settlement systems assign confirmation, ticket, policy, PNR, and similar identifiers.
 - Imported identifiers retain their source and must not be rewritten into the generated namespace.
 - An external identifier may be non-unique globally; uniqueness rules must reflect supplier, issuer, document type, and other relevant scope.
@@ -109,6 +109,30 @@ The agency-identity baseline introduces the first governed human-readable identi
 - they may qualify later references only when that later domain explicitly chooses office-scoped numbering;
 - changing an office name does not change its code.
 
+### Client and Supplier references
+
+M1 introduces the first two generated operational-reference consumers and demonstrates shared semantics between them.
+
+| Attribute | Client | Supplier |
+| --- | --- | --- |
+| Namespace | `client` | `supplier` |
+| Canonical format | `CL-000001` | `SUP-000001` |
+| Scope | Agency; never Office | Agency; never Office |
+| Reset | Never | Never |
+| Issuance | Successful Client creation | Successful Supplier creation |
+| Reuse and gaps | Never reused; gaps accepted | Never reused; gaps accepted |
+| Concurrency | Lock `(agency_id, namespace)` sequence row | Same |
+| Retry | Existing reference consumes no number | Same |
+| `next_value` | Next unissued positive integer; a new row starts at 1 | Same |
+| Exhaustion | Issuing `1000000` fails with `reference_exhausted`; widening the format requires an amendment | Same |
+| Import | Preserve legacy value in a separately named future external-reference record | Same |
+
+Successful creation is the consequential transition for these records. They have no persisted pre-creation draft; after creation they are searchable, selectable, auditable, and externally discussable. Assigning the reference in the creation transaction therefore does not number an abandoned draft. Issuance locks the `(agency_id, namespace)` row, assigns the formatted reference, and increments `next_value` in that same transaction. Rollback does not consume the number. Idempotent replay of an already persisted create does not increment. Inactive records keep their issued numbers.
+
+Client and Supplier demonstrate identical Agency scope, no reset, immutable issuance, accepted gaps, and sequence-row locking. A shared `reference_sequences` table keyed by `(agency_id, namespace)` is accepted for them and for a later domain only when that domain explicitly adopts these semantics. This remains separate namespaces, not one Agency-wide counter.
+
+`CL-` and `SUP-` are domain-qualified formats. The commercial register's `D-000001` pattern establishes the no-Office-code baseline for generated references; it does not require every domain to use a one-letter prefix.
+
 ### Domain decisions deferred
 
 This ADR deliberately does not decide the final formats or scopes of:
@@ -120,13 +144,15 @@ This ADR deliberately does not decide the final formats or scopes of:
 - adjustment/reversal references;
 - document numbers.
 
-Each is locked in the phase that introduces the record. Shared persistence or issuance machinery should be extracted only after at least two domain consumers demonstrate the same semantics.
+Each is locked in the phase that introduces the record. Client and Supplier have now satisfied the two-consumer threshold for the narrowly governed namespaced sequence above; domains with different issuance, reset, void, or idempotency semantics require their own persistence.
 
 ## Expected initial reference matrix
 
 | Reference | Owner/issuer | Likely scope | Likely issuance event | 1E implementation |
 |---|---|---|---|---|
 | Office code | Administrator or provisioning | Agency | Office creation | Yes |
+| Client reference | DepartureDesk | Agency | Successful Client creation | M1 |
+| Supplier reference | DepartureDesk | Agency | Successful Supplier creation | M1 |
 | Departure reference | DepartureDesk | Agency or office, decision deferred | Departure creation or publication | No |
 | Client-trip reference | DepartureDesk | Agency or office, decision deferred | Client trip becomes operational | No |
 | Receipt number | DepartureDesk | Agency or office, decision deferred | Receipt posting | No |
@@ -166,7 +192,7 @@ Rejected. It mixes unrelated namespaces and issuance rules and produces confusin
 
 ### One generic configurable sequence table in Foundation
 
-Rejected for now. The first domains have not established common scope, reset, void, and idempotency behavior. Extract shared machinery after real consumers exist.
+Rejected. Foundation had no real generated-reference consumers and could not establish common scope, reset, void, or idempotency behavior. The later M1 amendment permits a narrow namespaced table only after Client and Supplier demonstrate the same semantics; it does not accept a generic configurable generator.
 
 ### Embed agency or office identity in every reference
 
@@ -190,4 +216,4 @@ Rejected. Reuse makes external communication, audit, and reconciliation ambiguou
 
 ## Relationship to the current roadmap
 
-The agency-identity baseline implements the office-code portion of this ADR and establishes Office context vocabulary. It does not create generic sequence tables or counters. The accepted commercial register requires one system-wide generated-reference format without an Office-code prefix and assigns a durable reference at the record's first consequential transition. Each record type must still define its exact prefix, scope, issuance event, and void behavior in the slice that introduces it. The first generated operational reference should be designed with Departures; the first strict posted-document sequence should be designed with the relevant financial domain.
+The agency-identity baseline implements the office-code portion of this ADR and establishes Office context vocabulary. M1 defines Client and Supplier references as the first generated operational references and permits their narrowly namespaced shared sequence. The accepted commercial register requires generated references without an Office-code prefix and assigns a durable reference at the record's first consequential transition. Each later record type must still define its exact prefix, scope, issuance event, and void behavior in the slice that introduces it. The first strict posted-document sequence remains owned by the relevant financial domain.
