@@ -1,17 +1,18 @@
 class FindClientOrganizationDuplicates
   Candidate = Data.define(:id, :display_name, :status, :signals)
 
-  def self.call(agency:, actor:, names:, emails: [], phones: [], postal_codes: [], websites: [], exclude_organization_id: nil)
-    new(agency:, actor:, names:, emails:, phones:, postal_codes:, websites:, exclude_organization_id:).call
+  def self.call(agency:, actor:, names:, emails: [], phones: [], postal_codes: [], localities: [], websites: [], exclude_organization_id: nil)
+    new(agency:, actor:, names:, emails:, phones:, postal_codes:, localities:, websites:, exclude_organization_id:).call
   end
 
-  def initialize(agency:, actor:, names:, emails:, phones:, postal_codes:, websites:, exclude_organization_id:)
+  def initialize(agency:, actor:, names:, emails:, phones:, postal_codes:, localities:, websites:, exclude_organization_id:)
     @agency = agency
     @actor = actor
     @names = names.to_h.symbolize_keys
     @emails = emails
     @phones = phones
     @postal_codes = postal_codes
+    @localities = localities
     @websites = websites
     @exclude_organization_id = exclude_organization_id
     @signals = Hash.new { |hash, key| hash[key] = [] }
@@ -23,6 +24,7 @@ class FindClientOrganizationDuplicates
     end
 
     match_names
+    match_name_and_location
     match_contacts if @actor.permitted?(:view_client_contact_details)
     load_candidates
   end
@@ -49,11 +51,41 @@ class FindClientOrganizationDuplicates
     end
   end
 
+  def match_name_and_location
+    name_keys = [
+      SearchNormalizer.normalize(@names[:display_name]),
+      SearchNormalizer.normalize(@names[:legal_name])
+    ].compact_blank.uniq
+    return if name_keys.empty?
+
+    named = organizations.where(display_name_search_key: name_keys).or(organizations.where(legal_name_search_key: name_keys))
+
+    postal_keys = @postal_codes.filter_map { |code| SearchNormalizer.normalize(code).presence }
+    if postal_keys.any?
+      postal_ids = ClientOrganizationPostalAddress.where(agency_id: @agency.id, postal_code_search_key: postal_keys)
+      postal_ids = postal_ids.where.not(client_organization_id: @exclude_organization_id) if @exclude_organization_id
+      named.where(id: postal_ids.select(:client_organization_id)).pluck(:id).each do |id|
+        add(id, "name_and_postal_code")
+      end
+    end
+
+    locality_keys = @localities.filter_map { |locality| SearchNormalizer.normalize(locality).presence }
+    return if locality_keys.empty?
+
+    locality_ids = ClientOrganizationPostalAddress.where(agency_id: @agency.id, locality_search_key: locality_keys)
+    locality_ids = locality_ids.where.not(client_organization_id: @exclude_organization_id) if @exclude_organization_id
+    named.where(id: locality_ids.select(:client_organization_id)).pluck(:id).each do |id|
+      add(id, "name_and_locality")
+    end
+  end
+
   def match_contacts
     emails = @emails.map { |email| email.to_s.strip.downcase }.reject(&:blank?)
-    ClientOrganizationEmailAddress.where(agency_id: @agency.id, normalized_address: emails).where.not(client_organization_id: @exclude_organization_id).pluck(:client_organization_id).each do |id|
-      add(id, "exact_email")
-    end if emails.any?
+    if emails.any?
+      ClientOrganizationEmailAddress.where(agency_id: @agency.id, normalized_address: emails).where.not(client_organization_id: @exclude_organization_id).pluck(:client_organization_id).each do |id|
+        add(id, "exact_email")
+      end
+    end
 
     @phones.each do |phone|
       scope = ClientOrganizationPhoneNumber.where(agency_id: @agency.id, normalized_number: phone.normalized_number)
@@ -63,15 +95,12 @@ class FindClientOrganizationDuplicates
       end
     end
 
-    postal_keys = @postal_codes.filter_map { |code| SearchNormalizer.normalize(code).presence }
-    ClientOrganizationPostalAddress.where(agency_id: @agency.id, postal_code_search_key: postal_keys).where.not(client_organization_id: @exclude_organization_id).pluck(:client_organization_id).each do |id|
-      add(id, "exact_postal_code")
-    end if postal_keys.any?
-
     hosts = @websites.filter_map { |website| website.normalized_host.presence }
+    return if hosts.empty?
+
     ClientOrganizationWebsite.where(agency_id: @agency.id, normalized_host: hosts).where.not(client_organization_id: @exclude_organization_id).pluck(:client_organization_id).each do |id|
       add(id, "same_website_host")
-    end if hosts.any?
+    end
   end
 
   def add(id, signal)

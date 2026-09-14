@@ -1,8 +1,8 @@
 # M1B — Client Organizations
 
-**Status:** Implemented
+**Status:** Implemented on this branch; shipped when merged
 
-**UI amendments (2026-09-14):** Organization contact-point lists may `POST .../set_primary` with `lock_version`, matching the individual-Client people list. The organization-contact create form does not collect `starts_on` or `ends_on`; create always starts on the Agency-local business date as a current assignment, and ending uses the End action on the organization profile.
+**UI amendments (2026-09-14):** Organization contact-point lists may `POST .../set_primary` with `lock_version`, matching the individual-Client people list. The organization-contact create form does not collect `starts_on` or `ends_on`; create always starts on the Agency-local business date as a current assignment, and ending uses the End action on the organization profile. Contact-point audits include `contact_point_id`, `contact_point_type`, and `changed_fields`. Postal duplicate review requires a matching Organization name plus locality or postal code. Existing-person assignment uses an Agency-scoped person search with an explicit result cap.
 
 **Parent:** [M1 — Client and Supplier directories](m1-client-and-supplier-directories.md), accepted 2026-09-14
 
@@ -486,6 +486,7 @@ Office selection changes no permission or search result.
 Add the parent contract’s exact Organization routes:
 
 ```text
+GET   /clients/organizations
 GET   /clients/organizations/new
 POST  /clients/organizations
 GET   /clients/organizations/:client_organization_id
@@ -498,8 +499,10 @@ POST  /clients/organizations/:client_organization_id/client
 GET   /clients/organizations/:client_organization_id/client/status/edit
 PATCH /clients/organizations/:client_organization_id/client/status
 
+GET   /clients/organizations/:client_organization_id/contacts
 GET   /clients/organizations/:client_organization_id/contacts/new
 POST  /clients/organizations/:client_organization_id/contacts
+GET   /clients/organizations/:client_organization_id/contacts/:organization_contact_id
 GET   /clients/organizations/:client_organization_id/contacts/:organization_contact_id/edit
 PATCH /clients/organizations/:client_organization_id/contacts/:organization_contact_id
 GET   /clients/organizations/:client_organization_id/contacts/:organization_contact_id/end
@@ -698,7 +701,7 @@ Describe Client Organization and organization-backed Client as shipped. Continue
 
 ## Acceptance gate
 
-Status stays **Draft**. This plan may become **Accepted** after product review confirms:
+This slice is **Accepted** and **Implemented on this branch**. Mark it **shipped** in `AGENTS.md` and related shipment docs only after this branch merges to `main`. Product review already confirmed:
 
 1. Historical assignments may be created directly, but future assignments may not.
 2. Ended assignments cannot be reopened; a later relationship creates a new row. A same-day restart is already rejected by the `[starts_on, ends_on + 1)` exclusion; that is specified, not an open question. The next business date may start a new row.

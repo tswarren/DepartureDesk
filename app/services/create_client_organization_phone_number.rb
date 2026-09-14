@@ -30,7 +30,7 @@ class CreateClientOrganizationPhoneNumber < ClientOrganizationContactPointComman
         status: "active"
       )
       prefer!(organization.phone_numbers, point) if ActiveModel::Type::Boolean.new.cast(@attributes[:preferred])
-      audit_contact!(organization, changed_fields: [ "phone_number" ])
+      audit_contact!(organization, record: point, changed_fields: [ "phone_number" ])
       audit_override!(organization, decision) if decision
       Result.new(status: :created, record: point)
     end

@@ -20,12 +20,19 @@ class ClientOrganizationContactCommand < AgencyCommand
     raise Error.new("That organization contact assignment conflicts with an existing assignment. Reload and try again.", code: :conflict)
   end
 
+  ASSIGNMENT_CONFLICT_MARKERS = [
+    "index_client_org_contacts_one_current_pair",
+    "index_client_org_contacts_one_current_primary",
+    "client_org_contacts_no_overlapping_history"
+  ].freeze
+
   def assignment_conflict?(error)
     cause = error.respond_to?(:cause) ? error.cause : nil
-    error.is_a?(ActiveRecord::RecordNotUnique) ||
-      cause.is_a?(PG::UniqueViolation) ||
-      cause.is_a?(PG::ExclusionViolation) ||
-      error.message.include?("client_org_contacts")
+    message = [ error.message, cause&.message ].compact.join(" ")
+    cause.is_a?(PG::ExclusionViolation) ||
+      (error.is_a?(ActiveRecord::RecordNotUnique) && ASSIGNMENT_CONFLICT_MARKERS.any? { |marker| message.include?(marker) }) ||
+      (cause.is_a?(PG::UniqueViolation) && ASSIGNMENT_CONFLICT_MARKERS.any? { |marker| message.include?(marker) }) ||
+      ASSIGNMENT_CONFLICT_MARKERS.any? { |marker| message.include?(marker) }
   end
 
   def lock_current_assignments!(organization)

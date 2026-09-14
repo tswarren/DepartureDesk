@@ -29,7 +29,7 @@ class CreateClientOrganizationWebsite < ClientOrganizationContactPointCommand
         status: "active"
       )
       prefer!(organization.websites, point) if ActiveModel::Type::Boolean.new.cast(@attributes[:preferred])
-      audit_contact!(organization, changed_fields: [ "website" ])
+      audit_contact!(organization, record: point, changed_fields: [ "website" ])
       audit_override!(organization, decision) if decision
       Result.new(status: :created, record: point)
     end

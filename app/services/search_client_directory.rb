@@ -93,7 +93,7 @@ class SearchClientDirectory
         "clients.client_reference",
         "clients.status AS client_status",
         "MIN(matches.search_rank) AS search_rank",
-        "MIN(matches.match_kind) AS match_kind"
+        "(array_agg(matches.match_kind ORDER BY matches.search_rank ASC, matches.match_kind ASC NULLS LAST))[1] AS match_kind"
       )
       .group(
         "matches.record_id",

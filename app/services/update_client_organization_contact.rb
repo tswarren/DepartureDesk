@@ -17,6 +17,9 @@ class UpdateClientOrganizationContact < ClientOrganizationContactCommand
     ActiveRecord::Base.transaction do
       @agency.lock!
       assignment = @agency.client_organization_contacts.lock.find(@client_organization_contact.id)
+      if assignment.ends_on && starts_on > assignment.ends_on
+        raise Error.new("Start date cannot be after end date.", code: :invalid)
+      end
       assignment.lock_version = @lock_version
       return Result.new(status: :noop, record: assignment) if unchanged?(assignment, starts_on)
 

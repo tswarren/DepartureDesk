@@ -9,7 +9,7 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 | Milestone | Status | Outcome |
 | --- | --- | --- |
 | M0 — Agency identity baseline | Complete | Agency-scoped authentication, administration, Office context, audit, tenant isolation, and hardening. |
-| M1 — Separate directories | Accepted plan; M1A and M1B shipped | Maintain Client and Supplier identities without restoring Party or prematurely creating Household/Traveler records. M1A shipped individual Clients. M1B shipped Client Organizations and expanded Client search. Suppliers remain unbuilt. |
+| M1 — Separate directories | Accepted plan; M1A shipped; M1B implemented on branch | Maintain Client and Supplier identities without restoring Party or prematurely creating Household/Traveler records. M1A shipped individual Clients. M1B implements Client Organizations and expanded Client search on this branch; treat as shipped when merged. Suppliers remain unbuilt. |
 | M2 — Departure core | Planned | Create and govern reusable Travel Programs and dated Departures. |
 | M3 — Supplier planning | Planned | Represent arrangements, items, occurrences, resources, commitments, capacity, deadlines, and exposure. |
 | M4 — Offers and pricing | Planned | Describe Packages and standalone services the Agency intends to sell. |
@@ -41,7 +41,7 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 
 1. The M1 directory plan is accepted. It does not authorize slice code by itself.
 2. The [M1A individual-Client slice plan](m1a-individual-client.md) is implemented and merged to main.
-3. The [M1B Client Organization slice plan](m1b-client-organizations.md) is implemented. Client Organization, organization-backed Client, organization contact points, organization-contact history, and expanded Client search are shipped. Suppliers are not.
+3. The [M1B Client Organization slice plan](m1b-client-organizations.md) is implemented on this branch. Client Organization, organization-backed Client, organization contact points, organization-contact history, and expanded Client search ship when the branch merges. Suppliers are not.
 4. Add Supplier, Supplier Location, and Supplier Contact in reviewable follow-up slices. Do not introduce Household or standalone Traveler persistence.
 5. Validate M1 against the explicit fictional directory-fixture set mapped to both reference scenario shapes before beginning M2.
 

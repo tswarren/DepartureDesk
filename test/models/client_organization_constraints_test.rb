@@ -26,9 +26,15 @@ class ClientOrganizationConstraintsTest < ActiveSupport::TestCase
   test "existing person-backed clients remain valid and xor ownership is enforced" do
     person = @agency.client_people.create!(first_name: "Pat", last_name: "Person")
     client = @agency.clients.create!(client_person: person, client_reference: "CL-000101", status: "active")
+    org_client = @agency.clients.create!(client_organization: @organization, client_reference: "CL-000104", status: "active")
 
+    assert client.valid?
     assert_nil client.client_organization_id
     assert_equal person.id, client.client_person_id
+    assert org_client.valid?
+    assert_nil org_client.client_person_id
+    assert_equal @organization.id, org_client.client_organization_id
+    assert_equal 2, @agency.clients.where(id: [ client.id, org_client.id ]).count
 
     assert_raises(ActiveRecord::StatementInvalid) do
       Client.insert!({
@@ -57,6 +63,26 @@ class ClientOrganizationConstraintsTest < ActiveSupport::TestCase
         updated_at: Time.current
       })
     end
+  end
+
+  test "historical primary is rejected by the current-primary check constraint" do
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      ClientOrganizationContact.transaction(requires_new: true) do
+        ClientOrganizationContact.insert!({
+          id: SecureRandom.uuid_v7,
+          agency_id: @agency.id,
+          client_organization_id: @organization.id,
+          client_person_id: @person.id,
+          starts_on: Date.new(2026, 1, 1),
+          ends_on: Date.new(2026, 1, 31),
+          primary: true,
+          lock_version: 0,
+          created_at: Time.current,
+          updated_at: Time.current
+        })
+      end
+    end
+    assert_match(/client_org_contacts_primary_requires_current/, error.message)
   end
 
   test "person unique index remains null-distinct and organization source is partially unique" do

@@ -26,7 +26,7 @@ class UpdateClientOrganizationWebsite < ClientOrganizationContactPointCommand
         point.update!(url: website.url, normalized_url: website.normalized_url, normalized_host: website.normalized_host, label: @attributes[:label])
       end
       apply_preferred!(organization.websites, point, preferred, lock_version: identity_unchanged ? @lock_version : nil)
-      audit_contact!(organization, changed_fields: [ "website" ])
+      audit_contact!(organization, record: point, changed_fields: [ "website" ])
       audit_override!(organization, decision) if decision
       Result.new(status: :updated, record: point)
     end

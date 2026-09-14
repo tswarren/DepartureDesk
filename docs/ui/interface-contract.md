@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Current Agency identity and reusable patterns for later accepted slices
+**Scope:** Agency identity, the Client directory through M1A, and M1B Client Organization surfaces implemented on the current branch
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -25,6 +25,25 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Clients is shown when the current AgencyUser has `view_client_directory`.
 - Directory, Suppliers, Departures, Travelers, and Accounting are absent until accepted slices ship their authorized routes.
 - Active navigation uses `aria-current="page"` and a visible teal indicator.
+
+## Client directory
+
+### Shared directory
+
+- The Client directory defaults to the combined All view of people and organizations.
+- Kind and status filters stay Agency-scoped and do not change authorization.
+- Search results distinguish record type from match family.
+- Viewer may browse identity and assignment people; contact destinations remain hidden without `view_client_contact_details`.
+
+### Client Organizations
+
+- Organization create may create an Organization alone or, from New Client, an Organization and Client atomically.
+- Organization show lists owned contact channels and current/historical organization contacts.
+- Contact-point rows expose Edit, status change, and Set primary with `lock_version`.
+- Website entry accepts a hostname or URL; a scheme is optional.
+- Adding an organization contact offers Agency-scoped person search with an explicit result cap, or create-new-person fields.
+- Organization-contact create does not collect start or end dates; ending uses the End confirmation surface.
+- Primary assignment uses an icon indicator plus accessible text, never color alone.
 
 ## Page composition
 

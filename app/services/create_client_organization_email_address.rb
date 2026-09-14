@@ -27,7 +27,7 @@ class CreateClientOrganizationEmailAddress < ClientOrganizationContactPointComma
         status: "active"
       )
       prefer!(organization.email_addresses, point) if ActiveModel::Type::Boolean.new.cast(@attributes[:preferred])
-      audit_contact!(organization, changed_fields: [ "email_address" ])
+      audit_contact!(organization, record: point, changed_fields: [ "email_address" ])
       audit_override!(organization, decision) if decision
       Result.new(status: :created, record: point)
     end

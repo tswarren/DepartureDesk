@@ -7,7 +7,7 @@ class SetPreferredClientOrganizationEmailAddress < ClientOrganizationContactPoin
       organization = locked_organization
       point = organization.email_addresses.find(@record.id)
       changed = apply_preferred!(organization.email_addresses, point, true, lock_version: @lock_version)
-      audit_contact!(organization, changed_fields: [ "preferred_email_address" ]) if changed
+      audit_contact!(organization, record: point, changed_fields: [ "preferred_email_address" ]) if changed
       Result.new(status: changed ? :updated : :noop, record: point.reload)
     end
   rescue ActiveRecord::StaleObjectError

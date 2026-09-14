@@ -29,7 +29,7 @@ class UpdateClientOrganizationPhoneNumber < ClientOrganizationContactPointComman
         point.update!(number: phone.number, normalized_number: phone.normalized_number, extension: phone.extension, country_code: phone.country_code, label: @attributes[:label])
       end
       apply_preferred!(organization.phone_numbers, point, preferred, lock_version: identity_unchanged ? @lock_version : nil)
-      audit_contact!(organization, changed_fields: [ "phone_number" ])
+      audit_contact!(organization, record: point, changed_fields: [ "phone_number" ])
       audit_override!(organization, decision) if decision
       Result.new(status: :updated, record: point)
     end

@@ -22,7 +22,15 @@ class UpdateClientOrganizationPostalAddress < ClientOrganizationContactPointComm
           current_fingerprint: -> { stored_fingerprint(point) }
         ).call do
           FindClientOrganizationDuplicates.call(
-            agency: @agency, actor: @actor, names: {}, postal_codes: [ @attributes[:postal_code] ], exclude_organization_id: organization.id
+            agency: @agency,
+            actor: @actor,
+            names: {
+              display_name: organization.display_name,
+              legal_name: organization.legal_name
+            },
+            postal_codes: [ @attributes[:postal_code] ],
+            localities: [ @attributes[:locality] ],
+            exclude_organization_id: organization.id
           )
         end
         return decision if decision.is_a?(Result)
@@ -30,7 +38,7 @@ class UpdateClientOrganizationPostalAddress < ClientOrganizationContactPointComm
         point.update!(postal_attributes)
       end
       apply_preferred!(organization.postal_addresses, point, preferred, lock_version: identity_unchanged ? @lock_version : nil)
-      audit_contact!(organization, changed_fields: [ "postal_address" ])
+      audit_contact!(organization, record: point, changed_fields: [ "postal_address" ])
       audit_override!(organization, decision) if decision
       Result.new(status: :updated, record: point)
     end

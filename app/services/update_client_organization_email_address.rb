@@ -26,7 +26,7 @@ class UpdateClientOrganizationEmailAddress < ClientOrganizationContactPointComma
         point.update!(address: address, label: @attributes[:label])
       end
       apply_preferred!(organization.email_addresses, point, preferred, lock_version: identity_unchanged ? @lock_version : nil)
-      audit_contact!(organization, changed_fields: [ "email_address" ])
+      audit_contact!(organization, record: point, changed_fields: [ "email_address" ])
       audit_override!(organization, decision) if decision
       Result.new(status: :updated, record: point)
     end

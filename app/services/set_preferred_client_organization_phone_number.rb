@@ -7,7 +7,7 @@ class SetPreferredClientOrganizationPhoneNumber < ClientOrganizationContactPoint
       organization = locked_organization
       point = organization.phone_numbers.find(@record.id)
       changed = apply_preferred!(organization.phone_numbers, point, true, lock_version: @lock_version)
-      audit_contact!(organization, changed_fields: [ "preferred_phone_number" ]) if changed
+      audit_contact!(organization, record: point, changed_fields: [ "preferred_phone_number" ]) if changed
       Result.new(status: changed ? :updated : :noop, record: point.reload)
     end
   rescue ActiveRecord::StaleObjectError

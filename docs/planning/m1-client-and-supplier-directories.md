@@ -2,7 +2,7 @@
 
 **Status:** Accepted milestone contract. It is not implementation authority for a slice until that slice plan is accepted.
 
-**Decision posture:** Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. [M1A](m1a-individual-client.md) is implemented and merged. [M1B](m1b-client-organizations.md) is implemented. M1C–M1E remain deferred.
+**Decision posture:** Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. [M1A](m1a-individual-client.md) is implemented and merged. [M1B](m1b-client-organizations.md) is implemented on this branch and ships when merged. M1C–M1E remain deferred.
 
 **M1A amendments (2026-09-14):** After M1A acceptance, product review requested two changes. They supersede the original sentences they touch and are recorded as amendments in the slice plan, not as text that was always in this contract. A Client Person phone country is required and must match the selected country. The individual-Client people list may `POST .../set_primary` with `lock_version`; that is not a `/preferred` route, and the rest of this contract still does not add one.
 

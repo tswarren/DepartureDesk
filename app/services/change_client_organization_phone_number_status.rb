@@ -12,7 +12,7 @@ class ChangeClientOrganizationPhoneNumberStatus < ClientOrganizationContactPoint
 
       point.lock_version = @lock_version
       point.update!(status: @status, preferred: @status == "active" ? point.preferred : false)
-      audit_contact!(organization, changed_fields: [ "phone_number_status" ])
+      audit_contact!(organization, record: point, changed_fields: [ "phone_number_status" ])
       Result.new(status: :updated, record: point)
     end
   rescue ActiveRecord::StaleObjectError

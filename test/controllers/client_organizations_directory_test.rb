@@ -130,4 +130,88 @@ class ClientOrganizationsDirectoryTest < ActionDispatch::IntegrationTest
     assert_match(/0 (match|record)/, response.body)
     assert_select "select[name=kind] option[selected][value=all]"
   end
+
+  test "cross-agency organization mutations return not found" do
+    organization = CreateClientOrganization.new(
+      agency: agencies(:cove),
+      actor: agency_users(:cove_admin),
+      names: { display_name: "Cove Mutation Org" }
+    ).call.record
+    email = CreateClientOrganizationEmailAddress.new(
+      agency: agencies(:cove),
+      actor: agency_users(:cove_admin),
+      client_organization: organization,
+      attributes: { address: "cove@example.com" }
+    ).call.record
+    person = CreateClientPerson.new(
+      agency: agencies(:cove),
+      actor: agency_users(:cove_admin),
+      names: { first_name: "Cove", last_name: "Contact" }
+    ).call.record
+    contact = AddClientOrganizationContact.new(
+      agency: agencies(:cove),
+      actor: agency_users(:cove_admin),
+      client_organization: organization,
+      client_person: person,
+      attributes: { starts_on: Date.new(2026, 1, 1), primary: true }
+    ).call.record
+
+    sign_in_as @admin
+    patch client_organization_path(organization), params: {
+      client_organization: { display_name: "Hijacked", legal_name: "", lock_version: organization.lock_version }
+    }
+    assert_response :not_found
+
+    post client_organization_email_addresses_path(organization), params: {
+      client_organization_email_address: { address: "hijack@example.com" }
+    }
+    assert_response :not_found
+
+    patch end_client_organization_contact_path(organization, contact), params: { lock_version: contact.lock_version }
+    assert_response :not_found
+
+    assert_equal "Cove Mutation Org", organization.reload.display_name
+    assert_equal "cove@example.com", email.reload.address
+    assert_nil contact.reload.ends_on
+  end
+
+  test "new organization contact person search filters and reports truncation" do
+    organization = CreateClientOrganization.new(agency: @agency, actor: @admin, names: { display_name: "Person Search Org" }).call.record
+    kept = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Zelda", last_name: "Matcher" }).call.record
+    CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Other", last_name: "Person" }).call
+    51.times do |index|
+      CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Cap", last_name: format("Choice%03d", index) }).call
+    end
+
+    sign_in_as @admin
+    get new_client_organization_contact_path(organization), params: { person_q: "Zelda Matcher" }
+    assert_response :success
+    assert_select "select[name='client_organization_contact[client_person_id]'] option[value=?]", kept.id
+    assert_select "select[name='client_organization_contact[client_person_id]'] option", text: /Other Person/, count: 0
+
+    get new_client_organization_contact_path(organization), params: { person_q: "Cap Choice" }
+    assert_response :success
+    assert_match(/Showing the first 50 people matching that search/, response.body)
+  end
+
+  test "website form uses a text field and schemeless create succeeds" do
+    organization = CreateClientOrganization.new(agency: @agency, actor: @admin, names: { display_name: "Website Form Org" }).call.record
+
+    sign_in_as @admin
+    get new_client_organization_website_path(organization)
+    assert_response :success
+    assert_select "input[name='client_organization_website[url]'][type=text]"
+    assert_select "input[name='client_organization_website[url]'][type=url]", count: 0
+
+    assert_difference -> { organization.websites.count }, 1 do
+      post client_organization_websites_path(organization), params: {
+        client_organization_website: { url: "example.com", label: "Home" }
+      }
+    end
+    assert_redirected_to client_organization_path(organization)
+    website = organization.websites.last
+    assert_equal "example.com", website.url
+    assert_equal "https://example.com", website.normalized_url
+    assert_equal "example.com", website.normalized_host
+  end
 end

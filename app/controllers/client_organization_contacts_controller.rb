@@ -1,6 +1,8 @@
 class ClientOrganizationContactsController < ApplicationController
   include DirectoryAccess
 
+  PERSON_CHOICE_LIMIT = 50
+
   before_action :require_directory_view!
   before_action :require_contact_detail_view!, only: %i[index show]
   before_action :require_directory_management!, except: %i[index show]
@@ -135,7 +137,41 @@ class ClientOrganizationContactsController < ApplicationController
   end
 
   def load_person_choices
-    @person_choices = directory_people.active.order(:last_name, :first_name, :id).limit(100)
+    @person_query = params[:person_q].to_s.strip
+    scope = directory_people.active
+    if @person_query.present?
+      normalized = SearchNormalizer.normalize(@person_query)
+      tokens = SearchNormalizer.tokens(@person_query)
+      prefix = person_choice_prefix_tsquery(tokens)
+      matched = scope.none
+      matched = matched.or(scope.where(name_search_key: normalized)) if normalized.present?
+      matched = matched.or(scope.where("name_search_vector @@ to_tsquery('simple', ?)", prefix)) if prefix.present?
+      scope = matched
+    end
+
+    rows = scope.order(:last_name, :first_name, :id).limit(PERSON_CHOICE_LIMIT + 1).to_a
+    @person_choices_truncated = rows.size > PERSON_CHOICE_LIMIT
+    @person_choices = rows.first(PERSON_CHOICE_LIMIT)
+
+    selected_id = params.dig(:client_organization_contact, :client_person_id).presence ||
+      @organization_contact&.client_person_id.presence
+    return if selected_id.blank? || @person_choices.any? { |person| person.id == selected_id }
+
+    selected = directory_people.active.find_by(id: selected_id)
+    @person_choices = [ selected ] + @person_choices if selected
+  end
+
+  def person_choice_prefix_tsquery(tokens)
+    return if tokens.empty?
+
+    lexemes = tokens.filter_map do |token|
+      next if token.match?(/[&|!():*<>\\']/) && !token.match?(/\A[[:alnum:]\-]+\z/)
+
+      "'#{token.gsub("'", "''")}'"
+    end
+    return if lexemes.empty? || lexemes.size != tokens.size
+
+    lexemes.map { |lexeme| "#{lexeme}:*" }.join(" & ")
   end
 
   def prepare_new_after_error

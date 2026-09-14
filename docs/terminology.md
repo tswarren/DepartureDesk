@@ -2,7 +2,7 @@
 
 **Status:** Accepted product vocabulary
 
-**Implementation note:** Agency, Agency User, Office, Session, permission, and Audit Event terminology is shipped. Client Person, Client Organization, Client (person-backed or organization-backed), person-owned and organization-owned contact points, and organization-contact assignments are shipped. Supplier and later commercial terms are not.
+**Implementation note:** Agency, Agency User, Office, Session, permission, and Audit Event terminology is shipped. Client Person and person-backed Client terminology is shipped (M1A). Client Organization, organization-backed Client, organization-owned contact points, and organization-contact assignments are implemented on the M1B branch and shipped when that branch merges. Supplier and later commercial terms are not.
 
 Use these terms consistently in requirements, code, migrations, UI labels, tests, and reports. A planned term does not authorize its implementation without an accepted slice plan.
 

@@ -37,7 +37,8 @@
       <% elsif @contact_point.is_a?(ClientOrganizationWebsite) %>
         <div class="dd-field-group">
           <%= form.label :url, "Website", class: "dd-label" %>
-          <%= form.url_field :url, required: true, class: "dd-field" %>
+          <%= form.text_field :url, required: true, inputmode: "url", autocomplete: "url", spellcheck: false, class: "dd-field", placeholder: "example.com" %>
+          <p class="dd-field-hint">Enter a hostname or full URL. A scheme is optional.</p>
         </div>
       <% else %>
         <div class="dd-field-group">

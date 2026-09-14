@@ -10,6 +10,25 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body">
+    <%= form_with url: new_client_organization_contact_path(@client_organization), method: :get, class: "dd-form dd-form--inline", html: { role: "search" } do %>
+      <div class="dd-field-group">
+        <label class="dd-label" for="person_q">Find existing person</label>
+        <div class="dd-inline-actions">
+          <input id="person_q" name="person_q" type="search" value="<%= @person_query %>" class="dd-field" placeholder="Search by name" autocomplete="off">
+          <button type="submit" class="dd-button dd-button--quiet">Search</button>
+        </div>
+        <p class="dd-field-hint">
+          <% if @person_query.present? && @person_choices.empty? %>
+            No active people matched that search.
+          <% elsif @person_choices_truncated %>
+            Showing the first <%= ClientOrganizationContactsController::PERSON_CHOICE_LIMIT %> people<%= @person_query.present? ? " matching that search" : "" %>. Narrow the search to see others.
+          <% else %>
+            Search to filter existing Client People, or leave the selection blank to create a new person.
+          <% end %>
+        </p>
+      </div>
+    <% end %>
+
     <%= form_with model: @organization_contact, url: client_organization_contacts_path(@client_organization), class: "dd-form" do |form| %>
       <div class="dd-field-group">
         <%= form.label :client_person_id, "Existing person", class: "dd-label" %>

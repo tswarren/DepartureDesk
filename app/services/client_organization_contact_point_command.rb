@@ -23,13 +23,18 @@ class ClientOrganizationContactPointCommand < AgencyCommand
     @locked_organization ||= @agency.client_organizations.lock.find(@client_organization.id)
   end
 
-  def audit_contact!(organization, changed_fields:)
+  def audit_contact!(organization, record:, changed_fields:)
     audit!(
       agency: @agency,
       action: "client_organization.contact_updated",
       subject: organization,
       actor: @actor,
-      details: { "client_organization_id" => organization.id, "changed_fields" => changed_fields }
+      details: {
+        "client_organization_id" => organization.id,
+        "contact_point_id" => record.id,
+        "contact_point_type" => record.class.name,
+        "changed_fields" => changed_fields
+      }
     )
   end
 
