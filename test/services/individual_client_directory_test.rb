@@ -294,14 +294,16 @@ class IndividualClientDirectoryTest < ActiveSupport::TestCase
     end
 
     queries = []
-    callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?("search_rank") }
+    callback = ->(*, payload) { queries << payload if payload[:sql].include?("search_rank") }
     result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
       SearchClientDirectory.call(agency: @agency, actor: @admin, query: "Trunc")
     end
+    capped = queries.last
 
     assert_equal 50, result.records.size
     assert result.truncated
-    assert queries.any? { |sql| sql.match?(/LIMIT 51/i) }
+    assert_match(/LIMIT \$\d+\z/, capped[:sql])
+    assert_equal 51, Array(capped[:type_casted_binds]).last
   end
 
   test "set primary submits a lock version and does not audit an already preferred point" do

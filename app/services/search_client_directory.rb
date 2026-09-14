@@ -5,6 +5,25 @@ class SearchClientDirectory
   FETCH_LIMIT = LIMIT + 1
 
   STATUSES = %w[active inactive all].freeze
+  BRANCH_ORDER = Arel.sql(<<~SQL.squish)
+    CASE WHEN client_people.status = 'active' THEN 0 ELSE 1 END,
+    coalesce(nullif(btrim(client_people.preferred_name), ''), client_people.first_name) || ' ' || client_people.last_name,
+    client_people.id
+  SQL
+  MATCH_ORDER = Arel.sql(<<~SQL.squish)
+    MIN(matches.search_rank),
+    CASE WHEN client_people.status = 'active' THEN 0 ELSE 1 END,
+    coalesce(nullif(btrim(client_people.preferred_name), ''), client_people.first_name) || ' ' || client_people.last_name,
+    client_people.id
+  SQL
+  RANK_SELECT = {
+    1 => Arel.sql("1 AS search_rank"),
+    2 => Arel.sql("2 AS search_rank"),
+    3 => Arel.sql("3 AS search_rank"),
+    4 => Arel.sql("4 AS search_rank"),
+    5 => Arel.sql("5 AS search_rank"),
+    6 => Arel.sql("6 AS search_rank")
+  }.freeze
   KINDS = {
     1 => "reference",
     2 => "email",
@@ -43,31 +62,34 @@ class SearchClientDirectory
   end
 
   def ranked_rows
-    branches = ranked_branches
-    return [] if branches.empty?
+    relations = ranked_branches
+    return [] if relations.empty?
 
-    union = branches.map { |sql| "(#{sql})" }.join(" UNION ALL ")
-    display_sql = "coalesce(nullif(btrim(client_people.preferred_name), ''), client_people.first_name) || ' ' || client_people.last_name"
-    sql = <<~SQL.squish
-      SELECT client_people.id,
-             client_people.first_name,
-             client_people.preferred_name,
-             client_people.last_name,
-             client_people.status,
-             clients.client_reference,
-             MIN(matches.search_rank) AS search_rank
-      FROM (#{union}) matches
-      INNER JOIN client_people ON client_people.id = matches.person_id
-      LEFT JOIN clients ON clients.client_person_id = client_people.id
-      GROUP BY client_people.id, client_people.first_name, client_people.preferred_name,
-               client_people.last_name, client_people.status, clients.client_reference
-      ORDER BY MIN(matches.search_rank),
-               CASE WHEN client_people.status = 'active' THEN 0 ELSE 1 END,
-               #{display_sql},
-               client_people.id
-      LIMIT #{FETCH_LIMIT}
-    SQL
-    ClientPerson.find_by_sql(sql)
+    union = relations.map(&:arel).reduce { |left, right| Arel::Nodes::UnionAll.new(left, right) }
+    ClientPerson
+      .from(Arel::Nodes::Grouping.new(union).as("matches"))
+      .joins("INNER JOIN client_people ON client_people.id = matches.person_id")
+      .joins("LEFT JOIN clients ON clients.client_person_id = client_people.id")
+      .select(
+        "client_people.id",
+        "client_people.first_name",
+        "client_people.preferred_name",
+        "client_people.last_name",
+        "client_people.status",
+        "clients.client_reference",
+        "MIN(matches.search_rank) AS search_rank"
+      )
+      .group(
+        "client_people.id",
+        "client_people.first_name",
+        "client_people.preferred_name",
+        "client_people.last_name",
+        "client_people.status",
+        "clients.client_reference"
+      )
+      .order(MATCH_ORDER)
+      .limit(FETCH_LIMIT)
+      .to_a
   end
 
   def ranked_branches
@@ -128,12 +150,10 @@ class SearchClientDirectory
   end
 
   def limited_branch(scope, rank)
-    display_sql = "coalesce(nullif(btrim(client_people.preferred_name), ''), client_people.first_name) || ' ' || client_people.last_name"
     scope
-      .reorder(Arel.sql("CASE WHEN client_people.status = 'active' THEN 0 ELSE 1 END, #{display_sql}, client_people.id"))
+      .reorder(BRANCH_ORDER)
       .limit(FETCH_LIMIT)
-      .select("client_people.id AS person_id, #{rank.to_i} AS search_rank")
-      .to_sql
+      .select("client_people.id AS person_id", RANK_SELECT.fetch(rank))
   end
 
   def to_result(person)
