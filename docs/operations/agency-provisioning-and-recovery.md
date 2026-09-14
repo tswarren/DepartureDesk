@@ -27,7 +27,7 @@ Required environment variables:
 | `AGENCY_ADMIN_EMAIL` | First administrator's Agency-scoped email. |
 | `AGENCY_ADMIN_FIRST_NAME` | First administrator's first name. |
 | `AGENCY_ADMIN_LAST_NAME` | First administrator's last name. |
-| `AGENCY_ADMIN_PASSWORD` | Initial password, 12–72 characters. Supply securely. |
+| `AGENCY_ADMIN_PASSWORD` | Initial password, 10–72 characters. Supply securely. |
 | `AGENCY_OPERATOR` | Nonblank system actor identifier recorded in the audit event. |
 
 Optional variables:

@@ -39,7 +39,7 @@ Invitation creates an `AgencyUser` in `invited` for that agency only. It never l
 
 Store only a token digest. Acceptance requires the current unexpired token, sets the password, moves the user to `active`, clears the digest, and bumps a credential version. Replacement and revocation apply only while the user is `invited`. Replacement issues a new digest and invalidates the previous token. Revocation closes the invited user, clears the digest, and rejects later acceptance.
 
-Password reset is agency-scoped, single-use, and hashed. Only an active agency user of an active agency may request or use it. A token issued before the agency is suspended or closed cannot be used. Every other state, including missing accounts, receives the same generic response and creates no token. A successful password change or reset bumps the credential version and destroys all sessions for that user.
+Passwords are 10–72 characters. Password reset is agency-scoped, single-use, and hashed. Only an active agency user of an active agency may request or use it. A token issued before the agency is suspended or closed cannot be used. Every other state, including missing accounts, receives the same generic response and creates no token. A successful password change or reset bumps the credential version and destroys all sessions for that user. An authenticated password change records `agency_user.password_changed`. Recovery records `agency_user.password_reset`.
 
 Sign-in and password-reset attempts are rate-limited to 10 per 3 minutes per client IP plus normalized workspace code plus normalized email. Missing workspace, unknown email, bad password, and inactive user or agency all return the same generic failure.
 
