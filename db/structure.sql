@@ -898,6 +898,7 @@ CASE
     WHEN (address_line_1 IS NULL) THEN NULL::text
     ELSE ((((((((((COALESCE(public.dd_search_normalize((address_line_1)::text), ''::text) || ''::text) || COALESCE(public.dd_search_normalize((address_line_2)::text), ''::text)) || ''::text) || COALESCE(public.dd_search_normalize((address_locality)::text), ''::text)) || ''::text) || COALESCE(public.dd_search_normalize((address_region)::text), ''::text)) || ''::text) || COALESCE(public.dd_search_normalize((address_postal_code)::text), ''::text)) || ''::text) || COALESCE(upper((address_country_code)::text), ''::text))
 END) STORED,
+    name_search_vector tsvector GENERATED ALWAYS AS (to_tsvector('simple'::regconfig, public.dd_search_normalize((name)::text))) STORED,
     CONSTRAINT supplier_locations_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_locations_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
     CONSTRAINT supplier_locations_no_unit_separator CHECK ((((address_line_1 IS NULL) OR (POSITION((''::text) IN (address_line_1)) = 0)) AND ((address_line_2 IS NULL) OR (POSITION((''::text) IN (address_line_2)) = 0)) AND ((address_locality IS NULL) OR (POSITION((''::text) IN (address_locality)) = 0)) AND ((address_region IS NULL) OR (POSITION((''::text) IN (address_region)) = 0)) AND ((address_postal_code IS NULL) OR (POSITION((''::text) IN (address_postal_code)) = 0)))),
@@ -2032,6 +2033,13 @@ CREATE UNIQUE INDEX index_supplier_locations_on_id_and_agency_id ON public.suppl
 
 
 --
+-- Name: index_supplier_locations_on_name_search_vector; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_locations_on_name_search_vector ON public.supplier_locations USING gin (name_search_vector);
+
+
+--
 -- Name: index_supplier_locations_on_supplier_and_agency; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2801,6 +2809,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260915120000'),
 ('20260915010000'),
 ('20260914200000'),
 ('20260914183000'),

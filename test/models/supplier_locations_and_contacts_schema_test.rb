@@ -55,6 +55,11 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
       migrate_to!(20260915010000)
       assert_equal M1D_TABLES, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
 
+      migrate_to!(20260915120000)
+      assert ActiveRecord::Base.connection.column_exists?(:supplier_locations, :name_search_vector)
+      indexes = ActiveRecord::Base.connection.indexes(:supplier_locations).map(&:name)
+      assert_includes indexes, "index_supplier_locations_on_name_search_vector"
+
       exclusions = ActiveRecord::Base.connection.select_values(<<~SQL)
         SELECT c.conname
         FROM pg_constraint c

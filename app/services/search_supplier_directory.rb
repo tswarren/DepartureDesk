@@ -263,19 +263,13 @@ class SearchSupplierDirectory
   end
 
   def location_prefix_name_branch
-    tokens = SearchNormalizer.tokens(@query)
-    return if tokens.empty?
+    return if prefix_tsquery.blank?
 
-    scope = location_scope
-    tokens.each do |token|
-      like = SupplierLocation.sanitize_sql_like(token)
-      scope = scope.where(
-        "supplier_locations.name_search_key LIKE ? OR supplier_locations.name_search_key LIKE ?",
-        "#{like}%",
-        "% #{like}%"
-      )
-    end
-    location_branch(scope, 5, match_kind: "name_prefix")
+    location_branch(
+      location_scope.where("supplier_locations.name_search_vector @@ to_tsquery('simple', ?)", prefix_tsquery),
+      5,
+      match_kind: "name_prefix"
+    )
   end
 
   def contact_prefix_name_branch
@@ -343,8 +337,7 @@ class SearchSupplierDirectory
   def location_branch(scope, rank, match_kind: MATCH_KINDS.fetch(rank))
     scope
       .joins("INNER JOIN suppliers ON suppliers.id = supplier_locations.supplier_id AND suppliers.agency_id = supplier_locations.agency_id")
-      .reorder(Arel.sql("CASE WHEN supplier_locations.status = 'active' THEN 0 ELSE 1 END, lower(supplier_locations.name), suppliers.kind, suppliers.supplier_reference, supplier_locations.id"))
-      .limit(FETCH_LIMIT)
+      .reorder(Arel.sql("CASE WHEN supplier_locations.status = 'active' THEN 0 ELSE 1 END, supplier_locations.name, suppliers.kind, suppliers.supplier_reference, supplier_locations.id"))
       .select(
         Arel.sql("'location' AS result_kind"),
         "supplier_locations.id AS record_id",
@@ -364,8 +357,7 @@ class SearchSupplierDirectory
 
     scope
       .joins("INNER JOIN suppliers ON suppliers.id = supplier_contacts.supplier_id AND suppliers.agency_id = supplier_contacts.agency_id")
-      .reorder(Arel.sql("CASE WHEN supplier_contacts.status = 'active' THEN 0 ELSE 1 END, lower(supplier_contacts.last_name), lower(supplier_contacts.first_name), suppliers.kind, suppliers.supplier_reference, supplier_contacts.id"))
-      .limit(FETCH_LIMIT)
+      .reorder(Arel.sql("CASE WHEN supplier_contacts.status = 'active' THEN 0 ELSE 1 END, supplier_contacts.first_name || ' ' || supplier_contacts.last_name, suppliers.kind, suppliers.supplier_reference, supplier_contacts.id"))
       .select(
         Arel.sql("'contact' AS result_kind"),
         "supplier_contacts.id AS record_id",

@@ -596,6 +596,213 @@ class SupplierLocationsAndContactsTest < ActiveSupport::TestCase
     assert_equal :conflict, contact_error.code
   end
 
+  test "contact destination status requires lock_version for missing stale change and stale no-op" do
+    supplier = create_supplier(display_name: "Destination Lock Host", categories: [ "air" ]).record
+    contact = create_contact(supplier, first_name: "Lock", last_name: "Contact").record
+    email = CreateSupplierContactEmailAddress.new(
+      agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+      attributes: { address: "lock-email@example.com" }
+    ).call.record
+    phone = CreateSupplierContactPhoneNumber.new(
+      agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+      attributes: { number: "202-555-0188", country_code: "US" }
+    ).call.record
+
+    {
+      email => ChangeSupplierContactEmailAddressStatus,
+      phone => ChangeSupplierContactPhoneNumberStatus
+    }.each do |point, command|
+      missing = assert_raises(AgencyCommand::Error) do
+        command.new(
+          agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+          record: point, status: "inactive", lock_version: nil
+        ).call
+      end
+      assert_equal :conflict, missing.code
+      assert_equal "active", point.reload.status
+
+      stale_change = assert_raises(AgencyCommand::Error) do
+        command.new(
+          agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+          record: point, status: "inactive", lock_version: point.lock_version - 1
+        ).call
+      end
+      assert_equal :conflict, stale_change.code
+      assert_equal "active", point.reload.status
+
+      command.new(
+        agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+        record: point, status: "inactive", lock_version: point.lock_version
+      ).call
+
+      stale_noop = assert_raises(AgencyCommand::Error) do
+        command.new(
+          agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+          record: point.reload, status: "inactive", lock_version: 0
+        ).call
+      end
+      assert_equal :conflict, stale_noop.code
+
+      noop = command.new(
+        agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+        record: point.reload, status: "inactive", lock_version: point.lock_version
+      ).call
+      assert_equal :noop, noop.status
+    end
+  end
+
+  test "contact prefix search keeps early final-order contacts beyond fifty-one branch matches" do
+    supplier = create_supplier(display_name: "Prefix Cap Host", categories: [ "tour_operator_dmc" ]).record
+    early = create_contact(supplier, first_name: "Aaa", last_name: "Zzz").record
+    51.times do |index|
+      create_contact(supplier, first_name: "Zzz", last_name: format("%03d", index))
+    end
+
+    result = SearchSupplierDirectory.call(agency: @agency, actor: @admin, query: "Aaa")
+    contact_ids = result.records.select { |row| row.result_kind == "contact" }.map(&:id)
+    assert_includes contact_ids, early.id
+    assert_equal early.id, contact_ids.first
+  end
+
+  test "location prefix search uses the name search vector index" do
+    create_location(
+      create_supplier(display_name: "Vector Host", categories: [ "lodging" ]).record,
+      name: "Indexed Port Desk"
+    )
+    assert_search_index(
+      SupplierLocation.where(agency_id: @agency.id).where(
+        "name_search_vector @@ to_tsquery('simple', ?)",
+        "'indexed':*"
+      ),
+      /index_supplier_locations_on_name_search_vector|name_search_vector/
+    )
+  end
+
+  test "parallel preferred contact changes leave one preferred and reject a stale version" do
+    supplier = create_supplier(display_name: "Preferred Race Host", categories: [ "air" ]).record
+    first = create_contact(supplier, first_name: "First", last_name: "Preferred").record
+    second = create_contact(supplier, first_name: "Second", last_name: "Preferred").record
+
+    SetPreferredSupplierContact.new(
+      agency: @agency, actor: @admin, supplier: supplier, supplier_contact: first,
+      preferred: true, lock_version: first.lock_version
+    ).call
+
+    SetPreferredSupplierContact.new(
+      agency: @agency, actor: @admin, supplier: supplier, supplier_contact: second.reload,
+      preferred: true, lock_version: second.lock_version
+    ).call
+
+    assert second.reload.preferred?
+    assert_not first.reload.preferred?
+
+    stale = assert_raises(AgencyCommand::Error) do
+      SetPreferredSupplierContact.new(
+        agency: @agency, actor: @admin, supplier: supplier, supplier_contact: first.reload,
+        preferred: true, lock_version: 0
+      ).call
+    end
+    assert_equal :conflict, stale.code
+    assert second.reload.preferred?
+    assert_not first.reload.preferred?
+  end
+
+  test "contact inactivation racing destination reactivation rejects a stale destination version" do
+    supplier = create_supplier(display_name: "Race Cascade Host", categories: [ "air" ]).record
+    contact = create_contact(supplier, first_name: "Race", last_name: "Contact").record
+    email = CreateSupplierContactEmailAddress.new(
+      agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+      attributes: { address: "race@example.com", preferred: true }
+    ).call.record
+    stale_version = email.lock_version
+
+    ChangeSupplierContactStatus.new(
+      agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+      status: "inactive", lock_version: contact.lock_version
+    ).call
+
+    conflict = assert_raises(AgencyCommand::Error) do
+      ChangeSupplierContactEmailAddressStatus.new(
+        agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact.reload,
+        record: email.reload, status: "active", lock_version: stale_version
+      ).call
+    end
+    assert_equal :conflict, conflict.code
+    assert_equal "inactive", email.reload.status
+    assert_equal "inactive", contact.reload.status
+  end
+
+  test "supplier inactivation racing child mutation rejects a stale contact lock_version" do
+    supplier = create_supplier(display_name: "Inactivation Race Host", categories: [ "air" ]).record
+    contact = create_contact(supplier, first_name: "Mutable", last_name: "Contact").record
+    stale_contact_version = contact.lock_version
+    supplier_lock = supplier.lock_version
+
+    ChangeSupplierStatus.new(
+      agency: @agency, actor: @admin, supplier: supplier, status: "inactive", lock_version: supplier_lock
+    ).call
+
+    conflict = assert_raises(AgencyCommand::Error) do
+      UpdateSupplierContact.new(
+        agency: @agency, actor: @admin, supplier: supplier.reload, supplier_contact: contact.reload,
+        attributes: { first_name: "Mutable", last_name: "Changed" },
+        lock_version: stale_contact_version
+      ).call
+    end
+    assert_equal :conflict, conflict.code
+
+    stale_supplier = assert_raises(AgencyCommand::Error) do
+      ChangeSupplierStatus.new(
+        agency: @agency, actor: @admin, supplier: supplier.reload, status: "active", lock_version: supplier_lock
+      ).call
+    end
+    assert_equal :conflict, stale_supplier.code
+    assert_equal "inactive", supplier.reload.status
+    assert_equal "inactive", contact.reload.status
+  end
+
+  test "cascade failure rolls back supplier locations contacts and destinations" do
+    supplier = create_supplier(display_name: "Rollback Host", categories: [ "cruise_line" ]).record
+    location = create_location(supplier, name: "Rollback Pier").record
+    contact = create_contact(supplier, first_name: "Rollback", last_name: "Contact").record
+    SetPreferredSupplierContact.new(
+      agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+      preferred: true, lock_version: contact.lock_version
+    ).call
+    contact.reload
+    email = CreateSupplierContactEmailAddress.new(
+      agency: @agency, actor: @admin, supplier: supplier, supplier_contact: contact,
+      attributes: { address: "rollback@example.com", preferred: true }
+    ).call.record
+    supplier_email = CreateSupplierEmailAddress.new(
+      agency: @agency, actor: @admin, supplier: supplier,
+      attributes: { address: "supplier-rollback@example.com", preferred: true }
+    ).call.record
+
+    original = SupplierLocation.instance_method(:update!)
+    SupplierLocation.define_method(:update!) do |*args, **kwargs, &block|
+      raise ActiveRecord::StatementInvalid, "forced cascade failure"
+    end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      ChangeSupplierStatus.new(
+        agency: @agency, actor: @admin, supplier: supplier, status: "inactive",
+        lock_version: supplier.lock_version
+      ).call
+    end
+
+    assert_equal "active", supplier.reload.status
+    assert_equal "active", location.reload.status
+    assert_equal "active", contact.reload.status
+    assert contact.preferred?
+    assert_equal "active", email.reload.status
+    assert email.preferred?
+    assert_equal "active", supplier_email.reload.status
+    assert supplier_email.preferred?
+  ensure
+    SupplierLocation.define_method(:update!, original) if original
+  end
+
   private
 
   def create_supplier(
@@ -655,5 +862,17 @@ class SupplierLocationsAndContactsTest < ActiveSupport::TestCase
   def assert_raises_with_code(code, &block)
     error = assert_raises(AgencyCommand::Error, &block)
     assert_equal code, error.code
+  end
+
+  def assert_search_index(relation, index_matcher)
+    plan = nil
+    ActiveRecord::Base.transaction do
+      ActiveRecord::Base.connection.execute("SET LOCAL enable_seqscan = off")
+      plan = relation.explain.inspect
+      raise ActiveRecord::Rollback
+    end
+
+    assert_match(/Index Scan|Bitmap Index Scan|Bitmap Heap Scan/, plan)
+    assert_match(index_matcher, plan)
   end
 end

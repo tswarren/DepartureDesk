@@ -7,11 +7,12 @@ class ChangeSupplierContactEmailAddressStatus < SupplierContactDestinationComman
       @agency.lock!
       supplier = locked_supplier
       contact = locked_contact(supplier)
+      point = locked_channel_row(contact.email_addresses, @record)
+      require_matching_lock_version!(point)
+      return Result.new(status: :noop, record: point) if point.status == @status
+
       raise Error.new("That supplier is not active.", code: :invalid_state) if @status == "active" && supplier.inactive?
       raise Error.new("That supplier contact is not active.", code: :invalid_state) if @status == "active" && contact.inactive?
-      point = locked_channel_row(contact.email_addresses, @record)
-      require_matching_lock_version!(point) if point.status == @status
-      return Result.new(status: :noop, record: point) if point.status == @status
 
       point.lock_version = @lock_version
       point.update!(status: @status, preferred: @status == "active" ? point.preferred : false)
