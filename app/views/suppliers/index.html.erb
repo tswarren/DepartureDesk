@@ -1,0 +1,69 @@
+<% content_for :title, "Suppliers · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Suppliers</p>
+    <h1 class="dd-page-title">Suppliers</h1>
+    <p class="dd-page-description">Search contracting identities available for future supplier arrangements.</p>
+  </div>
+  <% if Current.agency_user.permitted?(:manage_supplier_directory) %>
+    <div class="dd-page-actions">
+      <%= link_to "New Supplier", new_supplier_path, class: "dd-button" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: suppliers_path, method: :get, class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :q, "Search", class: "dd-label" %>
+        <%= form.search_field :q, value: params[:q], maxlength: 100, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :kind, "Kind", class: "dd-label" %>
+        <%= form.select :kind, [ [ "All", "all" ], [ "Organizations", "organization" ], [ "Individuals", "individual" ] ], { selected: @kind }, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :category, "Category", class: "dd-label" %>
+        <%= form.select :category, [ [ "All", "all" ] ] + SupplierCategory::CODES.map { |code| [ SupplierCategory::LABELS.fetch(code), code ] }, { selected: @category }, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :status, "Status", class: "dd-label" %>
+        <%= form.select :status, [ [ "Active", "active" ], [ "Inactive", "inactive" ], [ "Active and inactive", "all" ] ], { selected: @status }, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Apply", class: "dd-button" %>
+        <%= link_to "Reset", suppliers_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<% if @search %>
+  <p><%= @search.truncated ? "Showing the first 50 suppliers matched. Narrow the #{params[:q].present? ? "search" : "filters"} to see the rest." : "#{pluralize(@search.records.size, "supplier")} matched." %></p>
+  <article class="dd-panel">
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Reference</th>
+          <th>Kind</th>
+          <th>Categories</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @search.records.each do |record| %>
+          <tr>
+            <td><%= link_to record.display_name, supplier_path(record.id) %></td>
+            <td class="dd-type-mono"><%= record.supplier_reference %></td>
+            <td><%= record.supplier_kind.titleize %></td>
+            <td><%= Array(record.category_codes).map { |code| SupplierCategory::LABELS.fetch(code) }.to_sentence.presence || "—" %></td>
+            <td><%= directory_status_badge(record.status) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </article>
+<% end %>

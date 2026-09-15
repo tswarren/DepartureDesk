@@ -28,6 +28,12 @@
         <span>Clients</span>
       <% end %>
     <% end %>
+    <% if Current.agency_user&.permitted?(:view_supplier_directory) %>
+      <%= link_to suppliers_path, class: "dd-sidebar-item", aria: { current: primary_nav_current_for(:suppliers) } do %>
+        <%= icon_tag "briefcase" %>
+        <span>Suppliers</span>
+      <% end %>
+    <% end %>
   </nav>
 
   <div class="dd-sidebar-footer">

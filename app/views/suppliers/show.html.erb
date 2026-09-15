@@ -1,0 +1,75 @@
+<% content_for :title, "#{@supplier.display_name_for_directory} · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_supplier_directory) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Suppliers</p>
+    <h1 class="dd-page-title"><%= @supplier.display_name_for_directory %></h1>
+    <p class="dd-page-description"><span class="dd-type-mono"><%= @supplier.supplier_reference %></span></p>
+  </div>
+  <% if manage %>
+    <div class="dd-page-actions">
+      <%= link_to "Edit supplier", edit_supplier_path(@supplier), class: "dd-button" %>
+      <%= link_to "Edit categories", categories_edit_supplier_path(@supplier), class: "dd-button dd-button--quiet" %>
+      <%= link_to "Change status", status_edit_supplier_path(@supplier), class: "dd-button dd-button--quiet" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Status</dt>
+        <dd><%= directory_status_badge(@supplier.status) %></dd>
+      </div>
+      <div>
+        <dt>Kind</dt>
+        <dd><%= @supplier.kind.titleize %></dd>
+      </div>
+      <div>
+        <dt>Reference</dt>
+        <dd class="dd-type-mono"><%= @supplier.supplier_reference %></dd>
+      </div>
+      <% if @supplier.organization? %>
+        <div>
+          <dt>Display name</dt>
+          <dd><%= @supplier.display_name %></dd>
+        </div>
+        <div>
+          <dt>Legal name</dt>
+          <dd><%= @supplier.legal_name.presence || "—" %></dd>
+        </div>
+      <% else %>
+        <div>
+          <dt>First name</dt>
+          <dd><%= @supplier.first_name %></dd>
+        </div>
+        <div>
+          <dt>Last name</dt>
+          <dd><%= @supplier.last_name %></dd>
+        </div>
+      <% end %>
+      <div>
+        <dt>Doing business as</dt>
+        <dd><%= @supplier.doing_business_as.presence || "—" %></dd>
+      </div>
+      <div>
+        <dt>Categories</dt>
+        <dd>
+          <%= @category_assignments.map { |assignment|
+                label = SupplierCategory::LABELS.fetch(assignment.category_code)
+                assignment.other_label.present? ? "#{label}: #{assignment.other_label}" : label
+              }.to_sentence %>
+        </dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<% if Current.agency_user.permitted?(:view_supplier_contact_details) %>
+  <%= render "contact_channel", heading: "Email addresses", records: @email_addresses, new_path: new_supplier_email_address_path(@supplier) %>
+  <%= render "contact_channel", heading: "Phone numbers", records: @phone_numbers, new_path: new_supplier_phone_number_path(@supplier) %>
+  <%= render "contact_channel", heading: "Postal addresses", records: @postal_addresses, new_path: new_supplier_postal_address_path(@supplier) %>
+  <%= render "contact_channel", heading: "Websites", records: @websites, new_path: new_supplier_website_path(@supplier) %>
+<% end %>

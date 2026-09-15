@@ -1,0 +1,18 @@
+<% if object.errors.any? %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-turbo-focus>
+    <p class="dd-alert-title">Please fix the following:</p>
+    <ul class="dd-error-list">
+      <% object.errors.each do |error| %>
+        <% attribute = error.attribute %>
+        <% field_id = attribute == :base ? nil : "#{object.model_name.param_key}_#{attribute}" %>
+        <li>
+          <% if field_id %>
+            <%= link_to error.full_message, "##{field_id}" %>
+          <% else %>
+            <%= error.full_message %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>

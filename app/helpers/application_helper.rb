@@ -39,9 +39,17 @@ module ApplicationHelper
     case record
     when ClientPersonEmailAddress then record.address
     when ClientOrganizationEmailAddress then record.address
+    when SupplierEmailAddress then record.address
     when ClientPersonPhoneNumber
       record.formatted_number(viewer_country: Current.agency&.country_code)
     when ClientOrganizationPhoneNumber
+      PhoneNumberNormalizer.display(
+        normalized_number: record.normalized_number,
+        country_code: record.country_code,
+        extension: record.extension,
+        viewer_country: Current.agency&.country_code
+      )
+    when SupplierPhoneNumber
       PhoneNumberNormalizer.display(
         normalized_number: record.normalized_number,
         country_code: record.country_code,
@@ -52,7 +60,11 @@ module ApplicationHelper
       [ record.line_1, record.line_2, record.locality, record.region, record.postal_code, record.country_code ].compact_blank.join(", ")
     when ClientOrganizationPostalAddress
       [ record.line_1, record.line_2, record.locality, record.region, record.postal_code, record.country_code ].compact_blank.join(", ")
+    when SupplierPostalAddress
+      [ record.line_1, record.line_2, record.locality, record.region, record.postal_code, record.country_code ].compact_blank.join(", ")
     when ClientOrganizationWebsite
+      record.url
+    when SupplierWebsite
       record.url
     end
   end
@@ -132,8 +144,50 @@ module ApplicationHelper
     end
   end
 
+  def supplier_contact_form_url(supplier, record)
+    case record
+    when SupplierEmailAddress
+      record.persisted? ? supplier_email_address_path(supplier, record) : supplier_email_addresses_path(supplier)
+    when SupplierPhoneNumber
+      record.persisted? ? supplier_phone_number_path(supplier, record) : supplier_phone_numbers_path(supplier)
+    when SupplierPostalAddress
+      record.persisted? ? supplier_postal_address_path(supplier, record) : supplier_postal_addresses_path(supplier)
+    when SupplierWebsite
+      record.persisted? ? supplier_website_path(supplier, record) : supplier_websites_path(supplier)
+    end
+  end
+
+  def supplier_contact_edit_path(record)
+    case record
+    when SupplierEmailAddress then edit_supplier_email_address_path(record.supplier_id, record)
+    when SupplierPhoneNumber then edit_supplier_phone_number_path(record.supplier_id, record)
+    when SupplierPostalAddress then edit_supplier_postal_address_path(record.supplier_id, record)
+    when SupplierWebsite then edit_supplier_website_path(record.supplier_id, record)
+    end
+  end
+
+  def supplier_contact_set_primary_path(record)
+    case record
+    when SupplierEmailAddress then set_primary_supplier_email_address_path(record.supplier_id, record)
+    when SupplierPhoneNumber then set_primary_supplier_phone_number_path(record.supplier_id, record)
+    when SupplierPostalAddress then set_primary_supplier_postal_address_path(record.supplier_id, record)
+    when SupplierWebsite then set_primary_supplier_website_path(record.supplier_id, record)
+    end
+  end
+
+  def supplier_contact_status_path(record)
+    case record
+    when SupplierEmailAddress then status_edit_supplier_email_address_path(record.supplier_id, record)
+    when SupplierPhoneNumber then status_edit_supplier_phone_number_path(record.supplier_id, record)
+    when SupplierPostalAddress then status_edit_supplier_postal_address_path(record.supplier_id, record)
+    when SupplierWebsite then status_edit_supplier_website_path(record.supplier_id, record)
+    end
+  end
+
   def duplicate_candidate_path(candidate)
-    if candidate.class.name.include?("Organization")
+    if candidate.class.name.include?("Supplier") || (candidate.respond_to?(:id) && candidate.class.name == "FindSupplierDuplicates::Candidate")
+      supplier_path(candidate.id)
+    elsif candidate.class.name.include?("Organization")
       client_organization_path(candidate.id)
     else
       client_person_path(candidate.id)
@@ -191,5 +245,25 @@ module ApplicationHelper
 
   def empty_state_classes(family: :inline)
     [ "dd-empty-state", "dd-empty-state--#{family}" ]
+  end
+
+  def dd_field_options(form, attribute, **options)
+    object = form.object
+    field_id = "#{object.model_name.param_key}_#{attribute}"
+    error_id = "#{field_id}_error"
+    described_by = [ options.delete(:aria_describedby_extra), (error_id if object.errors[attribute].any?) ].compact.join(" ").presence
+
+    options[:class] = [ options[:class], "dd-field" ].compact.join(" ")
+    options[:aria] = (options[:aria] || {}).merge(
+      invalid: (object.errors[attribute].any? || nil),
+      describedby: described_by
+    ).compact
+    options
+  end
+
+  def dd_field_error(form, attribute)
+    return unless form.object.errors[attribute].any?
+
+    tag.p(form.object.errors[attribute].to_sentence, class: "dd-field-error", id: "#{form.object.model_name.param_key}_#{attribute}_error")
   end
 end

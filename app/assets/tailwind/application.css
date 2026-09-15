@@ -1521,6 +1521,21 @@
     font-weight: 600;
   }
 
+  .dd-alert-title {
+    margin: 0 0 0.35rem;
+  }
+
+  .dd-error-list {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-weight: 500;
+  }
+
+  .dd-error-list a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
   .dd-alert--danger {
     border-color: #e2aaa5;
     background: var(--dd-danger-surface);

@@ -11,6 +11,12 @@ class Agency < ApplicationRecord
   has_many :client_organizations, dependent: :restrict_with_exception
   has_many :clients, dependent: :restrict_with_exception
   has_many :client_organization_contacts, dependent: :restrict_with_exception
+  has_many :suppliers, dependent: :restrict_with_exception
+  has_many :supplier_category_assignments, dependent: :restrict_with_exception
+  has_many :supplier_email_addresses, dependent: :restrict_with_exception
+  has_many :supplier_phone_numbers, dependent: :restrict_with_exception
+  has_many :supplier_postal_addresses, dependent: :restrict_with_exception
+  has_many :supplier_websites, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true

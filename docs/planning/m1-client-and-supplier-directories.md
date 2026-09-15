@@ -2,9 +2,11 @@
 
 **Status:** Accepted milestone contract. It is not implementation authority for a slice until that slice plan is accepted.
 
-**Decision posture:** Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. [M1A](m1a-individual-client.md) is implemented and merged. [M1B](m1b-client-organizations.md) is implemented on this branch and ships when merged. M1C–M1E remain deferred.
+**Decision posture:** Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. [M1A](m1a-individual-client.md) and [M1B](m1b-client-organizations.md) are shipped and merged. [M1C](m1c-supplier-core.md) is implemented on this branch and ships when merged. M1D–M1E remain deferred.
 
-**M1A amendments (2026-09-14):** After M1A acceptance, product review requested two changes. They supersede the original sentences they touch and are recorded as amendments in the slice plan, not as text that was always in this contract. A Client Person phone country is required and must match the selected country. The individual-Client people list may `POST .../set_primary` with `lock_version`; that is not a `/preferred` route, and the rest of this contract still does not add one.
+**M1A amendments (2026-09-14):** After M1A acceptance, product review requested two changes. They supersede the original sentences they touch and are recorded as amendments in the slice plan, not as text that was always in this contract. A Client Person phone country is required and must match the selected country. The individual-Client people list may `POST .../set_primary` with `lock_version`; that is not a `/preferred` route.
+
+**M1C amendments (2026-09-14):** After M1C acceptance review, product confirmed: at least one Supplier category is required on create and replacement rejects an empty set; `other_label` is trimmed and at most 80 characters; Supplier `kind` remains permanently immutable; inactive Suppliers may receive identity and category corrections while create/reactivate of contact destinations stays gated on an active Supplier; and Supplier contact-point lists may `POST .../set_primary` with `lock_version`, matching the Client Person and Client Organization list pattern. That action is not a `/preferred` route. Client Organization contact-point lists already ship the same `set_primary` pattern from M1B.
 
 **Prerequisites:** [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [MVP requirements](departure-desk-mvp.md), [current architecture](../architecture/current-state.md), and [interface contract](../ui/interface-contract.md)
 
@@ -157,9 +159,9 @@ Supplier uses one table with constrained `kind` values `organization` and `indiv
 | `organization` | `display_name` | `legal_name`, `doing_business_as` |
 | `individual` | `first_name`, `last_name` | `doing_business_as` |
 
-Organization rows must not store individual-name fields. Individual rows must not store organization display/legal-name fields. UI display uses `doing_business_as` when present, otherwise organization `display_name` or the individual's full name. Every stored name is independently searchable where applicable.
+Organization rows must not store individual-name fields. Individual rows must not store organization display/legal-name fields. Individual Suppliers do not store middle name or suffix. UI display uses `doing_business_as` when present, otherwise organization `display_name` or the individual's first and last name. Every stored name is independently searchable where applicable. Kind is permanently immutable; wrong-kind correction requires a new Supplier.
 
-Websites are optional contact points for either kind, not a column on the Supplier. `SUP-000001` is issued at successful Supplier creation under the same rules as Client references. M1 stores no contracts, settlement instructions, tax IDs, credentials, or bank data.
+Websites are optional contact points for either kind, not a column on the Supplier. `SUP-000001` is issued at successful Supplier creation under the same rules as Client references. M1 stores no contracts, settlement instructions, tax IDs, credentials, or bank data. Inactive Suppliers may receive identity and category corrections. Contact destinations may be created or reactivated only while the Supplier is active.
 
 ### Categories
 
@@ -177,7 +179,7 @@ M1 uses an application-owned, fixed multi-select catalog, not Agency-configurabl
 | `insurance` | Travel insurance |
 | `other` | Other |
 
-`other` requires one concise assignment label. A Supplier may have at most one assignment for each catalog code. Categories support display, search, and filtering only; they determine no price, capacity, contract, or fulfillment behavior. Adding a future system category requires an application change and migration-safe catalog update, not tenant configuration.
+`other` requires one concise assignment label: trimmed, nonblank, and at most 80 characters. A Supplier may have at most one assignment for each catalog code. Create requires at least one category; replacing categories rejects an empty set. Categories support display, search, and filtering only; they determine no price, capacity, contract, or fulfillment behavior. Adding a future system category requires an application change and migration-safe catalog update, not tenant configuration. Categories remain assigned when the Supplier is inactive. Category replacement is permitted while inactive and does not trigger duplicate review.
 
 ### Supplier Location
 
@@ -244,7 +246,7 @@ Effective-dated assignment rows use inclusive Agency-local `starts_on` and optio
 | `suppliers` | `kind`, `supplier_reference`, kind-appropriate names | `legal_name`, `doing_business_as`; database name-shape check. No `office_id` or website column. |
 | `supplier_locations` | `supplier_id`, `name` | IANA timezone, postal fields, location phone number/E.164/extension/country; same-Agency Supplier FK. No contact-point collection. |
 | `supplier_contacts` | `supplier_id`, first/last name, `preferred` | Title, department, role label; same-Agency Supplier FK; at most one active preferred Contact per Supplier. |
-| `supplier_category_assignments` | Supplier ID, category code | Unique pair; `other_label` required only for `other`. Categories remain assigned when the Supplier is inactivated. |
+| `supplier_category_assignments` | Supplier ID, category code | Unique pair; at least one category required on create/replace; `other_label` required only for `other`, trimmed, max 80 characters. Categories remain assigned when the Supplier is inactivated. |
 | `reference_sequences` | namespace, `next_value` | Unique Agency/namespace; `next_value` is the next unissued positive integer, starting at 1; namespaces `client`, `supplier`. |
 
 ### Contact-point tables
@@ -332,7 +334,7 @@ Activation proceeds from parent to dependent records. Deactivation either blocks
 | Client | Source must be active to create or reactivate. An inactive source returns `dependency_exists`. Later Client Trips, Charges, and financial records add blockers. Reactivating the source does not reactivate the Client. |
 | Client Organization | Inactivation is blocked by an active Client. Successful inactivation ends current contact assignments and inactivates owned contact points atomically. Reactivation restores neither assignments, contact points, nor the Client. |
 | Organization contact assignment | Ending is idempotent and sets `ends_on` to the Agency-local business date. Ending the primary assignment leaves the organization with no primary unless another current assignment is explicitly selected in the same command. |
-| Supplier | Later Arrangements and Obligations add blockers. In M1, successful inactivation atomically inactivates Locations, Contacts, Supplier-owned email, phone, postal, and website destinations, and every Contact-owned email and phone destination, and clears all affected preferred flags. Categories remain assigned. Any failure rolls back the entire transition. Reactivation restores only the Supplier. |
+| Supplier | Later Arrangements and Obligations add blockers. In M1, successful inactivation atomically inactivates Locations, Contacts, Supplier-owned email, phone, postal, and website destinations, and every Contact-owned email and phone destination, and clears all affected preferred flags. Categories remain assigned. Any failure rolls back the entire transition. Reactivation restores only the Supplier. Identity and category corrections are allowed while inactive. |
 | Supplier Location/Contact | Supplier must be active to create or reactivate. Contact inactivation also inactivates its owned contact points and clears their preferred flags. Reactivation does not restore those points. |
 | Contact point | Owner must be active to create or reactivate. Inactivation clears preferred atomically. |
 
@@ -372,7 +374,7 @@ Commands start from `Current.agency`, require an active Agency and named permiss
 | Change status | Enforce dependency/effect table; already at target is a no-op without another audit. |
 | Manage contact point | Lock owner/channel rows; create, update, inactivate, reactivate, or set preferred atomically. |
 | Manage organization contacts | Add/end assignment and explicitly select an optional primary. An existing current pair returns `already_exists`. An overlapping historical period returns `invalid`. Creating a person-only contact uses person duplicate review and does not create a Client. |
-| Replace categories | Replace submitted set under Supplier lock; same set is a no-op. |
+| Replace categories | Replace submitted set under Supplier lock; empty set is rejected; same set is a no-op. |
 | Issue reference | Lock the sequence row and assign in the creation transaction. An existing reference, including an idempotent replay, consumes no number. |
 
 `CreateIndividualClient` and `CreateOrganizationClient` lock the Agency, validate any signed duplicate-acknowledgement token, normalize the proposed source, recompute source duplicates, require a valid acknowledgement when candidates exist, then create the source, create its Client, issue the reference, and write all required audit events. Source creation, Client creation, reference issuance, and audit events commit atomically. The source and Client must not exist before duplicate review succeeds. A duplicate override may record source-created, Client-created, and duplicate-override events.
@@ -431,7 +433,7 @@ Duplicate detection runs on create and material identity/contact changes within 
 | --- | --- | --- |
 | Client Person | Exact normalized email, or same E.164 base number and extension | Exact normalized full name plus matching postal code; exact full name alone; same base number with a different or blank extension |
 | Client Organization | Exact normalized email, or same E.164 base number and extension | Exact display/legal name; name plus matching locality/postal code; same website hostname; same base number with a different or blank extension |
-| Supplier | Exact normalized email, same E.164 base number and extension, or exact legal name | Exact display/DBA name; name plus matching locality/postal code; same website hostname; same base number with a different or blank extension |
+| Supplier | Exact normalized email; same E.164 base number and extension; exact organization legal name (organization kind only) | Exact display name or DBA; exact individual full name as normalized first + last (individual kind only; no middle or suffix); name plus matching locality or postal code (postal alone is never a signal); same website hostname; same base number with a different or blank extension |
 | Location within one Supplier | Exact normalized postal address | Exact name plus matching locality |
 | Contact within one Supplier | Exact normalized email, or same E.164 base number and extension | Exact normalized full name; same base number with a different or blank extension |
 
@@ -573,7 +575,7 @@ Channels are `email-addresses`, `phone-numbers`, `postal-addresses`, and `websit
 - Supplier: those three plus `websites` under `/suppliers/:supplier_id`
 - Supplier Contact: `email-addresses` and `phone-numbers` under `/suppliers/:supplier_id/contacts/:supplier_contact_id`
 
-Example: `GET /suppliers/:supplier_id/contacts/:supplier_contact_id/phone-numbers/:contact_point_id/edit`. Organization and Supplier website routes replace the single optional website column with this same contact-point lifecycle. Do not add a contact-point `/preferred` route beyond this structure. The M1A amendment adds `POST .../set_primary` only for individual-Client contact points.
+Example: `GET /suppliers/:supplier_id/contacts/:supplier_contact_id/phone-numbers/:contact_point_id/edit`. Organization and Supplier website routes replace the single optional website column with this same contact-point lifecycle. Do not add a contact-point `/preferred` route beyond this structure. Amendments authorize `POST .../set_primary` with `lock_version` for Client Person, Client Organization, and Supplier contact-point lists. That action is not a `/preferred` route; preferred may also change through the ordinary edit PATCH.
 
 ## Accessibility and states
 
