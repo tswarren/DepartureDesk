@@ -7,18 +7,24 @@ class UpdateSupplierPhoneNumber < SupplierContactPointCommand
       @agency.lock!
       supplier = locked_supplier
       point = locked_channel_row(supplier.phone_numbers, @record)
-      point.lock_version = @lock_version
+      require_matching_lock_version!(point)
+
       phone = PhoneNumberNormalizer.call(number: @attributes[:number], extension: @attributes[:extension], country_code: @attributes[:country_code])
+      label = @attributes[:label].to_s.strip.presence
       preferred = ActiveModel::Type::Boolean.new.cast(@attributes[:preferred])
-      identity_unchanged = point.normalized_number == phone.normalized_number &&
-        point.extension.to_s == phone.extension.to_s &&
-        point.country_code == phone.country_code &&
-        point.label == @attributes[:label].presence
-      require_matching_lock_version!(point) if identity_unchanged && point.preferred? == preferred
-      return Result.new(status: :noop, record: point) if identity_unchanged && point.preferred? == preferred
+      changed = contact_changed_fields(
+        point,
+        number: phone.number,
+        normalized_number: phone.normalized_number,
+        extension: phone.extension,
+        country_code: phone.country_code,
+        label: label,
+        preferred: preferred
+      )
+      return Result.new(status: :noop, record: point) if changed.empty?
 
       decision = nil
-      unless identity_unchanged
+      if changed.intersect?(%w[number extension country_code label])
         fingerprint = DuplicateAcknowledgement.fingerprint("number" => phone.normalized_number, "extension" => phone.extension.to_s)
         decision = DirectoryDuplicateGate.new(
           agency: @agency, actor: @actor, command: COMMAND, token: @acknowledgement_token,
@@ -27,10 +33,16 @@ class UpdateSupplierPhoneNumber < SupplierContactPointCommand
         ).call { FindSupplierDuplicates.call(agency: @agency, actor: @actor, kind: supplier.kind, names: {}, phones: [ phone ], exclude_supplier_id: supplier.id) }
         return decision if decision.is_a?(Result)
 
-        point.update!(number: phone.number, normalized_number: phone.normalized_number, extension: phone.extension, country_code: phone.country_code, label: @attributes[:label])
+        point.update!(
+          number: phone.number,
+          normalized_number: phone.normalized_number,
+          extension: phone.extension,
+          country_code: phone.country_code,
+          label: label
+        )
       end
-      apply_preferred!(supplier.phone_numbers, point, preferred, lock_version: identity_unchanged ? @lock_version : nil)
-      audit_contact!(supplier, record: point, changed_fields: [ "phone_number" ])
+      apply_preferred!(supplier.phone_numbers, point, preferred) if changed.include?("preferred")
+      audit_contact!(supplier, record: point.reload, changed_fields: changed)
       audit_override!(supplier, decision) if decision
       Result.new(status: :updated, record: point)
     end

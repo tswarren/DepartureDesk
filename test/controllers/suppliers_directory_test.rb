@@ -130,6 +130,51 @@ class SuppliersDirectoryTest < ActionDispatch::IntegrationTest
     assert_equal "Expedition partner", supplier.category_assignments.find_by!(category_code: "other").other_label
   end
 
+  test "invalid category submission renders an associated error summary" do
+    supplier = create_supplier("Invalid Categories Supplier")
+
+    sign_in_as @admin
+    patch categories_supplier_path(supplier), params: {
+      lock_version: supplier.lock_version,
+      supplier: { category_codes: [] }
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "#form-error-summary", text: /Choose at least one supplier category/
+    assert_equal [ "air" ], supplier.reload.category_assignments.pluck(:category_code)
+  end
+
+  test "invalid contact destination renders an associated error summary" do
+    supplier = create_supplier("Invalid Contact Supplier")
+
+    sign_in_as @admin
+    post supplier_websites_path(supplier), params: {
+      supplier_website: { url: "not a website", label: "" }
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "#form-error-summary"
+    assert_select "input[name='supplier_website[url]'][aria-invalid=true]"
+    assert_equal 0, supplier.websites.count
+  end
+
+  test "staff can create a supplier" do
+    staff = agency_users(:harbor_staff)
+    ensure_supplier_sequence!(@agency)
+    sign_in_as staff
+
+    assert_difference -> { @agency.suppliers.count }, 1 do
+      post suppliers_path, params: {
+        supplier: {
+          kind: "organization",
+          display_name: "Staff Cruise Line",
+          category_codes: [ "cruise_line" ]
+        }
+      }
+    end
+    assert_redirected_to supplier_path(@agency.suppliers.find_by!(display_name: "Staff Cruise Line"))
+  end
+
   private
 
   def create_supplier(name, agency: @agency, actor: @admin)

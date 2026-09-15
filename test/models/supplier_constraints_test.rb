@@ -169,6 +169,12 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
     end
 
     @supplier.category_assignments.create!(agency: @agency, category_code: "other", other_label: "Expedition partner")
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierCategoryAssignment.transaction(requires_new: true) do
+        SupplierCategoryAssignment.insert!(category_row(category_code: "other", other_label: " Expedition "))
+      end
+    end
   end
 
   test "only one preferred active contact point exists per supplier channel" do

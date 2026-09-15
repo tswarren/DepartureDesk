@@ -94,6 +94,42 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
           AND next_value = 1
       SQL
       assert_equal 1, supplier_sequences.to_i
+
+      migrate_to!(20260914183000)
+      assert_equal 0, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).size
+      remaining_supplier_sequences = ActiveRecord::Base.connection.select_value(<<~SQL)
+        SELECT count(*)
+        FROM reference_sequences
+        WHERE namespace = 'supplier'
+      SQL
+      assert_equal 0, remaining_supplier_sequences.to_i
+      client_only = ActiveRecord::Base.connection.select_value(<<~SQL)
+        SELECT pg_get_constraintdef(c.oid)
+        FROM pg_constraint c
+        JOIN pg_class t ON t.oid = c.conrelid
+        WHERE t.relname = 'reference_sequences'
+          AND c.conname = 'reference_sequences_namespace'
+      SQL
+      assert_match(/namespace.*=.*'client'/, client_only)
+      assert_no_match(/supplier/, client_only)
+
+      migrate_to!(20260914200000)
+      assert_equal %w[
+        supplier_category_assignments
+        supplier_email_addresses
+        supplier_phone_numbers
+        supplier_postal_addresses
+        supplier_websites
+        suppliers
+      ], ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
+      reapplied_sequences = ActiveRecord::Base.connection.select_value(<<~SQL)
+        SELECT count(*)
+        FROM reference_sequences
+        WHERE agency_id = #{quote(agency_id)}
+          AND namespace = 'supplier'
+          AND next_value = 1
+      SQL
+      assert_equal 1, reapplied_sequences.to_i
     end
   end
 

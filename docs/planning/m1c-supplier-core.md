@@ -21,7 +21,7 @@ M1C creates Suppliers that later Supplier Arrangements may select. It does not m
 * Fixed, multi-select Supplier categories with at least one required assignment
 * Supplier-owned email, phone, postal, and website contact points
 * Active/inactive Supplier lifecycle
-* Category, kind, status, reference, name, and permitted contact search
+* Category, status, reference, name, and permitted contact search, with kind as an explicit filter
 * Deterministic Supplier duplicate warnings
 * Create-anyway acknowledgement and idempotent replay
 * Supplier permission catalog additions
@@ -255,15 +255,13 @@ All commands use the Supplier as the audit subject and include `contact_point_id
 
 ### Lock order
 
-After authorization:
+Do not use one universal lock order. After authorization:
 
-1. Agency
-2. Supplier
-3. Category assignments by UUID
-4. Contact-point rows by channel and UUID
-5. Reference sequence when issuing a reference
+* **CreateSupplier:** Agency → duplicate-token validation/recomputation → Supplier `ReferenceSequence` → Supplier insert → category rows → audits
+* **Existing Supplier aggregate mutation** (`UpdateSupplier`, `ChangeSupplierStatus`, `ReplaceSupplierCategories`): Agency → Supplier → category and/or contact rows ordered by UUID as needed
+* **Contact-point mutation:** Agency → Supplier → all rows in that channel ordered by UUID
 
-Because Agency locking already serializes Agency mutations, every command must still follow the same subordinate ordering to avoid future inconsistencies.
+Because Agency locking already serializes Agency mutations, every command must still follow its operation-specific subordinate ordering.
 
 ## Duplicate review
 
@@ -331,12 +329,15 @@ Searchable for Administrator and Staff:
 * Supplier website hostname
 * Category code and label
 
+Kind is filterable through the Kind filter. It is not a free-text search term.
+
 Searchable for Viewer:
 
 * Supplier reference
 * Applicable Supplier names
-* Kind
 * Category
+
+Kind remains available to Viewer only as a filter, not as free-text search.
 
 Hidden destinations must not influence Viewer results, ranking, counts, or truncation. Viewer redaction is as strict as Client search.
 
@@ -484,4 +485,4 @@ M1C should demonstrate:
 
 ## Acceptance gate
 
-Product review closed the open decisions on 2026-09-14. This slice is **Accepted** and may be implemented when scheduled. Acceptance authorizes M1C only. It does not authorize Supplier Locations, Supplier Contacts, M1D–M1E, or Supplier Arrangements.
+Product review closed the open decisions on 2026-09-14. This slice is **Implemented on this branch** and ships when merged. The accepted contract authorizes M1C only. It does not authorize Supplier Locations, Supplier Contacts, M1D–M1E, or Supplier Arrangements.

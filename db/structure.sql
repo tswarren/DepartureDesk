@@ -705,7 +705,7 @@ CREATE TABLE public.supplier_category_assignments (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT supplier_category_assignments_code CHECK (((category_code)::text = ANY ((ARRAY['cruise_line'::character varying, 'lodging'::character varying, 'air'::character varying, 'ground_transportation'::character varying, 'tour_operator_dmc'::character varying, 'dining'::character varying, 'activity_attraction'::character varying, 'insurance'::character varying, 'other'::character varying])::text[]))),
-    CONSTRAINT supplier_category_assignments_other_label CHECK (((((category_code)::text = 'other'::text) AND (other_label IS NOT NULL) AND (btrim((other_label)::text) <> ''::text) AND (char_length((other_label)::text) <= 80)) OR (((category_code)::text <> 'other'::text) AND (other_label IS NULL))))
+    CONSTRAINT supplier_category_assignments_other_label CHECK (((((category_code)::text = 'other'::text) AND (other_label IS NOT NULL) AND ((other_label)::text = btrim((other_label)::text)) AND (btrim((other_label)::text) <> ''::text) AND (char_length((other_label)::text) <= 80)) OR (((category_code)::text <> 'other'::text) AND (other_label IS NULL))))
 );
 
 

@@ -16,11 +16,27 @@ class SupplierContactPointCommand < AgencyCommand
   def prepare!
     ensure_directory_actor!(@actor, @agency, :manage_supplier_directory)
     ensure_active_agency!(@agency)
-    raise Error.new("That supplier could not be found.", code: :invalid) unless @supplier&.agency_id == @agency.id
+    raise ActiveRecord::RecordNotFound if @supplier.blank?
   end
 
   def locked_supplier
     @locked_supplier ||= @agency.suppliers.lock.find(@supplier.id)
+  end
+
+  def contact_changed_fields(point, **attrs)
+    attrs.filter_map do |attribute, value|
+      current = point.public_send(attribute)
+      next if comparable_contact_value(current) == comparable_contact_value(value)
+
+      attribute.to_s
+    end
+  end
+
+  def comparable_contact_value(value)
+    case value
+    when true, false then value
+    else value.presence
+    end
   end
 
   def supplier_duplicate_names(supplier)

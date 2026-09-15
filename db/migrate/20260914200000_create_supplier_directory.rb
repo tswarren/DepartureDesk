@@ -32,8 +32,8 @@ class CreateSupplierDirectory < ActiveRecord::Migration[8.1]
     SQL
 
     remove_check_constraint :reference_sequences, name: "reference_sequences_namespace"
-    add_check_constraint :reference_sequences, "namespace = 'client'", name: "reference_sequences_namespace"
     execute "DELETE FROM reference_sequences WHERE namespace = 'supplier'"
+    add_check_constraint :reference_sequences, "namespace = 'client'", name: "reference_sequences_namespace"
   end
 
   private
@@ -178,6 +178,7 @@ class CreateSupplierDirectory < ActiveRecord::Migration[8.1]
       (
         category_code = 'other'
         AND other_label IS NOT NULL
+        AND other_label = btrim(other_label)
         AND btrim(other_label) <> ''
         AND char_length(other_label) <= 80
       ) OR (

@@ -299,10 +299,54 @@ class SupplierDirectoryTest < ActiveSupport::TestCase
     assert_raises ActiveRecord::RecordNotFound do
       UpdateSupplier.new(agency: @agency, actor: @admin, supplier: other_supplier, names: { display_name: "Hijacked" }, lock_version: other_supplier.lock_version).call
     end
-    assert_raises_with_code(:invalid) do
+    assert_raises ActiveRecord::RecordNotFound do
       CreateSupplierEmailAddress.new(agency: @agency, actor: @admin, supplier: other_supplier, attributes: { address: "wrong@example.com" }).call
     end
     assert_equal audits, AuditEvent.count
+  end
+
+  test "stale no-op contact updates are rejected for every channel" do
+    supplier = create_supplier(display_name: "Stale Contact Supplier", categories: [ "air" ]).record
+    email = CreateSupplierEmailAddress.new(agency: @agency, actor: @admin, supplier: supplier, attributes: { address: "stale@example.com", preferred: true }).call.record
+    phone = CreateSupplierPhoneNumber.new(agency: @agency, actor: @admin, supplier: supplier, attributes: { number: "202-555-0177", country_code: "US", preferred: true }).call.record
+    postal = CreateSupplierPostalAddress.new(agency: @agency, actor: @admin, supplier: supplier, attributes: { line_1: "1 Stale Pier", country_code: "US", preferred: true }).call.record
+    website = CreateSupplierWebsite.new(agency: @agency, actor: @admin, supplier: supplier, attributes: { url: "stale.example", preferred: true }).call.record
+
+    [
+      [ UpdateSupplierEmailAddress, email, { address: email.address, label: email.label, preferred: true } ],
+      [ UpdateSupplierPhoneNumber, phone, { number: phone.number, extension: phone.extension, country_code: phone.country_code, label: phone.label, preferred: true } ],
+      [ UpdateSupplierPostalAddress, postal, { line_1: postal.line_1, line_2: postal.line_2, locality: postal.locality, region: postal.region, postal_code: postal.postal_code, country_code: postal.country_code, label: postal.label, preferred: true } ],
+      [ UpdateSupplierWebsite, website, { url: website.url, label: website.label, preferred: true } ]
+    ].each do |command, point, attributes|
+      error = assert_raises(AgencyCommand::Error, command.name) do
+        command.new(
+          agency: @agency,
+          actor: @admin,
+          supplier: supplier,
+          record: point,
+          attributes: attributes,
+          lock_version: point.lock_version - 1
+        ).call
+      end
+      assert_equal :conflict, error.code, command.name
+    end
+  end
+
+  test "contact updates audit only fields that changed" do
+    supplier = create_supplier(display_name: "Audit Fields Supplier", categories: [ "air" ]).record
+    email = CreateSupplierEmailAddress.new(agency: @agency, actor: @admin, supplier: supplier, attributes: { address: "fields@example.com", preferred: true }).call.record
+
+    UpdateSupplierEmailAddress.new(
+      agency: @agency,
+      actor: @admin,
+      supplier: supplier,
+      record: email,
+      attributes: { address: email.address, label: "Reservations", preferred: true },
+      lock_version: email.lock_version
+    ).call
+
+    audit = AuditEvent.where(action: "supplier.contact_updated", subject_id: supplier.id).order(:created_at).last
+    assert_equal %w[label], audit.details["changed_fields"]
   end
 
   test "client email addresses are not supplier duplicate candidates" do

@@ -246,4 +246,24 @@ module ApplicationHelper
   def empty_state_classes(family: :inline)
     [ "dd-empty-state", "dd-empty-state--#{family}" ]
   end
+
+  def dd_field_options(form, attribute, **options)
+    object = form.object
+    field_id = "#{object.model_name.param_key}_#{attribute}"
+    error_id = "#{field_id}_error"
+    described_by = [ options.delete(:aria_describedby_extra), (error_id if object.errors[attribute].any?) ].compact.join(" ").presence
+
+    options[:class] = [ options[:class], "dd-field" ].compact.join(" ")
+    options[:aria] = (options[:aria] || {}).merge(
+      invalid: (object.errors[attribute].any? || nil),
+      describedby: described_by
+    ).compact
+    options
+  end
+
+  def dd_field_error(form, attribute)
+    return unless form.object.errors[attribute].any?
+
+    tag.p(form.object.errors[attribute].to_sentence, class: "dd-field-error", id: "#{form.object.model_name.param_key}_#{attribute}_error")
+  end
 end

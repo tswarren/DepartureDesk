@@ -7,15 +7,23 @@ class UpdateSupplierWebsite < SupplierContactPointCommand
       @agency.lock!
       supplier = locked_supplier
       point = locked_channel_row(supplier.websites, @record)
-      point.lock_version = @lock_version
+      require_matching_lock_version!(point)
+
       website = normalize_website!
+      label = @attributes[:label].to_s.strip.presence
       preferred = ActiveModel::Type::Boolean.new.cast(@attributes[:preferred])
-      identity_unchanged = point.normalized_url == website.normalized_url && point.label == @attributes[:label].presence
-      require_matching_lock_version!(point) if identity_unchanged && point.preferred? == preferred
-      return Result.new(status: :noop, record: point) if identity_unchanged && point.preferred? == preferred
+      changed = contact_changed_fields(
+        point,
+        url: website.url,
+        normalized_url: website.normalized_url,
+        normalized_host: website.normalized_host,
+        label: label,
+        preferred: preferred
+      )
+      return Result.new(status: :noop, record: point) if changed.empty?
 
       decision = nil
-      unless identity_unchanged
+      if changed.intersect?(%w[url label])
         fingerprint = DuplicateAcknowledgement.fingerprint("normalized_host" => website.normalized_host)
         decision = DirectoryDuplicateGate.new(
           agency: @agency, actor: @actor, command: COMMAND, token: @acknowledgement_token,
@@ -24,10 +32,10 @@ class UpdateSupplierWebsite < SupplierContactPointCommand
         ).call { FindSupplierDuplicates.call(agency: @agency, actor: @actor, kind: supplier.kind, names: {}, websites: [ website ], exclude_supplier_id: supplier.id) }
         return decision if decision.is_a?(Result)
 
-        point.update!(url: website.url, normalized_url: website.normalized_url, normalized_host: website.normalized_host, label: @attributes[:label])
+        point.update!(url: website.url, normalized_url: website.normalized_url, normalized_host: website.normalized_host, label: label)
       end
-      apply_preferred!(supplier.websites, point, preferred, lock_version: identity_unchanged ? @lock_version : nil)
-      audit_contact!(supplier, record: point, changed_fields: [ "website" ])
+      apply_preferred!(supplier.websites, point, preferred) if changed.include?("preferred")
+      audit_contact!(supplier, record: point.reload, changed_fields: changed)
       audit_override!(supplier, decision) if decision
       Result.new(status: :updated, record: point)
     end

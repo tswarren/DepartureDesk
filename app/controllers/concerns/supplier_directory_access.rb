@@ -26,8 +26,30 @@ module SupplierDirectoryAccess
   def rescue_supplier_directory_error(error, template)
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    flash.now[:alert] = error.message
+    record = form_error_record
+    if record && error.code == :invalid
+      attribute = supplier_form_error_attribute(error.message, record)
+      record.errors.add(attribute, error.message)
+    else
+      flash.now[:alert] = error.message
+    end
     render template, status: :unprocessable_entity
+  end
+
+  def form_error_record
+    @contact_point || @supplier
+  end
+
+  def supplier_form_error_attribute(message, record)
+    case message
+    when /at least one supplier category/i then :base
+    when /other supplier category/i then :base
+    when /email|address/i then record.respond_to?(:address) ? :address : :base
+    when /phone|country/i then record.respond_to?(:number) ? :number : :base
+    when /website|url|hostname/i then record.respond_to?(:url) ? :url : :base
+    when /line 1|postal|locality/i then record.respond_to?(:line_1) ? :line_1 : :base
+    else :base
+    end
   end
 
   def rescue_supplier_duplicate_review(error, template)
