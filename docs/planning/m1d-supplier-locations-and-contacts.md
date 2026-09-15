@@ -1,6 +1,6 @@
 # M1D — Supplier Locations and Contacts
 
-**Status:** Implemented on this branch; shipped when merged
+**Status:** Shipped. Merged to main on 2026-09-15 in pull request #40. This document remains the Supplier Locations and Contacts contract. It is not authority to extend into M1E or Supplier Arrangements.
 
 **Parent:** [M1 — Client and Supplier directories](m1-client-and-supplier-directories.md)
 
@@ -759,3 +759,5 @@ M1D is complete only when:
 * documentation accurately distinguishes shipped M1D from deferred M1E and M2;
 * the complete CI workflow is green; and
 * the slice is merged to `main`.
+
+This slice is **Shipped**. The accepted contract authorizes M1D only. It does not authorize M1E, Supplier Arrangements, Service Providers, or later commercial records.
