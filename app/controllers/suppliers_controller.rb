@@ -146,4 +146,3 @@ class SuppliersController < ApplicationController
       @supplier.websites.to_a
   end
 end
-
