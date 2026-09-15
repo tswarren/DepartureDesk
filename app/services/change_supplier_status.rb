@@ -20,7 +20,7 @@ class ChangeSupplierStatus < AgencyCommand
       return Result.new(status: :noop, record: supplier) if supplier.status == @status
 
       supplier.lock_version = @lock_version
-      affected = @status == "inactive" ? cascade_contact_points!(supplier) : empty_affected
+      affected = @status == "inactive" ? cascade_descendants!(supplier) : empty_affected
       supplier.update!(status: @status)
       audit!(
         agency: @agency,
@@ -37,15 +37,55 @@ class ChangeSupplierStatus < AgencyCommand
 
   private
 
-  def cascade_contact_points!(supplier)
+  def cascade_descendants!(supplier)
     affected = empty_affected
+    locations = supplier.locations.order(:id).lock.to_a
+    contacts = supplier.contacts.order(:id).lock.to_a
+
+    contact_point_scopes(supplier).each_value { |scope| scope.order(:id).lock.to_a }
+
+    contact_ids = contacts.map(&:id)
+    if contact_ids.any?
+      SupplierContactEmailAddress.where(agency_id: supplier.agency_id, supplier_contact_id: contact_ids)
+        .order(:supplier_contact_id, :id).lock.to_a
+      SupplierContactPhoneNumber.where(agency_id: supplier.agency_id, supplier_contact_id: contact_ids)
+        .order(:supplier_contact_id, :id).lock.to_a
+    end
+
+    locations.each do |location|
+      next if location.inactive?
+
+      location.update!(status: "inactive")
+      affected["inactivated_locations"] << { "type" => "SupplierLocation", "id" => location.id }
+    end
+
+    contacts.each do |contact|
+      next if contact.inactive? && !contact.preferred?
+
+      was_active = contact.active?
+      contact.update!(status: "inactive", preferred: false)
+      if was_active
+        affected["inactivated_contacts"] << { "type" => "SupplierContact", "id" => contact.id }
+      end
+    end
 
     contact_point_scopes(supplier).each do |type, scope|
-      scope.order(:id).lock.each do |point|
+      scope.order(:id).each do |point|
         next if point.inactive? && !point.preferred?
 
         point.update!(status: "inactive", preferred: false)
         affected["inactivated_contact_points"] << { "type" => type, "id" => point.id }
+      end
+    end
+
+    contacts.each do |contact|
+      contact_destination_scopes(contact).each do |type, scope|
+        scope.order(:id).each do |point|
+          next if point.inactive? && !point.preferred?
+
+          point.update!(status: "inactive", preferred: false)
+          affected["inactivated_contact_destinations"] << { "type" => type, "id" => point.id }
+        end
       end
     end
 
@@ -61,7 +101,19 @@ class ChangeSupplierStatus < AgencyCommand
     }
   end
 
+  def contact_destination_scopes(contact)
+    {
+      "SupplierContactEmailAddress" => contact.email_addresses,
+      "SupplierContactPhoneNumber" => contact.phone_numbers
+    }
+  end
+
   def empty_affected
-    { "inactivated_contact_points" => [] }
+    {
+      "inactivated_contact_points" => [],
+      "inactivated_locations" => [],
+      "inactivated_contacts" => [],
+      "inactivated_contact_destinations" => []
+    }
   end
 end

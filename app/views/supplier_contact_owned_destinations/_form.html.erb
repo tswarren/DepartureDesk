@@ -1,0 +1,62 @@
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Suppliers</p>
+    <h1 class="dd-page-title"><%= heading %></h1>
+    <p class="dd-page-description"><%= @supplier_contact.display_name_for_directory %> · <%= @supplier.display_name_for_directory %></p>
+  </div>
+  <% if @contact_point.persisted? %>
+    <div class="dd-page-actions">
+      <%= link_to "Change status", supplier_contact_owned_destination_status_edit_path(@supplier, @supplier_contact, @contact_point), class: "dd-button dd-button--quiet" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @contact_point, url: supplier_contact_owned_destination_form_url(@supplier, @supplier_contact, @contact_point), method: (@contact_point.persisted? ? :patch : :post), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version if form.object.persisted? %>
+      <% if @contact_point.is_a?(SupplierContactEmailAddress) %>
+        <div class="dd-field-group">
+          <%= form.label :address, "Email address", class: "dd-label" %>
+          <%= form.email_field :address, required: true, **dd_field_options(form, :address) %>
+          <%= dd_field_error(form, :address) %>
+        </div>
+      <% else %>
+        <div class="dd-field-group">
+          <%= form.label :country_code, "Country", class: "dd-label" %>
+          <%= form.select :country_code, CountryCode.options, { selected: form.object.country_code.presence || Current.agency.country_code }, required: true, **dd_field_options(form, :country_code) %>
+          <%= dd_field_error(form, :country_code) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :number, "Phone number", class: "dd-label" %>
+          <%= form.telephone_field :number, required: true, **dd_field_options(form, :number, aria_describedby_extra: "supplier_contact_phone_number_hint") %>
+          <p class="dd-field-hint" id="supplier_contact_phone_number_hint">Enter the number as dialed in the selected country. It is stored in international E.164 form.</p>
+          <%= dd_field_error(form, :number) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :extension, class: "dd-label" %>
+          <%= form.text_field :extension, **dd_field_options(form, :extension) %>
+          <%= dd_field_error(form, :extension) %>
+        </div>
+      <% end %>
+      <div class="dd-field-group">
+        <%= form.label :label, class: "dd-label" %>
+        <%= form.text_field :label, **dd_field_options(form, :label) %>
+        <%= dd_field_error(form, :label) %>
+      </div>
+      <% if @contact_point.persisted? %>
+        <div class="dd-field-group">
+          <%= form.label :preferred, "Primary for this contact", class: "dd-label" %>
+          <%= form.check_box :preferred %>
+          <p class="dd-field-hint">Primary destination within this Contact channel. It does not change the Supplier Preferred Contact.</p>
+        </div>
+      <% end %>
+      <%= render "shared/duplicate_review" %>
+      <div class="dd-form-actions">
+        <%= form.submit submit_label, class: "dd-button" %>
+        <%= link_to "Cancel", supplier_contact_path(@supplier, @supplier_contact), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

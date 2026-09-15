@@ -219,6 +219,9 @@ class SupplierDirectoryTest < ActiveSupport::TestCase
     end
     audit = AuditEvent.where(action: "supplier.inactivated", subject_id: supplier.id).last
     assert_equal %w[SupplierEmailAddress SupplierPhoneNumber SupplierPostalAddress SupplierWebsite], audit.details["inactivated_contact_points"].map { |point| point["type"] }.sort
+    assert_equal [], audit.details["inactivated_locations"]
+    assert_equal [], audit.details["inactivated_contacts"]
+    assert_equal [], audit.details["inactivated_contact_destinations"]
 
     ChangeSupplierStatus.new(agency: @agency, actor: @admin, supplier: supplier.reload, status: "active", lock_version: supplier.lock_version).call
     assert_equal "active", supplier.reload.status

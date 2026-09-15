@@ -2,11 +2,13 @@
 
 **Status:** Accepted milestone contract. It is not implementation authority for a slice until that slice plan is accepted.
 
-**Decision posture:** Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. [M1A](m1a-individual-client.md), [M1B](m1b-client-organizations.md), and [M1C](m1c-supplier-core.md) are shipped and merged. M1D–M1E remain deferred.
+**Decision posture:** Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. [M1A](m1a-individual-client.md), [M1B](m1b-client-organizations.md), and [M1C](m1c-supplier-core.md) are shipped and merged. [M1D](m1d-supplier-locations-and-contacts.md) is implemented on this branch and ships when merged. M1E remains deferred.
 
 **M1A amendments (2026-09-14):** After M1A acceptance, product review requested two changes. They supersede the original sentences they touch and are recorded as amendments in the slice plan, not as text that was always in this contract. A Client Person phone country is required and must match the selected country. The individual-Client people list may `POST .../set_primary` with `lock_version`; that is not a `/preferred` route.
 
 **M1C amendments (2026-09-14):** After M1C acceptance review, product confirmed: at least one Supplier category is required on create and replacement rejects an empty set; `other_label` is trimmed and at most 80 characters; Supplier `kind` remains permanently immutable; inactive Suppliers may receive identity and category corrections while create/reactivate of contact destinations stays gated on an active Supplier; and Supplier contact-point lists may `POST .../set_primary` with `lock_version`, matching the Client Person and Client Organization list pattern. That action is not a `/preferred` route. Client Organization contact-point lists already ship the same `set_primary` pattern from M1B.
+
+**M1D amendments (2026-09-15):** Supplier Contact email-address and phone-number lists also support `POST .../set_primary` with `lock_version`. This selects the primary destination within that Contact’s channel and remains distinct from `PATCH .../contacts/:supplier_contact_id/preferred`. Parent ranking text is unchanged; M1D extends shipped M1C ranking with a total mixed-result order.
 
 **Prerequisites:** [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [MVP requirements](departure-desk-mvp.md), [current architecture](../architecture/current-state.md), and [interface contract](../ui/interface-contract.md)
 
@@ -575,7 +577,7 @@ Channels are `email-addresses`, `phone-numbers`, `postal-addresses`, and `websit
 - Supplier: those three plus `websites` under `/suppliers/:supplier_id`
 - Supplier Contact: `email-addresses` and `phone-numbers` under `/suppliers/:supplier_id/contacts/:supplier_contact_id`
 
-Example: `GET /suppliers/:supplier_id/contacts/:supplier_contact_id/phone-numbers/:contact_point_id/edit`. Organization and Supplier website routes replace the single optional website column with this same contact-point lifecycle. Do not add a contact-point `/preferred` route beyond this structure. Amendments authorize `POST .../set_primary` with `lock_version` for Client Person, Client Organization, and Supplier contact-point lists. That action is not a `/preferred` route; preferred may also change through the ordinary edit PATCH.
+Example: `GET /suppliers/:supplier_id/contacts/:supplier_contact_id/phone-numbers/:contact_point_id/edit`. Organization and Supplier website routes replace the single optional website column with this same contact-point lifecycle. Do not add a contact-point `/preferred` route beyond this structure. Amendments authorize `POST .../set_primary` with `lock_version` for Client Person, Client Organization, Supplier, and Supplier Contact contact-point lists. That action is not a `/preferred` route; preferred may also change through the ordinary edit PATCH. Supplier Contact destination `set_primary` remains distinct from `PATCH .../contacts/:supplier_contact_id/preferred`.
 
 ## Accessibility and states
 
@@ -641,7 +643,7 @@ Confirmed on 2026-09-14:
 
 The ADR 0006, MVP, terminology, roadmap, and M8 merge amendments are completed by this coordinated documentation change and are not outstanding acceptance prerequisites.
 
-Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. This milestone contract is Accepted. That acceptance does not accept M1A–M1E. Domain code for a slice waits until that slice plan is accepted.
+Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. This milestone contract is Accepted. [M1A](m1a-individual-client.md), [M1B](m1b-client-organizations.md), and [M1C](m1c-supplier-core.md) are shipped. [M1D](m1d-supplier-locations-and-contacts.md) is implemented on this branch and ships when merged. M1E remains deferred. Domain code for a slice waits until that slice plan is accepted.
 
 M1 implementation is complete only when every slice is accepted and implemented; an explicit fictional fixture set, mapped to the Celebrity Beyond and Vineyard Tour shapes, satisfies the directory contracts; lifecycle, permission, audit, normalization, duplicate, reference, and tenancy contracts pass; no Party/global User/polymorphic identity/Office authorization/cross-domain sync/automatic merge has returned; shipped documentation is current; and full CI is green. That fixture set is not a requirement to add named people, organizations, a DMC, or a motorcoach company to the scenario documents. Those documents still say unconfirmed hotel and vehicle facts must not be guessed.
 

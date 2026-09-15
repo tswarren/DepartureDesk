@@ -40,6 +40,7 @@ module ApplicationHelper
     when ClientPersonEmailAddress then record.address
     when ClientOrganizationEmailAddress then record.address
     when SupplierEmailAddress then record.address
+    when SupplierContactEmailAddress then record.address
     when ClientPersonPhoneNumber
       record.formatted_number(viewer_country: Current.agency&.country_code)
     when ClientOrganizationPhoneNumber
@@ -49,7 +50,7 @@ module ApplicationHelper
         extension: record.extension,
         viewer_country: Current.agency&.country_code
       )
-    when SupplierPhoneNumber
+    when SupplierPhoneNumber, SupplierContactPhoneNumber
       PhoneNumberNormalizer.display(
         normalized_number: record.normalized_number,
         country_code: record.country_code,
@@ -66,6 +67,8 @@ module ApplicationHelper
       record.url
     when SupplierWebsite
       record.url
+    when SupplierLocation
+      supplier_location_phone_display(record)
     end
   end
 
@@ -184,19 +187,121 @@ module ApplicationHelper
     end
   end
 
+  def supplier_contact_status_update_path(record)
+    case record
+    when SupplierEmailAddress then status_supplier_email_address_path(record.supplier_id, record)
+    when SupplierPhoneNumber then status_supplier_phone_number_path(record.supplier_id, record)
+    when SupplierPostalAddress then status_supplier_postal_address_path(record.supplier_id, record)
+    when SupplierWebsite then status_supplier_website_path(record.supplier_id, record)
+    end
+  end
+
+  def supplier_contact_owned_destination_form_url(supplier, contact, record)
+    case record
+    when SupplierContactEmailAddress
+      if record.persisted?
+        supplier_contact_email_address_path(supplier, contact, record)
+      else
+        supplier_contact_email_addresses_path(supplier, contact)
+      end
+    when SupplierContactPhoneNumber
+      if record.persisted?
+        supplier_contact_phone_number_path(supplier, contact, record)
+      else
+        supplier_contact_phone_numbers_path(supplier, contact)
+      end
+    end
+  end
+
+  def supplier_contact_owned_destination_edit_path(supplier, contact, record)
+    case record
+    when SupplierContactEmailAddress then edit_supplier_contact_email_address_path(supplier, contact, record)
+    when SupplierContactPhoneNumber then edit_supplier_contact_phone_number_path(supplier, contact, record)
+    end
+  end
+
+  def supplier_contact_owned_destination_set_primary_path(supplier, contact, record)
+    case record
+    when SupplierContactEmailAddress then set_primary_supplier_contact_email_address_path(supplier, contact, record)
+    when SupplierContactPhoneNumber then set_primary_supplier_contact_phone_number_path(supplier, contact, record)
+    end
+  end
+
+  def supplier_contact_owned_destination_status_edit_path(supplier, contact, record)
+    case record
+    when SupplierContactEmailAddress then status_edit_supplier_contact_email_address_path(supplier, contact, record)
+    when SupplierContactPhoneNumber then status_edit_supplier_contact_phone_number_path(supplier, contact, record)
+    end
+  end
+
+  def supplier_contact_owned_destination_status_path(supplier, contact, record)
+    case record
+    when SupplierContactEmailAddress then status_supplier_contact_email_address_path(supplier, contact, record)
+    when SupplierContactPhoneNumber then status_supplier_contact_phone_number_path(supplier, contact, record)
+    end
+  end
+
+  def supplier_directory_result_path(result)
+    case result.result_kind
+    when "supplier" then supplier_path(result.id)
+    when "location" then supplier_location_path(result.supplier_id, result.id)
+    when "contact" then supplier_contact_path(result.supplier_id, result.id)
+    end
+  end
+
+  def supplier_directory_result_context(result)
+    case result.result_kind
+    when "supplier"
+      kind = result.supplier_kind.to_s.titleize
+      categories = Array(result.category_codes).map { |code| SupplierCategory::LABELS.fetch(code) }.to_sentence
+      categories.present? ? "#{kind} · #{categories}" : kind
+    when "location"
+      "Location · #{result.supplier_display_name}"
+    when "contact"
+      "Contact · #{result.supplier_display_name}"
+    end
+  end
+
+  def supplier_location_address_display(location)
+    [
+      location.address_line_1,
+      location.address_line_2,
+      [ location.address_locality, location.address_region ].compact_blank.join(", "),
+      location.address_postal_code,
+      location.address_country_code
+    ].compact_blank.join(", ")
+  end
+
+  def supplier_location_phone_display(location)
+    return if location.phone_normalized_number.blank?
+
+    PhoneNumberNormalizer.display(
+      normalized_number: location.phone_normalized_number,
+      country_code: location.phone_country_code,
+      extension: location.phone_extension,
+      viewer_country: Current.agency&.country_code
+    )
+  end
+
   def duplicate_candidate_path(candidate)
-    if candidate.class.name.include?("Supplier") || (candidate.respond_to?(:id) && candidate.class.name == "FindSupplierDuplicates::Candidate")
+    class_name = candidate.class.name
+    if class_name.include?("FindSupplierLocationDuplicates")
+      supplier_location_path(@supplier, candidate.id)
+    elsif class_name.include?("FindSupplierContactDuplicates")
+      supplier_contact_path(@supplier, candidate.id)
+    elsif class_name.include?("Supplier") || class_name == "FindSupplierDuplicates::Candidate"
       supplier_path(candidate.id)
-    elsif candidate.class.name.include?("Organization")
+    elsif class_name.include?("Organization")
       client_organization_path(candidate.id)
     else
       client_person_path(candidate.id)
     end
   end
 
-  def preferred_indicator(record)
-    label = record.preferred? ? "Preferred" : "Not preferred"
-    tag.span class: "dd-preferred-mark#{ " is-preferred" if record.preferred? }", title: label do
+  def preferred_indicator(record, preferred_label: "Preferred", not_preferred_label: "Not preferred")
+    preferred = record.preferred?
+    label = preferred ? preferred_label : not_preferred_label
+    tag.span class: "dd-preferred-mark#{ " is-preferred" if preferred }", title: label do
       safe_join([
         icon_tag("star", html_class: "dd-icon dd-icon--sm"),
         tag.span(label, class: "dd-visually-hidden")

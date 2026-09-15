@@ -11,6 +11,8 @@ class DirectoryDuplicateGate
     SupplierPhoneNumber
     SupplierPostalAddress
     SupplierWebsite
+    SupplierContactEmailAddress
+    SupplierContactPhoneNumber
   ].freeze
 
   def initialize(agency:, actor:, command:, token:, reason:, fingerprint:, proposed_ids: {}, target: nil, current_fingerprint: nil)
@@ -50,6 +52,8 @@ class DirectoryDuplicateGate
 
   def replay_create(payload)
     return replay_contact_create(payload) if payload["contact_point_id"].present?
+    return replay_supplier_location_create(payload) if payload["supplier_location_id"].present?
+    return replay_supplier_contact_create(payload) if payload["supplier_contact_id"].present?
 
     person = find_person(payload["person_id"])
     organization = find_organization(payload["organization_id"])
@@ -63,6 +67,28 @@ class DirectoryDuplicateGate
     AgencyCommand::Result.new(status: :replayed, record: supplier || client || organization || person)
   end
 
+  def replay_supplier_location_create(payload)
+    location = find_supplier_location(payload["supplier_location_id"])
+    return if location.nil?
+
+    supplier = find_supplier(payload["supplier_id"])
+    raise conflict! if incomplete_owner?(payload["supplier_id"], supplier) ||
+      !related?(nil, nil, nil, supplier, nil, location: location)
+
+    AgencyCommand::Result.new(status: :replayed, record: location)
+  end
+
+  def replay_supplier_contact_create(payload)
+    supplier_contact = find_supplier_contact(payload["supplier_contact_id"])
+    return if supplier_contact.nil?
+
+    supplier = find_supplier(payload["supplier_id"])
+    raise conflict! if incomplete_owner?(payload["supplier_id"], supplier) ||
+      !related?(nil, nil, nil, supplier, nil, supplier_contact: supplier_contact)
+
+    AgencyCommand::Result.new(status: :replayed, record: supplier_contact)
+  end
+
   def replay_contact_create(payload)
     contact = find_contact(payload)
     return if contact.nil?
@@ -70,9 +96,19 @@ class DirectoryDuplicateGate
     person = find_person(payload["person_id"])
     organization = find_organization(payload["organization_id"])
     supplier = find_supplier(payload["supplier_id"])
-    raise conflict! unless related?(person, organization, nil, supplier, contact)
+    supplier_contact = find_supplier_contact(payload["supplier_contact_id"])
+
+    raise conflict! if incomplete_owner?(payload["person_id"], person) ||
+      incomplete_owner?(payload["organization_id"], organization) ||
+      incomplete_owner?(payload["supplier_id"], supplier) ||
+      incomplete_owner?(payload["supplier_contact_id"], supplier_contact) ||
+      !related?(person, organization, nil, supplier, contact, supplier_contact: supplier_contact)
 
     AgencyCommand::Result.new(status: :replayed, record: contact)
+  end
+
+  def incomplete_owner?(proposed_id, record)
+    proposed_id.present? && record.nil?
   end
 
   def replay_update(payload)
@@ -149,6 +185,18 @@ class DirectoryDuplicateGate
     @agency.suppliers.find_by(id: id)
   end
 
+  def find_supplier_location(id)
+    return if id.blank?
+
+    @agency.supplier_locations.find_by(id: id)
+  end
+
+  def find_supplier_contact(id)
+    return if id.blank?
+
+    @agency.supplier_contacts.find_by(id: id)
+  end
+
   def find_contact(payload)
     id = payload["contact_point_id"]
     class_name = payload["contact_class"]
@@ -166,13 +214,30 @@ class DirectoryDuplicateGate
     AgencyCommand::Error.new("That acknowledgement does not match an existing result.", code: :conflict)
   end
 
-  def related?(person, organization, client, supplier, contact)
+  def related?(person, organization, client, supplier, contact, supplier_contact: nil, location: nil)
     return false if client && person && client.client_person_id != person.id
     return false if client && organization && client.client_organization_id != organization.id
-    return false if contact && person && contact.client_person_id != person.id
-    return false if contact && organization && contact.client_organization_id != organization.id
-    return false if contact && supplier && contact.supplier_id != supplier.id
+    return false if contact && person && contact_attribute(contact, :client_person_id) != person.id
+    return false if contact && organization && contact_attribute(contact, :client_organization_id) != organization.id
+    return false if contact && supplier_contact && contact_attribute(contact, :supplier_contact_id) != supplier_contact.id
+    return false if supplier_contact && supplier && supplier_contact.supplier_id != supplier.id
+    return false if location && supplier && location.supplier_id != supplier.id
+    return false if contact && supplier && contact_owner_supplier_id(contact) != supplier.id
 
-    person.present? || organization.present? || client.present? || supplier.present?
+    person.present? || organization.present? || client.present? || supplier.present? ||
+      supplier_contact.present? || location.present?
+  end
+
+  def contact_attribute(contact, attribute)
+    return unless contact.has_attribute?(attribute)
+
+    contact.public_send(attribute)
+  end
+
+  def contact_owner_supplier_id(contact)
+    return contact.supplier_id if contact.has_attribute?(:supplier_id)
+    return contact.supplier_contact&.supplier_id if contact.has_attribute?(:supplier_contact_id)
+
+    nil
   end
 end

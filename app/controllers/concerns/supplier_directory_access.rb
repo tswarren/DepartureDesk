@@ -11,12 +11,24 @@ module SupplierDirectoryAccess
     require_permission!(:manage_supplier_directory)
   end
 
+  def require_supplier_contact_details!
+    raise ActiveRecord::RecordNotFound unless can_view_supplier_contact_details?
+  end
+
   def supplier_directory
     Current.agency.suppliers
   end
 
   def set_supplier
     @supplier = supplier_directory.find(params[:supplier_id] || params[:id])
+  end
+
+  def set_supplier_location
+    @supplier_location = @supplier.locations.find(params[:supplier_location_id])
+  end
+
+  def set_supplier_contact
+    @supplier_contact = @supplier.contacts.find(params[:supplier_contact_id])
   end
 
   def can_view_supplier_contact_details?
@@ -37,17 +49,42 @@ module SupplierDirectoryAccess
   end
 
   def form_error_record
-    @contact_point || @supplier
+    @contact_point || @supplier_location || @supplier_contact || @supplier
   end
 
   def supplier_form_error_attribute(message, record)
     case message
     when /at least one supplier category/i then :base
     when /other supplier category/i then :base
-    when /email|address/i then record.respond_to?(:address) ? :address : :base
-    when /phone|country/i then record.respond_to?(:number) ? :number : :base
+    when /email|address/i
+      if record.respond_to?(:address)
+        :address
+      elsif record.respond_to?(:address_line_1) && message.match?(/line 1|address/i)
+        :address_line_1
+      else
+        :base
+      end
+    when /phone|country/i
+      if record.respond_to?(:number)
+        :number
+      elsif record.respond_to?(:phone_number)
+        :phone_number
+      else
+        :base
+      end
     when /website|url|hostname/i then record.respond_to?(:url) ? :url : :base
-    when /line 1|postal|locality/i then record.respond_to?(:line_1) ? :line_1 : :base
+    when /line 1|postal|locality/i
+      if record.respond_to?(:line_1)
+        :line_1
+      elsif record.respond_to?(:address_line_1)
+        :address_line_1
+      else
+        :base
+      end
+    when /first name/i then record.respond_to?(:first_name) ? :first_name : :base
+    when /last name/i then record.respond_to?(:last_name) ? :last_name : :base
+    when /timezone/i then record.respond_to?(:timezone) ? :timezone : :base
+    when /name/i then record.respond_to?(:name) ? :name : :base
     else :base
     end
   end

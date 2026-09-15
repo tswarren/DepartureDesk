@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, the Client directory through M1B, and M1C Supplier core. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, the Client directory through M1B, M1C Supplier core, and M1D Supplier Locations and Contacts. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -14,7 +14,7 @@ DepartureDesk ships agency identity, administration, the Client directory throug
 | `Office` | Agency-owned operating and reporting context. It grants no permission. |
 | `AgencyUser` | One agency-scoped login account with independent credentials, lifecycle, and access role. |
 | `Session` | Authentication root and optional current-Office preference. It derives Agency through AgencyUser. |
-| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, Client, ClientOrganization, and Supplier commands. |
+| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, Client, ClientOrganization, Supplier, SupplierLocation, and SupplierContact commands. |
 | `ClientPerson` | Agency-scoped person known to the directory. Not a Client, AgencyUser, or Traveler. |
 | `ClientOrganization` | Agency-scoped organization known to the directory. Not a Supplier. |
 | `Client` | Explicit commercial identity for exactly one Client Person or Client Organization, with an immutable `CL-` reference. |
@@ -24,6 +24,9 @@ DepartureDesk ships agency identity, administration, the Client directory throug
 | `Supplier` | Agency-scoped organization or individual contracting identity, with an immutable `SUP-` reference and fixed category assignments. |
 | `SupplierCategoryAssignment` | Required category membership for a Supplier. At least one category; `other_label` only for `other`. |
 | `SupplierEmailAddress`, `SupplierPhoneNumber`, `SupplierPostalAddress`, `SupplierWebsite` | Supplier-owned contact points. |
+| `SupplierLocation` | Supplier-owned operational place with optional structured address, timezone, and one location-level phone. |
+| `SupplierContact` | Named person in one Supplier work context. Not a Client Person or AgencyUser. |
+| `SupplierContactEmailAddress`, `SupplierContactPhoneNumber` | Contact-owned destinations. |
 | `ReferenceSequence` | Agency-scoped `client` and `supplier` reference counters. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed permission catalog mapping administrator, staff, and viewer roles to capabilities. It is application code, not a persisted record. |
 
@@ -72,6 +75,6 @@ Application code checks named permissions, not role strings.
 
 ## Not shipped
 
-The current application has no Supplier Location, Supplier Contact, Traveler, Household, Departure, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored.
+The current application has no Traveler, Household, Departure, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.

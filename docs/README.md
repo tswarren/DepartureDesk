@@ -39,6 +39,7 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m1a-individual-client.md`](planning/m1a-individual-client.md) | Implemented individual-Client slice, merged to main. |
 | [`planning/m1b-client-organizations.md`](planning/m1b-client-organizations.md) | Shipped Client Organization slice. |
 | [`planning/m1c-supplier-core.md`](planning/m1c-supplier-core.md) | Shipped Supplier-core slice. |
+| [`planning/m1d-supplier-locations-and-contacts.md`](planning/m1d-supplier-locations-and-contacts.md) | M1D Supplier Locations and Contacts; implemented on this branch, shipped when merged. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |

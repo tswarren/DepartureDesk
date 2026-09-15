@@ -1,11 +1,28 @@
 class SearchSupplierDirectory
-  Result = Data.define(:id, :display_name, :status, :supplier_reference, :supplier_kind, :category_codes, :rank, :match_kind)
+  Result = Data.define(
+    :result_kind,
+    :id,
+    :display_name,
+    :status,
+    :rank,
+    :match_kind,
+    :supplier_id,
+    :supplier_display_name,
+    :supplier_reference,
+    :supplier_kind,
+    :category_codes
+  )
   Outcome = Data.define(:records, :truncated)
   LIMIT = 50
   FETCH_LIMIT = LIMIT + 1
 
   STATUSES = %w[active inactive all].freeze
   KINDS = %w[organization individual all].freeze
+  RESULT_KINDS = {
+    "supplier" => 0,
+    "location" => 1,
+    "contact" => 2
+  }.freeze
   MATCH_KINDS = {
     0 => nil,
     1 => "reference",
@@ -35,12 +52,21 @@ class SearchSupplierDirectory
     "postal" => Arel.sql("'postal' AS match_kind"),
     "website" => Arel.sql("'website' AS match_kind")
   }.freeze
-  DISPLAY_SQL = "coalesce(suppliers.doing_business_as, suppliers.display_name, suppliers.first_name || ' ' || suppliers.last_name)".freeze
+  SUPPLIER_DISPLAY_SQL = "coalesce(suppliers.doing_business_as, suppliers.display_name, suppliers.first_name || ' ' || suppliers.last_name)".freeze
   FINAL_ORDER = Arel.sql(<<~SQL.squish)
     MIN(matches.search_rank),
     CASE WHEN matches.status = 'active' THEN 0 ELSE 1 END,
     matches.display_name,
     matches.supplier_kind,
+    CASE matches.result_kind
+      WHEN 'supplier' THEN 0
+      WHEN 'location' THEN 1
+      ELSE 2
+    END,
+    CASE
+      WHEN matches.result_kind = 'supplier' THEN matches.record_id::text
+      ELSE matches.supplier_reference
+    END,
     matches.record_id
   SQL
 
@@ -84,54 +110,111 @@ class SearchSupplierDirectory
       .joins(<<~SQL.squish)
         LEFT JOIN supplier_category_assignments ON
           supplier_category_assignments.agency_id = #{Supplier.connection.quote(@agency.id)}
-          AND supplier_category_assignments.supplier_id = matches.record_id
+          AND supplier_category_assignments.supplier_id = matches.supplier_id
       SQL
       .select(
+        "matches.result_kind",
         "matches.record_id",
         "matches.display_name",
         "matches.status",
+        "matches.supplier_id",
+        "matches.supplier_display_name",
         "matches.supplier_reference",
         "matches.supplier_kind",
         "MIN(matches.search_rank) AS search_rank",
         "(array_agg(matches.match_kind ORDER BY matches.search_rank ASC, matches.match_kind ASC NULLS LAST))[1] AS match_kind",
         "array_remove(array_agg(DISTINCT supplier_category_assignments.category_code ORDER BY supplier_category_assignments.category_code), NULL) AS category_codes"
       )
-      .group("matches.record_id", "matches.display_name", "matches.status", "matches.supplier_reference", "matches.supplier_kind")
+      .group(
+        "matches.result_kind",
+        "matches.record_id",
+        "matches.display_name",
+        "matches.status",
+        "matches.supplier_id",
+        "matches.supplier_display_name",
+        "matches.supplier_reference",
+        "matches.supplier_kind"
+      )
       .order(FINAL_ORDER)
       .limit(FETCH_LIMIT)
       .to_a
   end
 
   def ranked_branches
-    return [ supplier_branch(suppliers, 0) ] if @query.blank?
+    return [ supplier_branch(suppliers_for_results, 0) ] if @query.blank?
 
     branches = []
     branches << supplier_reference_branch if reference_query
-    branches << supplier_email_branch if @can_see_contacts && email_query
-    branches << supplier_phone_branch if @can_see_contacts && phone_digits.length >= 7
-    branches << supplier_exact_name_branch if normalized_query.present?
-    branches << supplier_prefix_name_branch if prefix_tsquery.present?
+    if @can_see_contacts && email_query
+      branches << supplier_email_branch
+      branches << contact_email_branch
+    end
+    if @can_see_contacts && phone_digits.length >= 7
+      branches << supplier_phone_branch
+      branches << contact_phone_branch
+    end
+    if normalized_query.present?
+      branches << supplier_exact_name_branch
+      branches << location_exact_name_branch
+      branches << contact_exact_name_branch if @can_see_contacts
+    end
+    if prefix_tsquery.present?
+      branches << supplier_prefix_name_branch
+      branches << location_prefix_name_branch
+      branches << contact_prefix_name_branch if @can_see_contacts
+    end
     branches << supplier_category_branch if category_query_codes.any?
-    branches << supplier_postal_branch if @can_see_contacts && normalized_query.present?
-    branches << supplier_website_branch if @can_see_contacts && normalized_query.present?
+    if @can_see_contacts && normalized_query.present?
+      branches << supplier_postal_branch
+      branches << location_postal_branch
+      branches << supplier_website_branch
+    elsif normalized_query.present?
+      # Viewer may not match Location postal fields.
+    end
     branches.compact
   end
 
-  def suppliers
+  def filtered_suppliers
     scope = @agency.suppliers
-    scope = scope.where(status: @status) unless @status == "all"
     scope = scope.where(kind: @kind) unless @kind == "all"
     scope = scope.where(id: SupplierCategoryAssignment.where(agency_id: @agency.id, category_code: @category).select(:supplier_id)) unless @category == "all"
     scope
   end
 
+  def suppliers_for_results
+    scope = filtered_suppliers
+    scope = scope.where(status: @status) unless @status == "all"
+    scope
+  end
+
+  def owning_suppliers
+    filtered_suppliers
+  end
+
+  def location_scope
+    scope = SupplierLocation.where(agency_id: @agency.id, supplier_id: owning_suppliers.select(:id))
+    scope = scope.where(status: @status) unless @status == "all"
+    scope
+  end
+
+  def contact_scope
+    scope = SupplierContact.where(agency_id: @agency.id, supplier_id: owning_suppliers.select(:id))
+    scope = scope.where(status: @status) unless @status == "all"
+    scope
+  end
+
   def supplier_reference_branch
-    supplier_branch(suppliers.where(supplier_reference: reference_query), 1)
+    supplier_branch(suppliers_for_results.where(supplier_reference: reference_query), 1)
   end
 
   def supplier_email_branch
     ids = SupplierEmailAddress.where(agency_id: @agency.id, normalized_address: email_query).select(:supplier_id)
-    supplier_branch(suppliers.where(id: ids), 2)
+    supplier_branch(suppliers_for_results.where(id: ids), 2)
+  end
+
+  def contact_email_branch
+    ids = SupplierContactEmailAddress.where(agency_id: @agency.id, normalized_address: email_query).select(:supplier_contact_id)
+    contact_branch(contact_scope.where(id: ids), 2, match_kind: "email")
   end
 
   def supplier_phone_branch
@@ -142,27 +225,70 @@ class SearchSupplierDirectory
         "#{SupplierPhoneNumber.sanitize_sql_like(digits.reverse)}%"
       )
     ).select(:supplier_id)
-    supplier_branch(suppliers.where(id: ids), 3)
+    supplier_branch(suppliers_for_results.where(id: ids), 3)
+  end
+
+  def contact_phone_branch
+    digits = phone_digits
+    ids = SupplierContactPhoneNumber.where(agency_id: @agency.id, normalized_number: "+#{digits}").or(
+      SupplierContactPhoneNumber.where(agency_id: @agency.id).where(
+        "phone_digits_reversed LIKE ?",
+        "#{SupplierContactPhoneNumber.sanitize_sql_like(digits.reverse)}%"
+      )
+    ).select(:supplier_contact_id)
+    contact_branch(contact_scope.where(id: ids), 3, match_kind: "phone")
   end
 
   def supplier_exact_name_branch
     key = normalized_query
     supplier_branch(
-      suppliers.where(display_name_search_key: key)
-        .or(suppliers.where(legal_name_search_key: key))
-        .or(suppliers.where(doing_business_as_search_key: key))
-        .or(suppliers.where(individual_full_name_search_key: key)),
+      suppliers_for_results.where(display_name_search_key: key)
+        .or(suppliers_for_results.where(legal_name_search_key: key))
+        .or(suppliers_for_results.where(doing_business_as_search_key: key))
+        .or(suppliers_for_results.where(individual_full_name_search_key: key)),
       4
     )
   end
 
+  def location_exact_name_branch
+    location_branch(location_scope.where(name_search_key: normalized_query), 4)
+  end
+
+  def contact_exact_name_branch
+    contact_branch(contact_scope.where(full_name_search_key: normalized_query), 4)
+  end
+
   def supplier_prefix_name_branch
-    supplier_branch(suppliers.where("name_search_vector @@ to_tsquery('simple', ?)", prefix_tsquery), 5)
+    supplier_branch(suppliers_for_results.where("suppliers.name_search_vector @@ to_tsquery('simple', ?)", prefix_tsquery), 5)
+  end
+
+  def location_prefix_name_branch
+    tokens = SearchNormalizer.tokens(@query)
+    return if tokens.empty?
+
+    scope = location_scope
+    tokens.each do |token|
+      like = SupplierLocation.sanitize_sql_like(token)
+      scope = scope.where(
+        "supplier_locations.name_search_key LIKE ? OR supplier_locations.name_search_key LIKE ?",
+        "#{like}%",
+        "% #{like}%"
+      )
+    end
+    location_branch(scope, 5, match_kind: "name_prefix")
+  end
+
+  def contact_prefix_name_branch
+    contact_branch(
+      contact_scope.where("supplier_contacts.name_search_vector @@ to_tsquery('simple', ?)", prefix_tsquery),
+      5,
+      match_kind: "name_prefix"
+    )
   end
 
   def supplier_category_branch
     ids = SupplierCategoryAssignment.where(agency_id: @agency.id, category_code: category_query_codes).select(:supplier_id)
-    supplier_branch(suppliers.where(id: ids), 6)
+    supplier_branch(suppliers_for_results.where(id: ids), 6)
   end
 
   def supplier_postal_branch
@@ -175,7 +301,15 @@ class SearchSupplierDirectory
         )
       )
       .select(:supplier_id)
-    supplier_branch(suppliers.where(id: ids), 6, match_kind: "postal")
+    supplier_branch(suppliers_for_results.where(id: ids), 6, match_kind: "postal")
+  end
+
+  def location_postal_branch
+    key = normalized_query
+    scope = location_scope.where(postal_code_search_key: key).or(
+      location_scope.where("locality_search_key LIKE ?", "#{SupplierLocation.sanitize_sql_like(key)}%")
+    )
+    location_branch(scope, 6, match_kind: "postal")
   end
 
   def supplier_website_branch
@@ -185,17 +319,60 @@ class SearchSupplierDirectory
       key,
       "#{SupplierWebsite.sanitize_sql_like(key)}%"
     ).select(:supplier_id)
-    supplier_branch(suppliers.where(id: ids), 6, match_kind: "website")
+    supplier_branch(suppliers_for_results.where(id: ids), 6, match_kind: "website")
   end
 
   def supplier_branch(scope, rank, match_kind: MATCH_KINDS.fetch(rank))
     scope
-      .reorder(Arel.sql("CASE WHEN suppliers.status = 'active' THEN 0 ELSE 1 END, #{DISPLAY_SQL}, suppliers.kind, suppliers.id"))
+      .reorder(Arel.sql("CASE WHEN suppliers.status = 'active' THEN 0 ELSE 1 END, #{SUPPLIER_DISPLAY_SQL}, suppliers.kind, suppliers.id"))
       .limit(FETCH_LIMIT)
       .select(
+        Arel.sql("'supplier' AS result_kind"),
         "suppliers.id AS record_id",
-        Arel.sql("#{DISPLAY_SQL} AS display_name"),
+        Arel.sql("#{SUPPLIER_DISPLAY_SQL} AS display_name"),
         "suppliers.status AS status",
+        "suppliers.id AS supplier_id",
+        Arel.sql("#{SUPPLIER_DISPLAY_SQL} AS supplier_display_name"),
+        "suppliers.supplier_reference AS supplier_reference",
+        "suppliers.kind AS supplier_kind",
+        RANK_SELECT.fetch(rank),
+        MATCH_KIND_SELECT.fetch(match_kind)
+      )
+  end
+
+  def location_branch(scope, rank, match_kind: MATCH_KINDS.fetch(rank))
+    scope
+      .joins("INNER JOIN suppliers ON suppliers.id = supplier_locations.supplier_id AND suppliers.agency_id = supplier_locations.agency_id")
+      .reorder(Arel.sql("CASE WHEN supplier_locations.status = 'active' THEN 0 ELSE 1 END, lower(supplier_locations.name), suppliers.kind, suppliers.supplier_reference, supplier_locations.id"))
+      .limit(FETCH_LIMIT)
+      .select(
+        Arel.sql("'location' AS result_kind"),
+        "supplier_locations.id AS record_id",
+        "supplier_locations.name AS display_name",
+        "supplier_locations.status AS status",
+        "suppliers.id AS supplier_id",
+        Arel.sql("#{SUPPLIER_DISPLAY_SQL} AS supplier_display_name"),
+        "suppliers.supplier_reference AS supplier_reference",
+        "suppliers.kind AS supplier_kind",
+        RANK_SELECT.fetch(rank),
+        MATCH_KIND_SELECT.fetch(match_kind)
+      )
+  end
+
+  def contact_branch(scope, rank, match_kind: MATCH_KINDS.fetch(rank))
+    return unless @can_see_contacts
+
+    scope
+      .joins("INNER JOIN suppliers ON suppliers.id = supplier_contacts.supplier_id AND suppliers.agency_id = supplier_contacts.agency_id")
+      .reorder(Arel.sql("CASE WHEN supplier_contacts.status = 'active' THEN 0 ELSE 1 END, lower(supplier_contacts.last_name), lower(supplier_contacts.first_name), suppliers.kind, suppliers.supplier_reference, supplier_contacts.id"))
+      .limit(FETCH_LIMIT)
+      .select(
+        Arel.sql("'contact' AS result_kind"),
+        "supplier_contacts.id AS record_id",
+        Arel.sql("supplier_contacts.first_name || ' ' || supplier_contacts.last_name AS display_name"),
+        "supplier_contacts.status AS status",
+        "suppliers.id AS supplier_id",
+        Arel.sql("#{SUPPLIER_DISPLAY_SQL} AS supplier_display_name"),
         "suppliers.supplier_reference AS supplier_reference",
         "suppliers.kind AS supplier_kind",
         RANK_SELECT.fetch(rank),
@@ -206,14 +383,17 @@ class SearchSupplierDirectory
   def to_result(row)
     rank = row.read_attribute("search_rank").to_i
     Result.new(
+      result_kind: row.read_attribute("result_kind"),
       id: row.read_attribute("record_id"),
       display_name: row.read_attribute("display_name"),
       status: row.read_attribute("status"),
+      rank: rank,
+      match_kind: row.read_attribute("match_kind").presence || MATCH_KINDS[rank],
+      supplier_id: row.read_attribute("supplier_id"),
+      supplier_display_name: row.read_attribute("supplier_display_name"),
       supplier_reference: row.read_attribute("supplier_reference"),
       supplier_kind: row.read_attribute("supplier_kind"),
-      category_codes: row.read_attribute("category_codes"),
-      rank: rank,
-      match_kind: row.read_attribute("match_kind").presence || MATCH_KINDS[rank]
+      category_codes: row.read_attribute("category_codes")
     )
   end
 

@@ -1,0 +1,53 @@
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Contacts</h2>
+    <% if manage && @supplier.active? %>
+      <%= link_to "Add", new_supplier_contact_path(@supplier), class: "dd-button dd-button--quiet" %>
+    <% end %>
+  </header>
+  <% if records.any? %>
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Title</th>
+          <th scope="col">Department</th>
+          <th scope="col">Role</th>
+          <th scope="col">Preferred</th>
+          <th scope="col">Status</th>
+          <% if manage %>
+            <th scope="col">Actions</th>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <% records.each do |contact| %>
+          <tr class="<%= "is-inactive" unless contact.active? %>">
+            <td><%= link_to contact.display_name_for_directory, supplier_contact_path(@supplier, contact) %></td>
+            <td><%= contact.title.presence || "—" %></td>
+            <td><%= contact.department.presence || "—" %></td>
+            <td><%= contact.role_label.presence || "—" %></td>
+            <td><%= preferred_indicator(contact) %></td>
+            <td><%= directory_status_badge(contact.status) %></td>
+            <% if manage %>
+              <td>
+                <div class="dd-inline-actions">
+                  <%= link_to "Edit", edit_supplier_contact_path(@supplier, contact), class: "dd-row-action dd-row-action--edit" %>
+                  <% if @supplier.active? && contact.active? && !contact.preferred? %>
+                    <%= button_to "Set preferred", preferred_supplier_contact_path(@supplier, contact), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { preferred: true, lock_version: contact.lock_version } %>
+                  <% elsif contact.preferred? %>
+                    <%= button_to "Clear preferred", preferred_supplier_contact_path(@supplier, contact), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { preferred: false, lock_version: contact.lock_version } %>
+                  <% end %>
+                </div>
+              </td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <div class="dd-panel-body">
+      <p class="<%= empty_state_classes.join(" ") %>">No contacts yet.</p>
+    </div>
+  <% end %>
+</article>

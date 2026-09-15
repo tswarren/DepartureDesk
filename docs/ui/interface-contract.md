@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the Client directory through M1B, and shipped M1C Supplier core.
+**Scope:** Agency identity, the Client directory through M1B, shipped M1C Supplier core, and M1D Supplier Locations and Contacts UI.
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -50,12 +50,17 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 
 - Suppliers is shown when the current AgencyUser has `view_supplier_directory`.
 - Kind, status, and category filters stay Agency-scoped and do not change authorization.
+- Search may return discriminated Supplier, Location, and Contact results. Presenters build paths from `result_kind` and IDs; search results do not carry URLs.
+- Index context distinguishes result kinds: Supplier shows kind and categories; Location and Contact show “Location · owning Supplier” or “Contact · owning Supplier.”
 - Create is kind-first and requires at least one category; `other` requires a trimmed label of at most 80 characters.
+- Supplier show lists Locations for anyone with `view_supplier_directory`. Locality on the Locations panel and Location address/phone on the Location profile require `view_supplier_contact_details`.
+- Contacts panel, Contact profiles, and Contact-owned destinations require `view_supplier_contact_details`. Viewer requests for Contact routes return not found.
+- Preferred Contact is the Supplier-level person (`PATCH .../contacts/:id/preferred`). Primary email/phone is the preferred destination within one Contact channel (`POST .../set_primary` or ordinary edit). Selecting one does not change the other.
 - Supplier show lists owned contact channels. Contact-point rows expose Edit, status change, and Set primary with `lock_version`.
 - Website entry accepts a hostname or URL; a scheme is optional.
-- Inactive Suppliers may receive identity and category corrections; create and reactivate of contact destinations remain gated on an active Supplier.
-- Inactivation confirmation lists Supplier-owned contact destinations that will become inactive and states that categories remain.
-- Viewer may browse Supplier identity; contact destinations remain hidden without `view_supplier_contact_details`.
+- Inactive Suppliers may receive identity and category corrections; create and reactivate of Locations, Contacts, and destinations remain gated on an active Supplier (and active Contact for Contact destinations).
+- Supplier inactivation confirmation inventories Locations, Contacts, Supplier-owned destinations, and Contact-owned destinations that will become inactive, and states that categories remain. Contact inactivation confirmation lists Contact-owned destinations.
+- Viewer may browse Supplier and Location identity; Location address/phone, named Contacts, and Contact destinations remain hidden without `view_supplier_contact_details`.
 
 ## Page composition
 

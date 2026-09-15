@@ -1,0 +1,25 @@
+<% content_for :title, "Edit Location · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Suppliers</p>
+    <h1 class="dd-page-title">Edit location</h1>
+    <p class="dd-page-description"><%= @supplier.display_name_for_directory %></p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Change status", status_edit_supplier_location_path(@supplier, @supplier_location), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @supplier_location, url: supplier_location_path(@supplier, @supplier_location), method: :patch, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= render "form", form: form %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save location", class: "dd-button" %>
+        <%= link_to "Cancel", supplier_location_path(@supplier, @supplier_location), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>
