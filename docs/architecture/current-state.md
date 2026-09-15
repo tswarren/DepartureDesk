@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, and the Client directory through M1B. M1C Supplier core is implemented on the current branch and considered shipped when that branch merges. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, the Client directory through M1B, and M1C Supplier core. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 

@@ -697,11 +697,11 @@ When M1B ships, update:
 * roadmap status;
 * M1 parent implementation status.
 
-Describe Client Organization and organization-backed Client as shipped. Continue to describe Suppliers and M1C–M1E as deferred.
+Describe Client Organization and organization-backed Client as shipped. Continue to describe Supplier Locations, Supplier Contacts, and M1D–M1E as deferred.
 
 ## Acceptance gate
 
-This slice is **Accepted** and **Implemented on this branch**. Mark it **shipped** in `AGENTS.md` and related shipment docs only after this branch merges to `main`. Product review already confirmed:
+This slice is **Shipped**. Product review confirmed:
 
 1. Historical assignments may be created directly, but future assignments may not.
 2. Ended assignments cannot be reopened; a later relationship creates a new row. A same-day restart is already rejected by the `[starts_on, ends_on + 1)` exclusion; that is specified, not an open question. The next business date may start a new row.

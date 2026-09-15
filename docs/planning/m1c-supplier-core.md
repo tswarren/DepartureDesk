@@ -1,6 +1,6 @@
 # M1C — Supplier core
 
-**Status:** Implemented on this branch; shipped when merged
+**Status:** Shipped. Merged to main on 2026-09-15 in pull request #38. This document remains the Supplier-core contract. It is not authority to extend into Locations or Contacts.
 
 **Parent:** [M1 — Client and Supplier directories](m1-client-and-supplier-directories.md), accepted 2026-09-14
 
@@ -485,4 +485,4 @@ M1C should demonstrate:
 
 ## Acceptance gate
 
-Product review closed the open decisions on 2026-09-14. This slice is **Implemented on this branch** and ships when merged. The accepted contract authorizes M1C only. It does not authorize Supplier Locations, Supplier Contacts, M1D–M1E, or Supplier Arrangements.
+Product review closed the open decisions on 2026-09-14. This slice is **Shipped**. The accepted contract authorizes M1C only. It does not authorize Supplier Locations, Supplier Contacts, M1D–M1E, or Supplier Arrangements.
