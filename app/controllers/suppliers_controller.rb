@@ -50,8 +50,10 @@ class SuppliersController < ApplicationController
 
   def show
     @category_assignments = @supplier.category_assignments.order(:category_code)
+    @locations = @supplier.locations.ordered_for_directory
     return unless can_view_supplier_contact_details?
 
+    @contacts = @supplier.contacts.preferred_first
     @email_addresses = @supplier.email_addresses.preferred_first
     @phone_numbers = @supplier.phone_numbers.preferred_first
     @postal_addresses = @supplier.postal_addresses.preferred_first
@@ -81,7 +83,7 @@ class SuppliersController < ApplicationController
   end
 
   def edit_status
-    @affected_contact_points = supplier_contact_points.select(&:active?)
+    load_status_inventory
   end
 
   def update_status
@@ -94,7 +96,7 @@ class SuppliersController < ApplicationController
     ).call
     redirect_to supplier_path(@supplier), notice: "Supplier status updated."
   rescue AgencyCommand::Error => error
-    @affected_contact_points = supplier_contact_points.select(&:active?)
+    load_status_inventory
     rescue_supplier_directory_error(error, :edit_status)
   end
 
@@ -127,7 +129,17 @@ class SuppliersController < ApplicationController
     end
   end
 
-  def supplier_contact_points
+  def load_status_inventory
+    @affected_locations = @supplier.locations.select(&:active?)
+    contacts = @supplier.contacts.includes(:email_addresses, :phone_numbers).to_a
+    @affected_contacts = contacts.select(&:active?)
+    @affected_contact_points = supplier_owned_contact_points.select(&:active?)
+    @affected_contact_destinations = contacts.flat_map { |contact|
+      contact.email_addresses.to_a + contact.phone_numbers.to_a
+    }.select(&:active?)
+  end
+
+  def supplier_owned_contact_points
     @supplier.email_addresses.to_a +
       @supplier.phone_numbers.to_a +
       @supplier.postal_addresses.to_a +

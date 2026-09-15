@@ -5,6 +5,8 @@ class Supplier < ApplicationRecord
 
   belongs_to :agency
   has_many :category_assignments, class_name: "SupplierCategoryAssignment", dependent: :restrict_with_exception
+  has_many :locations, class_name: "SupplierLocation", dependent: :restrict_with_exception
+  has_many :contacts, class_name: "SupplierContact", dependent: :restrict_with_exception
   has_many :email_addresses, class_name: "SupplierEmailAddress", dependent: :restrict_with_exception
   has_many :phone_numbers, class_name: "SupplierPhoneNumber", dependent: :restrict_with_exception
   has_many :postal_addresses, class_name: "SupplierPostalAddress", dependent: :restrict_with_exception

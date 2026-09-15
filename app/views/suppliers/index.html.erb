@@ -4,7 +4,7 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Suppliers</p>
     <h1 class="dd-page-title">Suppliers</h1>
-    <p class="dd-page-description">Search contracting identities available for future supplier arrangements.</p>
+    <p class="dd-page-description">Search contracting identities, locations, and contacts available for future supplier arrangements.</p>
   </div>
   <% if Current.agency_user.permitted?(:manage_supplier_directory) %>
     <div class="dd-page-actions">
@@ -41,25 +41,23 @@
 </article>
 
 <% if @search %>
-  <p><%= @search.truncated ? "Showing the first 50 suppliers matched. Narrow the #{params[:q].present? ? "search" : "filters"} to see the rest." : "#{pluralize(@search.records.size, "supplier")} matched." %></p>
+  <p><%= @search.truncated ? "Showing the first 50 results matched. Narrow the #{params[:q].present? ? "search" : "filters"} to see the rest." : "#{pluralize(@search.records.size, "result")} matched." %></p>
   <article class="dd-panel">
     <table class="dd-table">
       <thead>
         <tr>
           <th>Name</th>
+          <th>Context</th>
           <th>Reference</th>
-          <th>Kind</th>
-          <th>Categories</th>
           <th>Status</th>
         </tr>
       </thead>
       <tbody>
         <% @search.records.each do |record| %>
           <tr>
-            <td><%= link_to record.display_name, supplier_path(record.id) %></td>
+            <td><%= link_to record.display_name, supplier_directory_result_path(record) %></td>
+            <td><%= supplier_directory_result_context(record) %></td>
             <td class="dd-type-mono"><%= record.supplier_reference %></td>
-            <td><%= record.supplier_kind.titleize %></td>
-            <td><%= Array(record.category_codes).map { |code| SupplierCategory::LABELS.fetch(code) }.to_sentence.presence || "—" %></td>
             <td><%= directory_status_badge(record.status) %></td>
           </tr>
         <% end %>

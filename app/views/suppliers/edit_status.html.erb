@@ -10,20 +10,54 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <% if @supplier.active? && @affected_contact_points.any? %>
-      <section class="dd-callout">
-        <h2 class="dd-panel-title">Inactivation impact</h2>
-        <p>Inactivating this Supplier will also inactivate these contact destinations. Categories remain assigned.</p>
-        <ul>
-          <% @affected_contact_points.each do |record| %>
-            <li><%= record.model_name.human %>: <%= contact_destination(record) %></li>
+    <% if @supplier.active? %>
+      <% has_impact = @affected_locations.any? || @affected_contacts.any? || @affected_contact_points.any? || @affected_contact_destinations.any? %>
+      <% if has_impact %>
+        <section class="dd-callout">
+          <h2 class="dd-panel-title">Inactivation impact</h2>
+          <p>Inactivating this Supplier will also inactivate the records listed below and clear preferred states. Categories remain assigned.</p>
+
+          <% if @affected_locations.any? %>
+            <h3 class="dd-panel-title">Locations</h3>
+            <ul>
+              <% @affected_locations.each do |location| %>
+                <li>Location: <%= location.name %></li>
+              <% end %>
+            </ul>
           <% end %>
-        </ul>
-      </section>
-    <% elsif @supplier.active? %>
-      <p>Inactivating this Supplier leaves its categories assigned. There are no active contact destinations to inactivate.</p>
+
+          <% if @affected_contacts.any? %>
+            <h3 class="dd-panel-title">Contacts</h3>
+            <ul>
+              <% @affected_contacts.each do |contact| %>
+                <li>Contact: <%= contact.display_name_for_directory %></li>
+              <% end %>
+            </ul>
+          <% end %>
+
+          <% if @affected_contact_points.any? %>
+            <h3 class="dd-panel-title">Supplier destinations</h3>
+            <ul>
+              <% @affected_contact_points.each do |record| %>
+                <li><%= record.model_name.human %>: <%= contact_destination(record) %></li>
+              <% end %>
+            </ul>
+          <% end %>
+
+          <% if @affected_contact_destinations.any? %>
+            <h3 class="dd-panel-title">Contact destinations</h3>
+            <ul>
+              <% @affected_contact_destinations.each do |record| %>
+                <li><%= record.model_name.human %>: <%= contact_destination(record) %></li>
+              <% end %>
+            </ul>
+          <% end %>
+        </section>
+      <% else %>
+        <p>Inactivating this Supplier leaves its categories assigned. There are no active locations, contacts, or destinations to inactivate.</p>
+      <% end %>
     <% else %>
-      <p>Reactivating this Supplier does not reactivate contact destinations. Categories remain assigned.</p>
+      <p>Reactivating this Supplier does not reactivate locations, contacts, destinations, or preferred states. Categories remain assigned.</p>
     <% end %>
 
     <%= form_with url: status_supplier_path(@supplier), method: :patch, class: "dd-form" do |form| %>

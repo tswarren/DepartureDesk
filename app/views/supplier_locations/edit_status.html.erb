@@ -1,0 +1,31 @@
+<% content_for :title, "Change Location Status · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Suppliers</p>
+    <h1 class="dd-page-title">Change location status</h1>
+    <p class="dd-page-description"><%= @supplier_location.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @supplier_location.active? %>
+      <p>Inactivating this Location keeps its stored address and phone as historical Location facts. It does not change Contacts or Supplier destinations.</p>
+    <% else %>
+      <p>Reactivating this Location requires an active Supplier. It does not change other records.</p>
+    <% end %>
+
+    <%= form_with url: status_supplier_location_path(@supplier, @supplier_location), method: :patch, class: "dd-form" do |form| %>
+      <%= hidden_field_tag :lock_version, @supplier_location.lock_version %>
+      <div class="dd-field-group">
+        <%= label_tag :status, "Status", class: "dd-label" %>
+        <%= select_tag :status, options_for_select(SupplierLocation::STATUSES.map { |status| [status.titleize, status] }, @supplier_location.status), class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Update status", class: "dd-button" %>
+        <%= link_to "Cancel", supplier_location_path(@supplier, @supplier_location), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

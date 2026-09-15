@@ -1,0 +1,61 @@
+<% content_for :title, "#{@supplier_contact.display_name_for_directory} · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_supplier_directory) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Suppliers</p>
+    <h1 class="dd-page-title"><%= @supplier_contact.display_name_for_directory %></h1>
+    <p class="dd-page-description">
+      Contact for <%= link_to @supplier.display_name_for_directory, supplier_path(@supplier) %>
+    </p>
+  </div>
+  <% if manage %>
+    <div class="dd-page-actions">
+      <%= link_to "Edit contact", edit_supplier_contact_path(@supplier, @supplier_contact), class: "dd-button" %>
+      <%= link_to "Change status", status_edit_supplier_contact_path(@supplier, @supplier_contact), class: "dd-button dd-button--quiet" %>
+      <% if @supplier.active? && @supplier_contact.active? && !@supplier_contact.preferred? %>
+        <%= button_to "Set preferred", preferred_supplier_contact_path(@supplier, @supplier_contact), method: :patch, class: "dd-button dd-button--quiet", params: { preferred: true, lock_version: @supplier_contact.lock_version } %>
+      <% elsif @supplier_contact.preferred? %>
+        <%= button_to "Clear preferred", preferred_supplier_contact_path(@supplier, @supplier_contact), method: :patch, class: "dd-button dd-button--quiet", params: { preferred: false, lock_version: @supplier_contact.lock_version } %>
+      <% end %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Status</dt>
+        <dd><%= directory_status_badge(@supplier_contact.status) %></dd>
+      </div>
+      <div>
+        <dt>Preferred contact</dt>
+        <dd><%= preferred_indicator(@supplier_contact) %></dd>
+      </div>
+      <div>
+        <dt>First name</dt>
+        <dd><%= @supplier_contact.first_name %></dd>
+      </div>
+      <div>
+        <dt>Last name</dt>
+        <dd><%= @supplier_contact.last_name %></dd>
+      </div>
+      <div>
+        <dt>Title</dt>
+        <dd><%= @supplier_contact.title.presence || "—" %></dd>
+      </div>
+      <div>
+        <dt>Department</dt>
+        <dd><%= @supplier_contact.department.presence || "—" %></dd>
+      </div>
+      <div>
+        <dt>Role label</dt>
+        <dd><%= @supplier_contact.role_label.presence || "—" %></dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<%= render "destination_channel", heading: "Email addresses", records: @email_addresses, new_path: new_supplier_contact_email_address_path(@supplier, @supplier_contact) %>
+<%= render "destination_channel", heading: "Phone numbers", records: @phone_numbers, new_path: new_supplier_contact_phone_number_path(@supplier, @supplier_contact) %>

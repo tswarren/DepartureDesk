@@ -13,7 +13,11 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
       tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
       assert_equal %w[
         supplier_category_assignments
+        supplier_contact_email_addresses
+        supplier_contact_phone_numbers
+        supplier_contacts
         supplier_email_addresses
+        supplier_locations
         supplier_phone_numbers
         supplier_postal_addresses
         supplier_websites

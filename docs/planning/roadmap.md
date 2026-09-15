@@ -9,7 +9,7 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 | Milestone | Status | Outcome |
 | --- | --- | --- |
 | M0 — Agency identity baseline | Complete | Agency-scoped authentication, administration, Office context, audit, tenant isolation, and hardening. |
-| M1 — Separate directories | Accepted plan; M1A, M1B, and M1C shipped | Maintain Client and Supplier identities without restoring Party or prematurely creating Household/Traveler records. M1A shipped individual Clients. M1B shipped Client Organizations and expanded Client search. M1C shipped Supplier core. Locations and Contacts remain later slices. |
+| M1 — Separate directories | Accepted plan; M1A–M1C shipped; M1D implemented on branch | Maintain Client and Supplier identities without restoring Party or prematurely creating Household/Traveler records. M1A shipped individual Clients. M1B shipped Client Organizations and expanded Client search. M1C shipped Supplier core. M1D Locations and Contacts are implemented on this branch and ship when merged. |
 | M2 — Departure core | Planned | Create and govern reusable Travel Programs and dated Departures. |
 | M3 — Supplier planning | Planned | Represent arrangements, items, occurrences, resources, commitments, capacity, deadlines, and exposure. |
 | M4 — Offers and pricing | Planned | Describe Packages and standalone services the Agency intends to sell. |
@@ -43,7 +43,7 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 2. The [M1A individual-Client slice plan](m1a-individual-client.md) is implemented and merged to main.
 3. The [M1B Client Organization slice plan](m1b-client-organizations.md) is implemented and merged. Client Organization, organization-backed Client, organization contact points, organization-contact history, and expanded Client search are shipped.
 4. The [M1C Supplier-core slice plan](m1c-supplier-core.md) is implemented and merged. Organization and individual Suppliers, categories, contact points, search, and duplicates are shipped.
-5. Add Supplier Location and Supplier Contact in M1D. Do not introduce Household or standalone Traveler persistence.
+5. The [M1D Supplier Locations and Contacts slice plan](m1d-supplier-locations-and-contacts.md) is implemented on this branch and ships when merged. Do not introduce Household or standalone Traveler persistence.
 6. Validate M1 against the explicit fictional directory-fixture set mapped to both reference scenario shapes before beginning M2.
 
 The [MVP specification](departure-desk-mvp.md) defines scope. The [commercial decision register](commercial-domain-decision-register.md) defines cross-cutting commercial rules. This roadmap controls sequence, not record-level implementation.

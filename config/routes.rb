@@ -95,6 +95,21 @@ Rails.application.routes.draw do
     end
   end
   scope "/suppliers/:supplier_id", as: :supplier do
+    resources :locations, controller: "supplier_locations", param: :supplier_location_id, only: %i[new create show edit update] do
+      member do
+        get "status/edit", action: :edit_status
+        patch :status, action: :update_status
+      end
+    end
+
+    resources :contacts, controller: "supplier_contacts", param: :supplier_contact_id, only: %i[new create show edit update] do
+      member do
+        get "status/edit", action: :edit_status
+        patch :status, action: :update_status
+        patch :preferred
+      end
+    end
+
     {
       email_addresses: "email-addresses",
       phone_numbers: "phone-numbers",
@@ -102,6 +117,21 @@ Rails.application.routes.draw do
       websites: "websites"
     }.each do |name, path|
       resources name, path: path, param: :contact_point_id, only: %i[new create edit update], controller: "supplier_#{name}" do
+        member do
+          get "status/edit", action: :edit_status
+          patch :status, action: :update_status
+          post :set_primary
+        end
+      end
+    end
+  end
+
+  scope "/suppliers/:supplier_id/contacts/:supplier_contact_id", as: :supplier_contact do
+    {
+      email_addresses: "email-addresses",
+      phone_numbers: "phone-numbers"
+    }.each do |name, path|
+      resources name, path: path, param: :contact_point_id, only: %i[new create edit update], controller: "supplier_contact_#{name}" do
         member do
           get "status/edit", action: :edit_status
           patch :status, action: :update_status

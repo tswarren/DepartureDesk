@@ -1,0 +1,34 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+
+<div class="dd-field-group">
+  <%= form.label :first_name, "First name", class: "dd-label" %>
+  <%= form.text_field :first_name, required: true, maxlength: 100, **dd_field_options(form, :first_name) %>
+  <%= dd_field_error(form, :first_name) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :last_name, "Last name", class: "dd-label" %>
+  <%= form.text_field :last_name, required: true, maxlength: 100, **dd_field_options(form, :last_name) %>
+  <%= dd_field_error(form, :last_name) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :title, class: "dd-label" %>
+  <%= form.text_field :title, maxlength: 120, **dd_field_options(form, :title) %>
+  <%= dd_field_error(form, :title) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :department, class: "dd-label" %>
+  <%= form.text_field :department, maxlength: 120, **dd_field_options(form, :department) %>
+  <%= dd_field_error(form, :department) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :role_label, "Role label", class: "dd-label" %>
+  <%= form.text_field :role_label, maxlength: 80, **dd_field_options(form, :role_label, aria_describedby_extra: "supplier_contact_role_hint") %>
+  <p class="dd-field-hint" id="supplier_contact_role_hint">Optional work-context label. It grants no authority.</p>
+  <%= dd_field_error(form, :role_label) %>
+</div>
+
+<%= render "shared/duplicate_review" %>

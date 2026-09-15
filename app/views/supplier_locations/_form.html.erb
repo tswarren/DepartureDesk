@@ -1,0 +1,68 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+
+<div class="dd-field-group">
+  <%= form.label :name, class: "dd-label" %>
+  <%= form.text_field :name, required: true, maxlength: 160, **dd_field_options(form, :name) %>
+  <%= dd_field_error(form, :name) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :timezone, class: "dd-label" %>
+  <%= form.text_field :timezone, **dd_field_options(form, :timezone, aria_describedby_extra: "supplier_location_timezone_hint") %>
+  <p class="dd-field-hint" id="supplier_location_timezone_hint">Optional IANA timezone, for example America/New_York.</p>
+  <%= dd_field_error(form, :timezone) %>
+</div>
+
+<h2 class="dd-panel-title">Operational address</h2>
+<p class="dd-field-hint">Leave blank when no address is known. Address line 1 and country are required together when any address field is present.</p>
+<div class="dd-field-group">
+  <%= form.label :address_line_1, "Address line 1", class: "dd-label" %>
+  <%= form.text_field :address_line_1, **dd_field_options(form, :address_line_1) %>
+  <%= dd_field_error(form, :address_line_1) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :address_line_2, "Address line 2", class: "dd-label" %>
+  <%= form.text_field :address_line_2, **dd_field_options(form, :address_line_2) %>
+  <%= dd_field_error(form, :address_line_2) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :address_locality, "Locality", class: "dd-label" %>
+  <%= form.text_field :address_locality, **dd_field_options(form, :address_locality) %>
+  <%= dd_field_error(form, :address_locality) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :address_region, "Region", class: "dd-label" %>
+  <%= form.text_field :address_region, **dd_field_options(form, :address_region) %>
+  <%= dd_field_error(form, :address_region) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :address_postal_code, "Postal code", class: "dd-label" %>
+  <%= form.text_field :address_postal_code, **dd_field_options(form, :address_postal_code) %>
+  <%= dd_field_error(form, :address_postal_code) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :address_country_code, "Country", class: "dd-label" %>
+  <%= form.text_field :address_country_code, maxlength: 2, **dd_field_options(form, :address_country_code).merge(class: "dd-field dd-field--code") %>
+  <%= dd_field_error(form, :address_country_code) %>
+</div>
+
+<h2 class="dd-panel-title">Location phone</h2>
+<p class="dd-field-hint">Optional. Extension is allowed only with a phone number.</p>
+<div class="dd-field-group">
+  <%= form.label :phone_country_code, "Country", class: "dd-label" %>
+  <%= form.select :phone_country_code, CountryCode.options, { include_blank: true, selected: form.object.phone_country_code }, **dd_field_options(form, :phone_country_code) %>
+  <%= dd_field_error(form, :phone_country_code) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :phone_number, "Phone number", class: "dd-label" %>
+  <%= form.telephone_field :phone_number, **dd_field_options(form, :phone_number, aria_describedby_extra: "supplier_location_phone_hint") %>
+  <p class="dd-field-hint" id="supplier_location_phone_hint">Enter the number as dialed in the selected country. It is stored in international E.164 form.</p>
+  <%= dd_field_error(form, :phone_number) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :phone_extension, "Extension", class: "dd-label" %>
+  <%= form.text_field :phone_extension, **dd_field_options(form, :phone_extension) %>
+  <%= dd_field_error(form, :phone_extension) %>
+</div>
+
+<%= render "shared/duplicate_review" %>

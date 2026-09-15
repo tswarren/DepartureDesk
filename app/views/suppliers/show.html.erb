@@ -1,5 +1,6 @@
 <% content_for :title, "#{@supplier.display_name_for_directory} · DepartureDesk" %>
 <% manage = Current.agency_user.permitted?(:manage_supplier_directory) %>
+<% contact_details = Current.agency_user.permitted?(:view_supplier_contact_details) %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
@@ -67,7 +68,10 @@
   </div>
 </article>
 
-<% if Current.agency_user.permitted?(:view_supplier_contact_details) %>
+<%= render "locations", records: @locations, manage: manage, contact_details: contact_details %>
+
+<% if contact_details %>
+  <%= render "contacts", records: @contacts, manage: manage %>
   <%= render "contact_channel", heading: "Email addresses", records: @email_addresses, new_path: new_supplier_email_address_path(@supplier) %>
   <%= render "contact_channel", heading: "Phone numbers", records: @phone_numbers, new_path: new_supplier_phone_number_path(@supplier) %>
   <%= render "contact_channel", heading: "Postal addresses", records: @postal_addresses, new_path: new_supplier_postal_address_path(@supplier) %>
