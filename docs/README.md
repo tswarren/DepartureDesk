@@ -35,11 +35,12 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/departure-desk-mvp.md`](planning/departure-desk-mvp.md) | MVP product scope and acceptance requirements. |
 | [`planning/commercial-domain-decision-register.md`](planning/commercial-domain-decision-register.md) | Detailed commercial and financial rules. |
 | [`planning/roadmap.md`](planning/roadmap.md) | Milestone order and entry/exit gates. |
-| [`planning/m1-client-and-supplier-directories.md`](planning/m1-client-and-supplier-directories.md) | Accepted M1 directory contract. Slice code waits for an accepted slice plan. |
+| [`planning/m1-client-and-supplier-directories.md`](planning/m1-client-and-supplier-directories.md) | Complete M1 directory contract. M1A–M1E are shipped. |
 | [`planning/m1a-individual-client.md`](planning/m1a-individual-client.md) | Implemented individual-Client slice, merged to main. |
 | [`planning/m1b-client-organizations.md`](planning/m1b-client-organizations.md) | Shipped Client Organization slice. |
 | [`planning/m1c-supplier-core.md`](planning/m1c-supplier-core.md) | Shipped Supplier-core slice. |
 | [`planning/m1d-supplier-locations-and-contacts.md`](planning/m1d-supplier-locations-and-contacts.md) | Shipped Supplier Locations and Contacts slice. |
+| [`planning/m1e-directory-acceptance-and-hardening.md`](planning/m1e-directory-acceptance-and-hardening.md) | Shipped directory proof and hardening slice. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |

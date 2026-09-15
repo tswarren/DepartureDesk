@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, the Client directory through M1B, M1C Supplier core, and M1D Supplier Locations and Contacts. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, and the complete M1 Client and Supplier directories (M1A–M1E). M1E is proof and hardening only; it added no new domain aggregate. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 

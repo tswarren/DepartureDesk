@@ -71,39 +71,6 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     end
   end
 
-  def add_party_role(role_noun, office_label:)
-    wait_for_turbo
-    unless has_css?("##{role_noun}_profile_create_form", wait: 0)
-      click_party_tab "Roles"
-      wait_for_turbo
-      click_link "Add #{role_noun} role"
-      wait_for_turbo
-    end
-    within("##{role_noun}_profile_create_form") do
-      select office_label, from: "#{role_noun.titleize} responsible office"
-    end
-    click_button_and_expect "Add #{role_noun} role", text: "#{role_noun.titleize} role added."
-  end
-
-  def deactivate_party_from_record(reason)
-    click_party_tab "Record"
-    click_link "Deactivate party"
-    fill_in "Party deactivation reason", with: reason
-    click_button "Deactivate party"
-    wait_for_turbo
-  end
-
-  def reactivate_party_from_record(reason)
-    click_party_tab "Record"
-    unless has_field?("Party reactivation reason", wait: 0)
-      click_link "Reactivate party"
-      wait_for_turbo
-    end
-    fill_in "Party reactivation reason", with: reason
-    click_button "Reactivate party"
-    wait_for_turbo
-  end
-
   def click_button_accepting_confirm(locator)
     wait_for_turbo
     button = find_button(locator)
@@ -129,10 +96,6 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     wait_for_turbo
   end
 
-  def open_directory
-    click_primary_nav "Directory", heading: "People, households, and organizations"
-  end
-
   def open_clients
     click_primary_nav "Clients", heading: "Clients"
   end
@@ -145,39 +108,20 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     click_link_and_expect "Administration", heading: "Agency profile"
   end
 
-  def click_party_tab(name)
-    TURBO_CLICK_ATTEMPTS.times do |attempt|
-      begin
-        wait_for_turbo
-        href = within("nav[aria-label=Party]") { find("a", exact_text: name)[:href] }
-        target_path = URI.parse(href).path
-        unless current_path == target_path
-          visit href
-          wait_for_turbo
-        end
-        assert_selector "nav[aria-label=Party] a[aria-current=page]", exact_text: name
-        assert_equal target_path, current_path
-        wait_for_turbo
-        return
-      rescue Capybara::ExpectationNotMet, Capybara::ElementNotFound, Minitest::Assertion
-        raise if attempt == TURBO_CLICK_ATTEMPTS - 1
-      end
-    end
+  def resize_window(width, height = 900)
+    page.current_window.resize_to(width, height)
   end
 
-  def open_directory_party(display_name)
-    open_directory
+  def assert_no_page_overflow
+    overflow = page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth + 1")
+    assert_not overflow, "page overflowed horizontally at #{page.current_window.size}"
+  end
+
+  def activate(locator, **options)
+    element = options[:button] ? find_button(locator, **options.except(:button)) : find(:link, locator, **options)
+    scroll_to(element, align: :center)
+    element.send_keys(:return)
     wait_for_turbo
-    href = nil
-    within("table.dd-table") do
-      href = find("a", exact_text: display_name)[:href]
-    end
-    # Follow the table href with visit so an in-flight Turbo click cannot
-    # cancel navigation and leave the directory index in place.
-    visit href
-    assert_selector "h1.dd-page-title", exact_text: display_name
-    wait_for_turbo
-    assert_selector "nav[aria-label=Party]"
   end
 
   private

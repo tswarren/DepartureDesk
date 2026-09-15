@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the Client directory through M1B, shipped M1C Supplier core, and M1D Supplier Locations and Contacts UI.
+**Scope:** Agency identity, the complete M1 Client and Supplier directories, and M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior.
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -24,6 +24,7 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Current Office selection is available to authenticated users and changes no authorization.
 - Clients is shown when the current AgencyUser has `view_client_directory`.
 - Suppliers is shown when the current AgencyUser has `view_supplier_directory`.
+- Below 768px, `.dd-drawer-toggle` opens the existing Stimulus drawer. Open focuses Close navigation or the first link, Tab stays inside the drawer, Escape closes and restores the toggle, and `.dd-main` / `.dd-topbar` are `inert` while open.
 - Directory, Departures, Travelers, and Accounting are absent until accepted slices ship their authorized routes.
 - Active navigation uses `aria-current="page"` and a visible teal indicator.
 
@@ -99,6 +100,7 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 
 - Use `.dd-field` anatomy with a visible label, optional hint, control, and field-specific error.
 - Preserve submitted values after validation failure.
+- Invalid command forms render `#form-error-summary` with `role="alert"`, `tabindex="-1"`, `data-turbo-focus`, the title “Please fix the following:”, and links to `#{param_key}_#{attribute}` for field errors.
 - Focus the error summary or first invalid field according to the surface's established pattern.
 - Do not hide required inputs in a closed `details` element.
 - Cancel returns to the relevant browse/show surface without applying changes.

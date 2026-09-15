@@ -1,8 +1,8 @@
 # M1 — Client and Supplier directories
 
-**Status:** Accepted milestone contract. It is not implementation authority for a slice until that slice plan is accepted.
+**Status:** Complete. M1A–M1E are shipped. This contract remains the directory model. It is not implementation authority for M2 until an accepted M2 slice plan names that work.
 
-**Decision posture:** Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. [M1A](m1a-individual-client.md), [M1B](m1b-client-organizations.md), [M1C](m1c-supplier-core.md), and [M1D](m1d-supplier-locations-and-contacts.md) are shipped and merged. M1E remains deferred.
+**Decision posture:** Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. [M1A](m1a-individual-client.md), [M1B](m1b-client-organizations.md), [M1C](m1c-supplier-core.md), [M1D](m1d-supplier-locations-and-contacts.md), and [M1E](m1e-directory-acceptance-and-hardening.md) are shipped.
 
 **M1A amendments (2026-09-14):** After M1A acceptance, product review requested two changes. They supersede the original sentences they touch and are recorded as amendments in the slice plan, not as text that was always in this contract. A Client Person phone country is required and must match the selected country. The individual-Client people list may `POST .../set_primary` with `lock_version`; that is not a `/preferred` route.
 
@@ -61,7 +61,7 @@ Each slice includes its migration, schema dump, permissions, commands, audit act
 | M1B | Client Organization, organization-backed Client, organization contacts, and expanded Client search. This is the only slice that enables `btree_gist`, and only for the organization-contact history exclusion constraint. |
 | M1C | Supplier core: organization/individual Suppliers, fixed categories, lifecycle, search, and duplicate review. |
 | M1D | Supplier Locations and Supplier Contacts with contact methods and contextual roles. |
-| M1E | Cross-directory hardening, scenario fixtures, accessibility/system proof, performance checks, and documentation acceptance. |
+| M1E | Cross-directory hardening, scenario builders, accessibility/system proof, performance checks, and documentation acceptance. |
 
 Duplicate and lifecycle protection ship with the first governed record. M1E does not postpone foundational safeguards. The M1A slice plan is [m1a-individual-client.md](m1a-individual-client.md), accepted 2026-09-14 for the individual-Client slice only.
 
@@ -643,9 +643,9 @@ Confirmed on 2026-09-14:
 
 The ADR 0006, MVP, terminology, roadmap, and M8 merge amendments are completed by this coordinated documentation change and are not outstanding acceptance prerequisites.
 
-Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. This milestone contract is Accepted. [M1A](m1a-individual-client.md), [M1B](m1b-client-organizations.md), [M1C](m1c-supplier-core.md), and [M1D](m1d-supplier-locations-and-contacts.md) are shipped. M1E remains deferred. Domain code for a slice waits until that slice plan is accepted.
+Product review confirmed the recommended defaults, including the contract closures in this document, on 2026-09-14. This milestone is **Complete**. [M1A](m1a-individual-client.md), [M1B](m1b-client-organizations.md), [M1C](m1c-supplier-core.md), [M1D](m1d-supplier-locations-and-contacts.md), and [M1E](m1e-directory-acceptance-and-hardening.md) are shipped. Domain code for M2 waits until an accepted M2 slice plan names that work.
 
-M1 implementation is complete only when every slice is accepted and implemented; an explicit fictional fixture set, mapped to the Celebrity Beyond and Vineyard Tour shapes, satisfies the directory contracts; lifecycle, permission, audit, normalization, duplicate, reference, and tenancy contracts pass; no Party/global User/polymorphic identity/Office authorization/cross-domain sync/automatic merge has returned; shipped documentation is current; and full CI is green. That fixture set is not a requirement to add named people, organizations, a DMC, or a motorcoach company to the scenario documents. Those documents still say unconfirmed hotel and vehicle facts must not be guessed.
+M1 implementation is complete only when every slice is accepted and implemented; an explicit fictional directory dataset built through commands, mapped to the Celebrity Beyond and Vineyard Tour shapes, satisfies the directory contracts; lifecycle, permission, audit, normalization, duplicate, reference, and tenancy contracts pass; no Party/global User/polymorphic identity/Office authorization/cross-domain sync/automatic merge has returned; shipped documentation is current; and full CI is green. That dataset is not a requirement to add named people, organizations, a DMC, or a motorcoach company to the scenario documents. Those documents still say unconfirmed hotel and vehicle facts must not be guessed.
 
 As each slice ships, update `AGENTS.md`, current architecture, terminology, interface navigation, and the documentation index so implemented scope remains distinguishable from the rest of M1.
 
