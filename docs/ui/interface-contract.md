@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the Client directory through M1B, and M1C Supplier core (implemented on this branch; shipped when merged).
+**Scope:** Agency identity, the Client directory through M1B, and shipped M1C Supplier core.
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
