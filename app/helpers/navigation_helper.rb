@@ -7,6 +7,8 @@ module NavigationHelper
       controller_path.start_with?("administration/")
     when :clients
       controller_path.in?(%w[clients client_people]) || controller_path.start_with?("client_person_")
+    when :suppliers
+      controller_path == "suppliers" || controller_path.start_with?("supplier_")
     else
       false
     end

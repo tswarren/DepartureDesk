@@ -1,6 +1,6 @@
 # M1C — Supplier core
 
-**Status:** Accepted. Implementation authority for the Supplier-core slice only. Supplier code is not shipped until this slice is implemented and merged.
+**Status:** Implemented on this branch; shipped when merged
 
 **Parent:** [M1 — Client and Supplier directories](m1-client-and-supplier-directories.md), accepted 2026-09-14
 

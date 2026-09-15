@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity and the Client directory through M1B. Suppliers navigation remains absent until M1C ships authorized routes.
+**Scope:** Agency identity, the Client directory through M1B, and M1C Supplier core (implemented on this branch; shipped when merged).
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -23,7 +23,8 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Administration is shown only when the current AgencyUser has an applicable management permission.
 - Current Office selection is available to authenticated users and changes no authorization.
 - Clients is shown when the current AgencyUser has `view_client_directory`.
-- Directory, Suppliers, Departures, Travelers, and Accounting are absent until accepted slices ship their authorized routes. M1C is Accepted but Suppliers navigation must not appear until Supplier routes ship.
+- Suppliers is shown when the current AgencyUser has `view_supplier_directory`.
+- Directory, Departures, Travelers, and Accounting are absent until accepted slices ship their authorized routes.
 - Active navigation uses `aria-current="page"` and a visible teal indicator.
 
 ## Client directory
@@ -44,6 +45,17 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Adding an organization contact offers Agency-scoped person search with an explicit result cap, or create-new-person fields.
 - Organization-contact create does not collect start or end dates; ending uses the End confirmation surface.
 - Primary assignment uses an icon indicator plus accessible text, never color alone.
+
+## Supplier directory
+
+- Suppliers is shown when the current AgencyUser has `view_supplier_directory`.
+- Kind, status, and category filters stay Agency-scoped and do not change authorization.
+- Create is kind-first and requires at least one category; `other` requires a trimmed label of at most 80 characters.
+- Supplier show lists owned contact channels. Contact-point rows expose Edit, status change, and Set primary with `lock_version`.
+- Website entry accepts a hostname or URL; a scheme is optional.
+- Inactive Suppliers may receive identity and category corrections; create and reactivate of contact destinations remain gated on an active Supplier.
+- Inactivation confirmation lists Supplier-owned contact destinations that will become inactive and states that categories remain.
+- Viewer may browse Supplier identity; contact destinations remain hidden without `view_supplier_contact_details`.
 
 ## Page composition
 

@@ -1,0 +1,23 @@
+<% assignments = local_assigns.fetch(:assignments) { @supplier.category_assignments.to_a } %>
+<% selected_codes = assignments.map(&:category_code) %>
+<% other_assignment = assignments.find { |assignment| assignment.category_code == "other" } %>
+
+<div class="dd-field-group">
+  <span class="dd-label">Categories</span>
+  <div class="dd-choice-group">
+    <% SupplierCategory::CODES.each do |code| %>
+      <label class="dd-choice">
+        <%= check_box_tag "supplier[category_codes][]", code, selected_codes.include?(code), id: "supplier_category_#{code}" %>
+        <span><%= SupplierCategory::LABELS.fetch(code) %></span>
+      </label>
+    <% end %>
+  </div>
+  <p class="dd-field-hint">Choose at least one category.</p>
+</div>
+
+<div class="dd-field-group">
+  <%= hidden_field_tag "supplier[categories][0][category_code]", "other" %>
+  <%= label_tag "supplier_other_label", "Other category description", class: "dd-label" %>
+  <%= text_field_tag "supplier[categories][0][other_label]", other_assignment&.other_label, id: "supplier_other_label", maxlength: 80, class: "dd-field" %>
+  <p class="dd-field-hint">Required only when Other is selected.</p>
+</div>

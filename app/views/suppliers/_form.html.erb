@@ -1,0 +1,73 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+
+<% if form.object.persisted? %>
+  <div class="dd-field-group">
+    <span class="dd-label">Kind</span>
+    <p><%= form.object.kind.titleize %></p>
+  </div>
+<% else %>
+  <div class="dd-field-group" data-controller="supplier-kind">
+    <span class="dd-label">Kind</span>
+    <div class="dd-choice-group">
+      <% Supplier::KINDS.each do |kind| %>
+        <label class="dd-choice">
+          <%= form.radio_button :kind, kind, checked: form.object.kind == kind, required: true, data: { supplier_kind_target: "kind", action: "supplier-kind#update" } %>
+          <span><%= kind.titleize %></span>
+        </label>
+      <% end %>
+    </div>
+
+    <div data-supplier-kind-target="organizationFields">
+      <div class="dd-field-group">
+        <%= form.label :display_name, "Display name", class: "dd-label" %>
+        <%= form.text_field :display_name, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :legal_name, "Legal name", class: "dd-label" %>
+        <%= form.text_field :legal_name, class: "dd-field" %>
+      </div>
+    </div>
+
+    <div data-supplier-kind-target="individualFields">
+      <div class="dd-field-group">
+        <%= form.label :first_name, "First name", class: "dd-label" %>
+        <%= form.text_field :first_name, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :last_name, "Last name", class: "dd-label" %>
+        <%= form.text_field :last_name, class: "dd-field" %>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<% if form.object.persisted? && form.object.organization? %>
+  <div class="dd-field-group">
+    <%= form.label :display_name, "Display name", class: "dd-label" %>
+    <%= form.text_field :display_name, required: true, class: "dd-field" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :legal_name, "Legal name", class: "dd-label" %>
+    <%= form.text_field :legal_name, class: "dd-field" %>
+  </div>
+<% elsif form.object.persisted? %>
+  <div class="dd-field-group">
+    <%= form.label :first_name, "First name", class: "dd-label" %>
+    <%= form.text_field :first_name, required: true, class: "dd-field" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :last_name, "Last name", class: "dd-label" %>
+    <%= form.text_field :last_name, required: true, class: "dd-field" %>
+  </div>
+<% end %>
+
+<div class="dd-field-group">
+  <%= form.label :doing_business_as, "Doing business as", class: "dd-label" %>
+  <%= form.text_field :doing_business_as, class: "dd-field" %>
+</div>
+
+<% unless form.object.persisted? %>
+  <%= render "categories", assignments: @category_assignments || [] %>
+<% end %>
+
+<%= render "shared/duplicate_review" %>

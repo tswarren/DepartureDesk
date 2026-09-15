@@ -1,0 +1,41 @@
+<% content_for :title, "Change #{@supplier.display_name_for_directory} Status · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Suppliers</p>
+    <h1 class="dd-page-title">Change supplier status</h1>
+    <p class="dd-page-description"><%= @supplier.display_name_for_directory %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @supplier.active? && @affected_contact_points.any? %>
+      <section class="dd-callout">
+        <h2 class="dd-panel-title">Inactivation impact</h2>
+        <p>Inactivating this Supplier will also inactivate these contact destinations. Categories remain assigned.</p>
+        <ul>
+          <% @affected_contact_points.each do |record| %>
+            <li><%= record.model_name.human %>: <%= contact_destination(record) %></li>
+          <% end %>
+        </ul>
+      </section>
+    <% elsif @supplier.active? %>
+      <p>Inactivating this Supplier leaves its categories assigned. There are no active contact destinations to inactivate.</p>
+    <% else %>
+      <p>Reactivating this Supplier does not reactivate contact destinations. Categories remain assigned.</p>
+    <% end %>
+
+    <%= form_with url: status_supplier_path(@supplier), method: :patch, class: "dd-form" do |form| %>
+      <%= hidden_field_tag :lock_version, @supplier.lock_version %>
+      <div class="dd-field-group">
+        <%= label_tag :status, "Status", class: "dd-label" %>
+        <%= select_tag :status, options_for_select(Supplier::STATUSES.map { |status| [status.titleize, status] }, @supplier.status), class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Update status", class: "dd-button" %>
+        <%= link_to "Cancel", supplier_path(@supplier), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

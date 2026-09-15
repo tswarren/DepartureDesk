@@ -38,7 +38,7 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m1-client-and-supplier-directories.md`](planning/m1-client-and-supplier-directories.md) | Accepted M1 directory contract. Slice code waits for an accepted slice plan. |
 | [`planning/m1a-individual-client.md`](planning/m1a-individual-client.md) | Implemented individual-Client slice, merged to main. |
 | [`planning/m1b-client-organizations.md`](planning/m1b-client-organizations.md) | Shipped Client Organization slice. |
-| [`planning/m1c-supplier-core.md`](planning/m1c-supplier-core.md) | Accepted Supplier-core slice. Implementation not started. |
+| [`planning/m1c-supplier-core.md`](planning/m1c-supplier-core.md) | Supplier-core slice implemented on the current branch; shipped when merged. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |

@@ -1,6 +1,6 @@
 # M1B — Client Organizations
 
-**Status:** Implemented on this branch; shipped when merged
+**Status:** Shipped
 
 **UI amendments (2026-09-14):** Organization contact-point lists may `POST .../set_primary` with `lock_version`, matching the individual-Client people list. The organization-contact create form does not collect `starts_on` or `ends_on`; create always starts on the Agency-local business date as a current assignment, and ending uses the End action on the organization profile. Contact-point audits include `contact_point_id`, `contact_point_type`, and `changed_fields`. Postal duplicate review requires a matching Organization name plus locality or postal code. Existing-person assignment uses an Agency-scoped person search with an explicit result cap.
 

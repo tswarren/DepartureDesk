@@ -86,6 +86,31 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :suppliers, param: :supplier_id, only: %i[index new create show edit update] do
+    member do
+      get "status/edit", action: :edit_status
+      patch :status, action: :update_status
+      get "categories/edit", action: :edit_categories
+      patch :categories, action: :update_categories
+    end
+  end
+  scope "/suppliers/:supplier_id", as: :supplier do
+    {
+      email_addresses: "email-addresses",
+      phone_numbers: "phone-numbers",
+      postal_addresses: "postal-addresses",
+      websites: "websites"
+    }.each do |name, path|
+      resources name, path: path, param: :contact_point_id, only: %i[new create edit update], controller: "supplier_#{name}" do
+        member do
+          get "status/edit", action: :edit_status
+          patch :status, action: :update_status
+          post :set_primary
+        end
+      end
+    end
+  end
+
   root "dashboard#show"
 
   if Rails.env.development?

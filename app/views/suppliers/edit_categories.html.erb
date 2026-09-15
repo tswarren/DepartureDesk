@@ -1,0 +1,22 @@
+<% content_for :title, "Edit #{@supplier.display_name_for_directory} Categories · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Suppliers</p>
+    <h1 class="dd-page-title">Edit supplier categories</h1>
+    <p class="dd-page-description"><%= @supplier.display_name_for_directory %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: categories_supplier_path(@supplier), method: :patch, class: "dd-form" do %>
+      <%= hidden_field_tag :lock_version, @supplier.lock_version %>
+      <%= render "categories", assignments: @category_assignments %>
+      <div class="dd-form-actions">
+        <%= submit_tag "Save categories", class: "dd-button" %>
+        <%= link_to "Cancel", supplier_path(@supplier), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

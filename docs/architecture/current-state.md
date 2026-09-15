@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, and the M1A individual Client directory. M1B Client Organizations are implemented on the current branch and considered shipped when that branch merges. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, and the Client directory through M1B. M1C Supplier core is implemented on the current branch and considered shipped when that branch merges. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -14,14 +14,17 @@ DepartureDesk ships agency identity, administration, and the M1A individual Clie
 | `Office` | Agency-owned operating and reporting context. It grants no permission. |
 | `AgencyUser` | One agency-scoped login account with independent credentials, lifecycle, and access role. |
 | `Session` | Authentication root and optional current-Office preference. It derives Agency through AgencyUser. |
-| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, Client, and ClientOrganization commands. |
+| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, Client, ClientOrganization, and Supplier commands. |
 | `ClientPerson` | Agency-scoped person known to the directory. Not a Client, AgencyUser, or Traveler. |
 | `ClientOrganization` | Agency-scoped organization known to the directory. Not a Supplier. |
 | `Client` | Explicit commercial identity for exactly one Client Person or Client Organization, with an immutable `CL-` reference. |
 | `ClientPersonEmailAddress`, `ClientPersonPhoneNumber`, `ClientPersonPostalAddress` | Person-owned contact points. They are not Agency User credentials. |
 | `ClientOrganizationEmailAddress`, `ClientOrganizationPhoneNumber`, `ClientOrganizationPostalAddress`, `ClientOrganizationWebsite` | Organization-owned contact points. |
 | `ClientOrganizationContact` | Effective-dated assignment of a Client Person to a Client Organization. Current means `ends_on IS NULL`. |
-| `ReferenceSequence` | Agency-scoped `client` reference counter. Issuance does not create a missing row. |
+| `Supplier` | Agency-scoped organization or individual contracting identity, with an immutable `SUP-` reference and fixed category assignments. |
+| `SupplierCategoryAssignment` | Required category membership for a Supplier. At least one category; `other_label` only for `other`. |
+| `SupplierEmailAddress`, `SupplierPhoneNumber`, `SupplierPostalAddress`, `SupplierWebsite` | Supplier-owned contact points. |
+| `ReferenceSequence` | Agency-scoped `client` and `supplier` reference counters. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed permission catalog mapping administrator, staff, and viewer roles to capabilities. It is application code, not a persisted record. |
 
 Invitation and password-reset token facts are stored on `AgencyUser`; they are not separate identity records.
@@ -52,6 +55,9 @@ Office is operational context, not authorization. `Current.office` resolves from
 | View Client directory | Yes | Yes | Yes |
 | View Client contact details | Yes | Yes | No |
 | Manage Client directory | Yes | Yes | No |
+| View Supplier directory | Yes | Yes | Yes |
+| View Supplier contact details | Yes | Yes | No |
+| Manage Supplier directory | Yes | Yes | No |
 
 Application code checks named permissions, not role strings.
 
@@ -66,6 +72,6 @@ Application code checks named permissions, not role strings.
 
 ## Not shipped
 
-The current application has no Supplier, Traveler, Household, Departure, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored.
+The current application has no Supplier Location, Supplier Contact, Traveler, Household, Departure, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.
