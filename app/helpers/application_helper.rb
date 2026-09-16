@@ -338,6 +338,53 @@ module ApplicationHelper
     status_badge(status.to_s.titleize, modifier:)
   end
 
+  def supplier_arrangement_status_badge(status)
+    modifier = case status.to_s
+    when "active" then "success"
+    when "ended" then "info"
+    when "abandoned" then "neutral"
+    else "warning"
+    end
+
+    status_badge(status.to_s.titleize, modifier:)
+  end
+
+  def supplier_option_label(supplier)
+    label = supplier.display_name_for_directory
+    label = "#{label} (Inactive)" if supplier.inactive?
+    "#{label} · #{supplier.supplier_reference}"
+  end
+
+  def supplier_contact_option_label(contact)
+    label = contact.display_name_for_directory
+    label = "#{label} (Inactive)" if contact.inactive?
+    "#{contact.supplier.display_name_for_directory} · #{label}"
+  end
+
+  def arrangement_item_category_label(category, other_label = nil)
+    label = category.to_s.titleize
+    other_label.present? ? "#{label}: #{other_label}" : label
+  end
+
+  def occurrence_date_label(definition)
+    label = if definition.starts_on == definition.ends_on
+      definition.starts_on.to_fs(:long)
+    else
+      "#{definition.starts_on.to_fs(:long)} - #{definition.ends_on.to_fs(:long)}"
+    end
+
+    times = [ definition.starts_at_local, definition.ends_at_local ].compact
+    return label if times.empty?
+
+    "#{label}, #{times.map { |time| time.strftime("%H:%M") }.join(" - ")} #{definition.time_zone}"
+  end
+
+  def effective_service_provider(arrangement, item_definition, occurrence_definition = nil)
+    occurrence_definition&.service_provider ||
+      item_definition.default_service_provider ||
+      arrangement.contracting_supplier
+  end
+
   def departure_office_options(departure)
     records = Current.agency.offices.where(status: "active").order(:name).to_a
     current = departure.responsible_office

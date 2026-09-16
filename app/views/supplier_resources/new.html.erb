@@ -1,0 +1,22 @@
+<% content_for :title, "New Resource · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title">New resource</h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @supplier_resource_definition, url: departure_arrangement_item_resources_path(@departure, @supplier_arrangement, @arrangement_item), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= render "form", form: form %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save resource", class: "dd-button" %>
+        <%= link_to "Cancel", departure_arrangement_path(@departure, @supplier_arrangement, anchor: "item-#{@arrangement_item.id}"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

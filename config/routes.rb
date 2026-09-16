@@ -147,6 +147,19 @@ Rails.application.routes.draw do
     end
     resource :responsibility, only: %i[edit update], controller: "departure_responsibilities"
     resource :activation, only: :show, controller: "departure_activations"
+    resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
+      member do
+        get :abandon
+        post :abandon
+      end
+      resources :items, controller: "arrangement_items", only: %i[new create edit update destroy] do
+        collection { patch :reorder }
+        resources :occurrences, controller: "service_occurrences", only: %i[new create edit update destroy]
+        resources :resources, controller: "supplier_resources", only: %i[new create edit update destroy] do
+          collection { patch :reorder }
+        end
+      end
+    end
   end
   get "departures/:id/return-to-draft", to: "departure_return_to_drafts#edit", as: :edit_departure_return_to_draft
   post "departures/:id/return-to-draft", to: "departure_return_to_drafts#create", as: :departure_return_to_draft

@@ -11,11 +11,37 @@
 <article class="dd-panel">
   <div class="dd-panel-body">
     <% if @supplier.active? %>
-      <% has_impact = @affected_locations.any? || @affected_contacts.any? || @affected_contact_points.any? || @affected_contact_destinations.any? %>
+      <% has_m3a_dependencies = @affected_supplier_arrangements.any? || @affected_effective_provider_arrangements.any? %>
+      <% has_impact = @affected_locations.any? || @affected_contacts.any? || @affected_contact_points.any? || @affected_contact_destinations.any? || has_m3a_dependencies %>
       <% if has_impact %>
         <section class="dd-callout">
           <h2 class="dd-panel-title">Inactivation impact</h2>
-          <p>Inactivating this Supplier will also inactivate the records listed below and clear preferred states. Categories remain assigned.</p>
+          <p>Inactivating this Supplier will also inactivate the records listed below and clear preferred states. Categories remain assigned. Current Supplier planning dependencies block ordinary inactivation.</p>
+
+          <% if @affected_supplier_arrangements.any? %>
+            <h3 class="dd-panel-title">Contracting supplier arrangements</h3>
+            <ul>
+              <% @affected_supplier_arrangements.each do |arrangement| %>
+                <li>
+                  <%= link_to arrangement.name, departure_arrangement_path(arrangement.departure, arrangement) %>
+                  for <%= arrangement.departure.name %>
+                  (<%= arrangement.status.titleize %>)
+                </li>
+              <% end %>
+            </ul>
+          <% end %>
+
+          <% if @affected_effective_provider_arrangements.any? %>
+            <h3 class="dd-panel-title">Effective provider occurrences</h3>
+            <ul>
+              <% @affected_effective_provider_arrangements.each do |definition| %>
+                <li>
+                  <%= link_to definition.supplier_arrangement.name, departure_arrangement_path(definition.departure, definition.supplier_arrangement) %>
+                  for <%= definition.name %> ending <%= definition.ends_on.to_fs(:long) %>
+                </li>
+              <% end %>
+            </ul>
+          <% end %>
 
           <% if @affected_locations.any? %>
             <h3 class="dd-panel-title">Locations</h3>
@@ -54,18 +80,32 @@
           <% end %>
         </section>
       <% else %>
-        <p>Inactivating this Supplier leaves its categories assigned. There are no active locations, contacts, or destinations to inactivate.</p>
+        <p>Inactivating this Supplier leaves its categories assigned. There are no active locations, contacts, destinations, or current Supplier planning dependencies to inactivate.</p>
       <% end %>
     <% else %>
       <p>Reactivating this Supplier does not reactivate locations, contacts, destinations, or preferred states. Categories remain assigned.</p>
     <% end %>
 
     <%= form_with url: status_supplier_path(@supplier), method: :patch, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: @supplier %>
       <%= hidden_field_tag :lock_version, @supplier.lock_version %>
       <div class="dd-field-group">
         <%= label_tag :status, "Status", class: "dd-label" %>
         <%= select_tag :status, options_for_select(Supplier::STATUSES.map { |status| [status.titleize, status] }, @supplier.status), class: "dd-field" %>
       </div>
+      <% if @supplier.active? && Current.agency_user.permitted?(:force_inactivate_supplier_with_dependencies) %>
+        <div class="dd-field-group">
+          <%= label_tag :force, class: "dd-label" do %>
+            <%= check_box_tag :force, "1", ActiveModel::Type::Boolean.new.cast(params[:force]) %>
+            Force inactivation over current Supplier planning dependencies
+          <% end %>
+          <p class="dd-field-hint">Use only when the Supplier cannot continue and the dependency inventory above is understood.</p>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag :force_reason, "Force reason", class: "dd-label" %>
+          <%= text_area_tag :force_reason, @force_reason, maxlength: DepartureCommandSupport::REASON_LIMIT, class: "dd-field" %>
+        </div>
+      <% end %>
       <div class="dd-form-actions">
         <%= form.submit "Update status", class: "dd-button" %>
         <%= link_to "Cancel", supplier_path(@supplier), class: "dd-button dd-button--quiet" %>

@@ -1,0 +1,73 @@
+<% content_for :title, "Supplier Planning · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_departures) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departures</p>
+    <h1 class="dd-page-title">Supplier planning</h1>
+    <p class="dd-page-description"><%= @departure.name %></p>
+  </div>
+  <div class="dd-page-actions">
+    <% if manage && (@departure.draft? || @departure.active?) %>
+      <%= link_to "Add arrangement", new_departure_arrangement_path(@departure), class: "dd-button" %>
+    <% end %>
+    <%= link_to "Back to departure", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_arrangements_path(@departure), method: :get, class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :q, "Search", class: "dd-label" %>
+        <%= form.search_field :q, value: params[:q], maxlength: 100, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :status, "Status", class: "dd-label" %>
+        <%= form.select :status, ListDepartureArrangements::STATUSES.map { |status| [ status.titleize, status ] }, { selected: @status }, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :contracting_supplier_id, "Contracting supplier", class: "dd-label" %>
+        <%= form.select :contracting_supplier_id,
+          Current.agency.suppliers.ordered_for_directory.map { |supplier| [ supplier_option_label(supplier), supplier.id ] },
+          { include_blank: "All suppliers", selected: params[:contracting_supplier_id] },
+          class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Apply", class: "dd-button" %>
+        <%= link_to "Reset", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<p><%= @search.truncated ? "Showing the first 50 arrangements. Narrow the filters to see the rest." : "#{pluralize(@search.records.size, "arrangement")} matched." %></p>
+
+<article class="dd-panel">
+  <table class="dd-table">
+    <thead>
+      <tr>
+        <th scope="col">Arrangement</th>
+        <th scope="col">Contracting supplier</th>
+        <th scope="col">Contact</th>
+        <th scope="col">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if @search.records.empty? %>
+        <tr>
+          <td colspan="4">No arrangements matched.</td>
+        </tr>
+      <% else %>
+        <% @search.records.each do |arrangement| %>
+          <tr class="<%= "is-inactive" if arrangement.abandoned? %>">
+            <td><%= link_to arrangement.name, departure_arrangement_path(@departure, arrangement) %></td>
+            <td><%= supplier_option_label(arrangement.contracting_supplier) %></td>
+            <td><%= arrangement.supplier_contact ? supplier_contact_option_label(arrangement.supplier_contact) : "None" %></td>
+            <td><%= supplier_arrangement_status_badge(arrangement.status) %></td>
+          </tr>
+        <% end %>
+      <% end %>
+    </tbody>
+  </table>
+</article>

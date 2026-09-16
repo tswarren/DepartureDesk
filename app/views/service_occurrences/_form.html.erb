@@ -1,0 +1,57 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version unless form.object.persisted? %>
+<%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key.present? %>
+<% service_provider = Current.agency.suppliers.find_by(id: form.object.service_provider_id) if form.object.service_provider_id.present? %>
+<% supplier_options = active_supplier_options.to_a %>
+<% supplier_options.unshift(service_provider) if service_provider && supplier_options.none? { |supplier| supplier.id == service_provider.id } %>
+
+<div class="dd-field-group">
+  <%= form.label :name, "Name", class: "dd-label" %>
+  <%= form.text_field :name, required: true, maxlength: ServiceOccurrenceDefinition::NAME_LIMIT, **dd_field_options(form, :name) %>
+  <%= dd_field_error(form, :name) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :starts_on, "Start date", class: "dd-label" %>
+  <%= form.date_field :starts_on, required: true, **dd_field_options(form, :starts_on) %>
+  <%= dd_field_error(form, :starts_on) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :ends_on, "End date", class: "dd-label" %>
+  <%= form.date_field :ends_on, required: true, **dd_field_options(form, :ends_on) %>
+  <%= dd_field_error(form, :ends_on) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :starts_at_local, "Local start time", class: "dd-label" %>
+  <%= form.time_field :starts_at_local, **dd_field_options(form, :starts_at_local) %>
+  <%= dd_field_error(form, :starts_at_local) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :ends_at_local, "Local end time", class: "dd-label" %>
+  <%= form.time_field :ends_at_local, **dd_field_options(form, :ends_at_local) %>
+  <%= dd_field_error(form, :ends_at_local) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :time_zone, "Time zone", class: "dd-label" %>
+  <%= form.select :time_zone, iana_timezone_options, { include_blank: "Use departure time zone" }, **dd_field_options(form, :time_zone) %>
+  <%= dd_field_error(form, :time_zone) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :service_provider_id, "Service provider", class: "dd-label" %>
+  <%= form.select :service_provider_id,
+    supplier_options.map { |supplier| [ supplier_option_label(supplier), supplier.id ] },
+    { include_blank: "Use item default or contracting supplier" },
+    **dd_field_options(form, :service_provider_id) %>
+  <%= dd_field_error(form, :service_provider_id) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :description, "Description", class: "dd-label" %>
+  <%= form.text_area :description, maxlength: ServiceOccurrenceDefinition::DESCRIPTION_LIMIT, **dd_field_options(form, :description) %>
+  <%= dd_field_error(form, :description) %>
+</div>

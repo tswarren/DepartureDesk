@@ -1,0 +1,15 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version unless form.object.persisted? %>
+<%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key.present? %>
+
+<div class="dd-field-group">
+  <%= form.label :name, "Name", class: "dd-label" %>
+  <%= form.text_field :name, required: true, maxlength: SupplierResourceDefinition::NAME_LIMIT, **dd_field_options(form, :name) %>
+  <%= dd_field_error(form, :name) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :description, "Description", class: "dd-label" %>
+  <%= form.text_area :description, maxlength: SupplierResourceDefinition::DESCRIPTION_LIMIT, **dd_field_options(form, :description) %>
+  <%= dd_field_error(form, :description) %>
+</div>
