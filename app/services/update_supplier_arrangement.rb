@@ -15,16 +15,14 @@ class UpdateSupplierArrangement < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      arrangement = lock_arrangement_for!(@arrangement)
-      contractor = @agency.suppliers.lock.find(arrangement.contracting_supplier_id)
-      departure = lock_departure_for!(arrangement.departure)
-      version = lock_initial_version_for!(arrangement)
+      contractor = locked_supplier!(@arrangement.contracting_supplier_id)
+      departure, arrangement, version = lock_departure_arrangement_version!(@arrangement)
       ensure_not_abandoned!(arrangement, version)
       ensure_current_lock_version!(arrangement)
 
-      contact = resolve_optional_contact!(contractor, @attributes[:supplier_contact_id])
+      contact = resolve_contact_for_update!(contractor, departure, arrangement)
       attrs = { name: name, supplier_contact_id: contact&.id }
-      ensure_update_allowed!(departure, arrangement, version, attrs)
+      ensure_update_allowed!(departure, arrangement, version, contractor, attrs)
       return Result.new(status: :noop, record: arrangement) if same_values?(arrangement, attrs)
 
       arrangement.update!(attrs)
@@ -35,7 +33,10 @@ class UpdateSupplierArrangement < AgencyCommand
         actor: @actor,
         details: {
           "supplier_arrangement_id" => arrangement.id,
-          "changed_fields" => changed_fields(arrangement, attrs)
+          "supplier_arrangement_version_id" => version.id,
+          "changed_fields" => changed_fields(arrangement, attrs),
+          "name" => arrangement.name,
+          "supplier_contact_id" => arrangement.supplier_contact_id
         }
       )
       Result.new(status: :updated, record: arrangement)
@@ -46,21 +47,40 @@ class UpdateSupplierArrangement < AgencyCommand
 
   private
 
-  def ensure_update_allowed!(departure, arrangement, version, attrs)
-    return ensure_editable_draft_arrangement!(departure, arrangement, version) if departure.draft? || departure.active?
+  def resolve_contact_for_update!(contractor, departure, arrangement)
+    uuid = parse_optional_uuid(@attributes[:supplier_contact_id], "Supplier contact")
+    if uuid.blank?
+      return nil
+    end
 
-    unless departed_clear_inactive_contact?(departure, arrangement, attrs)
-      raise Error.new("A departed departure cannot expand supplier arrangement planning.", code: :invalid_state)
+    if ordinary_planning_state?(departure, contractor)
+      return resolve_optional_contact!(contractor, uuid)
+    end
+
+    # Recovery may only clear a contact, never assign or retain a different one.
+    raise Error.new(recovery_message, code: :invalid_state) unless uuid == arrangement.supplier_contact_id
+
+    contractor.contacts.lock.find(uuid)
+  end
+
+  def ensure_update_allowed!(departure, arrangement, version, contractor, attrs)
+    ensure_draft_graph!(arrangement, version)
+    return if ordinary_planning_state?(departure, contractor)
+
+    unless recovery_clear_contact?(departure, arrangement, contractor, attrs)
+      raise Error.new(recovery_message, code: :invalid_state)
     end
   end
 
-  def departed_clear_inactive_contact?(departure, arrangement, attrs)
-    return false unless departure.departed?
+  def recovery_clear_contact?(departure, arrangement, contractor, attrs)
     return false unless attrs[:name] == arrangement.name
     return false unless attrs[:supplier_contact_id].nil?
     return false if arrangement.supplier_contact_id.nil?
 
     contact = arrangement.supplier_contact
-    contact&.inactive?
+    return true if contractor.inactive? && (departure.draft? || departure.active? || departure.departed?)
+    return true if departure.departed? && contact&.inactive?
+
+    false
   end
 end

@@ -22,15 +22,32 @@ module ArrangementCommandSupport
   end
 
   def lock_departure_for!(departure)
-    @agency.departures.lock.find(departure.id)
+    @agency.departures.lock.find(departure.is_a?(Departure) ? departure.id : departure)
   end
 
   def lock_arrangement_for!(arrangement)
-    @agency.supplier_arrangements.lock.find(arrangement.id)
+    @agency.supplier_arrangements.lock.find(arrangement.is_a?(SupplierArrangement) ? arrangement.id : arrangement)
   end
 
   def lock_initial_version_for!(arrangement)
     arrangement.versions.lock.find_by!(version_number: 1)
+  end
+
+  # Contract order: Departure → Arrangement → version.
+  def lock_departure_arrangement_version!(arrangement)
+    departure = lock_departure_for!(arrangement.departure_id)
+    locked_arrangement = lock_arrangement_for!(arrangement)
+    version = lock_initial_version_for!(locked_arrangement)
+    [ departure, locked_arrangement, version ]
+  end
+
+  def lock_suppliers_in_uuid_order!(*supplier_ids)
+    ids = supplier_ids.flatten.compact.map { |value| value.respond_to?(:id) ? value.id : value }.uniq.sort
+    ids.map { |id| @agency.suppliers.lock.find(id) }
+  end
+
+  def locked_supplier!(id)
+    @agency.suppliers.lock.find(id)
   end
 
   def lock_arrangement_item_for!(arrangement, item)
@@ -65,10 +82,39 @@ module ArrangementCommandSupport
     raise AgencyCommand::Error.new("That departure cannot be edited.", code: :invalid_state)
   end
 
-  def ensure_editable_draft_arrangement!(departure, arrangement, version, allow_departed: false)
+  def ensure_draft_graph!(arrangement, version)
     unless arrangement.draft? && version.draft? && version.version_number == 1
       raise AgencyCommand::Error.new("That supplier arrangement cannot be edited.", code: :invalid_state)
     end
+  end
+
+  def ordinary_planning_state?(departure, contractor)
+    (departure.draft? || departure.active?) && contractor.active?
+  end
+
+  def ensure_ordinary_planning_edit!(departure, arrangement, version, contractor)
+    ensure_draft_graph!(arrangement, version)
+    return if ordinary_planning_state?(departure, contractor)
+
+    if departure.departed?
+      raise AgencyCommand::Error.new("A departed departure cannot expand supplier arrangement planning.", code: :invalid_state)
+    end
+    unless contractor.active?
+      raise AgencyCommand::Error.new("An inactive contracting supplier cannot expand supplier arrangement planning.", code: :invalid_state)
+    end
+
+    raise AgencyCommand::Error.new("That departure cannot be edited.", code: :invalid_state)
+  end
+
+  def ensure_cleanup_edit!(departure, arrangement, version)
+    ensure_draft_graph!(arrangement, version)
+    return if departure.draft? || departure.active? || departure.departed?
+
+    raise AgencyCommand::Error.new("That departure cannot be edited.", code: :invalid_state)
+  end
+
+  def ensure_editable_draft_arrangement!(departure, arrangement, version, allow_departed: false)
+    ensure_draft_graph!(arrangement, version)
 
     return if departure.draft? || departure.active?
     return if allow_departed && departure.departed?
@@ -82,6 +128,29 @@ module ArrangementCommandSupport
     return unless arrangement.abandoned? || version.abandoned?
 
     raise AgencyCommand::Error.new("That supplier arrangement has been abandoned.", code: :invalid_state)
+  end
+
+  def ensure_active_effective_provider!(provider)
+    return if provider.nil? || provider.active?
+
+    raise AgencyCommand::Error.new("That service provider is not active.", code: :invalid_state)
+  end
+
+  def inactive_provider_recovery_only?(definition, attrs, provider_attribute)
+    non_provider_attrs = attrs.except(provider_attribute)
+    return false unless same_values?(definition, non_provider_attrs)
+
+    previous_id = definition.public_send(provider_attribute)
+    next_id = attrs[provider_attribute]
+    return false if previous_id.nil?
+    return false if previous_id == next_id
+
+    previous = @agency.suppliers.find_by(id: previous_id)
+    previous&.inactive?
+  end
+
+  def recovery_message
+    "That supplier arrangement can only clear an inactive contact, clear or replace an inactive service provider, remove draft structure, or be abandoned."
   end
 
   def ensure_current_lock_version!(record, submitted = nil)

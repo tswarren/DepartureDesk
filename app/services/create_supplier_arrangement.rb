@@ -33,7 +33,7 @@ class CreateSupplierArrangement < AgencyCommand
           name: attrs[:name],
           status: "draft"
         )
-        arrangement.versions.create!(
+        version = arrangement.versions.create!(
           agency: @agency,
           departure: departure,
           version_number: 1,
@@ -46,6 +46,7 @@ class CreateSupplierArrangement < AgencyCommand
           actor: @actor,
           details: {
             "supplier_arrangement_id" => arrangement.id,
+            "supplier_arrangement_version_id" => version.id,
             "departure_id" => departure.id,
             "contracting_supplier_id" => contractor.id,
             "supplier_contact_id" => contact&.id,

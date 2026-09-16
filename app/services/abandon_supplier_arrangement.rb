@@ -15,12 +15,10 @@ class AbandonSupplierArrangement < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      arrangement = lock_arrangement_for!(@arrangement)
-      departure = lock_departure_for!(arrangement.departure)
-      version = lock_initial_version_for!(arrangement)
+      departure, arrangement, version = lock_departure_arrangement_version!(@arrangement)
       return Result.new(status: :noop, record: arrangement) if arrangement.abandoned? && version.abandoned?
 
-      ensure_editable_draft_arrangement!(departure, arrangement, version, allow_departed: true)
+      ensure_cleanup_edit!(departure, arrangement, version)
       ensure_current_lock_version!(arrangement, @arrangement_lock_version)
       ensure_current_lock_version!(version, @version_lock_version)
       reason = normalize_reason(@reason)

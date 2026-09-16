@@ -13,15 +13,23 @@ class RemoveSupplierResource < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      arrangement = lock_arrangement_for!(@resource.supplier_arrangement)
-      departure = lock_departure_for!(arrangement.departure)
-      version = lock_initial_version_for!(arrangement)
+      departure, arrangement, version = lock_departure_arrangement_version!(@resource.supplier_arrangement)
       item = lock_arrangement_item_for!(arrangement, @resource.arrangement_item)
       resource = lock_resource_for!(item, @resource)
-      ensure_editable_draft_arrangement!(departure, arrangement, version, allow_departed: true)
+      ensure_cleanup_edit!(departure, arrangement, version)
       ensure_current_lock_version!(version, @version_lock_version)
 
-      version.supplier_resource_definitions.where(supplier_resource: resource).order(:id).lock.each(&:destroy!)
+      definitions = version.supplier_resource_definitions.where(supplier_resource: resource).order(:id).lock.to_a
+      evidence = {
+        "child_type" => "supplier_resource",
+        "supplier_arrangement_id" => arrangement.id,
+        "supplier_arrangement_version_id" => version.id,
+        "arrangement_item_id" => item.id,
+        "supplier_resource_id" => resource.id,
+        "supplier_resource_definition_ids" => definitions.map(&:id)
+      }
+
+      definitions.each(&:destroy!)
       resource.destroy!
       bump_version!(version)
       audit!(
@@ -29,7 +37,7 @@ class RemoveSupplierResource < AgencyCommand
         action: "supplier_arrangement.resource_removed",
         subject: arrangement,
         actor: @actor,
-        details: { "supplier_arrangement_id" => arrangement.id, "supplier_resource_id" => resource.id }
+        details: evidence
       )
       Result.new(status: :updated, record: arrangement)
     end
