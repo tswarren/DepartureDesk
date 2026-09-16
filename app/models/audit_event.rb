@@ -68,10 +68,24 @@ class AuditEvent < ApplicationRecord
     departure.schedule_corrected
     departure.currency_corrected
     departure.lifecycle_corrected
+    supplier_arrangement.created
+    supplier_arrangement.updated
+    supplier_arrangement.abandoned
+    supplier_arrangement.item_created
+    supplier_arrangement.item_updated
+    supplier_arrangement.item_removed
+    supplier_arrangement.items_reordered
+    supplier_arrangement.occurrence_created
+    supplier_arrangement.occurrence_updated
+    supplier_arrangement.occurrence_removed
+    supplier_arrangement.resource_created
+    supplier_arrangement.resource_updated
+    supplier_arrangement.resource_removed
+    supplier_arrangement.resources_reordered
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure SupplierArrangement].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true

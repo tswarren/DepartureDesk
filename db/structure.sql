@@ -66,6 +66,44 @@ $$;
 
 
 --
+-- Name: reject_arrangement_item_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_arrangement_item_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+          OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+          OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+          OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+          OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id THEN
+    RAISE EXCEPTION 'arrangement item definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_arrangement_item_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_arrangement_item_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id THEN
+    RAISE EXCEPTION 'arrangement item owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_audit_event_mutation(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -190,6 +228,26 @@ $$;
 
 
 --
+-- Name: reject_invalid_service_occurrence_definition_zone(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_invalid_service_occurrence_definition_zone() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_timezone_names
+    WHERE name = NEW.time_zone
+  ) THEN
+    RAISE EXCEPTION 'service occurrence definition time_zone is not a recognized IANA timezone';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_office_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -216,6 +274,83 @@ BEGIN
   IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
     OR NEW.namespace IS DISTINCT FROM OLD.namespace THEN
     RAISE EXCEPTION 'reference sequence identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_service_occurrence_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_service_occurrence_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+          OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+          OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+          OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+          OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id
+          OR NEW.service_occurrence_id IS DISTINCT FROM OLD.service_occurrence_id THEN
+    RAISE EXCEPTION 'service occurrence definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_service_occurrence_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_service_occurrence_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id THEN
+    RAISE EXCEPTION 'service occurrence owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_supplier_arrangement_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_arrangement_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.contracting_supplier_id IS DISTINCT FROM OLD.contracting_supplier_id THEN
+    RAISE EXCEPTION 'supplier arrangement owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_supplier_arrangement_version_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_arrangement_version_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.version_number IS DISTINCT FROM OLD.version_number THEN
+    RAISE EXCEPTION 'supplier arrangement version owner is immutable';
   END IF;
   RETURN NEW;
 END;
@@ -326,6 +461,46 @@ END;
 $$;
 
 
+--
+-- Name: reject_supplier_resource_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_resource_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+          OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+          OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+          OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+          OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id
+          OR NEW.supplier_resource_id IS DISTINCT FROM OLD.supplier_resource_id THEN
+    RAISE EXCEPTION 'supplier resource definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_supplier_resource_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_resource_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id THEN
+    RAISE EXCEPTION 'supplier resource owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -352,6 +527,27 @@ CREATE TABLE public.agencies (
     CONSTRAINT agencies_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
     CONSTRAINT agencies_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text]))),
     CONSTRAINT agencies_workspace_code_format CHECK (((workspace_code)::text ~ '^[a-z][a-z0-9-]{1,39}$'::text))
+);
+
+
+--
+-- Name: agency_command_idempotency_keys; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agency_command_idempotency_keys (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    command_name character varying(120) NOT NULL,
+    idempotency_key character varying(120) NOT NULL,
+    payload_digest character varying(128) NOT NULL,
+    result_record_type character varying(120) NOT NULL,
+    result_record_id uuid NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT agency_command_idempotency_keys_command_name CHECK (((btrim((command_name)::text) <> ''::text) AND (char_length((command_name)::text) <= 120))),
+    CONSTRAINT agency_command_idempotency_keys_key CHECK (((btrim((idempotency_key)::text) <> ''::text) AND (char_length((idempotency_key)::text) <= 120))),
+    CONSTRAINT agency_command_idempotency_keys_payload_digest CHECK (((btrim((payload_digest)::text) <> ''::text) AND (char_length((payload_digest)::text) <= 128))),
+    CONSTRAINT agency_command_idempotency_keys_result_type CHECK (((btrim((result_record_type)::text) <> ''::text) AND (char_length((result_record_type)::text) <= 120)))
 );
 
 
@@ -401,6 +597,49 @@ CREATE TABLE public.agency_users (
 CREATE TABLE public.ar_internal_metadata (
     key character varying NOT NULL,
     value character varying,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: arrangement_item_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.arrangement_item_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT arrangement_item_definition_supplier_arrangement_versi_not_null NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    name character varying(160) NOT NULL,
+    description character varying(2000),
+    category character varying NOT NULL,
+    other_category_label character varying(80),
+    default_service_provider_id uuid,
+    "position" integer NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT arrangement_item_definitions_category CHECK (((category)::text = ANY ((ARRAY['cruise'::character varying, 'lodging'::character varying, 'air'::character varying, 'ground_transportation'::character varying, 'dining'::character varying, 'activity_attraction'::character varying, 'insurance'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT arrangement_item_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
+    CONSTRAINT arrangement_item_definitions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT arrangement_item_definitions_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
+    CONSTRAINT arrangement_item_definitions_other_label CHECK (((((category)::text = 'other'::text) = (other_category_label IS NOT NULL)) AND ((other_category_label IS NULL) OR ((btrim((other_category_label)::text) <> ''::text) AND (char_length((other_category_label)::text) <= 80))))),
+    CONSTRAINT arrangement_item_definitions_position_positive CHECK (("position" > 0))
+);
+
+
+--
+-- Name: arrangement_items; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.arrangement_items (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL
 );
@@ -790,6 +1029,57 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: service_occurrence_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_occurrence_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT service_occurrence_definiti_supplier_arrangement_versi_not_null NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    name character varying(160) NOT NULL,
+    description character varying(2000),
+    starts_on date NOT NULL,
+    ends_on date NOT NULL,
+    starts_at_local time without time zone,
+    ends_at_local time without time zone,
+    time_zone character varying NOT NULL,
+    service_provider_id uuid,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_occurrence_definitions_date_order CHECK ((starts_on <= ends_on)),
+    CONSTRAINT service_occurrence_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
+    CONSTRAINT service_occurrence_definitions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT service_occurrence_definitions_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
+    CONSTRAINT service_occurrence_definitions_time_zone CHECK (((time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text))),
+    CONSTRAINT service_occurrence_definitions_times_paired CHECK (((starts_at_local IS NULL) = (ends_at_local IS NULL)))
+);
+
+
+--
+-- Name: service_occurrences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_occurrences (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    status character varying DEFAULT 'planned'::character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_occurrences_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT service_occurrences_status CHECK (((status)::text = ANY ((ARRAY['planned'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
 -- Name: sessions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -802,6 +1092,54 @@ CREATE TABLE public.sessions (
     user_agent character varying,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: supplier_arrangement_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangement_versions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    version_number integer NOT NULL,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    abandoned_at timestamp with time zone,
+    abandoned_reason character varying(500),
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_arrangement_versions_abandoned_at_pair CHECK ((((status)::text = 'abandoned'::text) = (abandoned_at IS NOT NULL))),
+    CONSTRAINT supplier_arrangement_versions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_arrangement_versions_number_positive CHECK ((version_number > 0)),
+    CONSTRAINT supplier_arrangement_versions_reason CHECK (((abandoned_reason IS NULL) OR ((btrim((abandoned_reason)::text) <> ''::text) AND (char_length((abandoned_reason)::text) <= 500)))),
+    CONSTRAINT supplier_arrangement_versions_reason_pair CHECK ((((status)::text = 'abandoned'::text) = (abandoned_reason IS NOT NULL))),
+    CONSTRAINT supplier_arrangement_versions_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'activated'::character varying, 'superseded'::character varying, 'abandoned'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_arrangements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangements (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    contracting_supplier_id uuid NOT NULL,
+    supplier_contact_id uuid,
+    name character varying(160) NOT NULL,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    abandoned_at timestamp with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_arrangements_abandoned_at_pair CHECK ((((status)::text = 'abandoned'::text) = (abandoned_at IS NOT NULL))),
+    CONSTRAINT supplier_arrangements_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_arrangements_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
+    CONSTRAINT supplier_arrangements_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'ended'::character varying, 'abandoned'::character varying])::text[])))
 );
 
 
@@ -1029,6 +1367,46 @@ CREATE TABLE public.supplier_postal_addresses (
 
 
 --
+-- Name: supplier_resource_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_resource_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_resource_definitio_supplier_arrangement_versi_not_null NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    supplier_resource_id uuid NOT NULL,
+    name character varying(160) NOT NULL,
+    description character varying(2000),
+    "position" integer NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_resource_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
+    CONSTRAINT supplier_resource_definitions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_resource_definitions_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
+    CONSTRAINT supplier_resource_definitions_position_positive CHECK (("position" > 0))
+);
+
+
+--
+-- Name: supplier_resources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_resources (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
 -- Name: supplier_websites; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1100,6 +1478,14 @@ ALTER TABLE ONLY public.agencies
 
 
 --
+-- Name: agency_command_idempotency_keys agency_command_idempotency_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_command_idempotency_keys
+    ADD CONSTRAINT agency_command_idempotency_keys_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: agency_users agency_users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1113,6 +1499,30 @@ ALTER TABLE ONLY public.agency_users
 
 ALTER TABLE ONLY public.ar_internal_metadata
     ADD CONSTRAINT ar_internal_metadata_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: arrangement_item_definitions arrangement_item_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_item_definitions
+    ADD CONSTRAINT arrangement_item_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: arrangement_item_definitions arrangement_item_definitions_position_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_item_definitions
+    ADD CONSTRAINT arrangement_item_definitions_position_unique UNIQUE (supplier_arrangement_version_id, "position") DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: arrangement_items arrangement_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_items
+    ADD CONSTRAINT arrangement_items_pkey PRIMARY KEY (id);
 
 
 --
@@ -1252,11 +1662,43 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: service_occurrence_definitions service_occurrence_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_occurrence_definitions
+    ADD CONSTRAINT service_occurrence_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_occurrences service_occurrences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_occurrences
+    ADD CONSTRAINT service_occurrences_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_arrangement_versions supplier_arrangement_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_versions
+    ADD CONSTRAINT supplier_arrangement_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_pkey PRIMARY KEY (id);
 
 
 --
@@ -1324,6 +1766,30 @@ ALTER TABLE ONLY public.supplier_postal_addresses
 
 
 --
+-- Name: supplier_resource_definitions supplier_resource_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resource_definitions
+    ADD CONSTRAINT supplier_resource_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_resource_definitions supplier_resource_definitions_position_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resource_definitions
+    ADD CONSTRAINT supplier_resource_definitions_position_unique UNIQUE (supplier_arrangement_version_id, arrangement_item_id, "position") DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: supplier_resources supplier_resources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resources
+    ADD CONSTRAINT supplier_resources_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_websites supplier_websites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1344,6 +1810,13 @@ ALTER TABLE ONLY public.suppliers
 --
 
 CREATE UNIQUE INDEX index_agencies_on_workspace_code ON public.agencies USING btree (workspace_code);
+
+
+--
+-- Name: index_agency_command_idempotency_keys_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_agency_command_idempotency_keys_on_agency_id ON public.agency_command_idempotency_keys USING btree (agency_id);
 
 
 --
@@ -1379,6 +1852,62 @@ CREATE UNIQUE INDEX index_agency_users_on_invitation_token_digest ON public.agen
 --
 
 CREATE UNIQUE INDEX index_agency_users_on_password_reset_token_digest ON public.agency_users USING btree (password_reset_token_digest) WHERE (password_reset_token_digest IS NOT NULL);
+
+
+--
+-- Name: index_arrangement_item_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_arrangement_item_definitions_on_agency_id ON public.arrangement_item_definitions USING btree (agency_id);
+
+
+--
+-- Name: index_arrangement_item_definitions_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_arrangement_item_definitions_on_id_and_agency_id ON public.arrangement_item_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_arrangement_item_definitions_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_arrangement_item_definitions_on_id_departure_agency ON public.arrangement_item_definitions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_arrangement_item_definitions_on_version_and_stable_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_arrangement_item_definitions_on_version_and_stable_id ON public.arrangement_item_definitions USING btree (supplier_arrangement_version_id, arrangement_item_id);
+
+
+--
+-- Name: index_arrangement_items_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_arrangement_items_on_agency_id ON public.arrangement_items USING btree (agency_id);
+
+
+--
+-- Name: index_arrangement_items_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_arrangement_items_on_full_owner ON public.arrangement_items USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_arrangement_items_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_arrangement_items_on_id_and_agency_id ON public.arrangement_items USING btree (id, agency_id);
+
+
+--
+-- Name: index_arrangement_items_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_arrangement_items_on_id_departure_agency ON public.arrangement_items USING btree (id, departure_id, agency_id);
 
 
 --
@@ -1809,6 +2338,13 @@ CREATE UNIQUE INDEX index_clients_on_id_and_agency_id ON public.clients USING bt
 
 
 --
+-- Name: index_command_idempotency_on_agency_command_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_command_idempotency_on_agency_command_key ON public.agency_command_idempotency_keys USING btree (agency_id, command_name, idempotency_key);
+
+
+--
 -- Name: index_departures_on_agency_and_name_search_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1907,6 +2443,62 @@ CREATE INDEX index_reference_sequences_on_agency_id ON public.reference_sequence
 
 
 --
+-- Name: index_service_occurrence_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_occurrence_definitions_on_agency_id ON public.service_occurrence_definitions USING btree (agency_id);
+
+
+--
+-- Name: index_service_occurrence_definitions_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_occurrence_definitions_on_id_and_agency_id ON public.service_occurrence_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_service_occurrence_definitions_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_occurrence_definitions_on_id_departure_agency ON public.service_occurrence_definitions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_occurrence_definitions_on_version_and_stable_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_occurrence_definitions_on_version_and_stable_id ON public.service_occurrence_definitions USING btree (supplier_arrangement_version_id, service_occurrence_id);
+
+
+--
+-- Name: index_service_occurrences_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_occurrences_on_agency_id ON public.service_occurrences USING btree (agency_id);
+
+
+--
+-- Name: index_service_occurrences_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_occurrences_on_full_owner ON public.service_occurrences USING btree (id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_occurrences_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_occurrences_on_id_and_agency_id ON public.service_occurrences USING btree (id, agency_id);
+
+
+--
+-- Name: index_service_occurrences_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_occurrences_on_id_departure_agency ON public.service_occurrences USING btree (id, departure_id, agency_id);
+
+
+--
 -- Name: index_sessions_on_agency_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1918,6 +2510,90 @@ CREATE INDEX index_sessions_on_agency_user_id ON public.sessions USING btree (ag
 --
 
 CREATE INDEX index_sessions_on_office_id ON public.sessions USING btree (office_id);
+
+
+--
+-- Name: index_supplier_arrangement_versions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_arrangement_versions_on_agency_id ON public.supplier_arrangement_versions USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_arrangement_versions_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangement_versions_on_full_owner ON public.supplier_arrangement_versions USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_supplier_arrangement_versions_on_id_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangement_versions_on_id_and_agency ON public.supplier_arrangement_versions USING btree (id, agency_id);
+
+
+--
+-- Name: index_supplier_arrangement_versions_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangement_versions_on_id_departure_agency ON public.supplier_arrangement_versions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_supplier_arrangement_versions_on_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangement_versions_on_number ON public.supplier_arrangement_versions USING btree (supplier_arrangement_id, version_number);
+
+
+--
+-- Name: index_supplier_arrangement_versions_one_activated; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangement_versions_one_activated ON public.supplier_arrangement_versions USING btree (supplier_arrangement_id) WHERE ((status)::text = 'activated'::text);
+
+
+--
+-- Name: index_supplier_arrangement_versions_one_draft; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangement_versions_one_draft ON public.supplier_arrangement_versions USING btree (supplier_arrangement_id) WHERE ((status)::text = 'draft'::text);
+
+
+--
+-- Name: index_supplier_arrangements_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_arrangements_on_agency_id ON public.supplier_arrangements USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_arrangements_on_departure_list; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_arrangements_on_departure_list ON public.supplier_arrangements USING btree (agency_id, departure_id, status, name, id);
+
+
+--
+-- Name: index_supplier_arrangements_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangements_on_id_and_agency_id ON public.supplier_arrangements USING btree (id, agency_id);
+
+
+--
+-- Name: index_supplier_arrangements_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangements_on_id_departure_agency ON public.supplier_arrangements USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_supplier_arrangements_on_supplier_dependencies; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_arrangements_on_supplier_dependencies ON public.supplier_arrangements USING btree (agency_id, contracting_supplier_id, status, id);
 
 
 --
@@ -2058,6 +2734,13 @@ CREATE INDEX index_supplier_contacts_on_agency_supplier_status ON public.supplie
 --
 
 CREATE UNIQUE INDEX index_supplier_contacts_on_id_and_agency_id ON public.supplier_contacts USING btree (id, agency_id);
+
+
+--
+-- Name: index_supplier_contacts_on_id_supplier_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_contacts_on_id_supplier_agency ON public.supplier_contacts USING btree (id, supplier_id, agency_id);
 
 
 --
@@ -2264,6 +2947,62 @@ CREATE INDEX index_supplier_postals_on_agency_and_postal_code ON public.supplier
 
 
 --
+-- Name: index_supplier_resource_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_resource_definitions_on_agency_id ON public.supplier_resource_definitions USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_resource_definitions_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_resource_definitions_on_id_and_agency_id ON public.supplier_resource_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_supplier_resource_definitions_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_resource_definitions_on_id_departure_agency ON public.supplier_resource_definitions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_supplier_resource_definitions_on_version_and_stable_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_resource_definitions_on_version_and_stable_id ON public.supplier_resource_definitions USING btree (supplier_arrangement_version_id, supplier_resource_id);
+
+
+--
+-- Name: index_supplier_resources_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_resources_on_agency_id ON public.supplier_resources USING btree (agency_id);
+
+
+--
+-- Name: index_supplier_resources_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_resources_on_full_owner ON public.supplier_resources USING btree (id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_supplier_resources_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_resources_on_id_and_agency_id ON public.supplier_resources USING btree (id, agency_id);
+
+
+--
+-- Name: index_supplier_resources_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_resources_on_id_departure_agency ON public.supplier_resources USING btree (id, departure_id, agency_id);
+
+
+--
 -- Name: index_supplier_websites_on_agency_and_host; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2376,6 +3115,20 @@ CREATE TRIGGER agency_users_reject_agency_id_change BEFORE UPDATE ON public.agen
 
 
 --
+-- Name: arrangement_item_definitions arrangement_item_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER arrangement_item_definitions_reject_owner_change BEFORE UPDATE ON public.arrangement_item_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_arrangement_item_definition_owner_change();
+
+
+--
+-- Name: arrangement_items arrangement_items_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER arrangement_items_reject_owner_change BEFORE UPDATE ON public.arrangement_items FOR EACH ROW EXECUTE FUNCTION public.reject_arrangement_item_owner_change();
+
+
+--
 -- Name: audit_events audit_events_reject_update; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2481,6 +3234,41 @@ CREATE TRIGGER reference_sequences_reject_identity_change BEFORE UPDATE ON publi
 
 
 --
+-- Name: service_occurrence_definitions service_occurrence_definitions_reject_invalid_zone; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_occurrence_definitions_reject_invalid_zone BEFORE INSERT OR UPDATE OF time_zone ON public.service_occurrence_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_invalid_service_occurrence_definition_zone();
+
+
+--
+-- Name: service_occurrence_definitions service_occurrence_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_occurrence_definitions_reject_owner_change BEFORE UPDATE ON public.service_occurrence_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_service_occurrence_definition_owner_change();
+
+
+--
+-- Name: service_occurrences service_occurrences_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_occurrences_reject_owner_change BEFORE UPDATE ON public.service_occurrences FOR EACH ROW EXECUTE FUNCTION public.reject_service_occurrence_owner_change();
+
+
+--
+-- Name: supplier_arrangement_versions supplier_arrangement_versions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_arrangement_versions_reject_owner_change BEFORE UPDATE ON public.supplier_arrangement_versions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_arrangement_version_owner_change();
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_arrangements_reject_owner_change BEFORE UPDATE ON public.supplier_arrangements FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_arrangement_owner_change();
+
+
+--
 -- Name: supplier_category_assignments supplier_category_assignments_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2537,6 +3325,20 @@ CREATE TRIGGER supplier_postal_addresses_reject_owner_change BEFORE UPDATE ON pu
 
 
 --
+-- Name: supplier_resource_definitions supplier_resource_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_resource_definitions_reject_owner_change BEFORE UPDATE ON public.supplier_resource_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_resource_definition_owner_change();
+
+
+--
+-- Name: supplier_resources supplier_resources_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_resources_reject_owner_change BEFORE UPDATE ON public.supplier_resources FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_resource_owner_change();
+
+
+--
 -- Name: supplier_websites supplier_websites_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2556,6 +3358,38 @@ CREATE TRIGGER suppliers_reject_identity_change BEFORE UPDATE ON public.supplier
 
 ALTER TABLE ONLY public.agency_users
     ADD CONSTRAINT agency_users_default_office_fk FOREIGN KEY (default_office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
+-- Name: arrangement_item_definitions arrangement_item_definitions_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_item_definitions
+    ADD CONSTRAINT arrangement_item_definitions_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: arrangement_item_definitions arrangement_item_definitions_provider_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_item_definitions
+    ADD CONSTRAINT arrangement_item_definitions_provider_fk FOREIGN KEY (default_service_provider_id, agency_id) REFERENCES public.suppliers(id, agency_id);
+
+
+--
+-- Name: arrangement_item_definitions arrangement_item_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_item_definitions
+    ADD CONSTRAINT arrangement_item_definitions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: arrangement_items arrangement_items_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_items
+    ADD CONSTRAINT arrangement_items_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
 
 
 --
@@ -2671,6 +3505,14 @@ ALTER TABLE ONLY public.departures
 
 
 --
+-- Name: supplier_arrangements fk_rails_089363381e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT fk_rails_089363381e FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: client_person_postal_addresses fk_rails_14e390d793; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2687,11 +3529,43 @@ ALTER TABLE ONLY public.client_organization_phone_numbers
 
 
 --
+-- Name: service_occurrences fk_rails_1f84c2293b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_occurrences
+    ADD CONSTRAINT fk_rails_1f84c2293b FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: arrangement_item_definitions fk_rails_21148f554b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_item_definitions
+    ADD CONSTRAINT fk_rails_21148f554b FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_arrangement_versions fk_rails_2919e0612f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_versions
+    ADD CONSTRAINT fk_rails_2919e0612f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: offices fk_rails_29d71841aa; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.offices
     ADD CONSTRAINT fk_rails_29d71841aa FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_resource_definitions fk_rails_32a78d1b5b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resource_definitions
+    ADD CONSTRAINT fk_rails_32a78d1b5b FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -2708,6 +3582,14 @@ ALTER TABLE ONLY public.supplier_category_assignments
 
 ALTER TABLE ONLY public.client_organization_contacts
     ADD CONSTRAINT fk_rails_3c145b85a0 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: agency_command_idempotency_keys fk_rails_3ce67d3c6c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_command_idempotency_keys
+    ADD CONSTRAINT fk_rails_3ce67d3c6c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -2740,6 +3622,14 @@ ALTER TABLE ONLY public.client_organization_websites
 
 ALTER TABLE ONLY public.supplier_websites
     ADD CONSTRAINT fk_rails_800f8de757 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: service_occurrence_definitions fk_rails_84fd108f14; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_occurrence_definitions
+    ADD CONSTRAINT fk_rails_84fd108f14 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -2863,6 +3753,14 @@ ALTER TABLE ONLY public.supplier_contact_email_addresses
 
 
 --
+-- Name: arrangement_items fk_rails_de3260558a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_items
+    ADD CONSTRAINT fk_rails_de3260558a FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_email_addresses fk_rails_e4b48618c0; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2879,6 +3777,14 @@ ALTER TABLE ONLY public.client_person_phone_numbers
 
 
 --
+-- Name: supplier_resources fk_rails_f4555dab68; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resources
+    ADD CONSTRAINT fk_rails_f4555dab68 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: sessions fk_rails_fda020f2ca; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2887,11 +3793,75 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: service_occurrence_definitions service_occurrence_definitions_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_occurrence_definitions
+    ADD CONSTRAINT service_occurrence_definitions_occurrence_fk FOREIGN KEY (service_occurrence_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrences(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_occurrence_definitions service_occurrence_definitions_provider_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_occurrence_definitions
+    ADD CONSTRAINT service_occurrence_definitions_provider_fk FOREIGN KEY (service_provider_id, agency_id) REFERENCES public.suppliers(id, agency_id);
+
+
+--
+-- Name: service_occurrence_definitions service_occurrence_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_occurrence_definitions
+    ADD CONSTRAINT service_occurrence_definitions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_occurrences service_occurrences_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_occurrences
+    ADD CONSTRAINT service_occurrences_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: sessions sessions_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_office_fk FOREIGN KEY (office_id) REFERENCES public.offices(id);
+
+
+--
+-- Name: supplier_arrangement_versions supplier_arrangement_versions_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_versions
+    ADD CONSTRAINT supplier_arrangement_versions_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_contracting_contact_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_contracting_contact_fk FOREIGN KEY (supplier_contact_id, contracting_supplier_id, agency_id) REFERENCES public.supplier_contacts(id, supplier_id, agency_id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_contracting_supplier_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_contracting_supplier_fk FOREIGN KEY (contracting_supplier_id, agency_id) REFERENCES public.suppliers(id, agency_id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_departure_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_departure_agency_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
 
 
 --
@@ -2959,6 +3929,30 @@ ALTER TABLE ONLY public.supplier_postal_addresses
 
 
 --
+-- Name: supplier_resource_definitions supplier_resource_definitions_resource_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resource_definitions
+    ADD CONSTRAINT supplier_resource_definitions_resource_fk FOREIGN KEY (supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_resources(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_resource_definitions supplier_resource_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resource_definitions
+    ADD CONSTRAINT supplier_resource_definitions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_resources supplier_resources_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_resources
+    ADD CONSTRAINT supplier_resources_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_websites supplier_websites_supplier_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2973,6 +3967,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260916140000'),
 ('20260916010000'),
 ('20260915120000'),
 ('20260915010000'),

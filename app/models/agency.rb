@@ -21,6 +21,15 @@ class Agency < ApplicationRecord
   has_many :supplier_websites, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
   has_many :departures, dependent: :restrict_with_exception
+  has_many :agency_command_idempotency_keys, dependent: :restrict_with_exception
+  has_many :supplier_arrangements, dependent: :restrict_with_exception
+  has_many :supplier_arrangement_versions, dependent: :restrict_with_exception
+  has_many :arrangement_items, dependent: :restrict_with_exception
+  has_many :arrangement_item_definitions, dependent: :restrict_with_exception
+  has_many :service_occurrences, dependent: :restrict_with_exception
+  has_many :service_occurrence_definitions, dependent: :restrict_with_exception
+  has_many :supplier_resources, dependent: :restrict_with_exception
+  has_many :supplier_resource_definitions, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

@@ -11,6 +11,21 @@ class Supplier < ApplicationRecord
   has_many :phone_numbers, class_name: "SupplierPhoneNumber", dependent: :restrict_with_exception
   has_many :postal_addresses, class_name: "SupplierPostalAddress", dependent: :restrict_with_exception
   has_many :websites, class_name: "SupplierWebsite", dependent: :restrict_with_exception
+  has_many :contracted_supplier_arrangements,
+    class_name: "SupplierArrangement",
+    foreign_key: :contracting_supplier_id,
+    inverse_of: :contracting_supplier,
+    dependent: :restrict_with_exception
+  has_many :default_provider_item_definitions,
+    class_name: "ArrangementItemDefinition",
+    foreign_key: :default_service_provider_id,
+    inverse_of: :default_service_provider,
+    dependent: :restrict_with_exception
+  has_many :service_provider_occurrence_definitions,
+    class_name: "ServiceOccurrenceDefinition",
+    foreign_key: :service_provider_id,
+    inverse_of: :service_provider,
+    dependent: :restrict_with_exception
 
   enum :kind, KINDS.index_by(&:itself), validate: true
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "active"

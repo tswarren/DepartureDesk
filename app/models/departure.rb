@@ -7,6 +7,14 @@ class Departure < ApplicationRecord
   belongs_to :agency
   belongs_to :responsible_office, class_name: "Office", optional: true
   belongs_to :responsible_agency_user, class_name: "AgencyUser", optional: true
+  has_many :supplier_arrangements, dependent: :restrict_with_exception
+  has_many :supplier_arrangement_versions, dependent: :restrict_with_exception
+  has_many :arrangement_items, dependent: :restrict_with_exception
+  has_many :arrangement_item_definitions, dependent: :restrict_with_exception
+  has_many :service_occurrences, dependent: :restrict_with_exception
+  has_many :service_occurrence_definitions, dependent: :restrict_with_exception
+  has_many :supplier_resources, dependent: :restrict_with_exception
+  has_many :supplier_resource_definitions, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 
