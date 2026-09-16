@@ -40,6 +40,6 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 ## Immediate work
 
 1. M1 is complete. [M1A](m1a-individual-client.md) through [M1E](m1e-directory-acceptance-and-hardening.md) are shipped.
-2. M2A and M2B are shipped. [M2C](m2c-acceptance-and-hardening.md) is the remaining Draft proof slice. Do not implement Travel Program until an accepted later slice names that work.
+2. M2A and M2B are shipped. [M2C](m2c-acceptance-and-hardening.md) is accepted and implemented on this branch; it is not yet shipped. Do not implement Travel Program until an accepted later slice names that work.
 
 The [MVP specification](departure-desk-mvp.md) defines scope. The [commercial decision register](commercial-domain-decision-register.md) defines cross-cutting commercial rules. This roadmap controls sequence, not record-level implementation.

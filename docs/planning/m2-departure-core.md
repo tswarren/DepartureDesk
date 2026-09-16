@@ -85,7 +85,7 @@ The commercial register’s Draft → Active “manager” is this responsible A
 | --- | --- |
 | **[M2A — Departure core](m2a-departure-core.md)** | Draft creation/editing, responsibility, search/UI, activation, `D-` issuance, return to draft, and activation/reference concurrency. Shipped. |
 | **[M2B — Departed lifecycle](m2b-departed-lifecycle.md)** | Manual transition, scheduled sweep and per-Departure job, schedule/currency correction, erroneous-lifecycle correction, and job concurrency. Shipped. |
-| **[M2C — Acceptance and hardening](m2c-acceptance-and-hardening.md)** | Celebrity/Vineyard scenario proof, cross-Agency isolation, query/index proof, accessibility/system coverage, regressions, and final documentation. Draft slice plan; not implementation authority. |
+| **[M2C — Acceptance and hardening](m2c-acceptance-and-hardening.md)** | Celebrity/Vineyard scenario proof, cross-Agency isolation, query/index proof, accessibility/system coverage, regressions, and final documentation. Accepted and implemented on this branch; not yet shipped. |
 
 M2A is a complete vertical outcome: staff can create a Departure, make it operational, receive its durable reference, find it, and safely reverse activation before downstream work exists.
 

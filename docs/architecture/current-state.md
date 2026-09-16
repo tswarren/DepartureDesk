@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A–M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, and M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections. Do not treat M2 as complete until M2C is accepted, implemented, and merged. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A–M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, and M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections. This branch implements M2C proof and hardening. Do not treat M2 as complete until M2C is merged. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -78,6 +78,6 @@ Application code checks named permissions, not role strings.
 
 ## Not shipped
 
-The current application has no Traveler, Household, Travel Program, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. M2C proof and M3 records are not implemented.
+The current application has no Traveler, Household, Travel Program, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. M2C proof is implemented on this branch and is not yet shipped. M3 records are not implemented.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.

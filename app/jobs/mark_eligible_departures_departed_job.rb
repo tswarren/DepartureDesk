@@ -3,6 +3,19 @@ class MarkEligibleDeparturesDepartedJob < ApplicationJob
 
   BATCH_SIZE = 100
 
+  def self.candidate_relation(at:, cursor: nil)
+    relation = Departure.eligible_to_depart_relation(at:)
+    if cursor
+      agency_id, starts_on, id = cursor
+      relation = relation.where(
+        "(departures.agency_id, departures.starts_on, departures.id) > (?, ?, ?)",
+        agency_id, starts_on, id
+      )
+    end
+
+    relation.order("departures.agency_id", "departures.starts_on", "departures.id").limit(BATCH_SIZE)
+  end
+
   def perform
     observed_at = Time.current
     cursor = nil
@@ -23,17 +36,6 @@ class MarkEligibleDeparturesDepartedJob < ApplicationJob
   private
 
   def next_batch(cursor, at:)
-    relation = Departure.eligible_to_depart_relation(at:)
-    if cursor
-      agency_id, starts_on, id = cursor
-      relation = relation.where(
-        "(departures.agency_id, departures.starts_on, departures.id) > (?, ?, ?)",
-        agency_id, starts_on, id
-      )
-    end
-
-    relation.order("departures.agency_id", "departures.starts_on", "departures.id")
-      .limit(BATCH_SIZE)
-      .pluck("departures.agency_id", "departures.id", "departures.starts_on")
+    self.class.candidate_relation(at:, cursor:).pluck("departures.agency_id", "departures.id", "departures.starts_on")
   end
 end
