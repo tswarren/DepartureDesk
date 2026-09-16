@@ -109,29 +109,42 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
   end
 
   test "EXPLAIN uses the expected supporting index for each composed branch" do
-    80.times do |index|
+    companion = M2DepartureScenario.isolation_companion(@shell)
+    seed_agency_volume!(@agency, "Plannervol", 800, office: @office, user: @actor)
+    seed_agency_volume!(
+      companion.directory.agency, "Foreignvol", 800,
+      office: companion.fixture_responsible_office, user: companion.directory.actor
+    )
+    51.times do |index|
       extra_departure(
-        format("Explainvol N%02d", index),
-        starts_on: Date.new(2025, 1, 1) + index,
-        ends_on: Date.new(2025, 1, 8) + index
+        format("Lookaheadvol N%02d", index),
+        starts_on: Date.new(2028, 3, 1) + index,
+        ends_on: Date.new(2028, 3, 8) + index
       )
     end
     refresh_statistics!
-    query_indexes = /index_departures_on_agency_and_name_search_key|index_departures_on_agency_and_reference|index_departures_on_agency_id|index_departures_on_id_and_agency_id/
-    browse_indexes = /index_departures_on_agency_starts_on_name_id|index_departures_on_agency_id|index_departures_on_id_and_agency_id/
-    status_date_indexes = /index_departures_on_agency_status_starts_on_id|index_departures_on_agency_starts_on_name_id/
+
+    lookahead = SearchDepartures.composed_relation(agency: @agency, actor: @actor, query: "Lookaheadvol")
+    assert_equal SearchDepartures::FETCH_LIMIT, lookahead.limit_value
+    assert_equal 51, lookahead.to_a.size
+
+    # Status filters still order by starts_on, so PostgreSQL may use either named
+    # composite. Generic tenant indexes (agency_id / id+agency_id) are not accepted.
+    status_indexes = /index_departures_on_agency_status_starts_on_id|index_departures_on_agency_starts_on_name_id/
     [
-      [ "blank browse", {}, browse_indexes ],
-      [ "exact name", { query: "Alpha Voyage" }, query_indexes ],
-      [ "prefix name", { query: "beta" }, query_indexes ],
-      [ "exact reference", { query: @gamma.departure_reference }, query_indexes ],
-      [ "status active", { status: "active" }, status_date_indexes ],
-      [ "status and starts_on", { status: "active", starts_on_from: "2026-07-01" }, status_date_indexes ],
+      [ "blank browse", {}, "index_departures_on_agency_starts_on_name_id" ],
+      [ "status all", { status: "all" }, "index_departures_on_agency_starts_on_name_id" ],
+      [ "exact name", { query: "Alpha Voyage" }, "index_departures_on_agency_and_name_search_key" ],
+      [ "prefix name", { query: "beta" }, "index_departures_on_agency_and_name_search_key" ],
+      [ "exact reference", { query: @gamma.departure_reference }, "index_departures_on_agency_and_reference" ],
+      [ "status draft", { status: "draft", starts_on_from: "2026-05-01" }, status_indexes ],
+      [ "status active", { status: "active", starts_on_from: "2026-07-01" }, status_indexes ],
+      [ "status departed", { status: "departed", starts_on_from: "2026-04-01" }, status_indexes ],
       [ "office filter", { responsible_office_id: @west.id }, "index_departures_on_agency_office_starts_on_id" ],
       [ "user filter", { responsible_agency_user_id: @staff.id }, "index_departures_on_agency_user_starts_on_id" ],
       [ "starts_on range", { starts_on_from: "2026-05-01", starts_on_to: "2026-05-08" }, "index_departures_on_agency_starts_on_name_id" ],
       [ "ends_on range", { ends_on_from: "2026-06-01", ends_on_to: "2026-06-08" }, "index_departures_on_agency_ends_on_id" ],
-      [ "51-row lookahead", { query: "Alpha Voyage" }, query_indexes ]
+      [ "51-row lookahead", { query: "Lookaheadvol" }, "index_departures_on_agency_and_name_search_key" ]
     ].each do |label, kwargs, index_name|
       relation = SearchDepartures.composed_relation(agency: @agency, actor: @actor, **kwargs)
       assert_equal SearchDepartures::FETCH_LIMIT, relation.limit_value if label == "51-row lookahead"
@@ -166,6 +179,30 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
         responsible_agency_user_id: user.id
       }
     ).call.record
+  end
+
+  def seed_agency_volume!(agency, prefix, count, office:, user:)
+    now = Time.current
+    rows = Array.new(count) do |index|
+      starts_on = Date.new(2023, 1, 1) + index
+      {
+        agency_id: agency.id,
+        name: format("%s %04d", prefix, index),
+        starts_on:,
+        ends_on: starts_on + 7,
+        time_zone: "UTC",
+        operating_currency: "USD",
+        responsible_office_id: office.id,
+        responsible_agency_user_id: user.id,
+        status: "active",
+        departure_reference: format("D-%06d", index + 10),
+        first_activated_at: now,
+        lock_version: 0,
+        created_at: now,
+        updated_at: now
+      }
+    end
+    Departure.insert_all(rows)
   end
 
   def refresh_statistics!

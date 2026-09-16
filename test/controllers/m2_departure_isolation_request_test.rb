@@ -30,9 +30,31 @@ class M2DepartureIsolationRequestTest < ActionDispatch::IntegrationTest
     assert_response :not_found
     get edit_departure_schedule_correction_path(foreign)
     assert_response :not_found
+    post departure_schedule_correction_path(foreign), params: {
+      departure: { starts_on: "2026-06-01", ends_on: "2026-06-08", time_zone: "UTC", reason: "no", lock_version: foreign.lock_version }
+    }
+    assert_response :not_found
     get edit_departure_currency_correction_path(foreign)
     assert_response :not_found
+    post departure_currency_correction_path(foreign), params: {
+      departure: { operating_currency: "EUR", reason: "no", lock_version: foreign.lock_version }
+    }
+    assert_response :not_found
     get edit_departure_lifecycle_correction_path(foreign)
+    assert_response :not_found
+    post departure_lifecycle_correction_path(foreign), params: {
+      departure: { reason: "no", lock_version: foreign.lock_version }
+    }
+    assert_response :not_found
+    get edit_departure_responsibility_path(foreign)
+    assert_response :not_found
+    patch departure_responsibility_path(foreign), params: {
+      departure: {
+        responsible_office_id: @primary.fixture_responsible_office.id,
+        responsible_agency_user_id: @primary.directory.actor.id,
+        lock_version: foreign.lock_version
+      }
+    }
     assert_response :not_found
     assert_equal "Celebrity Beyond Isolation", foreign.reload.name
     assert_equal "draft", foreign.status
