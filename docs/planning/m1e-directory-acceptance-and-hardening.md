@@ -1,6 +1,6 @@
 # M1E — Directory acceptance and hardening
 
-**Status:** Shipped. Proof and hardening landed without a new domain aggregate. Composed-search `EXPLAIN` did not require an index migration. Existing `#form-error-summary` markup was proven rather than redesigned.
+**Status:** Shipped. Proof and hardening landed without a new domain aggregate. Composed-search `EXPLAIN` did not require an index migration. `#form-error-summary` kept its structure; focus moves through a small Stimulus controller because `data-turbo-focus` does not.
 
 **Parent:** [M1 — Client and Supplier directories](m1-client-and-supplier-directories.md)
 

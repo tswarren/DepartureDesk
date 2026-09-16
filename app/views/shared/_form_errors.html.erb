@@ -1,5 +1,5 @@
 <% if object.errors.any? %>
-  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-turbo-focus>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
     <p class="dd-alert-title">Please fix the following:</p>
     <ul class="dd-error-list">
       <% object.errors.each do |error| %>

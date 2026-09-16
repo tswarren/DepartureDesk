@@ -126,9 +126,10 @@ class M1DirectoryAcceptanceTest < ApplicationSystemTestCase
     fill_in "Website", with: "not a website"
     fill_in "Label", with: "Kept label"
     click_button "Save website"
+    wait_for_turbo
     assert_selector "#form-error-summary"
     assert_text "Please fix the following:"
-    assert_equal "form-error-summary", page.evaluate_script("document.activeElement && document.activeElement.id")
+    assert_selector "#form-error-summary:focus"
     assert_field "Label", with: "Kept label"
     assert_field "Website", with: "not a website"
     within("#form-error-summary") { find("a").click }
