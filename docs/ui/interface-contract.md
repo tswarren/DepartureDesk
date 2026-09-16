@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, shipped M2B departed/correction surfaces, shipped M2C proof of Departures search, isolation, keyboard, drawer, and viewport behavior, and M3A tentative Supplier planning structure.
+**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, shipped M2B departed/correction surfaces, shipped M2C proof of Departures search, isolation, keyboard, drawer, and viewport behavior, and shipped M3A tentative Supplier planning structure.
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -71,6 +71,9 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Create may propose copied Office, AgencyUser, Agency time zone, and currency defaults. Time zone is an IANA select that defaults to the Agency time zone. The user can change or clear them. Drafts may omit Office.
 - Profile shows identity, dates, time zone, currency, responsibility, lifecycle, reference, and a Supplier planning panel for tentative M3A Arrangement structure.
 - The Supplier planning panel is labeled as tentative structure. It lists Supplier Arrangements, contracting Suppliers, lifecycle status, and draft version status, and links to the Arrangement workspace. Add arrangement is shown only when the current AgencyUser has `manage_departures` and the Departure is draft or active.
+- Arrangement profile shows Items in manual order, Occurrences in contracted chronological order, and Resources in manual order. Ordinary editing requires an editable draft Arrangement, Departure `draft` or `active`, and an active contracting Supplier.
+- After forced contractor inactivation or on a departed Departure, recovery controls remain for clearing an inactive contact, clearing or replacing an inactive service provider, removing unpublished draft structure, and abandonment. Expansion actions such as Add item, Add occurrence, and Add resource are hidden.
+- Abandonment uses a dedicated confirmation that collects a reason. Abandoned Arrangements remain readable and expose no mutation controls.
 - Activation is a dedicated readiness page listing missing requirements, then `POST` activate. Return to draft is a confirmation that collects a reason.
 - Arrangement, Item, Occurrence, and Resource create/edit forms are full pages using `#form-error-summary`, hidden optimistic locks, and server-issued idempotency keys for create actions. Reorder controls submit the full ordered identifier list.
 - Mark departed is a confirmation shown only when the Departure is eligible (`starts_on` on or before the local date in its time zone). Schedule, currency, and lifecycle corrections are confirmations on departed records. Lifecycle correction is shown only when stored `starts_on` is still in the future. The schedule correction form submits start date, end date, and time zone together.

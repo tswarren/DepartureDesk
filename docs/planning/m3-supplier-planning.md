@@ -1,6 +1,6 @@
 # M3 Supplier planning
 
-**Status:** Accepted 2026-09-16. Amended 2026-09-16. Not yet implemented.
+**Status:** Accepted 2026-09-16. Amended 2026-09-16. [M3A](m3a-draft-arrangement-structure.md) is shipped. Later M3 slices remain unimplemented.
 
 **Amendment 2026-09-16:** Closed decisions now authorize Arrangement and version `abandoned` (never-activated discard; not Arrangement `cancelled`); departed Departures may not create new tentative Arrangements; ordinary inactivation uses the effective-provider rule and a recovery allow-list; M3A adds only `force_inactivate_supplier_with_dependencies`; Occurrence creation fails `invalid` when no recognized zone can be stored; version `lock_version` owns child-collection concurrency. [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md) and [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md) lock topology and Supplier roles. Occurrence operational lifecycle (`planned`/`cancelled`) lives on the stable Occurrence identity with `lock_version`; definition rows hold commercial/schedule attributes only. M3A ships the first durable create-command idempotency family and uses an explicit create-command lock-order exception for the idempotency row.
 
@@ -75,7 +75,7 @@ The diagram describes domain responsibility, not a required table count. Slice p
 
 | Slice | Working outcome |
 | --- | --- |
-| **M3A — Draft Arrangement structure** | Stable Arrangement identity, lifecycle catalog including `abandoned`, and draft-version topology; Items, Occurrences, Resources, and optional Arrangement contact; contracting Supplier and Service Provider rules; `view_departures` / `manage_departures` plus `force_inactivate_supplier_with_dependencies`; `override_supplier_planning_terms` remains a named future permission; `ChangeSupplierStatus` ordinary blockers for introduced dependencies; draft UI that amends the Departure interface contract. Supplier Location attachment is deferred. No activation yet. |
+| **[M3A — Draft Arrangement structure](m3a-draft-arrangement-structure.md)** | Stable Arrangement identity, lifecycle catalog including `abandoned`, and draft-version topology; Items, Occurrences, Resources, and optional Arrangement contact; contracting Supplier and Service Provider rules; `view_departures` / `manage_departures` plus `force_inactivate_supplier_with_dependencies`; `override_supplier_planning_terms` remains a named future permission; `ChangeSupplierStatus` ordinary blockers for introduced dependencies; draft UI that amends the Departure interface contract. Supplier Location attachment is deferred. No activation yet. Shipped. |
 | **M3B — Supplier capacity** | Draft Capacity Pool *definitions*, inventory modes and measurement bases; immutable Supplier-side capacity-event and projection contracts; evidence, override, concurrency, and reconciliation foundations. Definition rows are not established managed supply. Effective supply still requires later Arrangement activation. |
 | **M3C — Cost terms and forecasts** | Draft estimate/contracted-term *definitions*; the first ADR 0001 monetary-table pattern; composable cost components; explicit percentage bases, `numeric` rates, and calculation order; fixed, per-resource, per-person, per-night, minimum, occupancy-position, and zero-cost patterns; forecast precedence and explainability. Effective contracted terms still require later Arrangement activation. |
 | **M3D — Activation, Reservations, and confirmations** | Arrangement activation and immutable activated versions after applicable structural, capacity, and cost completeness checks; unmanaged Items may activate without a Capacity Pool; first and successor activation only while the Departure is `active`; permanent Departure return-to-draft boundary; group/occurrence Supplier Reservations; confirmation evidence, including named atomic commitment opening when terms fully determine it; effective capacity and contracted planning; Arrangement search without changing `SearchDepartures`. |
@@ -725,7 +725,7 @@ Every consequential M3 command must define actor, named permission, transaction 
 
 ## UI and reporting contract
 
-M3 extends the Departure workspace with Supplier planning. It does not create a separate tenant or Office navigation hierarchy. M3A amends [the interface contract](../ui/interface-contract.md) so the Departure profile may show Supplier-planning panels; until that slice ships, the contract's "does not invent M3 panels" sentence remains the shipped UI rule.
+M3 extends the Departure workspace with Supplier planning. It does not create a separate tenant or Office navigation hierarchy. [M3A](m3a-draft-arrangement-structure.md) ships the Departure Supplier-planning panel and Arrangement profile amendments in [the interface contract](../ui/interface-contract.md). Later M3 slices extend those surfaces for capacity, costs, Reservations, commitments, and Deadlines.
 
 The milestone must provide, at minimum:
 

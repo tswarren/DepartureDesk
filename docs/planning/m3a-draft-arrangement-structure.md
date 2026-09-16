@@ -1,8 +1,8 @@
 # M3A — Draft Arrangement structure
 
-**Status:** Accepted 2026-09-16. Implemented on branch `m3a-draft-arrangement-structure`; not yet shipped to `main`.
+**Status:** Shipped. Merged to `main` on 2026-09-16 in pull requests #59 and #60. This document remains the draft Arrangement-structure contract. It is not authority to start Arrangement activation, capacity, costs, Reservations, commitments, Deadlines, exposure, or later M3 slices.
 
-**Parent:** [M3 — Supplier planning](m3-supplier-planning.md). The parent is Accepted, including the 2026-09-16 amendment and the Occurrence-lifecycle / create-idempotency corrections. This slice is implementation authority for M3A only.
+**Parent:** [M3 — Supplier planning](m3-supplier-planning.md). The parent is Accepted, including the 2026-09-16 amendment and the Occurrence-lifecycle / create-idempotency corrections. This slice remains the shipped contract for draft Arrangement structure only.
 
 **Prerequisites:** M2 complete and shipped; [ADR 0007](../adr/0007-departure-operational-root.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), and [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md) accepted; parent M3 accepted as amended; current architecture and interface contract reviewed.
 
@@ -724,21 +724,9 @@ Do not display invented Client sales, occupancy, capacity, balances, Payments, o
 
 Existing M0–M2 tests remain green. Do not weaken them.
 
-## Documentation when this slice ships
+## Documentation after merge
 
-While the implementation PR is open, describe documentation changes as implemented on that branch rather than already shipped.
-
-When M3A is merged:
-
-- mark this slice Shipped in the post-merge documentation update;
-- update `AGENTS.md` current boundary and audit-subject invariant;
-- update `docs/architecture/current-state.md`;
-- update `docs/ui/interface-contract.md` for the Supplier-planning Departure panel and Arrangement profile;
-- update `docs/terminology.md` implementation notes;
-- update `docs/README.md` and the roadmap as appropriate; and
-- retain the statement that activation, capacity, costs, Reservations, commitments, Deadlines, and exposure remain unimplemented.
-
-Do not rewrite historical M2 scope documents to imply that M3A was part of M2.
+M3A **Shipped** status flips belong in this post-merge documentation PR. Retain the statement that activation, capacity, costs, Reservations, commitments, Deadlines, and exposure remain unimplemented. Do not rewrite historical M2 scope documents to imply that M3A was part of M2. Do not invent an accepted M3B–M3F slice plan here.
 
 ## Exit gate
 
