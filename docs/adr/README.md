@@ -11,5 +11,7 @@ ADRs preserve decisions and their history. Superseded ADRs remain here rather th
 | [0005](0005-agency-identity.md) | Accepted and implemented | Agency-scoped AgencyUser identity, authentication, Office context, and permissions. |
 | [0006](0006-separate-identity-domains.md) | Accepted product boundary; implementation deferred | Separate Agency User, Client, Supplier, and Traveler identity contexts. |
 | [0007](0007-departure-operational-root.md) | Accepted | Departure as dated operational root; Travel Program deferred. |
+| [0008](0008-supplier-arrangement-version-topology.md) | Accepted; not implementation authority | Stable Arrangement and child identities with immutable activated versions and per-version definitions. |
+| [0009](0009-supplier-contracting-and-service-provider-roles.md) | Accepted; not implementation authority | Contracting Supplier, computed Service Provider, Arrangement contact, and Supplier-inactivation roles. |
 
 An accepted ADR governs only its stated boundary. It does not place every described future model into implementation scope.
