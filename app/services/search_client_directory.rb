@@ -47,6 +47,10 @@ class SearchClientDirectory
     new(agency:, actor:, query:, status:, kind:).call
   end
 
+  def self.composed_relation(agency:, actor:, query: nil, status: "active", kind: "all")
+    new(agency:, actor:, query:, status:, kind:).composed_relation
+  end
+
   def initialize(agency:, actor:, query:, status:, kind:)
     @agency = agency
     @actor = actor
@@ -56,12 +60,16 @@ class SearchClientDirectory
   end
 
   def call
+    rows = Array(composed_relation&.to_a)
+    Outcome.new(records: rows.first(LIMIT).map { |row| to_result(row) }, truncated: rows.size > LIMIT)
+  end
+
+  def composed_relation
     ensure_authorized!
     raise AgencyCommand::Error.new("Enter a search of 100 characters or fewer.", code: :invalid) if @query.length > 100
 
     @can_see_contacts = @actor.permitted?(:view_client_contact_details)
-    rows = ranked_rows
-    Outcome.new(records: rows.first(LIMIT).map { |row| to_result(row) }, truncated: rows.size > LIMIT)
+    ranked_relation
   end
 
   private
@@ -72,9 +80,9 @@ class SearchClientDirectory
     raise AgencyCommand::Error.new(AgencyCommand::UNAUTHORIZED, code: :unauthorized)
   end
 
-  def ranked_rows
+  def ranked_relation
     relations = ranked_branches
-    return [] if relations.empty?
+    return if relations.empty?
 
     union = relations.map(&:arel).reduce { |left, right| Arel::Nodes::UnionAll.new(left, right) }
     ClientPerson
@@ -105,7 +113,6 @@ class SearchClientDirectory
       )
       .order(FINAL_ORDER)
       .limit(FETCH_LIMIT)
-      .to_a
   end
 
   def ranked_branches
