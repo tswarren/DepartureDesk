@@ -64,6 +64,10 @@ class AuditEvent < ApplicationRecord
     departure.responsibility_changed
     departure.activated
     departure.returned_to_draft
+    departure.departed
+    departure.schedule_corrected
+    departure.currency_corrected
+    departure.lifecycle_corrected
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze

@@ -53,6 +53,27 @@ class Departure < ApplicationRecord
     activation_blockers.empty?
   end
 
+  def local_date(at:)
+    at.in_time_zone(time_zone).to_date
+  end
+
+  def eligible_to_depart?(at:)
+    active? && starts_on.present? && time_zone.present? && starts_on <= local_date(at:)
+  end
+
+  def lifecycle_correction_allowed?(at:)
+    departed? && starts_on.present? && time_zone.present? && starts_on > local_date(at:)
+  end
+
+  def self.eligible_to_depart_relation(at:)
+    joins(:agency)
+      .where(agencies: { status: "active" })
+      .where(status: "active")
+      .where.not(starts_on: nil)
+      .where.not(time_zone: nil)
+      .where("departures.starts_on <= (?::timestamptz AT TIME ZONE departures.time_zone)::date", at)
+  end
+
   private
 
   def dates_are_paired_and_ordered

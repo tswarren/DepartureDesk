@@ -150,6 +150,14 @@ Rails.application.routes.draw do
   end
   get "departures/:id/return-to-draft", to: "departure_return_to_drafts#edit", as: :edit_departure_return_to_draft
   post "departures/:id/return-to-draft", to: "departure_return_to_drafts#create", as: :departure_return_to_draft
+  get "departures/:id/departed", to: "departure_departeds#new", as: :new_departure_departed
+  post "departures/:id/departed", to: "departure_departeds#create", as: :departure_departed
+  get "departures/:id/schedule/correction", to: "departure_schedule_corrections#edit", as: :edit_departure_schedule_correction
+  post "departures/:id/schedule/correction", to: "departure_schedule_corrections#create", as: :departure_schedule_correction
+  get "departures/:id/currency/correction", to: "departure_currency_corrections#edit", as: :edit_departure_currency_correction
+  post "departures/:id/currency/correction", to: "departure_currency_corrections#create", as: :departure_currency_correction
+  get "departures/:id/lifecycle/correction", to: "departure_lifecycle_corrections#edit", as: :edit_departure_lifecycle_correction
+  post "departures/:id/lifecycle/correction", to: "departure_lifecycle_corrections#create", as: :departure_lifecycle_correction
 
   root "dashboard#show"
 
