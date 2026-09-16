@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the complete M1 Client and Supplier directories, and M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior.
+**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, and M2A Departures implemented on this branch.
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -24,8 +24,9 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Current Office selection is available to authenticated users and changes no authorization.
 - Clients is shown when the current AgencyUser has `view_client_directory`.
 - Suppliers is shown when the current AgencyUser has `view_supplier_directory`.
+- Departures is shown when the current AgencyUser has `view_departures`.
 - Below 768px, `.dd-drawer-toggle` opens the existing Stimulus drawer. Open focuses Close navigation or the first link, Tab stays inside the drawer, Escape closes and restores the toggle, and `.dd-main` / `.dd-topbar` are `inert` while open.
-- Directory, Departures, Travelers, and Accounting are absent until accepted slices ship their authorized routes.
+- Directory, Travelers, and Accounting are absent until accepted slices ship their authorized routes.
 - Active navigation uses `aria-current="page"` and a visible teal indicator.
 
 ## Client directory
@@ -62,6 +63,16 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Inactive Suppliers may receive identity and category corrections; create and reactivate of Locations, Contacts, and destinations remain gated on an active Supplier (and active Contact for Contact destinations).
 - Supplier inactivation confirmation inventories Locations, Contacts, Supplier-owned destinations, and Contact-owned destinations that will become inactive, and states that categories remain. Contact inactivation confirmation lists Contact-owned destinations.
 - Viewer may browse Supplier and Location identity; Location address/phone, named Contacts, and Contact destinations remain hidden without `view_supplier_contact_details`.
+
+## Departures
+
+- Departures is shown when the current AgencyUser has `view_departures`.
+- Index lists reference or “Draft”, name, dates, status, responsible Office, and responsible AgencyUser. Filters stay Agency-scoped and fail closed.
+- Create may propose copied Office, AgencyUser, time zone, and currency defaults. The user can change or clear them. Drafts may omit Office.
+- Profile shows identity, dates, time zone, currency, responsibility, lifecycle, and reference. It does not invent M3 panels.
+- Activation is a dedicated readiness page listing missing requirements, then `POST` activate. Return to draft is a confirmation that collects a reason.
+- Viewer may browse index and show and has no mutation actions.
+- Responsible Office and AgencyUser are attribution only. A Viewer may be the responsible user.
 
 ## Page composition
 

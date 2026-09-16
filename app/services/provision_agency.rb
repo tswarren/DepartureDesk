@@ -35,6 +35,7 @@ class ProvisionAgency < AgencyCommand
       )
       agency.reference_sequences.create!(namespace: ReferenceSequence::CLIENT_NAMESPACE, next_value: 1)
       agency.reference_sequences.create!(namespace: ReferenceSequence::SUPPLIER_NAMESPACE, next_value: 1)
+      agency.reference_sequences.create!(namespace: ReferenceSequence::DEPARTURE_NAMESPACE, next_value: 1)
       administrator = agency.agency_users.create!(
         email_address: @administrator_email,
         first_name: @administrator_first_name,

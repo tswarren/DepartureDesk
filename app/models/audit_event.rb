@@ -59,10 +59,15 @@ class AuditEvent < ApplicationRecord
     supplier_contact.inactivated
     supplier_contact.reactivated
     supplier_contact.duplicate_override
+    departure.created
+    departure.updated
+    departure.responsibility_changed
+    departure.activated
+    departure.returned_to_draft
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true

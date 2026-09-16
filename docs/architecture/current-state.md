@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, and the complete M1 Client and Supplier directories (M1A–M1E). M1E is proof and hardening only; it added no new domain aggregate. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, and the complete M1 Client and Supplier directories (M1A–M1E). This branch implements M2A Departure draft, activation, reference issuance, return to draft, and search. It is not merged; do not treat M2A or M2 as shipped. M1E is proof and hardening only; it added no new domain aggregate. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -14,7 +14,7 @@ DepartureDesk ships agency identity, administration, and the complete M1 Client 
 | `Office` | Agency-owned operating and reporting context. It grants no permission. |
 | `AgencyUser` | One agency-scoped login account with independent credentials, lifecycle, and access role. |
 | `Session` | Authentication root and optional current-Office preference. It derives Agency through AgencyUser. |
-| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, Client, ClientOrganization, Supplier, SupplierLocation, and SupplierContact commands. |
+| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, Client, ClientOrganization, Supplier, SupplierLocation, SupplierContact, and Departure commands. |
 | `ClientPerson` | Agency-scoped person known to the directory. Not a Client, AgencyUser, or Traveler. |
 | `ClientOrganization` | Agency-scoped organization known to the directory. Not a Supplier. |
 | `Client` | Explicit commercial identity for exactly one Client Person or Client Organization, with an immutable `CL-` reference. |
@@ -27,7 +27,8 @@ DepartureDesk ships agency identity, administration, and the complete M1 Client 
 | `SupplierLocation` | Supplier-owned operational place with optional structured address, timezone, and one location-level phone. |
 | `SupplierContact` | Named person in one Supplier work context. Not a Client Person or AgencyUser. |
 | `SupplierContactEmailAddress`, `SupplierContactPhoneNumber` | Contact-owned destinations. |
-| `ReferenceSequence` | Agency-scoped `client` and `supplier` reference counters. Issuance does not create a missing row. |
+| `Departure` | Agency-owned dated operational root. M2A implements draft, activation, `D-` issuance, return to draft, and search. Travel Program and departed jobs are not implemented. |
+| `ReferenceSequence` | Agency-scoped `client`, `supplier`, and `departure` reference counters. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed permission catalog mapping administrator, staff, and viewer roles to capabilities. It is application code, not a persisted record. |
 
 Invitation and password-reset token facts are stored on `AgencyUser`; they are not separate identity records.
@@ -61,6 +62,8 @@ Office is operational context, not authorization. `Current.office` resolves from
 | View Supplier directory | Yes | Yes | Yes |
 | View Supplier contact details | Yes | Yes | No |
 | Manage Supplier directory | Yes | Yes | No |
+| View Departures | Yes | Yes | Yes |
+| Manage Departures | Yes | Yes | No |
 
 Application code checks named permissions, not role strings.
 
@@ -75,6 +78,6 @@ Application code checks named permissions, not role strings.
 
 ## Not shipped
 
-The current application has no Traveler, Household, Departure, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored.
+The current application has no Traveler, Household, Travel Program, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. Departed jobs and lifecycle corrections are M2B and are not implemented on this branch.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.

@@ -1,0 +1,30 @@
+<% content_for :title, "Edit responsibility · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departures</p>
+    <h1 class="dd-page-title">Edit responsibility</h1>
+    <p class="dd-page-description"><%= @departure.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @departure, url: departure_responsibility_path(@departure), method: :patch, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <div class="dd-field-group">
+        <%= form.label :responsible_office_id, "Responsible office", class: "dd-label" %>
+        <%= form.select :responsible_office_id, departure_office_options(form.object), { include_blank: @departure.draft? ? "No office" : nil }, class: "dd-field", required: !@departure.draft? %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :responsible_agency_user_id, "Responsible user", class: "dd-label" %>
+        <%= form.select :responsible_agency_user_id, departure_user_options(form.object), { include_blank: @departure.draft? ? "No user" : nil }, class: "dd-field", required: !@departure.draft? %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Save responsibility", class: "dd-button" %>
+        <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

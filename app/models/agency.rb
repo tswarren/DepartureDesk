@@ -20,6 +20,7 @@ class Agency < ApplicationRecord
   has_many :supplier_postal_addresses, dependent: :restrict_with_exception
   has_many :supplier_websites, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
+  has_many :departures, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

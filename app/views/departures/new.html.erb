@@ -1,0 +1,22 @@
+<% content_for :title, "New Departure · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departures</p>
+    <h1 class="dd-page-title">New departure</h1>
+    <p class="dd-page-description">Creates a draft departure. Activation issues its durable reference.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @departure, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= render "form", form: form %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save departure", class: "dd-button" %>
+        <%= link_to "Cancel", departures_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

@@ -7,8 +7,10 @@ class SignInTest < ApplicationSystemTestCase
     assert_text "Harbor Travel"
     assert_link "Administration"
     assert_link "Clients"
+    assert_link "Suppliers"
+    assert_link "Departures"
     assert_no_link "Directory"
-    assert_no_link "Departures"
+    assert_no_link "Travelers"
     assert_no_text "Accounting"
   end
 

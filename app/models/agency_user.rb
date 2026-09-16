@@ -9,6 +9,7 @@ class AgencyUser < ApplicationRecord
   belongs_to :agency
   belongs_to :default_office, class_name: "Office", optional: true
   has_many :sessions, dependent: :destroy
+  has_many :responsible_departures, class_name: "Departure", foreign_key: :responsible_agency_user_id, inverse_of: :responsible_agency_user, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
   enum :access_role, ACCESS_ROLES.index_by(&:itself), validate: true, prefix: :role

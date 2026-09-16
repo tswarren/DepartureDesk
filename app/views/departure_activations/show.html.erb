@@ -1,0 +1,39 @@
+<% content_for :title, "Activate #{@departure.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departures</p>
+    <h1 class="dd-page-title">Activate departure</h1>
+    <p class="dd-page-description"><%= @departure.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= render "shared/form_errors", object: @departure %>
+    <% if @activation_blockers.any? %>
+      <section class="dd-callout">
+        <h2 class="dd-panel-title">Missing requirements</h2>
+        <ul>
+          <% @activation_blockers.each do |blocker| %>
+            <li><%= blocker %></li>
+          <% end %>
+        </ul>
+      </section>
+      <div class="dd-form-actions">
+        <%= link_to "Edit departure", edit_departure_path(@departure), class: "dd-button" %>
+        <%= link_to "Edit responsibility", edit_departure_responsibility_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% else %>
+      <p>Activation issues a durable reference if this is the first activation, then marks the departure active.</p>
+      <%= form_with url: activate_departure_path(@departure), method: :post, class: "dd-form" do |form| %>
+        <%= hidden_field_tag :lock_version, @departure.lock_version %>
+        <div class="dd-form-actions">
+          <%= form.submit "Activate departure", class: "dd-button" %>
+          <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</article>
