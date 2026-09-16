@@ -14,7 +14,7 @@ class UpdateDepartureResponsibility < AgencyCommand
     ensure_departure_actor!(:manage_departures)
 
     ActiveRecord::Base.transaction do
-      lock_agency!
+      lock_authorized_agency!(:manage_departures)
       departure = lock_departure!
       ensure_current_lock_version!(departure)
       office = resolve_office!(@office_id)

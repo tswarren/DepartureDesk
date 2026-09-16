@@ -10,10 +10,10 @@ class CreateDeparture < AgencyCommand
 
   def call
     ensure_departure_actor!(:manage_departures)
-    attrs = resolved_attributes
 
     ActiveRecord::Base.transaction do
-      lock_agency!
+      lock_authorized_agency!(:manage_departures)
+      attrs = resolved_attributes
       office = resolve_office!(attrs[:responsible_office_id])
       user = resolve_agency_user!(attrs[:responsible_agency_user_id])
       locked_office = lock_office!(office)
@@ -50,7 +50,7 @@ class CreateDeparture < AgencyCommand
     {
       responsible_office_id: office&.id,
       responsible_agency_user_id: actor&.id,
-      time_zone: office&.default_timezone.presence || agency.default_timezone,
+      time_zone: agency.default_timezone,
       operating_currency: agency.default_currency
     }
   end
@@ -68,11 +68,10 @@ class CreateDeparture < AgencyCommand
     else
       @actor&.id
     end
-    resolved_office = office_id.blank? ? nil : resolve_office!(office_id)
     time_zone = if supplied?(:time_zone)
       normalize_time_zone(raw_attribute(:time_zone))
     else
-      resolved_office&.default_timezone.presence || copy_office&.default_timezone.presence || @agency.default_timezone
+      @agency.default_timezone
     end
     currency = if supplied?(:operating_currency)
       normalize_currency(raw_attribute(:operating_currency))
@@ -98,9 +97,10 @@ class CreateDeparture < AgencyCommand
   end
 
   def copy_office
-    return unless @current_office&.active? && @current_office.agency_id == @agency.id
+    return if @current_office.blank?
 
-    @current_office
+    office = @agency.offices.find_by(id: @current_office.id)
+    office if office&.active?
   end
 
   def audit_details(departure)

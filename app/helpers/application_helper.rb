@@ -4,6 +4,7 @@ module ApplicationHelper
     envelope phone map_pin caret_down warning_circle check_circle lock_simple plus
     pencil_simple users_two file_text magnifying_glass info spinner globe star
   ].freeze
+  IANA_TIMEZONE_IDENTIFIERS = TZInfo::Timezone.all_identifiers.sort.freeze
 
   def icon_tag(name, html_class: "dd-icon dd-icon--md")
     key = name.to_s
@@ -321,6 +322,10 @@ module ApplicationHelper
 
   def directory_status_badge(status)
     status_badge(status.to_s.titleize, modifier: status.to_s == "active" ? "success" : "neutral")
+  end
+
+  def iana_timezone_options
+    IANA_TIMEZONE_IDENTIFIERS
   end
 
   def departure_status_badge(status)

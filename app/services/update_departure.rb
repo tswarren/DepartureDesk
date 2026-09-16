@@ -17,10 +17,11 @@ class UpdateDeparture < AgencyCommand
     attrs = normalized_attributes
 
     ActiveRecord::Base.transaction do
-      lock_agency!
+      lock_authorized_agency!(:manage_departures)
       departure = lock_departure!
       ensure_current_lock_version!(departure)
       reject_departed_operating_changes!(departure, attrs)
+      ensure_non_draft_completeness!(departure, attrs)
       return Result.new(status: :noop, record: departure) if unchanged?(departure, attrs)
 
       departure.update!(attrs)

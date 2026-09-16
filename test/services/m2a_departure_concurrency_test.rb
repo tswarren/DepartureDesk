@@ -49,7 +49,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
 
   test "the same departure activated twice yields one transition, reference, and audit" do
     departure = complete_draft("Double Activate")
-    outcomes = race(2, allowed_error_codes: %i[conflict]) do
+    outcomes = race(2) do
       ActivateDeparture.new(
         agency: Agency.find(@agency.id),
         actor: AgencyUser.find(@actor.id),
@@ -59,9 +59,39 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     end
 
     results = outcomes.grep(AgencyCommand::Result)
+    assert_equal 2, results.size
+    assert_equal %i[noop updated].sort, results.map(&:status).sort
     assert_equal 1, results.map { |result| result.record.departure_reference }.uniq.size
     assert_equal 1, @agency.departures.where(id: departure.id, status: "active").count
     assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.activated", subject_id: departure.id).count
+  end
+
+  test "create versus agency suspension rechecks the locked agency" do
+    outcomes = race(2, allowed_error_codes: %i[invalid_state]) do |index|
+      if index.zero?
+        CreateDeparture.new(
+          agency: Agency.find(@agency.id),
+          actor: AgencyUser.find(@actor.id),
+          attributes: { name: "Late Create" }
+        ).call
+      else
+        ChangeAgencyStatus.new(
+          agency: Agency.find(@agency.id),
+          status: "suspended",
+          actor_identifier: "test:m2a-suspend"
+        ).call
+      end
+    end
+
+    @agency.reload
+    created = @agency.departures.where(name: "Late Create")
+    if created.exists?
+      assert_equal "suspended", @agency.status
+      assert_equal 1, created.count
+    else
+      assert_equal "suspended", @agency.status
+      assert_includes outcomes.grep(AgencyCommand::Error).map(&:code), :invalid_state
+    end
   end
 
   test "activation versus office inactivation leaves a valid outcome" do
@@ -85,11 +115,14 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     end
 
     departure.reload
+    @office.reload
     if departure.active?
       assert_equal "D-000001", departure.departure_reference
+      assert_includes %w[active inactive], @office.status
     else
       assert_equal "draft", departure.status
       assert_nil departure.departure_reference
+      assert_equal "inactive", @office.status
       assert_includes outcomes.grep(AgencyCommand::Error).map(&:code), :invalid_state
     end
   end
@@ -224,18 +257,21 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
   end
 
   def race(count, allowed_error_codes: [])
-    started = Queue.new
+    ready = Queue.new
+    release = Queue.new
     threads = count.times.map do |index|
       Thread.new do
         ActiveRecord::Base.connection_pool.with_connection do
-          started.pop
+          ready << true
+          release.pop
           yield index
         end
       rescue StandardError => error
         error
       end
     end
-    count.times { started << true }
+    count.times { ready.pop }
+    count.times { release << true }
     outcomes = threads.map(&:value)
     outcomes.each { |outcome| assert_expected_race_outcome!(outcome, allowed_error_codes:) }
     outcomes

@@ -63,7 +63,7 @@ The helper must:
 
 * compose uniqueness from the M1 helper (workspace codes, emails, and other collision-sensitive values use the M1 suffix)
 * copy the M1 Agency’s `default_currency` as the Departure `operating_currency`
-* select an M1 Office and copy that Office’s `default_timezone` as the Departure `time_zone`
+* select an M1 Office and copy the M1 Agency’s `default_timezone` as the Departure `time_zone`
 * use the M1 actor as the responsible AgencyUser unless a test explicitly assigns another same-Agency user
 * label currency, time zone, Office, and responsible user as fixture-only facts, not scenario-document claims
 * use stable Departure names and dates: Celebrity Beyond, 10–17 November 2027; Vineyard Tour, 5–7 June 2027

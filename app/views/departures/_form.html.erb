@@ -22,7 +22,7 @@
 
 <div class="dd-field-group">
   <%= form.label :time_zone, "Time zone", class: "dd-label" %>
-  <%= form.text_field :time_zone, class: "dd-field" %>
+  <%= form.select :time_zone, iana_timezone_options, { include_blank: form.object.draft? ? "No time zone" : nil }, class: "dd-field", required: !form.object.draft? %>
 </div>
 
 <div class="dd-field-group">

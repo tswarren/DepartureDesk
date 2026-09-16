@@ -10,10 +10,12 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
 
   test "admin creates a draft and preserves invalid values" do
     sign_in_as @admin
+    patch current_office_path, params: { office_id: offices(:harbor_west).id }
 
     get new_departure_path
     assert_response :success
-    assert_select "input[name='departure[time_zone]'][value=?]", @office.default_timezone
+    assert_select "select[name='departure[time_zone]'] option[selected][value=?]", @agency.default_timezone
+    assert_select "select[name='departure[time_zone]'] option[selected][value=?]", offices(:harbor_west).default_timezone, count: 0
     assert_select "input[name='departure[operating_currency]'][value=?]", @agency.default_currency
 
     assert_difference -> { @agency.departures.count }, 1 do
@@ -37,7 +39,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     post departures_path, params: { departure: { name: "", time_zone: "America/Chicago" } }
     assert_response :unprocessable_entity
     assert_select "#form-error-summary"
-    assert_select "input[name='departure[time_zone]'][value=?]", "America/Chicago"
+    assert_select "select[name='departure[time_zone]'] option[selected][value=?]", "America/Chicago"
   end
 
   test "activation readiness lists missing requirements then activates" do
@@ -48,6 +50,13 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match "Enter a start date and an end date", response.body
     assert_select "input[type=submit][value='Activate departure']", count: 0
+
+    context = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Needs Context" }).call.record
+    Departure.where(id: context.id).update_all(time_zone: "Not/AZone", operating_currency: nil)
+    get departure_activation_path(context)
+    assert_response :success
+    assert_match "Enter a recognized time zone", response.body
+    assert_match "Enter a supported operating currency", response.body
 
     complete = CreateDeparture.new(
       agency: @agency,
@@ -130,5 +139,51 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to departure_path(departure)
     assert_equal "draft", departure.reload.status
     assert_equal "D-000001", departure.departure_reference
+  end
+
+  test "clearing required fields on an active departure preserves the form" do
+    sign_in_as @admin
+    departure = CreateDeparture.new(
+      agency: @agency,
+      actor: @admin,
+      attributes: {
+        name: "Active Guard",
+        starts_on: "2026-10-01",
+        ends_on: "2026-10-08",
+        time_zone: "America/New_York",
+        operating_currency: "USD",
+        responsible_office_id: @office.id,
+        responsible_agency_user_id: @admin.id
+      }
+    ).call.record
+    ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call
+    departure.reload
+
+    {
+      starts_on: "",
+      ends_on: "",
+      time_zone: "",
+      operating_currency: ""
+    }.each do |field, value|
+      patch departure_path(departure), params: {
+        departure: {
+          name: departure.name,
+          description: departure.description,
+          starts_on: departure.starts_on,
+          ends_on: departure.ends_on,
+          time_zone: departure.time_zone,
+          operating_currency: departure.operating_currency,
+          lock_version: departure.lock_version,
+          field => value
+        }
+      }
+      assert_response :unprocessable_entity, "clearing #{field}"
+      assert_select "#form-error-summary"
+      departure.reload
+      assert_equal Date.new(2026, 10, 1), departure.starts_on
+      assert_equal Date.new(2026, 10, 8), departure.ends_on
+      assert_equal "America/New_York", departure.time_zone
+      assert_equal "USD", departure.operating_currency
+    end
   end
 end

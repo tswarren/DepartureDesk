@@ -13,7 +13,7 @@ class ActivateDeparture < AgencyCommand
     ensure_departure_actor!(:manage_departures)
 
     ActiveRecord::Base.transaction do
-      lock_agency!
+      lock_authorized_agency!(:manage_departures)
       departure = lock_departure!
       return Result.new(status: :noop, record: departure) if departure.active?
       if departure.departed?
@@ -68,20 +68,8 @@ class ActivateDeparture < AgencyCommand
     elsif departure.starts_on > departure.ends_on
       blockers << "End date must be on or after the start date."
     end
-    begin
-      raise Error.new("Enter a recognized time zone.", code: :invalid) if departure.time_zone.blank?
-
-      TZInfo::Timezone.get(departure.time_zone)
-    rescue TZInfo::InvalidTimezoneIdentifier
-      blockers << "Enter a recognized time zone."
-    end
-    begin
-      raise Error.new("Enter a supported operating currency.", code: :invalid) if departure.operating_currency.blank?
-
-      Money::Currency.find(departure.operating_currency)
-    rescue Money::Currency::UnknownCurrency
-      blockers << "Enter a supported operating currency."
-    end
+    blockers << "Enter a recognized time zone." if time_zone_invalid?(departure.time_zone)
+    blockers << "Enter a supported operating currency." if currency_invalid?(departure.operating_currency)
     if office.nil?
       blockers << "Choose an active responsible office."
     elsif !office.active?
@@ -93,5 +81,23 @@ class ActivateDeparture < AgencyCommand
       raise Error.new("That agency user is not active.", code: :invalid_state)
     end
     raise Error.new(blockers.to_sentence, code: :invalid) if blockers.any?
+  end
+
+  def time_zone_invalid?(value)
+    return true if value.blank?
+
+    TZInfo::Timezone.get(value)
+    false
+  rescue TZInfo::InvalidTimezoneIdentifier
+    true
+  end
+
+  def currency_invalid?(value)
+    return true if value.blank?
+
+    Money::Currency.find(value)
+    false
+  rescue Money::Currency::UnknownCurrency
+    true
   end
 end

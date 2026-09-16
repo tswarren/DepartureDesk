@@ -24,6 +24,7 @@ class Departure < ApplicationRecord
   validate :dates_are_paired_and_ordered
   validate :timezone_is_iana
   validate :currency_is_known
+  validate :non_draft_completeness, unless: :draft?
 
   scope :ordered_for_index, -> {
     order(Arel.sql("starts_on ASC NULLS LAST, name_search_key ASC, id ASC"))
@@ -91,25 +92,38 @@ class Departure < ApplicationRecord
     blockers
   end
 
+  def non_draft_completeness
+    errors.add(:starts_on, "can't be blank") if starts_on.blank?
+    errors.add(:ends_on, "can't be blank") if ends_on.blank?
+    errors.add(:time_zone, "can't be blank") if time_zone.blank?
+    errors.add(:operating_currency, "can't be blank") if operating_currency.blank?
+    errors.add(:responsible_office_id, "can't be blank") if responsible_office_id.blank?
+    errors.add(:responsible_agency_user_id, "can't be blank") if responsible_agency_user_id.blank?
+  end
+
   def operating_context_blockers
     blockers = []
-    if time_zone.blank?
-      blockers << "Enter a recognized time zone."
-    else
-      TZInfo::Timezone.get(time_zone)
-    end
-    if operating_currency.blank?
-      blockers << "Enter a supported operating currency."
-    else
-      Money::Currency.find(operating_currency)
-    end
+    blockers << "Enter a recognized time zone." unless recognized_time_zone?
+    blockers << "Enter a supported operating currency." unless supported_operating_currency?
     blockers
+  end
+
+  def recognized_time_zone?
+    return false if time_zone.blank?
+
+    TZInfo::Timezone.get(time_zone)
+    true
   rescue TZInfo::InvalidTimezoneIdentifier
-    blockers << "Enter a recognized time zone."
-    blockers
+    false
+  end
+
+  def supported_operating_currency?
+    return false if operating_currency.blank?
+
+    Money::Currency.find(operating_currency)
+    true
   rescue Money::Currency::UnknownCurrency
-    blockers << "Enter a supported operating currency."
-    blockers
+    false
   end
 
   def responsibility_blockers

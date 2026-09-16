@@ -16,7 +16,7 @@ Let Staff and Administrators create a standalone draft Departure, complete its o
 
 * `Departure` as the only new domain aggregate
 * Draft create, show, edit, and responsibility assignment
-* Copied create defaults from current Office, current AgencyUser, Office then Agency time zone, and Agency currency
+* Copied create defaults from current Office, current AgencyUser, Agency time zone, and Agency currency
 * Activation, first-activation `D-` issuance, reactivation that reuses the reference
 * Return to draft with a reason, retaining reference and `first_activated_at`
 * Agency-scoped search, filters, and deterministic index order
@@ -144,7 +144,7 @@ Do not add `duplicate_review_required`. Viewer mutation produces no write and no
 
 Public commands live in `app/services` and inherit `AgencyCommand`. Expected failures are not audited. Successful mutations audit in the same transaction.
 
-Lock order after authorization and Agency-scoped resolution: Agency, then Departure when it exists, then referenced Office by UUID, then referenced AgencyUser by UUID, then `ReferenceSequence` only when issuance is required.
+Lock order after the pre-transaction authorization check: lock Agency, recheck that the locked Agency is active, reload the actor through that Agency and recheck active status and permission, then lock Departure when it exists, then referenced Office by UUID, then referenced AgencyUser by UUID, then `ReferenceSequence` only when issuance is required. Resolve copied create defaults inside that locked transaction so a concurrently changed Office or Agency default cannot be copied from stale state.
 
 Lifecycle replay versus stale locking, after authorization, Agency scoping, and pessimistic row locking:
 
@@ -163,7 +163,7 @@ Accepts explicit attributes. When an attribute is omitted, copy:
 
 1. current active Office as `responsible_office_id`;
 2. current AgencyUser as `responsible_agency_user_id`;
-3. that Office’s `default_timezone`, else the Agency `default_timezone`;
+3. the Agency `default_timezone`;
 4. Agency `default_currency`.
 
 Do not invent an Office when none is current. Explicit submitted values, including explicit blanks, override copies. Copies are not live inheritance.
@@ -180,7 +180,7 @@ Permission: `manage_departures`. Requires current `lock_version`.
 
 Draft: name, description, dates, time zone, and operating currency are editable.
 
-Active: the same fields are editable with audit. No currency-dependent downstream history exists in M2, so active currency may change here.
+Active: the same fields are editable with audit. No currency-dependent downstream history exists in M2, so active currency may change here. Non-draft updates must keep both dates, a valid IANA time zone, a valid operating currency, and existing responsible Office and AgencyUser. Validate those requirements in the command and model before persistence. Do not rescue the database completeness constraint.
 
 Departed (rows will not exist until M2B): name and description only. Date, time zone, or currency changes return `invalid_state`. M2B owns those corrections.
 
@@ -302,7 +302,7 @@ Follow [docs/ui/interface-contract.md](../ui/interface-contract.md) and `dd-` cl
 
 * Index: reference or “Draft”, name, dates, status, responsible Office, responsible AgencyUser, filters.
 * Profile: identity, dates, time zone, currency, responsibility, lifecycle, reference, permitted next actions. No empty M3 panels.
-* Create may propose copied defaults; the user can change them.
+* Create may propose copied defaults; the user can change them. Time zone is an IANA select that defaults to the Agency time zone.
 * Activation is a dedicated readiness/confirmation page listing missing requirements. It is not an edit-form checkbox.
 * Return to draft is a focused confirmation that collects the reason.
 * Preserve submitted values after command errors. Reuse `#form-error-summary`.
@@ -312,7 +312,7 @@ Follow [docs/ui/interface-contract.md](../ui/interface-contract.md) and `dd-` cl
 Cover, at the lowest useful level plus request/system coverage:
 
 * UUIDv7, `timestamptz`, named constraints including lifecycle consistency, generated `name_search_key`, sequence backfill and provisioning, composite FKs, immutability trigger, filter indexes
-* Create defaults, zero-Office draft, explicit override, no live inheritance
+* Create defaults, zero-Office draft, explicit override, no live inheritance, Agency time-zone default
 * Activation completeness, issuance, reactivation reuse, return-to-draft retention and incompleteness, exhaustion, missing sequence row
 * `UpdateDeparture` and responsibility rules, Viewer as responsible user, inactive target rejection, historical inactive target retained
 * Command matrix: success, invalid, unauthorized, inactive Agency, stale, not found, no-op, rollback, audit atomicity
@@ -321,8 +321,9 @@ Cover, at the lowest useful level plus request/system coverage:
   | Race | Required outcome |
   | --- | --- |
   | Two different Departures activate concurrently | Distinct references |
-  | Same Departure activated twice | One transition, one reference, one activation audit |
-  | Activation versus Office inactivation | One serialized valid outcome; no active Departure with invalid activation context |
+  | Same Departure activated twice | Both invocations succeed (`updated` and `noop`); one transition, one reference, one activation audit. Do not accept `conflict`. |
+  | Office inactivation then activation | Activation fails; the Departure remains draft without a reference |
+  | Activation then Office inactivation | The Departure stays active with its reference; later Office inactivation may leave historically inactive responsibility. Inactivity never reverses activation or grants authorization. |
   | Activation versus AgencyUser suspension | One serialized valid outcome |
   | Activation versus ordinary edit | No lost update |
   | Responsibility reassignment versus target inactivation | One serialized valid outcome |
@@ -348,7 +349,7 @@ Parent-acceptance ADR, MVP, roadmap, and terminology amendments are not this sli
 M2A is complete only when:
 
 * Departure is the only new aggregate and Travel Program remains unimplemented
-* Draft, activation, reference issuance, return-to-draft, search, and the six M2A races pass
+* Draft, activation, reference issuance, return-to-draft, search, and the documented M2A races pass
 * Cross-Agency reads and mutations return not found
 * M0 and M1 remain green
 * The slice is merged to `main`

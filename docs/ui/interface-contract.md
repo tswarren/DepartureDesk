@@ -68,7 +68,7 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 
 - Departures is shown when the current AgencyUser has `view_departures`.
 - Index lists reference or “Draft”, name, dates, status, responsible Office, and responsible AgencyUser. Filters stay Agency-scoped and fail closed.
-- Create may propose copied Office, AgencyUser, time zone, and currency defaults. The user can change or clear them. Drafts may omit Office.
+- Create may propose copied Office, AgencyUser, Agency time zone, and currency defaults. Time zone is an IANA select that defaults to the Agency time zone. The user can change or clear them. Drafts may omit Office.
 - Profile shows identity, dates, time zone, currency, responsibility, lifecycle, and reference. It does not invent M3 panels.
 - Activation is a dedicated readiness page listing missing requirements, then `POST` activate. Return to draft is a confirmation that collects a reason.
 - Viewer may browse index and show and has no mutation actions.

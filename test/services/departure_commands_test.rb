@@ -13,19 +13,20 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     @other_office = offices(:cove_main)
   end
 
-  test "create copies current office, actor, office timezone, and agency currency when omitted" do
+  test "create copies current office, actor, agency timezone, and agency currency when omitted" do
     departure = CreateDeparture.new(
       agency: @agency,
       actor: @admin,
       attributes: { name: "Copied Defaults" },
-      current_office: @office
+      current_office: @west
     ).call.record
 
     assert_equal "draft", departure.status
     assert_nil departure.departure_reference
-    assert_equal @office.id, departure.responsible_office_id
+    assert_equal @west.id, departure.responsible_office_id
     assert_equal @admin.id, departure.responsible_agency_user_id
-    assert_equal @office.default_timezone, departure.time_zone
+    assert_equal @agency.default_timezone, departure.time_zone
+    assert_not_equal @west.default_timezone, departure.time_zone
     assert_equal @agency.default_currency, departure.operating_currency
     assert_equal 1, AuditEvent.where(agency: @agency, action: "departure.created", subject_id: departure.id).count
   end
@@ -68,9 +69,10 @@ class DepartureCommandsTest < ActiveSupport::TestCase
       agency: @agency,
       actor: @admin,
       attributes: { name: "Frozen Zone" },
-      current_office: @office
+      current_office: @west
     ).call.record
-    @office.update!(default_timezone: "America/Chicago")
+    assert_equal "America/New_York", departure.time_zone
+    @agency.update!(default_timezone: "America/Chicago")
 
     assert_equal "America/New_York", departure.reload.time_zone
   end
@@ -165,6 +167,65 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     ).call
     assert_equal :noop, result.status
     assert_equal 0, AuditEvent.where(agency: @agency, action: "departure.updated", subject_id: departure.id).count
+  end
+
+  test "updating an active departure cannot clear required operating fields" do
+    departure = activate_departure!(create_complete_draft("Active Completeness"))
+
+    {
+      "dates" => update_attrs(departure, starts_on: "", ends_on: ""),
+      "time zone" => update_attrs(departure, time_zone: ""),
+      "operating currency" => update_attrs(departure, operating_currency: "")
+    }.each do |field, attributes|
+      error = assert_raises(AgencyCommand::Error, "clearing #{field}") do
+        UpdateDeparture.new(
+          agency: @agency, actor: @admin, departure:,
+          attributes:,
+          lock_version: departure.lock_version
+        ).call
+      end
+      assert_equal :invalid, error.code, "clearing #{field}"
+    end
+
+    departure.reload
+    assert_equal Date.new(2026, 6, 1), departure.starts_on
+    assert_equal Date.new(2026, 6, 8), departure.ends_on
+    assert_equal "America/New_York", departure.time_zone
+    assert_equal "USD", departure.operating_currency
+    assert_equal 0, AuditEvent.where(agency: @agency, action: "departure.updated", subject_id: departure.id).count
+  end
+
+  test "activation blockers list timezone and currency independently" do
+    departure = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Independent Blockers" }).call.record
+    Departure.where(id: departure.id).update_all(time_zone: "Not/AZone", operating_currency: nil)
+    blockers = departure.reload.activation_blockers
+
+    assert_includes blockers, "Enter a recognized time zone."
+    assert_includes blockers, "Enter a supported operating currency."
+  end
+
+  test "office inactivation before activation rejects activation" do
+    departure = create_complete_draft("Office First")
+    ChangeOfficeStatus.new(office: @office, actor: @admin, status: "inactive", lock_version: @office.lock_version).call
+
+    error = assert_raises(AgencyCommand::Error) do
+      ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call
+    end
+    assert_equal :invalid_state, error.code
+    assert_equal "draft", departure.reload.status
+    assert_nil departure.departure_reference
+    assert_equal "inactive", @office.reload.status
+  end
+
+  test "office inactivation after activation leaves historical inactive responsibility" do
+    departure = activate_departure!(create_complete_draft("Activate First"))
+    ChangeOfficeStatus.new(office: @office, actor: @admin, status: "inactive", lock_version: @office.lock_version).call
+
+    departure.reload
+    assert_equal "active", departure.status
+    assert_equal "D-000001", departure.departure_reference
+    assert_equal @office.id, departure.responsible_office_id
+    assert_equal "inactive", @office.reload.status
   end
 
   test "update allows active currency changes and rejects departed date changes" do

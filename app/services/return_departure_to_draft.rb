@@ -15,7 +15,7 @@ class ReturnDepartureToDraft < AgencyCommand
     ensure_departure_actor!(:manage_departures)
 
     ActiveRecord::Base.transaction do
-      lock_agency!
+      lock_authorized_agency!(:manage_departures)
       departure = lock_departure!
       return Result.new(status: :noop, record: departure) if departure.draft?
       if departure.departed?

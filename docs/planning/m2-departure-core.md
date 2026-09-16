@@ -194,7 +194,7 @@ Creating a Departure may copy defaults from:
 
 1. the current active Office;
 2. the current AgencyUser;
-3. the Office’s default time zone, falling back to the Agency time zone; and
+3. the Agency default time zone; and
 4. the Agency default currency.
 
 All are copied defaults, never live inheritance.

@@ -11,7 +11,6 @@ class DeparturesTest < ApplicationSystemTestCase
     fill_in "Name", with: "Harbor Reunion"
     fill_in_html_date "Start date", "2026-12-01"
     fill_in_html_date "End date", "2026-12-08"
-    fill_in "Time zone", with: "America/New_York"
     fill_in "Operating currency", with: "USD"
     click_button "Save departure"
 
@@ -40,7 +39,7 @@ class DeparturesTest < ApplicationSystemTestCase
     sign_in_from_browser(agency_users(:harbor_admin))
     open_departures
     click_link "New Departure"
-    fill_in "Time zone", with: "America/Chicago"
+    select "America/Chicago", from: "Time zone"
     click_button "Save departure"
 
     assert_selector "#form-error-summary"

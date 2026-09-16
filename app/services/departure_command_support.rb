@@ -13,6 +13,14 @@ module DepartureCommandSupport
     @agency.lock!
   end
 
+  def lock_authorized_agency!(permission)
+    lock_agency!
+    @agency.reload
+    ensure_active_agency!(@agency)
+    @actor = @agency.agency_users.find_by(id: @actor&.id)
+    ensure_directory_actor!(@actor, @agency, permission)
+  end
+
   def lock_departure!
     @agency.departures.lock.find(@departure.id)
   end
@@ -140,6 +148,23 @@ module DepartureCommandSupport
     return if record.active?
 
     raise AgencyCommand::Error.new(message, code: :invalid_state)
+  end
+
+  def ensure_non_draft_completeness!(departure, attrs)
+    return if departure.draft?
+
+    if attrs[:starts_on].blank? || attrs[:ends_on].blank?
+      raise AgencyCommand::Error.new("Enter a start date and an end date.", code: :invalid)
+    end
+    if attrs[:time_zone].blank?
+      raise AgencyCommand::Error.new("Enter a recognized time zone.", code: :invalid)
+    end
+    if attrs[:operating_currency].blank?
+      raise AgencyCommand::Error.new("Enter a supported operating currency.", code: :invalid)
+    end
+    if departure.responsible_office_id.blank? || departure.responsible_agency_user_id.blank?
+      raise AgencyCommand::Error.new("Active and departed departures require a responsible office and agency user.", code: :invalid)
+    end
   end
 
   def command_error_from(error)
