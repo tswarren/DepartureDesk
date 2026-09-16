@@ -45,7 +45,8 @@ class M1DirectoryScenarioTest < ActiveSupport::TestCase
     assert_not_equal vineyard.vineyard_dmc.id, vineyard.motorcoach.id
 
     assert_not Object.const_defined?(:Traveler)
-    assert_not vineyard.agency.respond_to?(:departures)
+    assert_equal 0, vineyard.agency.departures.count
+    assert_equal 0, celebrity.agency.departures.count
   end
 
   test "isolation companion shares email and names without leakage or side effects" do

@@ -1,6 +1,6 @@
 # M2A — Departure core
 
-**Status:** Draft. Not implementation authority.
+**Status:** Accepted. Implemented on this branch; mark Shipped after merge to `main`. This slice is not yet shipped.
 
 **Parent:** [M2 — Departure core](m2-departure-core.md). The parent status line must read Accepted. This slice plan is not implementation authority while it remains Draft, and it cannot become implementation authority if the parent returns to Draft.
 

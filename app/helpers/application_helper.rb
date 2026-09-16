@@ -323,6 +323,30 @@ module ApplicationHelper
     status_badge(status.to_s.titleize, modifier: status.to_s == "active" ? "success" : "neutral")
   end
 
+  def departure_status_badge(status)
+    modifier = case status.to_s
+    when "active" then "success"
+    when "departed" then "info"
+    else "neutral"
+    end
+
+    status_badge(status.to_s.titleize, modifier:)
+  end
+
+  def departure_office_options(departure)
+    records = Current.agency.offices.where(status: "active").order(:name).to_a
+    current = departure.responsible_office
+    records.unshift(current) if current && records.none? { |office| office.id == current.id }
+    records.map { |office| [ office_choice_label(office), office.id ] }
+  end
+
+  def departure_user_options(departure)
+    records = Current.agency.agency_users.where(status: "active").order(:last_name, :first_name).to_a
+    current = departure.responsible_agency_user
+    records.unshift(current) if current && records.none? { |user| user.id == current.id }
+    records.map { |user| [ user.display_name, user.id ] }
+  end
+
   def agency_user_status_badge(agency_user)
     modifier = case agency_user.status
     when "active" then "success"

@@ -42,7 +42,7 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m1d-supplier-locations-and-contacts.md`](planning/m1d-supplier-locations-and-contacts.md) | Shipped Supplier Locations and Contacts slice. |
 | [`planning/m1e-directory-acceptance-and-hardening.md`](planning/m1e-directory-acceptance-and-hardening.md) | Shipped directory proof and hardening slice. |
 | [`planning/m2-departure-core.md`](planning/m2-departure-core.md) | Accepted M2 parent. Not implementation authority. |
-| [`planning/m2a-departure-core.md`](planning/m2a-departure-core.md) | Draft M2A slice. Not implementation authority. |
+| [`planning/m2a-departure-core.md`](planning/m2a-departure-core.md) | Accepted M2A slice. Implemented on this branch; not yet shipped. |
 | [`planning/m2b-departed-lifecycle.md`](planning/m2b-departed-lifecycle.md) | Draft M2B slice. Not implementation authority. |
 | [`planning/m2c-acceptance-and-hardening.md`](planning/m2c-acceptance-and-hardening.md) | Draft M2C slice. Not implementation authority. |
 | [`operations/`](operations/) | Executable operational and production guidance. |

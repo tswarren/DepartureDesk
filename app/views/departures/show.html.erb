@@ -1,0 +1,68 @@
+<% content_for :title, "#{@departure.name} · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_departures) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departures</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description"><span class="dd-type-mono"><%= @departure.display_reference %></span></p>
+  </div>
+  <% if manage %>
+    <div class="dd-page-actions">
+      <%= link_to "Edit departure", edit_departure_path(@departure), class: "dd-button" %>
+      <%= link_to "Edit responsibility", edit_departure_responsibility_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% if @departure.draft? %>
+        <%= link_to "Activate", departure_activation_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% elsif @departure.active? %>
+        <%= link_to "Return to draft", edit_departure_return_to_draft_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% end %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Status</dt>
+        <dd><%= departure_status_badge(@departure.status) %></dd>
+      </div>
+      <div>
+        <dt>Reference</dt>
+        <dd class="dd-type-mono"><%= @departure.display_reference %></dd>
+      </div>
+      <div>
+        <dt>Name</dt>
+        <dd><%= @departure.name %></dd>
+      </div>
+      <div>
+        <dt>Description</dt>
+        <dd><%= @departure.description.presence || "—" %></dd>
+      </div>
+      <div>
+        <dt>Dates</dt>
+        <dd><%= @departure.schedule_label %></dd>
+      </div>
+      <div>
+        <dt>Time zone</dt>
+        <dd><%= @departure.time_zone.presence || "—" %></dd>
+      </div>
+      <div>
+        <dt>Operating currency</dt>
+        <dd><%= @departure.operating_currency.presence || "—" %></dd>
+      </div>
+      <div>
+        <dt>Responsible office</dt>
+        <dd><%= @departure.responsible_office ? office_choice_label(@departure.responsible_office) : "—" %></dd>
+      </div>
+      <div>
+        <dt>Responsible user</dt>
+        <dd><%= @departure.responsible_agency_user&.display_name || "—" %></dd>
+      </div>
+      <div>
+        <dt>First activated</dt>
+        <dd><%= @departure.first_activated_at&.to_fs(:long) || "—" %></dd>
+      </div>
+    </dl>
+  </div>
+</article>

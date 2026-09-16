@@ -34,6 +34,12 @@
         <span>Suppliers</span>
       <% end %>
     <% end %>
+    <% if Current.agency_user&.permitted?(:view_departures) %>
+      <%= link_to departures_path, class: "dd-sidebar-item", aria: { current: primary_nav_current_for(:departures) } do %>
+        <%= icon_tag "calendar_blank" %>
+        <span>Departures</span>
+      <% end %>
+    <% end %>
   </nav>
 
   <div class="dd-sidebar-footer">
