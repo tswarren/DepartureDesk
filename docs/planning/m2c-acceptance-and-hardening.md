@@ -1,10 +1,10 @@
 # M2C — Acceptance and hardening
 
-**Status:** Accepted. Implemented on this branch; mark Shipped after merge to `main`. This slice is not yet shipped.
+**Status:** Shipped. Merged on 2026-09-16 in pull request #50. This document remains the M2 proof contract. It is not authority to start M3 or Travel Program.
 
-**Parent:** [M2 — Departure core](m2-departure-core.md). The parent status line must read Accepted.
+**Parent:** [M2 — Departure core](m2-departure-core.md). The parent status line must read Complete.
 
-**Prerequisites:** [M2A](m2a-departure-core.md) and [M2B](m2b-departed-lifecycle.md) shipped and merged; parent M2 Accepted, including ADR 0007, the ADR 0004 Departure reference amendment, and the MVP, roadmap, and terminology Travel Program deferral; full CI green.
+**Prerequisites:** [M2A](m2a-departure-core.md) and [M2B](m2b-departed-lifecycle.md) shipped and merged; parent M2, including ADR 0007, the ADR 0004 Departure reference amendment, and the MVP, roadmap, and terminology Travel Program deferral; full CI green.
 
 M2C is proof and hardening only. It does not authorize any new domain model, permission, reference namespace, ranking kind, duplicate signal, or lifecycle behavior.
 
@@ -157,26 +157,9 @@ Query counts: Departure index and profile must not grow with unrelated directory
 
 Do not re-specify M2A/M2B races. They remain regression requirements. The harness must still re-raise unexpected exceptions.
 
-## Documentation when proof is green
+## Documentation after merge
 
-While the M2C implementation PR is open, describe documentation updates as implemented on the branch. After merge, open a separate documentation-only PR from updated `main` to mark slices and the parent **Shipped** / **Complete**. Do not state that M2 is already shipped while the proof PR remains unmerged. Do not commit those status flips directly to `main`.
-
-When proof is green and merged, update:
-
-* [docs/planning/m2c-acceptance-and-hardening.md](m2c-acceptance-and-hardening.md) — Shipped
-* [docs/planning/m2b-departed-lifecycle.md](m2b-departed-lifecycle.md) and [docs/planning/m2a-departure-core.md](m2a-departure-core.md) — Shipped
-* [docs/planning/m2-departure-core.md](m2-departure-core.md) — M2 Complete
-* [docs/planning/roadmap.md](roadmap.md) — M2 Complete; M3 Supplier planning next and unimplemented
-* [docs/architecture/current-state.md](../architecture/current-state.md)
-* [docs/ui/interface-contract.md](../ui/interface-contract.md)
-* [docs/terminology.md](../terminology.md)
-* [docs/README.md](../README.md)
-* [README.md](../../README.md)
-* [AGENTS.md](../../AGENTS.md)
-
-Do not rewrite Celebrity/Vineyard scenario documents with guessed currency, zone, Office, or user facts.
-
-Do not invent `docs/planning/m3-supplier-planning.md` or similar. M3 waits for its own accepted slice plan.
+M2C **Shipped** and parent M2 **Complete** status flips belong in this post-merge documentation PR. Do not invent `docs/planning/m3-supplier-planning.md` or similar. M3 waits for its own accepted slice plan.
 
 ## Exit gate
 

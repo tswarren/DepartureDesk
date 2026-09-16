@@ -1,8 +1,8 @@
 # M2B — Departed lifecycle
 
-**Status:** Shipped. Merged to main on 2026-09-16 in pull request #47. This document remains the departed-lifecycle contract. It is not authority to start M2C, M3, or Travel Program.
+**Status:** Shipped. Merged to main on 2026-09-16 in pull request #47. This document remains the departed-lifecycle contract. It is not authority to start M3 or Travel Program.
 
-**Parent:** [M2 — Departure core](m2-departure-core.md). The parent status line must read Accepted. This slice plan is not implementation authority while it remains Draft, and it cannot become implementation authority if the parent returns to Draft.
+**Parent:** [M2 — Departure core](m2-departure-core.md). The parent status line must read Complete. This slice plan is not implementation authority while it remains Draft, and it cannot become implementation authority if the parent returns to Draft.
 
 **Prerequisites:** [M2A](m2a-departure-core.md) shipped and merged; parent M2; ADR 0001, ADR 0004, ADR 0005, ADR 0006, current architecture, and interface contract.
 
@@ -268,7 +268,7 @@ Do not weaken M2A or M1 tests.
 
 ## When this slice ships
 
-Those shipped-boundary updates are in this documentation PR. Do not mark M2 complete. M2C remains Draft.
+Those shipped-boundary updates landed after M2B merged. M2C later marked M2 complete.
 
 ## Exit gate
 
@@ -281,4 +281,4 @@ M2B is complete only when:
 * M0, M1, and M2A remain green
 * The slice is merged to `main`
 
-This slice authorizes M2B only. It does not authorize M2C, M3, or Travel Program.
+This slice authorizes M2B only. It does not authorize M3 or Travel Program.

@@ -10,7 +10,7 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 | --- | --- | --- |
 | M0 — Agency identity baseline | Complete | Agency-scoped authentication, administration, Office context, audit, tenant isolation, and hardening. |
 | M1 — Separate directories | Complete | Maintain Client and Supplier identities without restoring Party or prematurely creating Household/Traveler records. M1A–M1E are shipped: individual and organization Clients, Supplier core, Locations and Contacts, and directory proof/hardening. |
-| M2 — Departure core | Planned | Create and govern dated Departures as the operational root. Travel Program is deferred. |
+| M2 — Departure core | Complete | Create and govern dated Departures as the operational root. Travel Program is deferred. M2A–M2C are shipped. |
 | M3 — Supplier planning | Planned | Represent arrangements, items, occurrences, resources, commitments, capacity, deadlines, and exposure. |
 | M4 — Offers and pricing | Planned | Describe Packages and standalone services the Agency intends to sell. |
 | M5 — Client Trips and fulfillment | Planned | Confirm a Client Trip, contextual Traveler Assignments and contacts, services, Holds, Allocations, Assignments, and Supplier fulfillment. |
@@ -40,6 +40,6 @@ Each milestone requires an accepted slice plan before domain code. The Celebrity
 ## Immediate work
 
 1. M1 is complete. [M1A](m1a-individual-client.md) through [M1E](m1e-directory-acceptance-and-hardening.md) are shipped.
-2. M2A and M2B are shipped. [M2C](m2c-acceptance-and-hardening.md) is accepted and implemented on this branch; it is not yet shipped. Do not implement Travel Program until an accepted later slice names that work.
+2. M2 is complete. [M2A](m2a-departure-core.md) through [M2C](m2c-acceptance-and-hardening.md) are shipped. M3 Supplier planning is next and unimplemented. Do not invent an `m3-*.md` slice plan here. Do not implement Travel Program until an accepted later slice names that work.
 
 The [MVP specification](departure-desk-mvp.md) defines scope. The [commercial decision register](commercial-domain-decision-register.md) defines cross-cutting commercial rules. This roadmap controls sequence, not record-level implementation.

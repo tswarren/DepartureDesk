@@ -2,7 +2,7 @@
 
 **Status:** Shipped.
 
-**Parent:** [M2 — Departure core](m2-departure-core.md). The parent status line must read Accepted. This slice plan is not implementation authority while it remains Draft, and it cannot become implementation authority if the parent returns to Draft.
+**Parent:** [M2 — Departure core](m2-departure-core.md). The parent status line must read Complete. This slice plan is not implementation authority while it remains Draft, and it cannot become implementation authority if the parent returns to Draft.
 
 **Prerequisites:** M1A–M1E shipped on `main`; ADR 0001, ADR 0004, ADR 0005, ADR 0006, current architecture, and interface contract.
 

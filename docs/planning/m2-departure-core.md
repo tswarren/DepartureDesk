@@ -1,6 +1,6 @@
 # M2 — Departure core
 
-**Status:** Accepted. This contract is not implementation authority. Each slice requires its own accepted implementation contract before domain code begins.
+**Status:** Complete. M2A–M2C are shipped. This contract remains the Departure operational-root model. It is not implementation authority for M3 until an accepted M3 slice plan names that work.
 
 **Prerequisites:** [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [ADR 0007](../adr/0007-departure-operational-root.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md)
 
@@ -85,7 +85,7 @@ The commercial register’s Draft → Active “manager” is this responsible A
 | --- | --- |
 | **[M2A — Departure core](m2a-departure-core.md)** | Draft creation/editing, responsibility, search/UI, activation, `D-` issuance, return to draft, and activation/reference concurrency. Shipped. |
 | **[M2B — Departed lifecycle](m2b-departed-lifecycle.md)** | Manual transition, scheduled sweep and per-Departure job, schedule/currency correction, erroneous-lifecycle correction, and job concurrency. Shipped. |
-| **[M2C — Acceptance and hardening](m2c-acceptance-and-hardening.md)** | Celebrity/Vineyard scenario proof, cross-Agency isolation, query/index proof, accessibility/system coverage, regressions, and final documentation. Accepted and implemented on this branch; not yet shipped. |
+| **[M2C — Acceptance and hardening](m2c-acceptance-and-hardening.md)** | Celebrity/Vineyard scenario proof, cross-Agency isolation, query/index proof, accessibility/system coverage, regressions, and final documentation. Shipped. |
 
 M2A is a complete vertical outcome: staff can create a Departure, make it operational, receive its durable reference, find it, and safely reverse activation before downstream work exists.
 
@@ -738,7 +738,7 @@ Do not invent people, hotels, Suppliers, or operating facts in the accepted Cele
 
 Update `AGENTS.md`, [`docs/architecture/current-state.md`](../architecture/current-state.md), [`docs/ui/interface-contract.md`](../ui/interface-contract.md), the permission catalog, terminology’s implementation note, and the roadmap milestone status. Leave those shipped-boundary documents unchanged until that code lands.
 
-M2C updates remaining documentation so M2 is complete and M3 Supplier planning is the next unimplemented milestone.
+M2C updated remaining documentation so M2 is complete and M3 Supplier planning is the next unimplemented milestone. Do not invent `docs/planning/m3-supplier-planning.md`.
 
 ## Exit gate
 

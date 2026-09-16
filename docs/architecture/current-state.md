@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A–M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, and M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections. This branch implements M2C proof and hardening. Do not treat M2 as complete until M2C is merged. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A–M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections, and M2C proof and hardening. M2 is complete. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -27,7 +27,7 @@ DepartureDesk ships agency identity, administration, the complete M1 Client and 
 | `SupplierLocation` | Supplier-owned operational place with optional structured address, timezone, and one location-level phone. |
 | `SupplierContact` | Named person in one Supplier work context. Not a Client Person or AgencyUser. |
 | `SupplierContactEmailAddress`, `SupplierContactPhoneNumber` | Contact-owned destinations. |
-| `Departure` | Agency-owned dated operational root. M2A implements draft, activation, `D-` issuance, return to draft, and search. M2B adds departed, scheduled departed jobs, and corrections. Travel Program is not implemented. |
+| `Departure` | Agency-owned dated operational root. M2A implements draft, activation, `D-` issuance, return to draft, and search. M2B adds departed, scheduled departed jobs, and corrections. M2C proves search, isolation, jobs, and accessibility. Travel Program is not implemented. |
 | `ReferenceSequence` | Agency-scoped `client`, `supplier`, and `departure` reference counters. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed permission catalog mapping administrator, staff, and viewer roles to capabilities. It is application code, not a persisted record. |
 
@@ -78,6 +78,6 @@ Application code checks named permissions, not role strings.
 
 ## Not shipped
 
-The current application has no Traveler, Household, Travel Program, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. M2C proof is implemented on this branch and is not yet shipped. M3 records are not implemented.
+The current application has no Traveler, Household, Travel Program, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. M3 records are not implemented.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.
