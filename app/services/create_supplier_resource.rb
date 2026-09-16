@@ -16,12 +16,10 @@ class CreateSupplierResource < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      arrangement = lock_arrangement_for!(@item.supplier_arrangement)
-      departure = lock_departure_for!(arrangement.departure)
-      version = lock_initial_version_for!(arrangement)
+      contractor = locked_supplier!(@item.supplier_arrangement.contracting_supplier_id)
+      departure, arrangement, version = lock_departure_arrangement_version!(@item.supplier_arrangement)
       item = lock_arrangement_item_for!(arrangement, @item)
-      ensure_editable_draft_arrangement!(departure, arrangement, version)
-      ensure_current_lock_version!(version, @version_lock_version)
+      ensure_ordinary_planning_edit!(departure, arrangement, version, contractor)
 
       idempotent_create!(
         command_name: self.class.name,
@@ -33,19 +31,21 @@ class CreateSupplierResource < AgencyCommand
         ),
         result_class: SupplierResource
       ) do
+        ensure_current_lock_version!(version, @version_lock_version)
+        position = next_resource_position(version, item)
         resource = item.supplier_resources.create!(
           agency: @agency,
           departure: departure,
           supplier_arrangement: arrangement
         )
-        version.supplier_resource_definitions.create!(
+        definition = version.supplier_resource_definitions.create!(
           attrs.merge(
             agency: @agency,
             departure: departure,
             supplier_arrangement: arrangement,
             arrangement_item: item,
             supplier_resource: resource,
-            position: next_resource_position(version, item)
+            position: position
           )
         )
         bump_version!(version)
@@ -54,7 +54,16 @@ class CreateSupplierResource < AgencyCommand
           action: "supplier_arrangement.resource_created",
           subject: arrangement,
           actor: @actor,
-          details: { "supplier_arrangement_id" => arrangement.id, "supplier_resource_id" => resource.id }
+          details: {
+            "child_type" => "supplier_resource",
+            "supplier_arrangement_id" => arrangement.id,
+            "supplier_arrangement_version_id" => version.id,
+            "arrangement_item_id" => item.id,
+            "supplier_resource_id" => resource.id,
+            "supplier_resource_definition_id" => definition.id,
+            "name" => definition.name,
+            "position" => definition.position
+          }
         )
         resource
       end

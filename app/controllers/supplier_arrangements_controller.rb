@@ -105,7 +105,7 @@ class SupplierArrangementsController < ApplicationController
     @occurrence_definitions_by_item_id = @supplier_arrangement_version.service_occurrence_definitions
       .includes(:service_occurrence, :service_provider)
       .where(arrangement_item_id: item_ids)
-      .order(:starts_on, :ends_on, :id)
+      .order(Arel.sql("starts_on ASC, CASE WHEN starts_at_local IS NULL THEN 0 ELSE 1 END ASC, starts_at_local ASC NULLS FIRST, lower(name) ASC, id ASC"))
       .group_by(&:arrangement_item_id)
     @resource_definitions_by_item_id = @supplier_arrangement_version.supplier_resource_definitions
       .includes(:supplier_resource)
