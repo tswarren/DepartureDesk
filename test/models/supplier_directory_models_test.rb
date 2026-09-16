@@ -4,7 +4,8 @@ class SupplierDirectoryModelsTest < ActiveSupport::TestCase
   setup do
     @agency = agencies(:harbor)
     @other = agencies(:cove)
-    @sequence = @agency.reference_sequences.create!(namespace: ReferenceSequence::SUPPLIER_NAMESPACE, next_value: 1)
+    @sequence = @agency.reference_sequences.find_by!(namespace: ReferenceSequence::SUPPLIER_NAMESPACE)
+    @sequence.update!(next_value: 1)
   end
 
   test "supplier directory tables omit office_id" do
@@ -123,7 +124,11 @@ class SupplierDirectoryModelsTest < ActiveSupport::TestCase
     ).call.record
 
     assert_equal(
-      [ ReferenceSequence::CLIENT_NAMESPACE, ReferenceSequence::SUPPLIER_NAMESPACE ],
+      [
+        ReferenceSequence::CLIENT_NAMESPACE,
+        ReferenceSequence::DEPARTURE_NAMESPACE,
+        ReferenceSequence::SUPPLIER_NAMESPACE
+      ],
       agency.reference_sequences.order(:namespace).pluck(:namespace)
     )
   end

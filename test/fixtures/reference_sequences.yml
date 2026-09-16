@@ -3,7 +3,27 @@ harbor_client:
   namespace: client
   next_value: 1
 
+harbor_supplier:
+  agency: harbor
+  namespace: supplier
+  next_value: 1
+
+harbor_departure:
+  agency: harbor
+  namespace: departure
+  next_value: 1
+
 cove_client:
   agency: cove
   namespace: client
+  next_value: 1
+
+cove_supplier:
+  agency: cove
+  namespace: supplier
+  next_value: 1
+
+cove_departure:
+  agency: cove
+  namespace: departure
   next_value: 1

@@ -150,6 +150,30 @@ $$;
 
 
 --
+-- Name: reject_departure_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_departure_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id THEN
+    RAISE EXCEPTION 'departure identity is immutable';
+  END IF;
+  IF OLD.departure_reference IS NOT NULL
+    AND NEW.departure_reference IS DISTINCT FROM OLD.departure_reference THEN
+    RAISE EXCEPTION 'departure identity is immutable';
+  END IF;
+  IF OLD.first_activated_at IS NOT NULL
+    AND NEW.first_activated_at IS DISTINCT FROM OLD.first_activated_at THEN
+    RAISE EXCEPTION 'departure identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_directory_agency_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -682,6 +706,44 @@ CREATE TABLE public.clients (
 
 
 --
+-- Name: departures; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.departures (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_reference character varying(8),
+    name character varying(160) NOT NULL,
+    description character varying(2000),
+    starts_on date,
+    ends_on date,
+    time_zone character varying,
+    operating_currency character varying(3),
+    responsible_office_id uuid,
+    responsible_agency_user_id uuid,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    first_activated_at timestamp with time zone,
+    departed_at timestamp with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    name_search_key text GENERATED ALWAYS AS (public.dd_search_normalize((name)::text)) STORED,
+    CONSTRAINT departures_activation_completeness CHECK ((((status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL) AND (responsible_office_id IS NOT NULL) AND (responsible_agency_user_id IS NOT NULL)))),
+    CONSTRAINT departures_date_order CHECK (((starts_on IS NULL) OR (starts_on <= ends_on))),
+    CONSTRAINT departures_dates_paired CHECK (((starts_on IS NULL) = (ends_on IS NULL))),
+    CONSTRAINT departures_departed_at_pair CHECK ((((status)::text = 'departed'::text) = (departed_at IS NOT NULL))),
+    CONSTRAINT departures_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
+    CONSTRAINT departures_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT departures_name CHECK (((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
+    CONSTRAINT departures_non_draft_has_reference CHECK ((((status)::text = 'draft'::text) OR ((departure_reference IS NOT NULL) AND (first_activated_at IS NOT NULL)))),
+    CONSTRAINT departures_operating_currency CHECK (((operating_currency IS NULL) OR ((operating_currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT departures_reference_activation_pair CHECK (((departure_reference IS NULL) = (first_activated_at IS NULL))),
+    CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^D-[0-9]{6}$'::text))),
+    CONSTRAINT departures_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'departed'::character varying])::text[])))
+);
+
+
+--
 -- Name: offices; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -713,7 +775,7 @@ CREATE TABLE public.reference_sequences (
     next_value bigint DEFAULT 1 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY ((ARRAY['client'::character varying, 'supplier'::character varying])::text[]))),
+    CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY ((ARRAY['client'::character varying, 'supplier'::character varying, 'departure'::character varying])::text[]))),
     CONSTRAINT reference_sequences_next_value CHECK (((next_value >= 1) AND (next_value <= 1000000)))
 );
 
@@ -1155,6 +1217,14 @@ ALTER TABLE ONLY public.client_person_postal_addresses
 
 ALTER TABLE ONLY public.clients
     ADD CONSTRAINT clients_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: departures departures_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT departures_pkey PRIMARY KEY (id);
 
 
 --
@@ -1736,6 +1806,69 @@ CREATE UNIQUE INDEX index_clients_on_client_person_id ON public.clients USING bt
 --
 
 CREATE UNIQUE INDEX index_clients_on_id_and_agency_id ON public.clients USING btree (id, agency_id);
+
+
+--
+-- Name: index_departures_on_agency_and_name_search_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_and_name_search_key ON public.departures USING btree (agency_id, name_search_key text_pattern_ops);
+
+
+--
+-- Name: index_departures_on_agency_and_reference; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_departures_on_agency_and_reference ON public.departures USING btree (agency_id, departure_reference) WHERE (departure_reference IS NOT NULL);
+
+
+--
+-- Name: index_departures_on_agency_ends_on_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_ends_on_id ON public.departures USING btree (agency_id, ends_on, id);
+
+
+--
+-- Name: index_departures_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_id ON public.departures USING btree (agency_id);
+
+
+--
+-- Name: index_departures_on_agency_office_starts_on_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_office_starts_on_id ON public.departures USING btree (agency_id, responsible_office_id, starts_on, id);
+
+
+--
+-- Name: index_departures_on_agency_starts_on_name_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_starts_on_name_id ON public.departures USING btree (agency_id, starts_on, name_search_key, id);
+
+
+--
+-- Name: index_departures_on_agency_status_starts_on_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_status_starts_on_id ON public.departures USING btree (agency_id, status, starts_on, id);
+
+
+--
+-- Name: index_departures_on_agency_user_starts_on_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departures_on_agency_user_starts_on_id ON public.departures USING btree (agency_id, responsible_agency_user_id, starts_on, id);
+
+
+--
+-- Name: index_departures_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_departures_on_id_and_agency_id ON public.departures USING btree (id, agency_id);
 
 
 --
@@ -2327,6 +2460,13 @@ CREATE TRIGGER clients_reject_identity_change BEFORE UPDATE ON public.clients FO
 
 
 --
+-- Name: departures departures_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER departures_reject_identity_change BEFORE UPDATE ON public.departures FOR EACH ROW EXECUTE FUNCTION public.reject_departure_identity_change();
+
+
+--
 -- Name: offices offices_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2515,6 +2655,22 @@ ALTER TABLE ONLY public.clients
 
 
 --
+-- Name: departures departures_agency_user_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT departures_agency_user_agency_fk FOREIGN KEY (responsible_agency_user_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: departures departures_office_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT departures_office_agency_fk FOREIGN KEY (responsible_office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
 -- Name: client_person_postal_addresses fk_rails_14e390d793; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2667,6 +2823,14 @@ ALTER TABLE ONLY public.client_people
 
 
 --
+-- Name: departures fk_rails_d0941bcf52; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departures
+    ADD CONSTRAINT fk_rails_d0941bcf52 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: client_person_email_addresses fk_rails_d40f0804a1; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2809,6 +2973,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260916010000'),
 ('20260915120000'),
 ('20260915010000'),
 ('20260914200000'),

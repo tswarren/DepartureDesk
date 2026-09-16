@@ -12,7 +12,9 @@ The application should feel operationally calm, financially trustworthy, and tra
 
 The shipped domain is agency identity plus the complete M1 Client and Supplier directories: `Agency`, `Office`, `AgencyUser`, invitation and password-reset tokens, `Session`, the permission catalog, `ClientPerson`, `ClientOrganization`, individual and organization-backed `Client`, person-owned and organization-owned contact points including organization websites, effective-dated organization contacts, `Supplier` with fixed categories and Supplier-owned contact points including websites, `SupplierLocation`, `SupplierContact`, Supplier Contact-owned email and phone destinations, the `client` and `supplier` reference sequences, and append-only `AuditEvent` records for `Agency`, `AgencyUser`, `Office`, `ClientPerson`, `Client`, `ClientOrganization`, `Supplier`, `SupplierLocation`, and `SupplierContact`. [M1E](docs/planning/m1e-directory-acceptance-and-hardening.md) shipped directory proof and hardening only; it added no new domain model, permission, or reference namespace.
 
-Documentation authority and status are indexed in [docs/README.md](docs/README.md). Product authority is [docs/planning/departure-desk-mvp.md](docs/planning/departure-desk-mvp.md) and [docs/planning/commercial-domain-decision-register.md](docs/planning/commercial-domain-decision-register.md). Do not implement Departures, MFA, platform support, or a workforce-role taxonomy from those documents until an accepted slice plan names that work. An accepted milestone contract is not enough. [M1A](docs/planning/m1a-individual-client.md), [M1B](docs/planning/m1b-client-organizations.md), [M1C](docs/planning/m1c-supplier-core.md), [M1D](docs/planning/m1d-supplier-locations-and-contacts.md), and [M1E](docs/planning/m1e-directory-acceptance-and-hardening.md) are shipped. M2 is next and is not authorized until an accepted slice plan names that work. [docs/terminology.md](docs/terminology.md) is the current vocabulary; Party-era terminology is archived.
+This branch implements [M2A](docs/planning/m2a-departure-core.md): `Departure` draft create/edit, responsibility, activation, `D-` issuance, return to draft, search, `view_departures`/`manage_departures`, and Departure audit actions. Do not treat M2A or M2 as shipped until this branch is merged. Travel Program, departed jobs, and M3 records remain unimplemented.
+
+Documentation authority and status are indexed in [docs/README.md](docs/README.md). Product authority is [docs/planning/departure-desk-mvp.md](docs/planning/departure-desk-mvp.md) and [docs/planning/commercial-domain-decision-register.md](docs/planning/commercial-domain-decision-register.md). Do not implement MFA, platform support, a workforce-role taxonomy, Travel Program, departed jobs, or later commercial records from those documents until an accepted slice plan names that work. An accepted milestone contract is not enough. [M1A](docs/planning/m1a-individual-client.md), [M1B](docs/planning/m1b-client-organizations.md), [M1C](docs/planning/m1c-supplier-core.md), [M1D](docs/planning/m1d-supplier-locations-and-contacts.md), and [M1E](docs/planning/m1e-directory-acceptance-and-hardening.md) are shipped. [M2A](docs/planning/m2a-departure-core.md) is accepted and implemented on this branch. M2B and M2C remain Draft. [docs/terminology.md](docs/terminology.md) is the current vocabulary; Party-era terminology is archived.
 
 There is no migration path from the Party and membership schema. Do not add a compatibility layer, dual-schema period, or upgrade of a Party database.
 
@@ -39,7 +41,7 @@ Use these terms consistently in code, migrations, UI labels, tests, and document
 | Session | Authentication root. It derives its agency through the agency user and does not store `agency_id`. |
 | Current office | A session preference, then the user's default office, then nil. Changing it changes no permission. |
 
-Client Person, Client Organization, Client (person-backed or organization-backed), person-owned and organization-owned contact points, organization-contact assignments, Supplier, Supplier categories, Supplier-owned contact points, Supplier Location, Supplier Contact, and Supplier Contact-owned email and phone destinations are shipped vocabulary. Traveler, Departure, Receipt, and Obligation remain planned vocabulary in [docs/terminology.md](docs/terminology.md). Do not add those later models until an accepted slice plan names that work.
+Client Person, Client Organization, Client (person-backed or organization-backed), person-owned and organization-owned contact points, organization-contact assignments, Supplier, Supplier categories, Supplier-owned contact points, Supplier Location, Supplier Contact, and Supplier Contact-owned email and phone destinations are shipped vocabulary. Departure draft, activation, reference issuance, and return to draft are implemented on this branch. Traveler, Travel Program, Receipt, and Obligation remain planned vocabulary in [docs/terminology.md](docs/terminology.md). Do not add those later models until an accepted slice plan names that work.
 
 ## Invariants agents must preserve
 
@@ -57,7 +59,7 @@ Client Person, Client Organization, Client (person-backed or organization-backed
 12. Load tenant records through `Current.agency`. An identifier from another agency returns not found, not forbidden.
 13. Tenant records that carry `agency_id` must prove same-agency foreign keys. Default office uses a composite foreign key `(default_office_id, agency_id)`. Database triggers reject changes to `Agency.workspace_code`, `AgencyUser.agency_id`, `Office.agency_id`, and `Office.code`. Stored email must equal `lower(btrim(email_address))`.
 14. `ProvisionAgency` and agency lifecycle changes are privileged. They require an actor identifier, invent no platform user, and never return or log a plaintext password or token.
-15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, `Office`, `ClientPerson`, `Client`, `ClientOrganization`, `Supplier`, `SupplierLocation`, and `SupplierContact` only. Do not audit expected failures.
+15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, `Office`, `ClientPerson`, `Client`, `ClientOrganization`, `Supplier`, `SupplierLocation`, `SupplierContact`, and `Departure` only. Do not audit expected failures.
 16. Do not infer household, payer, occupancy, or payment state. Those records do not exist yet.
 
 ## Development environment
@@ -184,7 +186,7 @@ No money records exist in the shipped application. When later slices add them, k
 - Invitation acceptance is the documented invitee exception: the invitee is the audit actor and is not yet an administrator until acceptance commits.
 - Last-administrator mutations lock agency, then the affected user, then recheck.
 - Agency provisioning and lifecycle are privileged commands (`ProvisionAgency`, `ChangeAgencyStatus`), not tenant-facing routes. System audit events require `actor_identifier` and must not invent a platform user. Command output may print identifiers only—never passwords or invitation tokens.
-- Audit subjects are narrowly typed: an `Agency` subject must equal the event agency; an `AgencyUser` or `Office` subject must belong to it. Unknown subject types raise.
+- Audit subjects are narrowly typed: an `Agency` subject must equal the event agency; an `AgencyUser`, `Office`, or `Departure` subject must belong to it. Unknown subject types raise.
 - An office belongs to exactly one agency. Office access is not a role. Do not create affiliation rows. Human-readable office codes never authorize.
 - Later office-owned records must carry a direct `agency_id` and enforce matching `(office_id, agency_id)` with a composite foreign key. Do not infer tenant ownership only through `office_id`.
 - `AuditEvent::ACTIONS` and subject types are closed catalogs. Extend both in the same change that first writes a new supported action or subject. `AuditEvent#details` is not a document-version or snapshot store.
@@ -235,7 +237,7 @@ Rules:
 - Keep inputs neutral until interaction. Use teal for active interaction and amber for the keyboard focus ring.
 - Maintain WCAG-conscious contrast and complete keyboard access.
 - Keep the skip link and meaningful focus indicators functional.
-- Disabled navigation placeholders must become real links only when corresponding authorized routes exist. Show Dashboard, Clients for `view_client_directory`, Suppliers for `view_supplier_directory`, and Administration for administrators. Do not show Directory, Departures, or Accounting navigation.
+- Disabled navigation placeholders must become real links only when corresponding authorized routes exist. Show Dashboard, Clients for `view_client_directory`, Suppliers for `view_supplier_directory`, Departures for `view_departures`, and Administration for administrators. Do not show Directory, Travelers, or Accounting navigation.
 - Do not introduce an external font, icon library, or JavaScript UI framework without an explicit product decision.
 - Administration page, panel, button, and field anatomy is defined in [docs/ui/interface-contract.md](docs/ui/interface-contract.md). Reuse that contract before adding presentation classes.
 

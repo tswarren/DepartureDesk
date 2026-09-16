@@ -10,7 +10,9 @@ module AccessPermission
     manage_client_directory: %w[administrator staff],
     view_supplier_directory: %w[administrator staff viewer],
     view_supplier_contact_details: %w[administrator staff],
-    manage_supplier_directory: %w[administrator staff]
+    manage_supplier_directory: %w[administrator staff],
+    view_departures: %w[administrator staff viewer],
+    manage_departures: %w[administrator staff]
   }.freeze
 
   def self.allowed?(role, permission)

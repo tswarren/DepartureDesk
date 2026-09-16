@@ -104,6 +104,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     click_primary_nav "Suppliers", heading: "Suppliers"
   end
 
+  def open_departures
+    click_primary_nav "Departures", heading: "Departures"
+  end
+
   def open_administration
     click_link_and_expect "Administration", heading: "Agency profile"
   end

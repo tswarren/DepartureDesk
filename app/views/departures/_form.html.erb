@@ -1,0 +1,43 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+
+<div class="dd-field-group">
+  <%= form.label :name, "Name", class: "dd-label" %>
+  <%= form.text_field :name, maxlength: Departure::NAME_LIMIT, class: "dd-field" %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :description, "Description", class: "dd-label" %>
+  <%= form.text_area :description, maxlength: Departure::DESCRIPTION_LIMIT, class: "dd-field" %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :starts_on, "Start date", class: "dd-label" %>
+  <%= form.date_field :starts_on, class: "dd-field" %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :ends_on, "End date", class: "dd-label" %>
+  <%= form.date_field :ends_on, class: "dd-field" %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :time_zone, "Time zone", class: "dd-label" %>
+  <%= form.select :time_zone, iana_timezone_options, { include_blank: form.object.draft? ? "No time zone" : nil }, class: "dd-field", required: !form.object.draft? %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :operating_currency, "Operating currency", class: "dd-label" %>
+  <%= form.text_field :operating_currency, maxlength: 3, class: "dd-field" %>
+</div>
+
+<% unless form.object.persisted? %>
+  <div class="dd-field-group">
+    <%= form.label :responsible_office_id, "Responsible office", class: "dd-label" %>
+    <%= form.select :responsible_office_id, departure_office_options(form.object), { include_blank: "No office" }, class: "dd-field" %>
+  </div>
+
+  <div class="dd-field-group">
+    <%= form.label :responsible_agency_user_id, "Responsible user", class: "dd-label" %>
+    <%= form.select :responsible_agency_user_id, departure_user_options(form.object), { include_blank: "No user" }, class: "dd-field" %>
+  </div>
+<% end %>

@@ -1,0 +1,93 @@
+<% content_for :title, "Departures · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departures</p>
+    <h1 class="dd-page-title">Departures</h1>
+    <p class="dd-page-description">Create and govern dated group-travel operations for this agency.</p>
+  </div>
+  <% if Current.agency_user.permitted?(:manage_departures) %>
+    <div class="dd-page-actions">
+      <%= link_to "New Departure", new_departure_path, class: "dd-button" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departures_path, method: :get, class: "dd-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :q, "Search", class: "dd-label" %>
+        <%= form.search_field :q, value: params[:q], maxlength: 100, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :status, "Status", class: "dd-label" %>
+        <%= form.select :status, [ [ "All", "all" ], [ "Draft", "draft" ], [ "Active", "active" ], [ "Departed", "departed" ] ], { selected: @status }, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :responsible_office_id, "Responsible office", class: "dd-label" %>
+        <%= form.select :responsible_office_id, Current.agency.offices.order(:name).map { |office| [ office_choice_label(office), office.id ] }, { include_blank: "All offices", selected: params[:responsible_office_id] }, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :responsible_agency_user_id, "Responsible user", class: "dd-label" %>
+        <%= form.select :responsible_agency_user_id, Current.agency.agency_users.order(:last_name, :first_name).map { |user| [ user.display_name, user.id ] }, { include_blank: "All users", selected: params[:responsible_agency_user_id] }, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :starts_on_from, "Starts on from", class: "dd-label" %>
+        <%= form.date_field :starts_on_from, value: params[:starts_on_from], class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :starts_on_to, "Starts on to", class: "dd-label" %>
+        <%= form.date_field :starts_on_to, value: params[:starts_on_to], class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :ends_on_from, "Ends on from", class: "dd-label" %>
+        <%= form.date_field :ends_on_from, value: params[:ends_on_from], class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :ends_on_to, "Ends on to", class: "dd-label" %>
+        <%= form.date_field :ends_on_to, value: params[:ends_on_to], class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Apply", class: "dd-button" %>
+        <%= link_to "Reset", departures_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<% if @search %>
+  <p><%= @search.truncated ? "Showing the first 50 results matched. Narrow the #{params[:q].present? ? "search" : "filters"} to see the rest." : "#{pluralize(@search.records.size, "result")} matched." %></p>
+  <article class="dd-panel">
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th>Reference</th>
+          <th>Name</th>
+          <th>Dates</th>
+          <th>Status</th>
+          <th>Office</th>
+          <th>Responsible user</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if @search.records.empty? %>
+          <tr>
+            <td colspan="6">No departures matched.</td>
+          </tr>
+        <% else %>
+          <% @search.records.each do |departure| %>
+            <tr>
+              <td class="dd-type-mono"><%= departure.display_reference %></td>
+              <td><%= link_to departure.name, departure_path(departure) %></td>
+              <td><%= departure.schedule_label %></td>
+              <td><%= departure_status_badge(departure.status) %></td>
+              <td><%= departure.responsible_office ? office_choice_label(departure.responsible_office) : "—" %></td>
+              <td><%= departure.responsible_agency_user&.display_name || "—" %></td>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </article>
+<% end %>

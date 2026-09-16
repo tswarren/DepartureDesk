@@ -9,6 +9,8 @@ module NavigationHelper
       controller_path.in?(%w[clients client_people]) || controller_path.start_with?("client_person_")
     when :suppliers
       controller_path == "suppliers" || controller_path.start_with?("supplier_")
+    when :departures
+      controller_path == "departures" || controller_path.start_with?("departure_")
     else
       false
     end

@@ -141,6 +141,16 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :departures, only: %i[index new create show edit update] do
+    member do
+      post :activate
+    end
+    resource :responsibility, only: %i[edit update], controller: "departure_responsibilities"
+    resource :activation, only: :show, controller: "departure_activations"
+  end
+  get "departures/:id/return-to-draft", to: "departure_return_to_drafts#edit", as: :edit_departure_return_to_draft
+  post "departures/:id/return-to-draft", to: "departure_return_to_drafts#create", as: :departure_return_to_draft
+
   root "dashboard#show"
 
   if Rails.env.development?

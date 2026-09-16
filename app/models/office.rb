@@ -4,6 +4,7 @@ class Office < ApplicationRecord
 
   belongs_to :agency
   has_many :default_agency_users, class_name: "AgencyUser", foreign_key: :default_office_id, inverse_of: :default_office, dependent: :restrict_with_exception
+  has_many :responsible_departures, class_name: "Departure", foreign_key: :responsible_office_id, inverse_of: :responsible_office, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

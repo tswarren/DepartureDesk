@@ -2,7 +2,7 @@
 
 **Status:** Accepted product vocabulary
 
-**Implementation note:** Agency, Agency User, Office, Session, permission, and Audit Event terminology is shipped. Client Person and person-backed Client terminology is shipped (M1A). Client Organization, organization-backed Client, organization-owned contact points, and organization-contact assignments are shipped (M1B). Supplier, Supplier categories, and Supplier-owned contact points are shipped (M1C). Supplier Location, Supplier Contact, and Supplier Contact-owned destinations are shipped (M1D). M1E shipped directory proof and hardening without new vocabulary. Later commercial terms are not.
+**Implementation note:** Agency, Agency User, Office, Session, permission, and Audit Event terminology is shipped. Client Person and person-backed Client terminology is shipped (M1A). Client Organization, organization-backed Client, organization-owned contact points, and organization-contact assignments are shipped (M1B). Supplier, Supplier categories, and Supplier-owned contact points are shipped (M1C). Supplier Location, Supplier Contact, and Supplier Contact-owned destinations are shipped (M1D). M1E shipped directory proof and hardening without new vocabulary. Departure draft, activation, reference issuance, and return to draft are implemented on this branch (M2A) and are not yet shipped. Travel Program, departed jobs, and later commercial terms are not.
 
 Use these terms consistently in requirements, code, migrations, UI labels, tests, and reports. A planned term does not authorize its implementation without an accepted slice plan.
 
