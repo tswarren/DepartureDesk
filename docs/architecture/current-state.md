@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A-M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections, and M2C proof and hardening. M2 is complete. On the M3A implementation branch, draft Supplier Arrangement structure is implemented for review and proof; Arrangement activation and later commercial records are not shipped. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A-M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections, M2C proof and hardening, and M3A draft Supplier Arrangement structure under Departures. M2 is complete. Arrangement activation and later commercial records are not shipped. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -85,6 +85,6 @@ Application code checks named permissions, not role strings.
 
 ## Not shipped
 
-The current application has no Traveler, Household, Travel Program, Package, Client Trip, capacity, Supplier Reservation, Arrangement activation, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. M3A records are draft planning structure only.
+The current application has no Traveler, Household, Travel Program, Package, Client Trip, capacity, Supplier Reservation, Arrangement activation, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. Shipped M3A records are draft planning structure only.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.
