@@ -1,0 +1,44 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version unless form.object.persisted? %>
+<%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key.present? %>
+<% default_provider = Current.agency.suppliers.find_by(id: form.object.default_service_provider_id) if form.object.default_service_provider_id.present? %>
+<% supplier_options = active_supplier_options.to_a %>
+<% supplier_options.unshift(default_provider) if default_provider && supplier_options.none? { |supplier| supplier.id == default_provider.id } %>
+
+<div class="dd-field-group">
+  <%= form.label :name, "Name", class: "dd-label" %>
+  <%= form.text_field :name, required: true, maxlength: ArrangementItemDefinition::NAME_LIMIT, **dd_field_options(form, :name) %>
+  <%= dd_field_error(form, :name) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :category, "Category", class: "dd-label" %>
+  <%= form.select :category,
+    ArrangementItemDefinition::CATEGORIES.map { |category| [ category.titleize, category ] },
+    { include_blank: "Choose a category" },
+    required: true,
+    **dd_field_options(form, :category) %>
+  <%= dd_field_error(form, :category) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :other_category_label, "Other category label", class: "dd-label" %>
+  <%= form.text_field :other_category_label, maxlength: ArrangementItemDefinition::OTHER_CATEGORY_LABEL_LIMIT, **dd_field_options(form, :other_category_label) %>
+  <p class="dd-field-hint">Required only when category is Other.</p>
+  <%= dd_field_error(form, :other_category_label) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :default_service_provider_id, "Default service provider", class: "dd-label" %>
+  <%= form.select :default_service_provider_id,
+    supplier_options.map { |supplier| [ supplier_option_label(supplier), supplier.id ] },
+    { include_blank: "Use contracting supplier" },
+    **dd_field_options(form, :default_service_provider_id) %>
+  <%= dd_field_error(form, :default_service_provider_id) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :description, "Description", class: "dd-label" %>
+  <%= form.text_area :description, maxlength: ArrangementItemDefinition::DESCRIPTION_LIMIT, **dd_field_options(form, :description) %>
+  <%= dd_field_error(form, :description) %>
+</div>

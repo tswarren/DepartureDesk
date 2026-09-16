@@ -1,8 +1,8 @@
 # M3A — Draft Arrangement structure
 
-**Status:** Draft. Not implementation authority.
+**Status:** Accepted 2026-09-16. Implemented on branch `m3a-draft-arrangement-structure`; not yet shipped to `main`.
 
-**Parent:** [M3 — Supplier planning](m3-supplier-planning.md). The parent is Accepted, including the 2026-09-16 amendment. This slice plan is not implementation authority while it remains Draft, and it cannot become implementation authority if the parent returns to Draft.
+**Parent:** [M3 — Supplier planning](m3-supplier-planning.md). The parent is Accepted, including the 2026-09-16 amendment and the Occurrence-lifecycle / create-idempotency corrections. This slice is implementation authority for M3A only.
 
 **Prerequisites:** M2 complete and shipped; [ADR 0007](../adr/0007-departure-operational-root.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), and [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md) accepted; parent M3 accepted as amended; current architecture and interface contract reviewed.
 
@@ -19,7 +19,8 @@ M3A establishes stable Arrangement and child identity, draft-version topology, S
 - Stable `SupplierArrangement` identity and version-1 draft.
 - Stable `ArrangementItem`, `ServiceOccurrence`, and `SupplierResource` identities with exact-version definition rows.
 - Complete Arrangement and version lifecycle catalogs, while M3A writes only `draft` and `abandoned`.
-- Occurrence `planned` / `cancelled` catalog on the definition row. M3A writes `planned` on create and does not expose a cancel command.
+- Occurrence `planned` / `cancelled` catalog on the **stable Occurrence identity**. M3A writes `planned` on create and does not expose a cancel command.
+- Durable create-command idempotency keys for Arrangement and child creates.
 - One editable draft version per Arrangement.
 - Permanent version number assigned when the draft is created.
 - Initial-draft abandonment with a required reason and retained read-only history.
@@ -52,7 +53,6 @@ M3A establishes stable Arrangement and child identity, draft-version topology, S
 - Generated Arrangement references or another `ReferenceSequence` namespace.
 - A top-level Supplier Planning navigation section.
 - Changes to `SearchDepartures` ranking or filters.
-- A new idempotency-key table. M3A uses lifecycle replay, database uniqueness, and optimistic locking.
 - `override_supplier_planning_terms`; add it only when its first authorized command ships.
 
 ## Locked boundaries
@@ -142,8 +142,8 @@ The schema and ADR establish future successor behavior: abandoning a successor d
 
 | Status | Meaning | M3A writes it? |
 | --- | --- | --- |
-| `planned` | Nonterminal performance | Yes; new Occurrences start `planned` |
-| `cancelled` | Terminal; does not block ordinary inactivation | Catalog only; no M3A cancel command |
+| `planned` | Nonterminal performance | Yes; new Occurrences start `planned` on the identity |
+| `cancelled` | Terminal; does not block ordinary inactivation | Catalog only on the identity; no M3A cancel command |
 
 M3A does not persist Occurrence `completed`. Unpublished Occurrences may be removed under the draft-only deletion rule.
 
@@ -155,7 +155,7 @@ Application-owned IDs are UUIDv7 with database defaults. UUID foreign keys decla
 
 Every M3A table carries direct `agency_id` and `departure_id`. Composite foreign keys prove same-Agency ownership. Table-specific triggers reject changes to immutable ownership columns.
 
-Use `lock_version` on mutable Arrangements, versions, and definition rows. Arrangement identity remains lockable because name, contact, and status are mutable. Child create, remove, and reorder submit and bump the Arrangement-version `lock_version`. Editing an existing child definition uses that definition’s `lock_version`. Stable child identity rows contain immutable ownership only and do not require optimistic-lock columns.
+Use `lock_version` on mutable Arrangements, versions, definition rows, and `service_occurrences`. Arrangement identity remains lockable because name, contact, and status are mutable. Child create, remove, and reorder submit and bump the Arrangement-version `lock_version`. Editing an existing child definition uses that definition’s `lock_version`. `arrangement_items` and `supplier_resources` contain immutable ownership only and do not require optimistic-lock columns. `service_occurrences` also carry current operational lifecycle status and therefore require `lock_version`.
 
 ### `supplier_arrangements`
 
@@ -213,7 +213,9 @@ Version number is immutable and is never reassigned after abandonment.
 
 ### Stable child identities
 
-`arrangement_items`, `service_occurrences`, and `supplier_resources` contain only stable identity, immutable ownership, and timestamps.
+`arrangement_items` and `supplier_resources` contain only stable identity, immutable ownership, and timestamps.
+
+`service_occurrences` contain stable identity, immutable ownership, timestamps, current operational `status` (`planned` or `cancelled`), and `lock_version`. M3A writes `planned` only. Later cancellation updates this identity row and records command evidence; it must not mutate an activated definition.
 
 - Item belongs to one Arrangement.
 - Occurrence belongs to one Item and repeats Arrangement ownership for enforceable composite FKs.
@@ -260,7 +262,6 @@ Item positions are unique within the version. Reorder commands lock sibling defi
 | ownership | Agency, Departure, Arrangement version, Item, and stable Occurrence |
 | `name` | Required, trimmed, 1–160 characters |
 | `description` | Optional; blank becomes `NULL`; maximum 2,000 characters |
-| `status` | Required; `planned` or `cancelled`. New Occurrences start `planned`. |
 | `starts_on`, `ends_on` | Required local dates; `starts_on <= ends_on` |
 | `starts_at_local`, `ends_at_local` | Either both absent or both present |
 | `time_zone` | Required recognized IANA name, copied from the Departure by default |
@@ -274,7 +275,7 @@ Date-only Occurrences remain date-only. The stored zone records their local-cale
 
 If the form omits `time_zone`, copy `Departure.time_zone` when that value is present. If the Departure zone is blank, creation fails `invalid` unless staff submit an explicit recognized IANA zone. Application validation uses `TZInfo::Timezone.get`.
 
-M3A writes `planned` and implements no Occurrence cancel or complete command. Before activation, staff remove unwanted unpublished draft structure under the deletion rules below. The `cancelled` catalog value exists so later slices do not retrofit the lifecycle column.
+Occurrence lifecycle status is **not** stored on the definition. M3A creates the stable Occurrence with `status = planned` and implements no Occurrence cancel or complete command. Before activation, staff remove unwanted unpublished draft structure under the deletion rules below. The `cancelled` catalog value on the identity exists so later slices do not retrofit the lifecycle column onto an activated definition.
 
 Occurrence display order is computed:
 
@@ -402,24 +403,39 @@ After the pre-transaction authorization check:
 5. Arrangement.
 6. Arrangement version.
 7. Child identities and definitions in parent order and UUID order where several peers are affected.
+8. Idempotency row after its owning record, except for create commands under the create-command exception below.
 
 Commands with no Supplier-sensitive input omit step 3 and preserve Agency → actor → Departure before Arrangement and child rows.
 
+Create-command exception: for `CreateSupplierArrangement`, after Agency → actor → contractor Supplier → Departure, lock or insert the idempotency row before creating the Arrangement and version. For child creates, lock Arrangement and version first, then the idempotency row, then create the child. Uniqueness on the idempotency key serializes concurrent same-key creates.
+
+### Create-command idempotency
+
+M3A introduces the first durable business-command idempotency table, `agency_command_idempotency_keys` (or equivalent), unique on `(agency_id, command_name, idempotency_key)`.
+
+- Required for `CreateSupplierArrangement`, `CreateArrangementItem`, `CreateServiceOccurrence`, and `CreateSupplierResource`.
+- Stores a payload fingerprint/digest of the consequential create inputs.
+- Same key + same payload → replay the original result with no second success audit.
+- Same key + different payload → `conflict`.
+- Keys are durable for the life of the Agency unless a later slice defines purge. M3A does not expire them.
+- Updates, removes, reorders, abandon, and list do not require idempotency keys; they use `lock_version` or lifecycle replay.
+
 ### Replay, no-op, and optimistic locking
 
-- User-driven updates submit the `lock_version` of the mutable Arrangement, version, or definition they change.
+- User-driven updates submit the `lock_version` of the mutable Arrangement, version, definition, or Occurrence identity they change.
 - Creating, removing, or reordering children changes the version's collection shape, requires the submitted version `lock_version`, and bumps it in the same transaction.
 - Editing one existing child definition requires that definition's `lock_version`; it does not manufacture another version.
 - Ordinary updates compare `lock_version` even when submitted values equal stored values.
 - A same-value update is a successful no-op and writes no audit event.
-- If abandonment finds both the Arrangement and initial version already abandoned, it returns replay success before stale-lock comparison and writes no second audit event.
+- A real `AbandonSupplierArrangement` transition requires both Arrangement and version `lock_version`. If abandonment finds both the Arrangement and initial version already abandoned, it returns replay success before stale-lock comparison and writes no second audit event.
 - Database uniqueness and foreign-key errors caused by supported races are translated to the declared domain error rather than leaked.
+- Item and Resource positions use `DEFERRABLE INITIALLY DEFERRED` unique constraints so atomic reorder can swap without transient unique violations. Reorder commands validate that the submitted ID list contains every current sibling exactly once.
 
 ### `CreateSupplierArrangement`
 
 Permission: `manage_departures`.
 
-Accepts required `name` and `contracting_supplier_id`, plus optional `supplier_contact_id`.
+Accepts required `name`, `contracting_supplier_id`, and `idempotency_key`, plus optional `supplier_contact_id`.
 
 Requires an active Agency, active actor, Departure in `draft` or `active`, and active same-Agency contractor. The optional contact must be active and belong to that contractor. A `departed` Departure returns `invalid_state`.
 
@@ -429,7 +445,7 @@ Atomically creates:
 - version 1 in `draft`; and
 - `supplier_arrangement.created` audit evidence.
 
-It creates no Item, reference, Supplier confirmation, capacity, or commercial consequence.
+It creates no Item, reference, Supplier confirmation, capacity, or commercial consequence. Idempotent replay returns the original Arrangement without a second audit.
 
 ### `UpdateSupplierArrangement`
 
@@ -445,7 +461,7 @@ Successful changes write `supplier_arrangement.updated` with changed field names
 
 Permission: `manage_departures`.
 
-M3A accepts only a never-activated Arrangement whose Arrangement and version 1 are both `draft`. It requires a trimmed reason of 1–500 characters.
+M3A accepts only a never-activated Arrangement whose Arrangement and version 1 are both `draft`. It requires a trimmed reason of 1–500 characters and both Arrangement and version `lock_version` for a real transition.
 
 Atomically:
 
@@ -456,7 +472,7 @@ Atomically:
 - writes `supplier_arrangement.abandoned`; and
 - makes the graph read-only.
 
-Already-abandoned is replay success. No automatic restore exists.
+Already-abandoned is replay success before stale-lock comparison and writes no second audit. No automatic restore exists.
 
 ### Item commands
 
@@ -643,27 +659,30 @@ Do not display invented Client sales, occupancy, capacity, balances, Payments, o
 - Contact must belong to the contractor.
 - One draft version per Arrangement and permanent version number 1.
 - Complete Arrangement and version lifecycle catalogs, including `abandoned` and excluding Arrangement `cancelled`.
-- Occurrence definition `status` constrained to `planned` or `cancelled`.
+- Occurrence identity `status` constrained to `planned` or `cancelled`; definition has no status column.
 - Item category and `other` label constraints.
 - Occurrence range, paired-time, and IANA-zone constraints.
-- Unique/manual Item and Resource ordering.
+- Unique/manual Item and Resource ordering with deferrable unique position constraints.
 - Duplicate sibling names accepted.
-- Child identity tables have no `lock_version`.
+- Item and Resource identity tables have no `lock_version`; Occurrence identity has `lock_version`.
+- Create-command idempotency uniqueness and payload-fingerprint storage.
 
 ### Command proof
 
 - Minimal shell creates Arrangement and version 1 atomically.
+- Create idempotency replay, conflicting-payload reuse, and concurrent same-key requests.
 - Contractor cannot change.
 - Contact assignment, clearing, later inactivity display, and cross-Supplier rejection.
 - Provider fallback at all three levels.
 - Item, Occurrence, and Resource create/update/remove.
-- New Occurrences persist `planned`.
+- New Occurrences persist `planned` on the identity.
 - Item subtree removal retains audit IDs and is rejected when any dependency is not draft-only.
-- Manual reorder and deterministic Occurrence order.
+- Manual reorder set validation and deterministic Occurrence order.
 - Occurrence create copies a present Departure zone and fails `invalid` when that zone is blank unless an explicit recognized IANA zone is submitted.
-- Abandonment retains the graph, requires a reason, is read-only afterward, and replays without another audit.
+- Abandonment requires both Arrangement and version `lock_version`, retains the graph, requires a reason, is read-only afterward, and replays without another audit.
 - No activation, confirmation, capacity, money, Reservation, commitment, Deadline, or reference is produced.
 - No Occurrence cancel or complete command exists.
+- All fourteen Arrangement audit actions write with `SupplierArrangement` subject; expected failures write no success audit; reorder writes one event; create replay writes no second audit.
 
 ### State and authorization proof
 
@@ -679,16 +698,20 @@ Do not display invented Client sales, occupancy, capacity, balances, Payments, o
 ### Supplier lifecycle and concurrency proof
 
 - Ordinary block for contractor on draft or active Arrangements.
-- Ordinary block for current or future `planned` Occurrences using the Supplier as effective provider.
+- Ordinary block for current or future `planned` Occurrences using the Supplier as effective provider (status on identity).
 - An unused Item default with no applicable current or future `planned` Occurrence does not block.
 - A past-window `planned` Occurrence does not block and does not become `completed`.
 - A `cancelled` Occurrence does not block, even though M3A does not write that status.
 - Abandoned graphs do not block.
-- Force requires permission and reason, preserves rows, applies the M1 descendant cascade, and writes one audit event.
+- Force requires permission and reason, preserves rows and inactive historical pointers, applies the M1 descendant cascade, and writes one audit event.
+- Force controls are absent for Staff and Viewer in the Supplier status UI.
 - Genuine multi-connection races serialize Supplier inactivation against Arrangement creation, provider assignment, and provider replacement.
 - Arrangement and child mutations serialize against `MarkDepartureDeparted` through the locked Departure. Departed-first rejects new or expanded tentative planning with `invalid_state`.
 - Arrangement and child mutations serialize against `ReturnDepartureToDraft` without treating the draft as consequential downstream history.
+- Abandonment versus child create, remove, reorder, and definition update; a definition update that wins first may be retained by the subsequent abandonment.
+- Two concurrent child creates for next position; reorder versus create; reorder versus removal; two reorders from the same version.
 - Child collection changes conflict on a stale version `lock_version`. In-place definition edits conflict on a stale definition `lock_version`.
+- Cross-Arrangement definition attachment is rejected.
 - Race harnesses re-raise unexpected exceptions.
 
 ### Query and interface proof

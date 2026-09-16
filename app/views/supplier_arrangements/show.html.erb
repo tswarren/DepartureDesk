@@ -1,0 +1,188 @@
+<% content_for :title, "#{@supplier_arrangement.name} · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_departures) %>
+<% editable = manage && (@departure.draft? || @departure.active?) && @supplier_arrangement.draft? %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title"><%= @supplier_arrangement.name %></h1>
+    <p class="dd-page-description"><%= @departure.name %></p>
+  </div>
+  <div class="dd-page-actions">
+    <% if editable %>
+      <%= link_to "Edit arrangement", edit_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button" %>
+      <%= link_to "Add item", new_departure_arrangement_item_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+    <% end %>
+    <%= link_to "Back to departure", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Status</dt>
+        <dd><%= supplier_arrangement_status_badge(@supplier_arrangement.status) %></dd>
+      </div>
+      <div>
+        <dt>Contracting supplier</dt>
+        <dd><%= supplier_option_label(@supplier_arrangement.contracting_supplier) %></dd>
+      </div>
+      <div>
+        <dt>Arrangement contact</dt>
+        <dd><%= @supplier_arrangement.supplier_contact ? supplier_contact_option_label(@supplier_arrangement.supplier_contact) : "None" %></dd>
+      </div>
+      <div>
+        <dt>Version</dt>
+        <dd>Draft version <%= @supplier_arrangement_version.version_number %></dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<% if @item_definitions.empty? %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <p class="<%= empty_state_classes.join(" ") %>">No arrangement items yet.</p>
+      <% if editable %>
+        <%= link_to "Add item", new_departure_arrangement_item_path(@departure, @supplier_arrangement), class: "dd-button" %>
+      <% end %>
+    </div>
+  </article>
+<% else %>
+  <% ordered_item_ids = @item_definitions.map(&:arrangement_item_id) %>
+  <% @item_definitions.each_with_index do |item_definition, index| %>
+    <% item = item_definition.arrangement_item %>
+    <% occurrence_definitions = @occurrence_definitions_by_item_id.fetch(item.id, []) %>
+    <% resource_definitions = @resource_definitions_by_item_id.fetch(item.id, []) %>
+
+    <article class="dd-panel" id="item-<%= item.id %>">
+      <header class="dd-panel-header">
+        <div>
+          <h2 class="dd-panel-title"><%= item_definition.name %></h2>
+          <p><%= arrangement_item_category_label(item_definition.category, item_definition.other_category_label) %></p>
+        </div>
+        <% if editable %>
+          <div class="dd-inline-actions">
+            <%= link_to "Edit item", edit_departure_arrangement_item_path(@departure, @supplier_arrangement, item), class: "dd-row-action dd-row-action--edit" %>
+            <% if index.positive? %>
+              <% moved_ids = ordered_item_ids.dup.tap { |ids| ids[index - 1], ids[index] = ids[index], ids[index - 1] } %>
+              <%= button_to "Move up", reorder_departure_arrangement_items_path(@departure, @supplier_arrangement), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, arrangement_item_ids: moved_ids } %>
+            <% end %>
+            <% if index < @item_definitions.size - 1 %>
+              <% moved_ids = ordered_item_ids.dup.tap { |ids| ids[index + 1], ids[index] = ids[index], ids[index + 1] } %>
+              <%= button_to "Move down", reorder_departure_arrangement_items_path(@departure, @supplier_arrangement), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, arrangement_item_ids: moved_ids } %>
+            <% end %>
+            <%= button_to "Remove", departure_arrangement_item_path(@departure, @supplier_arrangement, item), method: :delete, class: "dd-row-action", form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this item and its planned occurrences and resources?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+          </div>
+        <% end %>
+      </header>
+      <div class="dd-panel-body">
+        <% if item_definition.description.present? %>
+          <p><%= item_definition.description %></p>
+        <% end %>
+        <dl class="dd-definition-list">
+          <div>
+            <dt>Default service provider</dt>
+            <dd><%= item_definition.default_service_provider ? supplier_option_label(item_definition.default_service_provider) : "Contracting supplier" %></dd>
+          </div>
+          <div>
+            <dt>Effective provider</dt>
+            <dd><%= supplier_option_label(effective_service_provider(@supplier_arrangement, item_definition)) %></dd>
+          </div>
+        </dl>
+
+        <section>
+          <header class="dd-panel-header">
+            <h3 class="dd-panel-title">Occurrences</h3>
+            <% if editable %>
+              <%= link_to "Add occurrence", new_departure_arrangement_item_occurrence_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+            <% end %>
+          </header>
+          <% if occurrence_definitions.any? %>
+            <table class="dd-table">
+              <thead>
+                <tr>
+                  <th scope="col">Occurrence</th>
+                  <th scope="col">When</th>
+                  <th scope="col">Effective provider</th>
+                  <% if editable %>
+                    <th scope="col">Actions</th>
+                  <% end %>
+                </tr>
+              </thead>
+              <tbody>
+                <% occurrence_definitions.each do |occurrence_definition| %>
+                  <tr id="occurrence-<%= occurrence_definition.service_occurrence_id %>">
+                    <td><%= occurrence_definition.name %></td>
+                    <td><%= occurrence_date_label(occurrence_definition) %></td>
+                    <td><%= supplier_option_label(effective_service_provider(@supplier_arrangement, item_definition, occurrence_definition)) %></td>
+                    <% if editable %>
+                      <td>
+                        <div class="dd-inline-actions">
+                          <%= link_to "Edit", edit_departure_arrangement_item_occurrence_path(@departure, @supplier_arrangement, item, occurrence_definition.service_occurrence), class: "dd-row-action dd-row-action--edit" %>
+                          <%= button_to "Remove", departure_arrangement_item_occurrence_path(@departure, @supplier_arrangement, item, occurrence_definition.service_occurrence), method: :delete, class: "dd-row-action", form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this occurrence?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+                        </div>
+                      </td>
+                    <% end %>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          <% else %>
+            <p class="<%= empty_state_classes.join(" ") %>">No occurrences yet.</p>
+          <% end %>
+        </section>
+
+        <section>
+          <header class="dd-panel-header">
+            <h3 class="dd-panel-title">Resources</h3>
+            <% if editable %>
+              <%= link_to "Add resource", new_departure_arrangement_item_resource_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+            <% end %>
+          </header>
+          <% if resource_definitions.any? %>
+            <% ordered_resource_ids = resource_definitions.map(&:supplier_resource_id) %>
+            <table class="dd-table">
+              <thead>
+                <tr>
+                  <th scope="col">Resource</th>
+                  <th scope="col">Description</th>
+                  <% if editable %>
+                    <th scope="col">Actions</th>
+                  <% end %>
+                </tr>
+              </thead>
+              <tbody>
+                <% resource_definitions.each_with_index do |resource_definition, resource_index| %>
+                  <tr id="resource-<%= resource_definition.supplier_resource_id %>">
+                    <td><%= resource_definition.name %></td>
+                    <td><%= resource_definition.description.presence || "—" %></td>
+                    <% if editable %>
+                      <td>
+                        <div class="dd-inline-actions">
+                          <%= link_to "Edit", edit_departure_arrangement_item_resource_path(@departure, @supplier_arrangement, item, resource_definition.supplier_resource), class: "dd-row-action dd-row-action--edit" %>
+                          <% if resource_index.positive? %>
+                            <% moved_resource_ids = ordered_resource_ids.dup.tap { |ids| ids[resource_index - 1], ids[resource_index] = ids[resource_index], ids[resource_index - 1] } %>
+                            <%= button_to "Move up", reorder_departure_arrangement_item_resources_path(@departure, @supplier_arrangement, item), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, supplier_resource_ids: moved_resource_ids } %>
+                          <% end %>
+                          <% if resource_index < resource_definitions.size - 1 %>
+                            <% moved_resource_ids = ordered_resource_ids.dup.tap { |ids| ids[resource_index + 1], ids[resource_index] = ids[resource_index], ids[resource_index + 1] } %>
+                            <%= button_to "Move down", reorder_departure_arrangement_item_resources_path(@departure, @supplier_arrangement, item), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, supplier_resource_ids: moved_resource_ids } %>
+                          <% end %>
+                          <%= button_to "Remove", departure_arrangement_item_resource_path(@departure, @supplier_arrangement, item, resource_definition.supplier_resource), method: :delete, class: "dd-row-action", form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this resource?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+                        </div>
+                      </td>
+                    <% end %>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          <% else %>
+            <p class="<%= empty_state_classes.join(" ") %>">No resources yet.</p>
+          <% end %>
+        </section>
+      </div>
+    </article>
+  <% end %>
+<% end %>

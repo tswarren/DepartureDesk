@@ -5,6 +5,7 @@ class SupplierContact < ApplicationRecord
   belongs_to :supplier
   has_many :email_addresses, class_name: "SupplierContactEmailAddress", dependent: :restrict_with_exception
   has_many :phone_numbers, class_name: "SupplierContactPhoneNumber", dependent: :restrict_with_exception
+  has_many :supplier_arrangements, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "active"
 

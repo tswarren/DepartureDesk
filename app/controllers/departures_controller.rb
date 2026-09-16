@@ -28,6 +28,11 @@ class DeparturesController < ApplicationController
   end
 
   def show
+    @supplier_planning = ListDepartureArrangements.call(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      departure: @departure
+    )
   end
 
   def new

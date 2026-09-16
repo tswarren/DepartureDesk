@@ -25,7 +25,24 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
     suppliers
   ].freeze
 
-  test "structure.sql loads cleanly with M1D supplier tables and no extra gist exclusions" do
+  CURRENT_SUPPLIER_TABLES = %w[
+    supplier_arrangement_versions
+    supplier_arrangements
+    supplier_category_assignments
+    supplier_contact_email_addresses
+    supplier_contact_phone_numbers
+    supplier_contacts
+    supplier_email_addresses
+    supplier_locations
+    supplier_phone_numbers
+    supplier_postal_addresses
+    supplier_resource_definitions
+    supplier_resources
+    supplier_websites
+    suppliers
+  ].freeze
+
+  test "structure.sql loads cleanly with current supplier tables and no extra gist exclusions" do
     with_temporary_database("m1d_structure") do
       ActiveRecord::Tasks::DatabaseTasks.structure_load(
         ActiveRecord::Base.connection_db_config.configuration_hash,
@@ -33,7 +50,7 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
       )
 
       tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
-      assert_equal M1D_TABLES, tables
+      assert_equal CURRENT_SUPPLIER_TABLES, tables
 
       exclusions = ActiveRecord::Base.connection.select_values(<<~SQL)
         SELECT c.conname

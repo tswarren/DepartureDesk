@@ -79,3 +79,50 @@
     </dl>
   </div>
 </article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Supplier planning</h2>
+      <p>Tentative arrangement structure for this Departure.</p>
+    </div>
+    <div class="dd-inline-actions">
+      <%= link_to "View all", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% if manage && (@departure.draft? || @departure.active?) %>
+        <%= link_to "Add arrangement", new_departure_arrangement_path(@departure), class: "dd-button" %>
+      <% end %>
+    </div>
+  </header>
+  <% if @supplier_planning.records.any? %>
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th scope="col">Arrangement</th>
+          <th scope="col">Contracting supplier</th>
+          <th scope="col">Status</th>
+          <th scope="col">Version</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @supplier_planning.records.each do |arrangement| %>
+          <% version = arrangement.versions.find { |candidate| candidate.version_number == 1 } %>
+          <tr class="<%= "is-inactive" if arrangement.abandoned? %>">
+            <td><%= link_to arrangement.name, departure_arrangement_path(@departure, arrangement) %></td>
+            <td><%= supplier_option_label(arrangement.contracting_supplier) %></td>
+            <td><%= supplier_arrangement_status_badge(arrangement.status) %></td>
+            <td><%= version ? version.status.titleize : "Draft" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <% if @supplier_planning.truncated %>
+      <div class="dd-panel-body">
+        <p>Showing the first 50 arrangements. Open the supplier planning list to filter.</p>
+      </div>
+    <% end %>
+  <% else %>
+    <div class="dd-panel-body">
+      <p class="<%= empty_state_classes.join(" ") %>">No tentative supplier arrangements yet.</p>
+    </div>
+  <% end %>
+</article>

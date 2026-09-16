@@ -22,6 +22,10 @@ class SearchDeparturesTest < ActiveSupport::TestCase
     assert_not outcome.truncated
   end
 
+  test "default order remains date then normalized name then id after rank" do
+    assert_equal "search_rank ASC, starts_on ASC NULLS LAST, name_search_key ASC, id ASC", SearchDepartures::DEFAULT_ORDER.to_s
+  end
+
   test "search ranks exact reference, then exact name, then prefix" do
     gamma = @agency.departures.find_by!(name: "Gamma Voyage")
     ranked = SearchDepartures.call(agency: @agency, actor: @admin, query: gamma.departure_reference).records

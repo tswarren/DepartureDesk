@@ -1,0 +1,38 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key.present? %>
+<% contracting_supplier = Current.agency.suppliers.find_by(id: form.object.contracting_supplier_id) if form.object.contracting_supplier_id.present? %>
+<% supplier_options = active_supplier_options.to_a %>
+<% supplier_options.unshift(contracting_supplier) if contracting_supplier && supplier_options.none? { |supplier| supplier.id == contracting_supplier.id } %>
+<% arrangement_contact = Current.agency.supplier_contacts.includes(:supplier).find_by(id: form.object.supplier_contact_id) if form.object.supplier_contact_id.present? %>
+<% contact_options = Current.agency.supplier_contacts.includes(:supplier).where(status: "active").order(:last_name, :first_name).to_a %>
+<% contact_options.unshift(arrangement_contact) if arrangement_contact && contact_options.none? { |contact| contact.id == arrangement_contact.id } %>
+
+<div class="dd-field-group">
+  <%= form.label :name, "Name", class: "dd-label" %>
+  <%= form.text_field :name, required: true, maxlength: SupplierArrangement::NAME_LIMIT, **dd_field_options(form, :name) %>
+  <%= dd_field_error(form, :name) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :contracting_supplier_id, "Contracting supplier", class: "dd-label" %>
+  <%= form.select :contracting_supplier_id,
+    supplier_options.map { |supplier| [ supplier_option_label(supplier), supplier.id ] },
+    { include_blank: "Choose a supplier" },
+    disabled: form.object.persisted?,
+    required: true,
+    **dd_field_options(form, :contracting_supplier_id) %>
+  <% if form.object.persisted? %>
+    <%= form.hidden_field :contracting_supplier_id %>
+  <% end %>
+  <%= dd_field_error(form, :contracting_supplier_id) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :supplier_contact_id, "Arrangement contact", class: "dd-label" %>
+  <%= form.select :supplier_contact_id,
+    contact_options.map { |contact| [ supplier_contact_option_label(contact), contact.id ] },
+    { include_blank: "No arrangement contact" },
+    **dd_field_options(form, :supplier_contact_id) %>
+  <p class="dd-field-hint">Optional. The contact must belong to the contracting supplier.</p>
+  <%= dd_field_error(form, :supplier_contact_id) %>
+</div>

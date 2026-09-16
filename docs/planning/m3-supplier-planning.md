@@ -2,7 +2,7 @@
 
 **Status:** Accepted 2026-09-16. Amended 2026-09-16. Not yet implemented.
 
-**Amendment 2026-09-16:** Closed decisions now authorize Arrangement and version `abandoned` (never-activated discard; not Arrangement `cancelled`); departed Departures may not create new tentative Arrangements; ordinary inactivation uses the effective-provider rule and a recovery allow-list; M3A adds only `force_inactivate_supplier_with_dependencies`; Occurrence creation fails `invalid` when no recognized zone can be stored; version `lock_version` owns child-collection concurrency. [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md) and [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md) lock topology and Supplier roles.
+**Amendment 2026-09-16:** Closed decisions now authorize Arrangement and version `abandoned` (never-activated discard; not Arrangement `cancelled`); departed Departures may not create new tentative Arrangements; ordinary inactivation uses the effective-provider rule and a recovery allow-list; M3A adds only `force_inactivate_supplier_with_dependencies`; Occurrence creation fails `invalid` when no recognized zone can be stored; version `lock_version` owns child-collection concurrency. [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md) and [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md) lock topology and Supplier roles. Occurrence operational lifecycle (`planned`/`cancelled`) lives on the stable Occurrence identity with `lock_version`; definition rows hold commercial/schedule attributes only. M3A ships the first durable create-command idempotency family and uses an explicit create-command lock-order exception for the idempotency row.
 
 **Prerequisites:** M2 complete and shipped, including [ADR 0007](../adr/0007-departure-operational-root.md), [M2C](m2c-acceptance-and-hardening.md), and final M2 documentation; [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md).
 
@@ -346,9 +346,11 @@ M3C ships the first application monetary tables and must establish the reusable 
 
 User-driven M3 commands use the shipped Departure pattern: pessimistic row locks in canonical order, then a submitted `lock_version` on the mutable aggregate, with stale submissions returning `conflict`. Lifecycle replay and already-applied no-ops follow the existing Departure command rules for when `lock_version` is compared.
 
-Arrangement identity remains lockable because name, contact, and status are mutable. Child create, remove, and reorder submit and bump the Arrangement-version `lock_version`. Editing an existing child definition uses that definition’s `lock_version`. Stable child identity rows (Item, Occurrence, Resource) hold immutable ownership and do not need their own optimistic locks.
+Arrangement identity remains lockable because name, contact, and status are mutable. Child create, remove, and reorder submit and bump the Arrangement-version `lock_version`. Editing an existing child definition uses that definition’s `lock_version`.
 
-M3 introduces the first durable business-command idempotency-key family. Retry of the same command at the declared business-command scope must not create a second version, confirmation, capacity event, commitment, Deadline mutation, or success audit. Idempotency identity is a domain constraint, not JSON inside `AuditEvent#details`.
+`ArrangementItem` and `SupplierResource` identity rows hold immutable ownership only and do not need their own optimistic locks. `ServiceOccurrence` identity rows carry the current operational lifecycle (`planned` or `cancelled`) and therefore require `lock_version`. Occurrence commercial and schedule attributes remain on versioned definition rows without a lifecycle status column. Later cancellation updates the stable Occurrence status projection and records command evidence; it must not mutate an activated definition or require a commercial successor version merely to cancel.
+
+M3 introduces the first durable business-command idempotency-key family. M3A ships that family for Arrangement and child create commands. Retry of the same command at the declared business-command scope must not create a second Arrangement, version, child, confirmation, capacity event, commitment, Deadline mutation, or success audit. Same key plus same payload returns the original result without a second success audit. Same key plus different payload returns `conflict`. Idempotency identity is a domain constraint, not JSON inside `AuditEvent#details`.
 
 ### 18. Confirmation does not silently open commitments
 
@@ -702,11 +704,11 @@ M3 retains the fixed Administrator, Staff, and Viewer access roles and checks th
 | Create and edit tentative drafts | `manage_departures` | Yes | Yes | No |
 | Perform ordinary evidence-backed M3 transitions | `manage_departures` | Yes | Yes | No |
 | Depart from Supplier terms or required evidence | `override_supplier_planning_terms` | Yes, with reason | No | No |
-
-`override_supplier_planning_terms` remains in this catalog as the named future key. M3A does not add it to `AccessPermission`. The first command that requires it ships the catalog entry. No command may check a role name in its place.
 | Ordinary Supplier inactivation | `manage_supplier_directory` | Yes | Yes | No |
 | Force Supplier inactivation over current dependencies | `force_inactivate_supplier_with_dependencies` | Yes, with reason | No | No |
 | Cause any mutation through viewing, filtering, or export | none | No implicit side effect | No implicit side effect | Never |
+
+`override_supplier_planning_terms` remains in this catalog as the named future key. M3A does not add it to `AccessPermission`. The first command that requires it ships the catalog entry. No command may check a role name in its place.
 
 M3A maps every command to this catalog. Viewer has no mutations except the existing `view_workspace` and `select_office_context` grants.
 
@@ -791,6 +793,8 @@ Every slice must publish its command lock order. The parent canonical order, sha
 6. exact Arrangement version or other governing definition;
 7. Supplier Reservations, Occurrences, Resources, Capacity Pools, commitments, or Deadlines in stable UUID order as required; and
 8. projections or idempotency rows after their owning record.
+
+Create-command exception: when the command creates a new Arrangement or a new child and therefore has no owning Arrangement or child row yet, after Agency → actor → affected Suppliers (when assigning) → Departure (and the parent Item for Occurrence or Resource creates), lock or insert the idempotency row before creating the new aggregate, using uniqueness as the serialization point. For child creates under an existing Arrangement, lock the Arrangement and version first, then the idempotency row, then create. Do not invent a different Agency or Departure order.
 
 Commands that do not involve a Supplier retain the shipped M2 order: Agency, actor, then Departure. Nested commands must not reacquire earlier locks or invent a different order. System-invoked Departure jobs continue to skip actor and `lock_version` while still pessimistic-locking Agency then Departure; those jobs perform no M3 work.
 

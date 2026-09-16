@@ -175,6 +175,45 @@ class SuppliersDirectoryTest < ActionDispatch::IntegrationTest
     assert_redirected_to supplier_path(@agency.suppliers.find_by!(display_name: "Staff Cruise Line"))
   end
 
+  test "supplier status shows m3a dependencies and limits force controls to administrators" do
+    supplier = create_supplier("Blocked Supplier")
+    departure = create_complete_draft("Blocked Departure")
+    arrangement = CreateSupplierArrangement.new(
+      agency: @agency,
+      actor: @admin,
+      departure: departure,
+      idempotency_key: SecureRandom.uuid,
+      attributes: { name: "Blocked Arrangement", contracting_supplier_id: supplier.id }
+    ).call.record
+
+    sign_in_as agency_users(:harbor_staff)
+    get status_edit_supplier_path(supplier)
+    assert_response :success
+    assert_match "Blocked Arrangement", response.body
+    assert_select "input[name=force]", count: 0
+    assert_select "textarea[name=force_reason]", count: 0
+
+    patch status_supplier_path(supplier), params: { status: "inactive", lock_version: supplier.lock_version, force: "1", force_reason: "Not allowed" }
+    assert_response :unprocessable_entity
+    assert_equal "active", supplier.reload.status
+
+    sign_in_as @admin
+    get status_edit_supplier_path(supplier)
+    assert_response :success
+    assert_select "input[name=force]", count: 1
+    assert_select "textarea[name=force_reason]", count: 1
+
+    patch status_supplier_path(supplier), params: {
+      status: "inactive",
+      lock_version: supplier.lock_version,
+      force: "1",
+      force_reason: "Supplier ceased operations"
+    }
+    assert_redirected_to supplier_path(supplier)
+    assert_equal "inactive", supplier.reload.status
+    assert_equal "draft", arrangement.reload.status
+  end
+
   private
 
   def create_supplier(name, agency: @agency, actor: @admin)
@@ -184,6 +223,23 @@ class SuppliersDirectoryTest < ActionDispatch::IntegrationTest
       kind: "organization",
       names: { display_name: name },
       categories: [ "air" ]
+    ).call.record
+  end
+
+  def create_complete_draft(name)
+    CreateDeparture.new(
+      agency: @agency,
+      actor: @admin,
+      attributes: {
+        name: name,
+        starts_on: Date.new(2026, 10, 1),
+        ends_on: Date.new(2026, 10, 8),
+        time_zone: "America/New_York",
+        operating_currency: "USD",
+        responsible_office_id: offices(:harbor_main).id,
+        responsible_agency_user_id: @admin.id
+      },
+      current_office: offices(:harbor_main)
     ).call.record
   end
 
