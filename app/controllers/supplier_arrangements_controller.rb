@@ -4,8 +4,8 @@ class SupplierArrangementsController < ApplicationController
   before_action :require_departure_view!
   before_action :require_departure_management!, except: %i[index show]
   before_action :set_departure
-  before_action :set_supplier_arrangement, only: %i[show edit update abandon]
-  before_action :set_initial_version, only: %i[show edit update abandon]
+  before_action :set_supplier_arrangement, only: %i[show edit update edit_abandon abandon]
+  before_action :set_initial_version, only: %i[show edit update edit_abandon abandon]
 
   def index
     @status = ListDepartureArrangements::STATUSES.include?(params[:status]) ? params[:status] : "all"
@@ -68,12 +68,11 @@ class SupplierArrangementsController < ApplicationController
     render :edit, status: :unprocessable_entity
   end
 
-  def abandon
-    if request.get?
-      @abandon_reason = params[:reason]
-      return
-    end
+  def edit_abandon
+    @abandon_reason = params[:reason]
+  end
 
+  def abandon
     AbandonSupplierArrangement.new(
       agency: Current.agency,
       actor: Current.agency_user,
@@ -86,7 +85,7 @@ class SupplierArrangementsController < ApplicationController
   rescue AgencyCommand::Error => error
     @abandon_reason = params[:reason]
     add_arrangement_error(@supplier_arrangement_version, error)
-    render :abandon, status: :unprocessable_entity
+    render :edit_abandon, status: :unprocessable_entity
   end
 
   private

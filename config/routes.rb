@@ -149,7 +149,7 @@ Rails.application.routes.draw do
     resource :activation, only: :show, controller: "departure_activations"
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
       member do
-        get :abandon
+        get :abandon, action: :edit_abandon
         post :abandon
       end
       resources :items, controller: "arrangement_items", only: %i[new create edit update destroy] do
