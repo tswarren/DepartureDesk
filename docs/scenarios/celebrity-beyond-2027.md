@@ -2,7 +2,7 @@
 
 **Status:** Accepted modeling scenario; not an implementation schema
 
-**Sailing:** Celebrity Beyond, November 10–17, 2027
+**Sailing:** Celebrity Beyond, November 6–13, 2027
 
 ## Purpose
 

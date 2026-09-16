@@ -1,6 +1,6 @@
 # ADR 0004: Human-readable references and numbering
 
-- Status: Accepted; amended 2026-09-14 for Client and Supplier references
+- Status: Accepted; amended 2026-09-14 for Client and Supplier references; amended 2026-09-16 for Departure references
 - Date: 2026-09-05
 - Decision owners: DepartureDesk maintainers
 
@@ -133,18 +133,39 @@ Client and Supplier demonstrate identical Agency scope, no reset, immutable issu
 
 `CL-` and `SUP-` are domain-qualified formats. The commercial register's `D-000001` pattern establishes the no-Office-code baseline for generated references; it does not require every domain to use a one-letter prefix.
 
+### Departure references
+
+M2 adopts the same namespaced sequence for Departure. Drafts remain unreferenced. The first successful activation is the consequential transition: the Departure becomes operationally usable, searchable by its durable reference, and discussable outside the draft workspace.
+
+| Attribute | Departure |
+| --- | --- |
+| Namespace | `departure` |
+| Canonical format | `D-%06d` |
+| Scope | Agency; never Office |
+| Reset | Never |
+| Issuance | First successful activation |
+| Reuse and gaps | Never reused; gaps accepted |
+| Concurrency | Lock `(agency_id, namespace)` sequence row |
+| Retry | An already issued reference consumes no number on reactivation or idempotent replay |
+| `next_value` | Next unissued positive integer; a new row starts at 1 |
+| Exhaustion | Issuing `1000000` fails with `reference_exhausted`; widening the format requires an amendment |
+| Import | Preserve legacy value in a separately named future external-reference record |
+| Return to draft | Reference retained |
+| Reactivation | Existing reference reused |
+
+A missing sequence row is an integrity error. Issuance does not create one. The slice that adopted the namespace created sequence rows, including a backfill for existing agencies and a row in `ProvisionAgency`.
+
 ### Domain decisions deferred
 
 This ADR deliberately does not decide the final formats or scopes of:
 
-- departure references;
 - client-trip references;
 - receipt numbers;
 - supplier-payment references;
 - adjustment/reversal references;
 - document numbers.
 
-Each is locked in the phase that introduces the record. Client and Supplier have now satisfied the two-consumer threshold for the narrowly governed namespaced sequence above; domains with different issuance, reset, void, or idempotency semantics require their own persistence.
+Each is locked in the phase that introduces the record. Client, Supplier, and Departure have now adopted the narrowly governed namespaced sequence above; domains with different issuance, reset, void, or idempotency semantics require their own persistence.
 
 ## Expected initial reference matrix
 
@@ -153,7 +174,7 @@ Each is locked in the phase that introduces the record. Client and Supplier have
 | Office code | Administrator or provisioning | Agency | Office creation | Yes |
 | Client reference | DepartureDesk | Agency | Successful Client creation | M1 |
 | Supplier reference | DepartureDesk | Agency | Successful Supplier creation | M1 |
-| Departure reference | DepartureDesk | Agency or office, decision deferred | Departure creation or publication | No |
+| Departure reference | DepartureDesk | Agency; never Office | First successful activation | M2 |
 | Client-trip reference | DepartureDesk | Agency or office, decision deferred | Client trip becomes operational | No |
 | Receipt number | DepartureDesk | Agency or office, decision deferred | Receipt posting | No |
 | Supplier-payment reference | DepartureDesk | Agency, decision deferred | Supplier payment posting | No |

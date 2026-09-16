@@ -1,8 +1,8 @@
 # M2 — Departure core
 
-**Status:** Accepted. This contract is not implementation authority. Each slice requires its own accepted implementation contract before domain code begins.
+**Status:** Complete. M2A–M2C are shipped. This contract remains the Departure operational-root model. It is not implementation authority for M3 until an accepted M3 slice plan names that work.
 
-**Prerequisites:** [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md)
+**Prerequisites:** [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [ADR 0007](../adr/0007-departure-operational-root.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md)
 
 ## Goal
 
@@ -83,9 +83,9 @@ The commercial register’s Draft → Active “manager” is this responsible A
 
 | Slice | Working outcome |
 | --- | --- |
-| **[M2A — Departure core](m2a-departure-core.md)** | Draft creation/editing, responsibility, search/UI, activation, `D-` issuance, return to draft, and activation/reference concurrency. Accepted and implemented on this branch; not yet shipped. |
-| **[M2B — Departed lifecycle](m2b-departed-lifecycle.md)** | Manual transition, scheduled sweep and per-Departure job, schedule/currency correction, erroneous-lifecycle correction, and job concurrency. Draft slice plan; not implementation authority. |
-| **[M2C — Acceptance and hardening](m2c-acceptance-and-hardening.md)** | Celebrity/Vineyard scenario proof, cross-Agency isolation, query/index proof, accessibility/system coverage, regressions, and final documentation. Draft slice plan; not implementation authority. |
+| **[M2A — Departure core](m2a-departure-core.md)** | Draft creation/editing, responsibility, search/UI, activation, `D-` issuance, return to draft, and activation/reference concurrency. Shipped. |
+| **[M2B — Departed lifecycle](m2b-departed-lifecycle.md)** | Manual transition, scheduled sweep and per-Departure job, schedule/currency correction, erroneous-lifecycle correction, and job concurrency. Shipped. |
+| **[M2C — Acceptance and hardening](m2c-acceptance-and-hardening.md)** | Celebrity/Vineyard scenario proof, cross-Agency isolation, query/index proof, accessibility/system coverage, regressions, and final documentation. Shipped. |
 
 M2A is a complete vertical outcome: staff can create a Departure, make it operational, receive its durable reference, find it, and safely reverse activation before downstream work exists.
 
@@ -661,7 +661,7 @@ M2 does not implement:
 
 M2 demonstrates:
 
-* a Celebrity Beyond Departure dated November 10–17, 2027;
+* a Celebrity Beyond Departure dated November 6–13, 2027;
 * a Vineyard Tour Departure dated June 5–7, 2027;
 * both existing independently without Travel Program;
 * no Supplier, Package, Client Trip, service, capacity, or financial records created by M2 itself;
@@ -721,22 +721,24 @@ Concurrency helpers must re-raise unexpected exceptions. Tests may accept only d
 
 ### When this parent contract is accepted
 
-1. Index this plan in [`docs/README.md`](../README.md).
-2. Add an ADR establishing Departure as the operational root and explicitly deferring Travel Program.
-3. Amend ADR 0004 with the Departure reference contract.
-4. Amend the MVP’s Travel Program language so M2 does not promise its implementation.
-5. Amend the roadmap outcome from “reusable Travel Programs and dated Departures” to “create and govern dated Departures as the operational root.”
-6. Mark Travel Program in terminology as a deferred, not-yet-defined concept.
-7. Clarify that M3–M8 records attach directly to Departure.
-8. Clarify that entire-Departure cancellation remains orthogonal to operational lifecycle.
+These amendments landed in the parent-acceptance documentation PR:
 
-Do not invent people, hotels, Suppliers, or operating facts in the accepted Celebrity Beyond or Vineyard Tour scenario documents.
+1. Index this plan in [`docs/README.md`](../README.md).
+2. [ADR 0007](../adr/0007-departure-operational-root.md) establishes Departure as the operational root and explicitly defers Travel Program.
+3. ADR 0004 is amended with the Departure reference contract.
+4. The MVP’s Travel Program language no longer promises M2 implementation.
+5. The roadmap outcome is dated Departures as the operational root.
+6. Terminology marks Travel Program as a deferred, not-yet-defined concept.
+7. M3–M8 records attach directly to Departure.
+8. Entire-Departure cancellation remains orthogonal to operational lifecycle.
+
+Do not invent people, hotels, Suppliers, or operating facts in the accepted Celebrity Beyond or Vineyard Tour scenario documents. Celebrity Beyond sailing dates follow the accepted scenario document (November 6–13, 2027).
 
 ### When the applicable code slice ships
 
 Update `AGENTS.md`, [`docs/architecture/current-state.md`](../architecture/current-state.md), [`docs/ui/interface-contract.md`](../ui/interface-contract.md), the permission catalog, terminology’s implementation note, and the roadmap milestone status. Leave those shipped-boundary documents unchanged until that code lands.
 
-M2C updates remaining documentation so M2 is complete and M3 Supplier planning is the next unimplemented milestone.
+M2C updated remaining documentation so M2 is complete and M3 Supplier planning is the next unimplemented milestone. Do not invent `docs/planning/m3-supplier-planning.md`.
 
 ## Exit gate
 

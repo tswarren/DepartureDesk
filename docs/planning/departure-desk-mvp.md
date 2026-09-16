@@ -97,7 +97,7 @@ DepartureDesk is an agency-scoped operational and commercial subledger for group
 | :---- | :---- | :---- |
 | Tenant and access | Agency, Office, Agency User, Access Role, Support Access Grant | Who owns the data and who may act? |
 | Directory | Client Person, Client, Client Organization, Supplier, Supplier Location, Supplier Contact | Who is involved and in what bounded business context? |
-| Departure operations | Travel Program, Departure, Package, Client Trip, Client Trip Service | What is offered, selected, and coordinated? |
+| Departure operations | Departure, Package, Client Trip, Client Trip Service | What is offered, selected, and coordinated? Travel Program is deferred and is not an M2 record. |
 | Fulfillment | Supplier Arrangement, Supplier Reservation, Service Occurrence, Supplier Resource, assignments | How is each service provided and who receives it? |
 | Financial | Charge, Receipt, Supplier Obligation, Supplier Payment, credits, refunds, commission | Who owes, who paid, and what remains? |
 | Change and closeout | Cancellation Case, adjustments, reconciliation, closeout | How are later consequences preserved and resolved? |
@@ -131,7 +131,7 @@ Consequential records snapshot the names, terms, destinations, prices, and evide
 | Use | For |
 | :---- | :---- |
 | Departure | One dated occurrence of coordinated travel |
-| Travel Program | Reusable or recurring travel concept |
+| Travel Program | Deferred reusable or recurring travel concept; not an M2 deliverable |
 | Client Trip | Agency relationship with one primary Client on a Departure |
 | Client Trip Service | One promised, purchased, assigned, or recorded service |
 | Supplier Arrangement | Governing agreement with a Supplier |
@@ -283,13 +283,13 @@ Directory email is not login identity merely because the literal value matches.
 | Lifecycle | Active/inactive with dependency checks; historical records resolve after inactivation |
 | Snapshots | Directory rows are current identities, not generic snapshots. M3–M7 preserve names, terms, addressees, responsible Client, Payer, contracting Supplier, confirmation issuer, communication destination, and branding on the consequential record that consumes them. |
 
-**Deferred.** Universal Party identity, cross-domain linking, automatic contact synchronization, reusable Household/Family/servicing groups, generalized directory contact-purpose systems, client/supplier portals (including a Group Leader access role), automatic waitlisting, marketing automation, organization trees, shared global Supplier masters, and external identity enrichment.
+**Deferred.** Universal Party identity, cross-domain linking, automatic contact synchronization, reusable Household/Family/servicing groups, generalized directory contact-purpose systems, client/supplier portals (including a Group Leader access role), automatic waitlisting, marketing automation, organization trees, shared global Supplier masters, external identity enrichment, and Travel Program as a reusable parent above Departure.
 
 # **5 Departures packages client trips and services**
 
 ## **Travel Program and Departure**
 
-A Travel Program is an optional reusable concept or series. A Departure is one dated occurrence and the primary operational record. Industry uses of "group" remain qualified, such as group agreement, group leader, or supplier group number.
+A Departure is one dated occurrence and the primary operational record. Travel Program is a deferred, not-yet-defined reusable or recurring concept; M2 does not implement it and later commercial records belong directly to Departure. Industry uses of "group" remain qualified, such as group agreement, group leader, or supplier group number.
 
 ## **Lifecycle states**
 
@@ -709,7 +709,7 @@ Closing creates an immutable, versioned closeout snapshot and rejects new financ
 | :---- | :---- |
 | Foundation rework | Agency-scoped login identity, Office as reporting/default context only, roles/permissions, Platform Users, Support Access Grants, tenant and audit hardening |
 | Directories | Separate Client Person, Client Organization, Client (commercial-responsibility identity), Supplier, Supplier Location, and Supplier Contact records; destination-only contact points; search; duplicate warnings with acknowledged create-anyway; lifecycle; Agency-scoped references; and tenant-safe audit |
-| Departure operations | Travel Programs, Departures, Packages, Client Trips (with assigned Agency User), Client Trip Services, general-purpose choice groups, assignments, service occurrences, confirmations, deadlines, and readiness |
+| Departure operations | Departures, Packages, Client Trips (with assigned Agency User), Client Trip Services, general-purpose choice groups, assignments, service occurrences, confirmations, deadlines, and readiness. Travel Program is deferred and is not an M2 deliverable. |
 | Supplier planning | Arrangements with composable typed cost components, Reservations, Resources with date-scoped capacity, fixed/per-unit/per-night/minimum cost patterns, general threshold-triggered capacity calculation, block/guarantee/allocation, commitment and exposure, cancelable\_below\_minimum flag |
 | Client financials | One responsible Client per Charge, per-installment Payment Schedule/Charge posting with Deposit as a Charge category, immutable posted Charges, Receipts (hard one-per-Departure boundary), applications, same-Departure credits/refunds, balances |
 | Supplier financials | Obligations, Payments, applications, credits/refunds, deposits, final cost, commission states, supplier-specific earned-credit tracking, balances |

@@ -2,7 +2,7 @@
 
 **Status:** Accepted product vocabulary
 
-**Implementation note:** Agency, Agency User, Office, Session, permission, and Audit Event terminology is shipped. Client Person and person-backed Client terminology is shipped (M1A). Client Organization, organization-backed Client, organization-owned contact points, and organization-contact assignments are shipped (M1B). Supplier, Supplier categories, and Supplier-owned contact points are shipped (M1C). Supplier Location, Supplier Contact, and Supplier Contact-owned destinations are shipped (M1D). M1E shipped directory proof and hardening without new vocabulary. Departure draft, activation, reference issuance, and return to draft are implemented on this branch (M2A) and are not yet shipped. Travel Program, departed jobs, and later commercial terms are not.
+**Implementation note:** Agency, Agency User, Office, Session, permission, and Audit Event terminology is shipped. Client Person and person-backed Client terminology is shipped (M1A). Client Organization, organization-backed Client, organization-owned contact points, and organization-contact assignments are shipped (M1B). Supplier, Supplier categories, and Supplier-owned contact points are shipped (M1C). Supplier Location, Supplier Contact, and Supplier Contact-owned destinations are shipped (M1D). M1E shipped directory proof and hardening without new vocabulary. Departure draft, activation, reference issuance, return to draft, departed, scheduled departed jobs, and schedule/currency/lifecycle correction are shipped (M2A and M2B). Travel Program is a deferred, not-yet-defined concept. M2C proof is shipped and M2 is complete. Later commercial terms are not shipped.
 
 Use these terms consistently in requirements, code, migrations, UI labels, tests, and reports. A planned term does not authorize its implementation without an accepted slice plan.
 
@@ -43,7 +43,7 @@ Use these terms consistently in requirements, code, migrations, UI labels, tests
 
 | Term | Meaning |
 | --- | --- |
-| Travel Program | Optional reusable or recurring concept from which Departures may be organized. It is not a live parent of accepted commercial records. |
+| Travel Program | Deferred, not-yet-defined reusable or recurring concept. It is not an M2 record and is not a live parent of accepted commercial records. |
 | Departure | The dated operating root for one managed group-travel undertaking. |
 | Supplier Arrangement | The Agency's agreement or planning relationship with a Supplier for a Departure. |
 | Arrangement Item | A separately described service, resource, charge basis, or deliverable within a Supplier Arrangement. |
