@@ -37,7 +37,7 @@ Version numbers are positive, monotonic within the Arrangement, assigned when ea
 
 ### Stable child identities and versioned definitions
 
-`ArrangementItem`, `ServiceOccurrence`, and `SupplierResource` are stable child identities. Their editable or immutable attributes live in definition rows tied to one exact Arrangement version.
+`ArrangementItem`, `ServiceOccurrence`, and `SupplierResource` are stable child identities. Version-specific commercial and schedule attributes live in definition rows tied to one exact Arrangement version.
 
 - The same conceptual child keeps its stable identity across copied successor versions.
 - Each version owns an independent definition row for every child present in that version.
@@ -47,6 +47,8 @@ Version numbers are positive, monotonic within the Arrangement, assigned when ea
 - Later records may reference both the stable child and the exact Arrangement version when both continuity and provenance matter.
 
 An Occurrence and a Resource each belong immutably to one Item. A Resource represents a contracted category, class, or planned unit and may participate in capacity for multiple Occurrences of that Item. It is not an individual cabin, room, seat, or Traveler assignment.
+
+Service Occurrence current operational lifecycle (`planned` or `cancelled`) lives on the stable Occurrence identity, not on a versioned definition. Cancelling an Occurrence must not mutate an activated commercial definition and must not require a commercial successor version. Definition rows hold name, description, schedule, zone, and provider override only.
 
 ### Draft removal and retained history
 
@@ -86,7 +88,9 @@ Every abandonment requires a reason and immutable audit evidence.
 
 ### Optimistic locking
 
-Arrangement identity remains lockable because name, contact, and status are mutable. Child create, remove, and reorder submit and bump the Arrangement-version `lock_version`. Editing an existing child definition uses that definition’s `lock_version`. Stable child identity rows hold immutable ownership and do not need their own optimistic locks.
+Arrangement identity remains lockable because name, contact, and status are mutable. Child create, remove, and reorder submit and bump the Arrangement-version `lock_version`. Editing an existing child definition uses that definition’s `lock_version`.
+
+`ArrangementItem` and `SupplierResource` identity rows hold immutable ownership only and do not need their own optimistic locks. `ServiceOccurrence` identity rows also carry the current operational lifecycle status and therefore require `lock_version` so later cancellation can update the stable current-status projection without editing an activated definition.
 
 ## Consequences
 
