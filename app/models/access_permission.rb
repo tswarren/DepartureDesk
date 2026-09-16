@@ -13,7 +13,8 @@ module AccessPermission
     manage_supplier_directory: %w[administrator staff],
     force_inactivate_supplier_with_dependencies: %w[administrator],
     view_departures: %w[administrator staff viewer],
-    manage_departures: %w[administrator staff]
+    manage_departures: %w[administrator staff],
+    override_supplier_planning_terms: %w[administrator]
   }.freeze
 
   def self.allowed?(role, permission)

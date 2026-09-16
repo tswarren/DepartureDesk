@@ -9,6 +9,7 @@ class ArrangementItemDefinition < ApplicationRecord
     insurance
     other
   ].freeze
+  CAPACITY_MANAGEMENT = %w[managed unmanaged].freeze
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
   OTHER_CATEGORY_LABEL_LIMIT = 80
@@ -20,6 +21,8 @@ class ArrangementItemDefinition < ApplicationRecord
   belongs_to :arrangement_item
   belongs_to :default_service_provider, class_name: "Supplier", optional: true
 
+  enum :capacity_management, CAPACITY_MANAGEMENT.index_by(&:itself), validate: { allow_nil: true }
+
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id,
     :supplier_arrangement_version_id, :arrangement_item_id
 
@@ -30,6 +33,7 @@ class ArrangementItemDefinition < ApplicationRecord
   validates :name, presence: true, length: { maximum: NAME_LIMIT }
   validates :description, length: { maximum: DESCRIPTION_LIMIT }, allow_nil: true
   validates :category, presence: true, inclusion: { in: CATEGORIES }
+  validates :capacity_management, inclusion: { in: CAPACITY_MANAGEMENT }, allow_nil: true
   validates :other_category_label, length: { maximum: OTHER_CATEGORY_LABEL_LIMIT }, allow_nil: true
   validates :position, numericality: { only_integer: true, greater_than: 0 }
   validate :other_label_matches_category

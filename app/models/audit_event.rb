@@ -82,6 +82,16 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.resource_updated
     supplier_arrangement.resource_removed
     supplier_arrangement.resources_reordered
+    supplier_arrangement.capacity_applicability_updated
+    supplier_arrangement.capacity_pair_classified
+    supplier_arrangement.capacity_pair_removed
+    supplier_arrangement.capacity_pool_created
+    supplier_arrangement.capacity_pool_updated
+    supplier_arrangement.capacity_pool_removed
+    supplier_arrangement.capacity_pools_reordered
+    supplier_arrangement.capacity_event_recorded
+    supplier_arrangement.capacity_reconciled
+    supplier_arrangement.capacity_reconciliation_resolved
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
