@@ -2,7 +2,7 @@
 
 **Status:** Accepted. This contract is not implementation authority. Each slice requires its own accepted implementation contract before domain code begins.
 
-**Prerequisites:** [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md)
+**Prerequisites:** [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [ADR 0007](../adr/0007-departure-operational-root.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md)
 
 ## Goal
 
@@ -661,7 +661,7 @@ M2 does not implement:
 
 M2 demonstrates:
 
-* a Celebrity Beyond Departure dated November 10–17, 2027;
+* a Celebrity Beyond Departure dated November 6–13, 2027;
 * a Vineyard Tour Departure dated June 5–7, 2027;
 * both existing independently without Travel Program;
 * no Supplier, Package, Client Trip, service, capacity, or financial records created by M2 itself;
@@ -721,16 +721,18 @@ Concurrency helpers must re-raise unexpected exceptions. Tests may accept only d
 
 ### When this parent contract is accepted
 
-1. Index this plan in [`docs/README.md`](../README.md).
-2. Add an ADR establishing Departure as the operational root and explicitly deferring Travel Program.
-3. Amend ADR 0004 with the Departure reference contract.
-4. Amend the MVP’s Travel Program language so M2 does not promise its implementation.
-5. Amend the roadmap outcome from “reusable Travel Programs and dated Departures” to “create and govern dated Departures as the operational root.”
-6. Mark Travel Program in terminology as a deferred, not-yet-defined concept.
-7. Clarify that M3–M8 records attach directly to Departure.
-8. Clarify that entire-Departure cancellation remains orthogonal to operational lifecycle.
+These amendments landed in the parent-acceptance documentation PR:
 
-Do not invent people, hotels, Suppliers, or operating facts in the accepted Celebrity Beyond or Vineyard Tour scenario documents.
+1. Index this plan in [`docs/README.md`](../README.md).
+2. [ADR 0007](../adr/0007-departure-operational-root.md) establishes Departure as the operational root and explicitly defers Travel Program.
+3. ADR 0004 is amended with the Departure reference contract.
+4. The MVP’s Travel Program language no longer promises M2 implementation.
+5. The roadmap outcome is dated Departures as the operational root.
+6. Terminology marks Travel Program as a deferred, not-yet-defined concept.
+7. M3–M8 records attach directly to Departure.
+8. Entire-Departure cancellation remains orthogonal to operational lifecycle.
+
+Do not invent people, hotels, Suppliers, or operating facts in the accepted Celebrity Beyond or Vineyard Tour scenario documents. Celebrity Beyond sailing dates follow the accepted scenario document (November 6–13, 2027).
 
 ### When the applicable code slice ships
 

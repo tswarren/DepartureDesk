@@ -66,7 +66,7 @@ The helper must:
 * select an M1 Office and copy the M1 Agency’s `default_timezone` as the Departure `time_zone`
 * use the M1 actor as the responsible AgencyUser unless a test explicitly assigns another same-Agency user
 * label currency, time zone, Office, and responsible user as fixture-only facts, not scenario-document claims
-* use stable Departure names and dates: Celebrity Beyond, 10–17 November 2027; Vineyard Tour, 5–7 June 2027
+* use stable Departure names and dates: Celebrity Beyond, 6–13 November 2027; Vineyard Tour, 5–7 June 2027
 * create Departures through shipped commands
 
 Do not add invented Client People, hotels, or Suppliers. Directory records already created by M1 remain unused as trip attachments; M2 must not create Supplier, Package, or Client Trip rows.
@@ -77,7 +77,7 @@ Do not add invented Client People, hotels, or Suppliers. Directory records alrea
 
 ### Scenario shells
 
-* Celebrity Beyond Departure dated 10–17 November 2027, independent of Vineyard Tour dated 5–7 June 2027
+* Celebrity Beyond Departure dated 6–13 November 2027, independent of Vineyard Tour dated 5–7 June 2027
 * No Travel Program row, route, model, or foreign key
 * No M3–M8 records created by the helper
 * Draft incomplete and unreferenced; activation issues one `D-` reference; return to draft retains it; reactivation does not consume another

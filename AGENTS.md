@@ -23,6 +23,7 @@ Accepted ADRs under `docs/adr` are authoritative. Read the relevant ADR before d
 - [ADR 0001: Money and currency representation](docs/adr/0001-money-and-currency.md) accepts `money-rails`, `bigint` minor-unit persistence, explicit currencies, strict parsing, and explicit historical conversion facts. The gem is installed. The shipped application has no money records. Do not persist functional-currency translations. The MVP commercial contract later limits each Departure to one operating currency and excludes FX.
 - [ADR 0005: Agency identity](docs/adr/0005-agency-identity.md) is the tenancy, invitation, session, permission, and office-context contract. Implement it. Do not invent alternatives.
 - [ADR 0006: Separate identity domains](docs/adr/0006-separate-identity-domains.md) rejects a universal Party identity and separates AgencyUser, Client, Supplier, and Traveler contexts. It is an accepted future-domain boundary, not permission to implement those records before an accepted slice.
+- [ADR 0007: Departure as operational root](docs/adr/0007-departure-operational-root.md) accepts Departure as the dated operational root and defers Travel Program. Do not add a Travel Program table, route, model, or foreign key until a later accepted slice names that work.
 - [ADR 0002](docs/adr/0002-agency-tenancy-and-membership.md) and [ADR 0003](docs/adr/0003-membership-lifecycle-and-invitations.md) are **Superseded by ADR 0005**. Do not implement them.
 
 ## Canonical domain language
