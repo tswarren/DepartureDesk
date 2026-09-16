@@ -52,7 +52,7 @@ Use these terms consistently in requirements, code, migrations, UI labels, tests
 | Supplier Resource | Shipped M3A draft vocabulary. The supplied unit or category relevant to capacity or later placement, such as a cabin category, room type, or coach. |
 | Supplier Reservation | Planned M3 vocabulary. A group- or occurrence-level request or booking made with a Supplier under an M3 Arrangement. |
 | Arrangement contact | Shipped M3A vocabulary. Optional Supplier Contact used as a communication pointer for an Arrangement. It grants no authority. |
-| Capacity Pool | Planned M3 vocabulary. Explicitly measured Supplier-side supply for one Service Occurrence and Supplier Resource, with a declared inventory mode and measurement basis. Holds and Allocations consume it from M5; they are not M3 records. |
+| Capacity Pool | Authorized by Accepted [M3B](planning/m3b-supplier-capacity.md); not yet shipped. Explicitly measured Supplier-side supply for one Service Occurrence and Supplier Resource, with a declared inventory mode and whole-number measurement basis (`resource_units` or `traveler_positions`). `unmanaged` is Item capacity applicability, not a Pool mode. Holds and Allocations consume capacity from M5; they are not M3 records. |
 | Supplier cost term | Planned M3 vocabulary. Versioned estimate or contracted rule used to calculate forecast Supplier cost. |
 | Commitment | Planned M3 vocabulary. Explicit contractual exposure that may precede a Supplier Obligation. It is not an Obligation, invoice, or Payment. |
 | Deposit requirement | Planned M3 vocabulary. Supplier requirement stating amount or calculation rule, due rule, and refundability. It is not a Payment. |

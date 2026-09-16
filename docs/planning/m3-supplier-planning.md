@@ -1,10 +1,12 @@
 # M3 Supplier planning
 
-**Status:** Accepted 2026-09-16. Amended 2026-09-16. [M3A](m3a-draft-arrangement-structure.md) is shipped. Later M3 slices remain unimplemented.
+**Status:** Accepted 2026-09-16. Amended 2026-09-16. Amended again 2026-09-16 for M3B capacity. [M3A](m3a-draft-arrangement-structure.md) is shipped. [M3B](m3b-supplier-capacity.md) is Accepted and is implementation authority for Supplier capacity only. Later M3 slices remain unimplemented.
 
 **Amendment 2026-09-16:** Closed decisions now authorize Arrangement and version `abandoned` (never-activated discard; not Arrangement `cancelled`); departed Departures may not create new tentative Arrangements; ordinary inactivation uses the effective-provider rule and a recovery allow-list; M3A adds only `force_inactivate_supplier_with_dependencies`; Occurrence creation fails `invalid` when no recognized zone can be stored; version `lock_version` owns child-collection concurrency. [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md) and [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md) lock topology and Supplier roles. Occurrence operational lifecycle (`planned`/`cancelled`) lives on the stable Occurrence identity with `lock_version`; definition rows hold commercial/schedule attributes only. M3A ships the first durable create-command idempotency family and uses an explicit create-command lock-order exception for the idempotency row.
 
-**Prerequisites:** M2 complete and shipped, including [ADR 0007](../adr/0007-departure-operational-root.md), [M2C](m2c-acceptance-and-hardening.md), and final M2 documentation; [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md).
+**Amendment 2026-09-16 (M3B):** Capacity applicability is explicit on the versioned Item definition; `unmanaged` is not a Capacity Pool mode. Stable Pools carry immutable semantic identity and per-version definitions. Numeric capacity uses immutable, evidence-backed events and a rebuildable stored projection. Already-recorded future events may become effective at the end of their local effective date; date automation may refresh the projection but may not create a capacity event. Unresolved numeric capacity blocks Arrangement ending and eventual Departure closeout. M3 capacity quantities are whole numbers only; M3B supports exactly `resource_units` and `traveler_positions`; no later M3 slice may add fractional precision or another measurement basis without amending this parent and [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md). M3B introduces `override_supplier_planning_terms`. [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) governs the capacity ledger.
+
+**Prerequisites:** M2 complete and shipped, including [ADR 0007](../adr/0007-departure-operational-root.md), [M2C](m2c-acceptance-and-hardening.md), and final M2 documentation; [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md), [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md).
 
 This parent contract is not implementation authority. Each M3 slice requires its own accepted implementation contract before domain code begins. Archived Phase 3B documents are historical input only; they do not govern M3.
 
@@ -75,8 +77,8 @@ The diagram describes domain responsibility, not a required table count. Slice p
 
 | Slice | Working outcome |
 | --- | --- |
-| **[M3A — Draft Arrangement structure](m3a-draft-arrangement-structure.md)** | Stable Arrangement identity, lifecycle catalog including `abandoned`, and draft-version topology; Items, Occurrences, Resources, and optional Arrangement contact; contracting Supplier and Service Provider rules; `view_departures` / `manage_departures` plus `force_inactivate_supplier_with_dependencies`; `override_supplier_planning_terms` remains a named future permission; `ChangeSupplierStatus` ordinary blockers for introduced dependencies; draft UI that amends the Departure interface contract. Supplier Location attachment is deferred. No activation yet. Shipped. |
-| **M3B — Supplier capacity** | Draft Capacity Pool *definitions*, inventory modes and measurement bases; immutable Supplier-side capacity-event and projection contracts; evidence, override, concurrency, and reconciliation foundations. Definition rows are not established managed supply. Effective supply still requires later Arrangement activation. |
+| **[M3A — Draft Arrangement structure](m3a-draft-arrangement-structure.md)** | Stable Arrangement identity, lifecycle catalog including `abandoned`, and draft-version topology; Items, Occurrences, Resources, and optional Arrangement contact; contracting Supplier and Service Provider rules; `view_departures` / `manage_departures` plus `force_inactivate_supplier_with_dependencies`; M3A did not add `override_supplier_planning_terms` (M3B introduces it); `ChangeSupplierStatus` ordinary blockers for introduced dependencies; draft UI that amends the Departure interface contract. Supplier Location attachment is deferred. No activation yet. Shipped. |
+| **[M3B — Supplier capacity](m3b-supplier-capacity.md)** | Explicit Item capacity applicability; versioned Occurrence–Resource pair coverage and draft Capacity Pool definitions; stable Pool identity, inventory modes, measurement bases, immutable Supplier-side capacity events, scheduled effectiveness, rebuildable projections, evidence, Administrator override, reconciliation, concurrency, and recovery foundations. M3B exposes draft configuration only; effective supply and event controls still require later Arrangement activation in M3D. Accepted. |
 | **M3C — Cost terms and forecasts** | Draft estimate/contracted-term *definitions*; the first ADR 0001 monetary-table pattern; composable cost components; explicit percentage bases, `numeric` rates, and calculation order; fixed, per-resource, per-person, per-night, minimum, occupancy-position, and zero-cost patterns; forecast precedence and explainability. Effective contracted terms still require later Arrangement activation. |
 | **M3D — Activation, Reservations, and confirmations** | Arrangement activation and immutable activated versions after applicable structural, capacity, and cost completeness checks; unmanaged Items may activate without a Capacity Pool; first and successor activation only while the Departure is `active`; permanent Departure return-to-draft boundary; group/occurrence Supplier Reservations; confirmation evidence, including named atomic commitment opening when terms fully determine it; effective capacity and contracted planning; Arrangement search without changing `SearchDepartures`. |
 | **M3E — Commitments, deadlines, and exposure** | Explicit commitments and deposit requirements without payable/payment state; Deadline rule resolution and staff workflow; qualified exposure measures; needs-attention catalog; Supplier-inactivation extension for commitment dependencies. |
@@ -209,10 +211,13 @@ Completing or waiving a Deadline does not mark a deposit paid, post an Obligatio
 
 Staff may record Supplier-side capacity changes supported by Supplier evidence or governing terms. An Administrator with `override_supplier_planning_terms` and a required reason is necessary when the Agency intentionally departs from recorded terms or normally required evidence.
 
-* A Supplier-confirmed exception is Supplier truth, not an Administrator override, even when received after the original cutoff.
+* Ordinary capacity establishment, increase, release, reinstatement, withdrawal, and Supplier-discrepancy correction require structured Supplier evidence: evidence kind, evidence date, and reference note. An external reference is optional. File upload is deferred, but evidence records must be attachment-ready without changing event identity or meaning later.
+* A Supplier-confirmed exception is Supplier truth, not an Administrator override, even when received after an original cutoff.
+* An Administrator with `override_supplier_planning_terms` may record any otherwise valid capacity event without ordinary Supplier evidence only with a required reason and visible override marking.
+* Override never bypasses Agency ownership, Arrangement activation, Pool eligibility, measurement basis, nonnegative-timeline validation, reinstatement lineage, optimistic locking, idempotency, or immutable history.
 * Negative quantities are impossible and never an overrideable state.
 * An override cannot fabricate Supplier confirmation or conceal that managed quantity exceeds evidenced Supplier supply.
-* Client over-capacity confirmation is an M5 concern.
+* Client over-capacity confirmation remains an M5 concern.
 * Every override remains visible in needs-attention until resolved or explicitly acknowledged under the M3E catalog.
 
 ### 10. Supplier inactivation dependencies
@@ -246,6 +251,16 @@ While a Supplier is inactive after force, recovery permits only:
 * abandoning an unactivated draft.
 
 Because the contracting Supplier is immutable, an Arrangement whose contractor becomes inactive may be cleaned up or abandoned but cannot be moved to another contractor.
+
+Capacity-specific recovery after force (M3B):
+
+* A Capacity Pool snapshots one immutable supplying Supplier, which must equal the exact-version effective provider when the Pool is created and activated.
+* Ordinary Supplier inactivation is already blocked by the current/future effective-provider dependency. M3B must not add an independent blocker for an unused draft Pool beyond that rule.
+* After forced inactivation, Staff may record only dependency-reducing capacity recovery: release, withdrawal, downward correction, reconciliation, and projection repair.
+* Establishment, increase, reinstatement, and new Pool creation for the inactive Supplier are prohibited.
+* An Administrator may record an upward compensating correction only to preserve historical truth, using `override_supplier_planning_terms`, a required reason, and visible override marking.
+* Already-recorded future events remain immutable and become effective as scheduled. Countermanding them requires an evidenced compensating event.
+* Forced inactivation never creates, cancels, releases, or edits a capacity event automatically.
 
 The command must lock and recheck dependencies so concurrent Arrangement activation, Reservation creation, provider assignment, or commitment opening cannot evade the inactivation decision. Establishment commands and inactivation share the [canonical lock order](#concurrency-and-lock-order-requirements), with affected Suppliers locked before affected Departures and Arrangements.
 
@@ -310,11 +325,16 @@ M3 does not persist Occurrence fulfillment or `completed`. Actual completion bel
 
 Reservation states remain the baseline in [Supplier Reservations and confirmations](#supplier-reservations-and-confirmations). Commitment terminals are released, superseded, or cancelled.
 
-### 14. Activation completeness and unmanaged items
+### 14. Activation completeness and capacity applicability
 
-Arrangement activation runs applicable completeness checks for structure, capacity, and cost. An Item whose inventory mode is unmanaged/no capacity must not be required to have a Resource or Capacity Pool. Insurance and similar informational or non-capacity services may activate without fabricated supply.
+Every versioned Item definition explicitly declares `managed` or `unmanaged` capacity applicability before Arrangement activation. An undecided draft value is permitted only while the version remains editable.
 
-Draft Capacity Pool and cost-term *definitions* may exist before activation. Established managed supply and effective contracted terms begin only when the Arrangement activates while the Departure is `active`.
+* An `unmanaged` Item has no Capacity Pools or Occurrence–Resource capacity-pair classifications. Insurance and similar informational or non-capacity services may activate without fabricated supply.
+* A `managed` Item requires at least one non-cancelled Occurrence, at least one Resource, and an explicit classification for every non-cancelled Occurrence–Resource pair in that version.
+* Each pair is `pooled` or `not_applicable`. `pooled` requires at least one Pool definition; `not_applicable` requires none. No zero-quantity placeholder Pool represents absence.
+* Multiple distinctly labeled Pools may exist for the same pair when they represent separate Supplier supply tranches.
+* Draft Pool definitions and proposed opening quantities are tentative only. Established managed supply begins only when Arrangement activation writes the first immutable establishment event.
+* Cost-term completeness remains governed by M3C/M3D and is independent from capacity applicability.
 
 ### 15. Permission keys
 
@@ -325,7 +345,7 @@ Ordinary Supplier planning lives in the Departure workspace and reuses the shipp
 
 M3A adds `force_inactivate_supplier_with_dependencies` — force `ChangeSupplierStatus` to inactive over current M3 dependencies, with a required reason.
 
-`override_supplier_planning_terms` is the named future Administrator-only permission for departing from recorded Supplier terms or normally required evidence, with a required reason. It enters `AccessPermission` only when the first command requiring it ships. No command may substitute a role-name check while that permission is deferred.
+M3B adds `override_supplier_planning_terms` as an Administrator-only permission with its first capacity-evidence override command. It authorizes only the explicit override paths named by an accepted slice, always requires a reason, and never substitutes a role-name check. It does not bypass structural, tenancy, lifecycle, quantity, locking, idempotency, or history invariants.
 
 M3 does not add `view_supplier_planning`, `manage_supplier_planning`, or a parallel planning navigation permission. Assignment as responsible AgencyUser, Arrangement contact, or Service Provider does not grant authority.
 
@@ -365,7 +385,7 @@ Confirming an Arrangement or Reservation records Supplier evidence. Confirmation
 | Arrangement Item | Separately described Supplier-side service, deliverable, or commercial line within an Arrangement version. It is not a generic substitute for Occurrence, Resource, cost component, or Client Trip Service. |
 | Service Occurrence | One dated or otherwise bounded performance of an Arrangement Item. A capacity-bearing Occurrence has an explicit date range. Dates may fall outside the Departure operating window. |
 | Supplier Resource | The supplied unit or category relevant to capacity or later placement, such as an O1 cabin category, standard room type, or coach. |
-| Capacity Pool | Explicitly measured Supplier-side supply for one Service Occurrence and Supplier Resource, with a declared inventory mode and measurement basis. |
+| Capacity Pool | Stable Supplier supply tranche for one Item, Service Occurrence, Supplier Resource, and supplying Supplier, with inventory mode and whole-number measurement basis. `unmanaged` is Item capacity applicability, not a Pool mode. Holds and Allocations consume capacity from M5; they are not M3 records. |
 | Supplier Reservation | Specific group- or occurrence-level request or booking made with a Supplier under an M3 Arrangement. |
 | Supplier confirmation | Qualified evidence that a Supplier acknowledged an Arrangement or Reservation; it may include an external identifier or a documented confirmed-without-identifier path. |
 | Arrangement contact | Optional same-Agency `SupplierContact` used as a communication pointer for the Arrangement. It grants no authority. Consequential events snapshot the contact facts they need. |
@@ -458,43 +478,61 @@ M3 preserves the accepted distinctions:
 | Allocation | Internal confirmed demand against a pool | That Allocation is implemented in M3; Allocations begin in M5 |
 | Exposure | Qualified planning risk | Posted loss or payable balance |
 
-### Capacity Pool contract
+### Capacity applicability and Pool contract
 
-Every managed Capacity Pool declares:
+Capacity applicability belongs to the exact Item definition and is `managed` or `unmanaged`; an undecided value is allowed only in an editable draft. `unmanaged` is not a Pool inventory mode.
 
-* owning Agency and Departure;
-* Arrangement and governing version provenance;
-* Arrangement Item;
-* Service Occurrence;
-* Supplier Resource;
-* inventory mode;
-* measurement basis;
-* quantity precision and unit label;
-* governing Supplier evidence or term source; and
-* current stored projection derived from immutable capacity history.
+Every Pool identifies one stable supply tranche for exactly one Item, Service Occurrence, Supplier Resource, and immutable supplying Supplier. Its semantic identity also fixes inventory mode, measurement basis, and governing IANA zone after first activation. A semantic change requires a new Pool identity. Pool creation copies the governing IANA zone from the exact-version Service Occurrence definition; there is no separate staff-selectable Pool zone and no Departure fallback at Pool creation.
 
-Supported inventory modes must distinguish at least block, allotment, on request, externally managed, and unmanaged/no capacity. Unknown, on-request, or externally managed supply must not be stored as zero or unlimited managed quantity.
+Supported Pool inventory modes are:
 
-Measurement bases must distinguish resource units, Traveler positions, and any later explicitly accepted named quantity. A slice may add a closed catalog only when its measurement and future Hold/Allocation semantics are defined. Traveler-position is a unit label; it does not create Traveler records.
+* `block`;
+* `allotment`;
+* `on_request`; and
+* `externally_managed`.
+
+`block` and `allotment` use the same numeric ledger mechanics but retain different Supplier-facing meanings. Neither implies a guarantee, cost, commitment, confirmation, or cancellation consequence.
+
+Only `block` and `allotment` carry authoritative numeric capacity. `on_request` and `externally_managed` are explicit nonnumeric planning definitions and never store zero, unlimited, estimated, or informational quantity as managed capacity. They still carry a measurement basis and a presentation-only unit label so staff can describe what kind of supply is requested or managed externally; the label does not imply that DepartureDesk knows the quantity.
+
+M3 capacity quantities are whole numbers only. Measurement bases in M3B are exactly `resource_units` and `traveler_positions`. Each Pool has one basis. M3 does not convert between them or infer one from occupancy, maximum capacity, or a threshold ratio. No later M3 slice may add fractional precision or another measurement basis without amending this parent and [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md).
+
+Every managed Capacity Pool also declares owning Agency and Departure, Arrangement and governing version provenance, governing Supplier evidence or term source where applicable, and a current stored projection derived from immutable capacity history for numeric modes.
 
 Draft pool *definitions* may exist on a draft Arrangement. Establish-evidenced-supply and later quantity events that create managed supply are forbidden until the Arrangement is activated.
 
-### Capacity history and projection
+### Capacity history, scheduled effectiveness, and projection
 
-Supplier-side capacity changes are immutable events. M3 supports at least:
+Supplier-side numeric capacity changes are immutable events:
 
 * establish evidenced supply;
 * increase;
 * Supplier-approved release;
 * Supplier-approved reinstatement;
-* Supplier withdrawal; and
-* explicit compensating correction.
+* Supplier withdrawal;
+* upward compensating correction; and
+* downward compensating correction.
 
-The current position is a rebuildable stored projection. Events record actor, effective time, recorded time, quantity and basis, evidence/provenance, governing Arrangement version, reason where required, and idempotency identity.
+Establishment records the opening total once. Every later event records a positive whole-number magnitude; event type determines direction. A reinstatement references one prior release and cannot exceed that release's unreinstated quantity. Restoring withdrawn supply is an increase, not a reinstatement.
 
-M3 capacity events do not represent Client Holds or confirmed Allocations. Supplier Reservations may reference Capacity Pools but do not silently consume them. Any capacity consequence of a Reservation command must be an explicit capacity event.
+Events may have past, current, or future local effective dates. A future event becomes effective at the end of its local effective date in the Pool's stored IANA zone. End of day resolves as the start of the following local calendar date, not `23:59:59`. Events on the same Pool and effective date have an explicit immutable sequence. Complete timeline replay must remain nonnegative after every event.
 
-Capacity changes do not silently create, revise, satisfy, or release commitments. Commitment changes do not silently change capacity.
+An already-recorded future event becomes effective without a second business event. An idempotent scheduled refresh updates due stored projections, and every read or mutation performs locked catch-up before relying on a projection. Refresh writes no capacity event and no business audit event. This does not authorize a Deadline, date rule, or background job to fabricate an event.
+
+The current position is a rebuildable stored projection called **Current Supplier capacity**. `available`, `remaining`, `held`, `allocated`, and `sold` remain unavailable until later demand records exist. Projection drift is repaired from events. A real Supplier-versus-ledger difference requires a compensating correction event.
+
+Every event retains actor, business-effective date, application instant, recorded time, same-date sequence, positive quantity, basis, Supplier evidence or Administrator override, immutable supplying Supplier, exact governing Arrangement version, reason where required, and durable idempotency identity.
+
+Capacity events do not represent Client Holds, Allocations, occupancy, fulfillment, commitments, Supplier Obligations, or Payments. None of those facts silently changes capacity, and capacity changes none of them. Supplier Reservations may reference Capacity Pools but do not silently consume them. Any capacity consequence of a Reservation command must be an explicit capacity event. Capacity changes do not silently create, revise, satisfy, or release commitments. Commitment changes do not silently change capacity.
+
+### Capacity lifecycle consequences
+
+* A stable Pool may continue across successor Arrangement versions through independent per-version definitions.
+* A future event retains the exact version that governed it when recorded and applies to the carried-forward stable Pool.
+* A successor cannot omit a numeric Pool unless its effective quantity is zero, it has no pending event, and reconciliation is clean.
+* A cancelled Occurrence may retain unresolved capacity. Cancellation creates no capacity event and the balance must still be resolved explicitly.
+* An elapsed Occurrence does not zero or retire capacity automatically.
+* Every numeric Pool must reach zero before its Arrangement can end or the Departure can eventually close out. Administrator override supplies evidence authority; it is not a bypass around the zero requirement.
 
 ### Concurrency
 
@@ -502,8 +540,10 @@ Every capacity mutation:
 
 * locks the Agency and rechecks active status and authority;
 * loads the Departure through the Agency;
+* follows the canonical lock order with affected Suppliers before Departures and Arrangements;
 * locks the applicable Capacity Pool in canonical order;
 * rechecks Arrangement version, Occurrence, Resource, evidence, and current projection;
+* validates nonnegative full-timeline replay;
 * applies one idempotent event and projection update atomically; and
 * rejects impossible negative or inconsistent states.
 
@@ -651,7 +691,7 @@ A Deadline references the commercial requirement, clause, Reservation, commitmen
 * Completion records evidence; it is not inferred from another record's status.
 * Waiver requires the authority declared by the M3E slice and always records actor, reason, and time.
 
-M3 date automation is read-only classification. It must not post money, release capacity, cancel a service, complete a Deadline, change a commitment, or fabricate fulfillment. Name-list, option, release, and deposit due facts are Deadlines; M3 does not generate the underlying documents.
+M3 date automation must not post money, create a capacity event, cancel a service, complete a Deadline, change a commitment, or fabricate fulfillment. It may classify dates and idempotently refresh a rebuildable projection when a previously recorded, evidenced future event reaches its effective boundary. A Deadline or date rule never fabricates that event. Name-list, option, release, and deposit due facts are Deadlines; M3 does not generate the underlying documents.
 
 ## Departure integration
 
@@ -708,7 +748,7 @@ M3 retains the fixed Administrator, Staff, and Viewer access roles and checks th
 | Force Supplier inactivation over current dependencies | `force_inactivate_supplier_with_dependencies` | Yes, with reason | No | No |
 | Cause any mutation through viewing, filtering, or export | none | No implicit side effect | No implicit side effect | Never |
 
-`override_supplier_planning_terms` remains in this catalog as the named future key. M3A does not add it to `AccessPermission`. The first command that requires it ships the catalog entry. No command may check a role name in its place.
+`override_supplier_planning_terms` enters `AccessPermission` with M3B's first capacity-evidence override command. M3A did not add it. No command may substitute a role-name check for that permission.
 
 M3A maps every command to this catalog. Viewer has no mutations except the existing `view_workspace` and `select_office_context` grants.
 
@@ -809,6 +849,14 @@ At minimum, the slice plans must prove:
 * Arrangement successor activation versus concurrent use of the prior version;
 * Supplier inactivation versus Arrangement activation, Reservation creation, provider assignment, and commitment opening;
 * capacity increase/release/reinstatement/correction races;
+* concurrent same-key Pool creation and capacity-event commands;
+* capacity event versus Supplier inactivation;
+* same-date sequence assignment races;
+* future event versus successor activation or Pool omission;
+* scheduled projection refresh versus read/mutation catch-up;
+* release versus reinstatement of the same release lineage;
+* correction versus reconciliation resolution;
+* rebuild versus concurrent event insertion;
 * Reservation confirmation replay, conflicting Supplier response, and confirmation that atomically opens a deterministic commitment;
 * Deadline reschedule/completion/waiver races; and
 * idempotent command replay without duplicate versions, confirmations, events, commitments, or audit records.
@@ -828,7 +876,7 @@ Slice plans must provide, as applicable:
 * one active governing version per Arrangement where applicable;
 * date/range and local-time consistency, including Occurrences outside the Departure window;
 * nonnegative quantities and amounts;
-* explicit quantity precision and bases;
+* whole-number capacity quantities with closed bases `resource_units` and `traveler_positions` (no decimal capacity, configurable precision, or arbitrary named basis without amending this parent and ADR 0010);
 * `numeric` rates with explicit precision and scale;
 * currency equality with the Departure;
 * immutable activated terms and append-only event histories;
@@ -860,6 +908,7 @@ M3 does not implement:
 * posted loss, actual margin, operational cash position, or accounting export;
 * Cancellation Cases, automatic cancellation interpretation, or Client/Supplier financial dispositions;
 * automatic creation of Resources, Occurrences, Reservations, commitments, or Obligations from a threshold;
+* decimal capacity, configurable capacity precision, or an arbitrary named capacity measurement basis without amending this parent and ADR 0010;
 * automatic reminder alerts, email, Communications, or document issuance;
 * functional-currency translation or FX;
 * a generated Arrangement reference namespace;
@@ -931,13 +980,13 @@ Only after this gate may M4 treat M3 Supplier planning as the source foundation 
 
 ## Acceptance documentation
 
-This parent is Accepted. Accepting or amending it is a documentation status change, not implementation authority.
+This parent is Accepted and amended for M3B. Accepting or amending it is a documentation status change, not implementation authority for every M3 slice.
 
-On parent acceptance, update:
+On the M3B amendment acceptance, update:
 
-* [`docs/README.md`](../README.md) current map to list this parent as Accepted, not implementation authority;
-* [`docs/planning/roadmap.md`](roadmap.md) immediate-work section so M3 is the next unimplemented milestone, still requiring an accepted *slice* plan before domain code;
-* [`docs/terminology.md`](../terminology.md) so Supplier Arrangement, Arrangement Item, Service Occurrence, Supplier Resource, Capacity Pool, Supplier Reservation, Deadline, Commitment, deposit requirement, cost term, and exposure are listed as planned M3 vocabulary, and Capacity Pool is no longer defined only as the object of Holds and Allocations;
-* optionally [`AGENTS.md`](../../AGENTS.md) to say this parent is accepted while no M3 slice is implementation authority.
+* [`docs/README.md`](../README.md) current map so this parent reflects the M3B amendment, [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) is Accepted, and [M3B](m3b-supplier-capacity.md) is Accepted implementation authority for capacity only;
+* [`docs/planning/roadmap.md`](roadmap.md) immediate-work section so M3A is shipped, M3B is Accepted, and later M3 slices remain unimplemented;
+* [`docs/terminology.md`](../terminology.md) so Capacity Pool and related capacity vocabulary reflect Accepted M3B (not yet shipped);
+* [`AGENTS.md`](../../AGENTS.md) so M3B is Accepted implementation authority while capacity remains unimplemented until that code ships.
 
-Leave shipped [M2](m2-departure-core.md) and [M2C](m2c-acceptance-and-hardening.md) historical “do not invent an M3 plan” exclusions intact; they describe what was out of scope while those slices were implemented. Leave [`docs/architecture/current-state.md`](../architecture/current-state.md), the permission catalog, and the interface contract's shipped Departure profile rule unchanged until the applicable slice ships. M3A is the first slice that may add `force_inactivate_supplier_with_dependencies`, Arrangement audit subjects, and Departure Supplier-planning panels. `override_supplier_planning_terms` enters the permission catalog only with the first command that requires it.
+Leave shipped [M2](m2-departure-core.md), [M2C](m2c-acceptance-and-hardening.md), and [M3A](m3a-draft-arrangement-structure.md) historical exclusions intact. Leave [`docs/architecture/current-state.md`](../architecture/current-state.md) without inventing capacity tables until M3B ships. M3A added `force_inactivate_supplier_with_dependencies`, Arrangement audit subjects, and Departure Supplier-planning panels. M3B adds `override_supplier_planning_terms` with its first capacity override path.
