@@ -12,17 +12,24 @@ class CreateServiceOccurrence < AgencyCommand
 
   def call
     ensure_arrangement_actor!
+    provider_id = parse_optional_uuid(@attributes[:service_provider_id], "Service provider")
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      arrangement = lock_arrangement_for!(@item.supplier_arrangement)
-      departure = lock_departure_for!(arrangement.departure)
+      locked_suppliers = lock_suppliers_in_uuid_order!(@item.supplier_arrangement.contracting_supplier_id, provider_id)
+      contractor = locked_suppliers.find { |supplier| supplier.id == @item.supplier_arrangement.contracting_supplier_id }
+      provider = provider_id && locked_suppliers.find { |supplier| supplier.id == provider_id }
+      raise ActiveRecord::RecordNotFound if provider_id && provider.nil?
+      ensure_active_effective_provider!(provider) if provider
+
+      departure, arrangement, version = lock_departure_arrangement_version!(@item.supplier_arrangement)
       attrs = normalize_occurrence_attributes(@attributes, departure)
-      provider = resolve_optional_active_supplier!(@attributes[:service_provider_id], "Service provider")
-      version = lock_initial_version_for!(arrangement)
       item = lock_arrangement_item_for!(arrangement, @item)
-      ensure_editable_draft_arrangement!(departure, arrangement, version)
-      ensure_current_lock_version!(version, @version_lock_version)
+      item_definition = version.arrangement_item_definitions.find_by!(arrangement_item: item)
+      ensure_ordinary_planning_edit!(departure, arrangement, version, contractor)
+
+      effective_provider = provider || item_definition.default_service_provider || contractor
+      ensure_active_effective_provider!(effective_provider)
 
       idempotent_create!(
         command_name: self.class.name,
@@ -35,13 +42,14 @@ class CreateServiceOccurrence < AgencyCommand
         ),
         result_class: ServiceOccurrence
       ) do
+        ensure_current_lock_version!(version, @version_lock_version)
         occurrence = item.service_occurrences.create!(
           agency: @agency,
           departure: departure,
           supplier_arrangement: arrangement,
           status: "planned"
         )
-        version.service_occurrence_definitions.create!(
+        definition = version.service_occurrence_definitions.create!(
           attrs.merge(
             agency: @agency,
             departure: departure,
@@ -57,7 +65,21 @@ class CreateServiceOccurrence < AgencyCommand
           action: "supplier_arrangement.occurrence_created",
           subject: arrangement,
           actor: @actor,
-          details: { "supplier_arrangement_id" => arrangement.id, "service_occurrence_id" => occurrence.id }
+          details: {
+            "child_type" => "service_occurrence",
+            "supplier_arrangement_id" => arrangement.id,
+            "supplier_arrangement_version_id" => version.id,
+            "arrangement_item_id" => item.id,
+            "service_occurrence_id" => occurrence.id,
+            "service_occurrence_definition_id" => definition.id,
+            "name" => definition.name,
+            "starts_on" => definition.starts_on.iso8601,
+            "ends_on" => definition.ends_on.iso8601,
+            "starts_at_local" => definition.starts_at_local&.strftime("%H:%M:%S"),
+            "ends_at_local" => definition.ends_at_local&.strftime("%H:%M:%S"),
+            "time_zone" => definition.time_zone,
+            "service_provider_id" => definition.service_provider_id
+          }
         )
         occurrence
       end

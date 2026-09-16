@@ -11,21 +11,26 @@ class UpdateServiceOccurrence < AgencyCommand
 
   def call
     ensure_arrangement_actor!
+    provider_id = parse_optional_uuid(@attributes[:service_provider_id], "Service provider")
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      arrangement = lock_arrangement_for!(@definition.supplier_arrangement)
-      departure = lock_departure_for!(arrangement.departure)
+      locked_suppliers = lock_suppliers_in_uuid_order!(@definition.supplier_arrangement.contracting_supplier_id, provider_id)
+      contractor = locked_suppliers.find { |supplier| supplier.id == @definition.supplier_arrangement.contracting_supplier_id }
+      provider = provider_id && locked_suppliers.find { |supplier| supplier.id == provider_id }
+      raise ActiveRecord::RecordNotFound if provider_id && provider.nil?
+      ensure_active_effective_provider!(provider) if provider
+
+      departure, arrangement, version = lock_departure_arrangement_version!(@definition.supplier_arrangement)
       attrs = normalize_occurrence_attributes(@attributes, departure)
-      provider = resolve_optional_active_supplier!(@attributes[:service_provider_id], "Service provider")
-      version = lock_initial_version_for!(arrangement)
       item = lock_arrangement_item_for!(arrangement, @definition.arrangement_item)
       occurrence = lock_occurrence_for!(item, @definition.service_occurrence)
       definition = lock_occurrence_definition_for!(version, @definition)
-      ensure_editable_draft_arrangement!(departure, arrangement, version)
+      item_definition = version.arrangement_item_definitions.find_by!(arrangement_item: item)
+      attrs[:service_provider_id] = provider&.id
+      ensure_occurrence_update_allowed!(departure, arrangement, version, contractor, definition, item_definition, attrs, provider)
       ensure_current_lock_version!(definition)
 
-      attrs[:service_provider_id] = provider&.id
       return Result.new(status: :noop, record: definition) if same_values?(definition, attrs)
 
       definition.update!(attrs)
@@ -35,15 +40,43 @@ class UpdateServiceOccurrence < AgencyCommand
         subject: arrangement,
         actor: @actor,
         details: {
+          "child_type" => "service_occurrence",
           "supplier_arrangement_id" => arrangement.id,
+          "supplier_arrangement_version_id" => version.id,
+          "arrangement_item_id" => item.id,
           "service_occurrence_id" => occurrence.id,
           "service_occurrence_definition_id" => definition.id,
-          "changed_fields" => changed_fields(definition, attrs)
+          "changed_fields" => changed_fields(definition, attrs),
+          "starts_on" => definition.starts_on.iso8601,
+          "ends_on" => definition.ends_on.iso8601,
+          "starts_at_local" => definition.starts_at_local&.strftime("%H:%M:%S"),
+          "ends_at_local" => definition.ends_at_local&.strftime("%H:%M:%S"),
+          "time_zone" => definition.time_zone,
+          "service_provider_id" => definition.service_provider_id
         }
       )
       Result.new(status: :updated, record: definition)
     end
   rescue ActiveRecord::RecordInvalid => error
     command_error_from(error)
+  end
+
+  private
+
+  def ensure_occurrence_update_allowed!(departure, arrangement, version, contractor, definition, item_definition, attrs, provider)
+    ensure_draft_graph!(arrangement, version)
+    if ordinary_planning_state?(departure, contractor)
+      effective = provider || item_definition.default_service_provider || contractor
+      ensure_active_effective_provider!(effective)
+      return
+    end
+    if contractor.inactive?
+      raise Error.new(recovery_message, code: :invalid_state)
+    end
+
+    return if inactive_provider_recovery_only?(definition, attrs, :service_provider_id) &&
+      (departure.departed? || departure.draft? || departure.active?)
+
+    raise Error.new(recovery_message, code: :invalid_state)
   end
 end

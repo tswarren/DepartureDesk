@@ -15,13 +15,12 @@ class UpdateSupplierResource < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      arrangement = lock_arrangement_for!(@definition.supplier_arrangement)
-      departure = lock_departure_for!(arrangement.departure)
-      version = lock_initial_version_for!(arrangement)
+      contractor = locked_supplier!(@definition.supplier_arrangement.contracting_supplier_id)
+      departure, arrangement, version = lock_departure_arrangement_version!(@definition.supplier_arrangement)
       item = lock_arrangement_item_for!(arrangement, @definition.arrangement_item)
       resource = lock_resource_for!(item, @definition.supplier_resource)
       definition = lock_resource_definition_for!(version, @definition)
-      ensure_editable_draft_arrangement!(departure, arrangement, version)
+      ensure_ordinary_planning_edit!(departure, arrangement, version, contractor)
       ensure_current_lock_version!(definition)
       return Result.new(status: :noop, record: definition) if same_values?(definition, attrs)
 
@@ -32,10 +31,14 @@ class UpdateSupplierResource < AgencyCommand
         subject: arrangement,
         actor: @actor,
         details: {
+          "child_type" => "supplier_resource",
           "supplier_arrangement_id" => arrangement.id,
+          "supplier_arrangement_version_id" => version.id,
+          "arrangement_item_id" => item.id,
           "supplier_resource_id" => resource.id,
           "supplier_resource_definition_id" => definition.id,
-          "changed_fields" => changed_fields(definition, attrs)
+          "changed_fields" => changed_fields(definition, attrs),
+          "position" => definition.position
         }
       )
       Result.new(status: :updated, record: definition)

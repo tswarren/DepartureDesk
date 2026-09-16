@@ -13,15 +13,18 @@ class CreateArrangementItem < AgencyCommand
   def call
     ensure_arrangement_actor!
     attrs = normalize_item_attributes(@attributes)
+    provider_id = parse_optional_uuid(@attributes[:default_service_provider_id], "Default service provider")
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      provider = resolve_optional_active_supplier!(@attributes[:default_service_provider_id], "Default service provider")
-      arrangement = lock_arrangement_for!(@arrangement)
-      departure = lock_departure_for!(arrangement.departure)
-      version = lock_initial_version_for!(arrangement)
-      ensure_editable_draft_arrangement!(departure, arrangement, version)
-      ensure_current_lock_version!(version, @version_lock_version)
+      locked_suppliers = lock_suppliers_in_uuid_order!(@arrangement.contracting_supplier_id, provider_id)
+      contractor = locked_suppliers.find { |supplier| supplier.id == @arrangement.contracting_supplier_id }
+      provider = provider_id && locked_suppliers.find { |supplier| supplier.id == provider_id }
+      raise ActiveRecord::RecordNotFound if provider_id && provider.nil?
+      ensure_active_effective_provider!(provider) if provider
+
+      departure, arrangement, version = lock_departure_arrangement_version!(@arrangement)
+      ensure_ordinary_planning_edit!(departure, arrangement, version, contractor)
 
       idempotent_create!(
         command_name: self.class.name,
@@ -33,15 +36,17 @@ class CreateArrangementItem < AgencyCommand
         ),
         result_class: ArrangementItem
       ) do
+        ensure_current_lock_version!(version, @version_lock_version)
+        position = next_item_position(version)
         item = arrangement.arrangement_items.create!(agency: @agency, departure: departure)
-        version.arrangement_item_definitions.create!(
+        definition = version.arrangement_item_definitions.create!(
           attrs.merge(
             agency: @agency,
             departure: departure,
             supplier_arrangement: arrangement,
             arrangement_item: item,
             default_service_provider: provider,
-            position: next_item_position(version)
+            position: position
           )
         )
         bump_version!(version)
@@ -50,7 +55,18 @@ class CreateArrangementItem < AgencyCommand
           action: "supplier_arrangement.item_created",
           subject: arrangement,
           actor: @actor,
-          details: { "supplier_arrangement_id" => arrangement.id, "arrangement_item_id" => item.id }
+          details: {
+            "child_type" => "arrangement_item",
+            "supplier_arrangement_id" => arrangement.id,
+            "supplier_arrangement_version_id" => version.id,
+            "arrangement_item_id" => item.id,
+            "arrangement_item_definition_id" => definition.id,
+            "name" => definition.name,
+            "category" => definition.category,
+            "other_category_label" => definition.other_category_label,
+            "default_service_provider_id" => definition.default_service_provider_id,
+            "position" => definition.position
+          }
         )
         item
       end
