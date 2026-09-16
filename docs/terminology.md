@@ -2,7 +2,7 @@
 
 **Status:** Accepted product vocabulary
 
-**Implementation note:** Agency, Agency User, Office, Session, permission, and Audit Event terminology is shipped. Client Person and person-backed Client terminology is shipped (M1A). Client Organization, organization-backed Client, organization-owned contact points, and organization-contact assignments are shipped (M1B). Supplier, Supplier categories, and Supplier-owned contact points are shipped (M1C). Supplier Location, Supplier Contact, and Supplier Contact-owned destinations are shipped (M1D). M1E shipped directory proof and hardening without new vocabulary. Departure draft, activation, reference issuance, return to draft, departed, scheduled departed jobs, and schedule/currency/lifecycle correction are shipped (M2A and M2B). Travel Program is a deferred, not-yet-defined concept. M2C proof is shipped and M2 is complete. Later commercial terms are not shipped.
+**Implementation note:** Agency, Agency User, Office, Session, permission, and Audit Event terminology is shipped. Client Person and person-backed Client terminology is shipped (M1A). Client Organization, organization-backed Client, organization-owned contact points, and organization-contact assignments are shipped (M1B). Supplier, Supplier categories, and Supplier-owned contact points are shipped (M1C). Supplier Location, Supplier Contact, and Supplier Contact-owned destinations are shipped (M1D). M1E shipped directory proof and hardening without new vocabulary. Departure draft, activation, reference issuance, return to draft, departed, scheduled departed jobs, and schedule/currency/lifecycle correction are shipped (M2A and M2B). Travel Program is a deferred, not-yet-defined concept. M2C proof is shipped and M2 is complete. The [M3 parent](planning/m3-supplier-planning.md) is accepted (amended 2026-09-16). M3 records are planned vocabulary and are not shipped. [M3A](planning/m3a-draft-arrangement-structure.md) is Draft and is not implementation authority.
 
 Use these terms consistently in requirements, code, migrations, UI labels, tests, and reports. A planned term does not authorize its implementation without an accepted slice plan.
 
@@ -45,13 +45,22 @@ Use these terms consistently in requirements, code, migrations, UI labels, tests
 | --- | --- |
 | Travel Program | Deferred, not-yet-defined reusable or recurring concept. It is not an M2 record and is not a live parent of accepted commercial records. |
 | Departure | The dated operating root for one managed group-travel undertaking. |
-| Supplier Arrangement | The Agency's agreement or planning relationship with a Supplier for a Departure. |
-| Arrangement Item | A separately described service, resource, charge basis, or deliverable within a Supplier Arrangement. |
-| Service Occurrence | A dated or otherwise bounded instance when a service is delivered. |
+| Supplier Arrangement | Planned M3 vocabulary. The Agency's agreement or planning relationship with one contracting Supplier for one Departure. Lifecycle is `draft`, `active`, `ended`, or `abandoned`. There is no Arrangement `cancelled` status. |
+| Arrangement version | Planned M3 vocabulary. Exact commercial definition of a Supplier Arrangement. Activated versions are immutable; successor versions govern future resolution without rewriting prior use. Lifecycle is `draft`, `activated`, `superseded`, or `abandoned`. |
+| Arrangement Item | Planned M3 vocabulary. A separately described Supplier-side service, deliverable, or commercial line within a Supplier Arrangement. |
+| Service Occurrence | Planned M3 vocabulary. A dated or otherwise bounded performance of an Arrangement Item. Dates may fall outside the Departure operating window. Lifecycle for planning and inactivation is `planned` or `cancelled`. There is no Occurrence `completed` status. |
+| Supplier Resource | Planned M3 vocabulary. The supplied unit or category relevant to capacity or later placement, such as a cabin category, room type, or coach. |
+| Supplier Reservation | Planned M3 vocabulary. A group- or occurrence-level request or booking made with a Supplier under an M3 Arrangement. |
+| Arrangement contact | Planned M3 vocabulary. Optional Supplier Contact used as a communication pointer for an Arrangement. It grants no authority. |
+| Capacity Pool | Planned M3 vocabulary. Explicitly measured Supplier-side supply for one Service Occurrence and Supplier Resource, with a declared inventory mode and measurement basis. Holds and Allocations consume it from M5; they are not M3 records. |
+| Supplier cost term | Planned M3 vocabulary. Versioned estimate or contracted rule used to calculate forecast Supplier cost. |
+| Commitment | Planned M3 vocabulary. Explicit contractual exposure that may precede a Supplier Obligation. It is not an Obligation, invoice, or Payment. |
+| Deposit requirement | Planned M3 vocabulary. Supplier requirement stating amount or calculation rule, due rule, and refundability. It is not a Payment. |
+| Deadline | Planned M3 vocabulary. Resolved operational due fact linked to its governing source. |
+| Exposure | Planned M3 vocabulary. Qualified planning risk derived from recorded terms and commitments. It is not a posted accounting loss. |
 | Package | Optional offer container describing included, optional, or required-choice services and a Client price. |
 | Client Trip | The Agency's commercial and operational relationship with one primary Client for a Departure. |
 | Client Trip Service | One service selected, included, required, or added for a Client Trip. |
-| Capacity Pool | The explicitly measured supply against which Holds and Allocations are made. |
 | Hold | Expiring reservation of capacity for draft demand. It is not a Charge or Supplier confirmation. |
 | Allocation | Confirmed consumption of declared capacity. |
 | Assignment | Placement or responsibility detail that does not itself consume capacity unless its contract explicitly says so. |

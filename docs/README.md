@@ -45,6 +45,8 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m2a-departure-core.md`](planning/m2a-departure-core.md) | Shipped M2A slice. |
 | [`planning/m2b-departed-lifecycle.md`](planning/m2b-departed-lifecycle.md) | Shipped M2B slice. |
 | [`planning/m2c-acceptance-and-hardening.md`](planning/m2c-acceptance-and-hardening.md) | Shipped M2C proof and hardening slice. |
+| [`planning/m3-supplier-planning.md`](planning/m3-supplier-planning.md) | Accepted M3 parent, amended 2026-09-16. Not implementation authority. |
+| [`planning/m3a-draft-arrangement-structure.md`](planning/m3a-draft-arrangement-structure.md) | Draft M3A slice. Not implementation authority. Single canonical M3A contract. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |
