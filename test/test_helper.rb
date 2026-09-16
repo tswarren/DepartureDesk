@@ -5,6 +5,7 @@ require_relative "test_helpers/session_test_helper"
 require_relative "test_helpers/m1_directory_scenario"
 require_relative "test_helpers/m2_departure_scenario"
 require_relative "support/capacity_graph_helper"
+require_relative "support/capacity_activated_graph_helper"
 
 module ActiveSupport
   class TestCase
@@ -19,5 +20,6 @@ module ActiveSupport
     end
 
     include CapacityGraphHelper
+    include CapacityActivatedGraphHelper
   end
 end
