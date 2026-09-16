@@ -1,0 +1,23 @@
+<% content_for :title, "Mark #{@departure.name} departed · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departures</p>
+    <h1 class="dd-page-title">Mark departed</h1>
+    <p class="dd-page-description"><%= @departure.display_reference %> becomes departed when its local start date has arrived.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @departure, url: departure_departed_path(@departure), method: :post, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <p>Start date <%= @departure.starts_on&.to_fs(:long) %> in <%= @departure.time_zone %>.</p>
+      <div class="dd-form-actions">
+        <%= form.submit "Mark departed", class: "dd-button" %>
+        <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

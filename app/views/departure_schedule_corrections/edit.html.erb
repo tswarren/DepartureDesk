@@ -1,0 +1,38 @@
+<% content_for :title, "Correct schedule · #{@departure.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departures</p>
+    <h1 class="dd-page-title">Correct schedule</h1>
+    <p class="dd-page-description"><%= @departure.display_reference %> stays departed. This does not return it to active.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @departure, url: departure_schedule_correction_path(@departure), method: :post, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <div class="dd-field-group">
+        <%= form.label :starts_on, "Start date", class: "dd-label" %>
+        <%= form.date_field :starts_on, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :ends_on, "End date", class: "dd-label" %>
+        <%= form.date_field :ends_on, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :time_zone, "Time zone", class: "dd-label" %>
+        <%= form.select :time_zone, iana_timezone_options, {}, class: "dd-field", required: true %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :reason, "Reason", class: "dd-label" %>
+        <%= form.text_area :reason, value: @reason, maxlength: DepartureCommandSupport::REASON_LIMIT, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Correct schedule", class: "dd-button" %>
+        <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

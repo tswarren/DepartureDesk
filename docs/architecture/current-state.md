@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, and the complete M1 Client and Supplier directories (M1A–M1E). This branch implements M2A Departure draft, activation, reference issuance, return to draft, and search. It is not merged; do not treat M2A or M2 as shipped. M1E is proof and hardening only; it added no new domain aggregate. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A–M1E), and M2A Departure draft, activation, reference issuance, return to draft, and search. This branch implements M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections. It is not merged; do not treat M2B or M2 as shipped. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -27,7 +27,7 @@ DepartureDesk ships agency identity, administration, and the complete M1 Client 
 | `SupplierLocation` | Supplier-owned operational place with optional structured address, timezone, and one location-level phone. |
 | `SupplierContact` | Named person in one Supplier work context. Not a Client Person or AgencyUser. |
 | `SupplierContactEmailAddress`, `SupplierContactPhoneNumber` | Contact-owned destinations. |
-| `Departure` | Agency-owned dated operational root. M2A implements draft, activation, `D-` issuance, return to draft, and search. Travel Program and departed jobs are not implemented. |
+| `Departure` | Agency-owned dated operational root. M2A implements draft, activation, `D-` issuance, return to draft, and search. This branch adds departed, scheduled departed jobs, and corrections. Travel Program is not implemented. |
 | `ReferenceSequence` | Agency-scoped `client`, `supplier`, and `departure` reference counters. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed permission catalog mapping administrator, staff, and viewer roles to capabilities. It is application code, not a persisted record. |
 
@@ -70,7 +70,7 @@ Application code checks named permissions, not role strings.
 ## Persistence and command boundaries
 
 - Application records use PostgreSQL 18 UUIDv7 identifiers and `timestamptz` timestamps.
-- The primary database and Solid Queue database are separate.
+- The primary database and Solid Queue database are separate. This branch’s departed sweep reads the primary database and enqueues child jobs into the queue database with no spanning transaction. Delivery is at least once. Queue name: `departures`.
 - Database constraints and triggers protect normalized identity values, same-Agency references, append-only audits, and immutable tenant identifiers.
 - `btree_gist` is enabled on the primary database only for `client_org_contacts_no_overlapping_history`.
 - Consequential multi-record changes use explicit commands, transactions, lock ordering, and same-transaction audit events.
@@ -78,6 +78,6 @@ Application code checks named permissions, not role strings.
 
 ## Not shipped
 
-The current application has no Traveler, Household, Travel Program, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. Departed jobs and lifecycle corrections are M2B and are not implemented on this branch.
+The current application has no Traveler, Household, Travel Program, Supplier Arrangement, Package, Client Trip, capacity, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. M2C proof and M3 records are not implemented on this branch.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.

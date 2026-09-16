@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, and M2A Departures implemented on this branch.
+**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, and M2B departed/correction surfaces implemented on this branch.
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -71,6 +71,7 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Create may propose copied Office, AgencyUser, Agency time zone, and currency defaults. Time zone is an IANA select that defaults to the Agency time zone. The user can change or clear them. Drafts may omit Office.
 - Profile shows identity, dates, time zone, currency, responsibility, lifecycle, and reference. It does not invent M3 panels.
 - Activation is a dedicated readiness page listing missing requirements, then `POST` activate. Return to draft is a confirmation that collects a reason.
+- Mark departed is a confirmation shown only when the Departure is eligible (`starts_on` on or before the local date in its time zone). Schedule, currency, and lifecycle corrections are confirmations on departed records. Lifecycle correction is shown only when stored `starts_on` is still in the future. The schedule correction form submits start date, end date, and time zone together.
 - Viewer may browse index and show and has no mutation actions.
 - Responsible Office and AgencyUser are attribution only. A Viewer may be the responsible user.
 

@@ -1,6 +1,7 @@
 module DepartureCommandSupport
   UUID_FORMAT = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i
   STALE_MESSAGE = "This record changed. Reload it and try again."
+  REASON_LIMIT = 500
 
   private
 
@@ -19,6 +20,12 @@ module DepartureCommandSupport
     ensure_active_agency!(@agency)
     @actor = @agency.agency_users.find_by(id: @actor&.id)
     ensure_directory_actor!(@actor, @agency, permission)
+  end
+
+  def lock_system_agency!
+    lock_agency!
+    @agency.reload
+    ensure_active_agency!(@agency)
   end
 
   def lock_departure!
@@ -148,6 +155,16 @@ module DepartureCommandSupport
     return if record.active?
 
     raise AgencyCommand::Error.new(message, code: :invalid_state)
+  end
+
+  def normalize_reason(value)
+    reason = value.to_s.strip
+    raise AgencyCommand::Error.new("Enter a reason.", code: :invalid) if reason.blank?
+    if reason.length > REASON_LIMIT
+      raise AgencyCommand::Error.new("Reason must be #{REASON_LIMIT} characters or fewer.", code: :invalid)
+    end
+
+    reason
   end
 
   def ensure_non_draft_completeness!(departure, attrs)

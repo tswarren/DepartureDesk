@@ -62,4 +62,45 @@ class DeparturesTest < ApplicationSystemTestCase
     assert_no_text "Edit departure"
     assert_no_text "Activate"
   end
+
+  test "an administrator marks an eligible departure departed and corrects its schedule" do
+    departure = CreateDeparture.new(
+      agency: agencies(:harbor),
+      actor: agency_users(:harbor_admin),
+      attributes: {
+        name: "Departed Reunion",
+        starts_on: Date.new(2026, 6, 1),
+        ends_on: Date.new(2026, 6, 8),
+        time_zone: "America/New_York",
+        operating_currency: "USD",
+        responsible_office_id: offices(:harbor_main).id,
+        responsible_agency_user_id: agency_users(:harbor_admin).id
+      }
+    ).call.record
+    ActivateDeparture.new(
+      agency: agencies(:harbor),
+      actor: agency_users(:harbor_admin),
+      departure:,
+      lock_version: departure.lock_version
+    ).call
+
+    sign_in_from_browser(agency_users(:harbor_admin))
+    visit departure_path(departure)
+    click_link "Mark departed"
+    assert_selector "h1.dd-page-title", exact_text: "Mark departed"
+    click_button "Mark departed"
+
+    assert_text "Departure marked departed."
+    assert_text "Departed"
+
+    click_link "Correct schedule"
+    fill_in_html_date "Start date", "2026-07-01"
+    fill_in_html_date "End date", "2026-07-08"
+    select "UTC", from: "Time zone"
+    fill_in "Reason", with: "Printer used the wrong week"
+    click_button "Correct schedule"
+
+    assert_text "Departure schedule corrected."
+    assert_text "UTC"
+  end
 end

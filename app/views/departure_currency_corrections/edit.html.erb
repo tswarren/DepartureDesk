@@ -1,0 +1,30 @@
+<% content_for :title, "Correct currency · #{@departure.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departures</p>
+    <h1 class="dd-page-title">Correct currency</h1>
+    <p class="dd-page-description"><%= @departure.display_reference %> stays departed.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @departure, url: departure_currency_correction_path(@departure), method: :post, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <div class="dd-field-group">
+        <%= form.label :operating_currency, "Operating currency", class: "dd-label" %>
+        <%= form.text_field :operating_currency, maxlength: 3, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :reason, "Reason", class: "dd-label" %>
+        <%= form.text_area :reason, value: @reason, maxlength: DepartureCommandSupport::REASON_LIMIT, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Correct currency", class: "dd-button" %>
+        <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>
