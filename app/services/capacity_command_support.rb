@@ -510,9 +510,9 @@ module CapacityCommandSupport
       ensure_activated_capacity_graph!(departure, arrangement, version)
       ensure_numeric_capacity_pool!(locked_pool)
       ensure_capacity_event_supplier_state!(supplier, event_type)
-      RefreshDueCapacityProjection.new(agency: @agency, pool: locked_pool, now: recorded_at).call
       projection = locked_pool.capacity_projection || build_initial_capacity_projection(locked_pool, recorded_at)
       projection.lock! unless projection.new_record?
+      refresh_capacity_projection_state!(locked_pool, projection, recorded_at) unless projection.new_record?
 
       event = locked_pool.capacity_events.build(
         agency: @agency,
@@ -628,6 +628,41 @@ module CapacityCommandSupport
       current_supplier_capacity: 0,
       rebuilt_at: rebuilt_at
     )
+  end
+
+  def refresh_capacity_projection_state!(pool, projection, now)
+    events = pool.capacity_events.order(:effective_on, :effective_sequence, :recorded_at, :id).to_a
+    CapacityTimelineReplay.new(events).call
+
+    applied_events = events.select { |event| event.applies_at <= now }
+    current = applied_events.sum { |event| CapacityTimelineReplay::DIRECTIONS.fetch(event.event_type).sign * event.quantity }
+    last_event = applied_events.last
+    next_event = events.select { |event| event.applies_at > now }.min_by do |event|
+      [ event.applies_at, event.effective_on, event.effective_sequence, event.recorded_at, event.id ]
+    end
+
+    attrs = {
+      current_supplier_capacity: current,
+      last_event: last_event,
+      last_effective_on: last_event&.effective_on,
+      last_effective_sequence: last_event&.effective_sequence,
+      last_recorded_at: last_event&.recorded_at,
+      next_event: next_event,
+      next_applies_at: next_event&.applies_at
+    }
+    return if capacity_projection_matches?(projection, attrs)
+
+    projection.update!(attrs.merge(rebuilt_at: now))
+  end
+
+  def capacity_projection_matches?(projection, attrs)
+    attrs.all? do |name, value|
+      if value.is_a?(ApplicationRecord)
+        projection.public_send("#{name}_id") == value.id
+      else
+        projection.public_send(name) == value
+      end
+    end
   end
 
   def catch_up_capacity_projection!(pool, projection, event, now)
