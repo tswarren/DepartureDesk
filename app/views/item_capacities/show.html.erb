@@ -1,0 +1,194 @@
+<% content_for :title, "#{@arrangement_item_definition.name} Capacity · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_departures) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Draft capacity</p>
+    <h1 class="dd-page-title"><%= @arrangement_item_definition.name %></h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %> · <%= @departure.name %></p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement, anchor: "item-#{@arrangement_item.id}"), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Capacity applicability</h2>
+      <p><%= capacity_management_label(@arrangement_item_definition.capacity_management) %></p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if manage %>
+      <%= form_with model: @arrangement_item_definition, url: departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item), method: :patch, class: "dd-form" do |form| %>
+        <%= render "shared/form_errors", object: form.object %>
+        <%= form.hidden_field :lock_version %>
+        <fieldset class="dd-field-group">
+          <legend class="dd-label">Draft choice</legend>
+          <label><%= form.radio_button :capacity_management, "managed" %> Managed capacity</label>
+          <label><%= form.radio_button :capacity_management, "unmanaged" %> No managed capacity</label>
+          <label><%= form.radio_button :capacity_management, "" %> Not decided</label>
+        </fieldset>
+        <div class="dd-form-actions">
+          <%= form.submit "Save applicability", class: "dd-button" %>
+        </div>
+      <% end %>
+    <% else %>
+      <p>Viewer access shows draft capacity facts without configuration controls.</p>
+    <% end %>
+  </div>
+</article>
+
+<% item_warnings = capacity_item_warnings(@arrangement_item_definition, @occurrence_definitions, @resource_definitions, @capacity_pairs_by_members, @capacity_pool_definitions_by_pair_id, @supplier_arrangement) %>
+<% if item_warnings.any? %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <h2 class="dd-panel-title">Capacity warnings</h2>
+      <ul>
+        <% item_warnings.each do |warning| %>
+          <li><%= warning %></li>
+        <% end %>
+      </ul>
+    </div>
+  </article>
+<% end %>
+
+<% if @arrangement_item_definition.unmanaged? %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <p class="<%= empty_state_classes.join(" ") %>">Quantity not tracked for this Item.</p>
+    </div>
+  </article>
+<% elsif @occurrence_definitions.empty? || @resource_definitions.empty? %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <p class="<%= empty_state_classes.join(" ") %>">Add at least one Occurrence and one Resource before classifying capacity pairs.</p>
+    </div>
+  </article>
+<% else %>
+  <% @occurrence_definitions.each do |occurrence_definition| %>
+    <article class="dd-panel" id="capacity-occurrence-<%= occurrence_definition.service_occurrence_id %>">
+      <header class="dd-panel-header">
+        <div>
+          <h2 class="dd-panel-title"><%= occurrence_definition.name %></h2>
+          <p><%= occurrence_date_label(occurrence_definition) %></p>
+        </div>
+      </header>
+      <div class="dd-panel-body">
+        <% @resource_definitions.each do |resource_definition| %>
+          <% pair = @capacity_pairs_by_members[[ occurrence_definition.service_occurrence_id, resource_definition.supplier_resource_id ]] %>
+          <% pool_definitions = pair ? @capacity_pool_definitions_by_pair_id.fetch(pair.id, []) : [] %>
+          <section class="dd-panel" id="capacity-pair-<%= occurrence_definition.service_occurrence_id %>-<%= resource_definition.supplier_resource_id %>">
+            <header class="dd-panel-header">
+              <div>
+                <h3 class="dd-panel-title"><%= resource_definition.name %></h3>
+                <p><%= capacity_pair_badge(pair) %></p>
+              </div>
+              <% if manage %>
+                <div class="dd-inline-actions">
+                  <%= form_with url: pair_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, occurrence_definition.service_occurrence, resource_definition.supplier_resource), method: :patch, class: "dd-inline-form" do |form| %>
+                    <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+                    <%= select_tag :classification,
+                      options_for_select([ [ "Pooled", "pooled" ], [ "Not applicable", "not_applicable" ] ], pair&.classification),
+                      include_blank: "Choose",
+                      class: "dd-field",
+                      aria: { label: "Capacity classification for #{occurrence_definition.name} and #{resource_definition.name}" } %>
+                    <%= form.submit "Save decision", class: "dd-row-action" %>
+                  <% end %>
+                  <% if pair && pool_definitions.empty? %>
+                    <%= button_to "Remove decision", defined_pair_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id), method: :delete, class: "dd-row-action", form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this capacity pair decision?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version, lock_version: pair.lock_version } %>
+                  <% end %>
+                </div>
+              <% end %>
+            </header>
+
+            <% if pair&.pooled? %>
+              <% if pool_definitions.any? %>
+                <% ordered_pool_ids = pool_definitions.map(&:capacity_pool_id) %>
+                <div class="dd-stack">
+                  <% pool_definitions.each_with_index do |pool_definition, pool_index| %>
+                    <% pool = pool_definition.capacity_pool %>
+                    <% pool_warnings = capacity_pool_warnings(pool_definition, @supplier_arrangement, @arrangement_item_definition, occurrence_definition) %>
+                    <article class="dd-panel" id="capacity-pool-<%= pool.id %>">
+                      <div class="dd-panel-body">
+                        <div class="dd-panel-header">
+                          <div>
+                            <h4 class="dd-panel-title"><%= pool_definition.label %></h4>
+                            <p><%= capacity_inventory_mode_label(pool.inventory_mode) %> · <%= capacity_measurement_basis_label(pool.measurement_basis) %> · <%= pool_definition.unit_label %></p>
+                          </div>
+                          <% if manage %>
+                            <div class="dd-inline-actions">
+                              <%= link_to "Edit", edit_pair_pool_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id, id: pool.id), class: "dd-row-action dd-row-action--edit" %>
+                              <% if pool_index.positive? %>
+                                <% moved_pool_ids = ordered_pool_ids.dup.tap { |ids| ids[pool_index - 1], ids[pool_index] = ids[pool_index], ids[pool_index - 1] } %>
+                                <%= button_to "Move up", reorder_pair_pools_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, capacity_pool_ids: moved_pool_ids } %>
+                              <% end %>
+                              <% if pool_index < pool_definitions.size - 1 %>
+                                <% moved_pool_ids = ordered_pool_ids.dup.tap { |ids| ids[pool_index + 1], ids[pool_index] = ids[pool_index], ids[pool_index + 1] } %>
+                                <%= button_to "Move down", reorder_pair_pools_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, capacity_pool_ids: moved_pool_ids } %>
+                              <% end %>
+                              <%= button_to "Remove", pair_pool_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id, id: pool.id), method: :delete, class: "dd-row-action", form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this capacity pool?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version, lock_version: pool_definition.lock_version } %>
+                            </div>
+                          <% end %>
+                        </div>
+                        <dl class="dd-definition-list">
+                          <div>
+                            <dt>Supplying Supplier</dt>
+                            <dd><%= supplier_option_label(pool.supplying_supplier) %></dd>
+                          </div>
+                          <div>
+                            <dt>Proposed opening quantity</dt>
+                            <dd><%= capacity_quantity_label(pool_definition) %></dd>
+                          </div>
+                          <div>
+                            <dt>Evidence</dt>
+                            <dd><%= capacity_evidence_label(pool_definition) %></dd>
+                          </div>
+                          <div>
+                            <dt>Status</dt>
+                            <dd>Tentative draft capacity</dd>
+                          </div>
+                        </dl>
+                        <% if pool_warnings.any? %>
+                          <ul>
+                            <% pool_warnings.each do |warning| %>
+                              <li><%= warning %></li>
+                            <% end %>
+                          </ul>
+                        <% end %>
+                      </div>
+                    </article>
+                  <% end %>
+                </div>
+              <% else %>
+                <p class="<%= empty_state_classes.join(" ") %>">No Pools yet. A pooled pair needs at least one Pool before activation.</p>
+              <% end %>
+
+              <% if manage %>
+                <section class="dd-panel">
+                  <div class="dd-panel-body">
+                    <h4 class="dd-panel-title">Add Pool</h4>
+                    <%= render "capacity_pools/form",
+                      pool_definition: (@pool_form_pair_id == pair.id ? @capacity_pool_definition : CapacityPoolDefinition.new),
+                      values: (@pool_form_pair_id == pair.id ? @submitted_capacity_pool_params : {}),
+                      url: pair_pools_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id),
+                      method: :post,
+                      submit_label: "Save Pool",
+                      include_semantics: true,
+                      include_version_lock: true,
+                      idempotency_key: @idempotency_key_by_pair_id[pair.id] %>
+                  </div>
+                </section>
+              <% end %>
+            <% elsif pair&.not_applicable? %>
+              <p class="<%= empty_state_classes.join(" ") %>">Quantity not tracked for this Occurrence and Resource.</p>
+            <% else %>
+              <p class="<%= empty_state_classes.join(" ") %>">Choose whether this Occurrence and Resource is pooled or not applicable.</p>
+            <% end %>
+          </section>
+        <% end %>
+      </div>
+    </article>
+  <% end %>
+<% end %>

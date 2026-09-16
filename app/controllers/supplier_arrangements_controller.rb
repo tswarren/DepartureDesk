@@ -112,5 +112,16 @@ class SupplierArrangementsController < ApplicationController
       .where(arrangement_item_id: item_ids)
       .order(:position, :id)
       .group_by(&:arrangement_item_id)
+    @capacity_pairs_by_item_members = @supplier_arrangement_version.capacity_pair_definitions
+      .includes(capacity_pool_definitions: { capacity_pool: :supplying_supplier })
+      .where(arrangement_item_id: item_ids)
+      .group_by(&:arrangement_item_id)
+      .transform_values { |pairs| pairs.index_by { |pair| [ pair.service_occurrence_id, pair.supplier_resource_id ] } }
+    @capacity_pool_definitions_by_item_pair_id = @supplier_arrangement_version.capacity_pool_definitions
+      .includes(capacity_pool: :supplying_supplier)
+      .where(arrangement_item_id: item_ids)
+      .order(:position, :id)
+      .group_by(&:arrangement_item_id)
+      .transform_values { |definitions| definitions.group_by(&:capacity_pair_definition_id) }
   end
 end
