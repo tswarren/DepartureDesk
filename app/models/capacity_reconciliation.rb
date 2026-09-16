@@ -39,6 +39,32 @@ class CapacityReconciliation < ApplicationRecord
   before_update :reject_mutation
   before_destroy :reject_mutation
 
+  def matched?
+    variance.zero?
+  end
+
+  def resolved?
+    !matched? && resolution_quantity == variance
+  end
+
+  def open_discrepancy?
+    !matched? && !resolved?
+  end
+
+  def status
+    return "matched" if matched?
+    return "resolved" if resolved?
+
+    "open_discrepancy"
+  end
+
+  def resolution_quantity
+    resolutions.includes(:capacity_event).sum do |resolution|
+      event = resolution.capacity_event
+      CapacityTimelineReplay::DIRECTIONS.fetch(event.event_type).sign * event.quantity
+    end
+  end
+
   private
 
   def variance_matches_quantities

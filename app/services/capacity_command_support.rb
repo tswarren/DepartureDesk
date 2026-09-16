@@ -285,6 +285,15 @@ module CapacityCommandSupport
     raise AgencyCommand::Error.new("Capacity event quantity must be a whole number.", code: :invalid)
   end
 
+  def normalize_observed_capacity_quantity(value)
+    quantity = value.is_a?(Integer) ? value : Integer(value, 10)
+    return quantity if quantity >= 0
+
+    raise AgencyCommand::Error.new("Observed capacity must be zero or greater.", code: :invalid)
+  rescue ArgumentError, TypeError
+    raise AgencyCommand::Error.new("Observed capacity must be a whole number.", code: :invalid)
+  end
+
   def normalize_effective_sequence(value)
     return nil if value.blank?
 
@@ -477,6 +486,38 @@ module CapacityCommandSupport
     raise AgencyCommand::Error.new("That idempotency key was already used for different input.", code: :conflict)
   end
 
+  def idempotent_capacity_reconciliation!(command_name:, idempotency_key:, payload:, reconciliation:)
+    key = normalize_idempotency_key(idempotency_key)
+    digest = payload_digest(payload)
+    lock_idempotency_slot!(command_name, key)
+
+    existing = AgencyCommandIdempotencyKey.where(
+      agency: @agency,
+      command_name: command_name,
+      idempotency_key: key
+    ).lock.first
+    if existing
+      raise AgencyCommand::Error.new("That idempotency key was already used for different input.", code: :conflict) unless existing.payload_digest == digest
+
+      record = CapacityReconciliation.find(existing.result_record_id)
+      return AgencyCommand::Result.new(status: record.status.to_sym, record: record)
+    end
+
+    key_record = AgencyCommandIdempotencyKey.create!(
+      agency: @agency,
+      command_name: command_name,
+      idempotency_key: key,
+      payload_digest: digest,
+      result_record_type: CapacityReconciliation.name,
+      result_record_id: reconciliation.id
+    )
+    reconciliation.agency_command_idempotency_key = key_record
+    yield
+    AgencyCommand::Result.new(status: reconciliation.status.to_sym, record: reconciliation)
+  rescue ActiveRecord::RecordNotUnique
+    raise AgencyCommand::Error.new("That idempotency key was already used for different input.", code: :conflict)
+  end
+
   def record_capacity_event!(
     pool:,
     event_type:,
@@ -498,6 +539,7 @@ module CapacityCommandSupport
     effective_on = parse_date(effective_on, "Effective date") || recorded_at.in_time_zone(pool.effective_time_zone).to_date
     submitted_sequence = normalize_effective_sequence(effective_sequence)
     evidence_attrs = normalize_capacity_event_evidence_or_override(attrs)
+    resolution_note = normalize_reconciliation_resolution_note(attrs[:resolution_note] || attrs[:reconciliation_resolution_note])
     corrects_event_id = parse_optional_uuid(corrects_event_id || attrs[:corrects_event_id], "Corrected event")
     capacity_reconciliation_id = parse_optional_uuid(
       capacity_reconciliation_id || attrs[:capacity_reconciliation_id],
@@ -551,6 +593,7 @@ module CapacityCommandSupport
         reinstates_event_id: reinstates_event&.id,
         corrects_event_id: corrects_event_id,
         capacity_reconciliation_id: capacity_reconciliation_id,
+        resolution_note: resolution_note,
         evidence: evidence_attrs
       }
 
@@ -565,6 +608,7 @@ module CapacityCommandSupport
         ensure_unused_capacity_event_sequence!(locked_pool, event.effective_on, event.effective_sequence)
         ensure_capacity_event_timeline_nonnegative!(locked_pool, event)
         event.save!
+        record_capacity_reconciliation_resolution!(arrangement, event, resolution_note) if event.capacity_reconciliation_id.present?
         catch_up_capacity_projection!(locked_pool, projection, event, recorded_at)
         audit_capacity_event!(arrangement, event)
       end
@@ -610,11 +654,46 @@ module CapacityCommandSupport
       return
     end
     if event.capacity_reconciliation_id.present?
-      pool.capacity_reconciliations.lock.find(event.capacity_reconciliation_id)
+      reconciliation = pool.capacity_reconciliations.lock.find(event.capacity_reconciliation_id)
+      unless reconciliation.open_discrepancy?
+        raise AgencyCommand::Error.new("Correction must reference an open capacity reconciliation discrepancy.", code: :invalid_state)
+      end
       return
     end
 
     raise AgencyCommand::Error.new("Correction must reference exactly one source.", code: :invalid)
+  end
+
+  def normalize_reconciliation_resolution_note(value)
+    note = value.to_s.strip.presence
+    return nil if note.blank?
+    if note.length > CapacityReconciliationResolution.validators_on(:note).find { |validator| validator.is_a?(ActiveModel::Validations::LengthValidator) }.options[:maximum]
+      raise AgencyCommand::Error.new("Resolution note must be 500 characters or fewer.", code: :invalid)
+    end
+
+    note
+  end
+
+  def record_capacity_reconciliation_resolution!(arrangement, event, note)
+    reconciliation = event.capacity_reconciliation
+    raise AgencyCommand::Error.new("Enter a reconciliation resolution note.", code: :invalid) if note.blank?
+
+    CapacityReconciliationResolution.create!(
+      agency: @agency,
+      departure: event.departure,
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: event.supplier_arrangement_version,
+      arrangement_item: event.arrangement_item,
+      service_occurrence: event.service_occurrence,
+      supplier_resource: event.supplier_resource,
+      capacity_pool: event.capacity_pool,
+      capacity_reconciliation: reconciliation,
+      capacity_event: event,
+      actor: @actor,
+      resolved_at: event.recorded_at,
+      note: note
+    )
+    audit_capacity_reconciliation_resolved!(arrangement, reconciliation, event) if reconciliation.reload.resolved?
   end
 
   def build_initial_capacity_projection(pool, rebuilt_at)
@@ -706,6 +785,25 @@ module CapacityCommandSupport
         "capacity_reconciliation_id" => event.capacity_reconciliation_id,
         "evidence_kind" => event.evidence_kind,
         "override" => event.override?
+      }
+    )
+  end
+
+  def audit_capacity_reconciliation_resolved!(arrangement, reconciliation, event)
+    audit!(
+      agency: @agency,
+      action: "supplier_arrangement.capacity_reconciliation_resolved",
+      subject: arrangement,
+      actor: @actor,
+      details: {
+        "supplier_arrangement_id" => arrangement.id,
+        "supplier_arrangement_version_id" => reconciliation.supplier_arrangement_version_id,
+        "arrangement_item_id" => reconciliation.arrangement_item_id,
+        "capacity_pool_id" => reconciliation.capacity_pool_id,
+        "capacity_reconciliation_id" => reconciliation.id,
+        "capacity_event_id" => event.id,
+        "variance" => reconciliation.variance,
+        "resolution_quantity" => reconciliation.resolution_quantity
       }
     )
   end
