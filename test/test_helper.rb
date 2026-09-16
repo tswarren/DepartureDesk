@@ -3,6 +3,7 @@ require_relative "../config/environment"
 require "rails/test_help"
 require_relative "test_helpers/session_test_helper"
 require_relative "test_helpers/m1_directory_scenario"
+require_relative "test_helpers/m2_departure_scenario"
 
 module ActiveSupport
   class TestCase

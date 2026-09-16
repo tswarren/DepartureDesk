@@ -64,7 +64,43 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
     assert_equal :departures, MarkDepartureDepartedJob.new.queue_name.to_sym
   end
 
+  test "sweep transitions an eligible active-agency departure and ignores an identical inactive-agency departure" do
+    kept_shell = M2DepartureScenario.celebrity
+    skipped_shell = M2DepartureScenario.vineyard
+    kept = eligible_on(kept_shell, "Keep Sweep")
+    skipped = eligible_on(skipped_shell, "Skip Sweep")
+    skipped_shell.directory.agency.update!(status: "suspended")
+    begin
+      perform_enqueued_jobs only: MarkDepartureDepartedJob do
+        MarkEligibleDeparturesDepartedJob.perform_now
+      end
+      assert_equal "departed", kept.reload.status
+      assert_equal "active", skipped.reload.status
+    ensure
+      skipped_shell.directory.agency.update!(status: "active")
+    end
+  end
+
   private
+
+  def eligible_on(shell, name)
+    departure = CreateDeparture.new(
+      agency: shell.directory.agency,
+      actor: shell.directory.actor,
+      attributes: {
+        name:,
+        starts_on: Date.new(2026, 6, 1),
+        ends_on: Date.new(2026, 6, 8),
+        time_zone: "UTC",
+        operating_currency: "USD",
+        responsible_office_id: shell.fixture_responsible_office.id,
+        responsible_agency_user_id: shell.directory.actor.id
+      }
+    ).call.record
+    ActivateDeparture.new(
+      agency: shell.directory.agency, actor: shell.directory.actor, departure:, lock_version: departure.lock_version
+    ).call.record
+  end
 
   def eligible_active(name)
     departure = CreateDeparture.new(
