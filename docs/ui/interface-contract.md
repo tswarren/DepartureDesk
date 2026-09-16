@@ -100,7 +100,7 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 
 - Use `.dd-field` anatomy with a visible label, optional hint, control, and field-specific error.
 - Preserve submitted values after validation failure.
-- Invalid command forms render `#form-error-summary` with `role="alert"`, `tabindex="-1"`, Stimulus `form-error-summary` focusing the summary after render, the title “Please fix the following:”, and links to `#{param_key}_#{attribute}` for field errors.
+- Invalid command forms render `#form-error-summary` with `role="alert"`, `tabindex="-1"`, Stimulus `form-error-summary` focusing the summary after render, the title “Please fix the following:”, and links to `#{param_key}_#{attribute}` that focus the associated field.
 - Focus the error summary or first invalid field according to the surface's established pattern.
 - Do not hide required inputs in a closed `details` element.
 - Cancel returns to the relevant browse/show surface without applying changes.

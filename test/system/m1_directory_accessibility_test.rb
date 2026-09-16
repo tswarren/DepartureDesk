@@ -63,4 +63,68 @@ class M1DirectoryAccessibilityTest < ApplicationSystemTestCase
     assert_selector "label", text: "Display name"
     assert_button "Save supplier"
   end
+
+  test "client and supplier filter forms have a logical tab order with visible focus" do
+    scenario = M1DirectoryScenario.celebrity
+    sign_in_from_browser(scenario.actor, password: M1DirectoryScenario::PASSWORD)
+
+    visit clients_path
+    wait_for_turbo
+    find_field("Search").send_keys(:tab)
+    assert_equal "kind", focused_name
+    assert_visible_focus
+    page.send_keys(:tab)
+    assert_equal "status", focused_name
+    assert_visible_focus
+    page.send_keys(:tab)
+    assert_equal "Apply", focused_button_or_link
+    assert_visible_focus
+
+    visit new_client_path
+    wait_for_turbo
+    find_field("First name").send_keys(:tab)
+    assert_equal "client_person[middle_name]", focused_name
+    assert_visible_focus
+    page.send_keys(:tab)
+    assert_equal "client_person[last_name]", focused_name
+    assert_visible_focus
+
+    visit suppliers_path
+    wait_for_turbo
+    find_field("Search").send_keys(:tab)
+    assert_equal "kind", focused_name
+    assert_visible_focus
+    page.send_keys(:tab)
+    assert_equal "category", focused_name
+    assert_visible_focus
+    page.send_keys(:tab)
+    assert_equal "status", focused_name
+    assert_visible_focus
+    page.send_keys(:tab)
+    assert_equal "Apply", focused_button_or_link
+    assert_visible_focus
+  end
+
+  private
+
+  def focused_name
+    page.evaluate_script("document.activeElement && document.activeElement.getAttribute('name')")
+  end
+
+  def focused_button_or_link
+    page.evaluate_script("document.activeElement && (document.activeElement.value || document.activeElement.textContent.trim())")
+  end
+
+  def assert_visible_focus
+    style = page.evaluate_script(<<~JS)
+      (() => {
+        const el = document.activeElement;
+        if (!el) return {};
+        const cs = window.getComputedStyle(el);
+        return { outlineStyle: cs.outlineStyle, outlineWidth: cs.outlineWidth, boxShadow: cs.boxShadow };
+      })()
+    JS
+    visible = (style["outlineStyle"] != "none" && style["outlineWidth"] != "0px") || (style["boxShadow"].present? && style["boxShadow"] != "none")
+    assert visible, "expected a visible focus ring on #{page.evaluate_script('document.activeElement && document.activeElement.outerHTML')}"
+  end
 end

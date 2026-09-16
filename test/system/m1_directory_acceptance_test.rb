@@ -133,6 +133,7 @@ class M1DirectoryAcceptanceTest < ApplicationSystemTestCase
     assert_field "Label", with: "Kept label"
     assert_field "Website", with: "not a website"
     within("#form-error-summary") { find("a").click }
+    assert_selector "#supplier_website_url:focus"
     assert_equal "supplier_website_url", page.evaluate_script("document.activeElement && document.activeElement.id")
 
     CreateSupplier.new(agency:, actor:, kind: "organization", names: { display_name: "Dup State Line" }, categories: [ "cruise_line" ]).call

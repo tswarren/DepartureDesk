@@ -7,8 +7,7 @@ class M1DirectoryQueryCountTest < ActionDispatch::IntegrationTest
   end
 
   test "directory list query count does not grow with destination rows" do
-    baseline = request_query_count { get clients_path }
-
+    client_baseline = request_query_count { get clients_path }
     20.times do |index|
       CreateClientPersonEmailAddress.new(
         agency: @celebrity.agency,
@@ -17,15 +16,23 @@ class M1DirectoryQueryCountTest < ActionDispatch::IntegrationTest
         attributes: { address: "extra-#{index}-#{@celebrity.suffix}@example.test" }
       ).call
     end
+    assert_equal client_baseline, request_query_count { get clients_path }
 
-    grown = request_query_count { get clients_path }
-    assert_equal baseline, grown
+    supplier_baseline = request_query_count { get suppliers_path }
+    20.times do |index|
+      CreateSupplierEmailAddress.new(
+        agency: @celebrity.agency,
+        actor: @celebrity.actor,
+        supplier: @celebrity.celebrity,
+        attributes: { address: "list-#{index}-#{@celebrity.suffix}@example.test" }
+      ).call
+    end
+    assert_equal supplier_baseline, request_query_count { get suppliers_path }
   end
 
   test "profile query count does not grow per destination row" do
-    path = client_person_path(@celebrity.martha)
-    baseline = request_query_count { get path }
-
+    person_path = client_person_path(@celebrity.martha)
+    person_baseline = request_query_count { get person_path }
     15.times do |index|
       CreateClientPersonEmailAddress.new(
         agency: @celebrity.agency,
@@ -34,9 +41,47 @@ class M1DirectoryQueryCountTest < ActionDispatch::IntegrationTest
         attributes: { address: "profile-#{index}-#{@celebrity.suffix}@example.test" }
       ).call
     end
+    assert_equal person_baseline, request_query_count { get person_path }
 
-    grown = request_query_count { get path }
-    assert_equal baseline, grown
+    organization = CreateOrganizationClient.new(
+      agency: @celebrity.agency, actor: @celebrity.actor,
+      names: { display_name: "Query Count Foods" }
+    ).call.record.client_organization
+    organization_path = client_organization_path(organization)
+    organization_baseline = request_query_count { get organization_path }
+    15.times do |index|
+      CreateClientOrganizationEmailAddress.new(
+        agency: @celebrity.agency,
+        actor: @celebrity.actor,
+        client_organization: organization,
+        attributes: { address: "org-#{index}-#{@celebrity.suffix}@example.test" }
+      ).call
+    end
+    assert_equal organization_baseline, request_query_count { get organization_path }
+
+    show_path = supplier_path(@celebrity.celebrity)
+    supplier_baseline = request_query_count { get show_path }
+    15.times do |index|
+      CreateSupplierEmailAddress.new(
+        agency: @celebrity.agency,
+        actor: @celebrity.actor,
+        supplier: @celebrity.celebrity,
+        attributes: { address: "show-#{index}-#{@celebrity.suffix}@example.test" }
+      ).call
+      CreateSupplierLocation.new(
+        agency: @celebrity.agency,
+        actor: @celebrity.actor,
+        supplier: @celebrity.celebrity,
+        attributes: { name: "Query Count Dock #{index}" }
+      ).call
+      CreateSupplierContact.new(
+        agency: @celebrity.agency,
+        actor: @celebrity.actor,
+        supplier: @celebrity.celebrity,
+        attributes: { first_name: "Query", last_name: format("Count%02d", index) }
+      ).call
+    end
+    assert_equal supplier_baseline, request_query_count { get show_path }
   end
 
   private

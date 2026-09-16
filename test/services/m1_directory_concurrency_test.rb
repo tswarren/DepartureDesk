@@ -61,7 +61,7 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
       CreateIndividualClient.new(agency: @agency, actor: @actor, names: { first_name: "Lane", last_name: "Duplicate" }).call
     end
 
-    outcomes = race(2) do |index|
+    outcomes = race(2, allowed_error_codes: %i[duplicate_review_required]) do |index|
       token = index.zero? ? first_review.token : second_review.token
       CreateIndividualClient.new(
         agency: Agency.find(@agency.id),
@@ -73,17 +73,17 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
     end
 
     created = outcomes.grep(AgencyCommand::Result).select { |result| result.status == :created }
-    failures = outcomes.reject { |outcome| outcome.is_a?(AgencyCommand::Result) }
-    assert_equal 2, created.size + failures.size
-    assert created.size >= 1
+    reviews = outcomes.grep(AgencyCommand::DuplicateReviewRequired)
+    assert_equal 1, created.size
+    assert_equal 1, reviews.size
     people = @agency.client_people.where(first_name: "Lane", last_name: "Duplicate")
-    assert_equal 1 + created.size, people.size
+    assert_equal 2, people.size
   end
 
   test "competing destination preference changes leave one preferred active destination per owner per channel" do
     DESTINATION_RACES.each do |definition|
       owner, points, command = instance_exec(&definition)
-      outcomes = race(2) do |index|
+      outcomes = race(2, allowed_error_codes: %i[conflict]) do |index|
         point = points[index].reload
         command.call(agency: Agency.find(@agency.id), actor: AgencyUser.find(@actor.id), owner:, point:)
       end
@@ -95,7 +95,7 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
 
   test "parallel CreateClientForPerson on one source leaves exactly one Client" do
     person = CreateClientPerson.new(agency: @agency, actor: @actor, names: { first_name: "Solo", last_name: "Source" }).call.record
-    outcomes = race(2) do
+    outcomes = race(2, allowed_error_codes: %i[already_exists]) do
       CreateClientForPerson.new(
         agency: Agency.find(@agency.id),
         actor: AgencyUser.find(@actor.id),
@@ -113,7 +113,7 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
   test "overlapping organization-contact assignments cannot both remain current" do
     organization = CreateClientOrganization.new(agency: @agency, actor: @actor, names: { display_name: "Overlap Org" }).call.record
     person = CreateClientPerson.new(agency: @agency, actor: @actor, names: { first_name: "Overlap", last_name: "Contact" }).call.record
-    outcomes = race(2) do
+    outcomes = race(2, allowed_error_codes: %i[invalid already_exists conflict]) do
       AddClientOrganizationContact.new(
         agency: Agency.find(@agency.id),
         actor: AgencyUser.find(@actor.id),
@@ -143,7 +143,7 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
       attributes: { starts_on: Date.new(2026, 1, 1) }
     ).call.record
 
-    race(2) do |index|
+    race(2, allowed_error_codes: %i[conflict]) do |index|
       assignment = index.zero? ? first : second
       ChangeClientOrganizationPrimaryContact.new(
         agency: Agency.find(@agency.id),
@@ -228,7 +228,7 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
 
   test "supplier category mutation versus inactivation serializes without a lost mutation" do
     supplier = CreateSupplier.new(agency: @agency, actor: @actor, kind: "organization", names: { display_name: "Category Race" }, categories: [ "air" ]).call.record
-    outcomes = race(2) do |index|
+    outcomes = race(2, allowed_error_codes: %i[conflict]) do |index|
       current = Supplier.find(supplier.id)
       if index.zero?
         ReplaceSupplierCategories.new(
@@ -266,7 +266,7 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
     first = CreateSupplierContact.new(agency: @agency, actor: @actor, supplier:, attributes: { first_name: "First", last_name: "Preferred" }).call.record
     second = CreateSupplierContact.new(agency: @agency, actor: @actor, supplier:, attributes: { first_name: "Second", last_name: "Preferred" }).call.record
 
-    race(2) do |index|
+    race(2, allowed_error_codes: %i[conflict invalid_state]) do |index|
       contact = index.zero? ? first : second
       SetPreferredSupplierContact.new(
         agency: Agency.find(@agency.id),
@@ -286,7 +286,7 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
     ChangeClientStatus.new(agency: @agency, actor: @actor, client: organization.client, status: "inactive", lock_version: organization.client.lock_version).call
     person = CreateClientPerson.new(agency: @agency, actor: @actor, names: { first_name: "Child", last_name: "Contact" }).call.record
 
-    race(2) do |index|
+    race(2, allowed_error_codes: %i[invalid_state conflict]) do |index|
       if index.zero?
         ChangeClientOrganizationStatus.new(
           agency: Agency.find(@agency.id),
@@ -323,7 +323,7 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
     ).call
     point.reload
 
-    race(2) do |index|
+    race(2, allowed_error_codes: %i[invalid_state conflict]) do |index|
       if index.zero?
         ChangeSupplierContactStatus.new(
           agency: Agency.find(@agency.id),
@@ -355,7 +355,7 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
     supplier = CreateSupplier.new(agency: @agency, actor: @actor, kind: "organization", names: { display_name: "Cascade Host" }, categories: [ "air" ]).call.record
     location = CreateSupplierLocation.new(agency: @agency, actor: @actor, supplier:, attributes: { name: "Open Desk" }).call.record
 
-    race(2) do |index|
+    race(2, allowed_error_codes: %i[invalid_state conflict]) do |index|
       current = Supplier.find(supplier.id)
       if index.zero?
         ChangeSupplierStatus.new(
@@ -532,7 +532,7 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
     }
   ].freeze
 
-  def race(count)
+  def race(count, allowed_error_codes: [])
     started = Queue.new
     threads = count.times.map do |index|
       Thread.new do
@@ -545,6 +545,17 @@ class M1DirectoryConcurrencyTest < ActiveSupport::TestCase
       end
     end
     count.times { started << true }
-    threads.map(&:value)
+    outcomes = threads.map(&:value)
+    outcomes.each { |outcome| assert_expected_race_outcome!(outcome, allowed_error_codes:) }
+    outcomes
+  end
+
+  def assert_expected_race_outcome!(outcome, allowed_error_codes:)
+    return if outcome.is_a?(AgencyCommand::Result)
+    return if outcome.is_a?(AgencyCommand::Error) && allowed_error_codes.include?(outcome.code)
+
+    raise outcome if outcome.is_a?(Exception)
+
+    flunk "unexpected race outcome: #{outcome.inspect}"
   end
 end
