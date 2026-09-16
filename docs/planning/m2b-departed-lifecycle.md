@@ -1,6 +1,6 @@
 # M2B — Departed lifecycle
 
-**Status:** Accepted. Implemented on this branch; mark Shipped after merge to `main`. This slice is not yet shipped.
+**Status:** Shipped. Merged to main on 2026-09-16 in pull request #47. This document remains the departed-lifecycle contract. It is not authority to start M2C, M3, or Travel Program.
 
 **Parent:** [M2 — Departure core](m2-departure-core.md). The parent status line must read Accepted. This slice plan is not implementation authority while it remains Draft, and it cannot become implementation authority if the parent returns to Draft.
 
@@ -268,9 +268,7 @@ Do not weaken M2A or M1 tests.
 
 ## When this slice ships
 
-Update `AGENTS.md` for the first scheduled lifecycle job (at-least-once delivery, identifiers, reload through Agency, exact system invocation, bounded retry, queue `departures`, queue database). Mention departed and correction commands in current architecture and the interface contract. Do not mark M2 complete.
-
-While the implementation PR is open, describe those updates as implemented on the branch. Mark the slice **Shipped** in a post-merge documentation commit.
+Those shipped-boundary updates are in this documentation PR. Do not mark M2 complete. M2C remains Draft.
 
 ## Exit gate
 
