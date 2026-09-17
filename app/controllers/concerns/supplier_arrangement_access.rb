@@ -21,6 +21,7 @@ module SupplierArrangementAccess
     @supplier_arrangement_version =
       @supplier_arrangement.versions.find_by(status: "draft") ||
       @supplier_arrangement.governing_version ||
+      @supplier_arrangement.versions.order(:version_number).last ||
       raise(ActiveRecord::RecordNotFound)
   end
 

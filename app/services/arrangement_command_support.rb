@@ -30,7 +30,10 @@ module ArrangementCommandSupport
   end
 
   def lock_editable_draft_version_for!(arrangement)
-    arrangement.versions.lock.find_by!(status: "draft")
+    arrangement.versions.lock.find_by(status: "draft") ||
+      raise(AgencyCommand::Error.new(
+        "That supplier arrangement has no editable draft.", code: :invalid_state
+      ))
   end
 
   # Contract order: Departure → Arrangement → version.
