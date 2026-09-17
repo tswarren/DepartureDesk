@@ -25,8 +25,11 @@ class M3D0PlanningWorkspaceTest < ApplicationSystemTestCase
       fill_in "Name", with: "O1 cabin"
     end
     find_button("Save item setup").send_keys(:return)
+    wait_for_turbo
 
-    assert_selector "#form-error-summary:focus"
+    assert_selector "#form-error-summary"
+    assert_equal "form-error-summary",
+      page.evaluate_script("document.activeElement && document.activeElement.id")
     within("#form-error-summary") { find("a", match: :first).send_keys(:return) }
     assert_equal "arrangement_item_definition_name",
       page.evaluate_script("document.activeElement && document.activeElement.id")
@@ -63,7 +66,7 @@ class M3D0PlanningWorkspaceTest < ApplicationSystemTestCase
     find_button("Save item setup").send_keys(:return)
     wait_for_turbo
 
-    activate "Decide capacity for Hilton rooms"
+    within("#next-actions") { activate "Decide capacity for Hilton rooms" }
     choose "Managed capacity"
     find_button("Save applicability").send_keys(:return)
     wait_for_turbo

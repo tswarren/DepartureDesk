@@ -118,6 +118,9 @@
   <article class="dd-panel">
     <div class="dd-panel-body">
       <p class="<%= empty_state_classes.join(" ") %>">No arrangement items yet.</p>
+      <% if ordinary_editable %>
+        <%= link_to "Add item", departure_arrangement_new_item_setup_path(@departure, @supplier_arrangement), class: "dd-button" %>
+      <% end %>
     </div>
   </article>
 <% else %>

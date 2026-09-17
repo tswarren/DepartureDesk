@@ -23,6 +23,14 @@ class ServiceOccurrenceDefinition < ApplicationRecord
   validate :local_times_are_paired
   validate :timezone_is_iana
 
+  def self.human_attribute_name(attribute, options = {})
+    case attribute.to_s
+    when "starts_on" then "Start date"
+    when "ends_on" then "End date"
+    else super
+    end
+  end
+
   private
 
   def date_range_is_ordered

@@ -30,27 +30,22 @@ class M3CSupplierCostsSystemTest < ApplicationSystemTestCase
     visit departure_arrangement_item_costs_workspace_path(@departure, @arrangement, @item)
 
     assert_selector "h1.dd-page-title", exact_text: "Cabin inventory"
-    find("summary", text: "Add cost source").click
-    fill_in "Source label", with: "O1 terms"
-    select supplier_option_text(@supplier), from: "Charging supplier"
-    click_button "Add cost source"
-    assert_text "Cost source saved."
+    click_link "Add Item cost"
+    assert_selector "h1.dd-page-title", exact_text: "Add Supplier cost"
 
-    find("summary", text: "Add cost stage").click
-    select "Contracted", from: "Stage"
-    select "Calculated", from: "Mode"
-    click_button "Add stage"
-    assert_text "Cost stage saved."
-
-    find("summary", text: "Add component").click
-    fill_in "Label", with: "Fare"
+    fill_in "What is this cost for?", with: "O1 terms"
+    select "Contracted term", from: "Term stage"
+    select "Calculated", from: "Known cost"
+    fill_in "First charge, credit, or commission", with: "Fare"
     select "Supplier charge", from: "Economic role"
-    select "Fixed", from: "Calculation"
+    select "Fixed", from: "How is it calculated?"
     fill_in "Amount (USD)", with: "1000.00"
-    click_button "Add component"
-    assert_text "Cost component saved."
+    click_button "Save and review cost"
+    assert_text "Initial Supplier cost saved."
     assert_text "Fare"
 
+    click_link "Back to costs"
+    assert_selector "h1.dd-page-title", exact_text: "Cabin inventory"
     find("summary", text: "Add component").click
     fill_in "Label", with: "Commission"
     select "Expected commission", from: "Economic role"
