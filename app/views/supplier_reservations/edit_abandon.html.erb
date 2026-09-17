@@ -1,0 +1,34 @@
+<% content_for :title, "Abandon Reservation · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier Reservation</p>
+    <h1 class="dd-page-title">Abandon planned Reservation</h1>
+    <p class="dd-page-description">This keeps the draft history and removes it from current operation.</p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to reservation", departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<% if flash.now[:alert].present? %>
+  <div class="dd-error-summary" role="alert" tabindex="-1">
+    <h2>Reservation could not be abandoned</h2>
+    <p><%= flash.now[:alert] %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: abandon_departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), method: :post do %>
+      <%= hidden_field_tag :revision_lock_version, @planned_revision&.lock_version %>
+      <div class="dd-field">
+        <%= label_tag :reason, "Reason" %>
+        <%= text_area_tag :reason, params[:reason], class: "dd-textarea", maxlength: 500, required: true %>
+      </div>
+      <div class="dd-page-actions">
+        <%= submit_tag "Abandon planned reservation", class: "dd-button dd-button--danger" %>
+      </div>
+    <% end %>
+  </div>
+</article>

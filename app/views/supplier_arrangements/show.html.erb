@@ -24,6 +24,7 @@
     <% if manage && @departure.active? && draft_graph && contractor_active %>
       <%= link_to successor_draft ? "Activate successor" : "Activate arrangement", departure_arrangement_activation_path(@departure, @supplier_arrangement), class: "dd-button" %>
     <% end %>
+    <%= link_to "Reservations", departure_arrangement_reservations_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
     <% if can_create_successor %>
       <%= button_to "Create successor", successor_departure_arrangement_path(@departure, @supplier_arrangement),
         method: :post, class: "dd-button", params: {

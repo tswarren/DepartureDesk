@@ -1,0 +1,31 @@
+<% content_for :title, "Edit Reservation · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier Reservation</p>
+    <h1 class="dd-page-title">Edit planned Reservation</h1>
+    <p class="dd-page-description">Revision <%= @planned_revision.revision_number %> · exact version <%= @planned_revision.supplier_arrangement_version.version_number %></p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to reservation", departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<% if flash.now[:alert].present? %>
+  <div class="dd-error-summary" role="alert" tabindex="-1">
+    <h2>Reservation could not be updated</h2>
+    <p><%= flash.now[:alert] %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), method: :patch do %>
+      <%= hidden_field_tag :revision_lock_version, @planned_revision.lock_version %>
+      <%= render "form", revision: @planned_revision %>
+      <div class="dd-page-actions">
+        <%= submit_tag "Update planned reservation", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</article>

@@ -1,0 +1,163 @@
+<% content_for :title, "Reservation · #{@supplier_arrangement.name} · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_departures) %>
+<% planned_revision = @revisions.find(&:planned?) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier Reservation</p>
+    <h1 class="dd-page-title"><%= supplier_option_label(@supplier_reservation.booking_supplier) %></h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %> · <%= @projection&.state&.humanize || "Projection pending" %></p>
+  </div>
+  <div class="dd-page-actions">
+    <% if manage && planned_revision %>
+      <%= link_to "Edit planned reservation", edit_departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), class: "dd-button" %>
+      <%= link_to "Abandon plan", abandon_departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), class: "dd-button dd-button--danger" %>
+    <% end %>
+    <%= link_to "Back to reservations", departure_arrangement_reservations_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Current state</h2>
+      <p>Projection is rebuildable from reservation events.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div><dt>State</dt><dd><%= @projection&.state&.humanize || "Not rebuilt" %></dd></div>
+      <div><dt>Pending</dt><dd><%= @projection&.pending_scope_count.to_i %></dd></div>
+      <div><dt>Withdrawn</dt><dd><%= @projection&.withdrawn_scope_count.to_i %></dd></div>
+      <div><dt>Confirmed</dt><dd><%= @projection&.confirmed_scope_count.to_i %></dd></div>
+      <div><dt>Counterproposed</dt><dd><%= @projection&.counterproposed_scope_count.to_i %></dd></div>
+    </dl>
+  </div>
+</article>
+
+<% if manage && planned_revision && @supplier_arrangement.active? && planned_revision.supplier_arrangement_version_id == @supplier_arrangement.governing_version_id %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Record request sent</h2>
+        <p>This records an external Supplier request. No email is sent.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <%= form_with url: request_booking_departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), method: :post do %>
+        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+        <div class="dd-field">
+          <%= label_tag "request_event_occurred_at", "Sent time" %>
+          <%= datetime_field_tag "request_event[occurred_at]", Time.current.strftime("%Y-%m-%dT%H:%M"), class: "dd-input" %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "request_event_channel", "Channel" %>
+          <%= text_field_tag "request_event[channel]", params.dig(:request_event, :channel), class: "dd-input", maxlength: 80, required: true %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "request_event_reference_note", "Request reference note" %>
+          <%= text_area_tag "request_event[reference_note]", params.dig(:request_event, :reference_note), class: "dd-textarea", maxlength: 500, required: true %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "request_event_safe_contact_snapshot", "Safe contact snapshot" %>
+          <%= text_area_tag "request_event[safe_contact_snapshot]", params.dig(:request_event, :safe_contact_snapshot), class: "dd-textarea", maxlength: 500 %>
+        </div>
+        <%= submit_tag "Record request sent", class: "dd-button" %>
+      <% end %>
+    </div>
+  </article>
+<% end %>
+
+<% if manage && @pending_scopes.any? %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Withdraw pending scopes</h2>
+        <p>Withdrawal does not create capacity, financial, or cancellation consequences.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <%= form_with url: withdraw_departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), method: :post do %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <% @pending_scopes.each do |scope| %>
+          <div class="dd-field">
+            <%= check_box_tag "scope_ids[]", scope.id, true, id: "scope_ids_#{scope.id}" %>
+            <%= label_tag "scope_ids_#{scope.id}", scope.label.presence || scope.target_kind.humanize %>
+          </div>
+        <% end %>
+        <div class="dd-field">
+          <%= label_tag :reason, "Withdrawal reason" %>
+          <%= text_area_tag :reason, nil, class: "dd-textarea", maxlength: 500, required: true %>
+        </div>
+        <%= submit_tag "Record withdrawal", class: "dd-button dd-button--danger" %>
+      <% end %>
+    </div>
+  </article>
+<% end %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Revisions and scopes</h2>
+      <p>Requested revisions are immutable and remain tied to their exact version.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% @revisions.each do |revision| %>
+      <h3 class="dd-panel-title">Revision <%= revision.revision_number %> · <%= revision.status.humanize %></h3>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Scope</th>
+            <th scope="col">Target</th>
+            <th scope="col">Quantity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% revision.scopes.each do |scope| %>
+            <tr>
+              <td><%= scope.label.presence || scope.target_kind.humanize %></td>
+              <td><%= scope_target_label(scope) %></td>
+              <td><%= scope.requested_quantity ? "#{scope.requested_quantity} #{scope.quantity_basis.humanize}" : "No quantity" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Event history</h2>
+      <p>Supplier request and withdrawal facts are append-only.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if @events.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Event</th>
+            <th scope="col">Occurred</th>
+            <th scope="col">Context</th>
+            <th scope="col">Scopes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @events.each do |event| %>
+            <tr>
+              <td><%= event.event_kind.humanize %></td>
+              <td><%= l(event.occurred_at, format: :long) %></td>
+              <td><%= event.reference_note.presence || event.reason %></td>
+              <td><%= event.scope_outcomes.map { |outcome| outcome.outcome_kind.humanize }.to_sentence %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="<%= empty_state_classes.join(" ") %>">No events recorded yet.</p>
+    <% end %>
+  </div>
+</article>

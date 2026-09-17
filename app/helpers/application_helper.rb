@@ -435,6 +435,23 @@ module ApplicationHelper
     end
   end
 
+  def scope_target_label(scope)
+    case scope.target_kind
+    when "arrangement"
+      "Whole Arrangement"
+    when "item"
+      scope.arrangement_item&.definitions&.find_by(supplier_arrangement_version_id: scope.supplier_arrangement_version_id)&.name || "Item"
+    when "occurrence"
+      scope.service_occurrence&.definitions&.find_by(supplier_arrangement_version_id: scope.supplier_arrangement_version_id)&.name || "Occurrence"
+    when "resource"
+      scope.supplier_resource&.definitions&.find_by(supplier_arrangement_version_id: scope.supplier_arrangement_version_id)&.name || "Resource"
+    when "capacity_pool"
+      scope.capacity_pool&.definitions&.find_by(supplier_arrangement_version_id: scope.supplier_arrangement_version_id)&.label || "Capacity Pool"
+    else
+      scope.target_kind.to_s.humanize
+    end
+  end
+
   def capacity_quantity_label(pool_definition)
     return "Quantity not tracked" unless pool_definition.capacity_pool.numeric_inventory?
 

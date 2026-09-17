@@ -46,6 +46,12 @@ class Agency < ApplicationRecord
   has_many :supplier_cost_usage_assumptions, dependent: :restrict_with_exception
   has_many :supplier_cost_occupancy_profiles, dependent: :restrict_with_exception
   has_many :supplier_cost_occupancy_profile_positions, dependent: :restrict_with_exception
+  has_many :supplier_reservations, dependent: :restrict_with_exception
+  has_many :supplier_reservation_revisions, dependent: :restrict_with_exception
+  has_many :supplier_reservation_scopes, dependent: :restrict_with_exception
+  has_many :supplier_reservation_events, dependent: :restrict_with_exception
+  has_many :supplier_reservation_event_scope_outcomes, dependent: :restrict_with_exception
+  has_many :supplier_reservation_projections, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

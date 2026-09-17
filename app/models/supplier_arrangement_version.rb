@@ -25,6 +25,9 @@ class SupplierArrangementVersion < ApplicationRecord
   has_one :supplier_arrangement_activation, dependent: :restrict_with_exception
   has_many :supplier_confirmations, dependent: :restrict_with_exception
   has_many :supplier_commitments, dependent: :restrict_with_exception
+  has_many :supplier_reservation_revisions, dependent: :restrict_with_exception
+  has_many :supplier_reservation_scopes, dependent: :restrict_with_exception
+  has_many :supplier_reservation_events, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 

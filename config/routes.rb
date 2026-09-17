@@ -151,6 +151,14 @@ Rails.application.routes.draw do
       resource :activation,
         only: %i[show create],
         controller: "supplier_arrangement_activations"
+      resources :reservations, controller: "supplier_reservations", only: %i[index new create show edit update] do
+        member do
+          get :abandon, action: :edit_abandon
+          post :abandon
+          post :request_booking
+          post :withdraw
+        end
+      end
       member do
         post :successor
         get :abandon, action: :edit_abandon

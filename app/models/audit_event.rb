@@ -125,10 +125,15 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.commitment_trigger_created
     supplier_arrangement.commitment_trigger_updated
     supplier_arrangement.commitment_trigger_removed
+    supplier_reservation.created
+    supplier_reservation.updated
+    supplier_reservation.abandoned
+    supplier_reservation.requested
+    supplier_reservation.withdrawn
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure SupplierArrangement].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure SupplierArrangement SupplierReservation].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true
