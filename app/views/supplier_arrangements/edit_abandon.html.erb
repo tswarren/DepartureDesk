@@ -1,16 +1,21 @@
-<% content_for :title, "Abandon Arrangement · DepartureDesk" %>
+<% successor = @supplier_arrangement.active? && @supplier_arrangement_version.draft? %>
+<% content_for :title, "#{successor ? "Abandon Successor" : "Abandon Arrangement"} · DepartureDesk" %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Supplier planning</p>
-    <h1 class="dd-page-title">Abandon arrangement</h1>
+    <h1 class="dd-page-title"><%= successor ? "Abandon successor" : "Abandon arrangement" %></h1>
     <p class="dd-page-description"><%= @supplier_arrangement.name %></p>
   </div>
 </header>
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <p>Abandoning a tentative arrangement records that it will not continue. It does not invent cancellation, occupancy, or money facts.</p>
+    <% if successor %>
+      <p>Abandoning successor draft version <%= @supplier_arrangement_version.version_number %> retains it as read-only history. Governing version <%= @supplier_arrangement.governing_version.version_number %> remains active.</p>
+    <% else %>
+      <p>Abandoning a tentative arrangement records that it will not continue. It does not invent cancellation, occupancy, or money facts.</p>
+    <% end %>
 
     <%= form_with url: abandon_departure_arrangement_path(@departure, @supplier_arrangement), method: :post, class: "dd-form" do |form| %>
       <%= render "shared/form_errors", object: @supplier_arrangement_version %>
@@ -21,7 +26,7 @@
         <%= text_area_tag :reason, @abandon_reason, maxlength: SupplierArrangementVersion::ABANDONED_REASON_LIMIT, required: true, class: "dd-field" %>
       </div>
       <div class="dd-form-actions">
-        <%= form.submit "Abandon arrangement", class: "dd-button dd-button--danger" %>
+        <%= form.submit successor ? "Abandon successor" : "Abandon arrangement", class: "dd-button dd-button--danger" %>
         <%= link_to "Cancel", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>

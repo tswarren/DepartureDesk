@@ -15,6 +15,7 @@ class SupplierArrangementActivationReadiness
 
   def call
     verify_ownership
+    successor_readiness
     structure_readiness
     capacity_readiness
     cost_readiness
@@ -27,12 +28,89 @@ class SupplierArrangementActivationReadiness
 
   private
 
+  LINEAGE_MODELS = [
+    ArrangementItemDefinition,
+    ServiceOccurrenceDefinition,
+    SupplierResourceDefinition,
+    CapacityPairDefinition,
+    CapacityPoolDefinition,
+    SupplierCostSource,
+    SupplierCostDefinition,
+    SupplierCostComponent,
+    SupplierCostComponentBase,
+    SupplierCostParticipantCategory,
+    SupplierCostUsageAssumption,
+    SupplierCostOccupancyProfile,
+    SupplierCostOccupancyProfilePosition,
+    SupplierCommitmentTriggerDefinition
+  ].freeze
+
   def verify_ownership
     ids = [ @agency.id, @departure.agency_id, @arrangement.agency_id, @version.agency_id ]
     raise ActiveRecord::RecordNotFound unless ids.uniq.one?
     raise ActiveRecord::RecordNotFound unless
       @version.supplier_arrangement_id == @arrangement.id &&
       @version.departure_id == @departure.id
+  end
+
+  def successor_readiness
+    return if @version.copied_from_id.nil?
+
+    predecessor = @arrangement.versions.find_by(id: @version.copied_from_id)
+    unless predecessor&.activated? && @arrangement.governing_version_id == predecessor.id
+      block(:lineage, :predecessor_not_governing, "version",
+        "The successor must descend from the current governing version.")
+      return
+    end
+
+    invalid_lineage = LINEAGE_MODELS.any? do |model|
+      copied_ids = model.where(
+        supplier_arrangement_version_id: @version.id
+      ).where.not(copied_from_id: nil).pluck(:copied_from_id)
+      copied_ids.any? && model.where(
+        id: copied_ids, supplier_arrangement_version_id: predecessor.id
+      ).count != copied_ids.uniq.size
+    end
+    if invalid_lineage || retained_structure_lineage_missing?(predecessor)
+      block(:lineage, :copied_lineage_invalid, "version",
+        "Copied successor definitions must retain exact predecessor lineage.")
+    end
+
+    omitted_pool_ids = predecessor.capacity_pool_definitions.pluck(:capacity_pool_id) -
+      @version.capacity_pool_definitions.pluck(:capacity_pool_id)
+    return if omitted_pool_ids.empty?
+
+    dependencies = FindUnresolvedCapacityDependencies.new(
+      agency: @agency, arrangement: @arrangement
+    ).call
+    open_reconciliation_pool_ids = @agency.capacity_reconciliations.where(
+      id: dependencies.open_capacity_reconciliation_ids
+    ).pluck(:capacity_pool_id)
+    pending_pool_ids = @agency.capacity_events.where(
+      id: dependencies.pending_capacity_event_ids
+    ).pluck(:capacity_pool_id)
+    blocked_ids = omitted_pool_ids & (
+      dependencies.capacity_pool_ids + open_reconciliation_pool_ids + pending_pool_ids
+    )
+    if blocked_ids.any?
+      block(:capacity, :carried_pool_omission_blocked, "capacity_pools",
+        "Omitted numeric Pools must have zero effective quantity, no pending event, and clean reconciliation.")
+    end
+  end
+
+  def retained_structure_lineage_missing?(predecessor)
+    [
+      [ ArrangementItemDefinition, :arrangement_item_id ],
+      [ ServiceOccurrenceDefinition, :service_occurrence_id ],
+      [ SupplierResourceDefinition, :supplier_resource_id ],
+      [ CapacityPoolDefinition, :capacity_pool_id ]
+    ].any? do |model, identity|
+      previous = model.where(supplier_arrangement_version_id: predecessor.id).index_by(&identity)
+      model.where(supplier_arrangement_version_id: @version.id).any? do |record|
+        source = previous[record.public_send(identity)]
+        source && record.copied_from_id != source.id
+      end
+    end
   end
 
   def structure_readiness

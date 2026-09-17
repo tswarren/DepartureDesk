@@ -50,7 +50,12 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       lock_activation_suppliers!(arrangement, version)
       departure = @agency.departures.lock.find(arrangement.departure_id)
       arrangement = @agency.supplier_arrangements.lock.find(arrangement.id)
-      version = arrangement.versions.lock.find(version.id)
+      locked_versions = arrangement.versions.where(
+        id: [ arrangement.governing_version_id, version.id ].compact
+      ).order(:version_number, :id).lock.index_by(&:id)
+      version = locked_versions.fetch(version.id)
+      predecessor = arrangement.governing_version_id &&
+        locked_versions.fetch(arrangement.governing_version_id)
       lock_exact_graph!(version, arrangement)
 
       payload = activation_payload(arrangement, version)
@@ -58,7 +63,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         return replay
       end
 
-      validate_state!(departure, arrangement, version)
+      activation_kind = validate_state!(departure, arrangement, version, predecessor)
       ensure_submitted_lock!(arrangement, @arrangement_lock_version)
       ensure_submitted_lock!(version, @version_lock_version)
       readiness = SupplierArrangementActivationReadiness.new(
@@ -77,6 +82,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       identifier = resolve_identifier!(confirmation, arrangement)
       activation = create_manifest!(
         arrangement: arrangement, version: version, confirmation: confirmation,
+        predecessor: predecessor, activation_kind: activation_kind,
         readiness: readiness, activated_at: activated_at
       )
       create_cost_selections!(activation, readiness)
@@ -87,9 +93,15 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         capacity_events: capacity_events
       )
 
+      if predecessor
+        predecessor.update!(status: "superseded", superseded_at: activated_at)
+      end
       version.update!(status: "activated", activated_at: activated_at)
       arrangement.update!(status: "active", governing_version: version)
-      audit_activation!(arrangement, activation, capacity_events, commitments)
+      audit_activation!(
+        arrangement, activation, capacity_events, commitments,
+        successor: activation_kind == "successor"
+      )
       claim_idempotency!(key, payload, activation)
       Result.new(status: :created, record: activation)
     end
@@ -150,16 +162,23 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     end
   end
 
-  def validate_state!(departure, arrangement, version)
+  def validate_state!(departure, arrangement, version, predecessor)
     unless departure.active?
       raise Error.new("Only an active departure can activate an arrangement.", code: :invalid_state)
     end
-    unless arrangement.draft? && arrangement.governing_version_id.nil? &&
-        version.draft? && arrangement.versions.where(status: "draft").sole.id == version.id
-      raise Error.new("Only the first draft version can be activated here.", code: :invalid_state)
+    sole_draft = arrangement.versions.where(status: "draft").sole
+    if arrangement.draft? && arrangement.governing_version_id.nil? &&
+        predecessor.nil? && version.id == sole_draft.id && version.copied_from_id.nil?
+      return "first"
     end
+    if arrangement.active? && predecessor&.activated? &&
+        arrangement.governing_version_id == predecessor.id &&
+        version.id == sole_draft.id && version.copied_from_id == predecessor.id
+      return "successor"
+    end
+    raise Error.new("Only the sole editable draft version can be activated.", code: :invalid_state)
   rescue ActiveRecord::SoleRecordExceeded, ActiveRecord::RecordNotFound
-    raise Error.new("Only the first draft version can be activated here.", code: :invalid_state)
+    raise Error.new("Only the sole editable draft version can be activated.", code: :invalid_state)
   end
 
   def ensure_submitted_lock!(record, submitted)
@@ -279,10 +298,15 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       )
   end
 
-  def create_manifest!(arrangement:, version:, confirmation:, readiness:, activated_at:)
+  def create_manifest!(
+    arrangement:, version:, predecessor:, activation_kind:, confirmation:, readiness:, activated_at:
+  )
     SupplierArrangementActivation.create!(
       owner_attributes(arrangement, version).merge(
-        activation_kind: "first", supplier_confirmation: confirmation,
+        activation_kind: activation_kind,
+        predecessor_version: predecessor,
+        predecessor_activation: predecessor&.supplier_arrangement_activation,
+        supplier_confirmation: confirmation,
         actor: @actor, activated_at: activated_at,
         coverage_attestation_version: ATTESTATION_VERSION,
         coverage_fingerprint: coverage_fingerprint(version, readiness),
@@ -309,7 +333,8 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     events = []
     version.capacity_pool_definitions.includes(:capacity_pool).order(:id).each do |definition|
       pool = definition.capacity_pool
-      event = if pool.numeric_inventory?
+      carried = pool.capacity_events.exists?
+      event = if pool.numeric_inventory? && !carried
         EstablishCapacityAlreadyLocked.new(
           definition: definition, actor: @actor, recorded_at: activated_at
         ).call
@@ -319,7 +344,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         owner_attributes(activation.supplier_arrangement, version).merge(
           capacity_pool_definition: definition, capacity_pool: pool,
           establishment_event: event,
-          entry_kind: event ? "established" : "nonnumeric"
+          entry_kind: event ? "established" : (carried ? "carried" : "nonnumeric")
         )
       )
     end
@@ -412,15 +437,17 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     )
   end
 
-  def audit_activation!(arrangement, activation, events, commitments)
+  def audit_activation!(arrangement, activation, events, commitments, successor:)
     audit!(
-      agency: @agency, action: "supplier_arrangement.activated",
+      agency: @agency,
+      action: successor ? "supplier_arrangement.successor_activated" : "supplier_arrangement.activated",
       subject: arrangement, actor: @actor,
       details: {
         "supplier_arrangement_id" => arrangement.id,
         "supplier_arrangement_version_id" => activation.supplier_arrangement_version_id,
         "supplier_arrangement_activation_id" => activation.id,
         "supplier_confirmation_id" => activation.supplier_confirmation_id,
+        "predecessor_version_id" => activation.predecessor_version_id,
         "capacity_event_ids" => events.map(&:id),
         "supplier_commitment_ids" => commitments.map(&:id),
         "cost_source_coverage_acknowledged" => @cost_source_ack,

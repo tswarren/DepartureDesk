@@ -5,7 +5,10 @@
 <% ordinary_editable = manage && draft_graph && (@departure.draft? || @departure.active?) && contractor_active %>
 <% recovery_cleanup = manage && draft_graph && !ordinary_editable && (@departure.departed? || !contractor_active) %>
 <% can_remove = ordinary_editable || recovery_cleanup %>
-<% can_abandon = manage && @supplier_arrangement.draft? && draft_graph %>
+<% successor_draft = @supplier_arrangement.active? && @supplier_arrangement_version.draft? %>
+<% can_abandon = manage && draft_graph && (@supplier_arrangement.draft? || successor_draft) %>
+<% can_create_successor = manage && @departure.active? && @supplier_arrangement.active? &&
+  @supplier_arrangement_version.activated? && contractor_active %>
 <% can_edit_arrangement = ordinary_editable || (recovery_cleanup && @supplier_arrangement.supplier_contact_id.present?) %>
 <% reorder_items_mode = ordinary_editable && params[:structure_mode] == "items" %>
 <% reorder_resources_item_id = params[:structure_item_id] if ordinary_editable && params[:structure_mode] == "resources" %>
@@ -19,17 +22,34 @@
   </div>
   <div class="dd-page-actions">
     <% if manage && @departure.active? && draft_graph && contractor_active %>
-      <%= link_to "Activate arrangement", departure_arrangement_activation_path(@departure, @supplier_arrangement), class: "dd-button" %>
+      <%= link_to successor_draft ? "Activate successor" : "Activate arrangement", departure_arrangement_activation_path(@departure, @supplier_arrangement), class: "dd-button" %>
+    <% end %>
+    <% if can_create_successor %>
+      <%= button_to "Create successor", successor_departure_arrangement_path(@departure, @supplier_arrangement),
+        method: :post, class: "dd-button", params: {
+          arrangement_lock_version: @supplier_arrangement.lock_version,
+          version_lock_version: @supplier_arrangement_version.lock_version,
+          idempotency_key: SecureRandom.uuid
+        } %>
     <% end %>
     <% if can_edit_arrangement %>
       <%= link_to recovery_cleanup ? "Clear contact" : "Edit arrangement", edit_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button" %>
     <% end %>
     <% if can_abandon %>
-      <%= link_to "Abandon", abandon_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--danger" %>
+      <%= link_to successor_draft ? "Abandon successor" : "Abandon", abandon_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--danger" %>
     <% end %>
     <%= link_to "Back to departure", departure_path(@departure), class: "dd-button dd-button--quiet" %>
   </div>
 </header>
+
+<% if successor_draft %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <p><strong>Successor draft workspace.</strong> Version <%= @supplier_arrangement_version.version_number %> is an independent copy of governing version <%= @supplier_arrangement_version.copied_from.version_number %>. Changes here do not alter the current terms.</p>
+      <p class="dd-field-hint">Activation requires fresh coverage attestations and new exact-version Supplier confirmation evidence.</p>
+    </div>
+  </article>
+<% end %>
 
 <% if recovery_cleanup %>
   <article class="dd-panel">
@@ -62,7 +82,13 @@
       </div>
       <div>
         <dt>Version</dt>
-        <dd>Draft version <%= @supplier_arrangement_version.version_number %></dd>
+        <dd>
+          <% if @supplier_arrangement_version.draft? %>
+            Draft version <%= @supplier_arrangement_version.version_number %>
+          <% else %>
+            Governing version <%= @supplier_arrangement_version.version_number %>
+          <% end %>
+        </dd>
       </div>
     </dl>
   </div>

@@ -152,6 +152,7 @@ Rails.application.routes.draw do
         only: %i[show create],
         controller: "supplier_arrangement_activations"
       member do
+        post :successor
         get :abandon, action: :edit_abandon
         post :abandon
       end

@@ -4,7 +4,7 @@ class SupplierArrangementsController < ApplicationController
   before_action :require_departure_view!
   before_action :require_departure_management!, except: %i[index show]
   before_action :set_departure
-  before_action :set_supplier_arrangement, only: %i[show edit update edit_abandon abandon]
+  before_action :set_supplier_arrangement, only: %i[show edit update successor edit_abandon abandon]
   before_action :set_editable_draft_version, only: %i[show edit update edit_abandon abandon]
 
   def index
@@ -89,6 +89,25 @@ class SupplierArrangementsController < ApplicationController
     render :edit, status: :unprocessable_entity
   end
 
+  def successor
+    result = CreateSupplierArrangementSuccessor.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      arrangement: @supplier_arrangement,
+      arrangement_lock_version: params[:arrangement_lock_version],
+      version_lock_version: params[:version_lock_version],
+      idempotency_key: params[:idempotency_key]
+    ).call
+    redirect_to departure_arrangement_path(@departure, @supplier_arrangement),
+      notice: result.status == :replayed ? "Successor draft already exists." :
+        "Successor draft version #{result.record.version_number} created."
+  rescue AgencyCommand::Error => error
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    redirect_to departure_arrangement_path(@departure, @supplier_arrangement),
+      alert: error.message
+  end
+
   def edit_abandon
     @abandon_reason = params[:reason]
   end
@@ -102,7 +121,10 @@ class SupplierArrangementsController < ApplicationController
       arrangement_lock_version: params[:arrangement_lock_version],
       version_lock_version: params[:version_lock_version]
     ).call
-    redirect_to departure_arrangement_path(@departure, @supplier_arrangement), notice: "Arrangement abandoned."
+    successor = @supplier_arrangement.active?
+    redirect_to departure_arrangement_path(@departure, @supplier_arrangement),
+      notice: successor ? "Successor draft abandoned. The current version remains governing." :
+        "Arrangement abandoned."
   rescue AgencyCommand::Error => error
     @abandon_reason = params[:reason]
     add_arrangement_error(@supplier_arrangement_version, error)

@@ -19,9 +19,13 @@ class RemoveCapacityPool < AgencyCommand
       ensure_capacity_recovery_edit!(departure, arrangement, version)
       definition = lock_pool_definition_for!(version, @definition)
       pool = lock_pool_for!(arrangement, definition.capacity_pool)
+      pool.capacity_events.order(:id).lock.load
+      pool.capacity_projection&.lock!
+      pool.capacity_reconciliations.order(:id).lock.load
       ensure_current_lock_version!(version, @version_lock_version)
       ensure_current_lock_version!(definition)
-      ensure_draft_pool_can_be_destroyed!(pool, definition)
+      carried = pool.definitions.where.not(id: definition.id).exists?
+      ensure_draft_pool_can_be_removed!(pool, definition, carried: carried)
 
       evidence = {
         "supplier_arrangement_id" => arrangement.id,
@@ -39,7 +43,7 @@ class RemoveCapacityPool < AgencyCommand
       }
 
       definition.destroy!
-      pool.destroy!
+      pool.destroy! unless carried
       bump_version!(version)
       audit!(
         agency: @agency,
@@ -56,9 +60,25 @@ class RemoveCapacityPool < AgencyCommand
 
   private
 
-  def ensure_draft_pool_can_be_destroyed!(pool, definition)
+  def ensure_draft_pool_can_be_removed!(pool, definition, carried:)
+    if carried
+      dependencies = FindUnresolvedCapacityDependencies.new(
+        agency: @agency, arrangement: definition.supplier_arrangement
+      ).call
+      pending = CapacityEvent.where(id: dependencies.pending_capacity_event_ids, capacity_pool: pool).exists?
+      open_reconciliation = CapacityReconciliation.where(
+        id: dependencies.open_capacity_reconciliation_ids, capacity_pool: pool
+      ).exists?
+      nonzero = dependencies.capacity_pool_ids.include?(pool.id)
+      return unless pool.numeric_inventory? && (nonzero || pending || open_reconciliation)
+
+      raise Error.new(
+        "That carried capacity Pool must have zero effective quantity, no pending event, and clean reconciliation before omission.",
+        code: :dependency_exists
+      )
+    end
+
     dependencies = [
-      pool.definitions.where.not(id: definition.id),
       pool.capacity_events,
       CapacityProjection.where(capacity_pool: pool),
       pool.capacity_reconciliations

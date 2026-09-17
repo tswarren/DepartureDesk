@@ -1,10 +1,11 @@
-<% content_for :title, "Activate #{@supplier_arrangement.name} · DepartureDesk" %>
+<% successor = @supplier_arrangement.active? && @supplier_arrangement_version.draft? %>
+<% content_for :title, "#{successor ? "Activate successor" : "Activate"} #{@supplier_arrangement.name} · DepartureDesk" %>
 <% manageable = Current.agency_user.permitted?(:manage_departures) %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Supplier planning</p>
-    <h1 class="dd-page-title">Activate arrangement</h1>
+    <h1 class="dd-page-title"><%= successor ? "Activate successor" : "Activate arrangement" %></h1>
     <p class="dd-page-description"><%= @supplier_arrangement.name %> · exact version <%= @supplier_arrangement_version.version_number %></p>
   </div>
   <div class="dd-page-actions">
@@ -60,7 +61,9 @@
         </div>
         <div>
           <dt>Capacity consequences</dt>
-          <dd><%= pluralize(@capacity_definitions.count { |entry| entry.capacity_pool.numeric_inventory? }, "numeric Pool") %> will be established; <%= pluralize(@capacity_definitions.count { |entry| !entry.capacity_pool.numeric_inventory? }, "nonnumeric Pool") %> will be recorded.</dd>
+          <% carried = @capacity_definitions.count { |entry| entry.capacity_pool.capacity_events.any? } %>
+          <% established = @capacity_definitions.count { |entry| entry.capacity_pool.numeric_inventory? && entry.capacity_pool.capacity_events.empty? } %>
+          <dd><%= pluralize(established, "numeric Pool") %> will be established; <%= pluralize(carried, "Pool") %> will be carried; <%= pluralize(@capacity_definitions.count { |entry| !entry.capacity_pool.numeric_inventory? }, "nonnumeric Pool") %> will be recorded.</dd>
         </div>
         <div>
           <dt>Entered cost sources</dt>
@@ -171,7 +174,7 @@
   </article>
 
   <div class="dd-page-actions">
-    <%= form.submit "Activate arrangement", class: "dd-button", disabled: !@readiness.ready? %>
+    <%= form.submit successor ? "Activate successor" : "Activate arrangement", class: "dd-button", disabled: !@readiness.ready? %>
   </div>
 <% end %>
 <% end %>

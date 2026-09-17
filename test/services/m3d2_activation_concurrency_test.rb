@@ -114,7 +114,67 @@ class M3d2ActivationConcurrencyTest < ActiveSupport::TestCase
     assert_equal 1, outcomes.grep(AgencyCommand::Result).size
   end
 
+  test "two successor activations produce one atomic governing transition" do
+    first = activation_command(
+      version: @graph[:version],
+      idempotency_key: "first-before-successor-race"
+    ).call.record
+    predecessor = @graph[:version].reload
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @graph[:arrangement].reload,
+      arrangement_lock_version: @graph[:arrangement].lock_version,
+      version_lock_version: predecessor.lock_version,
+      idempotency_key: "create-successor-race"
+    ).call.record
+    arrangement_lock = @graph[:arrangement].reload.lock_version
+    version_lock = successor.lock_version
+
+    outcomes = race do |index|
+      activation_command(
+        version: SupplierArrangementVersion.find(successor.id),
+        idempotency_key: "successor-race-#{index}",
+        arrangement_lock_version: arrangement_lock,
+        version_lock_version: version_lock
+      ).call
+    end
+
+    assert_equal 1, outcomes.grep(AgencyCommand::Result).size
+    assert_equal 1, outcomes.grep(AgencyCommand::Error).size
+    assert_equal "superseded", predecessor.reload.status
+    assert_equal "activated", successor.reload.status
+    assert_equal successor.id, @graph[:arrangement].reload.governing_version_id
+    assert_equal 2, @graph[:arrangement].supplier_arrangement_activations.count
+    assert_equal first.id,
+      successor.supplier_arrangement_activation.predecessor_activation_id
+  end
+
   private
+
+  def activation_command(
+    version:, idempotency_key:, arrangement_lock_version: nil, version_lock_version: nil
+  )
+    ActivateSupplierArrangementVersion.new(
+      agency: Agency.find(@agency.id),
+      actor: AgencyUser.find(@actor.id),
+      arrangement: SupplierArrangement.find(@graph[:arrangement].id),
+      version: version,
+      arrangement_lock_version: arrangement_lock_version ||
+        @graph[:arrangement].reload.lock_version,
+      version_lock_version: version_lock_version || version.reload.lock_version,
+      idempotency_key: idempotency_key,
+      evidence_attributes: {
+        evidence_kind: "supplier_confirmation",
+        evidence_on: Date.current,
+        channel: "portal",
+        reference_note: "Race confirmation #{idempotency_key}",
+        confirmed_without_identifier_reason: "No identifier"
+      },
+      cost_source_coverage_acknowledged: true,
+      commitment_trigger_coverage_acknowledged: true
+    )
+  end
 
   def race
     ready = Queue.new
@@ -136,7 +196,7 @@ class M3d2ActivationConcurrencyTest < ActiveSupport::TestCase
     outcomes.each do |outcome|
       next if outcome.is_a?(AgencyCommand::Result)
       next if outcome.is_a?(AgencyCommand::Error) &&
-        %i[invalid dependency_exists].include?(outcome.code)
+        %i[invalid invalid_state dependency_exists].include?(outcome.code)
 
       raise outcome
     end
