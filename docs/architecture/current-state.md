@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A-M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections, M2C proof and hardening, and M3A draft Supplier Arrangement structure under Departures. M2 is complete. [M3B](../planning/m3b-supplier-capacity.md) is Accepted next implementation authority for Supplier capacity and is not shipped. Arrangement activation and later commercial records are not shipped. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A-M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections, M2C proof and hardening, M3A draft Supplier Arrangement structure under Departures, and M3B draft Supplier capacity configuration plus the capacity event/projection/reconciliation engine. M2 is complete. Arrangement activation, Staff-facing effective capacity or event controls, and later commercial records are not shipped. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -29,10 +29,15 @@ DepartureDesk ships agency identity, administration, the complete M1 Client and 
 | `SupplierContactEmailAddress`, `SupplierContactPhoneNumber` | Contact-owned destinations. |
 | `Departure` | Agency-owned dated operational root. M2A implements draft, activation, `D-` issuance, return to draft, and search. M2B adds departed, scheduled departed jobs, and corrections. M2C proves search, isolation, jobs, and accessibility. Travel Program is not implemented. |
 | `SupplierArrangement`, `SupplierArrangementVersion` | M3A draft Supplier planning root under one Departure, with a stable Arrangement identity and initial draft version. Versions are not activated yet. |
-| `ArrangementItem`, `ArrangementItemDefinition` | Stable Item identity plus draft-version definition for name, category, description, default service provider, and ordering. |
+| `ArrangementItem`, `ArrangementItemDefinition` | Stable Item identity plus draft-version definition for name, category, description, default service provider, ordering, and M3B `capacity_management` applicability. |
 | `ServiceOccurrence`, `ServiceOccurrenceDefinition` | Stable planned Occurrence identity plus draft-version definition for date range, optional local times, time zone, description, and optional service provider. |
 | `SupplierResource`, `SupplierResourceDefinition` | Stable Resource identity plus draft-version definition for name, description, and item-local ordering. |
-| `AgencyCommandIdempotencyKey` | Agency-scoped replay guard for idempotent M3A create commands, keyed by command name, client idempotency key, and payload digest. |
+| `CapacityPairDefinition` | Exact-version Occurrence–Resource classification as `pooled` or `not_applicable` for a managed Item. |
+| `CapacityPool`, `CapacityPoolDefinition` | Stable Pool identity plus draft-version label, evidence, proposed opening quantity, inventory mode, measurement basis, and supplying Supplier. |
+| `CapacityEvent` | Append-only Supplier-side capacity ledger facts. Proven in services/tests; not exposed through Staff UI until M3D. |
+| `CapacityProjection` | Rebuildable **Current Supplier capacity** projection for numeric Pools. |
+| `CapacityReconciliation`, `CapacityReconciliationResolution` | Observed quantity versus ledger comparison and append-only resolution. Engine-only until M3D. |
+| `AgencyCommandIdempotencyKey` | Agency-scoped replay guard for idempotent M3A create commands and M3B Pool create, capacity event, and reconciliation commands, keyed by command name, client idempotency key, and payload digest. |
 | `ReferenceSequence` | Agency-scoped `client`, `supplier`, and `departure` reference counters. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed permission catalog mapping administrator, staff, and viewer roles to capabilities. It is application code, not a persisted record. |
 
@@ -70,21 +75,22 @@ Office is operational context, not authorization. `Current.office` resolves from
 | View Departures | Yes | Yes | Yes |
 | Manage Departures | Yes | Yes | No |
 | Force inactivate Supplier with dependencies | Yes | No | No |
+| Override Supplier planning terms | Yes | No | No |
 
 Application code checks named permissions, not role strings.
 
 ## Persistence and command boundaries
 
 - Application records use PostgreSQL 18 UUIDv7 identifiers and `timestamptz` timestamps.
-- The primary database and Solid Queue database are separate. The M2B departed sweep reads the primary database and enqueues child jobs into the queue database with no spanning transaction. Delivery is at least once. Queue name: `departures`.
+- The primary database and Solid Queue database are separate. The M2B departed sweep reads the primary database and enqueues child jobs into the queue database with no spanning transaction. Delivery is at least once. Queue name: `departures`. M3B scheduled capacity projection refresh uses queue name: `capacity`.
 - Database constraints and triggers protect normalized identity values, same-Agency references, append-only audits, and immutable tenant identifiers.
 - `btree_gist` is enabled on the primary database only for `client_org_contacts_no_overlapping_history`.
 - Consequential multi-record changes use explicit commands, transactions, lock ordering, and same-transaction audit events.
-- M3A create commands use `AgencyCommandIdempotencyKey` plus transaction-scoped advisory locks so duplicate submissions replay the original result instead of creating duplicate draft planning records.
+- M3A create commands and M3B Pool create, capacity event, and reconciliation commands use `AgencyCommandIdempotencyKey` plus transaction-scoped advisory locks so duplicate submissions replay the original result instead of creating duplicate records.
 - Last-active-administrator protection locks Agency, then AgencyUser, then rechecks current state.
 
 ## Not shipped
 
-The current application has no Traveler, Household, Travel Program, Package, Client Trip, capacity, Supplier Reservation, Arrangement activation, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. Shipped M3A records are draft planning structure only. Accepted M3B authorizes capacity work next; capacity tables do not exist until that slice ships.
+The current application has no Traveler, Household, Travel Program, Package, Client Trip, Supplier Reservation, Arrangement activation, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. Shipped M3A records are draft planning structure only. Shipped M3B capacity includes draft configuration UI and the engine; effective Supplier capacity and Staff event/reconciliation surfaces require M3D activation.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.

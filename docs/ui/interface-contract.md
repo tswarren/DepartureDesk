@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, shipped M2B departed/correction surfaces, shipped M2C proof of Departures search, isolation, keyboard, drawer, and viewport behavior, shipped M3A tentative Supplier planning structure, and M3B draft Item-card Supplier capacity configuration.
+**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, shipped M2B departed/correction surfaces, shipped M2C proof of Departures search, isolation, keyboard, drawer, and viewport behavior, shipped M3A tentative Supplier planning structure, and shipped M3B draft Item-card Supplier capacity configuration.
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 

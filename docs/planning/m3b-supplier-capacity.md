@@ -1,6 +1,6 @@
 # M3B — Supplier capacity
 
-**Status:** Accepted 2026-09-16. Implementation authority for Supplier capacity only. Not yet shipped.
+**Status:** Shipped. Merged to `main` on 2026-09-17 in pull request #64. This document remains the Supplier capacity contract. It is not authority to start Arrangement activation, user-accessible effective-capacity or event controls, costs, Reservations, commitments, Deadlines, exposure, or later M3 slices.
 
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md), Accepted and amended for M3B.
 
@@ -807,12 +807,13 @@ Represent Supplier-collected insurance or another demonstrated non-capacity Item
 
 ## Documentation when this slice ships
 
-- Mark M3B Implemented/Shipped only after merge to `main` and green CI.
-- Update `AGENTS.md`, `docs/README.md`, `docs/adr/README.md`, current architecture, terminology, schema catalog, interface contract, and roadmap.
-- Confirm the parent already records the M3B amendment and ADR 0010 Accepted status.
-- Record the shipped `override_supplier_planning_terms` permission in architecture/current-state.
-- Keep M3C–M3F unimplemented.
-- State explicitly that effective capacity and user-accessible event controls still require M3D activation.
+Completed after merge of pull request #64 to `main`:
+
+- Marked M3B Shipped in this plan, `AGENTS.md`, `README.md`, `docs/README.md`, ADR index, current architecture, terminology, interface contract, and roadmap.
+- Confirmed the parent already records the M3B amendment and ADR 0010 Accepted status.
+- Recorded the shipped `override_supplier_planning_terms` permission in architecture/current-state.
+- Kept M3C–M3F unimplemented.
+- Stated explicitly that effective capacity and user-accessible event controls still require M3D activation.
 
 ## Exit gate
 
@@ -836,4 +837,4 @@ This slice authorizes M3B only. It does not authorize M3C–M3F.
 9. Tenancy, database constraints, authorization, audit, concurrency, query, accessibility, scenario, regression, and CI proof are green.
 10. Documentation accurately marks M3B shipped and M3C as next and unimplemented.
 
-This slice authorizes M3B only after acceptance. It does not authorize M3C–M3F.
+This slice authorized M3B only. It does not authorize M3C–M3F.

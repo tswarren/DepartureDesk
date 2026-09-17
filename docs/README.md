@@ -45,9 +45,9 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m2a-departure-core.md`](planning/m2a-departure-core.md) | Shipped M2A slice. |
 | [`planning/m2b-departed-lifecycle.md`](planning/m2b-departed-lifecycle.md) | Shipped M2B slice. |
 | [`planning/m2c-acceptance-and-hardening.md`](planning/m2c-acceptance-and-hardening.md) | Shipped M2C proof and hardening slice. |
-| [`planning/m3-supplier-planning.md`](planning/m3-supplier-planning.md) | Accepted M3 parent, amended for M3B. M3A is shipped; M3B is Accepted implementation authority for capacity only. Later slices remain unimplemented. Not implementation authority for M3C–M3F. |
+| [`planning/m3-supplier-planning.md`](planning/m3-supplier-planning.md) | Accepted M3 parent, amended for M3B. M3A and M3B are shipped. Later slices remain unimplemented. Not implementation authority for M3C–M3F. |
 | [`planning/m3a-draft-arrangement-structure.md`](planning/m3a-draft-arrangement-structure.md) | Shipped M3A draft Arrangement structure slice. |
-| [`planning/m3b-supplier-capacity.md`](planning/m3b-supplier-capacity.md) | Accepted M3B Supplier capacity slice. Implementation authority for capacity only; not yet shipped. |
+| [`planning/m3b-supplier-capacity.md`](planning/m3b-supplier-capacity.md) | Shipped M3B Supplier capacity slice. Draft configuration and the capacity engine are shipped; Arrangement activation and Staff event UI remain M3D. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |

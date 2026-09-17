@@ -1,6 +1,6 @@
 # ADR 0010: Supplier capacity ledger and projection
 
-- Status: Accepted. Not implementation authority by itself; [M3B](../planning/m3b-supplier-capacity.md) is the implementing slice.
+- Status: Accepted. Implemented by shipped [M3B](../planning/m3b-supplier-capacity.md). Arrangement activation and Staff-facing effective-capacity controls remain M3D.
 - Date: 2026-09-16
 - Decision owners: DepartureDesk maintainers
 
@@ -190,8 +190,6 @@ Rejected. Whole-number `resource_units` and `traveler_positions` are the closed 
 
 ## Implementation boundary
 
-This ADR establishes capacity topology and authority. It does not authorize M3B persistence or commands by itself.
+This ADR establishes capacity topology and authority. [M3B](../planning/m3b-supplier-capacity.md) shipped draft Pool configuration and the event/projection/reconciliation engine. Arrangement activation and user-accessible effective-capacity controls remain M3D work.
 
-[M3B](../planning/m3b-supplier-capacity.md) may implement draft Pool configuration and the event/projection/reconciliation engine after its slice contract and the required M3 parent amendment are Accepted. Arrangement activation and user-accessible effective-capacity controls remain M3D work.
-
-M3B must not add a production activation command, bypass flag, controller, route, task, seed, or console-oriented service. Activated test graphs are created only by static fixtures or helpers under `test/`. Event, reconciliation, override, projection, and inactive-Supplier recovery commands are proven in model/service tests and are not reachable from HTTP or Staff UI until M3D explicitly exposes them.
+M3B did not add a production activation command, bypass flag, controller, route, task, seed, or console-oriented activation service. Activated test graphs are created only by static fixtures or helpers under `test/`. Event, reconciliation, override, projection, and inactive-Supplier recovery commands are proven in model/service tests and are not reachable from HTTP or Staff UI until M3D explicitly exposes them.
