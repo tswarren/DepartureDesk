@@ -7,6 +7,8 @@
 <% can_remove = ordinary_editable || recovery_cleanup %>
 <% can_abandon = manage && draft_graph %>
 <% can_edit_arrangement = ordinary_editable || (recovery_cleanup && @supplier_arrangement.supplier_contact_id.present?) %>
+<% reorder_items_mode = ordinary_editable && params[:structure_mode] == "items" %>
+<% reorder_resources_item_id = params[:structure_item_id] if ordinary_editable && params[:structure_mode] == "resources" %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
@@ -19,7 +21,14 @@
       <%= link_to recovery_cleanup ? "Clear contact" : "Edit arrangement", edit_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button" %>
     <% end %>
     <% if ordinary_editable %>
-      <%= link_to "Add item", new_departure_arrangement_item_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+      <%= link_to "Add item", departure_arrangement_new_item_setup_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+      <% if @item_definitions.size > 1 %>
+        <% if reorder_items_mode %>
+          <%= link_to "Done reordering items", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+        <% else %>
+          <%= link_to "Reorder items", departure_arrangement_path(@departure, @supplier_arrangement, structure_mode: "items"), class: "dd-button dd-button--quiet" %>
+        <% end %>
+      <% end %>
     <% end %>
     <% if can_abandon %>
       <%= link_to "Abandon", abandon_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--danger" %>
@@ -111,7 +120,7 @@
     <div class="dd-panel-body">
       <p class="<%= empty_state_classes.join(" ") %>">No arrangement items yet.</p>
       <% if ordinary_editable %>
-        <%= link_to "Add item", new_departure_arrangement_item_path(@departure, @supplier_arrangement), class: "dd-button" %>
+        <%= link_to "Add item", departure_arrangement_new_item_setup_path(@departure, @supplier_arrangement), class: "dd-button" %>
       <% end %>
     </div>
   </article>
@@ -147,7 +156,7 @@
             <% if can_edit_item %>
               <%= link_to inactive_item_provider && !ordinary_editable ? "Clear provider" : "Edit item", edit_departure_arrangement_item_path(@departure, @supplier_arrangement, item), class: "dd-row-action dd-row-action--edit" %>
             <% end %>
-            <% if ordinary_editable %>
+            <% if reorder_items_mode %>
               <% if index.positive? %>
                 <% moved_ids = ordered_item_ids.dup.tap { |ids| ids[index - 1], ids[index] = ids[index], ids[index - 1] } %>
                 <%= button_to "Move up", reorder_departure_arrangement_items_path(@departure, @supplier_arrangement), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, arrangement_item_ids: moved_ids } %>
@@ -255,12 +264,26 @@
           <% end %>
         </section>
 
-        <section>
+        <section id="resources-<%= item.id %>">
           <header class="dd-panel-header">
-            <h3 class="dd-panel-title">Resources</h3>
-            <% if ordinary_editable %>
-              <%= link_to "Add resource", new_departure_arrangement_item_resource_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
-            <% end %>
+            <div>
+              <h3 class="dd-panel-title">Resources</h3>
+              <% if reorder_resources_item_id == item.id.to_s %>
+                <p>Reorder mode. Use Move up and Move down to set the resource order.</p>
+              <% end %>
+            </div>
+            <div class="dd-inline-actions">
+              <% if ordinary_editable %>
+                <%= link_to "Add resource", new_departure_arrangement_item_resource_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+                <% if resource_definitions.size > 1 %>
+                  <% if reorder_resources_item_id == item.id.to_s %>
+                    <%= link_to "Done reordering", departure_arrangement_path(@departure, @supplier_arrangement, anchor: "resources-#{item.id}"), class: "dd-button dd-button--quiet" %>
+                  <% else %>
+                    <%= link_to "Reorder resources", departure_arrangement_path(@departure, @supplier_arrangement, structure_mode: "resources", structure_item_id: item.id, anchor: "resources-#{item.id}"), class: "dd-button dd-button--quiet" %>
+                  <% end %>
+                <% end %>
+              <% end %>
+            </div>
           </header>
           <% if resource_definitions.any? %>
             <% ordered_resource_ids = resource_definitions.map(&:supplier_resource_id) %>
@@ -284,11 +307,11 @@
                         <div class="dd-inline-actions">
                           <% if ordinary_editable %>
                             <%= link_to "Edit", edit_departure_arrangement_item_resource_path(@departure, @supplier_arrangement, item, resource_definition.supplier_resource), class: "dd-row-action dd-row-action--edit" %>
-                            <% if resource_index.positive? %>
+                            <% if reorder_resources_item_id == item.id.to_s && resource_index.positive? %>
                               <% moved_resource_ids = ordered_resource_ids.dup.tap { |ids| ids[resource_index - 1], ids[resource_index] = ids[resource_index], ids[resource_index - 1] } %>
                               <%= button_to "Move up", reorder_departure_arrangement_item_resources_path(@departure, @supplier_arrangement, item), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, supplier_resource_ids: moved_resource_ids } %>
                             <% end %>
-                            <% if resource_index < resource_definitions.size - 1 %>
+                            <% if reorder_resources_item_id == item.id.to_s && resource_index < resource_definitions.size - 1 %>
                               <% moved_resource_ids = ordered_resource_ids.dup.tap { |ids| ids[resource_index + 1], ids[resource_index] = ids[resource_index], ids[resource_index + 1] } %>
                               <%= button_to "Move down", reorder_departure_arrangement_item_resources_path(@departure, @supplier_arrangement, item), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, supplier_resource_ids: moved_resource_ids } %>
                             <% end %>

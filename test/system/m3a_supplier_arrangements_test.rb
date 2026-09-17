@@ -38,37 +38,27 @@ class M3ASupplierArrangementsTest < ApplicationSystemTestCase
     assert_selector "h1.dd-page-title", exact_text: "System Hotel Block"
     click_link "Add item", match: :first
 
-    assert_selector "h1.dd-page-title", exact_text: "New item"
+    assert_selector "h1.dd-page-title", exact_text: "Set up item"
     fill_in "Name", with: "Rooms"
     select "Lodging", from: "Category"
     select supplier_option_text(@provider), from: "Default service provider"
-    click_button "Save item"
+    check "Add first occurrence"
+    within(:xpath, "//article[.//h2[normalize-space()='First occurrence']]") do
+      fill_in "Name", with: "Check in"
+      fill_in_html_date "Start date", "2026-10-01"
+      fill_in_html_date "End date", "2026-10-01"
+      select "America/New_York", from: "Time zone"
+    end
+    check "Add first resource"
+    within(:xpath, "//article[.//h2[normalize-space()='First resource']]") do
+      fill_in "Name", with: "Room block"
+      fill_in "Description", with: "Twenty rooms"
+    end
+    click_button "Save item setup"
 
-    assert_text "Item saved."
+    assert_text "Item setup saved."
     assert_text "Rooms"
-    within(:xpath, "//article[.//h2[normalize-space()='Rooms']]") do
-      click_link "Add occurrence"
-    end
-
-    assert_selector "h1.dd-page-title", exact_text: "New occurrence"
-    fill_in "Name", with: "Check in"
-    fill_in_html_date "Start date", "2026-10-01"
-    fill_in_html_date "End date", "2026-10-01"
-    select "America/New_York", from: "Time zone"
-    click_button "Save occurrence"
-
-    assert_text "Occurrence saved."
     assert_text "Check in"
-    within(:xpath, "//article[.//h2[normalize-space()='Rooms']]") do
-      click_link "Add resource"
-    end
-
-    assert_selector "h1.dd-page-title", exact_text: "New resource"
-    fill_in "Name", with: "Room block"
-    fill_in "Description", with: "Twenty rooms"
-    click_button "Save resource"
-
-    assert_text "Resource saved."
     assert_text "Room block"
 
     visit abandon_departure_arrangement_path(@departure, @departure.supplier_arrangements.find_by!(name: "System Hotel Block"))
@@ -102,6 +92,34 @@ class M3ASupplierArrangementsTest < ApplicationSystemTestCase
     assert_no_text "Add occurrence"
     assert_no_text "Add resource"
     assert_no_text "Remove"
+  end
+
+  test "guided item setup preserves selected sections and focuses validation summary" do
+    arrangement = create_arrangement("Validation Setup Arrangement")
+    sign_in_from_browser(@staff)
+
+    visit departure_arrangement_new_item_setup_path(@departure, arrangement)
+    fill_in "Name", with: "Rooms needing correction"
+    select "Lodging", from: "Category"
+    check "Add first occurrence"
+    within(:xpath, "//article[.//h2[normalize-space()='First occurrence']]") do
+      fill_in "Name", with: "Invalid stay"
+      fill_in_html_date "Start date", "2026-10-08"
+      fill_in_html_date "End date", "2026-10-01"
+      select "America/New_York", from: "Time zone"
+    end
+    check "Add first resource"
+    within(:xpath, "//article[.//h2[normalize-space()='First resource']]") do
+      fill_in "Name", with: "Room block"
+    end
+    click_button "Save item setup"
+
+    assert_selector "#form-error-summary"
+    assert_equal "form-error-summary", page.evaluate_script("document.activeElement.id")
+    assert_field "Name", with: "Rooms needing correction", match: :first
+    assert_checked_field "Add first occurrence"
+    assert_checked_field "Add first resource"
+    assert_text "First occurrence: End date must be on or after the start date"
   end
 
   test "staff cannot force supplier inactivation when arrangement dependencies exist" do

@@ -1,0 +1,89 @@
+<% content_for :title, "Set Up Arrangement Item · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title">Set up item</h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %></p>
+  </div>
+</header>
+
+<%= form_with url: departure_arrangement_item_setup_path(@departure, @supplier_arrangement),
+  class: "dd-form",
+  data: { controller: "optional-setup-sections" } do |form| %>
+  <%= render "form_errors" %>
+  <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+  <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Item</h2>
+        <p>Describe the Supplier service being planned.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <%= fields_for :arrangement_item_definition, @arrangement_item_definition do |item_form| %>
+        <%= render "arrangement_items/form", form: item_form, include_command_fields: false %>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">First occurrence</h2>
+        <p>Add the first scheduled occurrence now, or add it later from the Item.</p>
+      </div>
+      <div class="dd-field-group">
+        <%= check_box_tag :include_occurrence, "1", @include_occurrence,
+          aria: { controls: "first-occurrence-fields", expanded: @include_occurrence },
+          data: {
+            optional_setup_sections_target: "occurrenceCheckbox",
+            action: "optional-setup-sections#update"
+          } %>
+        <%= label_tag :include_occurrence, "Add first occurrence", class: "dd-label" %>
+      </div>
+    </header>
+    <div class="dd-panel-body" id="first-occurrence-fields" data-optional-setup-sections-target="occurrenceFields">
+      <%= fields_for :service_occurrence_definition, @service_occurrence_definition do |occurrence_form| %>
+        <%= render "service_occurrences/form",
+          form: occurrence_form,
+          include_command_fields: false,
+          fields_required: false %>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">First resource</h2>
+        <p>Add the first Supplier resource now, or add it later from the Item.</p>
+      </div>
+      <div class="dd-field-group">
+        <%= check_box_tag :include_resource, "1", @include_resource,
+          aria: { controls: "first-resource-fields", expanded: @include_resource },
+          data: {
+            optional_setup_sections_target: "resourceCheckbox",
+            action: "optional-setup-sections#update"
+          } %>
+        <%= label_tag :include_resource, "Add first resource", class: "dd-label" %>
+      </div>
+    </header>
+    <div class="dd-panel-body" id="first-resource-fields" data-optional-setup-sections-target="resourceFields">
+      <%= fields_for :supplier_resource_definition, @supplier_resource_definition do |resource_form| %>
+        <%= render "supplier_resources/form",
+          form: resource_form,
+          include_command_fields: false,
+          fields_required: false %>
+      <% end %>
+    </div>
+  </article>
+
+  <div class="dd-form-actions">
+    <%= form.submit "Save item setup", class: "dd-button" %>
+    <%= link_to "Cancel", departure_arrangement_path(@departure, @supplier_arrangement),
+      class: "dd-button dd-button--quiet" %>
+  </div>
+<% end %>

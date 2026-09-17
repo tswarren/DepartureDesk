@@ -1,25 +1,29 @@
-<%= form.hidden_field :lock_version if form.object.persisted? %>
-<%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version unless form.object.persisted? %>
-<%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key.present? %>
+<% include_command_fields = local_assigns.fetch(:include_command_fields, true) %>
+<% fields_required = local_assigns.fetch(:fields_required, true) %>
+<% if include_command_fields %>
+  <%= form.hidden_field :lock_version if form.object.persisted? %>
+  <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version unless form.object.persisted? %>
+  <%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key.present? %>
+<% end %>
 <% service_provider = Current.agency.suppliers.find_by(id: form.object.service_provider_id) if form.object.service_provider_id.present? %>
 <% supplier_options = active_supplier_options.to_a %>
 <% supplier_options.unshift(service_provider) if service_provider && supplier_options.none? { |supplier| supplier.id == service_provider.id } %>
 
 <div class="dd-field-group">
   <%= form.label :name, "Name", class: "dd-label" %>
-  <%= form.text_field :name, required: true, maxlength: ServiceOccurrenceDefinition::NAME_LIMIT, **dd_field_options(form, :name) %>
+  <%= form.text_field :name, required: fields_required, maxlength: ServiceOccurrenceDefinition::NAME_LIMIT, **dd_field_options(form, :name) %>
   <%= dd_field_error(form, :name) %>
 </div>
 
 <div class="dd-field-group">
   <%= form.label :starts_on, "Start date", class: "dd-label" %>
-  <%= form.date_field :starts_on, required: true, **dd_field_options(form, :starts_on) %>
+  <%= form.date_field :starts_on, required: fields_required, **dd_field_options(form, :starts_on) %>
   <%= dd_field_error(form, :starts_on) %>
 </div>
 
 <div class="dd-field-group">
   <%= form.label :ends_on, "End date", class: "dd-label" %>
-  <%= form.date_field :ends_on, required: true, **dd_field_options(form, :ends_on) %>
+  <%= form.date_field :ends_on, required: fields_required, **dd_field_options(form, :ends_on) %>
   <%= dd_field_error(form, :ends_on) %>
 </div>
 
