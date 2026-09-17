@@ -45,10 +45,13 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m2a-departure-core.md`](planning/m2a-departure-core.md) | Shipped M2A slice. |
 | [`planning/m2b-departed-lifecycle.md`](planning/m2b-departed-lifecycle.md) | Shipped M2B slice. |
 | [`planning/m2c-acceptance-and-hardening.md`](planning/m2c-acceptance-and-hardening.md) | Shipped M2C proof and hardening slice. |
-| [`planning/m3-supplier-planning.md`](planning/m3-supplier-planning.md) | Accepted M3 parent, amended for M3B and M3C. M3A, M3B, and M3C are shipped. Later slices remain unimplemented. Not implementation authority for M3D–M3F. |
+| [`planning/m3-supplier-planning.md`](planning/m3-supplier-planning.md) | Accepted M3 parent, amended through M3D authority. M3A–M3C shipped. M3D.0 and M3D Accepted (not shipped). Not implementation authority for M3E–M3F. |
 | [`planning/m3a-draft-arrangement-structure.md`](planning/m3a-draft-arrangement-structure.md) | Shipped M3A draft Arrangement structure slice. |
-| [`planning/m3b-supplier-capacity.md`](planning/m3b-supplier-capacity.md) | Shipped M3B Supplier capacity slice. Draft configuration and the capacity engine are shipped; Arrangement activation and Staff event UI remain M3D. |
-| [`planning/m3c-cost-terms-and-forecasts.md`](planning/m3c-cost-terms-and-forecasts.md) | Shipped M3C Supplier cost terms and forecasts slice. Draft cost sources, definitions, components, assumptions, and derived forecasts are shipped; Arrangement activation and effective contracted terms remain M3D. |
+| [`planning/m3b-supplier-capacity.md`](planning/m3b-supplier-capacity.md) | Shipped M3B Supplier capacity slice. Draft configuration and the capacity engine are shipped; Arrangement activation and Staff event UI remain Accepted M3D after shipped M3D.0. |
+| [`planning/m3c-cost-terms-and-forecasts.md`](planning/m3c-cost-terms-and-forecasts.md) | Shipped M3C Supplier cost terms and forecasts slice. Draft cost sources, definitions, components, assumptions, and derived forecasts are shipped; Arrangement activation and effective contracted terms remain Accepted M3D after shipped M3D.0. |
+| [`planning/m3d0-planning-workspace-compression.md`](planning/m3d0-planning-workspace-compression.md) | Accepted M3D.0 Supplier-planning workspace compression. Implementation authority for M3A–M3C workflow remediation only. Not yet shipped. Hard prerequisite before production M3D domain work. |
+| [`planning/m3d-activation-reservations-confirmations.md`](planning/m3d-activation-reservations-confirmations.md) | Accepted M3D Arrangement activation, Reservations, and confirmations slice. Not yet shipped. Production implementation requires shipped M3D.0. |
+| [`planning/drafts/README.md`](planning/drafts/README.md) | Short index of active planning drafts. Currently empty after M3D promotion. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |
