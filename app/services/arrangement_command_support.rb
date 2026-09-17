@@ -146,6 +146,37 @@ module ArrangementCommandSupport
     end
   end
 
+  def ensure_no_cost_structure_for_item!(version, item)
+    if version.supplier_cost_sources.where(arrangement_item: item).exists? ||
+        version.supplier_cost_usage_assumptions.where(arrangement_item: item).exists? ||
+        version.supplier_cost_participant_categories.where(arrangement_item: item).exists?
+      raise AgencyCommand::Error.new(
+        "Remove cost sources, assumptions, and participant categories before removing this item.",
+        code: :dependency_exists
+      )
+    end
+  end
+
+  def ensure_no_cost_structure_for_occurrence!(version, occurrence)
+    if version.supplier_cost_sources.where(service_occurrence: occurrence).exists? ||
+        version.supplier_cost_usage_assumptions.where(service_occurrence: occurrence).exists?
+      raise AgencyCommand::Error.new(
+        "Remove cost sources and assumptions before removing this occurrence.",
+        code: :dependency_exists
+      )
+    end
+  end
+
+  def ensure_no_cost_structure_for_resource!(version, resource)
+    if version.supplier_cost_sources.where(supplier_resource: resource).exists? ||
+        version.supplier_cost_usage_assumptions.where(supplier_resource: resource).exists?
+      raise AgencyCommand::Error.new(
+        "Remove cost sources and assumptions before removing this resource.",
+        code: :dependency_exists
+      )
+    end
+  end
+
   def ensure_editable_draft_arrangement!(departure, arrangement, version, allow_departed: false)
     ensure_draft_graph!(arrangement, version)
 

@@ -12,6 +12,8 @@ class SupplierResource < ApplicationRecord
   has_many :capacity_projections, dependent: :restrict_with_exception
   has_many :capacity_reconciliations, dependent: :restrict_with_exception
   has_many :capacity_reconciliation_resolutions, dependent: :restrict_with_exception
+  has_many :supplier_cost_sources, dependent: :restrict_with_exception
+  has_many :supplier_cost_usage_assumptions, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id, :arrangement_item_id
 end

@@ -19,6 +19,7 @@ class RemoveServiceOccurrence < AgencyCommand
       ensure_cleanup_edit!(departure, arrangement, version)
       ensure_current_lock_version!(version, @version_lock_version)
       ensure_no_capacity_structure_for_occurrence!(version, occurrence)
+      ensure_no_cost_structure_for_occurrence!(version, occurrence)
 
       definitions = version.service_occurrence_definitions.where(service_occurrence: occurrence).order(:id).lock.to_a
       evidence = {

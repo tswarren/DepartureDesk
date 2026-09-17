@@ -1,0 +1,42 @@
+<% content_for :title, "Arrangement costs · #{@supplier_arrangement.name} · DepartureDesk" %>
+<% editable = @editable %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Draft Supplier costs</p>
+    <h1 class="dd-page-title">Arrangement-wide costs</h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %> · <%= @departure.name %> · <%= @departure.operating_currency %></p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Cost forecast", departure_arrangement_cost_forecast_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+    <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <p>
+      <% if @cost_forecast.complete %>
+        ✓ Complete declared-cost forecast.
+      <% else %>
+        ⚠ <%= @cost_forecast.subtotal_label %>:
+        <%= @cost_forecast.uncovered_item_ids.size %> uncovered Item(s),
+        <%= @cost_forecast.incomplete_source_ids.size %> incomplete source(s).
+      <% end %>
+    </p>
+    <p>Edit Arrangement-wide charges here. Item costs are managed from each Item’s Costs workspace.</p>
+  </div>
+</article>
+
+<section id="arrangement-costs">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Cost sources</h2>
+      <p>Tentative Supplier terms. Missing facts are never treated as zero.</p>
+    </div>
+  </header>
+  <%= render "supplier_arrangements/cost_sources",
+        sources: @arrangement_cost_sources,
+        item: nil,
+        editable: editable %>
+</section>

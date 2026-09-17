@@ -245,6 +245,14 @@ module M1DirectoryScenario
       SupplierPhoneNumber.where(agency_id:).delete_all
       SupplierEmailAddress.where(agency_id:).delete_all
       SupplierCategoryAssignment.where(agency_id:).delete_all
+      SupplierCostComponentBase.where(agency_id:).delete_all
+      SupplierCostComponent.where(agency_id:).delete_all
+      SupplierCostDefinition.where(agency_id:).delete_all
+      SupplierCostOccupancyProfilePosition.where(agency_id:).delete_all
+      SupplierCostOccupancyProfile.where(agency_id:).delete_all
+      SupplierCostUsageAssumption.where(agency_id:).delete_all
+      SupplierCostParticipantCategory.where(agency_id:).delete_all
+      SupplierCostSource.where(agency_id:).delete_all
       Supplier.where(agency_id:).delete_all
       Departure.where(agency_id:).delete_all
       ClientOrganizationContact.where(agency_id:).delete_all

@@ -90,8 +90,19 @@ class ChangeSupplierStatus < AgencyCommand
   end
 
   def m3a_dependency_arrangement_ids(supplier)
-    ids = contracted_dependency_ids(supplier) | occurrence_dependency_ids(supplier)
+    ids = contracted_dependency_ids(supplier) |
+      occurrence_dependency_ids(supplier) |
+      charging_cost_dependency_ids(supplier)
     ids.sort
+  end
+
+  def charging_cost_dependency_ids(supplier)
+    SupplierCostSource
+      .joins(:supplier_arrangement)
+      .where(agency_id: @agency.id, charging_supplier_id: supplier.id)
+      .where(supplier_arrangements: { status: %w[draft active] })
+      .distinct
+      .pluck(:supplier_arrangement_id)
   end
 
   def contracted_dependency_ids(supplier)

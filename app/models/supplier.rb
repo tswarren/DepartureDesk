@@ -26,6 +26,11 @@ class Supplier < ApplicationRecord
     foreign_key: :service_provider_id,
     inverse_of: :service_provider,
     dependent: :restrict_with_exception
+  has_many :charging_supplier_cost_sources,
+    class_name: "SupplierCostSource",
+    foreign_key: :charging_supplier_id,
+    inverse_of: :charging_supplier,
+    dependent: :restrict_with_exception
 
   enum :kind, KINDS.index_by(&:itself), validate: true
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "active"

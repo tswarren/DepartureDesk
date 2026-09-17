@@ -92,6 +92,29 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.capacity_event_recorded
     supplier_arrangement.capacity_reconciled
     supplier_arrangement.capacity_reconciliation_resolved
+    supplier_arrangement.cost_source_created
+    supplier_arrangement.cost_source_updated
+    supplier_arrangement.cost_source_removed
+    supplier_arrangement.cost_sources_reordered
+    supplier_arrangement.cost_definition_created
+    supplier_arrangement.cost_definition_updated
+    supplier_arrangement.cost_definition_removed
+    supplier_arrangement.cost_definition_forecast_ready
+    supplier_arrangement.cost_component_created
+    supplier_arrangement.cost_component_updated
+    supplier_arrangement.cost_component_removed
+    supplier_arrangement.cost_components_reordered
+    supplier_arrangement.cost_participant_category_created
+    supplier_arrangement.cost_participant_category_updated
+    supplier_arrangement.cost_participant_category_removed
+    supplier_arrangement.cost_participant_categories_reordered
+    supplier_arrangement.cost_usage_assumption_created
+    supplier_arrangement.cost_usage_assumption_updated
+    supplier_arrangement.cost_usage_assumption_removed
+    supplier_arrangement.cost_occupancy_profile_created
+    supplier_arrangement.cost_occupancy_profile_updated
+    supplier_arrangement.cost_occupancy_profile_removed
+    supplier_arrangement.cost_occupancy_profiles_reordered
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze

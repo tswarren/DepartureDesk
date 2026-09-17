@@ -1,0 +1,73 @@
+<% definition = local_assigns.fetch(:definition) %>
+<% component = local_assigns[:component] %>
+<% earlier_components = local_assigns.fetch(:earlier_components) %>
+<% categories = local_assigns.fetch(:categories) %>
+<% item = local_assigns[:item] %>
+<% currency = definition.currency %>
+<% existing_bases = component ? component.supplier_cost_component_bases.sort_by(&:position) : [] %>
+
+<%= form_with url: local_assigns.fetch(:url), method: local_assigns.fetch(:method), class: "dd-form" do |form| %>
+  <% if local_assigns.fetch(:method).to_sym == :post %>
+    <%= form.hidden_field :idempotency_key, value: SecureRandom.uuid %>
+  <% end %>
+  <%= form.hidden_field :definition_lock_version, value: definition.lock_version %>
+  <% if component %>
+    <%= form.hidden_field "supplier_cost_component[lock_version]", value: component.lock_version %>
+  <% end %>
+
+  <p class="dd-field-hint">
+    Enter money as ordinary <%= currency %> amounts (for example 1629.00). Leave fields blank when they do not apply to the selected calculation.
+    Percentage and minimum components must name earlier bases and whether each base is added or subtracted.
+  </p>
+
+  <div class="dd-field"><%= form.label "supplier_cost_component[label]", "Label" %><%= form.text_field "supplier_cost_component[label]", required: true, value: component&.label %></div>
+  <div class="dd-field"><%= form.label "supplier_cost_component[economic_role]", "Economic role" %><%= form.select "supplier_cost_component[economic_role]", SupplierCostComponent::ECONOMIC_ROLES.map { |value| [ value.humanize, value ] }, selected: component&.economic_role || "supplier_charge" %></div>
+  <div class="dd-field"><%= form.label "supplier_cost_component[calculation_kind]", "Calculation" %><%= form.select "supplier_cost_component[calculation_kind]", SupplierCostComponent::CALCULATION_KINDS.map { |value| [ value.humanize, value ] }, selected: component&.calculation_kind || "fixed" %></div>
+  <div class="dd-field">
+    <%= form.label "supplier_cost_component[amount]", "Amount (#{currency})" %>
+    <%= form.text_field "supplier_cost_component[amount]",
+          value: (component&.amount_minor_units && Money.new(component.amount_minor_units, currency).amount.to_s("F")),
+          inputmode: "decimal", autocomplete: "off" %>
+  </div>
+  <div class="dd-field"><%= form.label "supplier_cost_component[rate]", "Rate (1.0 = 100%)" %><%= form.number_field "supplier_cost_component[rate]", min: 0, step: "0.0000000001", value: component&.rate %></div>
+  <div class="dd-field">
+    <%= form.label "supplier_cost_component[minimum_amount]", "Minimum amount (#{currency})" %>
+    <%= form.text_field "supplier_cost_component[minimum_amount]",
+          value: (component&.minimum_minor_units && Money.new(component.minimum_minor_units, currency).amount.to_s("F")),
+          inputmode: "decimal", autocomplete: "off" %>
+  </div>
+  <div class="dd-field"><%= form.label "supplier_cost_component[minimum_quantity]", "Minimum quantity" %><%= form.number_field "supplier_cost_component[minimum_quantity]", min: 1, value: component&.minimum_quantity %></div>
+  <div class="dd-field"><%= form.label "supplier_cost_component[quantity_basis]", "Quantity basis" %><%= form.select "supplier_cost_component[quantity_basis]", SupplierCostComponent::QUANTITY_BASES.map { |value| [ value.humanize, value ] }, { include_blank: true, selected: component&.quantity_basis } %></div>
+  <% if item && categories.any? %>
+    <div class="dd-field"><%= form.label "supplier_cost_component[participant_category_id]", "Participant category (optional)" %><%= form.select "supplier_cost_component[participant_category_id]", categories.map { |category| [ category.label, category.id ] }, { include_blank: true, selected: component&.participant_category_id } %></div>
+  <% end %>
+  <div class="dd-field"><%= form.label "supplier_cost_component[occupancy_position_from]", "Occupancy position from" %><%= form.number_field "supplier_cost_component[occupancy_position_from]", min: 1, value: component&.occupancy_position_from %></div>
+  <div class="dd-field"><%= form.label "supplier_cost_component[occupancy_position_to]", "Occupancy position to" %><%= form.number_field "supplier_cost_component[occupancy_position_to]", min: 1, value: component&.occupancy_position_to %></div>
+  <div class="dd-field"><%= form.label "supplier_cost_component[percentage_treatment]", "Percentage treatment" %><%= form.select "supplier_cost_component[percentage_treatment]", SupplierCostComponent::PERCENTAGE_TREATMENTS.map { |value| [ value.humanize, value ] }, { include_blank: true, selected: component&.percentage_treatment } %></div>
+
+  <% if earlier_components.any? %>
+    <fieldset>
+      <legend>Base components</legend>
+      <p class="dd-field-hint">Required for percentage and minimum calculations. Use subtract to net discounts out of a monetary base.</p>
+      <% [ earlier_components.size, [ existing_bases.size, 3 ].max ].max.times do |index| %>
+        <% existing = existing_bases[index] %>
+        <div class="dd-field">
+          <%= label_tag "base_links_#{index}_base_component_id", "Base #{index + 1}" %>
+          <%= select_tag "base_links[][base_component_id]",
+                options_for_select(
+                  earlier_components.map { |entry| [ entry.label, entry.id ] },
+                  existing&.base_component_id
+                ),
+                include_blank: "None",
+                id: "base_links_#{index}_base_component_id" %>
+          <%= select_tag "base_links[][direction]",
+                options_for_select([ [ "Add", "add" ], [ "Subtract", "subtract" ] ], existing&.direction || "add"),
+                id: "base_links_#{index}_direction" %>
+        </div>
+      <% end %>
+    </fieldset>
+  <% end %>
+
+  <%= form.hidden_field "supplier_cost_component[pass_through]", value: component&.pass_through ? "1" : "0" %>
+  <%= form.submit component ? "Save component" : "Add component", class: "dd-button" %>
+<% end %>

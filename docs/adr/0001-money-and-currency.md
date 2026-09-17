@@ -141,6 +141,8 @@ Each workflow that can produce a fractional minor unit must document and test:
 
 Persist the final posted minor-unit result. Preserve supporting rate or calculation facts where they are needed for audit or reproduction.
 
+Editable draft forecasts may remain derived when an accepted contract stores every authoritative input and returns the selected stage, quantities, bases, rates, order, rounding policy, and rounded component minor-unit results in its explanation. Derived forecast results are not posted money and are not historical conversion facts.
+
 ## Accounting boundary
 
 `money-rails` is responsible for:

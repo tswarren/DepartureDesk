@@ -26,6 +26,14 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
       supplier_contact_email_addresses
       supplier_contact_phone_numbers
       supplier_contacts
+      supplier_cost_component_bases
+      supplier_cost_components
+      supplier_cost_definitions
+      supplier_cost_occupancy_profile_positions
+      supplier_cost_occupancy_profiles
+      supplier_cost_participant_categories
+      supplier_cost_sources
+      supplier_cost_usage_assumptions
       supplier_email_addresses
       supplier_locations
       supplier_phone_numbers

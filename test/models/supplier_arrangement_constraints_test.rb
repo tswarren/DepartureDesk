@@ -345,8 +345,9 @@ class SupplierArrangementConstraintsTest < ActiveSupport::TestCase
     assert_equal ArrangementItemDefinition::CATEGORIES, checked_item_categories
 
     AuditEvent::ACTIONS.grep(/\Asupplier_arrangement\./).then do |actions|
-      assert_equal 24, actions.size
+      assert_equal 47, actions.size
       assert_includes actions, "supplier_arrangement.capacity_reconciliation_resolved"
+      assert_includes actions, "supplier_arrangement.cost_occupancy_profiles_reordered"
     end
     assert_includes AuditEvent::SUBJECT_TYPES, "SupplierArrangement"
 

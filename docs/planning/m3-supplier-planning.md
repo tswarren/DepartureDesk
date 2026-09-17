@@ -1,12 +1,14 @@
 # M3 Supplier planning
 
-**Status:** Accepted 2026-09-16. Amended 2026-09-16. Amended again 2026-09-16 for M3B capacity. [M3A](m3a-draft-arrangement-structure.md) and [M3B](m3b-supplier-capacity.md) are shipped. Later M3 slices remain unimplemented.
+**Status:** Accepted 2026-09-16. Amended 2026-09-16. Amended again 2026-09-16 for M3B capacity. Amended 2026-09-17 for M3C cost terms. [M3A](m3a-draft-arrangement-structure.md) and [M3B](m3b-supplier-capacity.md) are shipped. [M3C](m3c-cost-terms-and-forecasts.md) is Accepted implementation authority for cost terms and forecasts only and is not yet shipped. Later M3 slices remain unimplemented.
 
 **Amendment 2026-09-16:** Closed decisions now authorize Arrangement and version `abandoned` (never-activated discard; not Arrangement `cancelled`); departed Departures may not create new tentative Arrangements; ordinary inactivation uses the effective-provider rule and a recovery allow-list; M3A adds only `force_inactivate_supplier_with_dependencies`; Occurrence creation fails `invalid` when no recognized zone can be stored; version `lock_version` owns child-collection concurrency. [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md) and [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md) lock topology and Supplier roles. Occurrence operational lifecycle (`planned`/`cancelled`) lives on the stable Occurrence identity with `lock_version`; definition rows hold commercial/schedule attributes only. M3A ships the first durable create-command idempotency family and uses an explicit create-command lock-order exception for the idempotency row.
 
 **Amendment 2026-09-16 (M3B):** Capacity applicability is explicit on the versioned Item definition; `unmanaged` is not a Capacity Pool mode. Stable Pools carry immutable semantic identity and per-version definitions. Numeric capacity uses immutable, evidence-backed events and a rebuildable stored projection. Already-recorded future events may become effective at the end of their local effective date; date automation may refresh the projection but may not create a capacity event. Unresolved numeric capacity blocks Arrangement ending and eventual Departure closeout. M3 capacity quantities are whole numbers only; M3B supports exactly `resource_units` and `traveler_positions`; no later M3 slice may add fractional precision or another measurement basis without amending this parent and [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md). M3B introduces `override_supplier_planning_terms`. [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) governs the capacity ledger.
 
-**Prerequisites:** M2 complete and shipped, including [ADR 0007](../adr/0007-departure-operational-root.md), [M2C](m2c-acceptance-and-hardening.md), and final M2 documentation; [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md), [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md).
+**Amendment 2026-09-17 (M3C):** Exact-version Supplier cost sources carry estimate and contracted definitions on the same draft Arrangement version. Definition currency equals Departure `operating_currency`. Forecasts are deterministic derived evaluations that persist no calculated totals. [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) governs cost definitions and forecast evaluation. [M3C](m3c-cost-terms-and-forecasts.md) is Accepted implementation authority for cost terms and forecasts only.
+
+**Prerequisites:** M2 complete and shipped, including [ADR 0007](../adr/0007-departure-operational-root.md), [M2C](m2c-acceptance-and-hardening.md), and final M2 documentation; [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md), [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md), [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md).
 
 This parent contract is not implementation authority. Each M3 slice requires its own accepted implementation contract before domain code begins. Archived Phase 3B documents are historical input only; they do not govern M3.
 
@@ -79,7 +81,7 @@ The diagram describes domain responsibility, not a required table count. Slice p
 | --- | --- |
 | **[M3A — Draft Arrangement structure](m3a-draft-arrangement-structure.md)** | Stable Arrangement identity, lifecycle catalog including `abandoned`, and draft-version topology; Items, Occurrences, Resources, and optional Arrangement contact; contracting Supplier and Service Provider rules; `view_departures` / `manage_departures` plus `force_inactivate_supplier_with_dependencies`; M3A did not add `override_supplier_planning_terms` (M3B introduces it); `ChangeSupplierStatus` ordinary blockers for introduced dependencies; draft UI that amends the Departure interface contract. Supplier Location attachment is deferred. No activation yet. Shipped. |
 | **[M3B — Supplier capacity](m3b-supplier-capacity.md)** | Explicit Item capacity applicability; versioned Occurrence–Resource pair coverage and draft Capacity Pool definitions; stable Pool identity, inventory modes, measurement bases, immutable Supplier-side capacity events, scheduled effectiveness, rebuildable projections, evidence, Administrator override, reconciliation, concurrency, and recovery foundations. M3B exposes draft configuration only; effective supply and event controls still require later Arrangement activation in M3D. Shipped. |
-| **M3C — Cost terms and forecasts** | Draft estimate/contracted-term *definitions*; the first ADR 0001 monetary-table pattern; composable cost components; explicit percentage bases, `numeric` rates, and calculation order; fixed, per-resource, per-person, per-night, minimum, occupancy-position, and zero-cost patterns; forecast precedence and explainability. Effective contracted terms still require later Arrangement activation. |
+| **[M3C — Cost terms and forecasts](m3c-cost-terms-and-forecasts.md)** | Exact-version Supplier cost sources, including Arrangement-wide and Item-scoped shapes; one editable estimate and contracted definition per source on the same draft Arrangement version; the first ADR 0001 monetary-table pattern; explicit charging Supplier; definition currency equal to Departure `operating_currency`; ordered cost components with economic role separate from calculation kind; monetary and quantity shortfall forms; explicit percentage bases; lightweight shared usage assumptions and optional anonymous occupancy profiles; deterministic derived forecasts with whole-stage precedence and complete explanations. Effective contracted terms still require later Arrangement activation. Accepted; not yet shipped. |
 | **M3D — Activation, Reservations, and confirmations** | Arrangement activation and immutable activated versions after applicable structural, capacity, and cost completeness checks; unmanaged Items may activate without a Capacity Pool; first and successor activation only while the Departure is `active`; permanent Departure return-to-draft boundary; group/occurrence Supplier Reservations; confirmation evidence, including named atomic commitment opening when terms fully determine it; effective capacity and contracted planning; Arrangement search without changing `SearchDepartures`. |
 | **M3E — Commitments, deadlines, and exposure** | Explicit commitments and deposit requirements without payable/payment state; Deadline rule resolution and staff workflow; qualified exposure measures; needs-attention catalog; Supplier-inactivation extension for commitment dependencies. |
 | **M3F — Acceptance and hardening** | Celebrity Beyond and Vineyard Tour Supplier-side scenario proof; cross-Agency isolation; concurrency, query/index, accessibility, responsive UI, regression, and final milestone documentation. |
@@ -276,7 +278,11 @@ The implementation slice must distinguish commercial schedule amendments from op
 
 ### 12. Currency dependency catalog
 
-The Departure's `operating_currency` remains the single transaction currency for M3. Any persisted currency-bearing M3 fact, including a draft definition, freezes that currency against ordinary change. No command relabels or converts stored amounts.
+The Departure retains one explicit `operating_currency`. Every M3C cost definition stores an explicit uppercase currency that must equal that operating currency. Estimate and contracted stages for one source use the same currency. Agency or Departure defaults may seed entry but never reinterpret an existing definition.
+
+The first retained currency-bearing cost definition freezes ordinary `UpdateDeparture` / `CorrectDepartureCurrency` changes under the existing currency-bearing M3 fact rule. Those commands never rewrite, relabel, or convert stored cost amounts.
+
+M3 performs no FX conversion and persists no functional-currency translation. Foreign-currency Supplier cost definitions are out of scope for M3C.
 
 Shipped command mapping:
 
@@ -351,16 +357,19 @@ M3 does not add `view_supplier_planning`, `manage_supplier_planning`, or a paral
 
 ### 16. First monetary persistence and rates
 
-M3C ships the first application monetary tables and must establish the reusable ADR 0001 pattern:
+M3C ships the first application monetary tables and establishes the reusable ADR 0001 pattern:
 
-* `bigint` `*_minor_units` plus an explicit uppercase currency;
-* `monetize` with `with_model_currency`;
+* `bigint` `*_minor_units` plus an explicit uppercase currency on the owning definition, equal to the Departure operating currency;
+* `monetize` with `with_model_currency` where a table exposes a Money value;
 * explicit migrations, not `money-rails` migration helpers;
-* `Money::Currency.find` at the command boundary, matching Departure;
-* strict money parsing only at those boundaries;
-* no floating-point columns for amounts, rates that produce money, or allocations;
-* `numeric` columns with explicit precision and scale for percentage rates and similar fractional factors;
-* persist the calculated minor-unit result together with rate, base, rounding mode, and calculation order.
+* `Money::Currency.find` and strict parsing at command boundaries;
+* no floating-point columns for amounts, rates that produce money, quantities, or allocations;
+* `numeric(20,10)` fractional rates, where `1.0` means 100%;
+* nonnegative stored magnitudes with economic direction represented explicitly;
+* component-level rounding to the definition currency minor unit before later components consume the result; and
+* deterministic derived forecasts that persist no calculated forecast total or component result.
+
+The authoritative definition persists its currency, amounts or rates, explicit base-component links, calculation order, quantity basis, and rounding policy. The forecast explanation returns each rounded component minor-unit result. Later posted financial source lines must persist their final rounded results as required by ADR 0001 and the commercial register.
 
 ### 17. Optimistic locking and idempotency keys
 
@@ -389,8 +398,9 @@ Confirming an Arrangement or Reservation records Supplier evidence. Confirmation
 | Supplier Reservation | Specific group- or occurrence-level request or booking made with a Supplier under an M3 Arrangement. |
 | Supplier confirmation | Qualified evidence that a Supplier acknowledged an Arrangement or Reservation; it may include an external identifier or a documented confirmed-without-identifier path. |
 | Arrangement contact | Optional same-Agency `SupplierContact` used as a communication pointer for the Arrangement. It grants no authority. Consequential events snapshot the contact facts they need. |
-| Supplier cost term | Versioned estimate or contracted rule used to calculate forecast Supplier cost for a stable economic source. |
-| Cost component | Typed component such as base, tax, fee, discount, or expected commission, with explicit quantity and percentage-base semantics. Occupancy-position tables are Supplier cost facts, not Traveler occupancy records. |
+| Supplier cost source | Accepted M3C vocabulary. Exact-version economic identity for one Supplier cost, Arrangement-wide or Item-scoped, with an explicit charging Supplier. |
+| Supplier cost definition | Accepted M3C vocabulary. Editable estimate or contracted term definition (`working` / `forecast_ready`) for one source. Definition currency equals Departure `operating_currency`. |
+| Cost component | Accepted M3C vocabulary. Typed component with economic role separate from calculation kind; explicit quantity and percentage-base semantics. Occupancy-position facts are Supplier cost facts, not Traveler occupancy records. |
 | Commitment | Explicit contractual exposure that may precede and must not be confused with a Supplier Obligation. |
 | Deposit requirement | Supplier requirement stating amount or calculation rule, due rule, refundability, final-balance treatment, trigger, and provenance; it is not a Payment. |
 | Deadline | Resolved operational due fact linked to its governing source and preserving completion, rescheduling, or waiver history. |
@@ -551,62 +561,48 @@ The M3B slice must publish the complete lock order, transition matrix, idempoten
 
 ## Supplier cost terms and forecasts
 
+[M3C](m3c-cost-terms-and-forecasts.md) and [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) are the Accepted contracts for this section. Summary:
+
 ### Term stages
 
-Supplier cost terms and commitments are separate authorities.
+Supplier cost terms and commitments are separate authorities. `committed` is not a cost-term stage.
 
-| Concern | Estimate term | Contracted term | Commitment | Supplier Obligation |
+| Concern | Estimate definition | Contracted definition | Commitment | Supplier Obligation |
 | --- | --- | --- | --- | --- |
-| Meaning | Planning assumption | Recorded Supplier terms | Contractual exposure | Posted amount owed |
-| M3 | Yes | Yes | Yes | No |
-| Mutable after activation/opening | No; supersede | No; supersede | Explicit disposition only | Deferred to M6B |
+| Meaning | Agency planning assumption | Staff-attested transcription of Supplier-agreed terms | Contractual exposure | Posted amount owed |
+| M3 | Yes (M3C draft) | Yes (M3C draft) | Yes (later) | No |
+| Mutable after activation | No; supersede via successor | No; supersede via successor | Explicit disposition only | Deferred to M6B |
 
-An estimate becoming contracted creates a new version or superseding term. It does not mutate the estimate in place. `committed` is not a cost-term stage.
-
-Draft term *definitions* may exist before Arrangement activation. Effective contracted terms begin at activation.
+One exact-version `SupplierCostSource` carries at most one editable `estimate` and one editable `contracted` definition on the same draft Arrangement version. Forecast-ready contracted terms supersede the estimate for forecasting without mutating the estimate. Definition readiness and contracted Staff attestation are one command boundary; attestation is a planning claim, not confirmation or effective contracted terms. Effective contracted terms begin at Arrangement activation (M3D).
 
 ### Composable components
 
-M3 models Supplier cost as typed components rather than one formula per service type. Required component capabilities include:
+M3 models Supplier cost as typed components rather than one formula per service type. Economic role is separate from calculation kind. Required capabilities include:
 
-* fixed amount per Arrangement, Item, Resource, or operated Occurrence;
-* per resource unit;
-* per person or planning quantity;
-* per night;
-* minimum billed quantity or guarantee;
-* occupancy-position or tier selected from a recorded table with no hardcoded position ceiling;
-* tax;
-* fee;
-* discount;
-* expected commission;
-* percentage applied to explicitly identified base components;
+* Arrangement-wide and Item-scoped applicability (Occurrence/Resource narrowing when Item-scoped);
+* fixed amount;
+* unit rates on closed quantity bases (resource, person, night, occupancy-position, single-occupancy);
+* monetary and quantity minimum shortfalls as explicit components;
+* tax, fee, discount, and expected commission;
+* percentage applied only to earlier components in the same definition;
 * pass-through classification where applicable; and
-* explicit zero-cost or informational fulfillment.
+* explicit zero-cost mode (not an empty or missing definition).
 
-Every percentage component identifies its base source components, inclusive/additive treatment, calculation order, rate precision, rounding method, and calculated minor-unit result. Rates use `numeric` persistence. No floating point is permitted.
-
-The cost system must be extensible without implementing a generic user-programmable formula language or service-specific pricing subclasses.
+Every percentage component identifies its base components, inclusive/additive treatment, calculation order, `numeric(20,10)` rate, and rounding boundary. Every component result is rounded before later use. Expected commission never reduces forecast Supplier cost; commission settlement method and expected remittance are deferred. No generic expression language or service-specific pricing subclasses.
 
 ### Planning quantities
 
-Per-person, per-resource, per-night, minimum, and threshold calculations use explicit planning or guaranteed quantities. M3 must not imply that Client Trips, Travelers, Holds, or Allocations exist.
+Per-person, per-resource, per-night, minimum, and occupancy calculations use explicit planning assumptions or anonymous occupancy profiles shared by exact Item context. Assumptions are required only when a formula needs them. M3 must not imply that Client Trips, Travelers, Holds, or Allocations exist. Participant categories are Item-scoped labels only in M3C.
 
 Threshold-triggered capacity may calculate the number of resource units required from a planning quantity, such as one vehicle per 15 Traveler positions. Crossing a threshold does not automatically create a Resource, Service Occurrence, Reservation, capacity, commitment, or Supplier Obligation. Staff perform and confirm the resulting Supplier planning action.
 
 ### Economic-source identity and forecast precedence
 
-Each calculation identifies a stable economic source through its Arrangement, exact Arrangement version, Item, optional Reservation, Occurrence, Resource or Capacity Pool where applicable, cost category, quantity basis, and governing term.
+A cost source is Arrangement-wide or Item-scoped within one exact Arrangement version, with an explicit charging Supplier. Projected Supplier cost selects one complete forecast-ready stage per source (contracted when ready, else estimate). Stages are never merged or added. Forecasts are derived, single-currency, and may show a labeled known subtotal when incomplete. Missing facts are never zero. No forecast result is a commitment, Obligation, Payment, earned commission, or accounting fact.
 
-Projected Supplier cost selects one current best expected-final value for each economic source. It never sums estimate, contracted term, commitment, later Obligation, and later invoice as separate costs for the same source.
+M3C cost completeness proves Item-level coverage and completeness of every declared cost source. It cannot infer omitted Occurrence, Resource, or Arrangement-wide sources. M3D activation must present the complete source list for Staff coverage attestation.
 
-M3 reporting must explain:
-
-* selected stage;
-* governing version and source;
-* quantities;
-* components and percentage bases;
-* rounding; and
-* why an earlier stage was superseded.
+M3 reporting must explain selected stage, governing version and source, charging Supplier, quantities, components and bases, rounding, and why an earlier stage was not used.
 
 ## Commitments, deposit requirements, and exposure
 
@@ -668,13 +664,13 @@ Derived conditions query authoritative M3 facts. Acknowledgment, where required,
 
 ## Currency and money
 
-The Departure's `operating_currency` is the single transaction currency for M3. Closed decision 12 is the dependency catalog for `UpdateDeparture` and `CorrectDepartureCurrency`.
+The Departure retains one operating currency. Every Supplier cost planning definition stores that currency explicitly under ADRs 0001 and 0011. Closed decision 12 is the dependency catalog for `UpdateDeparture` and `CorrectDepartureCurrency`.
 
-* Every independently meaningful money fact stores `bigint` `*_minor_units` and an explicit uppercase currency under ADR 0001.
-* Each M3 monetary currency must equal the owning Departure's operating currency.
+* All components within a definition inherit its currency.
+* Estimate and contracted definitions for one source use the same currency.
 * Agency or Departure defaults may seed entry but never interpret an already stored amount.
 * M3 performs no FX conversion and persists no functional-currency translation.
-* M3 does not combine values in different currencies because one Departure cannot contain them.
+* M3C does not authorize foreign-currency Supplier cost definitions or posted Supplier accounting in another currency.
 * M3C establishes the reusable `money-rails` model pattern when the first monetary table ships.
 * `UpdateDeparture` and `CorrectDepartureCurrency` never clear, void, relabel, or convert M3 monetary rows in order to change currency.
 
@@ -857,6 +853,13 @@ At minimum, the slice plans must prove:
 * release versus reinstatement of the same release lineage;
 * correction versus reconciliation resolution;
 * rebuild versus concurrent event insertion;
+* cost-source creation versus Supplier inactivation;
+* source/component/profile create replay versus concurrent first execution;
+* component reorder versus create/remove and percentage-base validation;
+* definition edit versus forecast-ready transition;
+* participant-category edits versus dependent ready-definition fingerprints;
+* usage-assumption updates versus forecast evaluation;
+* cost-source removal versus M3A Item/Occurrence/Resource removal;
 * Reservation confirmation replay, conflicting Supplier response, and confirmation that atomically opens a deterministic commitment;
 * Deadline reschedule/completion/waiver races; and
 * idempotent command replay without duplicate versions, confirmations, events, commitments, or audit records.
@@ -938,7 +941,7 @@ Each implementation slice must define focused database, model, command, request,
 * Supplier confirmation evidence and confirmed-without-identifier path;
 * Capacity Pool basis/mode distinctions and immutable event reconciliation;
 * no Client Hold or Allocation records;
-* cost-component calculation, `numeric` percentage bases, rounding, and selected-stage forecast precedence;
+* cost-component calculation, monetary and quantity shortfalls, `numeric` percentage bases, rounding, selected-stage forecast precedence, and derived forecasts with no persisted totals;
 * commitment/capacity independence and confirmation that either atomically opens a named deterministic commitment or creates needs-attention instead;
 * deposit requirement without payment state;
 * qualified exposure and unavailable Agency-cash-at-risk behavior;

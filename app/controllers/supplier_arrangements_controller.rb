@@ -27,6 +27,9 @@ class SupplierArrangementsController < ApplicationController
 
   def show
     load_arrangement_graph
+    @cost_forecast = EvaluateSupplierCostForecast.new(
+      agency: Current.agency, departure: @departure, arrangement: @supplier_arrangement
+    ).call.arrangements.first
   end
 
   def new
@@ -123,5 +126,11 @@ class SupplierArrangementsController < ApplicationController
       .order(:position, :id)
       .group_by(&:arrangement_item_id)
       .transform_values { |definitions| definitions.group_by(&:capacity_pair_definition_id) }
+    @cost_sources = @supplier_arrangement_version.supplier_cost_sources
+      .includes(:charging_supplier, supplier_cost_definitions: [ :supplier_cost_components ])
+      .order(Arel.sql("arrangement_item_id NULLS FIRST"), :position, :id)
+      .to_a
+    @arrangement_cost_sources = @cost_sources.select(&:arrangement_wide?)
+    @cost_sources_by_item_id = @cost_sources.reject(&:arrangement_wide?).group_by(&:arrangement_item_id)
   end
 end
