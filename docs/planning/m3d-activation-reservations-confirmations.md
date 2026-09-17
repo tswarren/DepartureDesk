@@ -1,6 +1,6 @@
 # M3D — Arrangement activation, Reservations, and confirmations
 
-**Status:** Accepted 2026-09-17. Not yet shipped. Production activation/Reservation/effective-capacity implementation requires Accepted-and-shipped M3D.0 first.
+**Status:** Shipped. Merged to `main` on 2026-09-17 through M3D.1–M3D.6 implementation PRs (#73–#82). This document remains the M3D contract. It is not authority for M3E Arrangement ending, full commitment disposition, Deadlines, exposure, or later commercial records.
 
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md), Accepted and amended for shipped M3B and M3C and Accepted M3D authority.
 
