@@ -117,6 +117,23 @@ class M3D0StructureRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_path(@departure, @arrangement)
     assert_response :success
+    assert_select "#next-actions" do
+      assert_select "h2", text: "Next actions"
+      assert_select "a", text: "Add an Occurrence for Rooms", count: 1
+    end
+    assert_select "#planning-readiness" do
+      assert_select "dt", text: "Structure"
+      assert_select "dt", text: "Capacity"
+      assert_select "dt", text: "Declared costs"
+    end
+    assert_select "article#item-#{first_item.id}" do
+      assert_select "a.dd-button", text: "Add an Occurrence for Rooms", count: 1
+      assert_select "dt", text: "Effective provider"
+      assert_select "dt", text: "Structure"
+      assert_select "dt", text: "Capacity"
+      assert_select "dt", text: "Costs"
+      assert_select "table", count: 0
+    end
     assert_select "a", text: "Reorder items", count: 1
     assert_select "a", text: "Reorder resources", minimum: 1
     assert_select "button", text: /Move (up|down)/, count: 0
@@ -139,6 +156,25 @@ class M3D0StructureRequestTest < ActionDispatch::IntegrationTest
     assert_equal [ first_resource.id, second_resource.id ],
       first_item.supplier_resources.order(:created_at).pluck(:id)
     assert_not_equal first_item.id, second_item.id
+  end
+
+  test "viewer receives bounded read-only next actions and no mutation controls" do
+    item = create_item("Viewer rooms")
+    create_resource(item, "Viewer room")
+    sign_in_as @viewer
+
+    get departure_arrangement_path(@departure, @arrangement)
+
+    assert_response :success
+    assert_select "#next-actions a", text: "Review structure for Viewer rooms", count: 1
+    assert_select "article#item-#{item.id}" do
+      assert_select "a", text: "View structure", count: 1
+      assert_select "a", text: "View capacity", count: 1
+      assert_select "a", text: "View costs", count: 1
+      assert_select "form", count: 0
+      assert_select "a", text: "Edit structure", count: 0
+      assert_select "button", text: /Remove|Move/, count: 0
+    end
   end
 
   test "viewer cannot open or submit setup" do

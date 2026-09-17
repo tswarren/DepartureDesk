@@ -30,6 +30,24 @@ class SupplierArrangementsController < ApplicationController
     @cost_forecast = EvaluateSupplierCostForecast.new(
       agency: Current.agency, departure: @departure, arrangement: @supplier_arrangement
     ).call.arrangements.first
+    manageable = Current.agency_user.permitted?(:manage_departures) &&
+      @supplier_arrangement.draft? &&
+      @supplier_arrangement_version.draft? &&
+      (@departure.draft? || @departure.active?) &&
+      @supplier_arrangement.contracting_supplier.active?
+    @planning_workspace = ArrangementPlanningWorkspace.new(
+      departure: @departure,
+      arrangement: @supplier_arrangement,
+      version: @supplier_arrangement_version,
+      item_definitions: @item_definitions,
+      occurrence_definitions_by_item_id: @occurrence_definitions_by_item_id,
+      resource_definitions_by_item_id: @resource_definitions_by_item_id,
+      capacity_pairs_by_item_members: @capacity_pairs_by_item_members,
+      capacity_pool_definitions_by_item_pair_id: @capacity_pool_definitions_by_item_pair_id,
+      cost_sources_by_item_id: @cost_sources.group_by(&:arrangement_item_id),
+      forecast: @cost_forecast,
+      manageable: manageable
+    )
   end
 
   def new

@@ -257,7 +257,8 @@ class M3CSupplierCostsRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_path(@departure, @arrangement)
     assert_response :success
-    assert_match "Planning status", response.body
+    assert_match "Planning readiness", response.body
+    assert_match "Next actions", response.body
     assert_match "Arrangement costs", response.body
     assert_select "summary", text: "Add cost source", count: 0
 
