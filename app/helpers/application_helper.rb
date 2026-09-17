@@ -396,7 +396,7 @@ module ApplicationHelper
   def capacity_configuration_mode(departure:, arrangement:, version:, contractor:, supplying_suppliers: [])
     return :read_only unless Current.agency_user&.permitted?(:manage_departures)
     return :read_only if arrangement.abandoned? || version.abandoned?
-    return :read_only unless arrangement.draft? && version.draft?
+    return :read_only unless (arrangement.draft? || arrangement.active?) && version.draft?
     return :recovery if departure.departed? ||
       contractor&.inactive? ||
       Array(supplying_suppliers).compact.any?(&:inactive?)

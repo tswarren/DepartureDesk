@@ -67,9 +67,19 @@ class EvaluateSupplierCostForecast
     raise ActiveRecord::RecordNotFound if @arrangement && @arrangements.empty?
 
     arrangement_ids = @arrangements.map(&:id)
-    @versions = SupplierArrangementVersion.where(
+    draft_versions = SupplierArrangementVersion.where(
       agency_id: @agency.id, departure_id: @loaded_departure.id,
-      supplier_arrangement_id: arrangement_ids, version_number: 1
+      supplier_arrangement_id: arrangement_ids, status: "draft"
+    ).index_by(&:supplier_arrangement_id)
+    selected_version_ids = @arrangements.filter_map do |arrangement|
+      if @probe_definition&.supplier_arrangement_id == arrangement.id
+        @probe_definition.supplier_arrangement_version_id
+      else
+        draft_versions[arrangement.id]&.id || arrangement.governing_version_id
+      end
+    end
+    @versions = SupplierArrangementVersion.where(
+      agency_id: @agency.id, departure_id: @loaded_departure.id, id: selected_version_ids
     ).order(:supplier_arrangement_id, :version_number).to_a
     version_ids = @versions.map(&:id)
 

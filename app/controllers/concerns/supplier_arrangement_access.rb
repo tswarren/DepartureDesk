@@ -17,8 +17,11 @@ module SupplierArrangementAccess
     @supplier_arrangement = @departure.supplier_arrangements.find(params[:arrangement_id] || params[:id])
   end
 
-  def set_initial_version
-    @supplier_arrangement_version = @supplier_arrangement.versions.find_by!(version_number: 1)
+  def set_editable_draft_version
+    @supplier_arrangement_version =
+      @supplier_arrangement.versions.find_by(status: "draft") ||
+      @supplier_arrangement.governing_version ||
+      raise(ActiveRecord::RecordNotFound)
   end
 
   def set_arrangement_item

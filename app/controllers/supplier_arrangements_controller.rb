@@ -5,7 +5,7 @@ class SupplierArrangementsController < ApplicationController
   before_action :require_departure_management!, except: %i[index show]
   before_action :set_departure
   before_action :set_supplier_arrangement, only: %i[show edit update edit_abandon abandon]
-  before_action :set_initial_version, only: %i[show edit update edit_abandon abandon]
+  before_action :set_editable_draft_version, only: %i[show edit update edit_abandon abandon]
 
   def index
     @status = ListDepartureArrangements::STATUSES.include?(params[:status]) ? params[:status] : "all"
@@ -31,7 +31,7 @@ class SupplierArrangementsController < ApplicationController
       agency: Current.agency, departure: @departure, arrangement: @supplier_arrangement
     ).call.arrangements.first
     manageable = Current.agency_user.permitted?(:manage_departures) &&
-      @supplier_arrangement.draft? &&
+      (@supplier_arrangement.draft? || @supplier_arrangement.active?) &&
       @supplier_arrangement_version.draft? &&
       (@departure.draft? || @departure.active?) &&
       @supplier_arrangement.contracting_supplier.active?

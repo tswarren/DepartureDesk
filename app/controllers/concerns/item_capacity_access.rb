@@ -8,7 +8,7 @@ module ItemCapacityAccess
   def set_capacity_context
     set_departure
     set_supplier_arrangement
-    set_initial_version
+    set_editable_draft_version
     set_arrangement_item
     set_item_definition
   end

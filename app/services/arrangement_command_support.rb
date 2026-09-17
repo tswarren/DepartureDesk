@@ -29,15 +29,15 @@ module ArrangementCommandSupport
     @agency.supplier_arrangements.lock.find(arrangement.is_a?(SupplierArrangement) ? arrangement.id : arrangement)
   end
 
-  def lock_initial_version_for!(arrangement)
-    arrangement.versions.lock.find_by!(version_number: 1)
+  def lock_editable_draft_version_for!(arrangement)
+    arrangement.versions.lock.find_by!(status: "draft")
   end
 
   # Contract order: Departure → Arrangement → version.
   def lock_departure_arrangement_version!(arrangement)
     departure = lock_departure_for!(arrangement.departure_id)
     locked_arrangement = lock_arrangement_for!(arrangement)
-    version = lock_initial_version_for!(locked_arrangement)
+    version = lock_editable_draft_version_for!(locked_arrangement)
     [ departure, locked_arrangement, version ]
   end
 
@@ -83,7 +83,9 @@ module ArrangementCommandSupport
   end
 
   def ensure_draft_graph!(arrangement, version)
-    unless arrangement.draft? && version.draft? && version.version_number == 1
+    editable_draft = arrangement.versions.find_by(status: "draft")
+    unless (arrangement.draft? || arrangement.active?) &&
+        version.draft? && editable_draft&.id == version.id
       raise AgencyCommand::Error.new("That supplier arrangement cannot be edited.", code: :invalid_state)
     end
   end
