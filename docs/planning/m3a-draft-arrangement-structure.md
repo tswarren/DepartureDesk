@@ -1,6 +1,6 @@
 # M3A — Draft Arrangement structure
 
-**Status:** Shipped. Merged to `main` on 2026-09-16 in pull requests #59 and #60. This document remains the draft Arrangement-structure contract. It is not authority to start Arrangement activation, costs, Reservations, commitments, Deadlines, exposure, or later M3 slices. Capacity is governed by shipped [M3B](m3b-supplier-capacity.md).
+**Status:** Shipped. Merged to `main` on 2026-09-16 in pull requests #59 and #60. This document remains the draft Arrangement-structure contract. It is not authority to start Arrangement activation, Reservations, commitments, Deadlines, exposure, or later M3 slices. Capacity is governed by shipped [M3B](m3b-supplier-capacity.md). Cost terms and draft forecasts are governed by shipped [M3C](m3c-cost-terms-and-forecasts.md).
 
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md). The parent is Accepted, including the 2026-09-16 amendment and the Occurrence-lifecycle / create-idempotency corrections. This slice remains the shipped contract for draft Arrangement structure only.
 
@@ -726,7 +726,7 @@ Existing M0–M2 tests remain green. Do not weaken them.
 
 ## Documentation after merge
 
-M3A **Shipped** status flips belong in this post-merge documentation PR. Retain the statement that activation, capacity, costs, Reservations, commitments, Deadlines, and exposure remain unimplemented. Do not rewrite historical M2 scope documents to imply that M3A was part of M2. Do not invent an accepted M3B–M3F slice plan here.
+M3A **Shipped** status flips belong in this post-merge documentation PR. Retain the statement that activation, Reservations, commitments, Deadlines, and exposure remain unimplemented. Capacity and cost terms are governed by later shipped slices ([M3B](m3b-supplier-capacity.md), [M3C](m3c-cost-terms-and-forecasts.md)). Do not rewrite historical M2 scope documents to imply that M3A was part of M2.
 
 ## Exit gate
 

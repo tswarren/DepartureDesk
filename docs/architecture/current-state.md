@@ -4,7 +4,7 @@
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A-M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections, M2C proof and hardening, M3A draft Supplier Arrangement structure under Departures, and M3B draft Supplier capacity configuration plus the capacity event/projection/reconciliation engine. M2 is complete. Arrangement activation, Staff-facing effective capacity or event controls, and later commercial records are not shipped. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A-M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections, M2C proof and hardening, M3A draft Supplier Arrangement structure under Departures, M3B draft Supplier capacity configuration plus the capacity event/projection/reconciliation engine, and M3C draft Supplier cost terms plus derived forecasts. M2 is complete. Arrangement activation, Staff-facing effective capacity or event controls, effective contracted terms, and later commercial records are not shipped. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
 
 ## Shipped records and authorization catalog
 
@@ -37,7 +37,13 @@ DepartureDesk ships agency identity, administration, the complete M1 Client and 
 | `CapacityEvent` | Append-only Supplier-side capacity ledger facts. Proven in services/tests; not exposed through Staff UI until M3D. |
 | `CapacityProjection` | Rebuildable **Current Supplier capacity** projection for numeric Pools. |
 | `CapacityReconciliation`, `CapacityReconciliationResolution` | Observed quantity versus ledger comparison and append-only resolution. Engine-only until M3D. |
-| `AgencyCommandIdempotencyKey` | Agency-scoped replay guard for idempotent M3A create commands and M3B Pool create, capacity event, and reconciliation commands, keyed by command name, client idempotency key, and payload digest. |
+| `SupplierCostSource` | Exact-version economic identity for one Supplier cost, Arrangement-wide or Item-scoped, with an explicit charging Supplier. |
+| `SupplierCostDefinition` | Editable estimate or contracted definition (`working` / `forecast_ready`) with currency equal to Departure `operating_currency`. First ADR 0001 monetary-table pattern. |
+| `SupplierCostComponent`, `SupplierCostComponentBase` | Ordered typed components with economic role separate from calculation kind, plus explicit percentage-base links. |
+| `SupplierCostParticipantCategory` | Exact-version Item-scoped planning labels used by components and occupancy profiles. |
+| `SupplierCostUsageAssumption` | Lightweight exact Item-context planning quantities. Not Client demand. |
+| `SupplierCostOccupancyProfile`, `SupplierCostOccupancyProfilePosition` | Anonymous occupancy profiles and category positions for occupancy-shaped components. |
+| `AgencyCommandIdempotencyKey` | Agency-scoped replay guard for idempotent M3A create commands, M3B Pool create / capacity event / reconciliation commands, and M3C cost create commands, keyed by command name, client idempotency key, and payload digest. |
 | `ReferenceSequence` | Agency-scoped `client`, `supplier`, and `departure` reference counters. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed permission catalog mapping administrator, staff, and viewer roles to capabilities. It is application code, not a persisted record. |
 
@@ -86,11 +92,11 @@ Application code checks named permissions, not role strings.
 - Database constraints and triggers protect normalized identity values, same-Agency references, append-only audits, and immutable tenant identifiers.
 - `btree_gist` is enabled on the primary database only for `client_org_contacts_no_overlapping_history`.
 - Consequential multi-record changes use explicit commands, transactions, lock ordering, and same-transaction audit events.
-- M3A create commands and M3B Pool create, capacity event, and reconciliation commands use `AgencyCommandIdempotencyKey` plus transaction-scoped advisory locks so duplicate submissions replay the original result instead of creating duplicate records.
+- M3A create commands, M3B Pool create / capacity event / reconciliation commands, and M3C cost create commands use `AgencyCommandIdempotencyKey` plus transaction-scoped advisory locks so duplicate submissions replay the original result instead of creating duplicate records.
 - Last-active-administrator protection locks Agency, then AgencyUser, then rechecks current state.
 
 ## Not shipped
 
-The current application has no Traveler, Household, Travel Program, Package, Client Trip, Supplier Reservation, Arrangement activation, financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. Shipped M3A records are draft planning structure only. Shipped M3B capacity includes draft configuration UI and the engine; effective Supplier capacity and Staff event/reconciliation surfaces require M3D activation.
+The current application has no Traveler, Household, Travel Program, Package, Client Trip, Supplier Reservation, Arrangement activation, posted financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. Shipped M3A records are draft planning structure only. Shipped M3B capacity includes draft configuration UI and the engine; effective Supplier capacity and Staff event/reconciliation surfaces require M3D activation. Shipped M3C cost includes draft sources, definitions, components, assumptions, and derived forecasts; effective contracted terms require M3D activation. Forecast totals are not persisted.
 
 See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.

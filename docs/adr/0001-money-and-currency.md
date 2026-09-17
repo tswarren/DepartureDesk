@@ -26,7 +26,7 @@ DepartureDesk will adopt `money-rails` as the Rails integration and value-object
 
 The gem will not define the accounting model and will not be the sole enforcement layer. PostgreSQL columns and constraints remain authoritative; DepartureDesk domain records define the meaning, provenance, state, and relationships of each amount.
 
-This ADR accepts the dependency and persistence convention. The gem is installed (`Gemfile`, lockfile, `config/initializers/money.rb`, and mismatch tests). Domain monetary tables, posting, and historical conversion facts remain later implementation. The accepted MVP commercial contract limits each Departure to one operating currency and excludes FX. Do not persist functional-currency translations or conversion facts until a later accepted amendment introduces cross-currency behavior.
+This ADR accepts the dependency and persistence convention. The gem is installed (`Gemfile`, lockfile, `config/initializers/money.rb`, and mismatch tests). [M3C](../planning/m3c-cost-terms-and-forecasts.md) shipped the first draft Supplier cost monetary tables using `*_minor_units` plus explicit definition currency. Posted client/supplier ledgers, Obligations, Payments, and historical conversion facts remain later implementation. The accepted MVP commercial contract limits each Departure to one operating currency and excludes FX. Do not persist functional-currency translations or conversion facts until a later accepted amendment introduces cross-currency behavior.
 
 ## Persistence contract
 
@@ -214,8 +214,8 @@ Rejected for accounting. Current rate services may assist quoting or estimates l
 - [x] Add `money-rails` to `Gemfile` and commit the resolved lockfile.
 - [x] Add an initializer enabling strict parsing and disabling implicit conversion.
 - [x] Add a focused test proving same-currency arithmetic and mismatched-currency rejection.
-- Establish a reusable migration/model pattern for `*_minor_units` plus currency when the first monetary table ships.
-- Add database constraints with each monetary table.
-- Document rounding and currency ownership in each financial aggregate.
+- [x] Establish a reusable migration/model pattern for `*_minor_units` plus currency (shipped with M3C Supplier cost definitions).
+- [x] Add database constraints with each monetary table (M3C cost-definition and component amounts).
+- Document rounding and currency ownership in each later posted financial aggregate.
 - Amend this ADR before functional-currency posting or historical conversion facts are introduced.
 - Update this ADR if a later requirement changes the persistence or conversion policy.
