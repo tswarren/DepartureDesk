@@ -227,7 +227,7 @@ class SupplierReservationsController < ApplicationController
   end
 
   def response_params
-    params.fetch(:response_event, ActionController::Parameters.new).permit(
+    permitted = params.fetch(:response_event, ActionController::Parameters.new).permit(
       :occurred_at, :channel, :reference_note, :existing_confirmation_id, :confirmed_amount_minor_units,
       scope_ids: [],
       evidence: [
@@ -238,14 +238,19 @@ class SupplierReservationsController < ApplicationController
       capacity_consequence: [
         :capacity_pool_id, :event_type, :quantity, :effective_on, :supplier_reservation_scope_id,
         { evidence: [ :evidence_kind, :evidence_on, :evidence_reference_note, :evidence_external_reference ] }
-      ],
-      outcomes: {}
-    ).tap do |permitted|
-      permitted[:scope_ids] = params[:scope_ids] if params[:scope_ids].present?
-      if params[:outcomes].present?
-        permitted[:outcomes] = params.require(:outcomes).permit!.to_h
+      ]
+    )
+    permitted[:scope_ids] = params[:scope_ids] if params[:scope_ids].present?
+    if params[:outcomes].present?
+      permitted[:outcomes] = params.fetch(:outcomes).each_with_object({}) do |(scope_id, values), memo|
+        next unless values.respond_to?(:permit)
+
+        memo[scope_id] = values.permit(
+          :outcome_kind, :quantity, :quantity_basis, :supplier_note, :decline_reason
+        ).to_h
       end
     end
+    permitted
   end
 
   def load_scope_options(version = @supplier_arrangement_version)
