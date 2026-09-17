@@ -94,6 +94,47 @@
   </div>
 </article>
 
+<% if @effective_capacity_definitions.any? %>
+  <article class="dd-panel" id="current-supplier-capacity">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Current Supplier capacity</h2>
+        <p>Supplier-side capacity from the governing activated version.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Pool</th>
+            <th scope="col">Item</th>
+            <th scope="col">Occurrence and resource</th>
+            <th scope="col">Supplying Supplier</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @effective_capacity_definitions.each do |definition| %>
+            <tr>
+              <td>
+                <%= link_to definition.label,
+                  departure_arrangement_capacity_pool_path(
+                    @departure, @supplier_arrangement, definition.capacity_pool
+                  ) %>
+              </td>
+              <td><%= @effective_item_definitions_by_id.fetch(definition.arrangement_item_id).name %></td>
+              <td>
+                <%= @effective_occurrence_definitions_by_id.fetch(definition.service_occurrence_id).name %> ·
+                <%= @effective_resource_definitions_by_id.fetch(definition.supplier_resource_id).name %>
+              </td>
+              <td><%= supplier_option_label(definition.capacity_pool.supplying_supplier) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </article>
+<% end %>
+
 <article class="dd-panel" id="next-actions">
   <header class="dd-panel-header">
     <div>

@@ -166,6 +166,25 @@ class SupplierArrangementsController < ApplicationController
       .order(:position, :id)
       .group_by(&:arrangement_item_id)
       .transform_values { |definitions| definitions.group_by(&:capacity_pair_definition_id) }
+    governing_version = @supplier_arrangement.governing_version
+    @effective_capacity_definitions =
+      if @supplier_arrangement.active? && governing_version&.activated?
+        governing_version.capacity_pool_definitions
+          .includes(capacity_pool: :supplying_supplier)
+          .joins(:capacity_pool)
+          .merge(CapacityPool.where(inventory_mode: %w[block allotment]))
+          .order(:position, :id)
+          .to_a
+      else
+        []
+      end
+    effective_item_ids = @effective_capacity_definitions.map(&:arrangement_item_id).uniq
+    @effective_item_definitions_by_id = governing_version&.arrangement_item_definitions
+      &.where(arrangement_item_id: effective_item_ids)&.index_by(&:arrangement_item_id) || {}
+    @effective_occurrence_definitions_by_id = governing_version&.service_occurrence_definitions
+      &.where(arrangement_item_id: effective_item_ids)&.index_by(&:service_occurrence_id) || {}
+    @effective_resource_definitions_by_id = governing_version&.supplier_resource_definitions
+      &.where(arrangement_item_id: effective_item_ids)&.index_by(&:supplier_resource_id) || {}
     @cost_sources = @supplier_arrangement_version.supplier_cost_sources
       .includes(:charging_supplier, supplier_cost_definitions: [ :supplier_cost_components ])
       .order(Arel.sql("arrangement_item_id NULLS FIRST"), :position, :id)
