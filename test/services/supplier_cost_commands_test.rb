@@ -70,7 +70,7 @@ class SupplierCostCommandsTest < ActiveSupport::TestCase
     assert_nil definition.readiness_fingerprint
   end
 
-  test "fixed component create ignores incompatible form fields" do
+  test "fixed component create rejects nonblank incompatible form fields" do
     source = create_source("source-fixed-shape", @version.lock_version).record
     definition = CreateSupplierCostDefinition.new(
       agency: @agency, actor: @admin, source: source, source_lock_version: source.lock_version,
@@ -78,22 +78,30 @@ class SupplierCostCommandsTest < ActiveSupport::TestCase
       attributes: { stage: "estimate", mode: "calculated", currency: "USD", rounding_mode: "half_up" }
     ).call.record
 
+    error = assert_raises(AgencyCommand::Error) do
+      CreateSupplierCostComponent.new(
+        agency: @agency, actor: @admin, definition: definition,
+        definition_lock_version: definition.lock_version, idempotency_key: "component-fixed-shape",
+        attributes: {
+          label: "Base Fare", economic_role: "supplier_charge", calculation_kind: "fixed",
+          amount_minor_units: 162_900, rate: "1.0", quantity_basis: "persons",
+          percentage_treatment: "additive", pass_through: false
+        }
+      ).call
+    end
+    assert_equal :invalid, error.code
+    assert_match(/not valid for this calculation/i, error.message)
+
     result = CreateSupplierCostComponent.new(
       agency: @agency, actor: @admin, definition: definition,
-      definition_lock_version: definition.lock_version, idempotency_key: "component-fixed-shape",
+      definition_lock_version: definition.lock_version, idempotency_key: "component-fixed-ok",
       attributes: {
         label: "Base Fare", economic_role: "supplier_charge", calculation_kind: "fixed",
-        amount_minor_units: 162_900, rate: "1.0", quantity_basis: "persons",
-        percentage_treatment: "additive", pass_through: false
+        amount: "1629.00", rate: "", quantity_basis: "", percentage_treatment: "", pass_through: false
       }
     ).call
-
     assert_equal :created, result.status
-    component = result.record
-    assert_equal 162_900, component.amount_minor_units
-    assert_nil component.rate
-    assert_nil component.quantity_basis
-    assert_nil component.percentage_treatment
+    assert_equal 162_900, result.record.amount_minor_units
   end
 
   test "unit rate component create requires quantity basis" do
@@ -116,6 +124,99 @@ class SupplierCostCommandsTest < ActiveSupport::TestCase
     end
     assert_equal :invalid, error.code
     assert_match(/Quantity basis/i, error.message)
+  end
+
+  test "percentage components can reorder when dependent stays after bases" do
+    source = create_source("source-reorder-bases", @version.lock_version).record
+    definition = CreateSupplierCostDefinition.new(
+      agency: @agency, actor: @admin, source: source, source_lock_version: source.lock_version,
+      idempotency_key: "definition-reorder-bases",
+      attributes: { stage: "estimate", mode: "calculated", currency: "USD", rounding_mode: "half_up" }
+    ).call.record
+    fare = CreateSupplierCostComponent.new(
+      agency: @agency, actor: @admin, definition: definition,
+      definition_lock_version: definition.lock_version, idempotency_key: "fare-reorder",
+      attributes: {
+        label: "Fare", economic_role: "supplier_charge", calculation_kind: "fixed",
+        amount_minor_units: 10_000, pass_through: false
+      }
+    ).call.record
+    discount = CreateSupplierCostComponent.new(
+      agency: @agency, actor: @admin, definition: definition.reload,
+      definition_lock_version: definition.lock_version, idempotency_key: "discount-reorder",
+      attributes: {
+        label: "Discount", economic_role: "supplier_credit", calculation_kind: "fixed",
+        amount_minor_units: 1_000, pass_through: false
+      }
+    ).call.record
+    commission = CreateSupplierCostComponent.new(
+      agency: @agency, actor: @admin, definition: definition.reload,
+      definition_lock_version: definition.lock_version, idempotency_key: "commission-reorder",
+      base_links: [
+        { base_component_id: fare.id, direction: "add" },
+        { base_component_id: discount.id, direction: "subtract" }
+      ],
+      attributes: {
+        label: "Commission", economic_role: "expected_commission", calculation_kind: "percentage",
+        rate: "0.15", percentage_treatment: "additive", pass_through: false
+      }
+    ).call.record
+
+    result = ReorderSupplierCostComponents.new(
+      agency: @agency, actor: @admin, definition: definition.reload,
+      definition_lock_version: definition.lock_version,
+      supplier_cost_component_ids: [ discount.id, fare.id, commission.id ]
+    ).call
+
+    assert_equal :updated, result.status
+    assert_equal [ discount.id, fare.id, commission.id ],
+      definition.supplier_cost_components.order(:position).pluck(:id)
+  end
+
+  test "readiness rejects quantity minimum with incompatible unit-rate base" do
+    item = create_item
+    CreateSupplierCostUsageAssumption.new(
+      agency: @agency, actor: @admin, arrangement_item: item,
+      idempotency_key: "assumption-qty-min", attributes: { expected_persons: 3, expected_resource_units: 1 }
+    ).call
+    source = CreateSupplierCostSource.new(
+      agency: @agency, actor: @admin, arrangement: @arrangement,
+      version_lock_version: @version.reload.lock_version, idempotency_key: "source-qty-min",
+      attributes: { arrangement_item_id: item.id, charging_supplier_id: @supplier.id, label: "Excursion" }
+    ).call.record
+    definition = CreateSupplierCostDefinition.new(
+      agency: @agency, actor: @admin, source: source, source_lock_version: source.lock_version,
+      idempotency_key: "definition-qty-min",
+      attributes: { stage: "estimate", mode: "calculated", currency: "USD", rounding_mode: "half_up" }
+    ).call.record
+    rate = CreateSupplierCostComponent.new(
+      agency: @agency, actor: @admin, definition: definition,
+      definition_lock_version: definition.lock_version, idempotency_key: "rate-qty-min",
+      attributes: {
+        label: "Per person", economic_role: "supplier_charge", calculation_kind: "unit_rate",
+        amount_minor_units: 5_000, quantity_basis: "persons", pass_through: false
+      }
+    ).call.record
+    shortfall = CreateSupplierCostComponent.new(
+      agency: @agency, actor: @admin, definition: definition.reload,
+      definition_lock_version: definition.lock_version, idempotency_key: "shortfall-qty-min",
+      base_links: [ { base_component_id: rate.id, direction: "add" } ],
+      attributes: {
+        label: "Minimum five", economic_role: "supplier_charge",
+        calculation_kind: "minimum_quantity_shortfall", minimum_quantity: 5,
+        quantity_basis: "persons", pass_through: false
+      }
+    ).call.record
+    shortfall.update_columns(quantity_basis: "resource_units")
+
+    error = assert_raises(AgencyCommand::Error) do
+      MarkCostDefinitionForecastReady.new(
+        agency: @agency, actor: @admin, definition: definition.reload,
+        lock_version: definition.lock_version
+      ).call
+    end
+    assert_equal :invalid, error.code
+    assert_match(/compatible earlier unit-rate/i, error.message)
   end
 
   test "item source create treats blank occurrence and resource ids as entire item" do

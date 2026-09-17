@@ -10,6 +10,7 @@ module SupplierCostAccess
     before_action :set_supplier_arrangement
     before_action :set_initial_version
     before_action :set_cost_item
+    helper_method :cost_ordinary_editable?, :cost_source_ordinary_editable?, :cost_source_cleanup_editable?
   end
 
   private
@@ -64,5 +65,16 @@ module SupplierCostAccess
     draft_graph = @supplier_arrangement.draft? && @supplier_arrangement_version.draft?
     contractor_active = @supplier_arrangement.contracting_supplier.active?
     manage && draft_graph && (@departure.draft? || @departure.active?) && contractor_active
+  end
+
+  def cost_source_ordinary_editable?(source)
+    cost_ordinary_editable? && source.charging_supplier.active?
+  end
+
+  def cost_source_cleanup_editable?(source)
+    manage = Current.agency_user.permitted?(:manage_departures)
+    draft_graph = @supplier_arrangement.draft? && @supplier_arrangement_version.draft?
+    departure_ok = @departure.draft? || @departure.active? || @departure.departed?
+    manage && draft_graph && departure_ok && !source.charging_supplier.active?
   end
 end

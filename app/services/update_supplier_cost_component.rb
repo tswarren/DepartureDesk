@@ -27,7 +27,9 @@ class UpdateSupplierCostComponent < AgencyCommand
           occupancy_position_to percentage_treatment pass_through
         ]
         current = component_fields.to_h { |field| [ field, component.public_send(field) ] }
-        attrs = normalize_component_attributes(current.merge(@attributes), version: version, item: source.arrangement_item)
+        attrs = normalize_component_attributes(
+          current.merge(@attributes), version: version, item: source.arrangement_item, currency: definition.currency
+        )
         links = normalize_base_links(@base_links)
         current_links = component.supplier_cost_component_bases.order(:position).map do |base|
           { base_component_id: base.base_component_id, direction: base.direction, position: base.position }

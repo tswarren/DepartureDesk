@@ -24,10 +24,8 @@ module CostCommandSupport
 
   def ensure_cost_ordinary_edit!(departure, arrangement, version, contractor, charging_supplier = nil)
     ensure_draft_graph!(arrangement, version)
-    inactive_charging_supplier = version.supplier_cost_sources
-      .joins(:charging_supplier).where(suppliers: { status: "inactive" }).exists?
     return if ordinary_planning_state?(departure, contractor) &&
-      (charging_supplier.nil? || charging_supplier.active?) && !inactive_charging_supplier
+      (charging_supplier.nil? || charging_supplier.active?)
 
     raise AgencyCommand::Error.new(recovery_message, code: :invalid_state)
   end
@@ -152,7 +150,7 @@ module CostCommandSupport
     raise AgencyCommand::Error.new("#{label} is invalid.", code: :invalid)
   end
 
-  def normalize_component_attributes(attributes, version:, item:)
+  def normalize_component_attributes(attributes, version:, item:, currency: nil)
     attrs = attributes.to_h.with_indifferent_access
     category_id = parse_optional_uuid(attrs[:participant_category_id], "Participant category")
     if category_id
@@ -167,13 +165,20 @@ module CostCommandSupport
     unless SupplierCostComponent::ECONOMIC_ROLES.include?(economic_role)
       raise AgencyCommand::Error.new("Economic role is invalid.", code: :invalid)
     end
+    currency_code = currency.presence || version.departure.operating_currency
     normalized = apply_component_kind_shape({
       label: normalize_text(attrs[:label], "Label", SupplierCostComponent::LABEL_LIMIT),
       economic_role: economic_role,
       calculation_kind: kind,
-      amount_minor_units: integer_or_nil(attrs[:amount_minor_units], "Amount"),
+      amount_minor_units: money_minor_or_nil(
+        attrs.key?(:amount) ? attrs[:amount] : attrs[:amount_minor_units],
+        currency_code, "Amount", major_units: attrs.key?(:amount)
+      ),
       rate: decimal_or_nil(attrs[:rate], "Rate"),
-      minimum_minor_units: integer_or_nil(attrs[:minimum_minor_units], "Minimum amount"),
+      minimum_minor_units: money_minor_or_nil(
+        attrs.key?(:minimum_amount) ? attrs[:minimum_amount] : attrs[:minimum_minor_units],
+        currency_code, "Minimum amount", major_units: attrs.key?(:minimum_amount)
+      ),
       minimum_quantity: integer_or_nil(attrs[:minimum_quantity], "Minimum quantity", minimum: 1),
       quantity_basis: attrs[:quantity_basis].presence&.to_s,
       participant_category_id: category_id,
@@ -190,8 +195,22 @@ module CostCommandSupport
     normalized
   end
 
-  # The component form posts every field. Clear inputs that the selected calculation kind
-  # forbids, then require the fields that kind needs.
+  def money_minor_or_nil(value, currency_code, label, major_units: false)
+    return nil if value.nil? || value == ""
+    return integer_or_nil(value, label) unless major_units
+
+    currency = Money::Currency.find(currency_code)
+    raise AgencyCommand::Error.new("#{label} is invalid.", code: :invalid) unless currency
+
+    Money.from_amount(BigDecimal(value.to_s), currency.iso_code).fractional.tap do |minor|
+      raise AgencyCommand::Error.new("#{label} is invalid.", code: :invalid) if minor.negative?
+    end
+  rescue ArgumentError, TypeError, Money::Currency::UnknownCurrency
+    raise AgencyCommand::Error.new("#{label} is invalid.", code: :invalid)
+  end
+
+  # Shared forms may post blank unused fields. Nonblank fields forbidden by the
+  # selected calculation kind are rejected as invalid rather than silently cleared.
   def apply_component_kind_shape(attrs)
     kind = attrs[:calculation_kind]
     quantity_basis = attrs[:quantity_basis]
@@ -203,49 +222,76 @@ module CostCommandSupport
       raise AgencyCommand::Error.new("Percentage treatment is invalid.", code: :invalid)
     end
 
-    cleared = attrs.merge(
-      amount_minor_units: nil, rate: nil, minimum_minor_units: nil, minimum_quantity: nil,
-      quantity_basis: nil, participant_category_id: nil, occupancy_position_from: nil,
-      occupancy_position_to: nil, percentage_treatment: nil
-    )
-
-    case kind
+    allowed = case kind
     when "fixed"
       require_component_value!(attrs[:amount_minor_units], "Amount")
-      cleared.merge(amount_minor_units: attrs[:amount_minor_units])
+      reject_forbidden_component_fields!(attrs, %i[
+        rate minimum_minor_units minimum_quantity quantity_basis participant_category_id
+        occupancy_position_from occupancy_position_to percentage_treatment
+      ])
+      { amount_minor_units: attrs[:amount_minor_units] }
     when "unit_rate"
       require_component_value!(attrs[:amount_minor_units], "Amount")
       require_component_value!(quantity_basis, "Quantity basis")
-      cleared.merge(
+      reject_forbidden_component_fields!(attrs, %i[rate minimum_minor_units minimum_quantity percentage_treatment])
+      {
         amount_minor_units: attrs[:amount_minor_units], quantity_basis: quantity_basis,
         participant_category_id: attrs[:participant_category_id],
         occupancy_position_from: attrs[:occupancy_position_from],
         occupancy_position_to: attrs[:occupancy_position_to]
-      )
+      }
     when "percentage"
       require_component_value!(attrs[:rate], "Rate")
       require_component_value!(treatment, "Percentage treatment")
-      cleared.merge(rate: attrs[:rate], percentage_treatment: treatment)
+      reject_forbidden_component_fields!(attrs, %i[
+        amount_minor_units minimum_minor_units minimum_quantity quantity_basis
+        participant_category_id occupancy_position_from occupancy_position_to
+      ])
+      { rate: attrs[:rate], percentage_treatment: treatment }
     when "minimum_amount_shortfall"
       require_component_value!(attrs[:minimum_minor_units], "Minimum amount")
       unless attrs[:economic_role] == "supplier_charge"
         raise AgencyCommand::Error.new("Minimum amount shortfalls must use the supplier charge role.", code: :invalid)
       end
-      cleared.merge(minimum_minor_units: attrs[:minimum_minor_units])
+      reject_forbidden_component_fields!(attrs, %i[
+        amount_minor_units rate minimum_quantity quantity_basis participant_category_id
+        occupancy_position_from occupancy_position_to percentage_treatment
+      ])
+      { minimum_minor_units: attrs[:minimum_minor_units] }
     when "minimum_quantity_shortfall"
       require_component_value!(attrs[:minimum_quantity], "Minimum quantity")
       require_component_value!(quantity_basis, "Quantity basis")
       unless attrs[:economic_role] == "supplier_charge"
         raise AgencyCommand::Error.new("Minimum quantity shortfalls must use the supplier charge role.", code: :invalid)
       end
-      cleared.merge(
+      reject_forbidden_component_fields!(attrs, %i[
+        amount_minor_units rate minimum_minor_units percentage_treatment
+      ])
+      {
         minimum_quantity: attrs[:minimum_quantity], quantity_basis: quantity_basis,
         participant_category_id: attrs[:participant_category_id],
         occupancy_position_from: attrs[:occupancy_position_from],
         occupancy_position_to: attrs[:occupancy_position_to]
-      )
+      }
     else
       raise AgencyCommand::Error.new("Calculation kind is invalid.", code: :invalid)
+    end
+
+    attrs.merge(
+      amount_minor_units: nil, rate: nil, minimum_minor_units: nil, minimum_quantity: nil,
+      quantity_basis: nil, participant_category_id: nil, occupancy_position_from: nil,
+      occupancy_position_to: nil, percentage_treatment: nil
+    ).merge(allowed)
+  end
+
+  def reject_forbidden_component_fields!(attrs, fields)
+    fields.each do |field|
+      value = attrs[field]
+      next if value.nil? || value == "" || value == false
+
+      raise AgencyCommand::Error.new(
+        "#{field.to_s.humanize} is not valid for this calculation.", code: :invalid
+      )
     end
   end
 
@@ -314,7 +360,7 @@ module CostCommandSupport
       source.supplier_arrangement, source.supplier_arrangement_version,
       source.arrangement_item, source.service_occurrence, supplier
     )
-    components = definition.supplier_cost_components.order(:position).to_a
+    components = definition.supplier_cost_components.includes(:supplier_cost_component_bases).order(:position).to_a
     if definition.calculated?
       raise AgencyCommand::Error.new("Add at least one cost component.", code: :invalid) if components.empty?
       components.each do |component|
@@ -332,14 +378,52 @@ module CostCommandSupport
             component.supplier_cost_component_bases.empty?
           raise AgencyCommand::Error.new("That component requires a base.", code: :invalid)
         end
-        if component.minimum_quantity_shortfall? && component.supplier_cost_component_bases.size != 1
-          raise AgencyCommand::Error.new("A quantity minimum requires exactly one base.", code: :invalid)
+        if component.minimum_quantity_shortfall?
+          bases = component.supplier_cost_component_bases.to_a
+          raise AgencyCommand::Error.new("A quantity minimum requires exactly one base.", code: :invalid) if bases.size != 1
+          base_component = components.find { |entry| entry.id == bases.first.base_component_id }
+          unless base_component&.unit_rate? &&
+              bases.first.direction == "add" &&
+              compatible_ready_quantity_formula?(component, base_component)
+            raise AgencyCommand::Error.new(
+              "A quantity minimum requires one compatible earlier unit-rate base.", code: :invalid
+            )
+          end
         end
       end
       validate_required_usage!(source, components)
+      validate_ready_evaluation!(definition)
     elsif components.any?
       raise AgencyCommand::Error.new("Zero-cost definitions cannot contain components.", code: :invalid)
     end
+  end
+
+  def compatible_ready_quantity_formula?(component, base)
+    component.quantity_basis == base.quantity_basis &&
+      component.participant_category_id == base.participant_category_id &&
+      component.occupancy_position_from == base.occupancy_position_from &&
+      component.occupancy_position_to == base.occupancy_position_to
+  end
+
+  def validate_ready_evaluation!(definition)
+    result = EvaluateSupplierCostForecast.new(
+      agency: @agency,
+      departure: definition.departure,
+      arrangement: definition.supplier_arrangement,
+      probe_definition: definition
+    ).call(isolated: false)
+    source_result = result.arrangements.flat_map(&:sources).find { |entry| entry.source_id == definition.supplier_cost_source_id }
+    return unless source_result
+
+    invalid = source_result.warnings.select do |warning|
+      %w[
+        invalid_percentage_base invalid_minimum_amount_base invalid_quantity_minimum_base
+        unsupported_calculation_kind invalid_component_base
+      ].include?(warning.code.to_s)
+    end
+    return if invalid.empty?
+
+    raise AgencyCommand::Error.new(invalid.first.message, code: :invalid)
   end
 
   def validate_required_usage!(source, components)

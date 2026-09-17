@@ -7,7 +7,10 @@ class ItemCostsController < ApplicationController
 
   def show
     @item_cost_sources = cost_sources
-      .includes(:charging_supplier, supplier_cost_definitions: [ :supplier_cost_components ])
+      .includes(
+        :charging_supplier,
+        supplier_cost_definitions: { supplier_cost_components: :supplier_cost_component_bases }
+      )
       .order(:position, :id)
       .to_a
     @categories = @supplier_arrangement_version.supplier_cost_participant_categories

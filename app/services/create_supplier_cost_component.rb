@@ -20,7 +20,9 @@ class CreateSupplierCostComponent < AgencyCommand
         ensure_cost_ordinary_edit!(departure, arrangement, version, contractor, charging)
         definition = lock_definition!(source, @definition)
         raise Error.new("Zero-cost definitions cannot contain components.", code: :invalid_state) if definition.zero_cost?
-        attrs = normalize_component_attributes(@attributes, version: version, item: source.arrangement_item)
+          attrs = normalize_component_attributes(
+            @attributes, version: version, item: source.arrangement_item, currency: definition.currency
+          )
         links = normalize_base_links(@base_links)
         idempotent_create!(
           command_name: self.class.name, idempotency_key: @idempotency_key,

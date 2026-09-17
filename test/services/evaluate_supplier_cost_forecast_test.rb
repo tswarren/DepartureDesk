@@ -233,6 +233,27 @@ class EvaluateSupplierCostForecastTest < ActiveSupport::TestCase
     assert_not Object.const_defined?(:Traveler)
   end
 
+  test "departure-level forecast excludes abandoned arrangements while arrangement probe retains them" do
+    item = create_item("Abandoned costed service")
+    source = create_source(item: item, label: "Abandoned terms")
+    definition = create_definition(source, stage: "contracted")
+    create_component(
+      definition, label: "Fee", economic_role: "supplier_charge",
+      calculation_kind: "fixed", amount_minor_units: 25_000, position: 1
+    )
+    mark_ready(definition, provenance: "Abandoned arrangement retention")
+    @arrangement.update!(status: "abandoned", abandoned_at: Time.current)
+
+    departure_result = EvaluateSupplierCostForecast.new(agency: @agency, departure: @departure).call
+    assert_empty departure_result.arrangements
+
+    retained = EvaluateSupplierCostForecast.new(
+      agency: @agency, departure: @departure, arrangement: @arrangement
+    ).call
+    assert_equal 1, retained.arrangements.size
+    assert_equal 25_000, retained.arrangements.first.totals.forecast_supplier_cost_minor_units
+  end
+
   test "evaluates monetary roles percentages and minima with component half-up rounding" do
     item = create_item("Costed service")
     source = create_source(item: item, label: "Layered terms")

@@ -51,14 +51,14 @@ class M3CCostConcurrencyTest < ActiveSupport::TestCase
   teardown do
     next unless @agency&.persisted?
 
-    AgencyCommandIdempotencyKey.where(
-      agency_id: @agency.id,
-      command_name: "CreateSupplierCostSource",
-      idempotency_key: "m3c-concurrent-source"
-    ).delete_all
-    SupplierCostSource.where(departure_id: @departure.id).delete_all
-    SupplierArrangementVersion.where(departure_id: @departure.id).delete_all
-    SupplierArrangement.where(departure_id: @departure.id).delete_all
+    agency_id = @agency.id
+    AgencyCommandIdempotencyKey.where(agency_id: agency_id).delete_all
+    SupplierCostComponentBase.where(agency_id: agency_id).delete_all
+    SupplierCostComponent.where(agency_id: agency_id).delete_all
+    SupplierCostDefinition.where(agency_id: agency_id).delete_all
+    SupplierCostSource.where(agency_id: agency_id).delete_all
+    SupplierArrangementVersion.where(agency_id: agency_id).delete_all
+    SupplierArrangement.where(agency_id: agency_id).delete_all
     M1DirectoryScenario.cleanup!(@agency)
   end
 

@@ -31,15 +31,21 @@ class EvaluateSupplierCostForecast
     expected_net_cost_after_commission_minor_units: 0
   )
 
-  def initialize(agency:, departure:, arrangement: nil)
+  def initialize(agency:, departure:, arrangement: nil, probe_definition: nil)
     @agency = agency
     @departure = departure
     @arrangement = arrangement
+    @probe_definition = probe_definition
   end
 
-  def call
-    ActiveRecord::Base.transaction(isolation: :repeatable_read) do
-      ActiveRecord::Base.connection.execute("SET TRANSACTION READ ONLY")
+  def call(isolated: true)
+    if isolated
+      ActiveRecord::Base.transaction(isolation: :repeatable_read) do
+        ActiveRecord::Base.connection.execute("SET TRANSACTION READ ONLY")
+        preload!
+        calculate
+      end
+    else
       preload!
       calculate
     end
@@ -50,7 +56,13 @@ class EvaluateSupplierCostForecast
   def preload!
     @loaded_departure = @agency.departures.find(record_id(@departure))
     scope = @agency.supplier_arrangements.where(departure_id: @loaded_departure.id)
-    scope = scope.where(id: record_id(@arrangement)) if @arrangement
+    if @arrangement
+      scope = scope.where(id: record_id(@arrangement))
+    else
+      # Departure-level projection excludes abandoned Arrangements. An explicit
+      # Arrangement evaluation may still read retained abandoned terms.
+      scope = scope.where.not(status: "abandoned")
+    end
     @arrangements = scope.order(:created_at, :id).to_a
     raise ActiveRecord::RecordNotFound if @arrangement && @arrangements.empty?
 
@@ -169,8 +181,14 @@ class EvaluateSupplierCostForecast
     definitions = Array(@definitions_by_source[source.id])
     contracted = definitions.find { |definition| definition.contracted? && definition.forecast_ready? }
     estimate = definitions.find { |definition| definition.estimate? && definition.forecast_ready? }
-    selected = contracted || estimate
-    selection_reason = if contracted
+    selected = if @probe_definition && @probe_definition.supplier_cost_source_id == source.id
+      @probe_definition
+    else
+      contracted || estimate
+    end
+    selection_reason = if @probe_definition && selected.equal?(@probe_definition)
+      "Readiness probe of the submitted definition."
+    elsif contracted
       "Forecast-ready contracted terms supersede the estimate."
     elsif estimate
       "No forecast-ready contracted definition; using forecast-ready estimate."
@@ -184,11 +202,13 @@ class EvaluateSupplierCostForecast
     end
 
     components = Array(@components_by_definition[selected.id])
-    fingerprint = SupplierCostDefinitionFingerprint.call(
-      selected, components: components, category_labels: @category_labels
-    )
-    unless ActiveSupport::SecurityUtils.secure_compare(selected.readiness_fingerprint.to_s, fingerprint)
-      warnings << warning(:invalid_readiness_fingerprint, "Readiness no longer matches the current term facts.")
+    unless @probe_definition&.id == selected.id
+      fingerprint = SupplierCostDefinitionFingerprint.call(
+        selected, components: components, category_labels: @category_labels
+      )
+      unless ActiveSupport::SecurityUtils.secure_compare(selected.readiness_fingerprint.to_s, fingerprint)
+        warnings << warning(:invalid_readiness_fingerprint, "Readiness no longer matches the current term facts.")
+      end
     end
     if selected.currency != @loaded_departure.operating_currency
       warnings << warning(:currency_mismatch, "Definition currency does not match the Departure operating currency.")
@@ -269,6 +289,7 @@ class EvaluateSupplierCostForecast
         }
       ]
     when "minimum_amount_shortfall"
+      raise MissingInput.new(:invalid_minimum_amount_base, "A minimum-amount base cannot be negative.") if monetary_base.negative?
       value = [ component.minimum_minor_units - monetary_base, 0 ].max
       [
         BigDecimal(value.to_s),

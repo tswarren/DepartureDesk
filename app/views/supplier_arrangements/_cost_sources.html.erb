@@ -1,6 +1,7 @@
 <% item = local_assigns[:item] %>
 <% sources = local_assigns.fetch(:sources) %>
 <% editable = local_assigns.fetch(:editable) %>
+<% categories = local_assigns.fetch(:categories, []) %>
 <% source_collection_path = item ? departure_arrangement_item_costs_path(@departure, @supplier_arrangement, item) : departure_arrangement_costs_path(@departure, @supplier_arrangement) %>
 
 <% if sources.empty? %>
@@ -8,14 +9,22 @@
 <% end %>
 
 <% sources.each do |source| %>
+  <% source_editable = editable && cost_source_ordinary_editable?(source) %>
+  <% source_cleanup = cost_source_cleanup_editable?(source) %>
+  <% source_path = item ? departure_arrangement_item_cost_path(@departure, @supplier_arrangement, item, source) : departure_arrangement_cost_path(@departure, @supplier_arrangement, source) %>
   <article id="cost-source-<%= source.id %>" class="dd-panel">
     <header class="dd-panel-header">
       <div>
         <h4 class="dd-panel-title"><%= source.label %></h4>
-        <p><%= source.charging_supplier.display_name %> · <%= source.arrangement_wide? ? "Arrangement-wide" : "Item cost" %></p>
+        <p>
+          <%= source.charging_supplier.display_name %>
+          · <%= source.arrangement_wide? ? "Arrangement-wide" : "Item cost" %>
+          <% unless source.charging_supplier.active? %>
+            · ⚠ Charging Supplier inactive — remove or restore before ordinary edits
+          <% end %>
+        </p>
       </div>
-      <% if editable %>
-        <% source_path = item ? departure_arrangement_item_cost_path(@departure, @supplier_arrangement, item, source) : departure_arrangement_cost_path(@departure, @supplier_arrangement, source) %>
+      <% if source_editable || source_cleanup %>
         <%= button_to "Remove", source_path, method: :delete, class: "dd-row-action",
           form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this cost source and all its stages?" } },
           params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
@@ -23,6 +32,12 @@
     </header>
     <div class="dd-panel-body">
       <% source.supplier_cost_definitions.sort_by { |definition| definition.estimate? ? 0 : 1 }.each do |definition| %>
+        <% components = definition.supplier_cost_components.sort_by(&:position) %>
+        <% ordered_component_ids = components.map(&:id) %>
+        <% definition_path = item ? departure_arrangement_item_cost_definition_path(@departure, @supplier_arrangement, item, source, definition) : departure_arrangement_cost_definition_path(@departure, @supplier_arrangement, source, definition) %>
+        <% ready_path = item ? forecast_ready_departure_arrangement_item_cost_definition_path(@departure, @supplier_arrangement, item, source, definition) : forecast_ready_departure_arrangement_cost_definition_path(@departure, @supplier_arrangement, source, definition) %>
+        <% components_path = item ? departure_arrangement_item_cost_definition_components_path(@departure, @supplier_arrangement, item, source, definition) : departure_arrangement_cost_definition_components_path(@departure, @supplier_arrangement, source, definition) %>
+        <% reorder_path = item ? reorder_departure_arrangement_item_cost_definition_components_path(@departure, @supplier_arrangement, item, source, definition) : reorder_departure_arrangement_cost_definition_components_path(@departure, @supplier_arrangement, source, definition) %>
         <section id="definition-<%= definition.id %>">
           <header class="dd-panel-header">
             <div>
@@ -35,18 +50,37 @@
           </header>
           <% if definition.zero_cost? %>
             <p>Known zero: <%= definition.zero_cost_reason %></p>
-          <% elsif definition.supplier_cost_components.empty? %>
+          <% elsif components.empty? %>
             <p class="<%= empty_state_classes.join(" ") %>">No components yet.</p>
           <% else %>
             <div class="dd-table-wrap">
               <table class="dd-table">
-                <thead><tr><th>Component</th><th>Role</th><th>Formula</th><th>Amount / rate</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Component</th>
+                    <th>Role</th>
+                    <th>Formula</th>
+                    <th>Amount / rate</th>
+                    <% if source_editable %><th>Actions</th><% end %>
+                  </tr>
+                </thead>
                 <tbody>
-                  <% definition.supplier_cost_components.sort_by(&:position).each do |component| %>
+                  <% components.each_with_index do |component, component_index| %>
+                    <% component_path = item ? departure_arrangement_item_cost_definition_component_path(@departure, @supplier_arrangement, item, source, definition, component) : departure_arrangement_cost_definition_component_path(@departure, @supplier_arrangement, source, definition, component) %>
                     <tr id="component-<%= component.id %>">
                       <td><%= component.label %></td>
                       <td><%= component.economic_role.humanize %></td>
-                      <td><%= component.calculation_kind.humanize %><%= " · #{component.quantity_basis.humanize}" if component.quantity_basis %></td>
+                      <td>
+                        <%= component.calculation_kind.humanize %>
+                        <%= " · #{component.quantity_basis.humanize}" if component.quantity_basis %>
+                        <% if component.occupancy_position_from %>
+                          · positions <%= component.occupancy_position_from %><%= component.occupancy_position_to ? "–#{component.occupancy_position_to}" : "+" %>
+                        <% end %>
+                        <% bases = component.supplier_cost_component_bases.sort_by(&:position) %>
+                        <% if bases.any? %>
+                          · bases <%= bases.map { |base| "#{base.direction} #{components.find { |entry| entry.id == base.base_component_id }&.label || base.base_component_id}" }.join(", ") %>
+                        <% end %>
+                      </td>
                       <td>
                         <% if component.amount_minor_units %>
                           <%= Money.new(component.amount_minor_units, definition.currency).format %>
@@ -58,6 +92,38 @@
                           <%= component.minimum_quantity || "—" %>
                         <% end %>
                       </td>
+                      <% if source_editable %>
+                        <td>
+                          <div class="dd-inline-actions">
+                            <% if component_index.positive? %>
+                              <% moved_ids = ordered_component_ids.dup.tap { |ids| ids[component_index - 1], ids[component_index] = ids[component_index], ids[component_index - 1] } %>
+                              <%= button_to "Move up", reorder_path, method: :patch, class: "dd-row-action",
+                                form: { class: "dd-inline-form" },
+                                params: { definition_lock_version: definition.lock_version, supplier_cost_component_ids: moved_ids } %>
+                            <% end %>
+                            <% if component_index < components.size - 1 %>
+                              <% moved_ids = ordered_component_ids.dup.tap { |ids| ids[component_index + 1], ids[component_index] = ids[component_index], ids[component_index + 1] } %>
+                              <%= button_to "Move down", reorder_path, method: :patch, class: "dd-row-action",
+                                form: { class: "dd-inline-form" },
+                                params: { definition_lock_version: definition.lock_version, supplier_cost_component_ids: moved_ids } %>
+                            <% end %>
+                            <%= button_to "Remove", component_path, method: :delete, class: "dd-row-action",
+                              form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this cost component?" } },
+                              params: { definition_lock_version: definition.lock_version } %>
+                          </div>
+                          <details>
+                            <summary>Edit component</summary>
+                            <%= render "supplier_arrangements/cost_component_form",
+                                  url: component_path,
+                                  method: :patch,
+                                  definition: definition,
+                                  component: component,
+                                  earlier_components: components.first(component_index),
+                                  categories: categories,
+                                  item: item %>
+                          </details>
+                        </td>
+                      <% end %>
                     </tr>
                   <% end %>
                 </tbody>
@@ -65,10 +131,7 @@
             </div>
           <% end %>
 
-          <% if editable %>
-            <% definition_path = item ? departure_arrangement_item_cost_definition_path(@departure, @supplier_arrangement, item, source, definition) : departure_arrangement_cost_definition_path(@departure, @supplier_arrangement, source, definition) %>
-            <% ready_path = item ? forecast_ready_departure_arrangement_item_cost_definition_path(@departure, @supplier_arrangement, item, source, definition) : forecast_ready_departure_arrangement_cost_definition_path(@departure, @supplier_arrangement, source, definition) %>
-            <% components_path = item ? departure_arrangement_item_cost_definition_components_path(@departure, @supplier_arrangement, item, source, definition) : departure_arrangement_cost_definition_components_path(@departure, @supplier_arrangement, source, definition) %>
+          <% if source_editable %>
             <details>
               <summary>Edit <%= definition.stage %> stage</summary>
               <%= form_with url: definition_path, method: :patch, class: "dd-form" do |form| %>
@@ -88,29 +151,21 @@
             <% if definition.calculated? %>
               <details>
                 <summary>Add component</summary>
-                <%= form_with url: components_path, method: :post, class: "dd-form" do |form| %>
-                  <%= form.hidden_field :idempotency_key, value: SecureRandom.uuid %>
-                  <%= form.hidden_field :definition_lock_version, value: definition.lock_version %>
-                  <p class="dd-field-hint">Use only the fields that match Calculation. Fixed needs amount only. Unit rate needs amount and quantity basis. Percentage needs rate and treatment. Extra fields for other kinds are ignored.</p>
-                  <div class="dd-field"><%= form.label "supplier_cost_component[label]", "Label" %><%= form.text_field "supplier_cost_component[label]", required: true %></div>
-                  <div class="dd-field"><%= form.label "supplier_cost_component[economic_role]", "Economic role" %><%= form.select "supplier_cost_component[economic_role]", SupplierCostComponent::ECONOMIC_ROLES.map { |value| [ value.humanize, value ] } %></div>
-                  <div class="dd-field"><%= form.label "supplier_cost_component[calculation_kind]", "Calculation" %><%= form.select "supplier_cost_component[calculation_kind]", SupplierCostComponent::CALCULATION_KINDS.map { |value| [ value.humanize, value ] } %></div>
-                  <div class="dd-field"><%= form.label "supplier_cost_component[amount_minor_units]", "Amount (minor units)" %><%= form.number_field "supplier_cost_component[amount_minor_units]", min: 0 %></div>
-                  <div class="dd-field"><%= form.label "supplier_cost_component[rate]", "Rate (1.0 = 100%)" %><%= form.number_field "supplier_cost_component[rate]", min: 0, step: "0.0000000001" %></div>
-                  <div class="dd-field"><%= form.label "supplier_cost_component[minimum_minor_units]", "Minimum amount (minor units)" %><%= form.number_field "supplier_cost_component[minimum_minor_units]", min: 0 %></div>
-                  <div class="dd-field"><%= form.label "supplier_cost_component[minimum_quantity]", "Minimum quantity" %><%= form.number_field "supplier_cost_component[minimum_quantity]", min: 1 %></div>
-                  <div class="dd-field"><%= form.label "supplier_cost_component[quantity_basis]", "Quantity basis" %><%= form.select "supplier_cost_component[quantity_basis]", SupplierCostComponent::QUANTITY_BASES.map { |value| [ value.humanize, value ] }, include_blank: true %></div>
-                  <div class="dd-field"><%= form.label "supplier_cost_component[percentage_treatment]", "Percentage treatment" %><%= form.select "supplier_cost_component[percentage_treatment]", SupplierCostComponent::PERCENTAGE_TREATMENTS.map { |value| [ value.humanize, value ] }, include_blank: true %></div>
-                  <%= form.hidden_field "supplier_cost_component[pass_through]", value: "0" %>
-                  <%= form.submit "Add component", class: "dd-button" %>
-                <% end %>
+                <%= render "supplier_arrangements/cost_component_form",
+                      url: components_path,
+                      method: :post,
+                      definition: definition,
+                      component: nil,
+                      earlier_components: components,
+                      categories: categories,
+                      item: item %>
               </details>
             <% end %>
           <% end %>
         </section>
       <% end %>
 
-      <% if editable && source.supplier_cost_definitions.size < 2 %>
+      <% if source_editable && source.supplier_cost_definitions.size < 2 %>
         <% definitions_path = item ? departure_arrangement_item_cost_definitions_path(@departure, @supplier_arrangement, item, source) : departure_arrangement_cost_definitions_path(@departure, @supplier_arrangement, source) %>
         <details>
           <summary>Add cost stage</summary>

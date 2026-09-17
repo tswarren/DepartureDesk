@@ -25,6 +25,24 @@ COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiS
 
 
 --
+-- Name: clear_supplier_cost_component_bases_for_kind(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clear_supplier_cost_component_bases_for_kind() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.calculation_kind IS DISTINCT FROM OLD.calculation_kind AND
+     NEW.calculation_kind IN ('fixed', 'unit_rate') THEN
+    DELETE FROM supplier_cost_component_bases
+     WHERE supplier_cost_component_id = NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: dd_search_normalize(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -739,6 +757,22 @@ $$;
 
 
 --
+-- Name: reject_supplier_cost_definition_stage_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_cost_definition_stage_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.stage IS DISTINCT FROM OLD.stage THEN
+    RAISE EXCEPTION 'supplier cost definition stage is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_supplier_cost_occupancy_profile_owner_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -982,14 +1016,27 @@ CREATE FUNCTION public.validate_supplier_cost_component_base() RETURNS trigger
     AS $$
 DECLARE component_position integer;
 DECLARE component_kind text;
+DECLARE component_basis text;
+DECLARE component_category uuid;
+DECLARE component_from integer;
+DECLARE component_to integer;
 DECLARE base_position integer;
 DECLARE base_kind text;
+DECLARE base_basis text;
+DECLARE base_category uuid;
+DECLARE base_from integer;
+DECLARE base_to integer;
 BEGIN
-  SELECT position, calculation_kind INTO component_position, component_kind
+  SELECT position, calculation_kind, quantity_basis, participant_category_id,
+         occupancy_position_from, occupancy_position_to
+    INTO component_position, component_kind, component_basis, component_category,
+         component_from, component_to
     FROM supplier_cost_components
    WHERE id = NEW.supplier_cost_component_id
      AND supplier_cost_definition_id = NEW.supplier_cost_definition_id;
-  SELECT position, calculation_kind INTO base_position, base_kind
+  SELECT position, calculation_kind, quantity_basis, participant_category_id,
+         occupancy_position_from, occupancy_position_to
+    INTO base_position, base_kind, base_basis, base_category, base_from, base_to
     FROM supplier_cost_components
    WHERE id = NEW.base_component_id
      AND supplier_cost_definition_id = NEW.supplier_cost_definition_id;
@@ -1003,12 +1050,39 @@ BEGIN
      (base_kind <> 'unit_rate' OR NEW.direction <> 'add') THEN
     RAISE EXCEPTION 'quantity minimum base must be one earlier unit rate';
   END IF;
+  IF component_kind = 'minimum_quantity_shortfall' AND (
+       component_basis IS DISTINCT FROM base_basis
+    OR component_category IS DISTINCT FROM base_category
+    OR component_from IS DISTINCT FROM base_from
+    OR component_to IS DISTINCT FROM base_to
+  ) THEN
+    RAISE EXCEPTION 'quantity minimum base selectors must match the unit rate';
+  END IF;
   IF component_kind = 'minimum_quantity_shortfall' AND EXISTS (
     SELECT 1 FROM supplier_cost_component_bases
      WHERE supplier_cost_component_id = NEW.supplier_cost_component_id
        AND id <> NEW.id
   ) THEN
     RAISE EXCEPTION 'quantity minimum accepts exactly one base';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: validate_supplier_cost_definition_mode_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.validate_supplier_cost_definition_mode_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.mode = 'zero_cost' AND OLD.mode IS DISTINCT FROM 'zero_cost' AND EXISTS (
+    SELECT 1 FROM supplier_cost_components c
+     WHERE c.supplier_cost_definition_id = NEW.id
+  ) THEN
+    RAISE EXCEPTION 'zero-cost definitions cannot retain components';
   END IF;
   RETURN NEW;
 END;
@@ -5153,6 +5227,13 @@ CREATE TRIGGER supplier_cost_component_bases_validate BEFORE INSERT OR UPDATE ON
 
 
 --
+-- Name: supplier_cost_components supplier_cost_components_clear_bases_for_kind; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_components_clear_bases_for_kind AFTER UPDATE OF calculation_kind ON public.supplier_cost_components FOR EACH ROW EXECUTE FUNCTION public.clear_supplier_cost_component_bases_for_kind();
+
+
+--
 -- Name: supplier_cost_components supplier_cost_components_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5171,6 +5252,20 @@ CREATE TRIGGER supplier_cost_components_validate_context BEFORE INSERT OR UPDATE
 --
 
 CREATE TRIGGER supplier_cost_definitions_reject_owner_change BEFORE UPDATE ON public.supplier_cost_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_cost_definition_owner_change();
+
+
+--
+-- Name: supplier_cost_definitions supplier_cost_definitions_reject_stage_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_definitions_reject_stage_change BEFORE UPDATE OF stage ON public.supplier_cost_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_cost_definition_stage_change();
+
+
+--
+-- Name: supplier_cost_definitions supplier_cost_definitions_validate_mode_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_definitions_validate_mode_change BEFORE UPDATE OF mode ON public.supplier_cost_definitions FOR EACH ROW EXECUTE FUNCTION public.validate_supplier_cost_definition_mode_change();
 
 
 --
@@ -6455,6 +6550,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260917120000'),
 ('20260917100000'),
 ('20260916220000'),
 ('20260916210000'),

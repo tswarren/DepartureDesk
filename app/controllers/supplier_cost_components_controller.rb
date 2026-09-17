@@ -58,15 +58,25 @@ class SupplierCostComponentsController < ApplicationController
 
   def component_params
     params.fetch(:supplier_cost_component, {}).permit(
-      :label, :economic_role, :calculation_kind, :amount_minor_units, :rate, :minimum_minor_units,
-      :minimum_quantity, :quantity_basis, :participant_category_id, :occupancy_position_from,
-      :occupancy_position_to, :percentage_treatment, :pass_through, :lock_version
+      :label, :economic_role, :calculation_kind, :amount, :amount_minor_units, :rate,
+      :minimum_amount, :minimum_minor_units, :minimum_quantity, :quantity_basis,
+      :participant_category_id, :occupancy_position_from, :occupancy_position_to,
+      :percentage_treatment, :pass_through, :lock_version
     )
   end
 
   def base_links
-    Array(params[:base_component_ids]).reject(&:blank?).map.with_index do |id, index|
-      { base_component_id: id, direction: "add", position: index + 1 }
+    raw = params.permit(base_links: [ :base_component_id, :direction ]).fetch(:base_links, [])
+    entries = raw.is_a?(Array) ? raw : raw.values
+    entries.filter_map.with_index do |entry, index|
+      attrs = entry.to_h.with_indifferent_access
+      next if attrs[:base_component_id].blank?
+
+      {
+        base_component_id: attrs[:base_component_id],
+        direction: attrs[:direction].presence || "add",
+        position: index + 1
+      }
     end
   end
 end

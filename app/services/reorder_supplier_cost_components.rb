@@ -27,7 +27,11 @@ class ReorderSupplierCostComponents < AgencyCommand
         end
         old = components.to_h { |component| [ component.id, component.position ] }
         offset = components.size + 1
-        components.each { |component| component.update!(position: component.position + offset) }
+        # Move dependents to temporary positions before bases so the forward-base
+        # trigger never sees an earlier base behind a still-unmoved dependent.
+        components.sort_by { |component| -component.position }.each do |component|
+          component.update!(position: component.position + offset)
+        end
         by_id = components.index_by(&:id)
         ids.each_with_index { |id, index| by_id.fetch(id).update!(position: index + 1) }
         touch_definition_after_change!(definition)

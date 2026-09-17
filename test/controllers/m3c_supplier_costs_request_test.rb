@@ -77,6 +77,69 @@ class M3CSupplierCostsRequestTest < ActionDispatch::IntegrationTest
     )
   end
 
+  test "staff workspace exposes occupancy selectors base links and currency amounts" do
+    item = @arrangement.arrangement_items.create!(agency: @agency, departure: @departure)
+    @version.arrangement_item_definitions.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement,
+      arrangement_item: item, name: "Cabin", category: "lodging", position: 1
+    )
+    source = CreateSupplierCostSource.new(
+      agency: @agency, actor: @admin, arrangement: @arrangement,
+      version_lock_version: @version.reload.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { arrangement_item_id: item.id, charging_supplier_id: @supplier.id, label: "O1 terms" }
+    ).call.record
+    definition = CreateSupplierCostDefinition.new(
+      agency: @agency, actor: @admin, source: source, source_lock_version: source.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: { stage: "contracted", mode: "calculated", currency: "USD", rounding_mode: "half_up" }
+    ).call.record
+    fare = CreateSupplierCostComponent.new(
+      agency: @agency, actor: @admin, definition: definition,
+      definition_lock_version: definition.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        label: "Fare", economic_role: "supplier_charge", calculation_kind: "fixed",
+        amount_minor_units: 10_000, pass_through: false
+      }
+    ).call.record
+    CreateSupplierCostParticipantCategory.new(
+      agency: @agency, actor: @admin, arrangement_item: item,
+      version_lock_version: @version.reload.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { label: "Adult" }
+    ).call
+    sign_in_as @admin
+
+    get departure_arrangement_item_costs_workspace_path(@departure, @arrangement, item)
+    assert_response :success
+    assert_match "Amount (USD)", response.body
+    assert_match "Occupancy position from", response.body
+    assert_match "Base components", response.body
+    assert_match "Edit component", response.body
+    assert_match "Remove", response.body
+    assert_select "input[name=?]", "supplier_cost_component[amount]"
+    assert_select "select[name=?]", "base_links[][direction]"
+
+    post departure_arrangement_item_cost_definition_components_path(
+      @departure, @arrangement, item, source, definition
+    ), params: {
+      idempotency_key: SecureRandom.uuid,
+      definition_lock_version: definition.reload.lock_version,
+      supplier_cost_component: {
+        label: "Commission", economic_role: "expected_commission", calculation_kind: "percentage",
+        rate: "0.15", percentage_treatment: "additive", pass_through: "0"
+      },
+      base_links: [
+        { base_component_id: fare.id, direction: "add" },
+        { base_component_id: "", direction: "add" }
+      ]
+    }
+    commission = definition.supplier_cost_components.find_by!(label: "Commission")
+    assert_equal 1, commission.supplier_cost_component_bases.count
+    assert_equal "add", commission.supplier_cost_component_bases.first.direction
+    assert_redirected_to departure_arrangement_item_costs_workspace_path(
+      @departure, @arrangement, item, anchor: "component-#{commission.id}"
+    )
+  end
+
   test "viewer sees cost workspace without mutation controls and cannot post" do
     source = create_source
     sign_in_as @viewer
