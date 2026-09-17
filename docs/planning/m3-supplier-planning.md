@@ -1,6 +1,6 @@
 # M3 Supplier planning
 
-**Status:** Accepted 2026-09-16. Amended 2026-09-16. Amended again 2026-09-16 for M3B capacity. Amended 2026-09-17 for M3C cost terms. [M3A](m3a-draft-arrangement-structure.md), [M3B](m3b-supplier-capacity.md), and [M3C](m3c-cost-terms-and-forecasts.md) are shipped. Later M3 slices remain unimplemented.
+**Status:** Accepted 2026-09-16. Amended 2026-09-16. Amended again 2026-09-16 for M3B capacity. Amended 2026-09-17 for M3C cost terms. Amended 2026-09-17 for M3D authority and M3D.0. [M3A](m3a-draft-arrangement-structure.md), [M3B](m3b-supplier-capacity.md), and [M3C](m3c-cost-terms-and-forecasts.md) are shipped. [M3D.0](m3d0-planning-workspace-compression.md) is Accepted (not yet shipped). [M3D](m3d-activation-reservations-confirmations.md) and [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) are Accepted (not yet shipped). Production M3D domain implementation requires Accepted-and-shipped M3D.0 first. Later M3E–M3F slices remain unimplemented.
 
 **Amendment 2026-09-16:** Closed decisions now authorize Arrangement and version `abandoned` (never-activated discard; not Arrangement `cancelled`); departed Departures may not create new tentative Arrangements; ordinary inactivation uses the effective-provider rule and a recovery allow-list; M3A adds only `force_inactivate_supplier_with_dependencies`; Occurrence creation fails `invalid` when no recognized zone can be stored; version `lock_version` owns child-collection concurrency. [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md) and [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md) lock topology and Supplier roles. Occurrence operational lifecycle (`planned`/`cancelled`) lives on the stable Occurrence identity with `lock_version`; definition rows hold commercial/schedule attributes only. M3A ships the first durable create-command idempotency family and uses an explicit create-command lock-order exception for the idempotency row.
 
@@ -8,7 +8,9 @@
 
 **Amendment 2026-09-17 (M3C):** Exact-version Supplier cost sources carry estimate and contracted definitions on the same draft Arrangement version. Definition currency equals Departure `operating_currency`. Forecasts are deterministic derived evaluations that persist no calculated totals. [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) governs cost definitions and forecast evaluation. [M3C](m3c-cost-terms-and-forecasts.md) shipped the implementing slice.
 
-**Prerequisites:** M2 complete and shipped, including [ADR 0007](../adr/0007-departure-operational-root.md), [M2C](m2c-acceptance-and-hardening.md), and final M2 documentation; [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md), [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md), [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md).
+**Amendment 2026-09-17 (M3D / M3D.0):** [M3D.0](m3d0-planning-workspace-compression.md) is Accepted interaction remediation over shipped M3A–M3C and is a hard prerequisite before production M3D activation work. [M3D](m3d-activation-reservations-confirmations.md) owns Arrangement activation, successors, Reservations, confirmations, effective capacity surfaces, a narrow confirmation-triggered commitment-opening core with explicit `committed_supplier_id`, and the minimal ordinary Supplier-inactivation blocker for every unresolved commitment that core can open. Incomplete confirmation inputs retain the confirmation and expose a derived unresolved condition for later M3E needs-attention; they do not invent a commitment. Normal Arrangement ending belongs to M3E. [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) governs activation manifests, Reservation history, confirmation evidence, and the M3D commitment core.
+
+**Prerequisites:** M2 complete and shipped, including [ADR 0007](../adr/0007-departure-operational-root.md), [M2C](m2c-acceptance-and-hardening.md), and final M2 documentation; [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0004](../adr/0004-human-readable-references.md), [ADR 0005](../adr/0005-agency-identity.md), [ADR 0006](../adr/0006-separate-identity-domains.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md), [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md), [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md), [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md), [MVP requirements](departure-desk-mvp.md), [commercial decision register](commercial-domain-decision-register.md), [current architecture](../architecture/current-state.md), [interface contract](../ui/interface-contract.md), and completed [M1 directories](m1-client-and-supplier-directories.md).
 
 This parent contract is not implementation authority. Each M3 slice requires its own accepted implementation contract before domain code begins. Archived Phase 3B documents are historical input only; they do not govern M3.
 
@@ -48,7 +50,7 @@ M3 represents Supplier planning. It does not yet represent Client selling, Clien
 
 The distinctions among operational truth, commercial truth, Supplier truth, and cash movement remain mandatory. No M3 event implies a Client sale, Client allocation, Supplier Obligation, Supplier Payment, or accounting loss.
 
-Commercial register section 18.5 allows a Supplier confirmation to trigger deterministic commitments or Obligations. M3 implements a staged restriction of the Obligation half only: confirmation never posts a Supplier Obligation. Confirmation never silently opens a commitment. When the governing activated terms define a complete deterministic trigger, the confirmation command may explicitly and atomically open that commitment, provided its command contract, preview, audit, idempotency, and failure behavior name the effect. Otherwise confirmation creates a needs-attention condition for a separate commitment command.
+Commercial register section 18.5 allows a Supplier confirmation to trigger deterministic commitments or Obligations. M3 implements a staged restriction of the Obligation half only: confirmation never posts a Supplier Obligation. Confirmation never silently opens a commitment. When the governing activated terms define a complete deterministic trigger, the confirmation command may explicitly and atomically open that commitment, provided its command contract, preview, audit, idempotency, and failure behavior name the effect. When confirmation does not provide every authoritative input required by a trigger, M3D records the confirmation and exposes a derived unresolved condition for later M3E needs-attention treatment; it does not invent a commitment or open a placeholder. Arrangement-confirmation triggers that cannot fully resolve during activation block activation.
 
 ## Aggregate boundary
 
@@ -82,9 +84,10 @@ The diagram describes domain responsibility, not a required table count. Slice p
 | **[M3A — Draft Arrangement structure](m3a-draft-arrangement-structure.md)** | Stable Arrangement identity, lifecycle catalog including `abandoned`, and draft-version topology; Items, Occurrences, Resources, and optional Arrangement contact; contracting Supplier and Service Provider rules; `view_departures` / `manage_departures` plus `force_inactivate_supplier_with_dependencies`; M3A did not add `override_supplier_planning_terms` (M3B introduces it); `ChangeSupplierStatus` ordinary blockers for introduced dependencies; draft UI that amends the Departure interface contract. Supplier Location attachment is deferred. No activation yet. Shipped. |
 | **[M3B — Supplier capacity](m3b-supplier-capacity.md)** | Explicit Item capacity applicability; versioned Occurrence–Resource pair coverage and draft Capacity Pool definitions; stable Pool identity, inventory modes, measurement bases, immutable Supplier-side capacity events, scheduled effectiveness, rebuildable projections, evidence, Administrator override, reconciliation, concurrency, and recovery foundations. M3B exposes draft configuration only; effective supply and event controls still require later Arrangement activation in M3D. Shipped. |
 | **[M3C — Cost terms and forecasts](m3c-cost-terms-and-forecasts.md)** | Exact-version Supplier cost sources, including Arrangement-wide and Item-scoped shapes; one editable estimate and contracted definition per source on the same draft Arrangement version; the first ADR 0001 monetary-table pattern; explicit charging Supplier; definition currency equal to Departure `operating_currency`; ordered cost components with economic role separate from calculation kind; monetary and quantity shortfall forms; explicit percentage bases; lightweight shared usage assumptions and optional anonymous occupancy profiles; deterministic derived forecasts with whole-stage precedence and complete explanations. Effective contracted terms still require later Arrangement activation. Shipped. |
-| **M3D — Activation, Reservations, and confirmations** | Arrangement activation and immutable activated versions after applicable structural, capacity, and cost completeness checks; unmanaged Items may activate without a Capacity Pool; first and successor activation only while the Departure is `active`; permanent Departure return-to-draft boundary; group/occurrence Supplier Reservations; confirmation evidence, including named atomic commitment opening when terms fully determine it; effective capacity and contracted planning; Arrangement search without changing `SearchDepartures`. |
-| **M3E — Commitments, deadlines, and exposure** | Explicit commitments and deposit requirements without payable/payment state; Deadline rule resolution and staff workflow; qualified exposure measures; needs-attention catalog; Supplier-inactivation extension for commitment dependencies. |
-| **M3F — Acceptance and hardening** | Celebrity Beyond and Vineyard Tour Supplier-side scenario proof; cross-Agency isolation; concurrency, query/index, accessibility, responsive UI, regression, and final milestone documentation. |
+| **[M3D.0 — Planning workspace compression](m3d0-planning-workspace-compression.md)** | Bounded M3A–M3C workflow remediation only: guided Item/cost setup, bulk capacity classification, calculation-specific forms, contextual assumptions, readiness review, and reorder mode. No activation, Reservation, confirmation, commitment, or effective-capacity domain records. Accepted; not yet shipped. Hard prerequisite before production M3D domain implementation. |
+| **[M3D — Activation, Reservations, and confirmations](m3d-activation-reservations-confirmations.md)** | Arrangement activation and immutable activated versions after applicable structural, capacity, cost, and trigger completeness checks; unmanaged Items may activate without a Capacity Pool; first and successor activation only while the Departure is `active`; permanent Departure return-to-draft boundary; group/occurrence Supplier Reservations; immutable confirmation evidence; effective capacity and contracted planning; a narrow commitment-opening core used only when an Arrangement or Reservation confirmation activates a complete version-owned deterministic trigger with explicit `committed_supplier_id`; the minimum ordinary Supplier-inactivation blocker for every unresolved commitment that core can open; and Arrangement search without changing `SearchDepartures`. Does not end an activated Arrangement. Accepted; not yet shipped. Production implementation requires shipped M3D.0. |
+| **M3E — Commitments, deadlines, exposure, and Arrangement ending** | Complete Supplier Commitment workflow beyond M3D's confirmation-triggered opening core and minimal ordinary inactivation blocker; manual opening and explicit disposition, release, satisfaction, and cancellation; rules that determine when a commitment becomes terminal and ceases blocking; deposit requirements without payable/payment state; Deadline rule resolution and Staff workflow; qualified exposure measures; the first needs-attention catalog; and normal Arrangement ending after all capacity and commitment blockers are resolved. |
+| **M3F — Acceptance and hardening** | Milestone-wide acceptance across shipped M3A–M3E: integrated Celebrity Beyond and Vineyard Tour Supplier-side scenario proof; cross-Agency isolation; cross-slice concurrency, query/index, accessibility, and responsive UI; regression; and final milestone documentation. Distinct from M3D.6 slice-local proof. |
 
 Each slice requires an accepted implementation contract. A later slice may depend on a prior slice's shipped records, but an accepted parent contract does not authorize placeholder tables or premature later-slice behavior.
 
@@ -307,7 +310,7 @@ M3A must persist these closed catalogs. Slice plans may add display labels but m
 | `ended` | Ordinary post-activation terminal. No longer available for new planning or sales use. History retained. Does not restore return-to-draft. Records an explicit termination reason. Ending does not automatically release capacity, release commitments, cancel Reservations, complete Deadlines, or create Client or Supplier financial consequences. |
 | `abandoned` | Never-activated draft intentionally discarded. Retained read-only. Cannot later activate or be restored. Restarting requires a new Arrangement. Records an explicit abandonment reason. Does not restore return-to-draft because it never activated. |
 
-`ended` and `abandoned` are both terminal for ordinary Supplier-inactivation blockers. `abandoned` applies only to a never-activated Arrangement. M3 does not add a `cancelled` Arrangement status. Supplier cancellation does not change the Arrangement to `cancelled`; entire-agreement Cancellation Cases remain M7.
+`ended` and `abandoned` are both terminal for ordinary Supplier-inactivation blockers. `abandoned` applies only to a never-activated Arrangement. M3 does not add a `cancelled` Arrangement status. Supplier cancellation does not change the Arrangement to `cancelled`; entire-agreement Cancellation Cases remain M7. Normal Arrangement ending (`EndSupplierArrangement`) is owned by M3E after capacity and commitment blockers can be enforced together; M3D does not end an activated Arrangement.
 
 **Arrangement version**
 
@@ -383,7 +386,7 @@ M3 introduces the first durable business-command idempotency-key family. M3A shi
 
 ### 18. Confirmation does not silently open commitments
 
-Confirming an Arrangement or Reservation records Supplier evidence. Confirmation never silently opens a commitment. When the governing activated terms define a complete deterministic trigger, the confirmation command may explicitly and atomically open that commitment, provided its command contract, preview, audit, idempotency, and failure behavior name that effect. Otherwise confirmation creates a needs-attention condition for a separate commitment command. Confirmation never posts a Supplier Obligation.
+Confirming an Arrangement or Reservation records Supplier evidence. Confirmation never silently opens a commitment. When the governing activated terms define a complete deterministic trigger, the confirmation command may explicitly and atomically open that commitment, provided its command contract, preview, audit, idempotency, and failure behavior name that effect. Every such trigger carries an explicit `committed_supplier_id` that is copied onto the immutable opening. When confirmation does not provide every authoritative input required by a trigger, M3D records the confirmation and exposes a derived unresolved condition for later M3E needs-attention treatment; it does not invent a commitment. Arrangement-confirmation triggers that cannot fully resolve during activation block activation. Confirmation never posts a Supplier Obligation.
 
 ## Domain concepts
 
@@ -401,7 +404,8 @@ Confirming an Arrangement or Reservation records Supplier evidence. Confirmation
 | Supplier cost source | Shipped M3C vocabulary. Exact-version economic identity for one Supplier cost, Arrangement-wide or Item-scoped, with an explicit charging Supplier. |
 | Supplier cost definition | Shipped M3C vocabulary. Editable estimate or contracted term definition (`working` / `forecast_ready`) for one source. Definition currency equals Departure `operating_currency`. |
 | Cost component | Shipped M3C vocabulary. Typed component with economic role separate from calculation kind; explicit quantity and percentage-base semantics. Occupancy-position facts are Supplier cost facts, not Traveler occupancy records. |
-| Commitment | Explicit contractual exposure that may precede and must not be confused with a Supplier Obligation. |
+| Commitment | Explicit contractual exposure that may precede and must not be confused with a Supplier Obligation. M3D may open a commitment only as an atomic confirmation consequence under a complete activated trigger with an explicit committed Supplier snapshot. M3E owns manual opening, disposition, and terminal rules. |
+| Committed Supplier | Explicit Supplier snapshot on a commitment trigger and opening (`committed_supplier_id`). Eligible as the Arrangement contractor, an applicable exact-version effective Service Provider, or the charging Supplier of the contracted monetary authority. Not inferred later from mutable roles. |
 | Deposit requirement | Supplier requirement stating amount or calculation rule, due rule, refundability, final-balance treatment, trigger, and provenance; it is not a Payment. |
 | Deadline | Resolved operational due fact linked to its governing source and preserving completion, rescheduling, or waiver history. |
 | Exposure | Qualified planning risk derived from recorded terms and commitments; it is not a posted accounting loss. |
@@ -460,8 +464,9 @@ M3 slice plans must implement at least these meanings:
 | --- | --- |
 | Planned | Internal intent; no claim that the Supplier received a request. |
 | Requested | Request data and Supplier communication context recorded. |
-| Confirmed | Supplier evidence recorded. May atomically open a commitment only under closed decision 18. Otherwise may create needs-attention for a separate commitment command. |
+| Confirmed | Supplier confirmation evidence recorded for the scope. May atomically open a commitment only under closed decision 18. Confirmed quantity may differ from requested quantity. |
 | Declined | Supplier response and reason retained; creates needs-attention where the service is still required. |
+| Counterproposed | Supplier counterproposal recorded; does not confirm the scope, change capacity, or open a commitment. Accepting requires an explicit Reservation revision and later confirmation. |
 | Withdrawn/cancelled | Explicit history; no silent deletion or implied financial consequence. |
 | Changed | Later Supplier response or amendment preserved as a new event/version rather than rewriting the prior confirmation. |
 
@@ -657,7 +662,7 @@ M3E publishes the first needs-attention catalog. It includes at least:
 * Administrator term or evidence overrides until resolved or explicitly acknowledged;
 * current records affected by forced Supplier inactivation;
 * declined Reservations where the service is still required;
-* confirmations whose governing terms do not fully determine a commitment, where a separate commitment command is still required; and
+* confirmations that leave a derived unresolved commitment-trigger condition for Staff attention; and
 * inactive Supplier remaining on current nonterminal planning records.
 
 Derived conditions query authoritative M3 facts. Acknowledgment, where required, is a persisted fact with actor, time, and reason. M3 must not create Cancellation Case, Communication, or reminder rows to represent these conditions.
@@ -716,7 +721,7 @@ M3 records belong to the Agency and Departure, not to the responsible Office or 
 
 New Supplier, contracting-Supplier, and Service-Provider assignments require active same-Agency Supplier records. Existing historical associations remain valid after inactivation.
 
-M3A must extend `ChangeSupplierStatus` for the Arrangement, Item-provider, and Occurrence-provider dependencies it introduces rather than creating a separate incompatible Supplier lifecycle path. Ordinary inactivation keeps `manage_supplier_directory`. Force inactivation adds the Administrator permission, required reason, and dependency recheck. M3D extends the same dependency contract for Supplier Reservations, and M3E extends it for commitments. Together, the slice contracts must define:
+M3A must extend `ChangeSupplierStatus` for the Arrangement, Item-provider, and Occurrence-provider dependencies it introduces rather than creating a separate incompatible Supplier lifecycle path. Ordinary inactivation keeps `manage_supplier_directory`. Force inactivation adds the Administrator permission, required reason, and dependency recheck. M3D extends the same dependency contract for Supplier Reservations and for every unresolved commitment opening it can create (keyed by the copied `committed_supplier_id`). M3E extends disposition, terminal rules that cease blocking, and needs-attention treatment; it does not introduce the first ordinary open-commitment blocker. Together, the slice contracts must define:
 
 * dependency query and terminal-state catalog from closed decision 13, using the effective-provider rule in closed decision 10;
 * the canonical lock order, with affected Suppliers before affected Departures and Arrangements;
@@ -923,7 +928,7 @@ M3 does not implement:
 
 ## Required proof
 
-Each implementation slice must define focused database, model, command, request, and system tests. M3F composes them and proves at least:
+Each implementation slice must define focused database, model, command, request, and system tests. M3D.6 proves the M3D slice itself against shipped M3A–M3C. M3F composes shipped M3A–M3E and proves at least:
 
 * both accepted scenario shapes without Travel Program or service-specific subclasses;
 * draft-only planning under draft Departures, including draft definitions that are not established supply or effective contracted terms;
@@ -942,7 +947,7 @@ Each implementation slice must define focused database, model, command, request,
 * Capacity Pool basis/mode distinctions and immutable event reconciliation;
 * no Client Hold or Allocation records;
 * cost-component calculation, monetary and quantity shortfalls, `numeric` percentage bases, rounding, selected-stage forecast precedence, and derived forecasts with no persisted totals;
-* commitment/capacity independence and confirmation that either atomically opens a named deterministic commitment or creates needs-attention instead;
+* commitment/capacity independence and confirmation that either atomically opens a named deterministic commitment or retains confirmation with a derived unresolved-trigger condition for M3E;
 * deposit requirement without payment state;
 * qualified exposure and unavailable Agency-cash-at-risk behavior;
 * Deadline local-time comparison, completion, rescheduling, waiver, and no automatic side effects;
@@ -983,13 +988,14 @@ Only after this gate may M4 treat M3 Supplier planning as the source foundation 
 
 ## Acceptance documentation
 
-This parent is Accepted and amended for M3B and M3C. Accepting or amending it is a documentation status change, not implementation authority for every M3 slice.
+This parent is Accepted and amended for M3B, M3C, and M3D (including Accepted M3D.0). Accepting or amending it is a documentation status change, not implementation authority for every M3 slice.
 
-After M3C shipped (pull request #66):
+After M3D planning promotion (2026-09-17):
 
 * [`docs/README.md`](../README.md), [`docs/planning/roadmap.md`](roadmap.md), [`docs/terminology.md`](../terminology.md), [`AGENTS.md`](../../AGENTS.md), and [`docs/architecture/current-state.md`](../architecture/current-state.md) mark [M3A](m3a-draft-arrangement-structure.md), [M3B](m3b-supplier-capacity.md), and [M3C](m3c-cost-terms-and-forecasts.md) shipped;
-* [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) remains Accepted and is implemented by shipped M3C;
-* later M3 slices remain unimplemented;
-* Arrangement activation and effective contracted terms still require M3D.
+* [M3D.0](m3d0-planning-workspace-compression.md) is Accepted implementation authority for workflow remediation only and is not yet shipped;
+* [M3D](m3d-activation-reservations-confirmations.md) and [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) are Accepted and not yet shipped;
+* production M3D domain implementation (activation, Reservations, confirmations, effective capacity, commitment openings) requires Accepted-and-shipped M3D.0 first; there is no waiver;
+* M3E–M3F remain unimplemented.
 
-Leave shipped [M2](m2-departure-core.md) and [M2C](m2c-acceptance-and-hardening.md) historical exclusions intact. M3A added `force_inactivate_supplier_with_dependencies`, Arrangement audit subjects, and Departure Supplier-planning panels. M3B added `override_supplier_planning_terms` with its first capacity override path. M3C added the first ADR 0001 monetary-table pattern for draft Supplier cost definitions and derived forecasts.
+Leave shipped [M2](m2-departure-core.md) and [M2C](m2c-acceptance-and-hardening.md) historical exclusions intact. M3A added `force_inactivate_supplier_with_dependencies`, Arrangement audit subjects, and Departure Supplier-planning panels. M3B added `override_supplier_planning_terms` with its first capacity override path. M3C added the first ADR 0001 monetary-table pattern for draft Supplier cost definitions and derived forecasts. M3D adds activation, Reservations, confirmations, and the narrow confirmation-triggered commitment core after M3D.0 ships.

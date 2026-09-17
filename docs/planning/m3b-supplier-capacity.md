@@ -1,6 +1,6 @@
 # M3B — Supplier capacity
 
-**Status:** Shipped. Merged to `main` on 2026-09-17 in pull request #64. This document remains the Supplier capacity contract. It is not authority to start Arrangement activation, user-accessible effective-capacity or event controls, Reservations, commitments, Deadlines, exposure, or later M3 slices. Cost terms and draft forecasts are governed by shipped [M3C](m3c-cost-terms-and-forecasts.md).
+**Status:** Shipped. Merged to `main` on 2026-09-17 in pull request #64. This document remains the Supplier capacity contract. It is not authority to start Arrangement activation, user-accessible effective-capacity or event controls, Reservations, commitments, Deadlines, exposure, or later M3 slices. Cost terms and draft forecasts are governed by shipped [M3C](m3c-cost-terms-and-forecasts.md). Workflow compression is Accepted [M3D.0](m3d0-planning-workspace-compression.md). Activation and Staff event UI are Accepted [M3D](m3d-activation-reservations-confirmations.md) after shipped M3D.0.
 
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md), Accepted and amended for M3B.
 

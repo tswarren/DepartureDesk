@@ -1,8 +1,8 @@
 # M3C — Supplier cost terms and forecasts
 
-**Status:** Shipped. Merged to `main` on 2026-09-17 in pull request #66. This document remains the Supplier cost-terms and draft-forecasts contract. It is not authority to start Arrangement activation, effective contracted terms, persisted forecast results, Reservations, commitments, Deadlines, exposure, remittance, FX, or later M3 slices.
+**Status:** Shipped. Merged to `main` on 2026-09-17 in pull request #66. This document remains the Supplier cost-terms and draft-forecasts contract. It is not authority to start Arrangement activation, effective contracted terms, persisted forecast results, Reservations, commitments, Deadlines, exposure, remittance, FX, or later M3 slices. Workflow compression is Accepted [M3D.0](m3d0-planning-workspace-compression.md). Activation and effective contracted terms are Accepted [M3D](m3d-activation-reservations-confirmations.md) after shipped M3D.0.
 
-**Parent:** [M3 — Supplier planning](m3-supplier-planning.md), Accepted and amended for M3B and M3C. M3A, M3B, and M3C are shipped.
+**Parent:** [M3 — Supplier planning](m3-supplier-planning.md), Accepted and amended through M3D. M3A, M3B, and M3C are shipped.
 
 **Architecture:** [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md), and [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md).
 
