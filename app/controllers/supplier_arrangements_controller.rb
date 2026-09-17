@@ -2,7 +2,7 @@ class SupplierArrangementsController < ApplicationController
   include SupplierArrangementAccess
 
   before_action :require_departure_view!
-  before_action :require_departure_management!, except: %i[index show]
+  before_action :require_departure_management!, except: %i[index show search]
   before_action :set_departure
   before_action :set_supplier_arrangement, only: %i[show edit update successor edit_abandon abandon]
   before_action :set_editable_draft_version, only: %i[show edit update edit_abandon abandon]
@@ -23,6 +23,25 @@ class SupplierArrangementsController < ApplicationController
     @search = ListDepartureArrangements::Outcome.new(records: [], truncated: false)
     flash.now[:alert] = error.message
     render :index, status: :unprocessable_entity
+  end
+
+  def search
+    @status = SearchSupplierArrangements::STATUSES.include?(params[:status]) ? params[:status] : "all"
+    @search = SearchSupplierArrangements.call(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      query: params[:q],
+      status: @status,
+      contracting_supplier_id: params[:contracting_supplier_id],
+      departure_id: params[:filter_departure_id].presence || @departure.id,
+      identifier_type: params[:identifier_type]
+    )
+  rescue AgencyCommand::Error => error
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    @search = SearchSupplierArrangements::Outcome.new(records: [], truncated: false)
+    flash.now[:alert] = error.message
+    render :search, status: :unprocessable_entity
   end
 
   def show

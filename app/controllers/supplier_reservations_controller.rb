@@ -35,6 +35,11 @@ class SupplierReservationsController < ApplicationController
     @idempotency_key = SecureRandom.uuid
   end
 
+  def new_existing
+    load_scope_options
+    @idempotency_key = SecureRandom.uuid
+  end
+
   def create
     result = CreateSupplierReservation.new(
       agency: Current.agency,
@@ -52,6 +57,25 @@ class SupplierReservationsController < ApplicationController
     @idempotency_key = params[:idempotency_key]
     flash.now[:alert] = error.message
     render :new, status: :unprocessable_entity
+  end
+
+  def record_existing
+    result = RecordExistingConfirmedSupplierReservation.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      arrangement: @supplier_arrangement,
+      attributes: existing_reservation_params,
+      idempotency_key: params[:idempotency_key]
+    ).call
+    redirect_to departure_arrangement_reservation_path(@departure, @supplier_arrangement, result.record),
+      notice: result.status == :replayed ? "Existing confirmed reservation was already recorded." : "Existing confirmed reservation recorded."
+  rescue AgencyCommand::Error => error
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    load_scope_options
+    @idempotency_key = params[:idempotency_key]
+    flash.now[:alert] = error.message
+    render :new_existing, status: :unprocessable_entity
   end
 
   def edit
@@ -217,6 +241,20 @@ class SupplierReservationsController < ApplicationController
         :supplier_resource_id, :capacity_pool_id, :label,
         :requested_quantity, :quantity_basis
       ]
+    )
+  end
+
+  def existing_reservation_params
+    reservation_params.to_h.merge(
+      params.fetch(:existing_reservation, ActionController::Parameters.new).permit(
+        :channel, :reference_note, :request_reference_note, :response_reference_note,
+        :occurred_at, :confirmed_without_identifier_reason,
+        evidence: [
+          :evidence_kind, :other_evidence_label, :evidence_on, :channel, :reference_note,
+          :confirmed_without_identifier_reason
+        ],
+        identifier: [ :identifier_type, :other_type_label, :display_value, :issuer_context ]
+      ).to_h
     )
   end
 
