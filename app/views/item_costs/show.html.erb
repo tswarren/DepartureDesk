@@ -48,7 +48,24 @@
     <% if @categories.any? %>
       <ul>
         <% @categories.each do |category| %>
-          <li><%= category.label %></li>
+          <li>
+            <%= category.label %>
+            <% if editable %>
+              <details>
+                <summary>Edit participant category</summary>
+                <%= form_with url: departure_arrangement_item_participant_category_path(@departure, @supplier_arrangement, @arrangement_item, category), method: :patch, class: "dd-form" do |form| %>
+                  <%= form.hidden_field "supplier_cost_participant_category[lock_version]", value: category.lock_version %>
+                  <div class="dd-field"><%= form.label "supplier_cost_participant_category[label]", "Label" %><%= form.text_field "supplier_cost_participant_category[label]", value: category.label, required: true %></div>
+                  <%= form.submit "Save category", class: "dd-button dd-button--quiet" %>
+                <% end %>
+              </details>
+              <%= button_to "Remove participant category",
+                    departure_arrangement_item_participant_category_path(@departure, @supplier_arrangement, @arrangement_item, category),
+                    method: :delete, class: "dd-row-action",
+                    form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this participant category? Removal is blocked while a component or occupancy profile uses it." } },
+                    params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+            <% end %>
+          </li>
         <% end %>
       </ul>
     <% else %>
@@ -67,6 +84,28 @@
     <% end %>
 
     <h3 class="dd-panel-title">Usage assumptions</h3>
+    <% @item_cost_sources.each do |source| %>
+      <% source.supplier_cost_definitions.each do |definition| %>
+        <% quantity_components = definition.supplier_cost_components.select { |component| component.quantity_basis.present? } %>
+        <% next if quantity_components.empty? %>
+        <% matching = @assumptions.find { |assumption| assumption.service_occurrence_id == source.service_occurrence_id && assumption.supplier_resource_id == source.supplier_resource_id } %>
+        <% if matching.nil? %>
+          <% bases = quantity_components.map(&:quantity_basis) %>
+          <p class="dd-alert dd-alert--warning">
+            <%= if bases.any? { |basis| %w[occupancy_positions occupancy_position_nights single_occupancy_units single_occupancy_nights].include?(basis) }
+                  "Define anonymous occupancy patterns"
+                elsif bases.any? { |basis| basis.include?("night") || basis == "nights" }
+                  "Add expected billable nights"
+                elsif bases.any? { |basis| basis.include?("person") || basis == "persons" }
+                  "Add expected persons"
+                else
+                  "Add expected resource units"
+                end %>
+            for <%= source.label %>.
+          </p>
+        <% end %>
+      <% end %>
+    <% end %>
     <% @assumptions.each do |assumption| %>
       <article class="dd-panel" id="assumption-<%= assumption.id %>">
         <div class="dd-panel-body">

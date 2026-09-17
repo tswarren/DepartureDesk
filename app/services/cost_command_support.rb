@@ -174,7 +174,7 @@ module CostCommandSupport
         attrs.key?(:amount) ? attrs[:amount] : attrs[:amount_minor_units],
         currency_code, "Amount", major_units: attrs.key?(:amount)
       ),
-      rate: decimal_or_nil(attrs[:rate], "Rate"),
+      rate: normalize_component_rate(attrs),
       minimum_minor_units: money_minor_or_nil(
         attrs.key?(:minimum_amount) ? attrs[:minimum_amount] : attrs[:minimum_minor_units],
         currency_code, "Minimum amount", major_units: attrs.key?(:minimum_amount)
@@ -193,6 +193,15 @@ module CostCommandSupport
       raise AgencyCommand::Error.new("Arrangement-wide costs cannot use quantity inputs.", code: :invalid)
     end
     normalized
+  end
+
+  def normalize_component_rate(attrs)
+    if attrs.key?(:percentage)
+      percent = decimal_or_nil(attrs[:percentage], "Percentage")
+      return percent && (percent / 100)
+    end
+
+    decimal_or_nil(attrs[:rate], "Rate")
   end
 
   def money_minor_or_nil(value, currency_code, label, major_units: false)
@@ -372,6 +381,12 @@ module CostCommandSupport
     )
     replace_base_links!(definition, component, base_links)
     component
+  end
+
+  def build_supplier_cost_usage_assumption_already_locked!(version:, attributes:)
+    version.supplier_cost_usage_assumptions.create!(
+      attributes.merge(owner_attributes_for(version))
+    )
   end
 
   def clear_readiness!(definition)

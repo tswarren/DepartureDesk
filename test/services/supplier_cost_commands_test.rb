@@ -34,6 +34,70 @@ class SupplierCostCommandsTest < ActiveSupport::TestCase
     ).count
   end
 
+  test "guided calculated setup is atomic uses component replay root and does not mark ready" do
+    key = "guided-calculated"
+    attributes = {
+      agency: @agency, actor: @admin, arrangement: @arrangement,
+      source_attributes: { label: "Coach hire", charging_supplier_id: @supplier.id },
+      definition_attributes: {
+        stage: "estimate", mode: "calculated", currency: "USD", rounding_mode: "half_up"
+      },
+      component_attributes: {
+        label: "Coach", economic_role: "supplier_charge", calculation_kind: "fixed",
+        amount: "1200.00", pass_through: false
+      },
+      version_lock_version: @version.lock_version, idempotency_key: key
+    }
+
+    result = CreateSupplierCostSetup.new(**attributes).call
+    replay = CreateSupplierCostSetup.new(**attributes).call
+
+    assert_equal :created, result.status
+    assert_instance_of SupplierCostComponent, result.record
+    assert_equal :replayed, replay.status
+    assert_equal result.record.id, replay.record.id
+    definition = result.record.supplier_cost_definition
+    assert definition.working?
+    assert_equal "Coach hire", definition.supplier_cost_source.label
+    assert_equal 1, AuditEvent.where(
+      subject_type: "SupplierArrangement", subject_id: @arrangement.id,
+      action: "supplier_arrangement.cost_setup_created"
+    ).count
+  end
+
+  test "guided zero-cost setup uses definition replay root and rolls back invalid component" do
+    base = {
+      agency: @agency, actor: @admin, arrangement: @arrangement,
+      source_attributes: { label: "Amenity", charging_supplier_id: @supplier.id },
+      definition_attributes: {
+        stage: "contracted", mode: "zero_cost", currency: "USD",
+        rounding_mode: "half_up", zero_cost_reason: "Complimentary"
+      },
+      version_lock_version: @version.lock_version, idempotency_key: "guided-zero"
+    }
+    result = CreateSupplierCostSetup.new(**base).call
+    assert_instance_of SupplierCostDefinition, result.record
+    assert result.record.zero_cost?
+    assert result.record.working?
+
+    assert_no_difference -> { @version.supplier_cost_sources.count } do
+      assert_raises(AgencyCommand::Error) do
+        CreateSupplierCostSetup.new(
+          **base.merge(
+            source_attributes: { label: "Invalid", charging_supplier_id: @supplier.id },
+            definition_attributes: base[:definition_attributes].merge(mode: "calculated"),
+            component_attributes: {
+              label: "Broken", economic_role: "supplier_charge",
+              calculation_kind: "unit_rate", amount: "10.00"
+            },
+            version_lock_version: @version.reload.lock_version,
+            idempotency_key: "guided-invalid"
+          )
+        ).call
+      end
+    end
+  end
+
   test "readiness is explicit and a consequential component edit clears it" do
     source = create_source("source-ready", @version.lock_version).record
     definition = CreateSupplierCostDefinition.new(

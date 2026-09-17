@@ -1,0 +1,101 @@
+<% content_for :title, "Review #{@supplier_cost_source.label} · DepartureDesk" %>
+<% ready_path = @arrangement_item ?
+      forecast_ready_departure_arrangement_item_cost_definition_path(@departure, @supplier_arrangement, @arrangement_item, @supplier_cost_source, @supplier_cost_definition) :
+      forecast_ready_departure_arrangement_cost_definition_path(@departure, @supplier_arrangement, @supplier_cost_source, @supplier_cost_definition) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier cost review</p>
+    <h1 class="dd-page-title"><%= @supplier_cost_source.label %></h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %> · <%= @supplier_cost_definition.stage.humanize %> · <%= @supplier_cost_definition.currency %></p>
+  </div>
+  <%= link_to "Back to costs", (@arrangement_item ?
+        departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @arrangement_item, anchor: "definition-#{@supplier_cost_definition.id}") :
+        departure_arrangement_costs_workspace_path(@departure, @supplier_arrangement, anchor: "definition-#{@supplier_cost_definition.id}")),
+        class: "dd-button dd-button--quiet" %>
+</header>
+
+<section class="dd-panel">
+  <header class="dd-panel-header"><div><h2 class="dd-panel-title">Context and terms</h2></div></header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div><dt>Charging Supplier</dt><dd><%= @supplier_cost_source.charging_supplier.display_name %></dd></div>
+      <div><dt>Context</dt><dd><%= @supplier_cost_source.arrangement_wide? ? "Arrangement-wide" : [@arrangement_item_definition&.name, (@supplier_cost_source.service_occurrence_id && "selected Occurrence"), (@supplier_cost_source.supplier_resource_id && "selected Resource")].compact.join(" · ") %></dd></div>
+      <div><dt>Stage and mode</dt><dd><%= @supplier_cost_definition.stage.humanize %> · <%= @supplier_cost_definition.mode.humanize %></dd></div>
+      <div><dt>Rounding</dt><dd><%= @supplier_cost_definition.rounding_mode.humanize %> at each currency minor unit</dd></div>
+      <div><dt>Status</dt><dd><%= @supplier_cost_definition.forecast_ready? ? "Forecast ready" : "Working — not selected for forecast" %></dd></div>
+    </dl>
+    <% if @supplier_cost_definition.zero_cost? %><p><strong>Known zero:</strong> <%= @supplier_cost_definition.zero_cost_reason %></p><% end %>
+  </div>
+</section>
+
+<section class="dd-panel">
+  <header class="dd-panel-header"><div><h2 class="dd-panel-title">Formula review</h2><p>Components are evaluated in this order.</p></div></header>
+  <div class="dd-panel-body">
+    <% if @components.empty? && @supplier_cost_definition.calculated? %>
+      <p class="<%= empty_state_classes.join(" ") %>">No components have been entered.</p>
+    <% end %>
+    <ol>
+      <% @components.each do |component| %>
+        <li>
+          <strong><%= component.label %></strong> — <%= component.economic_role.humanize %>;
+          <%= component.calculation_kind.humanize %>
+          <% if component.amount_minor_units %> at <%= Money.new(component.amount_minor_units, @supplier_cost_definition.currency).format %><% end %>
+          <% if component.rate %> at <%= number_to_percentage(component.rate * 100, precision: 4, strip_insignificant_zeros: true) %><% end %>
+          <% if component.minimum_minor_units %> to minimum <%= Money.new(component.minimum_minor_units, @supplier_cost_definition.currency).format %><% end %>
+          <% if component.minimum_quantity %> to minimum <%= component.minimum_quantity %> <%= component.quantity_basis.humanize %><% end %>.
+          <% if component.supplier_cost_component_bases.any? %>
+            Base:
+            <%= component.supplier_cost_component_bases.sort_by(&:position).map { |base|
+                  "#{base.direction == "add" ? "include" : "subtract"} #{@components_by_id[base.base_component_id]&.label || "missing component"}"
+                }.join(", ") %>.
+          <% end %>
+        </li>
+      <% end %>
+    </ol>
+  </div>
+</section>
+
+<section class="dd-panel">
+  <header class="dd-panel-header"><div><h2 class="dd-panel-title">Assumptions and forecast</h2></div></header>
+  <div class="dd-panel-body">
+    <% if @assumption %>
+      <p>Expected resource units: <%= @assumption.expected_resource_units.nil? ? "not entered" : @assumption.expected_resource_units %>;
+        persons: <%= @assumption.expected_persons.nil? ? "not entered" : @assumption.expected_persons %>;
+        billable nights: <%= @assumption.expected_billable_nights.nil? ? "not entered" : @assumption.expected_billable_nights %>.</p>
+    <% elsif @components.any?(&:quantity_basis) %>
+      <p>⚠ No planning quantities exist for this exact context.</p>
+    <% else %>
+      <p>No planning quantities are required by these formulas.</p>
+    <% end %>
+
+    <% if @review_blockers.empty? %>
+      <p>✓ Forecast evaluates successfully.</p>
+      <dl class="dd-definition-list">
+        <div><dt>Forecast Supplier cost</dt><dd><%= Money.new(@review.totals.forecast_supplier_cost_minor_units, @supplier_cost_definition.currency).format %></dd></div>
+        <div><dt>Expected commission</dt><dd><%= Money.new(@review.totals.expected_commission_minor_units, @supplier_cost_definition.currency).format %></dd></div>
+        <div><dt>Expected net cost after commission</dt><dd><%= Money.new(@review.totals.expected_net_cost_after_commission_minor_units, @supplier_cost_definition.currency).format %></dd></div>
+      </dl>
+    <% else %>
+      <p>⚠ Resolve these blockers before marking this definition ready:</p>
+      <ul><% @review_blockers.each do |message| %><li><%= message %></li><% end %></ul>
+    <% end %>
+  </div>
+</section>
+
+<% if @editable && !@supplier_cost_definition.forecast_ready? %>
+  <section class="dd-panel">
+    <header class="dd-panel-header"><div><h2 class="dd-panel-title">Readiness attestation</h2><p>This is a planning claim. It does not activate the Arrangement or confirm Supplier commitments.</p></div></header>
+    <div class="dd-panel-body">
+      <%= form_with url: ready_path, method: :post, class: "dd-form" do |form| %>
+        <%= form.hidden_field :lock_version, value: @supplier_cost_definition.lock_version %>
+        <div class="dd-field">
+          <%= form.label :readiness_provenance, @supplier_cost_definition.contracted? ? "Contracted-term attestation" : "Provenance note (optional)" %>
+          <%= form.text_field :readiness_provenance, required: @supplier_cost_definition.contracted? %>
+          <% if @supplier_cost_definition.contracted? %><p class="dd-field-hint">Attest that the entered terms reflect the Supplier agreement.</p><% end %>
+        </div>
+        <%= form.submit "Mark definition forecast ready", class: "dd-button" %>
+      <% end %>
+    </div>
+  </section>
+<% end %>
