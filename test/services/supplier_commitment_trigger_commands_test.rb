@@ -64,7 +64,6 @@ class SupplierCommitmentTriggerCommandsTest < ActiveSupport::TestCase
       ).call
     end
     assert_equal :unauthorized, error.code
-
   end
 
   test "readiness fails closed for incomplete exact graph" do

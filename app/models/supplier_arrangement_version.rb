@@ -58,5 +58,4 @@ class SupplierArrangementVersion < ApplicationRecord
     end
     errors.add(:base, "Lifecycle timestamps do not match status") unless valid
   end
-
 end
