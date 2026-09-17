@@ -1,0 +1,248 @@
+<% content_for :title, "#{@capacity_pool_definition.label} · Current Supplier capacity · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_departures) %>
+<% submitted_event = (@submitted_capacity_event || {}).to_h.with_indifferent_access %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Current Supplier capacity</p>
+    <h1 class="dd-page-title"><%= @capacity_pool_definition.label %></h1>
+    <p class="dd-page-description">
+      <%= @supplier_arrangement.name %> ·
+      <%= @arrangement_item_definition.name %>
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to arrangement",
+      departure_arrangement_path(@departure, @supplier_arrangement),
+      class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Current Supplier capacity</dt>
+        <dd><strong><%= @capacity_projection&.current_supplier_capacity || "Not established" %></strong> <%= @capacity_pool_definition.unit_label %></dd>
+      </div>
+      <div>
+        <dt>Mode and measure</dt>
+        <dd><%= @capacity_pool.inventory_mode.humanize %> · <%= @capacity_pool.measurement_basis.humanize %></dd>
+      </div>
+      <div>
+        <dt>Supplying Supplier</dt>
+        <dd><%= supplier_option_label(@capacity_pool.supplying_supplier) %></dd>
+      </div>
+      <div>
+        <dt>Occurrence and resource</dt>
+        <dd><%= @service_occurrence_definition.name %> · <%= @supplier_resource_definition.name %></dd>
+      </div>
+      <div>
+        <dt>Next scheduled change</dt>
+        <dd>
+          <% if @capacity_projection&.next_event %>
+            <%= @capacity_projection.next_event.event_type.humanize %>
+            on <%= @capacity_projection.next_event.effective_on.to_fs(:long) %>
+          <% else %>
+            None
+          <% end %>
+        </dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<% if manage && !@capacity_operable %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <p>Capacity controls are not available in this Departure lifecycle state. The retained event and reconciliation history remains visible.</p>
+    </div>
+  </article>
+<% end %>
+
+<% if manage && @capacity_operable %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Record a Supplier capacity event</h2>
+        <p>Events append to the Supplier-side ledger. Current and scheduled results are rechecked when submitted.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <%= form_with model: @capacity_event, scope: :capacity_event,
+        url: departure_arrangement_capacity_pool_events_path(
+          @departure, @supplier_arrangement, @capacity_pool
+        ), method: :post, class: "dd-form" do |form| %>
+        <%= render "shared/form_errors", object: @capacity_event %>
+        <%= hidden_field_tag :projection_lock_version, @capacity_projection.lock_version %>
+        <%= hidden_field_tag :idempotency_key, @event_idempotency_key %>
+
+        <div class="dd-field-group">
+          <%= form.label :event_type, "Event type", class: "dd-label" %>
+          <%= form.select :event_type, @capacity_event_types.map { |type| [type.humanize, type] },
+            { include_blank: "Choose an event" }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :quantity, "Quantity", class: "dd-label" %>
+          <%= form.number_field :quantity, min: 1, step: 1, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :effective_on, "Effective date", class: "dd-label" %>
+          <%= form.date_field :effective_on, class: "dd-field" %>
+          <p class="dd-field-hint">Leave blank to use today in the Pool time zone.</p>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :effective_sequence, "Same-date sequence", class: "dd-label" %>
+          <%= form.number_field :effective_sequence, min: 1, step: 1, class: "dd-field" %>
+          <p class="dd-field-hint">Usually blank. Set only when business order on the same date matters.</p>
+        </div>
+
+        <fieldset class="dd-form-section">
+          <legend>Event lineage</legend>
+          <div class="dd-field-group">
+            <%= label_tag "capacity_event_release_event_id", "Release to reinstate", class: "dd-label" %>
+            <%= select_tag "capacity_event[release_event_id]",
+              options_for_select(
+                @reinstatable_releases.map { |event| ["#{event.effective_on.to_fs(:long)} · #{event.quantity} #{@capacity_pool_definition.unit_label}", event.id] },
+                submitted_event[:release_event_id]
+              ), include_blank: "Not a reinstatement", class: "dd-field" %>
+          </div>
+          <div class="dd-field-group">
+            <%= label_tag "capacity_event_corrects_event_id", "Event being corrected", class: "dd-label" %>
+            <%= select_tag "capacity_event[corrects_event_id]",
+              options_for_select(
+                @correctable_events.map { |event| ["#{event.event_type.humanize} · #{event.effective_on.to_fs(:long)} · #{event.quantity}", event.id] },
+                submitted_event[:corrects_event_id]
+              ), include_blank: "Not an event correction", class: "dd-field" %>
+          </div>
+          <div class="dd-field-group">
+            <%= label_tag "capacity_event_capacity_reconciliation_id", "Open reconciliation discrepancy", class: "dd-label" %>
+            <%= select_tag "capacity_event[capacity_reconciliation_id]",
+              options_for_select(
+                @open_reconciliations.map { |entry| ["#{entry.observed_at.to_fs(:long)} · variance #{entry.variance}", entry.id] },
+                submitted_event[:capacity_reconciliation_id]
+              ), include_blank: "Not a reconciliation correction", class: "dd-field" %>
+          </div>
+          <div class="dd-field-group">
+            <%= label_tag "capacity_event_resolution_note", "Reconciliation resolution note", class: "dd-label" %>
+            <%= text_area_tag "capacity_event[resolution_note]", submitted_event[:resolution_note], rows: 2, class: "dd-field" %>
+          </div>
+          <p class="dd-field-hint">Reinstatements require one release. Corrections require exactly one event or open reconciliation source; reconciliation corrections also require a resolution note.</p>
+        </fieldset>
+
+        <%= render "effective_capacity_pools/evidence_fields", form: form %>
+        <%= form.submit "Record capacity event", class: "dd-button" %>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Reconcile Current Supplier capacity</h2>
+        <p>Record a Supplier-observed quantity without overwriting the event ledger.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <%= form_with model: @capacity_reconciliation, scope: :capacity_reconciliation,
+        url: departure_arrangement_capacity_pool_reconciliations_path(
+          @departure, @supplier_arrangement, @capacity_pool
+        ), method: :post, class: "dd-form" do |form| %>
+        <%= render "shared/form_errors", object: @capacity_reconciliation %>
+        <%= hidden_field_tag :projection_lock_version, @capacity_projection.lock_version %>
+        <%= hidden_field_tag :idempotency_key, @reconciliation_idempotency_key %>
+        <div class="dd-field-group">
+          <%= form.label :observed_quantity, "Supplier-observed quantity", class: "dd-label" %>
+          <%= form.number_field :observed_quantity, min: 0, step: 1, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :observed_at, "Observed at", class: "dd-label" %>
+          <%= form.datetime_local_field :observed_at, class: "dd-field" %>
+        </div>
+        <%= render "effective_capacity_pools/evidence_fields", form: form %>
+        <%= form.submit "Record reconciliation", class: "dd-button" %>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Projection recovery</h2>
+        <p>Rebuild the stored projection from immutable capacity events. This records no business event.</p>
+      </div>
+      <%= button_to "Rebuild projection",
+        departure_arrangement_capacity_pool_rebuild_path(
+          @departure, @supplier_arrangement, @capacity_pool
+        ), method: :post, class: "dd-button dd-button--quiet" %>
+    </header>
+  </article>
+<% end %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Capacity event history</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @capacity_events.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Effective</th>
+            <th scope="col">Event</th>
+            <th scope="col">Quantity</th>
+            <th scope="col">Evidence</th>
+            <th scope="col">Recorded by</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @capacity_events.each do |event| %>
+            <tr>
+              <td><%= event.effective_on.to_fs(:long) %> · sequence <%= event.effective_sequence %></td>
+              <td><%= event.event_type.humanize %></td>
+              <td><%= CapacityTimelineReplay::DIRECTIONS.fetch(event.event_type).sign.positive? ? "+" : "−" %><%= event.quantity %></td>
+              <td><%= event.override? ? "Administrator override: #{event.override_reason}" : "#{event.evidence_kind.humanize}: #{event.evidence_reference_note}" %></td>
+              <td><%= event.actor.display_name %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="<%= empty_state_classes.join(" ") %>">No capacity events recorded.</p>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Reconciliation history</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @capacity_reconciliations.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Observed at</th>
+            <th scope="col">Supplier-observed quantity</th>
+            <th scope="col">Ledger quantity</th>
+            <th scope="col">Variance</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @capacity_reconciliations.each do |entry| %>
+            <tr>
+              <td><%= entry.observed_at.to_fs(:long) %></td>
+              <td><%= entry.observed_quantity %></td>
+              <td><%= entry.ledger_quantity %></td>
+              <td><%= entry.variance %></td>
+              <td><%= entry.status.humanize %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="<%= empty_state_classes.join(" ") %>">No reconciliations recorded.</p>
+    <% end %>
+  </div>
+</article>

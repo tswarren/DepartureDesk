@@ -156,6 +156,12 @@ Rails.application.routes.draw do
         get :abandon, action: :edit_abandon
         post :abandon
       end
+      get "capacity-pools/:pool_id", to: "effective_capacity_pools#show", as: :capacity_pool
+      post "capacity-pools/:pool_id/events", to: "capacity_events#create", as: :capacity_pool_events
+      post "capacity-pools/:pool_id/reconciliations", to: "capacity_reconciliations#create",
+        as: :capacity_pool_reconciliations
+      post "capacity-pools/:pool_id/rebuild", to: "capacity_projection_repairs#create",
+        as: :capacity_pool_rebuild
       get "items/setup", to: "arrangement_item_setups#new", as: :new_item_setup
       post "items/setup", to: "arrangement_item_setups#create", as: :item_setup
       resources :versions, only: [] do

@@ -1,0 +1,36 @@
+<fieldset class="dd-form-section">
+  <legend>Supplier evidence</legend>
+  <div class="dd-field-group">
+    <%= form.label :evidence_kind, "Evidence kind", class: "dd-label" %>
+    <%= form.select :evidence_kind,
+      CapacityPoolDefinition::EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] },
+      { include_blank: "Choose evidence" }, class: "dd-field" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :evidence_on, "Evidence date", class: "dd-label" %>
+    <%= form.date_field :evidence_on, class: "dd-field" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :evidence_reference_note, "Evidence reference note", class: "dd-label" %>
+    <%= form.text_area :evidence_reference_note, rows: 2, class: "dd-field" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :evidence_external_reference, "External reference", class: "dd-label" %>
+    <%= form.text_field :evidence_external_reference, class: "dd-field" %>
+  </div>
+</fieldset>
+
+<% if Current.agency_user.permitted?(:override_supplier_planning_terms) %>
+  <fieldset class="dd-form-section">
+    <legend>Administrator override</legend>
+    <div class="dd-checkbox-row">
+      <%= form.check_box :override %>
+      <%= form.label :override, "Use Administrator override instead of Supplier evidence" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :override_reason, "Override reason", class: "dd-label" %>
+      <%= form.text_area :override_reason, rows: 2, class: "dd-field" %>
+    </div>
+    <p class="dd-field-hint">An override requires a reason and cannot be combined with Supplier evidence.</p>
+  </fieldset>
+<% end %>
