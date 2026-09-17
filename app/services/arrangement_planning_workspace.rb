@@ -32,17 +32,21 @@ class ArrangementPlanningWorkspace
   end
 
   def next_actions
-    @next_actions ||= begin
+    @next_actions ||= all_actions.first(MAX_NEXT_ACTIONS)
+  end
+
+  def all_actions
+    @all_actions ||= begin
       actions = []
       actions.concat(structure_actions)
       actions.concat(capacity_actions)
       actions.concat(cost_actions)
-      actions.first(MAX_NEXT_ACTIONS)
+      actions
     end
   end
 
   def primary_action_for(item_id)
-    next_actions.find { |action| action.target_item_id == item_id } ||
+    all_actions.find { |action| action.target_item_id == item_id } ||
       Action.new(
         label: "Review Item costs",
         text: "Review the entered cost terms and planning quantities for this Item.",

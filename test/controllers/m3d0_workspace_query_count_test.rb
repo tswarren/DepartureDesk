@@ -85,7 +85,7 @@ class M3D0WorkspaceQueryCountTest < ActionDispatch::IntegrationTest
       },
       resource_attributes: { name: format("Resource %02d", index) }
     ).call
-    result.record
+    result.record.item
   end
 
   def request_query_count

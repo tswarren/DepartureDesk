@@ -341,6 +341,13 @@ module CapacityCommandSupport
     override = ActiveModel::Type::Boolean.new.cast(attrs[:override])
     if override
       ensure_directory_actor!(@actor, @agency, :override_supplier_planning_terms)
+      evidence_values = %i[
+        evidence_kind evidence_on evidence_reference_note evidence_external_reference
+      ].filter_map { |key| attrs[key].presence }
+      if evidence_values.any?
+        raise AgencyCommand::Error.new("Override cannot include supplier evidence.", code: :invalid)
+      end
+
       reason = attrs[:override_reason].to_s.strip
       raise AgencyCommand::Error.new("Enter an override reason.", code: :invalid) if reason.blank?
       if reason.length > CAPACITY_OVERRIDE_REASON_LIMIT
@@ -355,6 +362,10 @@ module CapacityCommandSupport
         override: true,
         override_reason: reason
       }
+    end
+
+    if attrs[:override_reason].present?
+      raise AgencyCommand::Error.new("Override reason must be blank without override.", code: :invalid)
     end
 
     {

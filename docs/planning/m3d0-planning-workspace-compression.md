@@ -57,7 +57,7 @@ M3D.0 changes those interactions, not their financial or operational meaning.
 ## Out of scope
 
 - Any change to Arrangement, Item, Occurrence, Resource, Pool, cost-source, definition, component, assumption, or forecast semantics.
-- New tables or migrations unless a narrowly demonstrated idempotency/result association cannot use the shipped family; the expected implementation adds no schema.
+- New domain tables or migrations beyond the narrow `ArrangementItemSetupResult` implementation exception described below.
 - Arrangement activation, successors, effective-capacity event controls, Reservations, confirmations, identifiers, commitment triggers, commitments, Deadlines, or exposure.
 - Inferring capacity applicability, Pool mode, quantity, Supplier evidence, cost stage, calculation kind, economic role, component base, occupancy, or readiness.
 - Automatically marking a cost definition forecast-ready after saving it.
@@ -308,7 +308,15 @@ Every command defines:
 
 Do not invoke public command objects inside one another if they reacquire locks or write duplicate audits. Extract shared validation/building support or provide already-locked internal operations.
 
-The expected implementation adds no database table. If the shipped `AgencyCommandIdempotencyKey` cannot return a safe multi-record result through an existing durable root, use the top-level Item, Pool, or source result as the root and recover children through constrained ownership. Do not add a generic JSON result document.
+The implementation added one narrow `ArrangementItemSetupResult` table because the shipped
+`AgencyCommandIdempotencyKey` could retain only the top-level Item result while exact replay also
+had to return the optional Occurrence and Resource created by that invocation. `ArrangementItem`
+remains the idempotency `result_record_type` root. The association records only the exact stable
+child IDs for that key; composite foreign keys require each child to belong to the recorded Item
+and Agency. Direct deletion of a referenced Occurrence or Resource is restricted, while deleting
+the owning Item cascades through the setup-result row. Replay must load this association and return
+those exact children rather than infer them from all children currently owned by the Item. No
+generic JSON result document was added.
 
 ## Audit
 

@@ -598,14 +598,19 @@ class SupplierArrangementCommandsTest < ActiveSupport::TestCase
 
     assert_equal :created, created.status
     assert_equal :replayed, replay.status
-    assert_equal created.record.id, replay.record.id
+    assert_instance_of ArrangementItem, created.record.item
+    assert_instance_of ServiceOccurrence, created.record.occurrence
+    assert_instance_of SupplierResource, created.record.resource
+    assert_equal created.record.item, replay.record.item
+    assert_equal created.record.occurrence, replay.record.occurrence
+    assert_equal created.record.resource, replay.record.resource
     association = AgencyCommandIdempotencyKey.find_by!(
       agency: @agency, command_name: "CreateArrangementItemSetup",
       idempotency_key: "guided-item-setup-1"
     ).arrangement_item_setup_result
-    assert_equal created.record.id, association.arrangement_item_id
-    assert_equal created.record.service_occurrences.sole.id, association.service_occurrence_id
-    assert_equal created.record.supplier_resources.sole.id, association.supplier_resource_id
+    assert_equal created.record.item.id, association.arrangement_item_id
+    assert_equal created.record.occurrence.id, association.service_occurrence_id
+    assert_equal created.record.resource.id, association.supplier_resource_id
     assert_equal 1, AuditEvent.where(
       action: "supplier_arrangement.item_setup_created", subject_id: arrangement.id
     ).count

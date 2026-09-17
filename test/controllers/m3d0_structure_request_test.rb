@@ -177,6 +177,21 @@ class M3D0StructureRequestTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "item cards use actions beyond the truncated next-actions panel" do
+    items = 7.times.map { |index| create_item("Action item #{index + 1}") }
+    seventh_item = items.last
+    sign_in_as @staff
+
+    get departure_arrangement_path(@departure, @arrangement)
+
+    assert_response :success
+    assert_select "#next-actions a", count: ArrangementPlanningWorkspace::MAX_NEXT_ACTIONS
+    assert_select "article#item-#{seventh_item.id}" do
+      assert_select "a", text: "Add an Occurrence for Action item 7", count: 1
+      assert_select "a", text: "Review Item costs", count: 0
+    end
+  end
+
   test "viewer cannot open or submit setup" do
     sign_in_as @viewer
 

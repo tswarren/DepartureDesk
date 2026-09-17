@@ -34,7 +34,7 @@ class ArrangementItemSetupsController < ApplicationController
     ).call
 
     redirect_to departure_arrangement_path(
-      @departure, @supplier_arrangement, anchor: "item-#{result.record.id}"
+      @departure, @supplier_arrangement, anchor: "item-#{result.record.item.id}"
     ), notice: "Item setup saved."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
