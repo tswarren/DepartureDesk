@@ -80,7 +80,7 @@ class M3D0PlanningWorkspaceTest < ApplicationSystemTestCase
     wait_for_turbo
 
     activate "Back to arrangement"
-    activate "Add an Item cost for Hilton rooms"
+    within("#next-actions") { activate "Add an Item cost for Hilton rooms" }
     fill_in "What is this cost for?", with: "Hilton room terms"
     select "Contracted term", from: "Term stage"
     select "Zero cost", from: "Known cost"
