@@ -1,6 +1,6 @@
 # M3A — Draft Arrangement structure
 
-**Status:** Shipped. Merged to `main` on 2026-09-16 in pull requests #59 and #60. This document remains the draft Arrangement-structure contract. It is not authority to start Arrangement activation, capacity, costs, Reservations, commitments, Deadlines, exposure, or later M3 slices.
+**Status:** Shipped. Merged to `main` on 2026-09-16 in pull requests #59 and #60. This document remains the draft Arrangement-structure contract. It is not authority to start Arrangement activation, costs, Reservations, commitments, Deadlines, exposure, or later M3 slices. Capacity is governed by shipped [M3B](m3b-supplier-capacity.md).
 
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md). The parent is Accepted, including the 2026-09-16 amendment and the Occurrence-lifecycle / create-idempotency corrections. This slice remains the shipped contract for draft Arrangement structure only.
 

@@ -13,6 +13,6 @@ ADRs preserve decisions and their history. Superseded ADRs remain here rather th
 | [0007](0007-departure-operational-root.md) | Accepted | Departure as dated operational root; Travel Program deferred. |
 | [0008](0008-supplier-arrangement-version-topology.md) | Accepted; M3A draft topology implemented; activation and successor behavior deferred | Stable Arrangement and child identities with immutable activated versions and per-version definitions. |
 | [0009](0009-supplier-contracting-and-service-provider-roles.md) | Accepted; M3A Supplier-role behavior implemented; later dependency extensions deferred | Contracting Supplier, computed Service Provider, Arrangement contact, and Supplier-inactivation roles. |
-| [0010](0010-supplier-capacity-ledger-and-projection.md) | Accepted; M3B is the implementing slice | Stable Capacity Pool identity, immutable Supplier-capacity events, scheduled effectiveness, reconciliation, and rebuildable projections. |
+| [0010](0010-supplier-capacity-ledger-and-projection.md) | Accepted; implemented by shipped M3B | Stable Capacity Pool identity, immutable Supplier-capacity events, scheduled effectiveness, reconciliation, and rebuildable projections. |
 
 An accepted ADR governs only its stated boundary. It does not place every described future model into implementation scope.
