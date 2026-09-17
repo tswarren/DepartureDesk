@@ -18,6 +18,9 @@
     <p class="dd-page-description"><%= @departure.name %></p>
   </div>
   <div class="dd-page-actions">
+    <% if manage && @departure.active? && draft_graph && contractor_active %>
+      <%= link_to "Activate arrangement", departure_arrangement_activation_path(@departure, @supplier_arrangement), class: "dd-button" %>
+    <% end %>
     <% if can_edit_arrangement %>
       <%= link_to recovery_cleanup ? "Clear contact" : "Edit arrangement", edit_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button" %>
     <% end %>

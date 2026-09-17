@@ -1,0 +1,76 @@
+class SupplierArrangementActivationsController < ApplicationController
+  include SupplierArrangementAccess
+
+  before_action :require_departure_view!
+  before_action :require_departure_management!, only: :create
+  before_action :set_departure
+  before_action :set_supplier_arrangement
+  before_action :set_initial_version
+
+  def show
+    load_preview
+    @idempotency_key = SecureRandom.uuid
+  end
+
+  def create
+    result = ActivateSupplierArrangementVersion.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      arrangement: @supplier_arrangement,
+      version: @supplier_arrangement_version,
+      arrangement_lock_version: params[:arrangement_lock_version],
+      version_lock_version: params[:version_lock_version],
+      idempotency_key: params[:idempotency_key],
+      existing_confirmation_id: params[:existing_confirmation_id],
+      evidence_attributes: confirmation_params,
+      identifier_attributes: identifier_params.presence,
+      cost_source_coverage_acknowledged: params[:cost_source_coverage_acknowledged],
+      provisional_costs_acknowledged: params[:provisional_costs_acknowledged],
+      commitment_trigger_coverage_acknowledged: params[:commitment_trigger_coverage_acknowledged],
+      confirmed_quantity: params[:confirmed_quantity],
+      confirmed_amount_minor_units: params[:confirmed_amount_minor_units]
+    ).call
+    redirect_to departure_arrangement_path(@departure, @supplier_arrangement),
+      notice: result.status == :replayed ? "Arrangement was already activated." : "Arrangement activated."
+  rescue AgencyCommand::Error => error
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    load_preview
+    @idempotency_key = params[:idempotency_key]
+    flash.now[:alert] = error.message
+    render :show, status: :unprocessable_entity
+  end
+
+  private
+
+  def load_preview
+    @readiness = SupplierArrangementActivationReadiness.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      version: @supplier_arrangement_version
+    ).call
+    @provisional_selections = @readiness.cost_selections.select do |_source, definition|
+      definition.estimate?
+    end
+    @capacity_definitions = @supplier_arrangement_version.capacity_pool_definitions
+      .includes(capacity_pool: :supplying_supplier).order(:position, :id)
+    @triggers = @supplier_arrangement_version.supplier_commitment_trigger_definitions
+      .includes(:committed_supplier).order(:position, :id)
+    @existing_confirmations = @supplier_arrangement_version.supplier_confirmations
+      .where(confirming_supplier_id: @supplier_arrangement.contracting_supplier_id)
+      .order(recorded_at: :desc, id: :desc)
+  end
+
+  def confirmation_params
+    params.fetch(:confirmation, ActionController::Parameters.new).permit(
+      :evidence_kind, :other_evidence_label, :evidence_on, :channel,
+      :reference_note, :confirmed_without_identifier_reason
+    )
+  end
+
+  def identifier_params
+    params.fetch(:identifier, ActionController::Parameters.new).permit(
+      :identifier_type, :other_type_label, :issuer_context, :display_value
+    )
+  end
+end
