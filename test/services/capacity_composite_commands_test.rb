@@ -238,6 +238,97 @@ class CapacityCompositeCommandsTest < ActiveSupport::TestCase
     assert_equal :unauthorized, unauthorized.code
   end
 
+  test "composites reject inactive Supplier and departed expansion gates" do
+    inactive_bulk = create_capacity_graph(prefix: "Inactive bulk")
+    inactive_pool = create_capacity_graph(prefix: "Inactive Pool")
+    ChangeSupplierStatus.new(
+      agency: @agency,
+      actor: agency_users(:harbor_admin),
+      supplier: @contractor,
+      status: "inactive",
+      lock_version: @contractor.lock_version,
+      force: true,
+      force_reason: "Contractor closed"
+    ).call
+
+    bulk_error = assert_raises(AgencyCommand::Error) do
+      BulkClassifyCapacityPairs.new(
+        agency: @agency,
+        actor: @actor,
+        item: inactive_bulk[:item],
+        decisions: [ decision(inactive_bulk[:occurrence], inactive_bulk[:resource], "pooled") ],
+        version_lock_version: inactive_bulk[:version].lock_version,
+        idempotency_key: "inactive-bulk"
+      ).call
+    end
+    assert_equal :invalid_state, bulk_error.code
+
+    pool_error = assert_raises(AgencyCommand::Error) do
+      ConfigureCapacityPairWithPool.new(
+        agency: @agency,
+        actor: @actor,
+        item: inactive_pool[:item],
+        service_occurrence: inactive_pool[:occurrence],
+        supplier_resource: inactive_pool[:resource],
+        pool_attributes: pool_attributes,
+        version_lock_version: inactive_pool[:version].lock_version,
+        idempotency_key: "inactive-pool"
+      ).call
+    end
+    assert_equal :invalid_state, pool_error.code
+
+    departed_departure = create_capacity_departure(@agency, name: "Departed capacity")
+    departed_contractor = create_capacity_supplier(@agency, "Departed contractor")
+    departed_provider = create_capacity_supplier(@agency, "Departed provider")
+    departed_bulk = create_capacity_graph(
+      departure: departed_departure,
+      contractor: departed_contractor,
+      provider: departed_provider,
+      prefix: "Departed bulk"
+    )
+    departed_pool = create_capacity_graph(
+      departure: departed_departure,
+      contractor: departed_contractor,
+      provider: departed_provider,
+      prefix: "Departed Pool"
+    )
+    ActivateDeparture.new(
+      agency: @agency,
+      actor: agency_users(:harbor_admin),
+      departure: departed_departure,
+      lock_version: departed_departure.lock_version
+    ).call
+    Departure.where(id: departed_departure.id).update_all(
+      status: "departed", departed_at: Time.current, updated_at: Time.current
+    )
+
+    departed_bulk_error = assert_raises(AgencyCommand::Error) do
+      BulkClassifyCapacityPairs.new(
+        agency: @agency,
+        actor: @actor,
+        item: departed_bulk[:item],
+        decisions: [ decision(departed_bulk[:occurrence], departed_bulk[:resource], "pooled") ],
+        version_lock_version: departed_bulk[:version].lock_version,
+        idempotency_key: "departed-bulk"
+      ).call
+    end
+    assert_equal :invalid_state, departed_bulk_error.code
+
+    departed_pool_error = assert_raises(AgencyCommand::Error) do
+      ConfigureCapacityPairWithPool.new(
+        agency: @agency,
+        actor: @actor,
+        item: departed_pool[:item],
+        service_occurrence: departed_pool[:occurrence],
+        supplier_resource: departed_pool[:resource],
+        pool_attributes: pool_attributes,
+        version_lock_version: departed_pool[:version].lock_version,
+        idempotency_key: "departed-pool"
+      ).call
+    end
+    assert_equal :invalid_state, departed_pool_error.code
+  end
+
   private
 
   def add_resource(graph, name)

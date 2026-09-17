@@ -55,7 +55,7 @@ class M3CSupplierCostsSystemTest < ApplicationSystemTestCase
     fill_in "Label", with: "Commission"
     select "Expected commission", from: "Economic role"
     select "Percentage", from: "Calculation"
-    fill_in "Rate (1.0 = 100%)", with: "0.15"
+    fill_in "Percentage", with: "15"
     select "Additive", from: "Percentage treatment"
     select "Fare", from: "Base 1"
     click_button "Add component"
