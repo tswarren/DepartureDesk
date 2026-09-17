@@ -40,9 +40,11 @@ class CreateSupplierCostSource < AgencyCommand
         ) do
           ensure_current_lock_version!(version, @version_lock_version)
           siblings = version.supplier_cost_sources.where(arrangement_item_id: item&.id).order(:position, :id).lock.to_a
-          source = version.supplier_cost_sources.create!(
-            attrs.merge(owner_attributes_for(version), supplier_arrangement: arrangement,
-                        position: siblings.map(&:position).max.to_i + 1)
+          source = build_supplier_cost_source_already_locked!(
+            version: version,
+            arrangement: arrangement,
+            attributes: attrs,
+            position: siblings.map(&:position).max.to_i + 1
           )
           bump_version!(version)
           audit_cost!("supplier_arrangement.cost_source_created", arrangement, version, {

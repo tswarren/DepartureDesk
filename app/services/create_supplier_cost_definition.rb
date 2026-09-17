@@ -25,8 +25,10 @@ class CreateSupplierCostDefinition < AgencyCommand
           result_class: SupplierCostDefinition
         ) do
           ensure_current_lock_version!(source, @source_lock_version)
-          definition = source.supplier_cost_definitions.create!(
-            attrs.merge(owner_attributes_for(source), supplier_arrangement: arrangement, status: "working")
+          definition = build_supplier_cost_definition_already_locked!(
+            source: source,
+            arrangement: arrangement,
+            attributes: attrs
           )
           source.touch
           audit_cost!("supplier_arrangement.cost_definition_created", arrangement, version, {

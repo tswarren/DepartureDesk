@@ -22,6 +22,7 @@ class Agency < ApplicationRecord
   has_many :reference_sequences, dependent: :restrict_with_exception
   has_many :departures, dependent: :restrict_with_exception
   has_many :agency_command_idempotency_keys, dependent: :restrict_with_exception
+  has_many :arrangement_item_setup_results, dependent: :restrict_with_exception
   has_many :supplier_arrangements, dependent: :restrict_with_exception
   has_many :supplier_arrangement_versions, dependent: :restrict_with_exception
   has_many :arrangement_items, dependent: :restrict_with_exception

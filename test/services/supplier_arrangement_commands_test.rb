@@ -571,6 +571,79 @@ class SupplierArrangementCommandsTest < ActiveSupport::TestCase
     assert_equal "draft", departure.reload.status
   end
 
+  test "guided item setup is atomic and replays its exact child result association" do
+    arrangement = create_arrangement.record
+    version = arrangement.versions.first
+    arguments = {
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement,
+      version_lock_version: version.lock_version,
+      idempotency_key: "guided-item-setup-1",
+      item_attributes: {
+        name: "Harbor stay",
+        category: "lodging",
+        default_service_provider_id: @provider.id
+      },
+      occurrence_attributes: {
+        name: "First stay",
+        starts_on: "2026-10-01",
+        ends_on: "2026-10-03"
+      },
+      resource_attributes: { name: "Standard room" }
+    }
+
+    created = CreateArrangementItemSetup.new(**arguments).call
+    replay = CreateArrangementItemSetup.new(**arguments.merge(version_lock_version: -1)).call
+
+    assert_equal :created, created.status
+    assert_equal :replayed, replay.status
+    assert_equal created.record.id, replay.record.id
+    association = AgencyCommandIdempotencyKey.find_by!(
+      agency: @agency, command_name: "CreateArrangementItemSetup",
+      idempotency_key: "guided-item-setup-1"
+    ).arrangement_item_setup_result
+    assert_equal created.record.id, association.arrangement_item_id
+    assert_equal created.record.service_occurrences.sole.id, association.service_occurrence_id
+    assert_equal created.record.supplier_resources.sole.id, association.supplier_resource_id
+    assert_equal 1, AuditEvent.where(
+      action: "supplier_arrangement.item_setup_created", subject_id: arrangement.id
+    ).count
+    assert_equal 0, AuditEvent.where(
+      action: %w[
+        supplier_arrangement.item_created
+        supplier_arrangement.occurrence_created
+        supplier_arrangement.resource_created
+      ],
+      subject_id: arrangement.id
+    ).count
+
+    assert_raises(AgencyCommand::Error) do
+      CreateArrangementItemSetup.new(
+        **arguments.merge(item_attributes: { name: "Changed", category: "lodging" })
+      ).call
+    end
+
+    counts = [
+      ArrangementItem.count, ServiceOccurrence.count, SupplierResource.count, AuditEvent.count
+    ]
+    error = assert_raises(AgencyCommand::Error) do
+      CreateArrangementItemSetup.new(
+        **arguments.merge(
+          idempotency_key: "guided-item-setup-invalid",
+          version_lock_version: version.reload.lock_version,
+          occurrence_attributes: {
+            name: "Invalid stay", starts_on: "2026-10-03", ends_on: "2026-10-01"
+          }
+        )
+      ).call
+    end
+    assert_equal :invalid, error.code
+    assert_equal counts, [
+      ArrangementItem.count, ServiceOccurrence.count, SupplierResource.count, AuditEvent.count
+    ]
+  end
+
   private
 
   def create_arrangement(name: "Hotel Block", idempotency_key: SecureRandom.hex(6))

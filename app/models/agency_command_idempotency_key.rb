@@ -1,5 +1,6 @@
 class AgencyCommandIdempotencyKey < ApplicationRecord
   belongs_to :agency
+  has_one :arrangement_item_setup_result, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :command_name, :idempotency_key, :payload_digest,
     :result_record_type, :result_record_id

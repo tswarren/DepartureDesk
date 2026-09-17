@@ -31,23 +31,17 @@ class ClassifyCapacityPair < AgencyCommand
       pair = lock_pair_by_members!(version, @service_occurrence, @supplier_resource)
       ensure_pair_has_no_pool_definitions!(pair) if pair && @classification == "not_applicable"
 
-      if pair
-        return Result.new(status: :noop, record: pair) if pair.classification == @classification
-
-        previous = pair.classification
-        pair.update!(classification: @classification)
-      else
-        previous = nil
-        pair = version.capacity_pair_definitions.create!(
-          agency: @agency,
-          departure: departure,
-          supplier_arrangement: arrangement,
-          arrangement_item: item,
-          service_occurrence: @service_occurrence,
-          supplier_resource: @supplier_resource,
-          classification: @classification
-        )
-      end
+      pair, previous, status = classify_capacity_pair_already_locked!(
+        departure: departure,
+        arrangement: arrangement,
+        version: version,
+        item: item,
+        occurrence: @service_occurrence,
+        resource: @supplier_resource,
+        classification: @classification,
+        pair: pair
+      )
+      return Result.new(status: :noop, record: pair) if status == :noop
 
       bump_version!(version)
       audit!(
@@ -66,7 +60,7 @@ class ClassifyCapacityPair < AgencyCommand
           "classification" => pair.classification
         }
       )
-      Result.new(status: previous.nil? ? :created : :updated, record: pair)
+      Result.new(status: status, record: pair)
     end
   rescue ActiveRecord::RecordInvalid => error
     command_error_from(error)

@@ -337,6 +337,43 @@ module CostCommandSupport
     }
   end
 
+  # Internal builders for a composite that already owns the complete cost graph
+  # lock scope. Public commands remain responsible for locks, gates,
+  # idempotency, optimistic locking, touches, and success audits.
+  def build_supplier_cost_source_already_locked!(
+    version:, arrangement:, attributes:, position:
+  )
+    version.supplier_cost_sources.create!(
+      attributes.merge(
+        owner_attributes_for(version),
+        supplier_arrangement: arrangement,
+        position: position
+      )
+    )
+  end
+
+  def build_supplier_cost_definition_already_locked!(
+    source:, arrangement:, attributes:
+  )
+    source.supplier_cost_definitions.create!(
+      attributes.merge(
+        owner_attributes_for(source),
+        supplier_arrangement: arrangement,
+        status: "working"
+      )
+    )
+  end
+
+  def build_supplier_cost_component_already_locked!(
+    definition:, attributes:, position:, base_links:
+  )
+    component = definition.supplier_cost_components.create!(
+      attributes.merge(owner_attributes_for(definition), position: position)
+    )
+    replace_base_links!(definition, component, base_links)
+    component
+  end
+
   def clear_readiness!(definition)
     return unless definition.forecast_ready?
     definition.update!(READINESS_FIELDS)

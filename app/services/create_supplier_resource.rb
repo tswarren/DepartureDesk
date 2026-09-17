@@ -32,21 +32,12 @@ class CreateSupplierResource < AgencyCommand
         result_class: SupplierResource
       ) do
         ensure_current_lock_version!(version, @version_lock_version)
-        position = next_resource_position(version, item)
-        resource = item.supplier_resources.create!(
-          agency: @agency,
+        resource, definition = build_supplier_resource_already_locked!(
           departure: departure,
-          supplier_arrangement: arrangement
-        )
-        definition = version.supplier_resource_definitions.create!(
-          attrs.merge(
-            agency: @agency,
-            departure: departure,
-            supplier_arrangement: arrangement,
-            arrangement_item: item,
-            supplier_resource: resource,
-            position: position
-          )
+          arrangement: arrangement,
+          version: version,
+          item: item,
+          attributes: attrs
         )
         bump_version!(version)
         audit!(

@@ -37,17 +37,12 @@ class CreateArrangementItem < AgencyCommand
         result_class: ArrangementItem
       ) do
         ensure_current_lock_version!(version, @version_lock_version)
-        position = next_item_position(version)
-        item = arrangement.arrangement_items.create!(agency: @agency, departure: departure)
-        definition = version.arrangement_item_definitions.create!(
-          attrs.merge(
-            agency: @agency,
-            departure: departure,
-            supplier_arrangement: arrangement,
-            arrangement_item: item,
-            default_service_provider: provider,
-            position: position
-          )
+        item, definition = build_arrangement_item_already_locked!(
+          departure: departure,
+          arrangement: arrangement,
+          version: version,
+          attributes: attrs,
+          provider: provider
         )
         bump_version!(version)
         audit!(

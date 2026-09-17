@@ -152,13 +152,24 @@ Rails.application.routes.draw do
         get :abandon, action: :edit_abandon
         post :abandon
       end
+      get "items/setup", to: "arrangement_item_setups#new", as: :new_item_setup
+      post "items/setup", to: "arrangement_item_setups#create", as: :item_setup
       resources :items, controller: "arrangement_items", only: %i[new create edit update destroy] do
         collection { patch :reorder }
+        patch "capacity/pairs/bulk", to: "bulk_capacity_pairs#update", as: :bulk_capacity_pairs
+        post "capacity/pairs/:occurrence_id/:resource_id/pool-setup",
+          to: "capacity_pair_pool_setups#create", as: :capacity_pair_pool_setup
+        get "costs/setup", to: "supplier_cost_setups#new", as: :new_cost_setup
+        post "costs/setup", to: "supplier_cost_setups#create", as: :cost_setup
+        get "costs/:source_id/definitions/:id/review",
+          to: "supplier_cost_definition_reviews#show", as: :cost_definition_review
         get "costs/workspace", to: "item_costs#show", as: :costs_workspace
         resources :costs, controller: "supplier_cost_sources", only: %i[create update destroy] do
           collection { patch :reorder }
           resources :definitions, controller: "supplier_cost_definitions", only: %i[create update destroy] do
-            member { post "forecast-ready", action: :forecast_ready, as: :forecast_ready }
+            member do
+              post "forecast-ready", action: :forecast_ready, as: :forecast_ready
+            end
             resources :components, controller: "supplier_cost_components", only: %i[create update destroy] do
               collection { patch :reorder }
             end
@@ -196,11 +207,17 @@ Rails.application.routes.draw do
           collection { patch :reorder }
         end
       end
+      get "costs/setup", to: "supplier_cost_setups#new", as: :new_cost_setup
+      post "costs/setup", to: "supplier_cost_setups#create", as: :cost_setup
+      get "costs/:source_id/definitions/:id/review",
+        to: "supplier_cost_definition_reviews#show", as: :cost_definition_review
       get "costs/workspace", to: "arrangement_costs#show", as: :costs_workspace
       resources :costs, controller: "supplier_cost_sources", only: %i[create update destroy] do
         collection { patch :reorder }
         resources :definitions, controller: "supplier_cost_definitions", only: %i[create update destroy] do
-          member { post "forecast-ready", action: :forecast_ready, as: :forecast_ready }
+          member do
+            post "forecast-ready", action: :forecast_ready, as: :forecast_ready
+          end
           resources :components, controller: "supplier_cost_components", only: %i[create update destroy] do
             collection { patch :reorder }
           end

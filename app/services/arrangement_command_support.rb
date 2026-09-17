@@ -450,6 +450,68 @@ module ArrangementCommandSupport
     version.supplier_resource_definitions.where(arrangement_item: item).maximum(:position).to_i + 1
   end
 
+  # Internal create operations for composite commands. Callers must already hold
+  # the canonical agency/Departure/Arrangement/version/member locks and perform
+  # authorization, state, optimistic-lock, idempotency, version-bump, and audit
+  # work at the public command boundary.
+  def build_arrangement_item_already_locked!(departure:, arrangement:, version:, attributes:, provider: nil)
+    item = arrangement.arrangement_items.create!(agency: @agency, departure: departure)
+    definition = version.arrangement_item_definitions.create!(
+      attributes.merge(
+        agency: @agency,
+        departure: departure,
+        supplier_arrangement: arrangement,
+        arrangement_item: item,
+        default_service_provider: provider,
+        position: next_item_position(version)
+      )
+    )
+    [ item, definition ]
+  end
+
+  def build_service_occurrence_already_locked!(
+    departure:, arrangement:, version:, item:, attributes:, provider: nil
+  )
+    occurrence = item.service_occurrences.create!(
+      agency: @agency,
+      departure: departure,
+      supplier_arrangement: arrangement,
+      status: "planned"
+    )
+    definition = version.service_occurrence_definitions.create!(
+      attributes.merge(
+        agency: @agency,
+        departure: departure,
+        supplier_arrangement: arrangement,
+        arrangement_item: item,
+        service_occurrence: occurrence,
+        service_provider: provider
+      )
+    )
+    [ occurrence, definition ]
+  end
+
+  def build_supplier_resource_already_locked!(
+    departure:, arrangement:, version:, item:, attributes:
+  )
+    resource = item.supplier_resources.create!(
+      agency: @agency,
+      departure: departure,
+      supplier_arrangement: arrangement
+    )
+    definition = version.supplier_resource_definitions.create!(
+      attributes.merge(
+        agency: @agency,
+        departure: departure,
+        supplier_arrangement: arrangement,
+        arrangement_item: item,
+        supplier_resource: resource,
+        position: next_resource_position(version, item)
+      )
+    )
+    [ resource, definition ]
+  end
+
   def same_values?(record, attrs)
     attrs.all? { |field, value| record.public_send(field) == value }
   end
