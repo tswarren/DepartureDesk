@@ -60,14 +60,14 @@
       <p class="<%= empty_state_classes.join(" ") %>">Quantity not tracked for this Item.</p>
     </div>
   </article>
-<% elsif @occurrence_definitions.empty? || @resource_definitions.empty? %>
+<% elsif @active_occurrence_definitions.empty? || @resource_definitions.empty? %>
   <article class="dd-panel">
     <div class="dd-panel-body">
-      <p class="<%= empty_state_classes.join(" ") %>">Add at least one Occurrence and one Resource before classifying capacity pairs.</p>
+      <p class="<%= empty_state_classes.join(" ") %>">Add at least one planned Occurrence and one Resource before classifying capacity pairs.</p>
     </div>
   </article>
 <% else %>
-  <% @occurrence_definitions.each do |occurrence_definition| %>
+  <% @active_occurrence_definitions.each do |occurrence_definition| %>
     <article class="dd-panel" id="capacity-occurrence-<%= occurrence_definition.service_occurrence_id %>">
       <header class="dd-panel-header">
         <div>
@@ -191,4 +191,43 @@
       </div>
     </article>
   <% end %>
+<% end %>
+
+<% retained_cancelled = Array(@retained_cancelled_occurrence_definitions).select do |occurrence_definition|
+  @resource_definitions.any? do |resource_definition|
+    @capacity_pairs_by_members[[ occurrence_definition.service_occurrence_id, resource_definition.supplier_resource_id ]]
+  end
+end %>
+<% if retained_cancelled.any? %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Retained cancelled Occurrences</h2>
+        <p>Cancelled Occurrences are excluded from new capacity configuration. Retained pair and Pool history remains readable.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <% retained_cancelled.each do |occurrence_definition| %>
+        <section class="dd-panel" id="capacity-cancelled-occurrence-<%= occurrence_definition.service_occurrence_id %>">
+          <header class="dd-panel-header">
+            <div>
+              <h3 class="dd-panel-title"><%= occurrence_definition.name %></h3>
+              <p><%= occurrence_date_label(occurrence_definition) %> · Cancelled</p>
+            </div>
+          </header>
+          <div class="dd-panel-body">
+            <% @resource_definitions.each do |resource_definition| %>
+              <% pair = @capacity_pairs_by_members[[ occurrence_definition.service_occurrence_id, resource_definition.supplier_resource_id ]] %>
+              <% next if pair.nil? %>
+              <% pool_definitions = @capacity_pool_definitions_by_pair_id.fetch(pair.id, []) %>
+              <p><strong><%= resource_definition.name %></strong> · <%= capacity_pair_label(pair) %></p>
+              <% pool_definitions.each do |pool_definition| %>
+                <p><%= pool_definition.label %> · <%= capacity_quantity_label(pool_definition) %></p>
+              <% end %>
+            <% end %>
+          </div>
+        </section>
+      <% end %>
+    </div>
+  </article>
 <% end %>

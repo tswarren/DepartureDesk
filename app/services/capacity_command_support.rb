@@ -316,6 +316,14 @@ module CapacityCommandSupport
     raise AgencyCommand::Error.new("Recorded at is not a valid time.", code: :invalid)
   end
 
+  # Server-generated recorded_at must not participate in idempotency fingerprints.
+  def recorded_at_fingerprint(submitted_recorded_at, resolved_recorded_at)
+    return nil if submitted_recorded_at.nil?
+    return nil if submitted_recorded_at.respond_to?(:blank?) && submitted_recorded_at.blank?
+
+    resolved_recorded_at
+  end
+
   def normalize_capacity_event_evidence_or_override(attrs)
     normalized = normalize_evidence_or_override(attrs)
     return normalized if normalized[:override]
@@ -418,14 +426,17 @@ module CapacityCommandSupport
     version.capacity_pool_definitions.where(capacity_pair_definition: pair).maximum(:position).to_i + 1
   end
 
-  def next_capacity_event_sequence(pool, effective_on)
-    pool.capacity_events.where(effective_on: effective_on).maximum(:effective_sequence).to_i + 1
+  def next_capacity_event_sequence(pool, effective_on, pending_events: [])
+    persisted = pool.capacity_events.where(effective_on: effective_on).maximum(:effective_sequence).to_i
+    pending = pending_events.count { |event| event.effective_on == effective_on }
+    persisted + pending + 1
   end
 
-  def ensure_unused_capacity_event_sequence!(pool, effective_on, sequence)
-    return unless pool.capacity_events.where(effective_on: effective_on, effective_sequence: sequence).exists?
-
-    raise AgencyCommand::Error.new("That effective sequence is already used.", code: :conflict)
+  def ensure_unused_capacity_event_sequence!(pool, effective_on, sequence, pending_events: [])
+    if pool.capacity_events.where(effective_on: effective_on, effective_sequence: sequence).exists? ||
+        pending_events.any? { |event| event.effective_on == effective_on && event.effective_sequence == sequence }
+      raise AgencyCommand::Error.new("That effective sequence is already used.", code: :conflict)
+    end
   end
 
   def resolve_capacity_applies_at(effective_on:, recorded_at:, time_zone:)
@@ -437,25 +448,25 @@ module CapacityCommandSupport
   end
 
   def lock_capacity_event_graph!(pool)
-    pool = @agency.capacity_pools.lock.find(pool.id)
+    supplier = @agency.suppliers.lock.find(pool.supplying_supplier_id)
     departure = @agency.departures.lock.find(pool.departure_id)
     arrangement = @agency.supplier_arrangements.lock.find(pool.supplier_arrangement_id)
     version = arrangement.versions.lock.find_by!(status: "activated")
     item = arrangement.arrangement_items.lock.find(pool.arrangement_item_id)
     occurrence = item.service_occurrences.lock.find(pool.service_occurrence_id)
     resource = item.supplier_resources.lock.find(pool.supplier_resource_id)
-    supplier = @agency.suppliers.lock.find(pool.supplying_supplier_id)
-    [ departure, arrangement, version, item, occurrence, resource, supplier, pool ]
+    locked_pool = @agency.capacity_pools.lock.find(pool.id)
+    [ departure, arrangement, version, item, occurrence, resource, supplier, locked_pool ]
   end
 
-  def ensure_capacity_event_timeline_nonnegative!(pool, candidate)
-    events = pool.capacity_events.to_a + [ candidate ]
+  def ensure_capacity_event_timeline_nonnegative!(pool, candidate, pending_events: [])
+    events = pool.capacity_events.to_a + pending_events + [ candidate ]
     CapacityTimelineReplay.new(events).call
   rescue CapacityTimelineReplay::NegativeQuantity
     raise AgencyCommand::Error.new("Capacity timeline cannot become negative.", code: :invalid_state)
   end
 
-  def idempotent_capacity_event!(command_name:, idempotency_key:, payload:, event:)
+  def idempotent_capacity_events!(command_name:, idempotency_key:, payload:, events:)
     key = normalize_idempotency_key(idempotency_key)
     digest = payload_digest(payload)
     lock_idempotency_slot!(command_name, key)
@@ -468,22 +479,36 @@ module CapacityCommandSupport
     if existing
       raise AgencyCommand::Error.new("That idempotency key was already used for different input.", code: :conflict) unless existing.payload_digest == digest
 
-      return AgencyCommand::Result.new(status: :replayed, record: CapacityEvent.find(existing.result_record_id))
+      records = CapacityEvent.where(agency_command_idempotency_key_id: existing.id)
+        .order(:effective_on, :effective_sequence, :recorded_at, :id)
+        .to_a
+      records = [ CapacityEvent.find(existing.result_record_id) ] if records.empty?
+      return AgencyCommand::Result.new(status: :replayed, record: records.size == 1 ? records.first : records)
     end
 
+    primary = events.first
     key_record = AgencyCommandIdempotencyKey.create!(
       agency: @agency,
       command_name: command_name,
       idempotency_key: key,
       payload_digest: digest,
       result_record_type: CapacityEvent.name,
-      result_record_id: event.id
+      result_record_id: primary.id
     )
-    event.agency_command_idempotency_key = key_record
+    events.each { |event| event.agency_command_idempotency_key = key_record }
     yield
-    AgencyCommand::Result.new(status: :created, record: event)
+    AgencyCommand::Result.new(status: :created, record: events.size == 1 ? events.first : events)
   rescue ActiveRecord::RecordNotUnique
     raise AgencyCommand::Error.new("That idempotency key was already used for different input.", code: :conflict)
+  end
+
+  def idempotent_capacity_event!(command_name:, idempotency_key:, payload:, event:)
+    idempotent_capacity_events!(
+      command_name: command_name,
+      idempotency_key: idempotency_key,
+      payload: payload,
+      events: [ event ]
+    )
   end
 
   def idempotent_capacity_reconciliation!(command_name:, idempotency_key:, payload:, reconciliation:)
@@ -532,95 +557,157 @@ module CapacityCommandSupport
     corrects_event_id: nil,
     capacity_reconciliation_id: nil
   )
+    specs = [ {
+      event_type: event_type,
+      quantity: quantity,
+      effective_on: effective_on,
+      effective_sequence: effective_sequence,
+      reinstates_event: reinstates_event,
+      corrects_event_id: corrects_event_id,
+      capacity_reconciliation_id: capacity_reconciliation_id
+    } ]
+    result = record_capacity_events!(
+      pool: pool,
+      specs: specs,
+      recorded_at: recorded_at,
+      projection_lock_version: projection_lock_version,
+      idempotency_key: idempotency_key,
+      attributes: attributes
+    )
+    AgencyCommand::Result.new(status: result.status, record: Array(result.record).first)
+  end
+
+  def record_capacity_events!(
+    pool:,
+    specs:,
+    recorded_at: nil,
+    projection_lock_version:,
+    idempotency_key:,
+    attributes: {}
+  )
     ensure_arrangement_actor!
     attrs = attributes.to_h.with_indifferent_access
-    quantity = normalize_capacity_event_quantity(quantity)
+    submitted_recorded_at = recorded_at
     recorded_at = normalize_recorded_at(recorded_at)
-    effective_on = parse_date(effective_on, "Effective date") || recorded_at.in_time_zone(pool.effective_time_zone).to_date
-    submitted_sequence = normalize_effective_sequence(effective_sequence)
     evidence_attrs = normalize_capacity_event_evidence_or_override(attrs)
     resolution_note = normalize_reconciliation_resolution_note(attrs[:resolution_note] || attrs[:reconciliation_resolution_note])
-    corrects_event_id = parse_optional_uuid(corrects_event_id || attrs[:corrects_event_id], "Corrected event")
-    capacity_reconciliation_id = parse_optional_uuid(
-      capacity_reconciliation_id || attrs[:capacity_reconciliation_id],
-      "Capacity reconciliation"
-    )
+    normalized_specs = Array(specs).map { |spec| normalize_capacity_event_spec(spec, pool: pool, recorded_at: recorded_at, attrs: attrs) }
+    raise AgencyCommand::Error.new("Enter at least one capacity event.", code: :invalid) if normalized_specs.empty?
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
       departure, arrangement, version, item, occurrence, resource, supplier, locked_pool = lock_capacity_event_graph!(pool)
       ensure_activated_capacity_graph!(departure, arrangement, version)
       ensure_numeric_capacity_pool!(locked_pool)
-      ensure_capacity_event_supplier_state!(supplier, event_type)
+      normalized_specs.each do |spec|
+        ensure_capacity_event_supplier_state!(supplier, spec[:event_type], override: evidence_attrs[:override])
+      end
       projection = locked_pool.capacity_projection || build_initial_capacity_projection(locked_pool, recorded_at)
       projection.lock! unless projection.new_record?
       refresh_capacity_projection_state!(locked_pool, projection, recorded_at) unless projection.new_record?
 
-      event = locked_pool.capacity_events.build(
-        agency: @agency,
-        departure: departure,
-        supplier_arrangement: arrangement,
-        supplier_arrangement_version: version,
-        arrangement_item: item,
-        service_occurrence: occurrence,
-        supplier_resource: resource,
-        supplying_supplier: supplier,
-        event_type: event_type,
-        quantity: quantity,
-        measurement_basis: locked_pool.measurement_basis,
-        effective_on: effective_on,
-        effective_time_zone: locked_pool.effective_time_zone,
-        applies_at: resolve_capacity_applies_at(
-          effective_on: effective_on,
+      events = []
+      normalized_specs.each do |spec|
+        sequence = spec[:effective_sequence] || next_capacity_event_sequence(locked_pool, spec[:effective_on], pending_events: events)
+        events << locked_pool.capacity_events.build(
+          agency: @agency,
+          departure: departure,
+          supplier_arrangement: arrangement,
+          supplier_arrangement_version: version,
+          arrangement_item: item,
+          service_occurrence: occurrence,
+          supplier_resource: resource,
+          supplying_supplier: supplier,
+          event_type: spec[:event_type],
+          quantity: spec[:quantity],
+          measurement_basis: locked_pool.measurement_basis,
+          effective_on: spec[:effective_on],
+          effective_time_zone: locked_pool.effective_time_zone,
+          applies_at: resolve_capacity_applies_at(
+            effective_on: spec[:effective_on],
+            recorded_at: recorded_at,
+            time_zone: locked_pool.effective_time_zone
+          ),
+          effective_sequence: sequence,
           recorded_at: recorded_at,
-          time_zone: locked_pool.effective_time_zone
-        ),
-        effective_sequence: submitted_sequence || next_capacity_event_sequence(locked_pool, effective_on),
-        recorded_at: recorded_at,
-        actor: @actor,
-        reinstates_event: reinstates_event,
-        corrects_event_id: corrects_event_id,
-        capacity_reconciliation_id: capacity_reconciliation_id,
-        **evidence_attrs
-      )
+          actor: @actor,
+          reinstates_event: spec[:reinstates_event],
+          corrects_event_id: spec[:corrects_event_id],
+          capacity_reconciliation_id: spec[:capacity_reconciliation_id],
+          **evidence_attrs
+        )
+      end
+
       payload = {
         capacity_pool_id: locked_pool.id,
-        event_type: event_type,
-        quantity: quantity,
-        effective_on: effective_on,
-        effective_sequence: submitted_sequence,
-        recorded_at: recorded_at,
-        reinstates_event_id: reinstates_event&.id,
-        corrects_event_id: corrects_event_id,
-        capacity_reconciliation_id: capacity_reconciliation_id,
+        events: normalized_specs.map do |spec|
+          {
+            event_type: spec[:event_type],
+            quantity: spec[:quantity],
+            effective_on: spec[:effective_on],
+            effective_sequence: spec[:submitted_sequence],
+            reinstates_event_id: spec[:reinstates_event]&.id,
+            corrects_event_id: spec[:corrects_event_id],
+            capacity_reconciliation_id: spec[:capacity_reconciliation_id]
+          }
+        end,
+        recorded_at: recorded_at_fingerprint(submitted_recorded_at, recorded_at),
         resolution_note: resolution_note,
         evidence: evidence_attrs
       }
 
-      idempotent_capacity_event!(
+      idempotent_capacity_events!(
         command_name: self.class.name,
         idempotency_key: idempotency_key,
         payload: payload,
-        event: event
+        events: events
       ) do
         ensure_current_lock_version!(projection, projection_lock_version)
-        ensure_capacity_event_preconditions!(locked_pool, event)
-        ensure_unused_capacity_event_sequence!(locked_pool, event.effective_on, event.effective_sequence)
-        ensure_capacity_event_timeline_nonnegative!(locked_pool, event)
-        event.save!
-        record_capacity_reconciliation_resolution!(arrangement, event, resolution_note) if event.capacity_reconciliation_id.present?
-        catch_up_capacity_projection!(locked_pool, projection, event, recorded_at)
-        audit_capacity_event!(arrangement, event)
+        pending = []
+        events.each do |event|
+          ensure_capacity_event_preconditions!(locked_pool, event)
+          ensure_unused_capacity_event_sequence!(locked_pool, event.effective_on, event.effective_sequence, pending_events: pending)
+          ensure_capacity_event_timeline_nonnegative!(locked_pool, event, pending_events: pending)
+          pending << event
+        end
+        events.each(&:save!)
+        events.each do |event|
+          record_capacity_reconciliation_resolution!(arrangement, event, resolution_note) if event.capacity_reconciliation_id.present?
+          catch_up_capacity_projection!(locked_pool, projection, event, recorded_at)
+        end
+        audit_capacity_events!(arrangement, events)
       end
     end
   rescue ActiveRecord::RecordInvalid => error
     command_error_from(error)
   end
 
-  def ensure_capacity_event_supplier_state!(supplier, event_type)
+  def normalize_capacity_event_spec(spec, pool:, recorded_at:, attrs:)
+    spec = spec.to_h.with_indifferent_access
+    quantity = normalize_capacity_event_quantity(spec[:quantity])
+    effective_on = parse_date(spec[:effective_on], "Effective date") || recorded_at.in_time_zone(pool.effective_time_zone).to_date
+    submitted_sequence = normalize_effective_sequence(spec[:effective_sequence])
+    corrects_event_id = parse_optional_uuid(spec[:corrects_event_id] || attrs[:corrects_event_id], "Corrected event")
+    capacity_reconciliation_id = parse_optional_uuid(
+      spec[:capacity_reconciliation_id] || attrs[:capacity_reconciliation_id],
+      "Capacity reconciliation"
+    )
+    {
+      event_type: spec.fetch(:event_type).to_s,
+      quantity: quantity,
+      effective_on: effective_on,
+      effective_sequence: submitted_sequence,
+      submitted_sequence: submitted_sequence,
+      reinstates_event: spec[:reinstates_event],
+      corrects_event_id: corrects_event_id,
+      capacity_reconciliation_id: capacity_reconciliation_id
+    }
+  end
+
+  def ensure_capacity_event_supplier_state!(supplier, event_type, override: false)
     return if supplier.active?
     return if %w[released withdrawn corrected_down].include?(event_type)
-    return if event_type == "corrected_up" && @actor&.permitted?(:override_supplier_planning_terms)
+    return if event_type == "corrected_up" && override && @actor&.permitted?(:override_supplier_planning_terms)
 
     raise AgencyCommand::Error.new("That supplying supplier is not active.", code: :invalid_state)
   end
@@ -760,7 +847,9 @@ module CapacityCommandSupport
     projection.save!
   end
 
-  def audit_capacity_event!(arrangement, event)
+  def audit_capacity_events!(arrangement, events)
+    events = Array(events)
+    primary = events.first
     audit!(
       agency: @agency,
       action: "supplier_arrangement.capacity_event_recorded",
@@ -768,25 +857,33 @@ module CapacityCommandSupport
       actor: @actor,
       details: {
         "supplier_arrangement_id" => arrangement.id,
-        "supplier_arrangement_version_id" => event.supplier_arrangement_version_id,
-        "arrangement_item_id" => event.arrangement_item_id,
-        "capacity_pool_id" => event.capacity_pool_id,
-        "capacity_event_id" => event.id,
-        "event_type" => event.event_type,
-        "quantity" => event.quantity,
-        "measurement_basis" => event.measurement_basis,
-        "effective_on" => event.effective_on.iso8601,
-        "effective_time_zone" => event.effective_time_zone,
-        "effective_sequence" => event.effective_sequence,
-        "applies_at" => event.applies_at.iso8601,
-        "supplying_supplier_id" => event.supplying_supplier_id,
-        "reinstates_event_id" => event.reinstates_event_id,
-        "corrects_event_id" => event.corrects_event_id,
-        "capacity_reconciliation_id" => event.capacity_reconciliation_id,
-        "evidence_kind" => event.evidence_kind,
-        "override" => event.override?
+        "supplier_arrangement_version_id" => primary.supplier_arrangement_version_id,
+        "arrangement_item_id" => primary.arrangement_item_id,
+        "capacity_pool_id" => primary.capacity_pool_id,
+        "capacity_event_id" => primary.id,
+        "capacity_event_ids" => events.map(&:id),
+        "event_type" => primary.event_type,
+        "event_types" => events.map(&:event_type),
+        "quantity" => primary.quantity,
+        "quantities" => events.map(&:quantity),
+        "measurement_basis" => primary.measurement_basis,
+        "effective_on" => primary.effective_on.iso8601,
+        "effective_time_zone" => primary.effective_time_zone,
+        "effective_sequence" => primary.effective_sequence,
+        "applies_at" => primary.applies_at.iso8601,
+        "supplying_supplier_id" => primary.supplying_supplier_id,
+        "reinstates_event_id" => primary.reinstates_event_id,
+        "reinstates_event_ids" => events.map(&:reinstates_event_id).compact,
+        "corrects_event_id" => primary.corrects_event_id,
+        "capacity_reconciliation_id" => primary.capacity_reconciliation_id,
+        "evidence_kind" => primary.evidence_kind,
+        "override" => primary.override?
       }
     )
+  end
+
+  def audit_capacity_event!(arrangement, event)
+    audit_capacity_events!(arrangement, [ event ])
   end
 
   def audit_capacity_reconciliation_resolved!(arrangement, reconciliation, event)

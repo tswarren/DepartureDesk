@@ -457,12 +457,13 @@ module ApplicationHelper
 
   def capacity_item_warnings(item_definition, occurrence_definitions, resource_definitions, pairs_by_members, pool_definitions_by_pair_id, arrangement)
     warnings = []
+    active_occurrence_definitions = occurrence_definitions.reject { |definition| definition.service_occurrence.cancelled? }
     if item_definition.capacity_management.blank?
       warnings << "Capacity management has not been decided."
     elsif item_definition.managed?
-      warnings << "Managed capacity needs at least one Occurrence." if occurrence_definitions.empty?
+      warnings << "Managed capacity needs at least one Occurrence." if active_occurrence_definitions.empty?
       warnings << "Managed capacity needs at least one Resource." if resource_definitions.empty?
-      occurrence_definitions.each do |occurrence_definition|
+      active_occurrence_definitions.each do |occurrence_definition|
         resource_definitions.each do |resource_definition|
           pair = pairs_by_members[[ occurrence_definition.service_occurrence_id, resource_definition.supplier_resource_id ]]
           if pair.nil?

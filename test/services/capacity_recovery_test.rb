@@ -30,6 +30,37 @@ class CapacityRecoveryTest < ActiveSupport::TestCase
     assert_includes by_departure.open_capacity_reconciliation_ids, reconciliation.id
   end
 
+  test "find unresolved uses event ledger when due event has not refreshed projection" do
+    graph = build_activated_established_capacity_graph(recorded_at: @recorded_at - 2.days)
+    future = IncreaseCapacity.new(
+      agency: @agency,
+      actor: @actor,
+      pool: graph[:pool],
+      quantity: 5,
+      effective_on: Date.new(2026, 6, 1),
+      projection_lock_version: graph[:projection].reload.lock_version,
+      idempotency_key: "stale-projection-increase",
+      recorded_at: @recorded_at - 2.days,
+      attributes: ordinary_evidence
+    ).call.record
+
+    graph[:projection].update_columns(
+      current_supplier_capacity: 0,
+      next_applies_at: future.applies_at,
+      next_event_id: future.id,
+      rebuilt_at: @recorded_at - 2.days
+    )
+
+    result = FindUnresolvedCapacityDependencies.new(
+      agency: @agency,
+      arrangement: graph[:arrangement],
+      now: future.applies_at + 1.minute
+    ).call
+
+    assert_equal [ graph[:pool].id ], result.capacity_pool_ids
+    assert_empty result.pending_capacity_event_ids
+  end
+
   test "resolved reconciliations are not unresolved dependencies" do
     graph = unresolved_graph
     reconciliation = reconcile_open(graph)

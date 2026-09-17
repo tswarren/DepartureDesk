@@ -18,6 +18,7 @@ class ReconcileCapacityPool < AgencyCommand
     observed_quantity = normalize_observed_capacity_quantity(@observed_quantity)
     observed_at = normalize_observed_at(@observed_at)
     recorded_at = normalize_recorded_at(@recorded_at)
+    submitted_recorded_at = @recorded_at
     evidence_attrs = normalize_capacity_event_evidence_or_override(@attributes)
 
     ActiveRecord::Base.transaction do
@@ -55,7 +56,7 @@ class ReconcileCapacityPool < AgencyCommand
         capacity_pool_id: locked_pool.id,
         observed_quantity: observed_quantity,
         observed_at: observed_at,
-        recorded_at: recorded_at,
+        recorded_at: recorded_at_fingerprint(submitted_recorded_at, recorded_at),
         evidence: evidence_attrs
       }
 

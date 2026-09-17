@@ -194,6 +194,177 @@ class CapacityEventCommandsTest < ActiveSupport::TestCase
     assert_equal 1, AuditEvent.where(action: "supplier_arrangement.capacity_event_recorded", subject_id: graph[:arrangement].id).count
   end
 
+  test "event and reconcile idempotency replays when recorded_at is omitted" do
+    travel_to @recorded_at do
+      graph = build_activated_unestablished_capacity_graph
+
+      established = EstablishCapacity.new(
+        agency: @agency,
+        actor: @actor,
+        definition: graph[:pool_definition],
+        projection_lock_version: 0,
+        idempotency_key: "omit-recorded-establish"
+      ).call
+      assert_equal :created, established.status
+
+      replayed_establish = EstablishCapacity.new(
+        agency: @agency,
+        actor: @actor,
+        definition: graph[:pool_definition],
+        projection_lock_version: 0,
+        idempotency_key: "omit-recorded-establish"
+      ).call
+      assert_equal :replayed, replayed_establish.status
+      assert_equal established.record.id, replayed_establish.record.id
+
+      increased = IncreaseCapacity.new(
+        agency: @agency,
+        actor: @actor,
+        pool: graph[:pool],
+        quantity: 1,
+        projection_lock_version: graph[:pool].reload.capacity_projection.lock_version,
+        idempotency_key: "omit-recorded-increase",
+        attributes: ordinary_evidence
+      ).call
+      replayed_increase = IncreaseCapacity.new(
+        agency: @agency,
+        actor: @actor,
+        pool: graph[:pool],
+        quantity: 1,
+        projection_lock_version: 0,
+        idempotency_key: "omit-recorded-increase",
+        attributes: ordinary_evidence
+      ).call
+      assert_equal :replayed, replayed_increase.status
+      assert_equal increased.record.id, replayed_increase.record.id
+
+      observed_at = @recorded_at + 2.hours
+      observed_quantity = graph[:pool].capacity_projection.reload.current_supplier_capacity
+      reconciled = ReconcileCapacityPool.new(
+        agency: @agency,
+        actor: @actor,
+        pool: graph[:pool],
+        observed_quantity: observed_quantity,
+        observed_at: observed_at,
+        projection_lock_version: graph[:pool].capacity_projection.lock_version,
+        idempotency_key: "omit-recorded-reconcile",
+        attributes: ordinary_evidence
+      ).call
+      replayed_reconcile = ReconcileCapacityPool.new(
+        agency: @agency,
+        actor: @actor,
+        pool: graph[:pool],
+        observed_quantity: observed_quantity,
+        observed_at: observed_at,
+        projection_lock_version: 0,
+        idempotency_key: "omit-recorded-reconcile",
+        attributes: ordinary_evidence
+      ).call
+      assert_equal :matched, replayed_reconcile.status
+      assert_equal reconciled.record.id, replayed_reconcile.record.id
+    end
+  end
+
+  test "multi release reinstatement is atomic under one idempotency key and audit" do
+    graph = build_activated_established_capacity_graph(recorded_at: @recorded_at)
+    first_release = ReleaseCapacity.new(
+      agency: @agency,
+      actor: @actor,
+      pool: graph[:pool],
+      quantity: 2,
+      projection_lock_version: graph[:projection].reload.lock_version,
+      idempotency_key: "release-one",
+      recorded_at: @recorded_at + 1.hour,
+      attributes: ordinary_evidence
+    ).call.record
+    second_release = ReleaseCapacity.new(
+      agency: @agency,
+      actor: @actor,
+      pool: graph[:pool],
+      quantity: 3,
+      projection_lock_version: graph[:projection].reload.lock_version,
+      idempotency_key: "release-two",
+      recorded_at: @recorded_at + 2.hours,
+      attributes: ordinary_evidence
+    ).call.record
+
+    result = ReinstateCapacity.new(
+      agency: @agency,
+      actor: @actor,
+      projection_lock_version: graph[:projection].reload.lock_version,
+      idempotency_key: "multi-reinstate",
+      recorded_at: @recorded_at + 3.hours,
+      attributes: ordinary_evidence,
+      releases: [
+        { release_event: first_release, quantity: 2 },
+        { release_event: second_release, quantity: 1 }
+      ]
+    ).call
+
+    events = Array(result.record)
+    assert_equal :created, result.status
+    assert_equal 2, events.size
+    assert_equal [ first_release.id, second_release.id ], events.map(&:reinstates_event_id)
+    assert_equal 8 - 2 - 3 + 2 + 1, graph[:projection].reload.current_supplier_capacity
+
+    audit = AuditEvent.where(action: "supplier_arrangement.capacity_event_recorded", subject_id: graph[:arrangement].id).order(:created_at).last
+    assert_equal events.map(&:id), audit.details["capacity_event_ids"]
+
+    replayed = ReinstateCapacity.new(
+      agency: @agency,
+      actor: @actor,
+      projection_lock_version: 0,
+      idempotency_key: "multi-reinstate",
+      recorded_at: @recorded_at + 3.hours,
+      attributes: ordinary_evidence,
+      releases: [
+        { release_event: first_release, quantity: 2 },
+        { release_event: second_release, quantity: 1 }
+      ]
+    ).call
+    assert_equal :replayed, replayed.status
+    assert_equal events.map(&:id), Array(replayed.record).map(&:id)
+    assert_equal 1, AuditEvent.where(action: "supplier_arrangement.capacity_event_recorded", subject_id: graph[:arrangement].id)
+      .select { |event| event.details["capacity_event_ids"] == events.map(&:id) }
+      .count
+  end
+
+  test "inactive supplier corrected up requires override path" do
+    graph = build_activated_established_capacity_graph(recorded_at: @recorded_at)
+    @provider.update!(status: "inactive")
+
+    error = assert_raises(AgencyCommand::Error) do
+      CorrectCapacityUp.new(
+        agency: @agency,
+        actor: @actor,
+        pool: graph[:pool],
+        quantity: 1,
+        projection_lock_version: graph[:projection].reload.lock_version,
+        idempotency_key: "inactive-up-evidence",
+        recorded_at: @recorded_at + 1.hour,
+        attributes: ordinary_evidence.merge(corrects_event_id: graph[:established_event].id)
+      ).call
+    end
+    assert_equal :invalid_state, error.code
+
+    result = CorrectCapacityUp.new(
+      agency: @agency,
+      actor: @actor,
+      pool: graph[:pool],
+      quantity: 1,
+      projection_lock_version: graph[:projection].reload.lock_version,
+      idempotency_key: "inactive-up-override",
+      recorded_at: @recorded_at + 1.hour,
+      attributes: {
+        override: true,
+        override_reason: "Preserve historical truth after forced inactivation.",
+        corrects_event_id: graph[:established_event].id
+      }
+    ).call
+    assert result.record.override?
+    assert_equal 9, graph[:projection].reload.current_supplier_capacity
+  end
+
   test "app code does not branch on Rails env test" do
     text_extensions = %w[.rb .erb .js .css .html]
     app_files = Rails.root.glob("app/**/*").select do |path|

@@ -179,6 +179,41 @@ class CapacityConstraintsTest < ActiveSupport::TestCase
     end
   end
 
+  test "nonnumeric pools reject quantity events projections and reconciliations at the database" do
+    graph = create_graph(prefix: "Nonnumeric")
+    pair = CapacityPairDefinition.create!(pair_attributes(graph))
+    pool = CapacityPool.create!(pool_attributes(graph).merge(inventory_mode: "on_request"))
+    pool_definition = CapacityPoolDefinition.create!(
+      pool_definition_attributes(graph: graph, pool: pool, pair: pair)
+        .merge(proposed_opening_quantity: nil, evidence_kind: nil, evidence_on: nil, evidence_reference_note: nil)
+    )
+    graph = graph.merge(pair: pair, pool: pool, pool_definition: pool_definition)
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      CapacityPoolDefinition.transaction(requires_new: true) do
+        CapacityPoolDefinition.where(id: pool_definition.id).update_all(proposed_opening_quantity: 3)
+      end
+    end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      CapacityEvent.transaction(requires_new: true) do
+        CapacityEvent.insert!(event_row(graph: graph))
+      end
+    end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      CapacityProjection.transaction(requires_new: true) do
+        CapacityProjection.insert!(projection_row(graph: graph))
+      end
+    end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      CapacityReconciliation.transaction(requires_new: true) do
+        CapacityReconciliation.insert!(reconciliation_row(graph: graph))
+      end
+    end
+  end
+
   private
 
   def create_supplier(agency, reference, name)
@@ -467,6 +502,57 @@ class CapacityConstraintsTest < ActiveSupport::TestCase
       corrects_event_id: nil,
       capacity_reconciliation_id: nil,
       actor_id: @actor.id,
+      agency_command_idempotency_key_id: nil,
+      created_at: Time.current,
+      updated_at: Time.current
+    }.merge(attrs)
+  end
+
+  def projection_row(graph:, **attrs)
+    {
+      id: SecureRandom.uuid_v7,
+      agency_id: @agency.id,
+      departure_id: @departure.id,
+      supplier_arrangement_id: graph[:arrangement].id,
+      arrangement_item_id: graph[:item].id,
+      service_occurrence_id: graph[:occurrence].id,
+      supplier_resource_id: graph[:resource].id,
+      capacity_pool_id: graph[:pool].id,
+      current_supplier_capacity: 8,
+      last_event_id: nil,
+      next_applies_at: nil,
+      next_event_id: nil,
+      rebuilt_at: Time.zone.parse("2026-06-01 12:00:00 UTC"),
+      lock_version: 0,
+      created_at: Time.current,
+      updated_at: Time.current
+    }.merge(attrs)
+  end
+
+  def reconciliation_row(graph:, **attrs)
+    {
+      id: SecureRandom.uuid_v7,
+      agency_id: @agency.id,
+      departure_id: @departure.id,
+      supplier_arrangement_id: graph[:arrangement].id,
+      supplier_arrangement_version_id: graph[:version].id,
+      arrangement_item_id: graph[:item].id,
+      service_occurrence_id: graph[:occurrence].id,
+      supplier_resource_id: graph[:resource].id,
+      capacity_pool_id: graph[:pool].id,
+      observed_quantity: 8,
+      observed_at: Time.zone.parse("2026-06-02 12:00:00 UTC"),
+      observed_time_zone: "America/New_York",
+      ledger_quantity: 8,
+      variance: 0,
+      evidence_kind: "supplier_confirmation",
+      evidence_on: Date.new(2026, 6, 2),
+      evidence_reference_note: "Supplier confirmed capacity",
+      evidence_external_reference: nil,
+      override: false,
+      override_reason: nil,
+      actor_id: @actor.id,
+      recorded_at: Time.zone.parse("2026-06-02 12:30:00 UTC"),
       agency_command_idempotency_key_id: nil,
       created_at: Time.current,
       updated_at: Time.current

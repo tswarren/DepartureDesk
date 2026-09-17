@@ -19,6 +19,8 @@ module ItemCapacityAccess
       .where(arrangement_item: @arrangement_item)
       .order(Arel.sql("starts_on ASC, CASE WHEN starts_at_local IS NULL THEN 0 ELSE 1 END ASC, starts_at_local ASC NULLS FIRST, lower(name) ASC, id ASC"))
       .to_a
+    @active_occurrence_definitions = @occurrence_definitions.reject { |definition| definition.service_occurrence.cancelled? }
+    @retained_cancelled_occurrence_definitions = @occurrence_definitions.select { |definition| definition.service_occurrence.cancelled? }
     @resource_definitions = @supplier_arrangement_version.supplier_resource_definitions
       .includes(:supplier_resource)
       .where(arrangement_item: @arrangement_item)

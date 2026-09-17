@@ -422,6 +422,82 @@ $$;
 
 
 --
+-- Name: reject_nonnumeric_capacity_event(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_nonnumeric_capacity_event() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  pool_mode text;
+BEGIN
+  SELECT inventory_mode INTO pool_mode FROM capacity_pools WHERE id = NEW.capacity_pool_id;
+  IF pool_mode IN ('on_request', 'externally_managed') THEN
+    RAISE EXCEPTION 'nonnumeric capacity pools cannot store capacity events';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_nonnumeric_capacity_pool_definition_quantity(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_nonnumeric_capacity_pool_definition_quantity() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  pool_mode text;
+BEGIN
+  SELECT inventory_mode INTO pool_mode FROM capacity_pools WHERE id = NEW.capacity_pool_id;
+  IF pool_mode IN ('on_request', 'externally_managed') AND NEW.proposed_opening_quantity IS NOT NULL THEN
+    RAISE EXCEPTION 'nonnumeric capacity pools cannot store a proposed opening quantity';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_nonnumeric_capacity_projection(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_nonnumeric_capacity_projection() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  pool_mode text;
+BEGIN
+  SELECT inventory_mode INTO pool_mode FROM capacity_pools WHERE id = NEW.capacity_pool_id;
+  IF pool_mode IN ('on_request', 'externally_managed') THEN
+    RAISE EXCEPTION 'nonnumeric capacity pools cannot store projections';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_nonnumeric_capacity_reconciliation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_nonnumeric_capacity_reconciliation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  pool_mode text;
+BEGIN
+  SELECT inventory_mode INTO pool_mode FROM capacity_pools WHERE id = NEW.capacity_pool_id;
+  IF pool_mode IN ('on_request', 'externally_managed') THEN
+    RAISE EXCEPTION 'nonnumeric capacity pools cannot store reconciliations';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_office_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -797,7 +873,7 @@ CREATE TABLE public.arrangement_item_definitions (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     capacity_management character varying,
-    CONSTRAINT arrangement_item_definitions_capacity_management CHECK (((capacity_management IS NULL) OR ((capacity_management)::text = ANY ((ARRAY['managed'::character varying, 'unmanaged'::character varying])::text[])))),
+    CONSTRAINT arrangement_item_definitions_capacity_management CHECK (((capacity_management IS NULL) OR ((capacity_management)::text = ANY (ARRAY[('managed'::character varying)::text, ('unmanaged'::character varying)::text])))),
     CONSTRAINT arrangement_item_definitions_category CHECK (((category)::text = ANY (ARRAY[('cruise'::character varying)::text, ('lodging'::character varying)::text, ('air'::character varying)::text, ('ground_transportation'::character varying)::text, ('dining'::character varying)::text, ('activity_attraction'::character varying)::text, ('insurance'::character varying)::text, ('other'::character varying)::text]))),
     CONSTRAINT arrangement_item_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
     CONSTRAINT arrangement_item_definitions_lock_version CHECK ((lock_version >= 0)),
@@ -878,15 +954,15 @@ CREATE TABLE public.capacity_events (
     agency_command_idempotency_key_id uuid,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT capacity_events_correction_source_xor CHECK ((((event_type)::text <> ALL ((ARRAY['corrected_up'::character varying, 'corrected_down'::character varying])::text[])) OR ((corrects_event_id IS NOT NULL) <> (capacity_reconciliation_id IS NOT NULL)))),
-    CONSTRAINT capacity_events_correction_sources_only CHECK ((((event_type)::text = ANY ((ARRAY['corrected_up'::character varying, 'corrected_down'::character varying])::text[])) OR ((corrects_event_id IS NULL) AND (capacity_reconciliation_id IS NULL)))),
+    CONSTRAINT capacity_events_correction_source_xor CHECK ((((event_type)::text <> ALL (ARRAY[('corrected_up'::character varying)::text, ('corrected_down'::character varying)::text])) OR ((corrects_event_id IS NOT NULL) <> (capacity_reconciliation_id IS NOT NULL)))),
+    CONSTRAINT capacity_events_correction_sources_only CHECK ((((event_type)::text = ANY (ARRAY[('corrected_up'::character varying)::text, ('corrected_down'::character varying)::text])) OR ((corrects_event_id IS NULL) AND (capacity_reconciliation_id IS NULL)))),
     CONSTRAINT capacity_events_effective_time_zone CHECK ((btrim((effective_time_zone)::text) <> ''::text)),
-    CONSTRAINT capacity_events_evidence_xor_override CHECK ((((override = false) AND (override_reason IS NULL) AND ((evidence_kind)::text = ANY ((ARRAY['contract'::character varying, 'supplier_confirmation'::character varying, 'supplier_message'::character varying, 'supplier_portal'::character varying, 'verbal_confirmation'::character varying, 'other'::character varying])::text[])) AND (evidence_on IS NOT NULL) AND (evidence_reference_note IS NOT NULL) AND (btrim((evidence_reference_note)::text) <> ''::text) AND (char_length((evidence_reference_note)::text) <= 500) AND ((evidence_external_reference IS NULL) OR ((btrim((evidence_external_reference)::text) <> ''::text) AND (char_length((evidence_external_reference)::text) <= 160)))) OR ((override = true) AND (override_reason IS NOT NULL) AND (btrim((override_reason)::text) <> ''::text) AND (char_length((override_reason)::text) <= 500) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)))),
-    CONSTRAINT capacity_events_measurement_basis CHECK (((measurement_basis)::text = ANY ((ARRAY['resource_units'::character varying, 'traveler_positions'::character varying])::text[]))),
+    CONSTRAINT capacity_events_evidence_xor_override CHECK ((((override = false) AND (override_reason IS NULL) AND ((evidence_kind)::text = ANY (ARRAY[('contract'::character varying)::text, ('supplier_confirmation'::character varying)::text, ('supplier_message'::character varying)::text, ('supplier_portal'::character varying)::text, ('verbal_confirmation'::character varying)::text, ('other'::character varying)::text])) AND (evidence_on IS NOT NULL) AND (evidence_reference_note IS NOT NULL) AND (btrim((evidence_reference_note)::text) <> ''::text) AND (char_length((evidence_reference_note)::text) <= 500) AND ((evidence_external_reference IS NULL) OR ((btrim((evidence_external_reference)::text) <> ''::text) AND (char_length((evidence_external_reference)::text) <= 160)))) OR ((override = true) AND (override_reason IS NOT NULL) AND (btrim((override_reason)::text) <> ''::text) AND (char_length((override_reason)::text) <= 500) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)))),
+    CONSTRAINT capacity_events_measurement_basis CHECK (((measurement_basis)::text = ANY (ARRAY[('resource_units'::character varying)::text, ('traveler_positions'::character varying)::text]))),
     CONSTRAINT capacity_events_quantity_positive CHECK ((quantity > 0)),
     CONSTRAINT capacity_events_reinstates_pair CHECK ((((event_type)::text = 'reinstated'::text) = (reinstates_event_id IS NOT NULL))),
     CONSTRAINT capacity_events_sequence_positive CHECK ((effective_sequence > 0)),
-    CONSTRAINT capacity_events_type CHECK (((event_type)::text = ANY ((ARRAY['established'::character varying, 'increased'::character varying, 'released'::character varying, 'reinstated'::character varying, 'withdrawn'::character varying, 'corrected_up'::character varying, 'corrected_down'::character varying])::text[])))
+    CONSTRAINT capacity_events_type CHECK (((event_type)::text = ANY (ARRAY[('established'::character varying)::text, ('increased'::character varying)::text, ('released'::character varying)::text, ('reinstated'::character varying)::text, ('withdrawn'::character varying)::text, ('corrected_up'::character varying)::text, ('corrected_down'::character varying)::text])))
 );
 
 
@@ -907,7 +983,7 @@ CREATE TABLE public.capacity_pair_definitions (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT capacity_pair_definitions_classification CHECK (((classification)::text = ANY ((ARRAY['pooled'::character varying, 'not_applicable'::character varying])::text[]))),
+    CONSTRAINT capacity_pair_definitions_classification CHECK (((classification)::text = ANY (ARRAY[('pooled'::character varying)::text, ('not_applicable'::character varying)::text]))),
     CONSTRAINT capacity_pair_definitions_lock_version CHECK ((lock_version >= 0))
 );
 
@@ -942,7 +1018,7 @@ CREATE TABLE public.capacity_pool_definitions (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT capacity_pool_defs_evidence_xor_override CHECK ((((override = false) AND (override_reason IS NULL) AND ((evidence_kind)::text = ANY ((ARRAY['contract'::character varying, 'supplier_confirmation'::character varying, 'supplier_message'::character varying, 'supplier_portal'::character varying, 'verbal_confirmation'::character varying, 'other'::character varying])::text[])) AND (evidence_on IS NOT NULL) AND (evidence_reference_note IS NOT NULL) AND (btrim((evidence_reference_note)::text) <> ''::text) AND (char_length((evidence_reference_note)::text) <= 500) AND ((evidence_external_reference IS NULL) OR ((btrim((evidence_external_reference)::text) <> ''::text) AND (char_length((evidence_external_reference)::text) <= 160)))) OR ((override = true) AND (override_reason IS NOT NULL) AND (btrim((override_reason)::text) <> ''::text) AND (char_length((override_reason)::text) <= 500) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)) OR ((override = false) AND (override_reason IS NULL) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)))),
+    CONSTRAINT capacity_pool_defs_evidence_xor_override CHECK ((((override = false) AND (override_reason IS NULL) AND ((evidence_kind)::text = ANY (ARRAY[('contract'::character varying)::text, ('supplier_confirmation'::character varying)::text, ('supplier_message'::character varying)::text, ('supplier_portal'::character varying)::text, ('verbal_confirmation'::character varying)::text, ('other'::character varying)::text])) AND (evidence_on IS NOT NULL) AND (evidence_reference_note IS NOT NULL) AND (btrim((evidence_reference_note)::text) <> ''::text) AND (char_length((evidence_reference_note)::text) <= 500) AND ((evidence_external_reference IS NULL) OR ((btrim((evidence_external_reference)::text) <> ''::text) AND (char_length((evidence_external_reference)::text) <= 160)))) OR ((override = true) AND (override_reason IS NOT NULL) AND (btrim((override_reason)::text) <> ''::text) AND (char_length((override_reason)::text) <= 500) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)) OR ((override = false) AND (override_reason IS NULL) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)))),
     CONSTRAINT capacity_pool_defs_label CHECK (((btrim((label)::text) <> ''::text) AND (char_length((label)::text) <= 120))),
     CONSTRAINT capacity_pool_defs_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT capacity_pool_defs_normalized_label CHECK (((btrim((normalized_label)::text) <> ''::text) AND ((normalized_label)::text = lower(btrim((label)::text))) AND (char_length((normalized_label)::text) <= 120))),
@@ -972,8 +1048,8 @@ CREATE TABLE public.capacity_pools (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT capacity_pools_effective_time_zone CHECK ((btrim((effective_time_zone)::text) <> ''::text)),
-    CONSTRAINT capacity_pools_inventory_mode CHECK (((inventory_mode)::text = ANY ((ARRAY['block'::character varying, 'allotment'::character varying, 'on_request'::character varying, 'externally_managed'::character varying])::text[]))),
-    CONSTRAINT capacity_pools_measurement_basis CHECK (((measurement_basis)::text = ANY ((ARRAY['resource_units'::character varying, 'traveler_positions'::character varying])::text[])))
+    CONSTRAINT capacity_pools_inventory_mode CHECK (((inventory_mode)::text = ANY (ARRAY[('block'::character varying)::text, ('allotment'::character varying)::text, ('on_request'::character varying)::text, ('externally_managed'::character varying)::text]))),
+    CONSTRAINT capacity_pools_measurement_basis CHECK (((measurement_basis)::text = ANY (ARRAY[('resource_units'::character varying)::text, ('traveler_positions'::character varying)::text])))
 );
 
 
@@ -1061,7 +1137,7 @@ CREATE TABLE public.capacity_reconciliations (
     agency_command_idempotency_key_id uuid,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT capacity_reconciliations_evidence_xor_override CHECK ((((override = false) AND (override_reason IS NULL) AND ((evidence_kind)::text = ANY ((ARRAY['contract'::character varying, 'supplier_confirmation'::character varying, 'supplier_message'::character varying, 'supplier_portal'::character varying, 'verbal_confirmation'::character varying, 'other'::character varying])::text[])) AND (evidence_on IS NOT NULL) AND (evidence_reference_note IS NOT NULL) AND (btrim((evidence_reference_note)::text) <> ''::text) AND (char_length((evidence_reference_note)::text) <= 500) AND ((evidence_external_reference IS NULL) OR ((btrim((evidence_external_reference)::text) <> ''::text) AND (char_length((evidence_external_reference)::text) <= 160)))) OR ((override = true) AND (override_reason IS NOT NULL) AND (btrim((override_reason)::text) <> ''::text) AND (char_length((override_reason)::text) <= 500) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)))),
+    CONSTRAINT capacity_reconciliations_evidence_xor_override CHECK ((((override = false) AND (override_reason IS NULL) AND ((evidence_kind)::text = ANY (ARRAY[('contract'::character varying)::text, ('supplier_confirmation'::character varying)::text, ('supplier_message'::character varying)::text, ('supplier_portal'::character varying)::text, ('verbal_confirmation'::character varying)::text, ('other'::character varying)::text])) AND (evidence_on IS NOT NULL) AND (evidence_reference_note IS NOT NULL) AND (btrim((evidence_reference_note)::text) <> ''::text) AND (char_length((evidence_reference_note)::text) <= 500) AND ((evidence_external_reference IS NULL) OR ((btrim((evidence_external_reference)::text) <> ''::text) AND (char_length((evidence_external_reference)::text) <= 160)))) OR ((override = true) AND (override_reason IS NOT NULL) AND (btrim((override_reason)::text) <> ''::text) AND (char_length((override_reason)::text) <= 500) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)))),
     CONSTRAINT capacity_reconciliations_ledger_nonnegative CHECK ((ledger_quantity >= 0)),
     CONSTRAINT capacity_reconciliations_observed_nonnegative CHECK ((observed_quantity >= 0)),
     CONSTRAINT capacity_reconciliations_observed_time_zone CHECK ((btrim((observed_time_zone)::text) <> ''::text)),
@@ -2437,7 +2513,7 @@ CREATE UNIQUE INDEX index_capacity_events_on_id_pool_agency ON public.capacity_e
 -- Name: index_capacity_events_on_idempotency_key; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_capacity_events_on_idempotency_key ON public.capacity_events USING btree (agency_command_idempotency_key_id) WHERE (agency_command_idempotency_key_id IS NOT NULL);
+CREATE INDEX index_capacity_events_on_idempotency_key ON public.capacity_events USING btree (agency_command_idempotency_key_id) WHERE (agency_command_idempotency_key_id IS NOT NULL);
 
 
 --
@@ -3925,6 +4001,13 @@ CREATE TRIGGER capacity_events_reject_delete BEFORE DELETE ON public.capacity_ev
 
 
 --
+-- Name: capacity_events capacity_events_reject_nonnumeric_pool; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_events_reject_nonnumeric_pool BEFORE INSERT ON public.capacity_events FOR EACH ROW EXECUTE FUNCTION public.reject_nonnumeric_capacity_event();
+
+
+--
 -- Name: capacity_events capacity_events_reject_update; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -3946,6 +4029,13 @@ CREATE TRIGGER capacity_pairs_reject_cancelled_occurrence BEFORE INSERT OR UPDAT
 
 
 --
+-- Name: capacity_pool_definitions capacity_pool_definitions_reject_nonnumeric_quantity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pool_definitions_reject_nonnumeric_quantity BEFORE INSERT OR UPDATE ON public.capacity_pool_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_nonnumeric_capacity_pool_definition_quantity();
+
+
+--
 -- Name: capacity_pool_definitions capacity_pool_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -3964,6 +4054,13 @@ CREATE TRIGGER capacity_pools_reject_invalid_zone BEFORE INSERT OR UPDATE OF eff
 --
 
 CREATE TRIGGER capacity_pools_reject_owner_change BEFORE UPDATE ON public.capacity_pools FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_pool_owner_change();
+
+
+--
+-- Name: capacity_projections capacity_projections_reject_nonnumeric_pool; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_projections_reject_nonnumeric_pool BEFORE INSERT ON public.capacity_projections FOR EACH ROW EXECUTE FUNCTION public.reject_nonnumeric_capacity_projection();
 
 
 --
@@ -3992,6 +4089,13 @@ CREATE TRIGGER capacity_reconciliation_resolutions_reject_update BEFORE UPDATE O
 --
 
 CREATE TRIGGER capacity_reconciliations_reject_delete BEFORE DELETE ON public.capacity_reconciliations FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_reconciliation_mutation();
+
+
+--
+-- Name: capacity_reconciliations capacity_reconciliations_reject_nonnumeric_pool; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_reconciliations_reject_nonnumeric_pool BEFORE INSERT ON public.capacity_reconciliations FOR EACH ROW EXECUTE FUNCTION public.reject_nonnumeric_capacity_reconciliation();
 
 
 --
@@ -5169,6 +5273,8 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260916220000'),
+('20260916210000'),
 ('20260916200000'),
 ('20260916140000'),
 ('20260916010000'),
