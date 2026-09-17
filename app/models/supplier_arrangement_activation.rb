@@ -27,6 +27,9 @@ class SupplierArrangementActivation < ApplicationRecord
     :supplier_arrangement_version_id
 
   validates :activated_at, :coverage_attestation_version, :coverage_fingerprint, presence: true
+  validates :cost_source_coverage_acknowledged,
+    :commitment_trigger_coverage_acknowledged,
+    inclusion: { in: [ true ] }
   validate :predecessor_matches_kind
 
   private

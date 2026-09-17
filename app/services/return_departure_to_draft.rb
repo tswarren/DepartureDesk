@@ -26,6 +26,14 @@ class ReturnDepartureToDraft < AgencyCommand
       end
 
       ensure_current_lock_version!(departure)
+      if SupplierArrangementActivation.where(
+        agency_id: @agency.id, departure_id: departure.id
+      ).exists?
+        raise Error.new(
+          "A departure with arrangement activation history cannot return to draft.",
+          code: :invalid_state
+        )
+      end
       reason = normalized_reason
       departure.update!(status: "draft")
       audit!(
