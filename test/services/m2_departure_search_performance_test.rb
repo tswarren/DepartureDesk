@@ -128,8 +128,9 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     assert_equal SearchDepartures::FETCH_LIMIT, lookahead.limit_value
     assert_equal 51, lookahead.to_a.size
 
-    # Status filters still order by starts_on, so PostgreSQL may use either named
-    # composite. Generic tenant indexes (agency_id / id+agency_id) are not accepted.
+    # Status-filtered and sweep selectors still order by starts_on, so PostgreSQL
+    # may use either named composite. Generic tenant indexes (agency_id /
+    # id+agency_id) are not accepted.
     status_indexes = /index_departures_on_agency_status_starts_on_id|index_departures_on_agency_starts_on_name_id/
     [
       [ "blank browse", {}, "index_departures_on_agency_starts_on_name_id" ],
@@ -152,7 +153,7 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     end
 
     sweep = MarkEligibleDeparturesDepartedJob.candidate_relation(at: Time.utc(2026, 6, 15, 12, 0, 0))
-    assert_index_eligible(sweep, "index_departures_on_agency_status_starts_on_id", "sweep selector")
+    assert_index_eligible(sweep, status_indexes, "sweep selector")
   end
 
   private
