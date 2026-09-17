@@ -1,0 +1,66 @@
+<% content_for :title, "Cost forecast · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Tentative supplier planning</p>
+    <h1 class="dd-page-title">Cost forecast</h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %> · <%= @departure.operating_currency %></p>
+  </div>
+  <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+</header>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title"><%= @forecast.subtotal_label %></h2>
+      <p><%= @forecast.complete ? "✓ Complete declared-cost forecast" : "⚠ Incomplete — no missing fact is treated as zero" %></p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div><dt>Supplier charges</dt><dd><%= Money.new(@forecast.totals.supplier_charges_minor_units, @forecast.currency).format %></dd></div>
+      <div><dt>Supplier credits</dt><dd><%= Money.new(@forecast.totals.supplier_credits_minor_units, @forecast.currency).format %></dd></div>
+      <div><dt>Forecast Supplier cost</dt><dd><%= Money.new(@forecast.totals.forecast_supplier_cost_minor_units, @forecast.currency).format %></dd></div>
+      <div><dt>Expected commission</dt><dd><%= Money.new(@forecast.totals.expected_commission_minor_units, @forecast.currency).format %></dd></div>
+      <div><dt>Expected net cost after commission</dt><dd><%= Money.new(@forecast.totals.expected_net_cost_after_commission_minor_units, @forecast.currency).format %></dd></div>
+    </dl>
+    <ul>
+      <% @forecast.uncovered_item_ids.each do |item_id| %>
+        <li><%= @items_by_id[item_id]&.name || "Retained Item" %> has no Item-scoped cost source.</li>
+      <% end %>
+      <% @forecast.sources.reject(&:complete).each do |result| %>
+        <li><%= result.label %>: <%= result.warnings.map { |warning| warning[:message] }.join(" ") %></li>
+      <% end %>
+    </ul>
+    <p>This status proves Item-level coverage plus declared-source completeness only; it does not infer omitted real-world costs.</p>
+  </div>
+</article>
+
+<% @forecast.sources.each do |result| %>
+  <% source = @sources_by_id[result.source_id] %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title"><%= result.label %></h2>
+        <p><%= result.complete ? "✓ Complete" : "⚠ Incomplete" %> · <%= result.selected_stage&.humanize || "No selected stage" %> · <%= source&.charging_supplier&.display_name %></p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <p><%= result.selection_reason %></p>
+      <% if result.complete %>
+        <dl class="dd-definition-list">
+          <div><dt>Forecast Supplier cost</dt><dd><%= Money.new(result.totals.forecast_supplier_cost_minor_units, result.currency).format %></dd></div>
+          <div><dt>Expected commission</dt><dd><%= Money.new(result.totals.expected_commission_minor_units, result.currency).format %></dd></div>
+          <div><dt>Expected net cost after commission</dt><dd><%= Money.new(result.totals.expected_net_cost_after_commission_minor_units, result.currency).format %></dd></div>
+        </dl>
+      <% end %>
+      <% result.components.each do |component| %>
+        <details>
+          <summary><%= component.label %> — <%= Money.new(component.rounded_minor_units, result.currency).format %></summary>
+          <p><%= component.calculation_kind.humanize %> · <%= component.economic_role.humanize %> · rounded <%= component.rounding_mode.humanize %> at the currency minor unit.</p>
+          <pre><%= JSON.pretty_generate(component.formula) %></pre>
+        </details>
+      <% end %>
+    </div>
+  </article>
+<% end %>

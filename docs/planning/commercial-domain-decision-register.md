@@ -85,8 +85,9 @@ Confirmation must fail without partial side effects when a required hold has exp
 2. The component must state whether it is included in or added to the quoted amount.
 3. Calculation order comes from the applicable recorded pricing terms, not an arbitrary Agency-wide formula.
 4. A posted component snapshots its base, rate, calculation order, rounding method, and minor-unit result.
-5. Calculations may retain additional internal precision, but each posted source line is rounded to the transaction currency's minor unit.
-6. A contract-total difference caused by line rounding is represented as a visible rounding-adjustment line.
+5. A draft planning evaluation is not a posted component. It may return a deterministic calculated result without persisting that result when the governing slice stores all authoritative inputs, rates, bases, order, currency, and rounding policy. A later posted source line still snapshots its calculated minor-unit result.
+6. Calculations may retain additional internal precision, but each posted source line is rounded to the transaction currency's minor unit.
+7. A contract-total difference caused by line rounding is represented as a visible rounding-adjustment line.
 
 ## 4. Client Receipts, credits, and externally collected value
 

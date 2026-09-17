@@ -1,0 +1,149 @@
+<% item = local_assigns[:item] %>
+<% sources = local_assigns.fetch(:sources) %>
+<% editable = local_assigns.fetch(:editable) %>
+<% source_collection_path = item ? departure_arrangement_item_costs_path(@departure, @supplier_arrangement, item) : departure_arrangement_costs_path(@departure, @supplier_arrangement) %>
+
+<% if sources.empty? %>
+  <p class="<%= empty_state_classes.join(" ") %>">No declared cost sources.</p>
+<% end %>
+
+<% sources.each do |source| %>
+  <article id="cost-source-<%= source.id %>" class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h4 class="dd-panel-title"><%= source.label %></h4>
+        <p><%= source.charging_supplier.display_name %> · <%= source.arrangement_wide? ? "Arrangement-wide" : "Item cost" %></p>
+      </div>
+      <% if editable %>
+        <% source_path = item ? departure_arrangement_item_cost_path(@departure, @supplier_arrangement, item, source) : departure_arrangement_cost_path(@departure, @supplier_arrangement, source) %>
+        <%= button_to "Remove", source_path, method: :delete, class: "dd-row-action",
+          form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this cost source and all its stages?" } },
+          params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+      <% end %>
+    </header>
+    <div class="dd-panel-body">
+      <% source.supplier_cost_definitions.sort_by { |definition| definition.estimate? ? 0 : 1 }.each do |definition| %>
+        <section id="definition-<%= definition.id %>">
+          <header class="dd-panel-header">
+            <div>
+              <h5 class="dd-panel-title"><%= definition.stage.humanize %></h5>
+              <p>
+                <%= definition.forecast_ready? ? "✓ Forecast ready" : "⚠ Working — not selected for forecast" %>
+                · <%= definition.mode.humanize %> · <%= definition.currency %>
+              </p>
+            </div>
+          </header>
+          <% if definition.zero_cost? %>
+            <p>Known zero: <%= definition.zero_cost_reason %></p>
+          <% elsif definition.supplier_cost_components.empty? %>
+            <p class="<%= empty_state_classes.join(" ") %>">No components yet.</p>
+          <% else %>
+            <div class="dd-table-wrap">
+              <table class="dd-table">
+                <thead><tr><th>Component</th><th>Role</th><th>Formula</th><th>Amount / rate</th></tr></thead>
+                <tbody>
+                  <% definition.supplier_cost_components.sort_by(&:position).each do |component| %>
+                    <tr id="component-<%= component.id %>">
+                      <td><%= component.label %></td>
+                      <td><%= component.economic_role.humanize %></td>
+                      <td><%= component.calculation_kind.humanize %><%= " · #{component.quantity_basis.humanize}" if component.quantity_basis %></td>
+                      <td>
+                        <% if component.amount_minor_units %>
+                          <%= Money.new(component.amount_minor_units, definition.currency).format %>
+                        <% elsif component.rate %>
+                          <%= number_to_percentage(component.rate * 100, precision: 2) %>
+                        <% elsif component.minimum_minor_units %>
+                          minimum <%= Money.new(component.minimum_minor_units, definition.currency).format %>
+                        <% else %>
+                          <%= component.minimum_quantity || "—" %>
+                        <% end %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% end %>
+
+          <% if editable %>
+            <% definition_path = item ? departure_arrangement_item_cost_definition_path(@departure, @supplier_arrangement, item, source, definition) : departure_arrangement_cost_definition_path(@departure, @supplier_arrangement, source, definition) %>
+            <% ready_path = item ? forecast_ready_departure_arrangement_item_cost_definition_path(@departure, @supplier_arrangement, item, source, definition) : forecast_ready_departure_arrangement_cost_definition_path(@departure, @supplier_arrangement, source, definition) %>
+            <% components_path = item ? departure_arrangement_item_cost_definition_components_path(@departure, @supplier_arrangement, item, source, definition) : departure_arrangement_cost_definition_components_path(@departure, @supplier_arrangement, source, definition) %>
+            <details>
+              <summary>Edit <%= definition.stage %> stage</summary>
+              <%= form_with url: definition_path, method: :patch, class: "dd-form" do |form| %>
+                <%= form.hidden_field "supplier_cost_definition[lock_version]", value: definition.lock_version %>
+                <div class="dd-field"><%= form.label "supplier_cost_definition[mode]", "Mode" %><%= form.select "supplier_cost_definition[mode]", SupplierCostDefinition::MODES.map { |value| [ value.humanize, value ] }, selected: definition.mode %></div>
+                <div class="dd-field"><%= form.label "supplier_cost_definition[zero_cost_reason]", "Zero-cost reason" %><%= form.text_field "supplier_cost_definition[zero_cost_reason]", value: definition.zero_cost_reason %></div>
+                <%= form.submit "Save stage", class: "dd-button" %>
+              <% end %>
+            </details>
+            <% unless definition.forecast_ready? %>
+              <%= form_with url: ready_path, method: :post, class: "dd-form" do |form| %>
+                <%= form.hidden_field :lock_version, value: definition.lock_version %>
+                <div class="dd-field"><%= form.label :readiness_provenance, definition.contracted? ? "Contracted-term attestation" : "Provenance note (optional)" %><%= form.text_field :readiness_provenance, required: definition.contracted? %></div>
+                <%= form.submit "Mark forecast ready", class: "dd-button" %>
+              <% end %>
+            <% end %>
+            <% if definition.calculated? %>
+              <details>
+                <summary>Add component</summary>
+                <%= form_with url: components_path, method: :post, class: "dd-form" do |form| %>
+                  <%= form.hidden_field :idempotency_key, value: SecureRandom.uuid %>
+                  <%= form.hidden_field :definition_lock_version, value: definition.lock_version %>
+                  <p class="dd-field-hint">Use only the fields that match Calculation. Fixed needs amount only. Unit rate needs amount and quantity basis. Percentage needs rate and treatment. Extra fields for other kinds are ignored.</p>
+                  <div class="dd-field"><%= form.label "supplier_cost_component[label]", "Label" %><%= form.text_field "supplier_cost_component[label]", required: true %></div>
+                  <div class="dd-field"><%= form.label "supplier_cost_component[economic_role]", "Economic role" %><%= form.select "supplier_cost_component[economic_role]", SupplierCostComponent::ECONOMIC_ROLES.map { |value| [ value.humanize, value ] } %></div>
+                  <div class="dd-field"><%= form.label "supplier_cost_component[calculation_kind]", "Calculation" %><%= form.select "supplier_cost_component[calculation_kind]", SupplierCostComponent::CALCULATION_KINDS.map { |value| [ value.humanize, value ] } %></div>
+                  <div class="dd-field"><%= form.label "supplier_cost_component[amount_minor_units]", "Amount (minor units)" %><%= form.number_field "supplier_cost_component[amount_minor_units]", min: 0 %></div>
+                  <div class="dd-field"><%= form.label "supplier_cost_component[rate]", "Rate (1.0 = 100%)" %><%= form.number_field "supplier_cost_component[rate]", min: 0, step: "0.0000000001" %></div>
+                  <div class="dd-field"><%= form.label "supplier_cost_component[minimum_minor_units]", "Minimum amount (minor units)" %><%= form.number_field "supplier_cost_component[minimum_minor_units]", min: 0 %></div>
+                  <div class="dd-field"><%= form.label "supplier_cost_component[minimum_quantity]", "Minimum quantity" %><%= form.number_field "supplier_cost_component[minimum_quantity]", min: 1 %></div>
+                  <div class="dd-field"><%= form.label "supplier_cost_component[quantity_basis]", "Quantity basis" %><%= form.select "supplier_cost_component[quantity_basis]", SupplierCostComponent::QUANTITY_BASES.map { |value| [ value.humanize, value ] }, include_blank: true %></div>
+                  <div class="dd-field"><%= form.label "supplier_cost_component[percentage_treatment]", "Percentage treatment" %><%= form.select "supplier_cost_component[percentage_treatment]", SupplierCostComponent::PERCENTAGE_TREATMENTS.map { |value| [ value.humanize, value ] }, include_blank: true %></div>
+                  <%= form.hidden_field "supplier_cost_component[pass_through]", value: "0" %>
+                  <%= form.submit "Add component", class: "dd-button" %>
+                <% end %>
+              </details>
+            <% end %>
+          <% end %>
+        </section>
+      <% end %>
+
+      <% if editable && source.supplier_cost_definitions.size < 2 %>
+        <% definitions_path = item ? departure_arrangement_item_cost_definitions_path(@departure, @supplier_arrangement, item, source) : departure_arrangement_cost_definitions_path(@departure, @supplier_arrangement, source) %>
+        <details>
+          <summary>Add cost stage</summary>
+          <%= form_with url: definitions_path, method: :post, class: "dd-form" do |form| %>
+            <%= form.hidden_field :idempotency_key, value: SecureRandom.uuid %>
+            <%= form.hidden_field :source_lock_version, value: source.lock_version %>
+            <%= form.hidden_field "supplier_cost_definition[currency]", value: @departure.operating_currency %>
+            <%= form.hidden_field "supplier_cost_definition[rounding_mode]", value: "half_up" %>
+            <div class="dd-field"><%= form.label "supplier_cost_definition[stage]", "Stage" %><%= form.select "supplier_cost_definition[stage]", SupplierCostDefinition::STAGES.map { |value| [ value.humanize, value ] } %></div>
+            <div class="dd-field"><%= form.label "supplier_cost_definition[mode]", "Mode" %><%= form.select "supplier_cost_definition[mode]", SupplierCostDefinition::MODES.map { |value| [ value.humanize, value ] } %></div>
+            <div class="dd-field"><%= form.label "supplier_cost_definition[zero_cost_reason]", "Zero-cost reason" %><%= form.text_field "supplier_cost_definition[zero_cost_reason]" %></div>
+            <%= form.submit "Add stage", class: "dd-button" %>
+          <% end %>
+        </details>
+      <% end %>
+    </div>
+  </article>
+<% end %>
+
+<% if editable %>
+  <details>
+    <summary>Add cost source</summary>
+    <%= form_with url: source_collection_path, method: :post, class: "dd-form" do |form| %>
+      <%= form.hidden_field :idempotency_key, value: SecureRandom.uuid %>
+      <%= form.hidden_field :version_lock_version, value: @supplier_arrangement_version.lock_version %>
+      <div class="dd-field"><%= form.label "supplier_cost_source[label]", "Source label" %><%= form.text_field "supplier_cost_source[label]", required: true %></div>
+      <div class="dd-field"><%= form.label "supplier_cost_source[charging_supplier_id]", "Charging supplier" %><%= form.select "supplier_cost_source[charging_supplier_id]", active_supplier_options.map { |supplier| [ supplier_option_label(supplier), supplier.id ] }, selected: @supplier_arrangement.contracting_supplier_id %></div>
+      <% if item %>
+        <div class="dd-field"><%= form.label "supplier_cost_source[service_occurrence_id]", "Occurrence (optional)" %><%= form.select "supplier_cost_source[service_occurrence_id]", @occurrence_definitions_by_item_id.fetch(item.id, []).map { |definition| [ definition.name, definition.service_occurrence_id ] }, include_blank: "Entire Item" %></div>
+        <div class="dd-field"><%= form.label "supplier_cost_source[supplier_resource_id]", "Resource (optional)" %><%= form.select "supplier_cost_source[supplier_resource_id]", @resource_definitions_by_item_id.fetch(item.id, []).map { |definition| [ definition.name, definition.supplier_resource_id ] }, include_blank: "All resources" %></div>
+      <% end %>
+      <div class="dd-field"><%= form.label "supplier_cost_source[notes]", "Notes" %><%= form.text_area "supplier_cost_source[notes]", rows: 2 %></div>
+      <%= form.submit "Add cost source", class: "dd-button" %>
+    <% end %>
+  </details>
+<% end %>

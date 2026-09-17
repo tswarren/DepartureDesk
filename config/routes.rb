@@ -154,6 +154,27 @@ Rails.application.routes.draw do
       end
       resources :items, controller: "arrangement_items", only: %i[new create edit update destroy] do
         collection { patch :reorder }
+        get "costs/workspace", to: "item_costs#show", as: :costs_workspace
+        resources :costs, controller: "supplier_cost_sources", only: %i[create update destroy] do
+          collection { patch :reorder }
+          resources :definitions, controller: "supplier_cost_definitions", only: %i[create update destroy] do
+            member { post "forecast-ready", action: :forecast_ready, as: :forecast_ready }
+            resources :components, controller: "supplier_cost_components", only: %i[create update destroy] do
+              collection { patch :reorder }
+            end
+          end
+        end
+        resources :participant_categories, path: "participant-categories",
+          controller: "supplier_cost_participant_categories", only: %i[create update destroy] do
+          collection { patch :reorder }
+        end
+        resources :cost_assumptions, path: "cost-assumptions",
+          controller: "supplier_cost_usage_assumptions", only: %i[create update destroy] do
+          resources :occupancy_profiles, path: "occupancy-profiles",
+            controller: "supplier_cost_occupancy_profiles", only: %i[create update destroy] do
+            collection { patch :reorder }
+          end
+        end
         resource :capacity, controller: "item_capacities", only: %i[show update] do
           # Pool routes use a static "pools" segment and must stay ahead of the
           # occurrence/resource classify routes, which share the same depth.
@@ -175,6 +196,17 @@ Rails.application.routes.draw do
           collection { patch :reorder }
         end
       end
+      get "costs/workspace", to: "arrangement_costs#show", as: :costs_workspace
+      resources :costs, controller: "supplier_cost_sources", only: %i[create update destroy] do
+        collection { patch :reorder }
+        resources :definitions, controller: "supplier_cost_definitions", only: %i[create update destroy] do
+          member { post "forecast-ready", action: :forecast_ready, as: :forecast_ready }
+          resources :components, controller: "supplier_cost_components", only: %i[create update destroy] do
+            collection { patch :reorder }
+          end
+        end
+      end
+      get "cost-forecast", to: "supplier_cost_forecasts#show", as: :cost_forecast
     end
   end
   get "departures/:id/return-to-draft", to: "departure_return_to_drafts#edit", as: :edit_departure_return_to_draft

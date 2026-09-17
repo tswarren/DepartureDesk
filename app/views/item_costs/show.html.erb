@@ -1,0 +1,117 @@
+<% content_for :title, "#{@arrangement_item_definition.name} costs · DepartureDesk" %>
+<% editable = @editable %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Draft Supplier costs</p>
+    <h1 class="dd-page-title"><%= @arrangement_item_definition.name %></h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %> · <%= @departure.name %> · <%= @departure.operating_currency %></p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Cost forecast", departure_arrangement_cost_forecast_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+    <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement, anchor: "item-#{@arrangement_item.id}"), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <p>
+      <%= @item_cost_sources.empty? ? "⚠ Incomplete — no Item-scoped cost source" : (@item_cost_sources.any? { |source| source.supplier_cost_definitions.none?(&:forecast_ready?) } ? "⚠ Incomplete — a source needs a ready stage" : "✓ Declared Item costs ready") %>
+    </p>
+    <p>One job at a time: add a source, open a stage, then add components. Planning quantities stay in their own section below.</p>
+  </div>
+</article>
+
+<section id="item-costs">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Cost sources</h2>
+      <p>Exact Occurrence and Resource context when the cost is not Item-wide.</p>
+    </div>
+  </header>
+  <%= render "supplier_arrangements/cost_sources",
+        sources: @item_cost_sources,
+        item: @arrangement_item,
+        editable: editable %>
+</section>
+
+<section id="planning-quantities" class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Planning quantities</h2>
+      <p>Participant labels and anonymous usage assumptions used by unit-rate formulas.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <h3 class="dd-panel-title">Participant categories</h3>
+    <% if @categories.any? %>
+      <ul>
+        <% @categories.each do |category| %>
+          <li><%= category.label %></li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="<%= empty_state_classes.join(" ") %>">No participant categories.</p>
+    <% end %>
+    <% if editable %>
+      <details>
+        <summary>Add participant category</summary>
+        <%= form_with url: departure_arrangement_item_participant_categories_path(@departure, @supplier_arrangement, @arrangement_item), method: :post, class: "dd-form" do |form| %>
+          <%= form.hidden_field :idempotency_key, value: SecureRandom.uuid %>
+          <%= form.hidden_field :version_lock_version, value: @supplier_arrangement_version.lock_version %>
+          <div class="dd-field"><%= form.label "supplier_cost_participant_category[label]", "Label" %><%= form.text_field "supplier_cost_participant_category[label]", required: true %></div>
+          <%= form.submit "Add participant category", class: "dd-button dd-button--quiet" %>
+        <% end %>
+      </details>
+    <% end %>
+
+    <h3 class="dd-panel-title">Usage assumptions</h3>
+    <% @assumptions.each do |assumption| %>
+      <article class="dd-panel" id="assumption-<%= assumption.id %>">
+        <div class="dd-panel-body">
+          <p>
+            Resource units: <%= assumption.expected_resource_units.nil? ? "unknown" : assumption.expected_resource_units %>;
+            persons: <%= assumption.expected_persons.nil? ? "unknown" : assumption.expected_persons %>;
+            nights: <%= assumption.expected_billable_nights.nil? ? "unknown" : assumption.expected_billable_nights %>
+          </p>
+          <% assumption.supplier_cost_occupancy_profiles.sort_by(&:position).each do |profile| %>
+            <p id="profile-<%= profile.id %>">Occupancy pattern: <%= profile.label %> × <%= profile.resource_unit_count %> resource unit(s), <%= profile.supplier_cost_occupancy_profile_positions.size %> anonymous position(s)</p>
+          <% end %>
+          <% if editable && @categories.any? %>
+            <details>
+              <summary>Add occupancy profile</summary>
+              <%= form_with url: departure_arrangement_item_cost_assumption_occupancy_profiles_path(@departure, @supplier_arrangement, @arrangement_item, assumption), method: :post, class: "dd-form" do |form| %>
+                <%= form.hidden_field :idempotency_key, value: SecureRandom.uuid %>
+                <%= form.hidden_field :assumption_lock_version, value: assumption.lock_version %>
+                <div class="dd-field"><%= form.label "supplier_cost_occupancy_profile[label]", "Occupancy pattern label" %><%= form.text_field "supplier_cost_occupancy_profile[label]", required: true %></div>
+                <div class="dd-field"><%= form.label "supplier_cost_occupancy_profile[resource_unit_count]", "Like resource units" %><%= form.number_field "supplier_cost_occupancy_profile[resource_unit_count]", min: 1, required: true %></div>
+                <fieldset>
+                  <legend>Anonymous participant positions</legend>
+                  <% @categories.each do |category| %>
+                    <label><%= check_box_tag "participant_category_ids[]", category.id, false %> <%= category.label %></label>
+                  <% end %>
+                </fieldset>
+                <%= form.submit "Add occupancy profile", class: "dd-button dd-button--quiet" %>
+              <% end %>
+            </details>
+          <% end %>
+        </div>
+      </article>
+    <% end %>
+    <% if @assumptions.empty? %>
+      <p class="<%= empty_state_classes.join(" ") %>">No usage assumptions yet.</p>
+    <% end %>
+    <% if editable %>
+      <details>
+        <summary>Add usage assumption</summary>
+        <%= form_with url: departure_arrangement_item_cost_assumptions_path(@departure, @supplier_arrangement, @arrangement_item), method: :post, class: "dd-form" do |form| %>
+          <%= form.hidden_field :idempotency_key, value: SecureRandom.uuid %>
+          <div class="dd-field"><%= form.label "supplier_cost_usage_assumption[expected_resource_units]", "Expected resource units" %><%= form.number_field "supplier_cost_usage_assumption[expected_resource_units]", min: 0 %></div>
+          <div class="dd-field"><%= form.label "supplier_cost_usage_assumption[expected_persons]", "Expected persons" %><%= form.number_field "supplier_cost_usage_assumption[expected_persons]", min: 0 %></div>
+          <div class="dd-field"><%= form.label "supplier_cost_usage_assumption[expected_billable_nights]", "Expected billable nights" %><%= form.number_field "supplier_cost_usage_assumption[expected_billable_nights]", min: 0 %></div>
+          <%= form.submit "Add usage assumption", class: "dd-button dd-button--quiet" %>
+        <% end %>
+      </details>
+    <% end %>
+  </div>
+</section>

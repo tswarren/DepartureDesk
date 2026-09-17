@@ -15,6 +15,14 @@ class Departure < ApplicationRecord
   has_many :service_occurrence_definitions, dependent: :restrict_with_exception
   has_many :supplier_resources, dependent: :restrict_with_exception
   has_many :supplier_resource_definitions, dependent: :restrict_with_exception
+  has_many :supplier_cost_sources, dependent: :restrict_with_exception
+  has_many :supplier_cost_definitions, dependent: :restrict_with_exception
+  has_many :supplier_cost_components, dependent: :restrict_with_exception
+  has_many :supplier_cost_component_bases, dependent: :restrict_with_exception
+  has_many :supplier_cost_participant_categories, dependent: :restrict_with_exception
+  has_many :supplier_cost_usage_assumptions, dependent: :restrict_with_exception
+  has_many :supplier_cost_occupancy_profiles, dependent: :restrict_with_exception
+  has_many :supplier_cost_occupancy_profile_positions, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 

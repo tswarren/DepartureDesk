@@ -14,6 +14,12 @@ class SupplierArrangementVersion < ApplicationRecord
   has_many :capacity_events, dependent: :restrict_with_exception
   has_many :capacity_reconciliations, dependent: :restrict_with_exception
   has_many :capacity_reconciliation_resolutions, dependent: :restrict_with_exception
+  has_many :supplier_cost_sources, dependent: :restrict_with_exception
+  has_many :supplier_cost_definitions, dependent: :restrict_with_exception
+  has_many :supplier_cost_components, dependent: :restrict_with_exception
+  has_many :supplier_cost_participant_categories, dependent: :restrict_with_exception
+  has_many :supplier_cost_usage_assumptions, dependent: :restrict_with_exception
+  has_many :supplier_cost_occupancy_profiles, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 

@@ -65,6 +65,47 @@
   </div>
 </article>
 
+<article class="dd-panel" id="planning-status">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Planning status</h2>
+      <p>Structure, capacity, and costs are separate readiness tracks.</p>
+    </div>
+    <div class="dd-inline-actions">
+      <%= link_to "Arrangement costs", departure_arrangement_costs_workspace_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+      <%= link_to "Cost forecast", departure_arrangement_cost_forecast_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Items</dt>
+        <dd><%= @item_definitions.size %></dd>
+      </div>
+      <div>
+        <dt>Declared costs</dt>
+        <dd>
+          <% if @cost_forecast.complete %>
+            ✓ Complete
+          <% else %>
+            ⚠ <%= @cost_forecast.subtotal_label %> ·
+            <%= @cost_forecast.uncovered_item_ids.size %> uncovered Item(s) ·
+            <%= @cost_forecast.incomplete_source_ids.size %> incomplete source(s)
+          <% end %>
+        </dd>
+      </div>
+      <div>
+        <dt>Forecast Supplier cost</dt>
+        <dd><%= Money.new(@cost_forecast.totals.forecast_supplier_cost_minor_units, @cost_forecast.currency).format %></dd>
+      </div>
+      <div>
+        <dt>Arrangement-wide sources</dt>
+        <dd><%= @arrangement_cost_sources.size %></dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
 <% if @item_definitions.empty? %>
   <article class="dd-panel">
     <div class="dd-panel-body">
@@ -82,6 +123,18 @@
     <% resource_definitions = @resource_definitions_by_item_id.fetch(item.id, []) %>
     <% inactive_item_provider = item_definition.default_service_provider&.inactive? %>
     <% can_edit_item = ordinary_editable || (recovery_cleanup && inactive_item_provider && contractor_active) %>
+    <% item_cost_sources = @cost_sources_by_item_id.fetch(item.id, []) %>
+    <% capacity_pairs = @capacity_pairs_by_item_members.fetch(item.id, {}) %>
+    <% capacity_pool_definitions = @capacity_pool_definitions_by_item_pair_id.fetch(item.id, {}) %>
+    <% capacity_warnings = capacity_item_warnings(item_definition, occurrence_definitions, resource_definitions, capacity_pairs, capacity_pool_definitions, @supplier_arrangement) %>
+    <% pool_count = capacity_pool_definitions.values.sum(&:size) %>
+    <% cost_status = if item_cost_sources.empty?
+         "⚠ Incomplete — no cost source"
+       elsif item_cost_sources.any? { |source| source.supplier_cost_definitions.none?(&:forecast_ready?) }
+         "⚠ Incomplete — needs ready stage"
+       else
+         "✓ Declared costs ready"
+       end %>
 
     <article class="dd-panel" id="item-<%= item.id %>">
       <header class="dd-panel-header">
@@ -123,49 +176,36 @@
             <dt>Effective provider</dt>
             <dd><%= supplier_option_label(effective_service_provider(@supplier_arrangement, item_definition)) %></dd>
           </div>
+          <div>
+            <dt>Structure</dt>
+            <dd><%= occurrence_definitions.size %> occurrence(s) · <%= resource_definitions.size %> resource(s)</dd>
+          </div>
+          <div>
+            <dt>Capacity</dt>
+            <dd>
+              <%= capacity_management_label(item_definition.capacity_management) %>
+              <% unless item_definition.unmanaged? %>
+                · <%= capacity_pairs.size %> of <%= occurrence_definitions.size * resource_definitions.size %> pairs · <%= pool_count %> pool(s)
+                <% if capacity_warnings.any? %>
+                  · ⚠ <%= capacity_warnings.size %> warning(s)
+                <% end %>
+              <% end %>
+            </dd>
+          </div>
+          <div>
+            <dt>Costs</dt>
+            <dd><%= cost_status %> · <%= item_cost_sources.size %> source(s)</dd>
+          </div>
         </dl>
 
-        <% capacity_pairs = @capacity_pairs_by_item_members.fetch(item.id, {}) %>
-        <% capacity_pool_definitions = @capacity_pool_definitions_by_item_pair_id.fetch(item.id, {}) %>
-        <% capacity_warnings = capacity_item_warnings(item_definition, occurrence_definitions, resource_definitions, capacity_pairs, capacity_pool_definitions, @supplier_arrangement) %>
-        <% pool_count = capacity_pool_definitions.values.sum(&:size) %>
-        <section>
-          <header class="dd-panel-header">
-            <div>
-              <h3 class="dd-panel-title">Capacity</h3>
-              <p><%= capacity_management_label(item_definition.capacity_management) %></p>
-            </div>
-            <% if ordinary_editable || recovery_cleanup %>
-              <%= link_to "Configure capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
-            <% end %>
-          </header>
-          <% if item_definition.unmanaged? %>
-            <p class="<%= empty_state_classes.join(" ") %>">Quantity not tracked for this Item.</p>
+        <div class="dd-inline-actions">
+          <%= link_to "Manage costs", departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+          <% if ordinary_editable || recovery_cleanup %>
+            <%= link_to "Configure capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
           <% else %>
-            <dl class="dd-definition-list">
-              <div>
-                <dt>Pair decisions</dt>
-                <dd><%= capacity_pairs.size %> of <%= occurrence_definitions.size * resource_definitions.size %></dd>
-              </div>
-              <div>
-                <dt>Pools</dt>
-                <dd><%= pool_count %></dd>
-              </div>
-            </dl>
-            <% if capacity_warnings.any? %>
-              <ul>
-                <% capacity_warnings.first(4).each do |warning| %>
-                  <li><%= warning %></li>
-                <% end %>
-                <% if capacity_warnings.size > 4 %>
-                  <li><%= capacity_warnings.size - 4 %> more capacity warnings.</li>
-                <% end %>
-              </ul>
-            <% else %>
-              <p>Tentative capacity structure has no current warnings.</p>
-            <% end %>
+            <%= link_to "View capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
           <% end %>
-        </section>
+        </div>
 
         <section>
           <header class="dd-panel-header">
