@@ -1,6 +1,8 @@
 class CreateArrangementItemSetup < AgencyCommand
   include ArrangementCommandSupport
 
+  SetupResult = Data.define(:item, :occurrence, :resource)
+
   def initialize(agency:, actor:, arrangement:, item_attributes:, occurrence_attributes: nil,
     resource_attributes: nil, version_lock_version:, idempotency_key:)
     @agency = agency
@@ -97,12 +99,12 @@ class CreateArrangementItemSetup < AgencyCommand
         item
       end
 
-      if result.status == :created
-        key = AgencyCommandIdempotencyKey.find_by!(
-          agency: @agency,
-          command_name: self.class.name,
-          idempotency_key: normalize_idempotency_key(@idempotency_key)
-        )
+      key = AgencyCommandIdempotencyKey.find_by!(
+        agency: @agency,
+        command_name: self.class.name,
+        idempotency_key: normalize_idempotency_key(@idempotency_key)
+      )
+      setup_result = if result.status == :created
         ArrangementItemSetupResult.create!(
           agency: @agency,
           agency_command_idempotency_key: key,
@@ -110,8 +112,18 @@ class CreateArrangementItemSetup < AgencyCommand
           service_occurrence: occurrence,
           supplier_resource: resource
         )
+      else
+        ArrangementItemSetupResult.find_by!(agency: @agency, agency_command_idempotency_key: key)
       end
-      result
+
+      AgencyCommand::Result.new(
+        status: result.status,
+        record: SetupResult.new(
+          item: setup_result.arrangement_item,
+          occurrence: setup_result.service_occurrence,
+          resource: setup_result.supplier_resource
+        )
+      )
     end
   rescue ActiveRecord::RecordInvalid => error
     command_error_from(error)

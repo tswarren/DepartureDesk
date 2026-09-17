@@ -3,9 +3,14 @@
 <% inventory_mode = values[:inventory_mode].presence || pool&.inventory_mode || "block" %>
 <% measurement_basis = values[:measurement_basis].presence || pool&.measurement_basis || "resource_units" %>
 <% include_semantics = local_assigns.fetch(:include_semantics, false) %>
+<% numeric_inventory = %w[block allotment].include?(inventory_mode) %>
+<% override_selected = ActiveModel::Type::Boolean.new.cast(values.fetch(:override, pool_definition.override?)) %>
 
 <%= form_with scope: :capacity_pool, url: url, method: method, class: "dd-form",
-  data: (include_semantics ? { controller: "capacity-pool-fields" } : {}) do |form| %>
+  data: {
+    controller: "capacity-pool-fields",
+    capacity_pool_fields_inventory_mode_value: inventory_mode
+  } do |form| %>
   <%= render "shared/form_errors", object: pool_definition %>
   <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version if local_assigns[:include_version_lock] %>
   <%= hidden_field_tag :idempotency_key, idempotency_key if local_assigns[:idempotency_key].present? %>
@@ -20,7 +25,7 @@
         class: "dd-field",
         data: {
           capacity_pool_fields_target: "inventoryMode",
-          action: "change->capacity-pool-fields#update"
+          action: "change->capacity-pool-fields#updateInventoryMode"
         },
         required: true %>
     </div>
@@ -57,7 +62,7 @@
     <%= form.text_field :unit_label, value: values.fetch(:unit_label, pool_definition.unit_label), maxlength: CapacityPoolDefinition::UNIT_LABEL_LIMIT, class: "dd-field", required: true %>
   </div>
 
-  <div class="dd-field-group" data-capacity-pool-fields-target="quantityGroup">
+  <div class="dd-field-group" data-capacity-pool-fields-target="quantityGroup" <%= "hidden" unless numeric_inventory %>>
     <%= form.label :proposed_opening_quantity, "Proposed opening quantity", class: "dd-label" %>
     <%= form.number_field :proposed_opening_quantity,
       value: values.fetch(:proposed_opening_quantity, pool_definition.proposed_opening_quantity),
@@ -73,7 +78,7 @@
     <%= form.text_area :notes, value: values.fetch(:notes, pool_definition.notes), maxlength: CapacityPoolDefinition::NOTES_LIMIT, class: "dd-field" %>
   </div>
 
-  <fieldset class="dd-field-group">
+  <fieldset class="dd-field-group" data-capacity-pool-fields-target="evidenceGroup" <%= "hidden" if override_selected %>>
     <legend class="dd-label">Supplier evidence</legend>
     <div class="dd-field-group">
       <%= form.label :evidence_kind, "Evidence kind", class: "dd-label" %>
@@ -100,10 +105,15 @@
     <fieldset class="dd-field-group">
       <legend class="dd-label">Administrator override</legend>
       <label>
-        <%= form.check_box :override, checked: ActiveModel::Type::Boolean.new.cast(values.fetch(:override, pool_definition.override?)) %>
+        <%= form.check_box :override,
+          checked: override_selected,
+          data: {
+            capacity_pool_fields_target: "overrideToggle",
+            action: "change->capacity-pool-fields#updateOverride"
+          } %>
         Use override instead of Supplier evidence
       </label>
-      <div class="dd-field-group">
+      <div class="dd-field-group" data-capacity-pool-fields-target="overrideGroup" <%= "hidden" unless override_selected %>>
         <%= form.label :override_reason, "Override reason", class: "dd-label" %>
         <%= form.text_area :override_reason, value: values.fetch(:override_reason, pool_definition.override_reason), maxlength: CapacityPoolDefinition::OVERRIDE_REASON_LIMIT, class: "dd-field" %>
       </div>

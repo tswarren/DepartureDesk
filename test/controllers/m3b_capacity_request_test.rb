@@ -223,6 +223,69 @@ class M3BCapacityRequestTest < ActionDispatch::IntegrationTest
     assert_equal pool.id, setup_graph[:version].capacity_pool_definitions.sole.capacity_pool_id
   end
 
+  test "nonnumeric create and edit forms server-render the quantity group hidden" do
+    graph = create_capacity_graph(prefix: "Conditional quantity")
+    pair = classify_capacity_graph_pair(graph)
+    sign_in_as @staff
+
+    post pair_pools_departure_arrangement_item_capacity_path(
+      @departure, graph[:arrangement], graph[:item], pair_id: pair.id
+    ), params: {
+      idempotency_key: SecureRandom.uuid,
+      version_lock_version: graph[:version].lock_version,
+      capacity_pool: pool_params(
+        label: "Request pool", inventory_mode: "on_request", quantity: 12, evidence: false
+      )
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "[data-capacity-pool-fields-target='quantityGroup'][hidden]" do
+      assert_select "input[name='capacity_pool[proposed_opening_quantity]'][value='12']"
+    end
+
+    pool = CreateCapacityPool.new(
+      agency: @agency,
+      actor: @admin,
+      pair: pair,
+      version_lock_version: graph[:version].reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: pool_params(
+        label: "External request pool", inventory_mode: "externally_managed",
+        quantity: nil, evidence: false
+      )
+    ).call.record
+
+    get edit_pair_pool_departure_arrangement_item_capacity_path(
+      @departure, graph[:arrangement], graph[:item], pair_id: pair.id, id: pool.id
+    )
+
+    assert_response :success
+    assert_select "form[data-controller='capacity-pool-fields']", count: 1
+    assert_select "[data-capacity-pool-fields-target='quantityGroup'][hidden]", count: 1
+  end
+
+  test "override submit hides evidence while mixed evidence remains invalid" do
+    graph = create_capacity_graph(prefix: "Conditional evidence")
+    pair = classify_capacity_graph_pair(graph)
+    sign_in_as @admin
+
+    post pair_pools_departure_arrangement_item_capacity_path(
+      @departure, graph[:arrangement], graph[:item], pair_id: pair.id
+    ), params: {
+      idempotency_key: SecureRandom.uuid,
+      version_lock_version: graph[:version].lock_version,
+      capacity_pool: pool_params(label: "Override pool", quantity: 8).merge(
+        override: "1",
+        override_reason: "Administrator reviewed the exception"
+      )
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "#form-error-summary", text: /Override cannot include supplier evidence/
+    assert_select "[data-capacity-pool-fields-target='evidenceGroup'][hidden]", count: 1
+    assert_select "[data-capacity-pool-fields-target='overrideGroup']:not([hidden])", count: 1
+  end
+
   private
 
   def pool_params(label:, quantity:, inventory_mode: "block", evidence: true)
