@@ -5,7 +5,7 @@ class SupplierArrangementActivationsController < ApplicationController
   before_action :require_departure_management!, only: :create
   before_action :set_departure
   before_action :set_supplier_arrangement
-  before_action :set_initial_version
+  before_action :set_editable_draft_version
 
   def show
     load_preview

@@ -14,7 +14,7 @@ module CostCommandSupport
   def cost_graph!(owner, extra_supplier_ids: [])
     arrangement_id = owner.is_a?(SupplierArrangement) ? owner.id : owner.supplier_arrangement_id
     arrangement = @agency.supplier_arrangements.find(arrangement_id)
-    version = arrangement.versions.find_by!(version_number: 1)
+    version = arrangement.versions.find_by!(status: "draft")
     supplier_ids = version.supplier_cost_sources.distinct.pluck(:charging_supplier_id) + Array(extra_supplier_ids)
     suppliers = lock_suppliers_in_uuid_order!(arrangement.contracting_supplier_id, supplier_ids).index_by(&:id)
     contractor = suppliers.fetch(arrangement.contracting_supplier_id)

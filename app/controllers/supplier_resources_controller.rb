@@ -5,7 +5,7 @@ class SupplierResourcesController < ApplicationController
   before_action :require_departure_management!
   before_action :set_departure
   before_action :set_supplier_arrangement
-  before_action :set_initial_version
+  before_action :set_editable_draft_version
   before_action :set_arrangement_item
   before_action :set_item_definition
   before_action :set_supplier_resource, only: %i[edit update destroy]

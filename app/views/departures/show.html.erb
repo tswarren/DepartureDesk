@@ -105,7 +105,8 @@
       </thead>
       <tbody>
         <% @supplier_planning.records.each do |arrangement| %>
-          <% version = arrangement.versions.find { |candidate| candidate.version_number == 1 } %>
+          <% version = arrangement.versions.find(&:draft?) ||
+            arrangement.versions.find { |candidate| candidate.id == arrangement.governing_version_id } %>
           <tr class="<%= "is-inactive" if arrangement.abandoned? %>">
             <td><%= link_to arrangement.name, departure_arrangement_path(@departure, arrangement) %></td>
             <td><%= supplier_option_label(arrangement.contracting_supplier) %></td>

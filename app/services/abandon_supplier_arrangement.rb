@@ -15,9 +15,15 @@ class AbandonSupplierArrangement < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      departure, arrangement, version = lock_departure_arrangement_version!(@arrangement)
+      departure = lock_departure_for!(@arrangement.departure_id)
+      arrangement = lock_arrangement_for!(@arrangement)
+      version = arrangement.versions.lock.find_by(status: "draft") ||
+        arrangement.versions.lock.find_by!(status: "abandoned")
       return Result.new(status: :noop, record: arrangement) if arrangement.abandoned? && version.abandoned?
 
+      unless arrangement.draft? && arrangement.governing_version_id.nil?
+        raise Error.new("That supplier arrangement cannot be abandoned here.", code: :invalid_state)
+      end
       ensure_cleanup_edit!(departure, arrangement, version)
       ensure_current_lock_version!(arrangement, @arrangement_lock_version)
       ensure_current_lock_version!(version, @version_lock_version)

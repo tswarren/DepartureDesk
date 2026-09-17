@@ -107,7 +107,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
 
   def resolve_version(arrangement)
     scope = arrangement.versions
-    candidate = @version ? scope.find_by(id: @version.id) : scope.find_by(version_number: 1)
+    candidate = @version ? scope.find_by(id: @version.id) : scope.find_by(status: "draft")
     raise ActiveRecord::RecordNotFound unless candidate
 
     candidate
@@ -155,9 +155,11 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       raise Error.new("Only an active departure can activate an arrangement.", code: :invalid_state)
     end
     unless arrangement.draft? && arrangement.governing_version_id.nil? &&
-        version.draft? && version.version_number == 1
+        version.draft? && arrangement.versions.where(status: "draft").sole.id == version.id
       raise Error.new("Only the first draft version can be activated here.", code: :invalid_state)
     end
+  rescue ActiveRecord::SoleRecordExceeded, ActiveRecord::RecordNotFound
+    raise Error.new("Only the first draft version can be activated here.", code: :invalid_state)
   end
 
   def ensure_submitted_lock!(record, submitted)

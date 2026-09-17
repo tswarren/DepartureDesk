@@ -26,7 +26,7 @@ class ConfigureCapacityPairWithPool < AgencyCommand
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
       arrangement = @agency.supplier_arrangements.find(@item.supplier_arrangement_id)
-      version = arrangement.versions.find_by!(status: "draft", version_number: 1)
+      version = arrangement.versions.find_by!(status: "draft")
       item_definition = version.arrangement_item_definitions.find_by!(arrangement_item_id: @item.id)
       occurrence_definition = version.service_occurrence_definitions.find_by!(
         arrangement_item_id: @item.id,

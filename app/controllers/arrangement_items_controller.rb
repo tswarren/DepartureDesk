@@ -5,7 +5,7 @@ class ArrangementItemsController < ApplicationController
   before_action :require_departure_management!
   before_action :set_departure
   before_action :set_supplier_arrangement
-  before_action :set_initial_version
+  before_action :set_editable_draft_version
   before_action :set_arrangement_item, only: %i[edit update destroy]
   before_action :set_item_definition, only: %i[edit update]
 

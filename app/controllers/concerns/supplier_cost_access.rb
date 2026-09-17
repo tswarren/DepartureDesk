@@ -8,7 +8,7 @@ module SupplierCostAccess
     before_action :require_departure_management!, unless: -> { action_name == "show" }
     before_action :set_departure
     before_action :set_supplier_arrangement
-    before_action :set_initial_version
+    before_action :set_editable_draft_version
     before_action :set_cost_item
     helper_method :cost_ordinary_editable?, :cost_source_ordinary_editable?, :cost_source_cleanup_editable?
   end
@@ -64,7 +64,8 @@ module SupplierCostAccess
 
   def cost_ordinary_editable?
     manage = Current.agency_user.permitted?(:manage_departures)
-    draft_graph = @supplier_arrangement.draft? && @supplier_arrangement_version.draft?
+    draft_graph = (@supplier_arrangement.draft? || @supplier_arrangement.active?) &&
+      @supplier_arrangement_version.draft?
     contractor_active = @supplier_arrangement.contracting_supplier.active?
     manage && draft_graph && (@departure.draft? || @departure.active?) && contractor_active
   end
@@ -75,7 +76,8 @@ module SupplierCostAccess
 
   def cost_source_cleanup_editable?(source)
     manage = Current.agency_user.permitted?(:manage_departures)
-    draft_graph = @supplier_arrangement.draft? && @supplier_arrangement_version.draft?
+    draft_graph = (@supplier_arrangement.draft? || @supplier_arrangement.active?) &&
+      @supplier_arrangement_version.draft?
     departure_ok = @departure.draft? || @departure.active? || @departure.departed?
     manage && draft_graph && departure_ok && !source.charging_supplier.active?
   end

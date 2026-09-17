@@ -1,11 +1,11 @@
 <% content_for :title, "#{@supplier_arrangement.name} · DepartureDesk" %>
 <% manage = Current.agency_user.permitted?(:manage_departures) %>
-<% draft_graph = @supplier_arrangement.draft? && @supplier_arrangement_version.draft? %>
+<% draft_graph = (@supplier_arrangement.draft? || @supplier_arrangement.active?) && @supplier_arrangement_version.draft? %>
 <% contractor_active = @supplier_arrangement.contracting_supplier.active? %>
 <% ordinary_editable = manage && draft_graph && (@departure.draft? || @departure.active?) && contractor_active %>
 <% recovery_cleanup = manage && draft_graph && !ordinary_editable && (@departure.departed? || !contractor_active) %>
 <% can_remove = ordinary_editable || recovery_cleanup %>
-<% can_abandon = manage && draft_graph %>
+<% can_abandon = manage && @supplier_arrangement.draft? && draft_graph %>
 <% can_edit_arrangement = ordinary_editable || (recovery_cleanup && @supplier_arrangement.supplier_contact_id.present?) %>
 <% reorder_items_mode = ordinary_editable && params[:structure_mode] == "items" %>
 <% reorder_resources_item_id = params[:structure_item_id] if ordinary_editable && params[:structure_mode] == "resources" %>
