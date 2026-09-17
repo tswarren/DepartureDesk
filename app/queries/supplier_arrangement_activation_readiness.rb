@@ -140,6 +140,11 @@ class SupplierArrangementActivationReadiness
           "Every declared commitment trigger must be complete and use an active committed Supplier.")
         next
       end
+      if trigger.arrangement_confirmation? &&
+          trigger.committed_supplier_id != @arrangement.contracting_supplier_id
+        block(:triggers, :confirmation_supplier_incompatible, "commitment_triggers.#{trigger.id}",
+          "Arrangement-confirmation commitments must use the confirming contracting Supplier.")
+      end
       if trigger.supplier_cost_definition &&
           (!trigger.supplier_cost_definition.contracted? ||
            !trigger.supplier_cost_definition.forecast_ready? ||

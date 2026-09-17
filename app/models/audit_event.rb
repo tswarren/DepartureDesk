@@ -119,6 +119,7 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.cost_occupancy_profile_updated
     supplier_arrangement.cost_occupancy_profile_removed
     supplier_arrangement.cost_occupancy_profiles_reordered
+    supplier_arrangement.activated
     supplier_arrangement.commitment_trigger_created
     supplier_arrangement.commitment_trigger_updated
     supplier_arrangement.commitment_trigger_removed

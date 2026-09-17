@@ -1,0 +1,177 @@
+<% content_for :title, "Activate #{@supplier_arrangement.name} · DepartureDesk" %>
+<% manageable = Current.agency_user.permitted?(:manage_departures) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title">Activate arrangement</h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %> · exact version <%= @supplier_arrangement_version.version_number %></p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<% if flash.now[:alert].present? %>
+  <div class="dd-error-summary" role="alert" tabindex="-1">
+    <h2>Activation could not be completed</h2>
+    <p><%= flash.now[:alert] %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Readiness</h2>
+      <p>The checks run again inside the activation transaction.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if @readiness.ready? %>
+      <p><strong>Ready for activation.</strong></p>
+    <% else %>
+      <ul class="dd-record-list">
+        <% @readiness.blockers.each do |blocker| %>
+          <li><strong><%= blocker.track.to_s.humanize %>:</strong> <%= blocker.message %></li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</article>
+
+<% if manageable %>
+<%= form_with url: departure_arrangement_activation_path(@departure, @supplier_arrangement), method: :post do |form| %>
+  <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+  <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+  <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Activation checklist</h2>
+        <p>One action records Agency activation, Supplier evidence, manifest, capacity, and deterministic commitments.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <dl class="dd-definition-list">
+        <div>
+          <dt>Structure and providers</dt>
+          <dd><%= pluralize(@supplier_arrangement_version.arrangement_item_definitions.size, "retained Item") %></dd>
+        </div>
+        <div>
+          <dt>Capacity consequences</dt>
+          <dd><%= pluralize(@capacity_definitions.count { |entry| entry.capacity_pool.numeric_inventory? }, "numeric Pool") %> will be established; <%= pluralize(@capacity_definitions.count { |entry| !entry.capacity_pool.numeric_inventory? }, "nonnumeric Pool") %> will be recorded.</dd>
+        </div>
+        <div>
+          <dt>Entered cost sources</dt>
+          <dd><%= @readiness.cost_selections.map { |source, definition| "#{source.label}: #{definition.stage.humanize}" }.presence&.to_sentence || "None" %></dd>
+        </div>
+        <div>
+          <dt>Confirmation-triggered commitments</dt>
+          <dd><%= pluralize(@triggers.count { |trigger| trigger.trigger_kind == "arrangement_confirmation" }, "predicted opening") %></dd>
+        </div>
+      </dl>
+
+      <div class="dd-field">
+        <%= check_box_tag :cost_source_coverage_acknowledged, "1", params[:cost_source_coverage_acknowledged] == "1", required: true %>
+        <%= label_tag :cost_source_coverage_acknowledged, "I confirm the entered cost-source list is complete." %>
+      </div>
+      <% if @provisional_selections.any? %>
+        <div class="dd-field">
+          <p><strong>Provisional estimates:</strong> <%= @provisional_selections.map { |source, _definition| source.label }.to_sentence %></p>
+          <%= check_box_tag :provisional_costs_acknowledged, "1", params[:provisional_costs_acknowledged] == "1", required: true %>
+          <%= label_tag :provisional_costs_acknowledged, "I acknowledge these listed provisional estimate sources." %>
+        </div>
+      <% end %>
+      <div class="dd-field">
+        <%= check_box_tag :commitment_trigger_coverage_acknowledged, "1", params[:commitment_trigger_coverage_acknowledged] == "1", required: true %>
+        <%= label_tag :commitment_trigger_coverage_acknowledged, "I confirm known confirmation-triggered commitments are covered by the listed triggers." %>
+      </div>
+      <% if @triggers.any? { |trigger| %w[confirmed_quantity contracted_unit_rate_times_confirmed_quantity].include?(trigger.authority_shape) } %>
+        <div class="dd-field">
+          <%= label_tag :confirmed_quantity, "Supplier-confirmed quantity" %>
+          <%= number_field_tag :confirmed_quantity, params[:confirmed_quantity], min: 1, step: 1, class: "dd-input", required: true %>
+        </div>
+      <% end %>
+      <% if @triggers.any? { |trigger| trigger.authority_shape == "confirmed_amount" } %>
+        <div class="dd-field">
+          <%= label_tag :confirmed_amount_minor_units, "Supplier-confirmed amount in minor units" %>
+          <%= number_field_tag :confirmed_amount_minor_units, params[:confirmed_amount_minor_units], min: 0, step: 1, class: "dd-input", required: true %>
+          <p class="dd-field-hint">Currency: <%= @departure.operating_currency %>.</p>
+        </div>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Supplier confirmation</h2>
+        <p>Create immutable evidence or explicitly reuse compatible exact-version evidence.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <% if @existing_confirmations.any? %>
+        <div class="dd-field">
+          <%= label_tag :existing_confirmation_id, "Existing compatible evidence" %>
+          <%= select_tag :existing_confirmation_id,
+            options_for_select([["Create new evidence", ""]] + @existing_confirmations.map { |entry| ["#{entry.evidence_on}: #{entry.reference_note}", entry.id] }, params[:existing_confirmation_id]),
+            class: "dd-select" %>
+        </div>
+      <% end %>
+      <div class="dd-field">
+        <%= label_tag "confirmation_evidence_kind", "Evidence kind" %>
+        <%= select_tag "confirmation[evidence_kind]",
+          options_for_select(SupplierConfirmation::EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] }, params.dig(:confirmation, :evidence_kind)),
+          include_blank: "Choose evidence", class: "dd-select" %>
+      </div>
+      <div class="dd-field">
+        <%= label_tag "confirmation_other_evidence_label", "Other evidence label" %>
+        <%= text_field_tag "confirmation[other_evidence_label]", params.dig(:confirmation, :other_evidence_label), class: "dd-input", maxlength: 80 %>
+      </div>
+      <div class="dd-field">
+        <%= label_tag "confirmation_evidence_on", "Evidence date" %>
+        <%= date_field_tag "confirmation[evidence_on]", params.dig(:confirmation, :evidence_on), class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <%= label_tag "confirmation_channel", "Channel" %>
+        <%= text_field_tag "confirmation[channel]", params.dig(:confirmation, :channel), class: "dd-input", maxlength: 80 %>
+      </div>
+      <div class="dd-field">
+        <%= label_tag "confirmation_reference_note", "Safe reference note" %>
+        <%= text_area_tag "confirmation[reference_note]", params.dig(:confirmation, :reference_note), class: "dd-textarea", maxlength: 500 %>
+      </div>
+      <div class="dd-field">
+        <%= label_tag "confirmation_confirmed_without_identifier_reason", "Confirmed without identifier reason" %>
+        <%= text_area_tag "confirmation[confirmed_without_identifier_reason]", params.dig(:confirmation, :confirmed_without_identifier_reason), class: "dd-textarea", maxlength: 500 %>
+      </div>
+
+      <details>
+        <summary>Add a Supplier-issued identifier</summary>
+        <div class="dd-field">
+          <%= label_tag "identifier_identifier_type", "Identifier type" %>
+          <%= select_tag "identifier[identifier_type]",
+            options_for_select(SupplierIssuedIdentifier::IDENTIFIER_TYPES.map { |kind| [kind.humanize, kind] }, params.dig(:identifier, :identifier_type)),
+            include_blank: "No identifier", class: "dd-select" %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "identifier_other_type_label", "Other identifier label" %>
+          <%= text_field_tag "identifier[other_type_label]", params.dig(:identifier, :other_type_label), class: "dd-input", maxlength: 80 %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "identifier_issuer_context", "Issuer context" %>
+          <%= text_field_tag "identifier[issuer_context]", params.dig(:identifier, :issuer_context), class: "dd-input", maxlength: 80 %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "identifier_display_value", "Identifier" %>
+          <%= text_field_tag "identifier[display_value]", params.dig(:identifier, :display_value), class: "dd-input", maxlength: 160 %>
+        </div>
+      </details>
+    </div>
+  </article>
+
+  <div class="dd-page-actions">
+    <%= form.submit "Activate arrangement", class: "dd-button", disabled: !@readiness.ready? %>
+  </div>
+<% end %>
+<% end %>

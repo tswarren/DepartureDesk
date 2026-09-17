@@ -32,13 +32,22 @@ class ChangeSupplierStatus < AgencyCommand
         ensure_force_allowed! if @force
         dependency_ids = m3a_dependency_arrangement_ids(supplier)
         lock_m3a_dependencies!(dependency_ids)
-        if dependency_ids.any?
+        commitment_ids = unresolved_commitment_ids(supplier)
+        lock_unresolved_commitments!(commitment_ids)
+        if dependency_ids.any? || commitment_ids.any?
           unless @force
-            raise Error.new("This supplier is used by active supplier arrangement planning.", code: :dependency_exists)
+            message = if commitment_ids.any?
+              "This supplier has unresolved supplier commitments."
+            else
+              "This supplier is used by active supplier arrangement planning."
+            end
+            raise Error.new(message, code: :dependency_exists)
           end
           ensure_force_allowed!
         end
-        cascade_descendants!(supplier).merge(force_details(supplier, dependency_ids))
+        cascade_descendants!(supplier).merge(
+          force_details(supplier, dependency_ids, commitment_ids)
+        )
       else
         empty_affected
       end
@@ -63,14 +72,15 @@ class ChangeSupplierStatus < AgencyCommand
     normalize_reason(@force_reason)
   end
 
-  def force_details(supplier, dependency_ids)
+  def force_details(supplier, dependency_ids, commitment_ids)
     capacity_pool_ids = affected_capacity_pool_ids(supplier)
-    if dependency_ids.empty?
+    if dependency_ids.empty? && commitment_ids.empty?
       return {
         "forced" => false,
         "force_reason" => nil,
         "affected_supplier_arrangement_ids" => [],
-        "affected_capacity_pool_ids" => capacity_pool_ids
+        "affected_capacity_pool_ids" => capacity_pool_ids,
+        "preserved_supplier_commitment_ids" => []
       }
     end
 
@@ -78,8 +88,22 @@ class ChangeSupplierStatus < AgencyCommand
       "forced" => true,
       "force_reason" => normalize_reason(@force_reason),
       "affected_supplier_arrangement_ids" => dependency_ids,
-      "affected_capacity_pool_ids" => capacity_pool_ids
+      "affected_capacity_pool_ids" => capacity_pool_ids,
+      "preserved_supplier_commitment_ids" => commitment_ids
     }
+  end
+
+  def unresolved_commitment_ids(supplier)
+    SupplierCommitment.where(
+      agency_id: @agency.id, committed_supplier_id: supplier.id
+    ).order(:id).pluck(:id)
+  end
+
+  def lock_unresolved_commitments!(commitment_ids)
+    return if commitment_ids.empty?
+
+    SupplierCommitment.where(agency_id: @agency.id, id: commitment_ids)
+      .order(:id).lock.to_a
   end
 
   def affected_capacity_pool_ids(supplier)
