@@ -6,6 +6,7 @@ class SupplierArrangement < ApplicationRecord
   belongs_to :departure
   belongs_to :contracting_supplier, class_name: "Supplier"
   belongs_to :supplier_contact, optional: true
+  belongs_to :governing_version, class_name: "SupplierArrangementVersion", optional: true
 
   has_many :versions, class_name: "SupplierArrangementVersion", dependent: :restrict_with_exception
   has_many :arrangement_items, dependent: :restrict_with_exception
@@ -24,6 +25,11 @@ class SupplierArrangement < ApplicationRecord
   has_many :supplier_cost_participant_categories, dependent: :restrict_with_exception
   has_many :supplier_cost_usage_assumptions, dependent: :restrict_with_exception
   has_many :supplier_cost_occupancy_profiles, dependent: :restrict_with_exception
+  has_many :supplier_commitment_trigger_definitions, dependent: :restrict_with_exception
+  has_many :supplier_arrangement_activations, dependent: :restrict_with_exception
+  has_many :supplier_confirmations, dependent: :restrict_with_exception
+  has_many :supplier_issued_identifiers, dependent: :restrict_with_exception
+  has_many :supplier_commitments, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 
@@ -34,6 +40,7 @@ class SupplierArrangement < ApplicationRecord
   validates :name, presence: true, length: { maximum: NAME_LIMIT }
   validate :abandoned_time_matches_status
   validate :contact_belongs_to_contractor
+  validate :active_has_governing_version
 
   private
 
@@ -51,5 +58,9 @@ class SupplierArrangement < ApplicationRecord
       supplier_contact.supplier_id == contracting_supplier_id
 
     errors.add(:supplier_contact, "must belong to the contracting supplier")
+  end
+
+  def active_has_governing_version
+    errors.add(:governing_version, "can't be blank while active") if active? && governing_version.blank?
   end
 end

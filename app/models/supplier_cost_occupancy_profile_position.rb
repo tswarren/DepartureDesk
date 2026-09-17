@@ -1,4 +1,5 @@
 class SupplierCostOccupancyProfilePosition < ApplicationRecord
+  include ExactVersionCopyLineage
   belongs_to :agency
   belongs_to :departure
   belongs_to :supplier_arrangement

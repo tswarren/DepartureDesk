@@ -1,4 +1,5 @@
 class CapacityPoolDefinition < ApplicationRecord
+  include ExactVersionCopyLineage
   EVIDENCE_KINDS = %w[
     contract
     supplier_confirmation

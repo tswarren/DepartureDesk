@@ -23,6 +23,11 @@ class Departure < ApplicationRecord
   has_many :supplier_cost_usage_assumptions, dependent: :restrict_with_exception
   has_many :supplier_cost_occupancy_profiles, dependent: :restrict_with_exception
   has_many :supplier_cost_occupancy_profile_positions, dependent: :restrict_with_exception
+  has_many :supplier_arrangement_activations, dependent: :restrict_with_exception
+  has_many :supplier_confirmations, dependent: :restrict_with_exception
+  has_many :supplier_commitment_trigger_definitions, dependent: :restrict_with_exception
+  has_many :supplier_commitments, dependent: :restrict_with_exception
+  has_many :supplier_issued_identifiers, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 
@@ -75,6 +80,12 @@ class Departure < ApplicationRecord
 
   def eligible_to_depart?(at:)
     active? && starts_on.present? && time_zone.present? && starts_on <= local_date(at:)
+  end
+
+  # Permanent downstream-history latch. Activation rows are append-only and
+  # indexed by Departure, so this cannot drift like a mutable boolean.
+  def supplier_arrangement_activation_history?
+    supplier_arrangement_activations.exists?
   end
 
   def lifecycle_correction_allowed?(at:)

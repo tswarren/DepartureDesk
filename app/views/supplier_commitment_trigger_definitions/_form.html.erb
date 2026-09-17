@@ -1,0 +1,79 @@
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+<%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key %>
+
+<div class="dd-field-group">
+  <%= form.label :trigger_kind, "Confirmation trigger", class: "dd-label" %>
+  <%= form.select :trigger_kind,
+    SupplierCommitmentTriggerDefinition::TRIGGER_KINDS.map { |value| [value.humanize, value] },
+    { include_blank: "Choose a trigger" }, required: true, **dd_field_options(form, :trigger_kind) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :authority_shape, "Authority", class: "dd-label" %>
+  <%= form.select :authority_shape,
+    SupplierCommitmentTriggerDefinition::AUTHORITY_SHAPES.map { |value| [value.humanize, value] },
+    { include_blank: "Choose an authority" }, required: true, **dd_field_options(form, :authority_shape) %>
+  <p class="dd-field-hint">Unused fields must remain blank. Monetary authorities never use estimates.</p>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :description, "Contractual commitment", class: "dd-label" %>
+  <%= form.text_area :description, required: true,
+    maxlength: SupplierCommitmentTriggerDefinition::DESCRIPTION_LIMIT,
+    **dd_field_options(form, :description) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :committed_supplier_id, "Committed Supplier", class: "dd-label" %>
+  <%= form.select :committed_supplier_id,
+    active_supplier_options.map { |supplier| [supplier_option_label(supplier), supplier.id] },
+    { include_blank: "Choose a Supplier" }, required: true,
+    **dd_field_options(form, :committed_supplier_id) %>
+</div>
+
+<fieldset class="dd-field-group">
+  <legend class="dd-label">Exact scope</legend>
+  <%= form.label :arrangement_item_id, "Item", class: "dd-label" %>
+  <%= form.select :arrangement_item_id,
+    @item_definitions.map { |entry| [entry.name, entry.arrangement_item_id] },
+    { include_blank: "Whole arrangement" }, **dd_field_options(form, :arrangement_item_id) %>
+  <%= form.label :service_occurrence_id, "Occurrence", class: "dd-label" %>
+  <%= form.select :service_occurrence_id,
+    @occurrence_definitions.map { |entry| [entry.name, entry.service_occurrence_id] },
+    { include_blank: "No occurrence" }, **dd_field_options(form, :service_occurrence_id) %>
+  <%= form.label :supplier_resource_id, "Resource", class: "dd-label" %>
+  <%= form.select :supplier_resource_id,
+    @resource_definitions.map { |entry| [entry.name, entry.supplier_resource_id] },
+    { include_blank: "No resource" }, **dd_field_options(form, :supplier_resource_id) %>
+  <%= form.label :capacity_pool_id, "Capacity Pool", class: "dd-label" %>
+  <%= form.select :capacity_pool_id,
+    @pool_definitions.map { |entry| [entry.label, entry.capacity_pool_id] },
+    { include_blank: "No Capacity Pool" }, **dd_field_options(form, :capacity_pool_id) %>
+</fieldset>
+
+<div class="dd-field-group">
+  <%= form.label :fixed_quantity, "Fixed quantity", class: "dd-label" %>
+  <%= form.number_field :fixed_quantity, min: 1, step: 1, **dd_field_options(form, :fixed_quantity) %>
+  <%= form.label :quantity_basis, "Quantity basis", class: "dd-label" %>
+  <%= form.select :quantity_basis,
+    SupplierCommitmentTriggerDefinition::QUANTITY_BASES.map { |value| [value.humanize, value] },
+    { include_blank: "No quantity" }, **dd_field_options(form, :quantity_basis) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :supplier_cost_component_id, "Ready contracted Supplier-charge component", class: "dd-label" %>
+  <%= form.select :supplier_cost_component_id,
+    @contracted_components.map { |component|
+      ["#{component.supplier_cost_definition.supplier_cost_source.label} · #{component.label}", component.id]
+    }, { include_blank: "No contracted monetary authority" },
+    **dd_field_options(form, :supplier_cost_component_id) %>
+</div>
+
+<div class="dd-page-actions">
+  <%= form.submit class: "dd-button" %>
+  <%= link_to "Cancel",
+    departure_arrangement_version_commitment_triggers_path(
+      @departure, @supplier_arrangement, @supplier_arrangement_version
+    ), class: "dd-button dd-button--quiet" %>
+</div>

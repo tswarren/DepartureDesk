@@ -12,9 +12,19 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
 
       tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
       assert_equal %w[
+        supplier_arrangement_activation_capacity_entries
+        supplier_arrangement_activation_cost_selections
+        supplier_arrangement_activations
         supplier_arrangement_versions
         supplier_arrangements
         supplier_category_assignments
+        supplier_commitment_trigger_definitions
+        supplier_commitments
+        supplier_confirmation_activation_links
+        supplier_confirmation_capacity_event_links
+        supplier_confirmation_commitment_links
+        supplier_confirmation_identifier_links
+        supplier_confirmations
         supplier_contact_email_addresses
         supplier_contact_phone_numbers
         supplier_contacts
@@ -27,6 +37,7 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
         supplier_cost_sources
         supplier_cost_usage_assumptions
         supplier_email_addresses
+        supplier_issued_identifiers
         supplier_locations
         supplier_phone_numbers
         supplier_postal_addresses

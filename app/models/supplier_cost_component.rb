@@ -1,4 +1,5 @@
 class SupplierCostComponent < ApplicationRecord
+  include ExactVersionCopyLineage
   ECONOMIC_ROLES = %w[supplier_charge supplier_credit expected_commission informational_allocation].freeze
   CALCULATION_KINDS = %w[fixed unit_rate percentage minimum_amount_shortfall minimum_quantity_shortfall].freeze
   QUANTITY_BASES = %w[
