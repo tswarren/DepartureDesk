@@ -11,6 +11,13 @@ class SupplierArrangement < ApplicationRecord
   has_many :arrangement_items, dependent: :restrict_with_exception
   has_many :service_occurrences, dependent: :restrict_with_exception
   has_many :supplier_resources, dependent: :restrict_with_exception
+  has_many :capacity_pair_definitions, dependent: :restrict_with_exception
+  has_many :capacity_pools, dependent: :restrict_with_exception
+  has_many :capacity_pool_definitions, dependent: :restrict_with_exception
+  has_many :capacity_events, dependent: :restrict_with_exception
+  has_many :capacity_projections, dependent: :restrict_with_exception
+  has_many :capacity_reconciliations, dependent: :restrict_with_exception
+  has_many :capacity_reconciliation_resolutions, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 

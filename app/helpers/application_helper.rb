@@ -385,6 +385,114 @@ module ApplicationHelper
       arrangement.contracting_supplier
   end
 
+  def capacity_management_label(value)
+    case value
+    when "managed" then "Managed capacity"
+    when "unmanaged" then "No managed capacity"
+    else "Not decided"
+    end
+  end
+
+  def capacity_configuration_mode(departure:, arrangement:, version:, contractor:, supplying_suppliers: [])
+    return :read_only unless Current.agency_user&.permitted?(:manage_departures)
+    return :read_only if arrangement.abandoned? || version.abandoned?
+    return :read_only unless arrangement.draft? && version.draft?
+    return :recovery if departure.departed? ||
+      contractor&.inactive? ||
+      Array(supplying_suppliers).compact.any?(&:inactive?)
+    return :ordinary if departure.draft? || departure.active?
+
+    :read_only
+  end
+
+  def capacity_pair_label(pair)
+    case pair&.classification
+    when "pooled" then "Pooled"
+    when "not_applicable" then "Not applicable"
+    else "Needs decision"
+    end
+  end
+
+  def capacity_pair_badge(pair)
+    modifier = case pair&.classification
+    when "pooled" then "success"
+    when "not_applicable" then "neutral"
+    else "warning"
+    end
+
+    status_badge(capacity_pair_label(pair), modifier:)
+  end
+
+  def capacity_inventory_mode_label(mode)
+    mode.to_s.tr("_", " ").titleize
+  end
+
+  def capacity_measurement_basis_label(basis)
+    case basis
+    when "resource_units" then "Resource units"
+    when "traveler_positions" then "Traveler positions"
+    else basis.to_s.titleize
+    end
+  end
+
+  def capacity_quantity_label(pool_definition)
+    return "Quantity not tracked" unless pool_definition.capacity_pool.numeric_inventory?
+
+    pool_definition.proposed_opening_quantity.presence || "Proposed opening quantity missing"
+  end
+
+  def capacity_evidence_label(pool_definition)
+    if pool_definition.override?
+      "Administrator override recorded"
+    elsif pool_definition.evidence_kind.present? && pool_definition.evidence_on.present? && pool_definition.evidence_reference_note.present?
+      "#{pool_definition.evidence_kind.tr("_", " ").titleize} on #{pool_definition.evidence_on.to_fs(:long)}"
+    else
+      "Evidence incomplete"
+    end
+  end
+
+  def capacity_pool_warnings(pool_definition, arrangement, item_definition, occurrence_definition)
+    warnings = []
+    pool = pool_definition.capacity_pool
+    expected_provider = effective_service_provider(arrangement, item_definition, occurrence_definition)
+    warnings << "Supplying Supplier is inactive." if pool.supplying_supplier.inactive?
+    warnings << "Supplying Supplier no longer matches the effective provider." if expected_provider && pool.supplying_supplier_id != expected_provider.id
+    warnings << "Pool time zone no longer matches the Occurrence definition." if occurrence_definition && pool.effective_time_zone != occurrence_definition.time_zone
+    if pool.numeric_inventory?
+      warnings << "Proposed opening quantity is missing." if pool_definition.proposed_opening_quantity.blank?
+      unless pool_definition.override? || (pool_definition.evidence_kind.present? && pool_definition.evidence_on.present? && pool_definition.evidence_reference_note.present?)
+        warnings << "Supplier evidence is incomplete."
+      end
+    end
+    warnings
+  end
+
+  def capacity_item_warnings(item_definition, occurrence_definitions, resource_definitions, pairs_by_members, pool_definitions_by_pair_id, arrangement)
+    warnings = []
+    active_occurrence_definitions = occurrence_definitions.reject { |definition| definition.service_occurrence.cancelled? }
+    if item_definition.capacity_management.blank?
+      warnings << "Capacity management has not been decided."
+    elsif item_definition.managed?
+      warnings << "Managed capacity needs at least one Occurrence." if active_occurrence_definitions.empty?
+      warnings << "Managed capacity needs at least one Resource." if resource_definitions.empty?
+      active_occurrence_definitions.each do |occurrence_definition|
+        resource_definitions.each do |resource_definition|
+          pair = pairs_by_members[[ occurrence_definition.service_occurrence_id, resource_definition.supplier_resource_id ]]
+          if pair.nil?
+            warnings << "#{occurrence_definition.name} / #{resource_definition.name} needs a capacity decision."
+          elsif pair.pooled? && pool_definitions_by_pair_id.fetch(pair.id, []).empty?
+            warnings << "#{occurrence_definition.name} / #{resource_definition.name} is pooled but has no Pool."
+          end
+        end
+      end
+      pool_definitions_by_pair_id.values.flatten.each do |pool_definition|
+        occurrence_definition = occurrence_definitions.find { |definition| definition.service_occurrence_id == pool_definition.service_occurrence_id }
+        warnings.concat(capacity_pool_warnings(pool_definition, arrangement, item_definition, occurrence_definition))
+      end
+    end
+    warnings.uniq
+  end
+
   def departure_office_options(departure)
     records = Current.agency.offices.where(status: "active").order(:name).to_a
     current = departure.responsible_office

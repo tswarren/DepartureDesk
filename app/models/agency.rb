@@ -30,6 +30,13 @@ class Agency < ApplicationRecord
   has_many :service_occurrence_definitions, dependent: :restrict_with_exception
   has_many :supplier_resources, dependent: :restrict_with_exception
   has_many :supplier_resource_definitions, dependent: :restrict_with_exception
+  has_many :capacity_pair_definitions, dependent: :restrict_with_exception
+  has_many :capacity_pools, dependent: :restrict_with_exception
+  has_many :capacity_pool_definitions, dependent: :restrict_with_exception
+  has_many :capacity_events, dependent: :restrict_with_exception
+  has_many :capacity_projections, dependent: :restrict_with_exception
+  has_many :capacity_reconciliations, dependent: :restrict_with_exception
+  has_many :capacity_reconciliation_resolutions, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

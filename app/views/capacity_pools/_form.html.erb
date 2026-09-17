@@ -1,0 +1,106 @@
+<% values = local_assigns.fetch(:values, {}) %>
+<% pool = pool_definition.capacity_pool if pool_definition.persisted? %>
+<% inventory_mode = values[:inventory_mode].presence || pool&.inventory_mode || "block" %>
+<% measurement_basis = values[:measurement_basis].presence || pool&.measurement_basis || "resource_units" %>
+
+<%= form_with scope: :capacity_pool, url: url, method: method, class: "dd-form" do |form| %>
+  <%= render "shared/form_errors", object: pool_definition %>
+  <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version if local_assigns[:include_version_lock] %>
+  <%= hidden_field_tag :idempotency_key, idempotency_key if local_assigns[:idempotency_key].present? %>
+  <%= form.hidden_field :lock_version, value: pool_definition.lock_version if pool_definition.persisted? %>
+
+  <% if local_assigns.fetch(:include_semantics, false) %>
+    <div class="dd-field-group">
+      <%= form.label :inventory_mode, "Inventory mode", class: "dd-label" %>
+      <%= form.select :inventory_mode,
+        CapacityPool::INVENTORY_MODES.map { |mode| [ capacity_inventory_mode_label(mode), mode ] },
+        { selected: inventory_mode },
+        class: "dd-field",
+        required: true %>
+    </div>
+
+    <div class="dd-field-group">
+      <%= form.label :measurement_basis, "Measurement basis", class: "dd-label" %>
+      <%= form.select :measurement_basis,
+        CapacityPool::MEASUREMENT_BASES.map { |basis| [ capacity_measurement_basis_label(basis), basis ] },
+        { selected: measurement_basis },
+        class: "dd-field",
+        required: true %>
+    </div>
+  <% else %>
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Inventory mode</dt>
+        <dd><%= capacity_inventory_mode_label(pool.inventory_mode) %></dd>
+      </div>
+      <div>
+        <dt>Measurement basis</dt>
+        <dd><%= capacity_measurement_basis_label(pool.measurement_basis) %></dd>
+      </div>
+    </dl>
+  <% end %>
+
+  <div class="dd-field-group">
+    <%= form.label :label, "Label", class: "dd-label" %>
+    <%= form.text_field :label, value: values.fetch(:label, pool_definition.label), maxlength: CapacityPoolDefinition::LABEL_LIMIT, class: "dd-field" %>
+    <p class="dd-field-hint">Leave blank on create to use the generated stored label.</p>
+  </div>
+
+  <div class="dd-field-group">
+    <%= form.label :unit_label, "Unit label", class: "dd-label" %>
+    <%= form.text_field :unit_label, value: values.fetch(:unit_label, pool_definition.unit_label), maxlength: CapacityPoolDefinition::UNIT_LABEL_LIMIT, class: "dd-field", required: true %>
+  </div>
+
+  <div class="dd-field-group">
+    <%= form.label :proposed_opening_quantity, "Proposed opening quantity", class: "dd-label" %>
+    <%= form.number_field :proposed_opening_quantity, value: values.fetch(:proposed_opening_quantity, pool_definition.proposed_opening_quantity), min: 1, step: 1, class: "dd-field" %>
+    <p class="dd-field-hint">Required before activation for block and allotment Pools. Leave blank for on-request or externally managed Pools.</p>
+  </div>
+
+  <div class="dd-field-group">
+    <%= form.label :notes, "Notes", class: "dd-label" %>
+    <%= form.text_area :notes, value: values.fetch(:notes, pool_definition.notes), maxlength: CapacityPoolDefinition::NOTES_LIMIT, class: "dd-field" %>
+  </div>
+
+  <fieldset class="dd-field-group">
+    <legend class="dd-label">Supplier evidence</legend>
+    <div class="dd-field-group">
+      <%= form.label :evidence_kind, "Evidence kind", class: "dd-label" %>
+      <%= form.select :evidence_kind,
+        CapacityPoolDefinition::EVIDENCE_KINDS.map { |kind| [ kind.tr("_", " ").titleize, kind ] },
+        { include_blank: "Evidence incomplete", selected: values.fetch(:evidence_kind, pool_definition.evidence_kind) },
+        class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :evidence_on, "Evidence date", class: "dd-label" %>
+      <%= form.date_field :evidence_on, value: values.fetch(:evidence_on, pool_definition.evidence_on), class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :evidence_reference_note, "Evidence note", class: "dd-label" %>
+      <%= form.text_area :evidence_reference_note, value: values.fetch(:evidence_reference_note, pool_definition.evidence_reference_note), maxlength: CapacityPoolDefinition::EVIDENCE_REFERENCE_NOTE_LIMIT, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :evidence_external_reference, "External reference", class: "dd-label" %>
+      <%= form.text_field :evidence_external_reference, value: values.fetch(:evidence_external_reference, pool_definition.evidence_external_reference), maxlength: CapacityPoolDefinition::EVIDENCE_EXTERNAL_REFERENCE_LIMIT, class: "dd-field" %>
+    </div>
+  </fieldset>
+
+  <% if Current.agency_user.permitted?(:override_supplier_planning_terms) %>
+    <fieldset class="dd-field-group">
+      <legend class="dd-label">Administrator override</legend>
+      <label>
+        <%= form.check_box :override, checked: ActiveModel::Type::Boolean.new.cast(values.fetch(:override, pool_definition.override?)) %>
+        Use override instead of Supplier evidence
+      </label>
+      <div class="dd-field-group">
+        <%= form.label :override_reason, "Override reason", class: "dd-label" %>
+        <%= form.text_area :override_reason, value: values.fetch(:override_reason, pool_definition.override_reason), maxlength: CapacityPoolDefinition::OVERRIDE_REASON_LIMIT, class: "dd-field" %>
+      </div>
+    </fieldset>
+  <% end %>
+
+  <div class="dd-form-actions">
+    <%= form.submit submit_label, class: "dd-button" %>
+    <%= link_to "Cancel", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item), class: "dd-button dd-button--quiet" %>
+  </div>
+<% end %>

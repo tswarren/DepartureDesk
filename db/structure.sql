@@ -117,6 +117,160 @@ $$;
 
 
 --
+-- Name: reject_capacity_event_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_capacity_event_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'capacity event is append-only';
+END;
+$$;
+
+
+--
+-- Name: reject_capacity_pair_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_capacity_pair_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+          OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+          OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+          OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+          OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id
+          OR NEW.service_occurrence_id IS DISTINCT FROM OLD.service_occurrence_id
+          OR NEW.supplier_resource_id IS DISTINCT FROM OLD.supplier_resource_id THEN
+    RAISE EXCEPTION 'capacity pair definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_capacity_pair_for_cancelled_occurrence(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_capacity_pair_for_cancelled_occurrence() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM service_occurrences
+    WHERE id = NEW.service_occurrence_id
+      AND agency_id = NEW.agency_id
+      AND status = 'cancelled'
+  ) THEN
+    RAISE EXCEPTION 'capacity pair cannot be created for a cancelled occurrence';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_capacity_pool_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_capacity_pool_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+          OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+          OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+          OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+          OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id
+          OR NEW.service_occurrence_id IS DISTINCT FROM OLD.service_occurrence_id
+          OR NEW.supplier_resource_id IS DISTINCT FROM OLD.supplier_resource_id
+          OR NEW.capacity_pair_definition_id IS DISTINCT FROM OLD.capacity_pair_definition_id
+          OR NEW.capacity_pool_id IS DISTINCT FROM OLD.capacity_pool_id THEN
+    RAISE EXCEPTION 'capacity pool definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_capacity_pool_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_capacity_pool_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+          OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+          OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+          OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id
+          OR NEW.service_occurrence_id IS DISTINCT FROM OLD.service_occurrence_id
+          OR NEW.supplier_resource_id IS DISTINCT FROM OLD.supplier_resource_id
+          OR NEW.supplying_supplier_id IS DISTINCT FROM OLD.supplying_supplier_id
+          OR NEW.inventory_mode IS DISTINCT FROM OLD.inventory_mode
+          OR NEW.measurement_basis IS DISTINCT FROM OLD.measurement_basis
+          OR NEW.effective_time_zone IS DISTINCT FROM OLD.effective_time_zone THEN
+    RAISE EXCEPTION 'capacity pool semantic identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_capacity_projection_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_capacity_projection_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+          OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+          OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+          OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id
+          OR NEW.service_occurrence_id IS DISTINCT FROM OLD.service_occurrence_id
+          OR NEW.supplier_resource_id IS DISTINCT FROM OLD.supplier_resource_id
+          OR NEW.capacity_pool_id IS DISTINCT FROM OLD.capacity_pool_id THEN
+    RAISE EXCEPTION 'capacity projection owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_capacity_reconciliation_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_capacity_reconciliation_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'capacity reconciliation is append-only';
+END;
+$$;
+
+
+--
+-- Name: reject_capacity_reconciliation_resolution_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_capacity_reconciliation_resolution_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'capacity reconciliation resolution is append-only';
+END;
+$$;
+
+
+--
 -- Name: reject_client_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -228,6 +382,26 @@ $$;
 
 
 --
+-- Name: reject_invalid_capacity_pool_zone(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_invalid_capacity_pool_zone() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_timezone_names
+    WHERE name = NEW.effective_time_zone
+  ) THEN
+    RAISE EXCEPTION 'capacity pool effective_time_zone is not a recognized IANA timezone';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_invalid_service_occurrence_definition_zone(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -241,6 +415,82 @@ BEGIN
     WHERE name = NEW.time_zone
   ) THEN
     RAISE EXCEPTION 'service occurrence definition time_zone is not a recognized IANA timezone';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_nonnumeric_capacity_event(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_nonnumeric_capacity_event() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  pool_mode text;
+BEGIN
+  SELECT inventory_mode INTO pool_mode FROM capacity_pools WHERE id = NEW.capacity_pool_id;
+  IF pool_mode IN ('on_request', 'externally_managed') THEN
+    RAISE EXCEPTION 'nonnumeric capacity pools cannot store capacity events';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_nonnumeric_capacity_pool_definition_quantity(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_nonnumeric_capacity_pool_definition_quantity() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  pool_mode text;
+BEGIN
+  SELECT inventory_mode INTO pool_mode FROM capacity_pools WHERE id = NEW.capacity_pool_id;
+  IF pool_mode IN ('on_request', 'externally_managed') AND NEW.proposed_opening_quantity IS NOT NULL THEN
+    RAISE EXCEPTION 'nonnumeric capacity pools cannot store a proposed opening quantity';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_nonnumeric_capacity_projection(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_nonnumeric_capacity_projection() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  pool_mode text;
+BEGIN
+  SELECT inventory_mode INTO pool_mode FROM capacity_pools WHERE id = NEW.capacity_pool_id;
+  IF pool_mode IN ('on_request', 'externally_managed') THEN
+    RAISE EXCEPTION 'nonnumeric capacity pools cannot store projections';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_nonnumeric_capacity_reconciliation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_nonnumeric_capacity_reconciliation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  pool_mode text;
+BEGIN
+  SELECT inventory_mode INTO pool_mode FROM capacity_pools WHERE id = NEW.capacity_pool_id;
+  IF pool_mode IN ('on_request', 'externally_managed') THEN
+    RAISE EXCEPTION 'nonnumeric capacity pools cannot store reconciliations';
   END IF;
   RETURN NEW;
 END;
@@ -622,7 +872,9 @@ CREATE TABLE public.arrangement_item_definitions (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT arrangement_item_definitions_category CHECK (((category)::text = ANY ((ARRAY['cruise'::character varying, 'lodging'::character varying, 'air'::character varying, 'ground_transportation'::character varying, 'dining'::character varying, 'activity_attraction'::character varying, 'insurance'::character varying, 'other'::character varying])::text[]))),
+    capacity_management character varying,
+    CONSTRAINT arrangement_item_definitions_capacity_management CHECK (((capacity_management IS NULL) OR ((capacity_management)::text = ANY (ARRAY[('managed'::character varying)::text, ('unmanaged'::character varying)::text])))),
+    CONSTRAINT arrangement_item_definitions_category CHECK (((category)::text = ANY (ARRAY[('cruise'::character varying)::text, ('lodging'::character varying)::text, ('air'::character varying)::text, ('ground_transportation'::character varying)::text, ('dining'::character varying)::text, ('activity_attraction'::character varying)::text, ('insurance'::character varying)::text, ('other'::character varying)::text]))),
     CONSTRAINT arrangement_item_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
     CONSTRAINT arrangement_item_definitions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT arrangement_item_definitions_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
@@ -667,6 +919,233 @@ CREATE TABLE public.audit_events (
 
 
 --
+-- Name: capacity_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    supplier_resource_id uuid NOT NULL,
+    capacity_pool_id uuid NOT NULL,
+    supplying_supplier_id uuid NOT NULL,
+    event_type character varying NOT NULL,
+    quantity bigint NOT NULL,
+    measurement_basis character varying NOT NULL,
+    effective_on date NOT NULL,
+    effective_time_zone character varying NOT NULL,
+    applies_at timestamp with time zone NOT NULL,
+    effective_sequence integer NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    evidence_kind character varying,
+    evidence_on date,
+    evidence_reference_note character varying(500),
+    evidence_external_reference character varying(160),
+    override boolean DEFAULT false NOT NULL,
+    override_reason character varying(500),
+    reinstates_event_id uuid,
+    corrects_event_id uuid,
+    capacity_reconciliation_id uuid,
+    actor_id uuid NOT NULL,
+    agency_command_idempotency_key_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT capacity_events_correction_source_xor CHECK ((((event_type)::text <> ALL (ARRAY[('corrected_up'::character varying)::text, ('corrected_down'::character varying)::text])) OR ((corrects_event_id IS NOT NULL) <> (capacity_reconciliation_id IS NOT NULL)))),
+    CONSTRAINT capacity_events_correction_sources_only CHECK ((((event_type)::text = ANY (ARRAY[('corrected_up'::character varying)::text, ('corrected_down'::character varying)::text])) OR ((corrects_event_id IS NULL) AND (capacity_reconciliation_id IS NULL)))),
+    CONSTRAINT capacity_events_effective_time_zone CHECK ((btrim((effective_time_zone)::text) <> ''::text)),
+    CONSTRAINT capacity_events_evidence_xor_override CHECK ((((override = false) AND (override_reason IS NULL) AND ((evidence_kind)::text = ANY (ARRAY[('contract'::character varying)::text, ('supplier_confirmation'::character varying)::text, ('supplier_message'::character varying)::text, ('supplier_portal'::character varying)::text, ('verbal_confirmation'::character varying)::text, ('other'::character varying)::text])) AND (evidence_on IS NOT NULL) AND (evidence_reference_note IS NOT NULL) AND (btrim((evidence_reference_note)::text) <> ''::text) AND (char_length((evidence_reference_note)::text) <= 500) AND ((evidence_external_reference IS NULL) OR ((btrim((evidence_external_reference)::text) <> ''::text) AND (char_length((evidence_external_reference)::text) <= 160)))) OR ((override = true) AND (override_reason IS NOT NULL) AND (btrim((override_reason)::text) <> ''::text) AND (char_length((override_reason)::text) <= 500) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)))),
+    CONSTRAINT capacity_events_measurement_basis CHECK (((measurement_basis)::text = ANY (ARRAY[('resource_units'::character varying)::text, ('traveler_positions'::character varying)::text]))),
+    CONSTRAINT capacity_events_quantity_positive CHECK ((quantity > 0)),
+    CONSTRAINT capacity_events_reinstates_pair CHECK ((((event_type)::text = 'reinstated'::text) = (reinstates_event_id IS NOT NULL))),
+    CONSTRAINT capacity_events_sequence_positive CHECK ((effective_sequence > 0)),
+    CONSTRAINT capacity_events_type CHECK (((event_type)::text = ANY (ARRAY[('established'::character varying)::text, ('increased'::character varying)::text, ('released'::character varying)::text, ('reinstated'::character varying)::text, ('withdrawn'::character varying)::text, ('corrected_up'::character varying)::text, ('corrected_down'::character varying)::text])))
+);
+
+
+--
+-- Name: capacity_pair_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_pair_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT capacity_pair_definitions_supplier_arrangement_version_not_null NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    supplier_resource_id uuid NOT NULL,
+    classification character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT capacity_pair_definitions_classification CHECK (((classification)::text = ANY (ARRAY[('pooled'::character varying)::text, ('not_applicable'::character varying)::text]))),
+    CONSTRAINT capacity_pair_definitions_lock_version CHECK ((lock_version >= 0))
+);
+
+
+--
+-- Name: capacity_pool_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_pool_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT capacity_pool_definitions_supplier_arrangement_version_not_null NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    supplier_resource_id uuid NOT NULL,
+    capacity_pair_definition_id uuid NOT NULL,
+    capacity_pool_id uuid NOT NULL,
+    label character varying(120) NOT NULL,
+    normalized_label character varying(120) NOT NULL,
+    notes character varying(2000),
+    unit_label character varying(40) NOT NULL,
+    proposed_opening_quantity bigint,
+    evidence_kind character varying,
+    evidence_on date,
+    evidence_reference_note character varying(500),
+    evidence_external_reference character varying(160),
+    override boolean DEFAULT false NOT NULL,
+    override_reason character varying(500),
+    "position" integer NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT capacity_pool_defs_evidence_xor_override CHECK ((((override = false) AND (override_reason IS NULL) AND ((evidence_kind)::text = ANY (ARRAY[('contract'::character varying)::text, ('supplier_confirmation'::character varying)::text, ('supplier_message'::character varying)::text, ('supplier_portal'::character varying)::text, ('verbal_confirmation'::character varying)::text, ('other'::character varying)::text])) AND (evidence_on IS NOT NULL) AND (evidence_reference_note IS NOT NULL) AND (btrim((evidence_reference_note)::text) <> ''::text) AND (char_length((evidence_reference_note)::text) <= 500) AND ((evidence_external_reference IS NULL) OR ((btrim((evidence_external_reference)::text) <> ''::text) AND (char_length((evidence_external_reference)::text) <= 160)))) OR ((override = true) AND (override_reason IS NOT NULL) AND (btrim((override_reason)::text) <> ''::text) AND (char_length((override_reason)::text) <= 500) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)) OR ((override = false) AND (override_reason IS NULL) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)))),
+    CONSTRAINT capacity_pool_defs_label CHECK (((btrim((label)::text) <> ''::text) AND (char_length((label)::text) <= 120))),
+    CONSTRAINT capacity_pool_defs_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT capacity_pool_defs_normalized_label CHECK (((btrim((normalized_label)::text) <> ''::text) AND ((normalized_label)::text = lower(btrim((label)::text))) AND (char_length((normalized_label)::text) <= 120))),
+    CONSTRAINT capacity_pool_defs_notes CHECK (((notes IS NULL) OR ((btrim((notes)::text) <> ''::text) AND (char_length((notes)::text) <= 2000)))),
+    CONSTRAINT capacity_pool_defs_position_positive CHECK (("position" > 0)),
+    CONSTRAINT capacity_pool_defs_proposed_qty CHECK (((proposed_opening_quantity IS NULL) OR (proposed_opening_quantity > 0))),
+    CONSTRAINT capacity_pool_defs_unit_label CHECK (((btrim((unit_label)::text) <> ''::text) AND (char_length((unit_label)::text) <= 40)))
+);
+
+
+--
+-- Name: capacity_pools; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_pools (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    supplier_resource_id uuid NOT NULL,
+    supplying_supplier_id uuid NOT NULL,
+    inventory_mode character varying NOT NULL,
+    measurement_basis character varying NOT NULL,
+    effective_time_zone character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT capacity_pools_effective_time_zone CHECK ((btrim((effective_time_zone)::text) <> ''::text)),
+    CONSTRAINT capacity_pools_inventory_mode CHECK (((inventory_mode)::text = ANY (ARRAY[('block'::character varying)::text, ('allotment'::character varying)::text, ('on_request'::character varying)::text, ('externally_managed'::character varying)::text]))),
+    CONSTRAINT capacity_pools_measurement_basis CHECK (((measurement_basis)::text = ANY (ARRAY[('resource_units'::character varying)::text, ('traveler_positions'::character varying)::text])))
+);
+
+
+--
+-- Name: capacity_projections; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_projections (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    supplier_resource_id uuid NOT NULL,
+    capacity_pool_id uuid NOT NULL,
+    current_supplier_capacity bigint DEFAULT 0 NOT NULL,
+    last_event_id uuid,
+    last_effective_on date,
+    last_effective_sequence integer,
+    last_recorded_at timestamp with time zone,
+    next_applies_at timestamp with time zone,
+    next_event_id uuid,
+    rebuilt_at timestamp with time zone NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT capacity_projections_current_nonnegative CHECK ((current_supplier_capacity >= 0)),
+    CONSTRAINT capacity_projections_lock_version CHECK ((lock_version >= 0))
+);
+
+
+--
+-- Name: capacity_reconciliation_resolutions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_reconciliation_resolutions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT capacity_reconciliation_resolu_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT capacity_reconciliation_res_supplier_arrangement_versi_not_null NOT NULL,
+    arrangement_item_id uuid CONSTRAINT capacity_reconciliation_resolution_arrangement_item_id_not_null NOT NULL,
+    service_occurrence_id uuid CONSTRAINT capacity_reconciliation_resoluti_service_occurrence_id_not_null NOT NULL,
+    supplier_resource_id uuid CONSTRAINT capacity_reconciliation_resolutio_supplier_resource_id_not_null NOT NULL,
+    capacity_pool_id uuid NOT NULL,
+    capacity_reconciliation_id uuid CONSTRAINT capacity_reconciliation_res_capacity_reconciliation_id_not_null NOT NULL,
+    capacity_event_id uuid NOT NULL,
+    actor_id uuid NOT NULL,
+    resolved_at timestamp with time zone NOT NULL,
+    note character varying(500) NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT capacity_recon_resolutions_note CHECK (((btrim((note)::text) <> ''::text) AND (char_length((note)::text) <= 500)))
+);
+
+
+--
+-- Name: capacity_reconciliations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_reconciliations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT capacity_reconciliations_supplier_arrangement_version__not_null NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    service_occurrence_id uuid NOT NULL,
+    supplier_resource_id uuid NOT NULL,
+    capacity_pool_id uuid NOT NULL,
+    observed_quantity bigint NOT NULL,
+    observed_at timestamp with time zone NOT NULL,
+    observed_time_zone character varying NOT NULL,
+    ledger_quantity bigint NOT NULL,
+    variance bigint NOT NULL,
+    evidence_kind character varying,
+    evidence_on date,
+    evidence_reference_note character varying(500),
+    evidence_external_reference character varying(160),
+    override boolean DEFAULT false NOT NULL,
+    override_reason character varying(500),
+    actor_id uuid NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    agency_command_idempotency_key_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT capacity_reconciliations_evidence_xor_override CHECK ((((override = false) AND (override_reason IS NULL) AND ((evidence_kind)::text = ANY (ARRAY[('contract'::character varying)::text, ('supplier_confirmation'::character varying)::text, ('supplier_message'::character varying)::text, ('supplier_portal'::character varying)::text, ('verbal_confirmation'::character varying)::text, ('other'::character varying)::text])) AND (evidence_on IS NOT NULL) AND (evidence_reference_note IS NOT NULL) AND (btrim((evidence_reference_note)::text) <> ''::text) AND (char_length((evidence_reference_note)::text) <= 500) AND ((evidence_external_reference IS NULL) OR ((btrim((evidence_external_reference)::text) <> ''::text) AND (char_length((evidence_external_reference)::text) <= 160)))) OR ((override = true) AND (override_reason IS NOT NULL) AND (btrim((override_reason)::text) <> ''::text) AND (char_length((override_reason)::text) <= 500) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)))),
+    CONSTRAINT capacity_reconciliations_ledger_nonnegative CHECK ((ledger_quantity >= 0)),
+    CONSTRAINT capacity_reconciliations_observed_nonnegative CHECK ((observed_quantity >= 0)),
+    CONSTRAINT capacity_reconciliations_observed_time_zone CHECK ((btrim((observed_time_zone)::text) <> ''::text)),
+    CONSTRAINT capacity_reconciliations_variance CHECK ((variance = (observed_quantity - ledger_quantity)))
+);
+
+
+--
 -- Name: client_organization_contacts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -707,7 +1186,7 @@ CREATE TABLE public.client_organization_email_addresses (
     normalized_address text GENERATED ALWAYS AS (lower(btrim((address)::text))) STORED,
     CONSTRAINT client_org_email_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_org_email_addresses_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT client_org_email_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT client_org_email_addresses_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text]))),
     CONSTRAINT client_organization_email_addresses_normalized CHECK (((normalized_address = lower(btrim((address)::text))) AND (normalized_address <> ''::text)))
 );
 
@@ -733,7 +1212,7 @@ CREATE TABLE public.client_organization_phone_numbers (
     phone_digits_reversed text GENERATED ALWAYS AS (reverse(SUBSTRING(normalized_number FROM 2))) STORED,
     CONSTRAINT client_org_phone_numbers_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_org_phone_numbers_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT client_org_phone_numbers_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT client_org_phone_numbers_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text]))),
     CONSTRAINT client_organization_phone_numbers_country_shape CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
     CONSTRAINT client_organization_phone_numbers_e164_shape CHECK (((normalized_number)::text ~ '^\+[1-9][0-9]{0,14}$'::text)),
     CONSTRAINT client_organization_phone_numbers_extension CHECK (((extension IS NULL) OR ((extension)::text ~ '^[0-9]{1,10}$'::text)))
@@ -764,7 +1243,7 @@ CREATE TABLE public.client_organization_postal_addresses (
     locality_search_key text GENERATED ALWAYS AS (public.dd_search_normalize((locality)::text)) STORED,
     CONSTRAINT client_org_postal_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_org_postal_addresses_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT client_org_postal_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT client_org_postal_addresses_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text]))),
     CONSTRAINT client_organization_postal_addresses_country_shape CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
     CONSTRAINT client_organization_postal_addresses_line_1 CHECK ((btrim((line_1)::text) <> ''::text))
 );
@@ -789,7 +1268,7 @@ CREATE TABLE public.client_organization_websites (
     normalized_host character varying NOT NULL,
     CONSTRAINT client_org_websites_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_org_websites_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT client_org_websites_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT client_org_websites_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text]))),
     CONSTRAINT client_organization_websites_normalized_host_present CHECK ((btrim((normalized_host)::text) <> ''::text)),
     CONSTRAINT client_organization_websites_normalized_url_present CHECK ((btrim((normalized_url)::text) <> ''::text)),
     CONSTRAINT client_organization_websites_url_present CHECK ((btrim((url)::text) <> ''::text))
@@ -814,7 +1293,7 @@ CREATE TABLE public.client_organizations (
     name_search_vector tsvector GENERATED ALWAYS AS (to_tsvector('simple'::regconfig, ((COALESCE(public.dd_search_normalize((display_name)::text), ''::text) || ' '::text) || COALESCE(public.dd_search_normalize((legal_name)::text), ''::text)))) STORED,
     CONSTRAINT client_organizations_display_name_present CHECK ((btrim((display_name)::text) <> ''::text)),
     CONSTRAINT client_organizations_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT client_organizations_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT client_organizations_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -838,7 +1317,7 @@ CREATE TABLE public.client_people (
     name_search_vector tsvector GENERATED ALWAYS AS (to_tsvector('simple'::regconfig, public.dd_search_normalize((((((((((first_name)::text || ' '::text) || (COALESCE(middle_name, ''::character varying))::text) || ' '::text) || (last_name)::text) || ' '::text) || (COALESCE(suffix, ''::character varying))::text) || ' '::text) || (COALESCE(preferred_name, ''::character varying))::text)))) STORED,
     CONSTRAINT client_people_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT client_people_names_present CHECK (((btrim((first_name)::text) <> ''::text) AND (btrim((last_name)::text) <> ''::text))),
-    CONSTRAINT client_people_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT client_people_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -861,7 +1340,7 @@ CREATE TABLE public.client_person_email_addresses (
     CONSTRAINT client_person_email_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_person_email_addresses_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT client_person_email_addresses_normalized CHECK (((normalized_address = lower(btrim((address)::text))) AND (normalized_address <> ''::text))),
-    CONSTRAINT client_person_email_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT client_person_email_addresses_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -889,7 +1368,7 @@ CREATE TABLE public.client_person_phone_numbers (
     CONSTRAINT client_person_phone_numbers_extension CHECK (((extension IS NULL) OR ((extension)::text ~ '^[0-9]{1,10}$'::text))),
     CONSTRAINT client_person_phone_numbers_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_person_phone_numbers_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT client_person_phone_numbers_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT client_person_phone_numbers_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -919,7 +1398,7 @@ CREATE TABLE public.client_person_postal_addresses (
     CONSTRAINT client_person_postal_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT client_person_postal_addresses_line_1 CHECK ((btrim((line_1)::text) <> ''::text)),
     CONSTRAINT client_person_postal_addresses_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT client_person_postal_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT client_person_postal_addresses_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -940,7 +1419,7 @@ CREATE TABLE public.clients (
     CONSTRAINT clients_exactly_one_source CHECK ((num_nonnulls(client_person_id, client_organization_id) = 1)),
     CONSTRAINT clients_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT clients_reference_format CHECK (((client_reference)::text ~ '^CL-[0-9]{6}$'::text)),
-    CONSTRAINT clients_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT clients_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -978,7 +1457,7 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_operating_currency CHECK (((operating_currency IS NULL) OR ((operating_currency)::text ~ '^[A-Z]{3}$'::text))),
     CONSTRAINT departures_reference_activation_pair CHECK (((departure_reference IS NULL) = (first_activated_at IS NULL))),
     CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^D-[0-9]{6}$'::text))),
-    CONSTRAINT departures_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'departed'::character varying])::text[])))
+    CONSTRAINT departures_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('departed'::character varying)::text])))
 );
 
 
@@ -1014,7 +1493,7 @@ CREATE TABLE public.reference_sequences (
     next_value bigint DEFAULT 1 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY ((ARRAY['client'::character varying, 'supplier'::character varying, 'departure'::character varying])::text[]))),
+    CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY (ARRAY[('client'::character varying)::text, ('supplier'::character varying)::text, ('departure'::character varying)::text]))),
     CONSTRAINT reference_sequences_next_value CHECK (((next_value >= 1) AND (next_value <= 1000000)))
 );
 
@@ -1075,7 +1554,7 @@ CREATE TABLE public.service_occurrences (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT service_occurrences_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT service_occurrences_status CHECK (((status)::text = ANY ((ARRAY['planned'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT service_occurrences_status CHECK (((status)::text = ANY (ARRAY[('planned'::character varying)::text, ('cancelled'::character varying)::text])))
 );
 
 
@@ -1116,7 +1595,7 @@ CREATE TABLE public.supplier_arrangement_versions (
     CONSTRAINT supplier_arrangement_versions_number_positive CHECK ((version_number > 0)),
     CONSTRAINT supplier_arrangement_versions_reason CHECK (((abandoned_reason IS NULL) OR ((btrim((abandoned_reason)::text) <> ''::text) AND (char_length((abandoned_reason)::text) <= 500)))),
     CONSTRAINT supplier_arrangement_versions_reason_pair CHECK ((((status)::text = 'abandoned'::text) = (abandoned_reason IS NOT NULL))),
-    CONSTRAINT supplier_arrangement_versions_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'activated'::character varying, 'superseded'::character varying, 'abandoned'::character varying])::text[])))
+    CONSTRAINT supplier_arrangement_versions_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('activated'::character varying)::text, ('superseded'::character varying)::text, ('abandoned'::character varying)::text])))
 );
 
 
@@ -1139,7 +1618,7 @@ CREATE TABLE public.supplier_arrangements (
     CONSTRAINT supplier_arrangements_abandoned_at_pair CHECK ((((status)::text = 'abandoned'::text) = (abandoned_at IS NOT NULL))),
     CONSTRAINT supplier_arrangements_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_arrangements_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
-    CONSTRAINT supplier_arrangements_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'ended'::character varying, 'abandoned'::character varying])::text[])))
+    CONSTRAINT supplier_arrangements_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('ended'::character varying)::text, ('abandoned'::character varying)::text])))
 );
 
 
@@ -1155,7 +1634,7 @@ CREATE TABLE public.supplier_category_assignments (
     other_label character varying(80),
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT supplier_category_assignments_code CHECK (((category_code)::text = ANY ((ARRAY['cruise_line'::character varying, 'lodging'::character varying, 'air'::character varying, 'ground_transportation'::character varying, 'tour_operator_dmc'::character varying, 'dining'::character varying, 'activity_attraction'::character varying, 'insurance'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT supplier_category_assignments_code CHECK (((category_code)::text = ANY (ARRAY[('cruise_line'::character varying)::text, ('lodging'::character varying)::text, ('air'::character varying)::text, ('ground_transportation'::character varying)::text, ('tour_operator_dmc'::character varying)::text, ('dining'::character varying)::text, ('activity_attraction'::character varying)::text, ('insurance'::character varying)::text, ('other'::character varying)::text]))),
     CONSTRAINT supplier_category_assignments_other_label CHECK (((((category_code)::text = 'other'::text) AND (other_label IS NOT NULL) AND ((other_label)::text = btrim((other_label)::text)) AND (btrim((other_label)::text) <> ''::text) AND (char_length((other_label)::text) <= 80)) OR (((category_code)::text <> 'other'::text) AND (other_label IS NULL))))
 );
 
@@ -1179,7 +1658,7 @@ CREATE TABLE public.supplier_contact_email_addresses (
     CONSTRAINT supplier_contact_email_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT supplier_contact_email_addresses_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_contact_email_addresses_normalized CHECK (((normalized_address = lower(btrim((address)::text))) AND (normalized_address <> ''::text))),
-    CONSTRAINT supplier_contact_email_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT supplier_contact_email_addresses_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -1207,7 +1686,7 @@ CREATE TABLE public.supplier_contact_phone_numbers (
     CONSTRAINT supplier_contact_phone_numbers_extension CHECK (((extension IS NULL) OR ((extension)::text ~ '^[0-9]{1,10}$'::text))),
     CONSTRAINT supplier_contact_phone_numbers_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT supplier_contact_phone_numbers_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT supplier_contact_phone_numbers_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT supplier_contact_phone_numbers_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -1238,7 +1717,7 @@ CREATE TABLE public.supplier_contacts (
     CONSTRAINT supplier_contacts_last_name CHECK (((btrim((last_name)::text) <> ''::text) AND (char_length((last_name)::text) <= 100))),
     CONSTRAINT supplier_contacts_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_contacts_role_label CHECK (((role_label IS NULL) OR ((btrim((role_label)::text) <> ''::text) AND (char_length((role_label)::text) <= 80)))),
-    CONSTRAINT supplier_contacts_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT supplier_contacts_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text]))),
     CONSTRAINT supplier_contacts_title CHECK (((title IS NULL) OR ((btrim((title)::text) <> ''::text) AND (char_length((title)::text) <= 120))))
 );
 
@@ -1262,7 +1741,7 @@ CREATE TABLE public.supplier_email_addresses (
     CONSTRAINT supplier_email_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT supplier_email_addresses_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_email_addresses_normalized CHECK (((normalized_address = lower(btrim((address)::text))) AND (normalized_address <> ''::text))),
-    CONSTRAINT supplier_email_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT supplier_email_addresses_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -1304,7 +1783,7 @@ END) STORED,
     CONSTRAINT supplier_locations_no_unit_separator CHECK ((((address_line_1 IS NULL) OR (POSITION((''::text) IN (address_line_1)) = 0)) AND ((address_line_2 IS NULL) OR (POSITION((''::text) IN (address_line_2)) = 0)) AND ((address_locality IS NULL) OR (POSITION((''::text) IN (address_locality)) = 0)) AND ((address_region IS NULL) OR (POSITION((''::text) IN (address_region)) = 0)) AND ((address_postal_code IS NULL) OR (POSITION((''::text) IN (address_postal_code)) = 0)))),
     CONSTRAINT supplier_locations_phone_shape CHECK ((((phone_number IS NULL) AND (phone_normalized_number IS NULL) AND (phone_extension IS NULL) AND (phone_country_code IS NULL)) OR ((phone_number IS NOT NULL) AND (btrim((phone_number)::text) <> ''::text) AND (phone_normalized_number IS NOT NULL) AND ((phone_normalized_number)::text ~ '^\+[1-9][0-9]{0,14}$'::text) AND (phone_country_code IS NOT NULL) AND ((phone_country_code)::text ~ '^[A-Z]{2}$'::text) AND ((phone_extension IS NULL) OR ((phone_extension)::text ~ '^[0-9]{1,10}$'::text))))),
     CONSTRAINT supplier_locations_postal_shape CHECK ((((address_line_1 IS NULL) AND (address_line_2 IS NULL) AND (address_locality IS NULL) AND (address_region IS NULL) AND (address_postal_code IS NULL) AND (address_country_code IS NULL)) OR ((address_line_1 IS NOT NULL) AND (btrim((address_line_1)::text) <> ''::text) AND (address_country_code IS NOT NULL) AND ((address_country_code)::text ~ '^[A-Z]{2}$'::text)))),
-    CONSTRAINT supplier_locations_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT supplier_locations_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -1332,7 +1811,7 @@ CREATE TABLE public.supplier_phone_numbers (
     CONSTRAINT supplier_phone_numbers_extension CHECK (((extension IS NULL) OR ((extension)::text ~ '^[0-9]{1,10}$'::text))),
     CONSTRAINT supplier_phone_numbers_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT supplier_phone_numbers_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT supplier_phone_numbers_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT supplier_phone_numbers_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -1362,7 +1841,7 @@ CREATE TABLE public.supplier_postal_addresses (
     CONSTRAINT supplier_postal_addresses_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT supplier_postal_addresses_line_1 CHECK ((btrim((line_1)::text) <> ''::text)),
     CONSTRAINT supplier_postal_addresses_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT supplier_postal_addresses_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT supplier_postal_addresses_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -1427,7 +1906,7 @@ CREATE TABLE public.supplier_websites (
     CONSTRAINT supplier_websites_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_websites_normalized_host_present CHECK ((btrim((normalized_host)::text) <> ''::text)),
     CONSTRAINT supplier_websites_normalized_url_present CHECK ((btrim((normalized_url)::text) <> ''::text)),
-    CONSTRAINT supplier_websites_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[]))),
+    CONSTRAINT supplier_websites_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text]))),
     CONSTRAINT supplier_websites_url_present CHECK ((btrim((url)::text) <> ''::text))
 );
 
@@ -1461,11 +1940,11 @@ CASE
     ELSE NULL::text
 END) STORED,
     name_search_vector tsvector GENERATED ALWAYS AS (to_tsvector('simple'::regconfig, ((((((((COALESCE(public.dd_search_normalize((display_name)::text), ''::text) || ' '::text) || COALESCE(public.dd_search_normalize((legal_name)::text), ''::text)) || ' '::text) || COALESCE(public.dd_search_normalize((first_name)::text), ''::text)) || ' '::text) || COALESCE(public.dd_search_normalize((last_name)::text), ''::text)) || ' '::text) || COALESCE(public.dd_search_normalize((doing_business_as)::text), ''::text)))) STORED,
-    CONSTRAINT suppliers_kind CHECK (((kind)::text = ANY ((ARRAY['organization'::character varying, 'individual'::character varying])::text[]))),
+    CONSTRAINT suppliers_kind CHECK (((kind)::text = ANY (ARRAY[('organization'::character varying)::text, ('individual'::character varying)::text]))),
     CONSTRAINT suppliers_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT suppliers_name_shape CHECK (((((kind)::text = 'organization'::text) AND (display_name IS NOT NULL) AND (btrim((display_name)::text) <> ''::text) AND (first_name IS NULL) AND (last_name IS NULL)) OR (((kind)::text = 'individual'::text) AND (first_name IS NOT NULL) AND (btrim((first_name)::text) <> ''::text) AND (last_name IS NOT NULL) AND (btrim((last_name)::text) <> ''::text) AND (display_name IS NULL) AND (legal_name IS NULL)))),
     CONSTRAINT suppliers_reference_format CHECK (((supplier_reference)::text ~ '^SUP-[0-9]{6}$'::text)),
-    CONSTRAINT suppliers_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+    CONSTRAINT suppliers_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
 );
 
 
@@ -1531,6 +2010,70 @@ ALTER TABLE ONLY public.arrangement_items
 
 ALTER TABLE ONLY public.audit_events
     ADD CONSTRAINT audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacity_events capacity_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT capacity_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacity_pair_definitions capacity_pair_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pair_definitions
+    ADD CONSTRAINT capacity_pair_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pool_definitions
+    ADD CONSTRAINT capacity_pool_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_defs_position_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pool_definitions
+    ADD CONSTRAINT capacity_pool_defs_position_unique UNIQUE (supplier_arrangement_version_id, capacity_pair_definition_id, "position") DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: capacity_pools capacity_pools_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pools
+    ADD CONSTRAINT capacity_pools_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacity_projections capacity_projections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_projections
+    ADD CONSTRAINT capacity_projections_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacity_reconciliation_resolutions capacity_reconciliation_resolutions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliation_resolutions
+    ADD CONSTRAINT capacity_reconciliation_resolutions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacity_reconciliations capacity_reconciliations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliations
+    ADD CONSTRAINT capacity_reconciliations_pkey PRIMARY KEY (id);
 
 
 --
@@ -1922,6 +2465,293 @@ CREATE INDEX index_audit_events_on_agency_id ON public.audit_events USING btree 
 --
 
 CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_events USING btree (agency_id, created_at);
+
+
+--
+-- Name: index_capacity_events_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_events_on_agency_id ON public.capacity_events USING btree (agency_id);
+
+
+--
+-- Name: index_capacity_events_on_applicability; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_events_on_applicability ON public.capacity_events USING btree (capacity_pool_id, applies_at, effective_on, effective_sequence);
+
+
+--
+-- Name: index_capacity_events_on_applies_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_events_on_applies_at ON public.capacity_events USING btree (applies_at, capacity_pool_id);
+
+
+--
+-- Name: index_capacity_events_on_business_replay_order; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_events_on_business_replay_order ON public.capacity_events USING btree (capacity_pool_id, effective_on, effective_sequence, recorded_at, id);
+
+
+--
+-- Name: index_capacity_events_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_events_on_id_and_agency_id ON public.capacity_events USING btree (id, agency_id);
+
+
+--
+-- Name: index_capacity_events_on_id_pool_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_events_on_id_pool_agency ON public.capacity_events USING btree (id, capacity_pool_id, agency_id);
+
+
+--
+-- Name: index_capacity_events_on_idempotency_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_events_on_idempotency_key ON public.capacity_events USING btree (agency_command_idempotency_key_id) WHERE (agency_command_idempotency_key_id IS NOT NULL);
+
+
+--
+-- Name: index_capacity_events_on_pool_date_sequence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_events_on_pool_date_sequence ON public.capacity_events USING btree (capacity_pool_id, effective_on, effective_sequence);
+
+
+--
+-- Name: index_capacity_events_one_established_per_pool; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_events_one_established_per_pool ON public.capacity_events USING btree (capacity_pool_id) WHERE ((event_type)::text = 'established'::text);
+
+
+--
+-- Name: index_capacity_pair_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_pair_definitions_on_agency_id ON public.capacity_pair_definitions USING btree (agency_id);
+
+
+--
+-- Name: index_capacity_pairs_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pairs_on_full_owner ON public.capacity_pair_definitions USING btree (id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_capacity_pairs_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pairs_on_id_and_agency_id ON public.capacity_pair_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_capacity_pairs_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pairs_on_id_departure_agency ON public.capacity_pair_definitions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_capacity_pairs_on_item_coverage; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_pairs_on_item_coverage ON public.capacity_pair_definitions USING btree (supplier_arrangement_version_id, arrangement_item_id, service_occurrence_id, supplier_resource_id);
+
+
+--
+-- Name: index_capacity_pairs_on_version_occurrence_resource; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pairs_on_version_occurrence_resource ON public.capacity_pair_definitions USING btree (supplier_arrangement_version_id, service_occurrence_id, supplier_resource_id);
+
+
+--
+-- Name: index_capacity_pool_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_pool_definitions_on_agency_id ON public.capacity_pool_definitions USING btree (agency_id);
+
+
+--
+-- Name: index_capacity_pool_defs_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pool_defs_on_id_and_agency_id ON public.capacity_pool_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_capacity_pool_defs_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pool_defs_on_id_departure_agency ON public.capacity_pool_definitions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_capacity_pool_defs_on_pool_and_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pool_defs_on_pool_and_version ON public.capacity_pool_definitions USING btree (capacity_pool_id, supplier_arrangement_version_id);
+
+
+--
+-- Name: index_capacity_pool_defs_on_position_lookup; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_pool_defs_on_position_lookup ON public.capacity_pool_definitions USING btree (supplier_arrangement_version_id, capacity_pair_definition_id, "position");
+
+
+--
+-- Name: index_capacity_pool_defs_on_unique_label; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pool_defs_on_unique_label ON public.capacity_pool_definitions USING btree (supplier_arrangement_version_id, capacity_pair_definition_id, normalized_label);
+
+
+--
+-- Name: index_capacity_pools_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_pools_on_agency_id ON public.capacity_pools USING btree (agency_id);
+
+
+--
+-- Name: index_capacity_pools_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pools_on_full_owner ON public.capacity_pools USING btree (id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_capacity_pools_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pools_on_id_and_agency_id ON public.capacity_pools USING btree (id, agency_id);
+
+
+--
+-- Name: index_capacity_pools_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pools_on_id_departure_agency ON public.capacity_pools USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_capacity_pools_on_pair_lookup; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_pools_on_pair_lookup ON public.capacity_pools USING btree (supplier_arrangement_id, arrangement_item_id, service_occurrence_id, supplier_resource_id);
+
+
+--
+-- Name: index_capacity_pools_on_supplier_dependency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_pools_on_supplier_dependency ON public.capacity_pools USING btree (agency_id, supplying_supplier_id, id);
+
+
+--
+-- Name: index_capacity_projections_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_projections_on_agency_id ON public.capacity_projections USING btree (agency_id);
+
+
+--
+-- Name: index_capacity_projections_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_projections_on_id_and_agency_id ON public.capacity_projections USING btree (id, agency_id);
+
+
+--
+-- Name: index_capacity_projections_on_next_applies_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_projections_on_next_applies_at ON public.capacity_projections USING btree (next_applies_at, capacity_pool_id) WHERE (next_applies_at IS NOT NULL);
+
+
+--
+-- Name: index_capacity_projections_on_pool; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_projections_on_pool ON public.capacity_projections USING btree (capacity_pool_id);
+
+
+--
+-- Name: index_capacity_recon_resolutions_on_history; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_recon_resolutions_on_history ON public.capacity_reconciliation_resolutions USING btree (capacity_pool_id, capacity_reconciliation_id, resolved_at, id);
+
+
+--
+-- Name: index_capacity_recon_resolutions_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_recon_resolutions_on_id_and_agency_id ON public.capacity_reconciliation_resolutions USING btree (id, agency_id);
+
+
+--
+-- Name: index_capacity_recon_resolutions_on_recon_event; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_recon_resolutions_on_recon_event ON public.capacity_reconciliation_resolutions USING btree (capacity_reconciliation_id, capacity_event_id);
+
+
+--
+-- Name: index_capacity_reconciliation_resolutions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_reconciliation_resolutions_on_agency_id ON public.capacity_reconciliation_resolutions USING btree (agency_id);
+
+
+--
+-- Name: index_capacity_reconciliations_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_reconciliations_on_agency_id ON public.capacity_reconciliations USING btree (agency_id);
+
+
+--
+-- Name: index_capacity_reconciliations_on_discrepancy; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_reconciliations_on_discrepancy ON public.capacity_reconciliations USING btree (capacity_pool_id, id) WHERE (variance <> 0);
+
+
+--
+-- Name: index_capacity_reconciliations_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_reconciliations_on_id_and_agency_id ON public.capacity_reconciliations USING btree (id, agency_id);
+
+
+--
+-- Name: index_capacity_reconciliations_on_id_pool_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_reconciliations_on_id_pool_agency ON public.capacity_reconciliations USING btree (id, capacity_pool_id, agency_id);
+
+
+--
+-- Name: index_capacity_reconciliations_on_idempotency_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_reconciliations_on_idempotency_key ON public.capacity_reconciliations USING btree (agency_command_idempotency_key_id) WHERE (agency_command_idempotency_key_id IS NOT NULL);
+
+
+--
+-- Name: index_capacity_reconciliations_on_pool_observed; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_reconciliations_on_pool_observed ON public.capacity_reconciliations USING btree (capacity_pool_id, observed_at, id);
 
 
 --
@@ -2408,6 +3238,27 @@ CREATE UNIQUE INDEX index_departures_on_id_and_agency_id ON public.departures US
 
 
 --
+-- Name: index_idempotency_keys_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_idempotency_keys_on_id_and_agency_id ON public.agency_command_idempotency_keys USING btree (id, agency_id);
+
+
+--
+-- Name: index_item_definitions_on_exact_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_item_definitions_on_exact_version_owner ON public.arrangement_item_definitions USING btree (arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_occurrence_definitions_on_exact_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_occurrence_definitions_on_exact_version_owner ON public.service_occurrence_definitions USING btree (service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: index_offices_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2440,6 +3291,13 @@ CREATE UNIQUE INDEX index_reference_sequences_on_agency_and_namespace ON public.
 --
 
 CREATE INDEX index_reference_sequences_on_agency_id ON public.reference_sequences USING btree (agency_id);
+
+
+--
+-- Name: index_resource_definitions_on_exact_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_resource_definitions_on_exact_version_owner ON public.supplier_resource_definitions USING btree (supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -3136,6 +3994,118 @@ CREATE TRIGGER audit_events_reject_update BEFORE DELETE OR UPDATE ON public.audi
 
 
 --
+-- Name: capacity_events capacity_events_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_events_reject_delete BEFORE DELETE ON public.capacity_events FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_event_mutation();
+
+
+--
+-- Name: capacity_events capacity_events_reject_nonnumeric_pool; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_events_reject_nonnumeric_pool BEFORE INSERT ON public.capacity_events FOR EACH ROW EXECUTE FUNCTION public.reject_nonnumeric_capacity_event();
+
+
+--
+-- Name: capacity_events capacity_events_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_events_reject_update BEFORE UPDATE ON public.capacity_events FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_event_mutation();
+
+
+--
+-- Name: capacity_pair_definitions capacity_pair_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pair_definitions_reject_owner_change BEFORE UPDATE ON public.capacity_pair_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_pair_definition_owner_change();
+
+
+--
+-- Name: capacity_pair_definitions capacity_pairs_reject_cancelled_occurrence; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pairs_reject_cancelled_occurrence BEFORE INSERT OR UPDATE OF service_occurrence_id ON public.capacity_pair_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_pair_for_cancelled_occurrence();
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_definitions_reject_nonnumeric_quantity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pool_definitions_reject_nonnumeric_quantity BEFORE INSERT OR UPDATE ON public.capacity_pool_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_nonnumeric_capacity_pool_definition_quantity();
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pool_definitions_reject_owner_change BEFORE UPDATE ON public.capacity_pool_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_pool_definition_owner_change();
+
+
+--
+-- Name: capacity_pools capacity_pools_reject_invalid_zone; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pools_reject_invalid_zone BEFORE INSERT OR UPDATE OF effective_time_zone ON public.capacity_pools FOR EACH ROW EXECUTE FUNCTION public.reject_invalid_capacity_pool_zone();
+
+
+--
+-- Name: capacity_pools capacity_pools_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pools_reject_owner_change BEFORE UPDATE ON public.capacity_pools FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_pool_owner_change();
+
+
+--
+-- Name: capacity_projections capacity_projections_reject_nonnumeric_pool; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_projections_reject_nonnumeric_pool BEFORE INSERT ON public.capacity_projections FOR EACH ROW EXECUTE FUNCTION public.reject_nonnumeric_capacity_projection();
+
+
+--
+-- Name: capacity_projections capacity_projections_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_projections_reject_owner_change BEFORE UPDATE ON public.capacity_projections FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_projection_owner_change();
+
+
+--
+-- Name: capacity_reconciliation_resolutions capacity_reconciliation_resolutions_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_reconciliation_resolutions_reject_delete BEFORE DELETE ON public.capacity_reconciliation_resolutions FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_reconciliation_resolution_mutation();
+
+
+--
+-- Name: capacity_reconciliation_resolutions capacity_reconciliation_resolutions_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_reconciliation_resolutions_reject_update BEFORE UPDATE ON public.capacity_reconciliation_resolutions FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_reconciliation_resolution_mutation();
+
+
+--
+-- Name: capacity_reconciliations capacity_reconciliations_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_reconciliations_reject_delete BEFORE DELETE ON public.capacity_reconciliations FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_reconciliation_mutation();
+
+
+--
+-- Name: capacity_reconciliations capacity_reconciliations_reject_nonnumeric_pool; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_reconciliations_reject_nonnumeric_pool BEFORE INSERT ON public.capacity_reconciliations FOR EACH ROW EXECUTE FUNCTION public.reject_nonnumeric_capacity_reconciliation();
+
+
+--
+-- Name: capacity_reconciliations capacity_reconciliations_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_reconciliations_reject_update BEFORE UPDATE ON public.capacity_reconciliations FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_reconciliation_mutation();
+
+
+--
 -- Name: client_organization_email_addresses client_org_email_addresses_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -3401,6 +4371,286 @@ ALTER TABLE ONLY public.audit_events
 
 
 --
+-- Name: capacity_events capacity_events_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT capacity_events_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: capacity_events capacity_events_corrects_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT capacity_events_corrects_event_fk FOREIGN KEY (corrects_event_id, capacity_pool_id, agency_id) REFERENCES public.capacity_events(id, capacity_pool_id, agency_id);
+
+
+--
+-- Name: capacity_events capacity_events_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT capacity_events_idempotency_fk FOREIGN KEY (agency_command_idempotency_key_id, agency_id) REFERENCES public.agency_command_idempotency_keys(id, agency_id);
+
+
+--
+-- Name: capacity_events capacity_events_pool_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT capacity_events_pool_fk FOREIGN KEY (capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pools(id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_events capacity_events_reconciliation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT capacity_events_reconciliation_fk FOREIGN KEY (capacity_reconciliation_id, capacity_pool_id, agency_id) REFERENCES public.capacity_reconciliations(id, capacity_pool_id, agency_id);
+
+
+--
+-- Name: capacity_events capacity_events_reinstates_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT capacity_events_reinstates_event_fk FOREIGN KEY (reinstates_event_id, capacity_pool_id, agency_id) REFERENCES public.capacity_events(id, capacity_pool_id, agency_id);
+
+
+--
+-- Name: capacity_events capacity_events_supplier_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT capacity_events_supplier_fk FOREIGN KEY (supplying_supplier_id, agency_id) REFERENCES public.suppliers(id, agency_id);
+
+
+--
+-- Name: capacity_events capacity_events_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT capacity_events_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pair_definitions capacity_pair_definitions_item_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pair_definitions
+    ADD CONSTRAINT capacity_pair_definitions_item_definition_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_item_definitions(arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pair_definitions capacity_pair_definitions_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pair_definitions
+    ADD CONSTRAINT capacity_pair_definitions_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pair_definitions capacity_pair_definitions_occurrence_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pair_definitions
+    ADD CONSTRAINT capacity_pair_definitions_occurrence_definition_fk FOREIGN KEY (service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrence_definitions(service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pair_definitions capacity_pair_definitions_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pair_definitions
+    ADD CONSTRAINT capacity_pair_definitions_occurrence_fk FOREIGN KEY (service_occurrence_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrences(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pair_definitions capacity_pair_definitions_resource_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pair_definitions
+    ADD CONSTRAINT capacity_pair_definitions_resource_definition_fk FOREIGN KEY (supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_resource_definitions(supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pair_definitions capacity_pair_definitions_resource_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pair_definitions
+    ADD CONSTRAINT capacity_pair_definitions_resource_fk FOREIGN KEY (supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_resources(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pair_definitions capacity_pair_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pair_definitions
+    ADD CONSTRAINT capacity_pair_definitions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_definitions_pair_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pool_definitions
+    ADD CONSTRAINT capacity_pool_definitions_pair_fk FOREIGN KEY (capacity_pair_definition_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pair_definitions(id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_definitions_pool_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pool_definitions
+    ADD CONSTRAINT capacity_pool_definitions_pool_fk FOREIGN KEY (capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pools(id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pool_definitions
+    ADD CONSTRAINT capacity_pool_definitions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pools capacity_pools_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pools
+    ADD CONSTRAINT capacity_pools_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pools capacity_pools_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pools
+    ADD CONSTRAINT capacity_pools_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pools capacity_pools_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pools
+    ADD CONSTRAINT capacity_pools_occurrence_fk FOREIGN KEY (service_occurrence_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrences(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pools capacity_pools_resource_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pools
+    ADD CONSTRAINT capacity_pools_resource_fk FOREIGN KEY (supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_resources(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_pools capacity_pools_supplier_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pools
+    ADD CONSTRAINT capacity_pools_supplier_fk FOREIGN KEY (supplying_supplier_id, agency_id) REFERENCES public.suppliers(id, agency_id);
+
+
+--
+-- Name: capacity_projections capacity_projections_last_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_projections
+    ADD CONSTRAINT capacity_projections_last_event_fk FOREIGN KEY (last_event_id, capacity_pool_id, agency_id) REFERENCES public.capacity_events(id, capacity_pool_id, agency_id);
+
+
+--
+-- Name: capacity_projections capacity_projections_next_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_projections
+    ADD CONSTRAINT capacity_projections_next_event_fk FOREIGN KEY (next_event_id, capacity_pool_id, agency_id) REFERENCES public.capacity_events(id, capacity_pool_id, agency_id);
+
+
+--
+-- Name: capacity_projections capacity_projections_pool_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_projections
+    ADD CONSTRAINT capacity_projections_pool_fk FOREIGN KEY (capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pools(id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_reconciliation_resolutions capacity_recon_resolutions_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliation_resolutions
+    ADD CONSTRAINT capacity_recon_resolutions_event_fk FOREIGN KEY (capacity_event_id, capacity_pool_id, agency_id) REFERENCES public.capacity_events(id, capacity_pool_id, agency_id);
+
+
+--
+-- Name: capacity_reconciliation_resolutions capacity_recon_resolutions_reconciliation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliation_resolutions
+    ADD CONSTRAINT capacity_recon_resolutions_reconciliation_fk FOREIGN KEY (capacity_reconciliation_id, capacity_pool_id, agency_id) REFERENCES public.capacity_reconciliations(id, capacity_pool_id, agency_id);
+
+
+--
+-- Name: capacity_reconciliation_resolutions capacity_reconciliation_resolutions_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliation_resolutions
+    ADD CONSTRAINT capacity_reconciliation_resolutions_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: capacity_reconciliation_resolutions capacity_reconciliation_resolutions_pool_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliation_resolutions
+    ADD CONSTRAINT capacity_reconciliation_resolutions_pool_fk FOREIGN KEY (capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pools(id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_reconciliation_resolutions capacity_reconciliation_resolutions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliation_resolutions
+    ADD CONSTRAINT capacity_reconciliation_resolutions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_reconciliations capacity_reconciliations_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliations
+    ADD CONSTRAINT capacity_reconciliations_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: capacity_reconciliations capacity_reconciliations_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliations
+    ADD CONSTRAINT capacity_reconciliations_idempotency_fk FOREIGN KEY (agency_command_idempotency_key_id, agency_id) REFERENCES public.agency_command_idempotency_keys(id, agency_id);
+
+
+--
+-- Name: capacity_reconciliations capacity_reconciliations_pool_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliations
+    ADD CONSTRAINT capacity_reconciliations_pool_fk FOREIGN KEY (capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pools(id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: capacity_reconciliations capacity_reconciliations_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliations
+    ADD CONSTRAINT capacity_reconciliations_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: client_organization_contacts client_org_contacts_organization_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3521,6 +4771,14 @@ ALTER TABLE ONLY public.client_person_postal_addresses
 
 
 --
+-- Name: capacity_pools fk_rails_19d5f960c4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pools
+    ADD CONSTRAINT fk_rails_19d5f960c4 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: client_organization_phone_numbers fk_rails_1f83ac8034; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3545,6 +4803,14 @@ ALTER TABLE ONLY public.arrangement_item_definitions
 
 
 --
+-- Name: capacity_reconciliations fk_rails_28fe5e2cf2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliations
+    ADD CONSTRAINT fk_rails_28fe5e2cf2 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_arrangement_versions fk_rails_2919e0612f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3558,6 +4824,14 @@ ALTER TABLE ONLY public.supplier_arrangement_versions
 
 ALTER TABLE ONLY public.offices
     ADD CONSTRAINT fk_rails_29d71841aa FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: capacity_projections fk_rails_308824deff; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_projections
+    ADD CONSTRAINT fk_rails_308824deff FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -3606,6 +4880,14 @@ ALTER TABLE ONLY public.client_organizations
 
 ALTER TABLE ONLY public.reference_sequences
     ADD CONSTRAINT fk_rails_4fafc1651c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: capacity_reconciliation_resolutions fk_rails_6af96c37bf; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_reconciliation_resolutions
+    ADD CONSTRAINT fk_rails_6af96c37bf FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -3670,6 +4952,14 @@ ALTER TABLE ONLY public.clients
 
 ALTER TABLE ONLY public.agency_users
     ADD CONSTRAINT fk_rails_9b56937ae8 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: capacity_events fk_rails_9c760ffc14; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT fk_rails_9c760ffc14 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -3766,6 +5056,22 @@ ALTER TABLE ONLY public.arrangement_items
 
 ALTER TABLE ONLY public.supplier_email_addresses
     ADD CONSTRAINT fk_rails_e4b48618c0 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: capacity_pair_definitions fk_rails_e840ad8189; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pair_definitions
+    ADD CONSTRAINT fk_rails_e840ad8189 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: capacity_pool_definitions fk_rails_f2e9dce76c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pool_definitions
+    ADD CONSTRAINT fk_rails_f2e9dce76c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -3967,6 +5273,9 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260916220000'),
+('20260916210000'),
+('20260916200000'),
 ('20260916140000'),
 ('20260916010000'),
 ('20260915120000'),

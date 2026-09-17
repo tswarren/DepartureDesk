@@ -1,0 +1,23 @@
+<% content_for :title, "New Capacity Pool · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Draft capacity</p>
+    <h1 class="dd-page-title">New Pool</h1>
+    <p class="dd-page-description"><%= @arrangement_item_definition.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= render "form",
+      pool_definition: @capacity_pool_definition,
+      values: {},
+      url: pair_pools_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: @capacity_pair.id),
+      method: :post,
+      submit_label: "Save Pool",
+      include_semantics: true,
+      include_version_lock: true,
+      idempotency_key: @idempotency_key %>
+  </div>
+</article>

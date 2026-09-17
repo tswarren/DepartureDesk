@@ -14,6 +14,10 @@ development: &recurring_defaults
     class: MarkEligibleDeparturesDepartedJob
     queue: departures
     schedule: every hour
+  refresh_due_capacity_projections:
+    class: RefreshDueCapacityProjectionsJob
+    queue: capacity
+    schedule: every hour
 
 production:
   <<: *recurring_defaults

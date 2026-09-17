@@ -125,6 +125,48 @@
           </div>
         </dl>
 
+        <% capacity_pairs = @capacity_pairs_by_item_members.fetch(item.id, {}) %>
+        <% capacity_pool_definitions = @capacity_pool_definitions_by_item_pair_id.fetch(item.id, {}) %>
+        <% capacity_warnings = capacity_item_warnings(item_definition, occurrence_definitions, resource_definitions, capacity_pairs, capacity_pool_definitions, @supplier_arrangement) %>
+        <% pool_count = capacity_pool_definitions.values.sum(&:size) %>
+        <section>
+          <header class="dd-panel-header">
+            <div>
+              <h3 class="dd-panel-title">Capacity</h3>
+              <p><%= capacity_management_label(item_definition.capacity_management) %></p>
+            </div>
+            <% if ordinary_editable || recovery_cleanup %>
+              <%= link_to "Configure capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+            <% end %>
+          </header>
+          <% if item_definition.unmanaged? %>
+            <p class="<%= empty_state_classes.join(" ") %>">Quantity not tracked for this Item.</p>
+          <% else %>
+            <dl class="dd-definition-list">
+              <div>
+                <dt>Pair decisions</dt>
+                <dd><%= capacity_pairs.size %> of <%= occurrence_definitions.size * resource_definitions.size %></dd>
+              </div>
+              <div>
+                <dt>Pools</dt>
+                <dd><%= pool_count %></dd>
+              </div>
+            </dl>
+            <% if capacity_warnings.any? %>
+              <ul>
+                <% capacity_warnings.first(4).each do |warning| %>
+                  <li><%= warning %></li>
+                <% end %>
+                <% if capacity_warnings.size > 4 %>
+                  <li><%= capacity_warnings.size - 4 %> more capacity warnings.</li>
+                <% end %>
+              </ul>
+            <% else %>
+              <p>Tentative capacity structure has no current warnings.</p>
+            <% end %>
+          <% end %>
+        </section>
+
         <section>
           <header class="dd-panel-header">
             <h3 class="dd-panel-title">Occurrences</h3>

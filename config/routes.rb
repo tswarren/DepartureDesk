@@ -154,6 +154,22 @@ Rails.application.routes.draw do
       end
       resources :items, controller: "arrangement_items", only: %i[new create edit update destroy] do
         collection { patch :reorder }
+        resource :capacity, controller: "item_capacities", only: %i[show update] do
+          # Pool routes use a static "pools" segment and must stay ahead of the
+          # occurrence/resource classify routes, which share the same depth.
+          uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+          get "pairs/:pair_id/pools/new", to: "capacity_pools#new", as: :new_pair_pool, constraints: { pair_id: uuid }
+          post "pairs/:pair_id/pools", to: "capacity_pools#create", as: :pair_pools, constraints: { pair_id: uuid }
+          patch "pairs/:pair_id/pools/reorder", to: "capacity_pools#reorder", as: :reorder_pair_pools, constraints: { pair_id: uuid }
+          get "pairs/:pair_id/pools/:id/edit", to: "capacity_pools#edit", as: :edit_pair_pool, constraints: { pair_id: uuid, id: uuid }
+          patch "pairs/:pair_id/pools/:id", to: "capacity_pools#update", as: :pair_pool, constraints: { pair_id: uuid, id: uuid }
+          delete "pairs/:pair_id/pools/:id", to: "capacity_pools#destroy", constraints: { pair_id: uuid, id: uuid }
+          post "pairs/:occurrence_id/:resource_id", to: "capacity_pairs#create", as: :pair,
+            constraints: { occurrence_id: uuid, resource_id: uuid }
+          patch "pairs/:occurrence_id/:resource_id", to: "capacity_pairs#update",
+            constraints: { occurrence_id: uuid, resource_id: uuid }
+          delete "pairs/:pair_id", to: "capacity_pairs#destroy", as: :defined_pair, constraints: { pair_id: uuid }
+        end
         resources :occurrences, controller: "service_occurrences", only: %i[new create edit update destroy]
         resources :resources, controller: "supplier_resources", only: %i[new create edit update destroy] do
           collection { patch :reorder }

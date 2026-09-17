@@ -38,7 +38,7 @@ class ChangeSupplierStatus < AgencyCommand
           end
           ensure_force_allowed!
         end
-        cascade_descendants!(supplier).merge(force_details(dependency_ids))
+        cascade_descendants!(supplier).merge(force_details(supplier, dependency_ids))
       else
         empty_affected
       end
@@ -63,14 +63,30 @@ class ChangeSupplierStatus < AgencyCommand
     normalize_reason(@force_reason)
   end
 
-  def force_details(dependency_ids)
-    return { "forced" => false, "force_reason" => nil, "affected_supplier_arrangement_ids" => [] } if dependency_ids.empty?
+  def force_details(supplier, dependency_ids)
+    capacity_pool_ids = affected_capacity_pool_ids(supplier)
+    if dependency_ids.empty?
+      return {
+        "forced" => false,
+        "force_reason" => nil,
+        "affected_supplier_arrangement_ids" => [],
+        "affected_capacity_pool_ids" => capacity_pool_ids
+      }
+    end
 
     {
       "forced" => true,
       "force_reason" => normalize_reason(@force_reason),
-      "affected_supplier_arrangement_ids" => dependency_ids
+      "affected_supplier_arrangement_ids" => dependency_ids,
+      "affected_capacity_pool_ids" => capacity_pool_ids
     }
+  end
+
+  def affected_capacity_pool_ids(supplier)
+    @agency.capacity_pools
+      .where(supplying_supplier_id: supplier.id)
+      .order(:id)
+      .pluck(:id)
   end
 
   def m3a_dependency_arrangement_ids(supplier)
