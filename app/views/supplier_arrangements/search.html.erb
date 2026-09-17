@@ -1,31 +1,26 @@
-<% content_for :title, "Supplier Planning · DepartureDesk" %>
-<% manage = Current.agency_user.permitted?(:manage_departures) %>
+<% content_for :title, "Search arrangements · DepartureDesk" %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departures</p>
-    <h1 class="dd-page-title">Supplier planning</h1>
-    <p class="dd-page-description"><%= @departure.name %></p>
+    <h1 class="dd-page-title">Arrangement search</h1>
+    <p class="dd-page-description">Agency-scoped search from <%= @departure.name %>. Identifier and Reservation matches resolve to the owning Arrangement.</p>
   </div>
   <div class="dd-page-actions">
-    <% if manage && (@departure.draft? || @departure.active?) %>
-      <%= link_to "Add arrangement", new_departure_arrangement_path(@departure), class: "dd-button" %>
-    <% end %>
-    <%= link_to "Search arrangements", search_departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
-    <%= link_to "Back to departure", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+    <%= link_to "Back to planning", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
   </div>
 </header>
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <%= form_with url: departure_arrangements_path(@departure), method: :get, class: "dd-form" do |form| %>
+    <%= form_with url: search_departure_arrangements_path(@departure), method: :get, class: "dd-form" do |form| %>
       <div class="dd-field-group">
         <%= form.label :q, "Search", class: "dd-label" %>
         <%= form.search_field :q, value: params[:q], maxlength: 100, class: "dd-field" %>
       </div>
       <div class="dd-field-group">
         <%= form.label :status, "Status", class: "dd-label" %>
-        <%= form.select :status, ListDepartureArrangements::STATUSES.map { |status| [ status.titleize, status ] }, { selected: @status }, class: "dd-field" %>
+        <%= form.select :status, SearchSupplierArrangements::STATUSES.map { |status| [ status.titleize, status ] }, { selected: @status }, class: "dd-field" %>
       </div>
       <div class="dd-field-group">
         <%= form.label :contracting_supplier_id, "Contracting supplier", class: "dd-label" %>
@@ -34,9 +29,16 @@
           { include_blank: "All suppliers", selected: params[:contracting_supplier_id] },
           class: "dd-field" %>
       </div>
+      <div class="dd-field-group">
+        <%= form.label :identifier_type, "Identifier type", class: "dd-label" %>
+        <%= form.select :identifier_type,
+          SupplierIssuedIdentifier::IDENTIFIER_TYPES.map { |type| [ type.humanize, type ] },
+          { include_blank: "Any identifier type", selected: params[:identifier_type] },
+          class: "dd-field" %>
+      </div>
       <div class="dd-form-actions">
-        <%= form.submit "Apply", class: "dd-button" %>
-        <%= link_to "Reset", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= form.submit "Search", class: "dd-button" %>
+        <%= link_to "Reset", search_departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>
@@ -49,8 +51,8 @@
     <thead>
       <tr>
         <th scope="col">Arrangement</th>
+        <th scope="col">Departure</th>
         <th scope="col">Contracting supplier</th>
-        <th scope="col">Contact</th>
         <th scope="col">Status</th>
       </tr>
     </thead>
@@ -62,9 +64,9 @@
       <% else %>
         <% @search.records.each do |arrangement| %>
           <tr class="<%= "is-inactive" if arrangement.abandoned? %>">
-            <td><%= link_to arrangement.name, departure_arrangement_path(@departure, arrangement) %></td>
+            <td><%= link_to arrangement.name, departure_arrangement_path(arrangement.departure, arrangement) %></td>
+            <td><%= arrangement.departure.name %></td>
             <td><%= supplier_option_label(arrangement.contracting_supplier) %></td>
-            <td><%= arrangement.supplier_contact ? supplier_contact_option_label(arrangement.supplier_contact) : "None" %></td>
             <td><%= supplier_arrangement_status_badge(arrangement.status) %></td>
           </tr>
         <% end %>

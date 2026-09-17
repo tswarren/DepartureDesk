@@ -10,6 +10,9 @@
   <div class="dd-page-actions">
     <% if manage && (@departure.draft? || @departure.active?) && (@supplier_arrangement.draft? || @supplier_arrangement.active?) %>
       <%= link_to "Create planned reservation", new_departure_arrangement_reservation_path(@departure, @supplier_arrangement), class: "dd-button" %>
+      <% if @supplier_arrangement.active? %>
+        <%= link_to "Record existing confirmed booking", new_existing_departure_arrangement_reservations_path(@departure, @supplier_arrangement), class: "dd-button" %>
+      <% end %>
     <% end %>
     <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
   </div>

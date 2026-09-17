@@ -1,0 +1,52 @@
+<% content_for :title, "Record existing confirmed booking · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_departures) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier Reservation</p>
+    <h1 class="dd-page-title">Record existing confirmed booking</h1>
+    <p class="dd-page-description">Records an external confirmed booking on <%= @supplier_arrangement.name %> without sending a request.</p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to reservations", departure_arrangement_reservations_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<% if manage && @supplier_arrangement.active? %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <%= form_with url: record_existing_departure_arrangement_reservations_path(@departure, @supplier_arrangement), method: :post do %>
+        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+        <%= render "form" %>
+        <fieldset class="dd-field">
+          <legend>Confirmation evidence</legend>
+          <div class="dd-field">
+            <%= label_tag "existing_reservation_channel", "Channel" %>
+            <%= text_field_tag "existing_reservation[channel]", "portal", class: "dd-input", maxlength: 80, required: true %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "existing_reservation_reference_note", "Reference note" %>
+            <%= text_area_tag "existing_reservation[reference_note]", "Existing confirmed booking", class: "dd-textarea", maxlength: 500, required: true %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "existing_reservation_evidence_evidence_kind", "Evidence kind" %>
+            <%= select_tag "existing_reservation[evidence][evidence_kind]",
+              options_for_select(SupplierConfirmation::EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] }, "supplier_confirmation"),
+              class: "dd-select" %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "existing_reservation_evidence_evidence_on", "Evidence date" %>
+            <%= date_field_tag "existing_reservation[evidence][evidence_on]", Date.current, class: "dd-input", required: true %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "existing_reservation_evidence_confirmed_without_identifier_reason", "Confirmed without identifier reason" %>
+            <%= text_area_tag "existing_reservation[evidence][confirmed_without_identifier_reason]", "Identifier retained externally", class: "dd-textarea", maxlength: 500 %>
+          </div>
+        </fieldset>
+        <%= submit_tag "Record existing confirmed booking", class: "dd-button" %>
+      <% end %>
+    </div>
+  </article>
+<% else %>
+  <p class="<%= empty_state_classes.join(" ") %>">Only active Arrangements can record an existing confirmed booking.</p>
+<% end %>

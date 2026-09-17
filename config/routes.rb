@@ -148,10 +148,17 @@ Rails.application.routes.draw do
     resource :responsibility, only: %i[edit update], controller: "departure_responsibilities"
     resource :activation, only: :show, controller: "departure_activations"
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
+      collection do
+        get :search
+      end
       resource :activation,
         only: %i[show create],
         controller: "supplier_arrangement_activations"
       resources :reservations, controller: "supplier_reservations", only: %i[index new create show edit update] do
+        collection do
+          get :new_existing
+          post :record_existing
+        end
         member do
           get :abandon, action: :edit_abandon
           post :abandon
