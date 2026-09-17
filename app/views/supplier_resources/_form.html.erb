@@ -1,10 +1,14 @@
-<%= form.hidden_field :lock_version if form.object.persisted? %>
-<%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version unless form.object.persisted? %>
-<%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key.present? %>
+<% include_command_fields = local_assigns.fetch(:include_command_fields, true) %>
+<% fields_required = local_assigns.fetch(:fields_required, true) %>
+<% if include_command_fields %>
+  <%= form.hidden_field :lock_version if form.object.persisted? %>
+  <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version unless form.object.persisted? %>
+  <%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key.present? %>
+<% end %>
 
 <div class="dd-field-group">
   <%= form.label :name, "Name", class: "dd-label" %>
-  <%= form.text_field :name, required: true, maxlength: SupplierResourceDefinition::NAME_LIMIT, **dd_field_options(form, :name) %>
+  <%= form.text_field :name, required: fields_required, maxlength: SupplierResourceDefinition::NAME_LIMIT, **dd_field_options(form, :name) %>
   <%= dd_field_error(form, :name) %>
 </div>
 

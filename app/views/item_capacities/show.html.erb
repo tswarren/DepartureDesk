@@ -92,6 +92,55 @@
     </div>
   </article>
 <% else %>
+  <% undecided_pairs = @active_occurrence_definitions.product(@resource_definitions).reject do |occurrence_definition, resource_definition|
+    @capacity_pairs_by_members.key?([ occurrence_definition.service_occurrence_id, resource_definition.supplier_resource_id ])
+  end %>
+  <% if ordinary && @arrangement_item_definition.managed? && undecided_pairs.any? %>
+    <article class="dd-panel" id="bulk-capacity-decisions">
+      <header class="dd-panel-header">
+        <div>
+          <h2 class="dd-panel-title">Review undecided capacity pairs</h2>
+          <p>Select the reviewed Occurrence and Resource pairs, then save their decisions together.</p>
+        </div>
+      </header>
+      <div class="dd-panel-body">
+        <%= form_with url: departure_arrangement_item_bulk_capacity_pairs_path(
+          @departure, @supplier_arrangement, @arrangement_item
+        ), method: :patch, class: "dd-form" do |form| %>
+          <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+          <%= hidden_field_tag :idempotency_key, @bulk_idempotency_key %>
+          <% @active_occurrence_definitions.each do |occurrence_definition| %>
+            <% occurrence_rows = undecided_pairs.select { |candidate, _| candidate == occurrence_definition } %>
+            <% next if occurrence_rows.empty? %>
+            <fieldset class="dd-field-group">
+              <legend class="dd-label"><%= occurrence_definition.name %> · <%= occurrence_date_label(occurrence_definition) %></legend>
+              <% occurrence_rows.each do |_, resource_definition| %>
+                <% decision_key = "#{occurrence_definition.service_occurrence_id}_#{resource_definition.supplier_resource_id}" %>
+                <% submitted = (@submitted_bulk_decisions || {}).fetch(decision_key, {}).with_indifferent_access %>
+                <div class="dd-field-group">
+                  <label>
+                    <%= check_box_tag "decisions[#{decision_key}][selected]", "1", ActiveModel::Type::Boolean.new.cast(submitted[:selected]) %>
+                    Review <%= resource_definition.name %>
+                  </label>
+                  <%= hidden_field_tag "decisions[#{decision_key}][service_occurrence_id]", occurrence_definition.service_occurrence_id %>
+                  <%= hidden_field_tag "decisions[#{decision_key}][supplier_resource_id]", resource_definition.supplier_resource_id %>
+                  <%= select_tag "decisions[#{decision_key}][classification]",
+                    options_for_select([ [ "Pooled", "pooled" ], [ "Not applicable", "not_applicable" ] ], submitted[:classification]),
+                    include_blank: "Choose a decision",
+                    class: "dd-field",
+                    aria: { label: "Decision for #{occurrence_definition.name} and #{resource_definition.name}" } %>
+                </div>
+              <% end %>
+            </fieldset>
+          <% end %>
+          <div class="dd-form-actions">
+            <%= form.submit "Save reviewed decisions", class: "dd-button" %>
+          </div>
+        <% end %>
+      </div>
+    </article>
+  <% end %>
+
   <% @active_occurrence_definitions.each do |occurrence_definition| %>
     <article class="dd-panel" id="capacity-occurrence-<%= occurrence_definition.service_occurrence_id %>">
       <header class="dd-panel-header">
@@ -218,6 +267,31 @@
               <p class="<%= empty_state_classes.join(" ") %>">Quantity not tracked for this Occurrence and Resource.</p>
             <% else %>
               <p class="<%= empty_state_classes.join(" ") %>">Choose whether this Occurrence and Resource is pooled or not applicable.</p>
+            <% end %>
+
+            <% if ordinary && @arrangement_item_definition.managed? && !pair&.pooled? %>
+              <% setup_members = [ occurrence_definition.service_occurrence_id, resource_definition.supplier_resource_id ] %>
+              <% setup_has_errors = @pool_setup_members == setup_members %>
+              <details <%= "open" if setup_has_errors %>>
+                <summary class="dd-row-action">Classify as pooled and add first Pool</summary>
+                <div class="dd-panel-body">
+                  <%= render "capacity_pools/form",
+                    pool_definition: (setup_has_errors ? @capacity_pool_definition : CapacityPoolDefinition.new),
+                    values: (setup_has_errors ? @submitted_capacity_pool_params : {}),
+                    url: departure_arrangement_item_capacity_pair_pool_setup_path(
+                      @departure,
+                      @supplier_arrangement,
+                      @arrangement_item,
+                      occurrence_definition.service_occurrence,
+                      resource_definition.supplier_resource
+                    ),
+                    method: :post,
+                    submit_label: "Save pooled capacity",
+                    include_semantics: true,
+                    include_version_lock: true,
+                    idempotency_key: (setup_has_errors ? @pool_setup_idempotency_key : SecureRandom.uuid) %>
+                </div>
+              </details>
             <% end %>
           </section>
         <% end %>

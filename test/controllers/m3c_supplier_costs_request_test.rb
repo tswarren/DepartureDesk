@@ -77,6 +77,115 @@ class M3CSupplierCostsRequestTest < ActionDispatch::IntegrationTest
     )
   end
 
+  test "guided setup stores user-facing percentage and redirects through review" do
+    item = @arrangement.arrangement_items.create!(agency: @agency, departure: @departure)
+    @version.arrangement_item_definitions.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement,
+      arrangement_item: item, name: "Excursion", category: "lodging", position: 1
+    )
+    sign_in_as @admin
+
+    post departure_arrangement_item_cost_setup_path(@departure, @arrangement, item), params: {
+      idempotency_key: SecureRandom.uuid, version_lock_version: @version.lock_version,
+      supplier_cost_source: { label: "Commission", charging_supplier_id: @supplier.id },
+      supplier_cost_definition: {
+        stage: "estimate", mode: "calculated", currency: "USD", rounding_mode: "half_up"
+      },
+      supplier_cost_component: {
+        label: "Expected commission", economic_role: "expected_commission",
+        calculation_kind: "percentage", percentage: "16",
+        percentage_treatment: "additive", pass_through: "0"
+      }
+    }
+    component = SupplierCostComponent.find_by!(label: "Expected commission")
+    assert_equal BigDecimal("0.16"), component.rate
+    assert component.supplier_cost_definition.working?
+    assert_redirected_to departure_arrangement_item_cost_definition_review_path(
+      @departure, @arrangement, item, component.supplier_cost_definition.supplier_cost_source,
+      component.supplier_cost_definition
+    )
+
+    follow_redirect!
+    assert_response :success
+    assert_match "Readiness attestation", response.body
+    assert_select "form[action=?]", forecast_ready_departure_arrangement_item_cost_definition_path(
+      @departure, @arrangement, item, component.supplier_cost_definition.supplier_cost_source,
+      component.supplier_cost_definition
+    )
+  end
+
+  test "cost workspace routes readiness through review and exposes category edit controls" do
+    item = @arrangement.arrangement_items.create!(agency: @agency, departure: @departure)
+    @version.arrangement_item_definitions.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement,
+      arrangement_item: item, name: "Cabin", category: "lodging", position: 1
+    )
+    category = CreateSupplierCostParticipantCategory.new(
+      agency: @agency, actor: @admin, arrangement_item: item,
+      version_lock_version: @version.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { label: "Adult" }
+    ).call.record
+    source = CreateSupplierCostSource.new(
+      agency: @agency, actor: @admin, arrangement: @arrangement,
+      version_lock_version: @version.reload.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { arrangement_item_id: item.id, charging_supplier_id: @supplier.id, label: "Fare" }
+    ).call.record
+    definition = CreateSupplierCostDefinition.new(
+      agency: @agency, actor: @admin, source:, source_lock_version: source.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: { stage: "estimate", mode: "zero_cost", currency: "USD", zero_cost_reason: "Included" }
+    ).call.record
+    sign_in_as @admin
+
+    get departure_arrangement_item_costs_workspace_path(@departure, @arrangement, item)
+    assert_response :success
+    assert_select "a", text: "Review definition", count: 1
+    assert_select "input[type=submit][value='Mark forecast ready']", count: 0
+    assert_select "summary", text: "Edit participant category", count: 1
+    assert_select "form[action=?]", departure_arrangement_item_participant_category_path(
+      @departure, @arrangement, item, category
+    ), minimum: 2
+
+    get departure_arrangement_item_cost_definition_review_path(
+      @departure, @arrangement, item, source, definition
+    )
+    assert_response :success
+    assert_match "Known zero", response.body
+
+    patch departure_arrangement_item_participant_category_path(
+      @departure, @arrangement, item, category
+    ), params: {
+      supplier_cost_participant_category: { label: "Guest", lock_version: category.lock_version }
+    }
+    assert_equal "Guest", category.reload.label
+    delete departure_arrangement_item_participant_category_path(
+      @departure, @arrangement, item, category
+    ), params: { version_lock_version: @version.reload.lock_version }
+    assert_not SupplierCostParticipantCategory.exists?(category.id)
+  end
+
+  test "guided setup preserves entered values on validation failure" do
+    sign_in_as @admin
+
+    post departure_arrangement_cost_setup_path(@departure, @arrangement), params: {
+      idempotency_key: SecureRandom.uuid, version_lock_version: @version.lock_version,
+      supplier_cost_source: { label: "Remember this", charging_supplier_id: @supplier.id },
+      supplier_cost_definition: {
+        stage: "estimate", mode: "calculated", currency: "USD", rounding_mode: "half_up"
+      },
+      supplier_cost_component: {
+        label: "Broken unit rate", economic_role: "supplier_charge",
+        calculation_kind: "unit_rate", amount: "12.50", quantity_basis: ""
+      }
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "[role=alert]", text: /Quantity basis/
+    assert_select "input[name='supplier_cost_source[label]'][value='Remember this']"
+    assert_select "input[name='supplier_cost_component[label]'][value='Broken unit rate']"
+    assert_not @version.supplier_cost_sources.exists?(label: "Remember this")
+  end
+
   test "staff workspace exposes occupancy selectors base links and currency amounts" do
     item = @arrangement.arrangement_items.create!(agency: @agency, departure: @departure)
     @version.arrangement_item_definitions.create!(
@@ -116,6 +225,7 @@ class M3CSupplierCostsRequestTest < ActionDispatch::IntegrationTest
     assert_match "Edit component", response.body
     assert_match "Remove", response.body
     assert_select "input[name=?]", "supplier_cost_component[amount]"
+    assert_select "input[name=?]", "supplier_cost_component[percentage]"
     assert_select "select[name=?]", "base_links[][direction]"
 
     post departure_arrangement_item_cost_definition_components_path(
@@ -125,7 +235,7 @@ class M3CSupplierCostsRequestTest < ActionDispatch::IntegrationTest
       definition_lock_version: definition.reload.lock_version,
       supplier_cost_component: {
         label: "Commission", economic_role: "expected_commission", calculation_kind: "percentage",
-        rate: "0.15", percentage_treatment: "additive", pass_through: "0"
+        percentage: "15", percentage_treatment: "additive", pass_through: "0"
       },
       base_links: [
         { base_component_id: fare.id, direction: "add" },
@@ -134,6 +244,7 @@ class M3CSupplierCostsRequestTest < ActionDispatch::IntegrationTest
     }
     commission = definition.supplier_cost_components.find_by!(label: "Commission")
     assert_equal 1, commission.supplier_cost_component_bases.count
+    assert_equal BigDecimal("0.15"), commission.rate
     assert_equal "add", commission.supplier_cost_component_bases.first.direction
     assert_redirected_to departure_arrangement_item_costs_workspace_path(
       @departure, @arrangement, item, anchor: "component-#{commission.id}"
@@ -146,7 +257,8 @@ class M3CSupplierCostsRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_path(@departure, @arrangement)
     assert_response :success
-    assert_match "Planning status", response.body
+    assert_match "Planning readiness", response.body
+    assert_match "Next actions", response.body
     assert_match "Arrangement costs", response.body
     assert_select "summary", text: "Add cost source", count: 0
 

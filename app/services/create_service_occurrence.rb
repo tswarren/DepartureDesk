@@ -43,21 +43,13 @@ class CreateServiceOccurrence < AgencyCommand
         result_class: ServiceOccurrence
       ) do
         ensure_current_lock_version!(version, @version_lock_version)
-        occurrence = item.service_occurrences.create!(
-          agency: @agency,
+        occurrence, definition = build_service_occurrence_already_locked!(
           departure: departure,
-          supplier_arrangement: arrangement,
-          status: "planned"
-        )
-        definition = version.service_occurrence_definitions.create!(
-          attrs.merge(
-            agency: @agency,
-            departure: departure,
-            supplier_arrangement: arrangement,
-            arrangement_item: item,
-            service_occurrence: occurrence,
-            service_provider: provider
-          )
+          arrangement: arrangement,
+          version: version,
+          item: item,
+          attributes: attrs,
+          provider: provider
         )
         bump_version!(version)
         audit!(

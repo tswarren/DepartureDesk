@@ -7,6 +7,7 @@ class SupplierResourcesController < ApplicationController
   before_action :set_supplier_arrangement
   before_action :set_initial_version
   before_action :set_arrangement_item
+  before_action :set_item_definition
   before_action :set_supplier_resource, only: %i[edit update destroy]
   before_action :set_supplier_resource_definition, only: %i[edit update]
 
@@ -70,9 +71,21 @@ class SupplierResourcesController < ApplicationController
       supplier_resource_ids: params[:supplier_resource_ids],
       version_lock_version: params[:version_lock_version]
     ).call
-    redirect_to departure_arrangement_path(@departure, @supplier_arrangement, anchor: "item-#{@arrangement_item.id}"), notice: "Resources reordered."
+    redirect_to departure_arrangement_path(
+      @departure,
+      @supplier_arrangement,
+      structure_mode: "resources",
+      structure_item_id: @arrangement_item.id,
+      anchor: "resources-#{@arrangement_item.id}"
+    ), notice: "Resources reordered."
   rescue AgencyCommand::Error => error
-    redirect_to departure_arrangement_path(@departure, @supplier_arrangement), alert: error.message
+    redirect_to departure_arrangement_path(
+      @departure,
+      @supplier_arrangement,
+      structure_mode: "resources",
+      structure_item_id: @arrangement_item.id,
+      anchor: "resources-#{@arrangement_item.id}"
+    ), alert: error.message
   end
 
   private

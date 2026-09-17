@@ -75,38 +75,20 @@ class CreateCapacityPool < AgencyCommand
       ) do
         ensure_current_lock_version!(version, @version_lock_version)
         siblings = lock_current_pool_definitions_for!(version, pair)
-        definition_attrs = submitted_definition_attrs.dup
-        definition_attrs[:label] ||= generated_capacity_label(
-          inventory_mode: inventory_mode,
-          quantity: definition_attrs[:proposed_opening_quantity],
-          unit_label: definition_attrs[:unit_label],
-          siblings: siblings
-        )
-        definition_attrs[:normalized_label] = definition_attrs[:label].downcase.strip
-
-        pool = arrangement.capacity_pools.create!(
-          agency: @agency,
+        pool, definition = build_capacity_pool_already_locked!(
           departure: departure,
-          arrangement_item: item,
-          service_occurrence: occurrence,
-          supplier_resource: resource,
-          supplying_supplier: provider,
+          arrangement: arrangement,
+          version: version,
+          item: item,
+          occurrence: occurrence,
+          resource: resource,
+          pair: pair,
+          provider: provider,
           inventory_mode: inventory_mode,
           measurement_basis: measurement_basis,
-          effective_time_zone: occurrence_definition.time_zone
-        )
-        definition = version.capacity_pool_definitions.create!(
-          definition_attrs.merge(
-            agency: @agency,
-            departure: departure,
-            supplier_arrangement: arrangement,
-            arrangement_item: item,
-            service_occurrence: occurrence,
-            supplier_resource: resource,
-            capacity_pair_definition: pair,
-            capacity_pool: pool,
-            position: next_pool_position(version, pair)
-          )
+          effective_time_zone: occurrence_definition.time_zone,
+          definition_attributes: submitted_definition_attrs,
+          siblings: siblings
         )
         bump_version!(version)
         audit!(

@@ -7,6 +7,9 @@
 <% can_remove = ordinary_editable || recovery_cleanup %>
 <% can_abandon = manage && draft_graph %>
 <% can_edit_arrangement = ordinary_editable || (recovery_cleanup && @supplier_arrangement.supplier_contact_id.present?) %>
+<% reorder_items_mode = ordinary_editable && params[:structure_mode] == "items" %>
+<% reorder_resources_item_id = params[:structure_item_id] if ordinary_editable && params[:structure_mode] == "resources" %>
+<% structure_mode = params[:structure_mode].presence %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
@@ -17,9 +20,6 @@
   <div class="dd-page-actions">
     <% if can_edit_arrangement %>
       <%= link_to recovery_cleanup ? "Clear contact" : "Edit arrangement", edit_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button" %>
-    <% end %>
-    <% if ordinary_editable %>
-      <%= link_to "Add item", new_departure_arrangement_item_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
     <% end %>
     <% if can_abandon %>
       <%= link_to "Abandon", abandon_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--danger" %>
@@ -65,42 +65,50 @@
   </div>
 </article>
 
-<article class="dd-panel" id="planning-status">
+<article class="dd-panel" id="next-actions">
   <header class="dd-panel-header">
     <div>
-      <h2 class="dd-panel-title">Planning status</h2>
-      <p>Structure, capacity, and costs are separate readiness tracks.</p>
+      <h2 class="dd-panel-title">Next actions</h2>
+      <p>Ordered by the first detectable planning blockers.</p>
     </div>
-    <div class="dd-inline-actions">
-      <%= link_to "Arrangement costs", departure_arrangement_costs_workspace_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
-      <%= link_to "Cost forecast", departure_arrangement_cost_forecast_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </header>
+  <div class="dd-panel-body">
+    <% if @planning_workspace.next_actions.any? %>
+      <ol class="dd-record-list">
+        <% @planning_workspace.next_actions.each do |action| %>
+          <li>
+            <strong><%= link_to action.label, action.href %></strong>
+            <p><%= action.text %></p>
+          </li>
+        <% end %>
+      </ol>
+    <% else %>
+      <p>No incomplete entered planning facts were detected.</p>
+    <% end %>
+    <p class="dd-field-hint">These checks cover only entered structure, capacity, and Supplier cost facts. Other real-world costs or commitments may still be missing.</p>
+  </div>
+</article>
+
+<article class="dd-panel" id="planning-readiness">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Planning readiness</h2>
+      <p>Structure, capacity, and declared costs remain separate tracks.</p>
     </div>
   </header>
   <div class="dd-panel-body">
     <dl class="dd-definition-list">
       <div>
-        <dt>Items</dt>
-        <dd><%= @item_definitions.size %></dd>
+        <dt>Structure</dt>
+        <dd><%= @planning_workspace.structure_summary %></dd>
+      </div>
+      <div>
+        <dt>Capacity</dt>
+        <dd><%= @planning_workspace.capacity_summary %></dd>
       </div>
       <div>
         <dt>Declared costs</dt>
-        <dd>
-          <% if @cost_forecast.complete %>
-            ✓ Complete
-          <% else %>
-            ⚠ <%= @cost_forecast.subtotal_label %> ·
-            <%= @cost_forecast.uncovered_item_ids.size %> uncovered Item(s) ·
-            <%= @cost_forecast.incomplete_source_ids.size %> incomplete source(s)
-          <% end %>
-        </dd>
-      </div>
-      <div>
-        <dt>Forecast Supplier cost</dt>
-        <dd><%= Money.new(@cost_forecast.totals.forecast_supplier_cost_minor_units, @cost_forecast.currency).format %></dd>
-      </div>
-      <div>
-        <dt>Arrangement-wide sources</dt>
-        <dd><%= @arrangement_cost_sources.size %></dd>
+        <dd><%= @planning_workspace.cost_summary %></dd>
       </div>
     </dl>
   </div>
@@ -111,12 +119,31 @@
     <div class="dd-panel-body">
       <p class="<%= empty_state_classes.join(" ") %>">No arrangement items yet.</p>
       <% if ordinary_editable %>
-        <%= link_to "Add item", new_departure_arrangement_item_path(@departure, @supplier_arrangement), class: "dd-button" %>
+        <%= link_to "Add item", departure_arrangement_new_item_setup_path(@departure, @supplier_arrangement), class: "dd-button" %>
       <% end %>
     </div>
   </article>
 <% else %>
   <% ordered_item_ids = @item_definitions.map(&:arrangement_item_id) %>
+  <% forecast_sources_by_id = @cost_forecast.sources.index_by(&:source_id) %>
+  <section>
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Items</h2>
+        <p>Manual planning order with one next step per Item.</p>
+      </div>
+      <% if ordinary_editable %>
+        <div class="dd-inline-actions">
+          <%= link_to "Add item", departure_arrangement_new_item_setup_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+          <% if @item_definitions.size > 1 %>
+            <%= link_to(reorder_items_mode ? "Done reordering items" : "Reorder items",
+                  reorder_items_mode ? departure_arrangement_path(@departure, @supplier_arrangement) : departure_arrangement_path(@departure, @supplier_arrangement, structure_mode: "items"),
+                  class: "dd-button dd-button--quiet") %>
+          <% end %>
+        </div>
+      <% end %>
+    </header>
+  </section>
   <% @item_definitions.each_with_index do |item_definition, index| %>
     <% item = item_definition.arrangement_item %>
     <% occurrence_definitions = @occurrence_definitions_by_item_id.fetch(item.id, []) %>
@@ -128,13 +155,13 @@
     <% capacity_pool_definitions = @capacity_pool_definitions_by_item_pair_id.fetch(item.id, {}) %>
     <% capacity_warnings = capacity_item_warnings(item_definition, occurrence_definitions, resource_definitions, capacity_pairs, capacity_pool_definitions, @supplier_arrangement) %>
     <% pool_count = capacity_pool_definitions.values.sum(&:size) %>
-    <% cost_status = if item_cost_sources.empty?
-         "⚠ Incomplete — no cost source"
-       elsif item_cost_sources.any? { |source| source.supplier_cost_definitions.none?(&:forecast_ready?) }
-         "⚠ Incomplete — needs ready stage"
-       else
-         "✓ Declared costs ready"
-       end %>
+    <% eligible_pair_keys = occurrence_definitions.reject { |definition| definition.service_occurrence.cancelled? }.product(resource_definitions).map { |occurrence, resource| [ occurrence.service_occurrence_id, resource.supplier_resource_id ] } %>
+    <% decided_pair_count = eligible_pair_keys.count { |key| capacity_pairs.key?(key) } %>
+    <% item_forecasts = item_cost_sources.filter_map { |source| forecast_sources_by_id[source.id] } %>
+    <% selected_stages = item_forecasts.filter_map(&:selected_stage).uniq %>
+    <% cost_warning = item_forecasts.reject(&:complete).flat_map(&:warnings).first&.fetch(:message, nil) %>
+    <% primary_action = @planning_workspace.primary_action_for(item.id) %>
+    <% show_item_structure = structure_mode.present? && (structure_mode == "items" || params[:structure_item_id].to_s == item.id.to_s) %>
 
     <article class="dd-panel" id="item-<%= item.id %>">
       <header class="dd-panel-header">
@@ -142,26 +169,20 @@
           <h2 class="dd-panel-title"><%= item_definition.name %></h2>
           <p><%= arrangement_item_category_label(item_definition.category, item_definition.other_category_label) %></p>
         </div>
-        <% if can_edit_item || can_remove %>
-          <div class="dd-inline-actions">
-            <% if can_edit_item %>
-              <%= link_to inactive_item_provider && !ordinary_editable ? "Clear provider" : "Edit item", edit_departure_arrangement_item_path(@departure, @supplier_arrangement, item), class: "dd-row-action dd-row-action--edit" %>
+        <div class="dd-inline-actions">
+          <% if reorder_items_mode %>
+            <% if index.positive? %>
+              <% moved_ids = ordered_item_ids.dup.tap { |ids| ids[index - 1], ids[index] = ids[index], ids[index - 1] } %>
+              <%= button_to "Move up", reorder_departure_arrangement_items_path(@departure, @supplier_arrangement), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, arrangement_item_ids: moved_ids } %>
             <% end %>
-            <% if ordinary_editable %>
-              <% if index.positive? %>
-                <% moved_ids = ordered_item_ids.dup.tap { |ids| ids[index - 1], ids[index] = ids[index], ids[index - 1] } %>
-                <%= button_to "Move up", reorder_departure_arrangement_items_path(@departure, @supplier_arrangement), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, arrangement_item_ids: moved_ids } %>
-              <% end %>
-              <% if index < @item_definitions.size - 1 %>
-                <% moved_ids = ordered_item_ids.dup.tap { |ids| ids[index + 1], ids[index] = ids[index], ids[index + 1] } %>
-                <%= button_to "Move down", reorder_departure_arrangement_items_path(@departure, @supplier_arrangement), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, arrangement_item_ids: moved_ids } %>
-              <% end %>
+            <% if index < @item_definitions.size - 1 %>
+              <% moved_ids = ordered_item_ids.dup.tap { |ids| ids[index + 1], ids[index] = ids[index], ids[index + 1] } %>
+              <%= button_to "Move down", reorder_departure_arrangement_items_path(@departure, @supplier_arrangement), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, arrangement_item_ids: moved_ids } %>
             <% end %>
-            <% if can_remove %>
-              <%= button_to "Remove", departure_arrangement_item_path(@departure, @supplier_arrangement, item), method: :delete, class: "dd-row-action", form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this item and its planned occurrences and resources?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
-            <% end %>
-          </div>
-        <% end %>
+          <% else %>
+            <%= link_to primary_action.label, primary_action.href, class: "dd-button" %>
+          <% end %>
+        </div>
       </header>
       <div class="dd-panel-body">
         <% if item_definition.description.present? %>
@@ -169,44 +190,75 @@
         <% end %>
         <dl class="dd-definition-list">
           <div>
-            <dt>Default service provider</dt>
-            <dd><%= item_definition.default_service_provider ? supplier_option_label(item_definition.default_service_provider) : "Contracting supplier" %></dd>
-          </div>
-          <div>
             <dt>Effective provider</dt>
             <dd><%= supplier_option_label(effective_service_provider(@supplier_arrangement, item_definition)) %></dd>
           </div>
           <div>
             <dt>Structure</dt>
-            <dd><%= occurrence_definitions.size %> occurrence(s) · <%= resource_definitions.size %> resource(s)</dd>
+            <dd>
+              <%= pluralize(occurrence_definitions.size, "occurrence") %><%= ": #{occurrence_definitions.first.name}" if occurrence_definitions.one? %>
+              ·
+              <%= pluralize(resource_definitions.size, "resource") %><%= ": #{resource_definitions.first.name}" if resource_definitions.one? %>
+            </dd>
           </div>
           <div>
             <dt>Capacity</dt>
             <dd>
               <%= capacity_management_label(item_definition.capacity_management) %>
               <% unless item_definition.unmanaged? %>
-                · <%= capacity_pairs.size %> of <%= occurrence_definitions.size * resource_definitions.size %> pairs · <%= pool_count %> pool(s)
+                · <%= decided_pair_count %> of <%= eligible_pair_keys.size %> pairs decided · <%= pluralize(pool_count, "Pool") %>
                 <% if capacity_warnings.any? %>
-                  · ⚠ <%= capacity_warnings.size %> warning(s)
+                  · ⚠ <%= capacity_warnings.first %>
                 <% end %>
               <% end %>
             </dd>
           </div>
           <div>
             <dt>Costs</dt>
-            <dd><%= cost_status %> · <%= item_cost_sources.size %> source(s)</dd>
+            <dd>
+              <%= pluralize(item_cost_sources.size, "source") %>
+              · <%= selected_stages.any? ? "Selected ready stage: #{selected_stages.to_sentence}" : "No selected forecast-ready stage" %>
+              <% if item_cost_sources.empty? %>
+                · ⚠ No Item-scoped cost source
+              <% elsif cost_warning %>
+                · ⚠ <%= cost_warning %>
+              <% end %>
+            </dd>
           </div>
         </dl>
 
-        <div class="dd-inline-actions">
-          <%= link_to "Manage costs", departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
-          <% if ordinary_editable || recovery_cleanup %>
-            <%= link_to "Configure capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
-          <% else %>
-            <%= link_to "View capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+        <details>
+          <summary>Item modes</summary>
+          <div class="dd-inline-actions">
+            <% if can_edit_item %>
+              <% if inactive_item_provider && !ordinary_editable %>
+                <%= link_to "Clear provider", edit_departure_arrangement_item_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+              <% else %>
+                <%= link_to "Edit structure", departure_arrangement_path(@departure, @supplier_arrangement, structure_mode: "edit", structure_item_id: item.id, anchor: "item-#{item.id}"), class: "dd-button dd-button--quiet" %>
+              <% end %>
+            <% elsif !manage %>
+              <%= link_to "View structure", departure_arrangement_path(@departure, @supplier_arrangement, structure_mode: "edit", structure_item_id: item.id, anchor: "item-#{item.id}"), class: "dd-button dd-button--quiet" %>
+            <% end %>
+            <% if ordinary_editable && resource_definitions.size > 1 %>
+              <%= link_to "Reorder resources", departure_arrangement_path(@departure, @supplier_arrangement, structure_mode: "resources", structure_item_id: item.id, anchor: "resources-#{item.id}"), class: "dd-button dd-button--quiet" %>
+            <% end %>
+            <%= link_to ordinary_editable || recovery_cleanup ? "Capacity" : "View capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+            <%= link_to ordinary_editable ? "Costs" : "View costs", departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+          </div>
+          <% if can_remove %>
+            <div class="dd-page-actions">
+              <%= button_to "Remove Item", departure_arrangement_item_path(@departure, @supplier_arrangement, item), method: :delete, class: "dd-button dd-button--danger", form: { data: { turbo_confirm: "Remove this item and its planned occurrences and resources?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+            </div>
           <% end %>
-        </div>
+        </details>
 
+        <% if show_item_structure %>
+        <% if can_edit_item %>
+          <div class="dd-inline-actions">
+            <%= link_to inactive_item_provider && !ordinary_editable ? "Clear provider" : "Edit Item details", edit_departure_arrangement_item_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+            <%= link_to "Done editing structure", departure_arrangement_path(@departure, @supplier_arrangement, anchor: "item-#{item.id}"), class: "dd-button dd-button--quiet" %>
+          </div>
+        <% end %>
         <section>
           <header class="dd-panel-header">
             <h3 class="dd-panel-title">Occurrences</h3>
@@ -255,12 +307,26 @@
           <% end %>
         </section>
 
-        <section>
+        <section id="resources-<%= item.id %>">
           <header class="dd-panel-header">
-            <h3 class="dd-panel-title">Resources</h3>
-            <% if ordinary_editable %>
-              <%= link_to "Add resource", new_departure_arrangement_item_resource_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
-            <% end %>
+            <div>
+              <h3 class="dd-panel-title">Resources</h3>
+              <% if reorder_resources_item_id == item.id.to_s %>
+                <p>Reorder mode. Use Move up and Move down to set the resource order.</p>
+              <% end %>
+            </div>
+            <div class="dd-inline-actions">
+              <% if ordinary_editable %>
+                <%= link_to "Add resource", new_departure_arrangement_item_resource_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
+                <% if resource_definitions.size > 1 %>
+                  <% if reorder_resources_item_id == item.id.to_s %>
+                    <%= link_to "Done reordering", departure_arrangement_path(@departure, @supplier_arrangement, anchor: "resources-#{item.id}"), class: "dd-button dd-button--quiet" %>
+                  <% else %>
+                    <%= link_to "Reorder resources", departure_arrangement_path(@departure, @supplier_arrangement, structure_mode: "resources", structure_item_id: item.id, anchor: "resources-#{item.id}"), class: "dd-button dd-button--quiet" %>
+                  <% end %>
+                <% end %>
+              <% end %>
+            </div>
           </header>
           <% if resource_definitions.any? %>
             <% ordered_resource_ids = resource_definitions.map(&:supplier_resource_id) %>
@@ -284,11 +350,11 @@
                         <div class="dd-inline-actions">
                           <% if ordinary_editable %>
                             <%= link_to "Edit", edit_departure_arrangement_item_resource_path(@departure, @supplier_arrangement, item, resource_definition.supplier_resource), class: "dd-row-action dd-row-action--edit" %>
-                            <% if resource_index.positive? %>
+                            <% if reorder_resources_item_id == item.id.to_s && resource_index.positive? %>
                               <% moved_resource_ids = ordered_resource_ids.dup.tap { |ids| ids[resource_index - 1], ids[resource_index] = ids[resource_index], ids[resource_index - 1] } %>
                               <%= button_to "Move up", reorder_departure_arrangement_item_resources_path(@departure, @supplier_arrangement, item), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, supplier_resource_ids: moved_resource_ids } %>
                             <% end %>
-                            <% if resource_index < resource_definitions.size - 1 %>
+                            <% if reorder_resources_item_id == item.id.to_s && resource_index < resource_definitions.size - 1 %>
                               <% moved_resource_ids = ordered_resource_ids.dup.tap { |ids| ids[resource_index + 1], ids[resource_index] = ids[resource_index], ids[resource_index + 1] } %>
                               <%= button_to "Move down", reorder_departure_arrangement_item_resources_path(@departure, @supplier_arrangement, item), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, supplier_resource_ids: moved_resource_ids } %>
                             <% end %>
@@ -307,7 +373,30 @@
             <p class="<%= empty_state_classes.join(" ") %>">No resources yet.</p>
           <% end %>
         </section>
+        <% end %>
       </div>
     </article>
   <% end %>
 <% end %>
+
+<article class="dd-panel" id="arrangement-cost-summary">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Arrangement-wide costs and forecast</h2>
+      <p><%= pluralize(@arrangement_cost_sources.size, "Arrangement-wide source") %>. The forecast includes only entered, ready Supplier cost terms.</p>
+    </div>
+    <div class="dd-inline-actions">
+      <%= link_to "Arrangement costs", departure_arrangement_costs_workspace_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+      <%= link_to "Cost forecast", departure_arrangement_cost_forecast_path(@departure, @supplier_arrangement), class: "dd-button" %>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt><%= @cost_forecast.subtotal_label %></dt>
+        <dd><%= Money.new(@cost_forecast.totals.forecast_supplier_cost_minor_units, @cost_forecast.currency).format %></dd>
+      </div>
+    </dl>
+    <p class="dd-field-hint">This subtotal does not assert that every real-world Supplier cost has been entered.</p>
+  </div>
+</article>

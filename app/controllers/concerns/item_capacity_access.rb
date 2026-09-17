@@ -35,6 +35,7 @@ module ItemCapacityAccess
       .where(arrangement_item: @arrangement_item)
       .order(:position, :id)
       .group_by(&:capacity_pair_definition_id)
+    @bulk_idempotency_key ||= SecureRandom.uuid
     @idempotency_key_by_pair_id ||= {}
     @capacity_pairs_by_members.each_value do |pair|
       @idempotency_key_by_pair_id[pair.id] ||= SecureRandom.uuid

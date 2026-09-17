@@ -1,0 +1,25 @@
+<% error_groups = [
+  [ "Item", @arrangement_item_definition ],
+  [ "First occurrence", @service_occurrence_definition ],
+  [ "First resource", @supplier_resource_definition ]
+] %>
+<% if error_groups.any? { |_, object| object.errors.any? } %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+    <p class="dd-alert-title">Please fix the following:</p>
+    <ul class="dd-error-list">
+      <% error_groups.each do |section, object| %>
+        <% object.errors.each do |error| %>
+          <% field_id = error.attribute == :base ? nil : "#{object.model_name.param_key}_#{error.attribute}" %>
+          <li>
+            <% message = "#{section}: #{error.full_message}" %>
+            <% if field_id %>
+              <%= link_to message, "##{field_id}", data: { action: "form-error-summary#focusField" } %>
+            <% else %>
+              <%= message %>
+            <% end %>
+          </li>
+        <% end %>
+      <% end %>
+    </ul>
+  </div>
+<% end %>

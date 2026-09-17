@@ -1,0 +1,91 @@
+<% content_for :title, "Add initial Supplier cost · DepartureDesk" %>
+<% source_values = params.fetch(:supplier_cost_source, {}).to_unsafe_h.with_indifferent_access %>
+<% definition_values = params.fetch(:supplier_cost_definition, {}).to_unsafe_h.with_indifferent_access %>
+<% component_values = params.fetch(:supplier_cost_component, {}).to_unsafe_h.with_indifferent_access %>
+<% assumption_values = params.fetch(:supplier_cost_usage_assumption, {}).to_unsafe_h.with_indifferent_access %>
+<% selected_mode = definition_values[:mode].presence || "calculated" %>
+<% selected_kind = component_values[:calculation_kind].presence || "fixed" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Guided initial cost</p>
+    <h1 class="dd-page-title">Add Supplier cost</h1>
+    <p class="dd-page-description"><%= @arrangement_item_definition&.name || @supplier_arrangement.name %> · <%= @departure.operating_currency %></p>
+  </div>
+  <%= link_to "Cancel", (@arrangement_item ?
+        departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @arrangement_item) :
+        departure_arrangement_costs_workspace_path(@departure, @supplier_arrangement)),
+        class: "dd-button dd-button--quiet" %>
+</header>
+
+<% if @setup_error %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+    <p class="dd-alert-title">Please fix the following:</p>
+    <p><%= @setup_error %></p>
+  </div>
+<% end %>
+
+<%= form_with url: (@arrangement_item ?
+      departure_arrangement_item_cost_setup_path(@departure, @supplier_arrangement, @arrangement_item) :
+      departure_arrangement_cost_setup_path(@departure, @supplier_arrangement)),
+      method: :post, class: "dd-form", data: { controller: "cost-component-fields" } do |form| %>
+  <%= form.hidden_field :idempotency_key, value: params[:idempotency_key].presence || SecureRandom.uuid %>
+  <%= form.hidden_field :version_lock_version, value: params[:version_lock_version].presence || @supplier_arrangement_version.lock_version %>
+  <%= form.hidden_field "supplier_cost_source[arrangement_item_id]", value: @arrangement_item&.id %>
+  <%= form.hidden_field "supplier_cost_definition[currency]", value: @departure.operating_currency %>
+  <%= form.hidden_field "supplier_cost_definition[rounding_mode]", value: "half_up" %>
+
+  <section class="dd-panel">
+    <header class="dd-panel-header"><div><h2 class="dd-panel-title">Cost context</h2><p>What is this cost for, and which Supplier charges it?</p></div></header>
+    <div class="dd-panel-body">
+      <div class="dd-field"><%= form.label "supplier_cost_source[label]", "What is this cost for?" %><%= form.text_field "supplier_cost_source[label]", value: source_values[:label], required: true, autofocus: @setup_error.blank? %></div>
+      <div class="dd-field"><%= form.label "supplier_cost_source[charging_supplier_id]", "Charging Supplier" %><%= form.select "supplier_cost_source[charging_supplier_id]", active_supplier_options.map { |supplier| [ supplier_option_label(supplier), supplier.id ] }, selected: source_values[:charging_supplier_id].presence || @supplier_arrangement.contracting_supplier_id %></div>
+      <% if @arrangement_item %>
+        <div class="dd-field"><%= form.label "supplier_cost_source[service_occurrence_id]", "Occurrence (optional)" %><%= form.select "supplier_cost_source[service_occurrence_id]", @occurrence_definitions.map { |entry| [ entry.name, entry.service_occurrence_id ] }, { include_blank: "Entire Item", selected: source_values[:service_occurrence_id] } %></div>
+        <div class="dd-field"><%= form.label "supplier_cost_source[supplier_resource_id]", "Resource (optional)" %><%= form.select "supplier_cost_source[supplier_resource_id]", @resource_definitions.map { |entry| [ entry.name, entry.supplier_resource_id ] }, { include_blank: "All resources", selected: source_values[:supplier_resource_id] } %></div>
+      <% end %>
+      <div class="dd-field"><%= form.label "supplier_cost_source[notes]", "Notes (optional)" %><%= form.text_area "supplier_cost_source[notes]", value: source_values[:notes], rows: 2 %></div>
+    </div>
+  </section>
+
+  <section class="dd-panel">
+    <header class="dd-panel-header"><div><h2 class="dd-panel-title">Known terms</h2><p>Saving leaves this definition working until it is reviewed.</p></div></header>
+    <div class="dd-panel-body">
+      <div class="dd-field"><%= form.label "supplier_cost_definition[stage]", "Term stage" %><%= form.select "supplier_cost_definition[stage]", [[ "Estimate", "estimate" ], [ "Contracted term", "contracted" ]], selected: definition_values[:stage].presence || "estimate" %></div>
+      <div class="dd-field"><%= form.label "supplier_cost_definition[mode]", "Known cost" %><%= form.select "supplier_cost_definition[mode]", [[ "Calculated", "calculated" ], [ "Zero cost", "zero_cost" ]], { selected: selected_mode }, data: { cost_component_fields_target: "mode", action: "cost-component-fields#update" } %></div>
+      <div class="dd-field" data-cost-component-fields-target="zeroCost">
+        <%= form.label "supplier_cost_definition[zero_cost_reason]", "Why is this known to be zero?" %>
+        <%= form.text_field "supplier_cost_definition[zero_cost_reason]", value: definition_values[:zero_cost_reason] %>
+      </div>
+
+      <div data-cost-component-fields-target="calculated">
+        <div class="dd-field"><%= form.label "supplier_cost_component[label]", "First charge, credit, or commission" %><%= form.text_field "supplier_cost_component[label]", value: component_values[:label] %></div>
+        <div class="dd-field"><%= form.label "supplier_cost_component[economic_role]", "Economic role" %><%= form.select "supplier_cost_component[economic_role]", SupplierCostComponent::ECONOMIC_ROLES.map { |value| [ value.humanize, value ] }, selected: component_values[:economic_role].presence || "supplier_charge" %></div>
+        <div class="dd-field"><%= form.label "supplier_cost_component[calculation_kind]", "How is it calculated?" %><%= form.select "supplier_cost_component[calculation_kind]", SupplierCostComponent::CALCULATION_KINDS.map { |value| [ value.humanize, value ] }, { selected: selected_kind }, data: { cost_component_fields_target: "kind", action: "cost-component-fields#update" } %></div>
+        <div class="dd-field" data-cost-kind="fixed unit_rate"><%= form.label "supplier_cost_component[amount]", "Amount (#{@departure.operating_currency})" %><%= form.text_field "supplier_cost_component[amount]", value: component_values[:amount], inputmode: "decimal" %></div>
+        <div class="dd-field" data-cost-kind="percentage"><%= form.label "supplier_cost_component[percentage]", "Percentage" %><%= form.number_field "supplier_cost_component[percentage]", value: component_values[:percentage], min: 0, step: "0.00000001" %><p class="dd-field-hint">Enter 16 for 16%.</p></div>
+        <div class="dd-field" data-cost-kind="minimum_amount_shortfall"><%= form.label "supplier_cost_component[minimum_amount]", "Minimum amount (#{@departure.operating_currency})" %><%= form.text_field "supplier_cost_component[minimum_amount]", value: component_values[:minimum_amount], inputmode: "decimal" %></div>
+        <div class="dd-field" data-cost-kind="minimum_quantity_shortfall"><%= form.label "supplier_cost_component[minimum_quantity]", "Minimum quantity" %><%= form.number_field "supplier_cost_component[minimum_quantity]", value: component_values[:minimum_quantity], min: 1 %></div>
+        <div class="dd-field" data-cost-kind="unit_rate minimum_quantity_shortfall"><%= form.label "supplier_cost_component[quantity_basis]", "Quantity basis" %><%= form.select "supplier_cost_component[quantity_basis]", SupplierCostComponent::QUANTITY_BASES.map { |value| [ value.humanize, value ] }, { include_blank: true, selected: component_values[:quantity_basis] } %></div>
+        <% if @categories.any? %>
+          <div class="dd-field" data-cost-kind="unit_rate minimum_quantity_shortfall"><%= form.label "supplier_cost_component[participant_category_id]", "Participant category (optional)" %><%= form.select "supplier_cost_component[participant_category_id]", @categories.map { |category| [ category.label, category.id ] }, { include_blank: true, selected: component_values[:participant_category_id] } %></div>
+        <% end %>
+        <div class="dd-field" data-cost-kind="unit_rate minimum_quantity_shortfall"><%= form.label "supplier_cost_component[occupancy_position_from]", "Occupancy position from (optional)" %><%= form.number_field "supplier_cost_component[occupancy_position_from]", value: component_values[:occupancy_position_from], min: 1 %></div>
+        <div class="dd-field" data-cost-kind="unit_rate minimum_quantity_shortfall"><%= form.label "supplier_cost_component[occupancy_position_to]", "Occupancy position to (optional)" %><%= form.number_field "supplier_cost_component[occupancy_position_to]", value: component_values[:occupancy_position_to], min: 1 %></div>
+        <div class="dd-field" data-cost-kind="percentage"><%= form.label "supplier_cost_component[percentage_treatment]", "Percentage treatment" %><%= form.select "supplier_cost_component[percentage_treatment]", [[ "Additive", "additive" ], [ "Included in base", "included" ]], selected: component_values[:percentage_treatment].presence || "additive" %><p class="dd-field-hint">Add explicit earlier bases after the initial cost is saved.</p></div>
+        <%= form.hidden_field "supplier_cost_component[pass_through]", value: "0" %>
+
+        <% if @arrangement_item %>
+          <fieldset data-cost-kind="unit_rate minimum_quantity_shortfall">
+            <legend>Planning quantity, when known</legend>
+            <p class="dd-field-hint">Enter only planning quantities required by this formula. They apply to the exact Item, Occurrence, and Resource context above.</p>
+            <div class="dd-field"><%= form.label "supplier_cost_usage_assumption[expected_resource_units]", "Expected resource units" %><%= form.number_field "supplier_cost_usage_assumption[expected_resource_units]", value: assumption_values[:expected_resource_units], min: 0 %></div>
+            <div class="dd-field"><%= form.label "supplier_cost_usage_assumption[expected_persons]", "Expected persons" %><%= form.number_field "supplier_cost_usage_assumption[expected_persons]", value: assumption_values[:expected_persons], min: 0 %></div>
+            <div class="dd-field"><%= form.label "supplier_cost_usage_assumption[expected_billable_nights]", "Expected billable nights" %><%= form.number_field "supplier_cost_usage_assumption[expected_billable_nights]", value: assumption_values[:expected_billable_nights], min: 0 %></div>
+          </fieldset>
+        <% end %>
+      </div>
+    </div>
+  </section>
+  <%= form.submit "Save and review cost", class: "dd-button" %>
+<% end %>

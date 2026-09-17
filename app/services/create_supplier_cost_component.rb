@@ -31,10 +31,12 @@ class CreateSupplierCostComponent < AgencyCommand
         ) do
           ensure_current_lock_version!(definition, @definition_lock_version)
           components = definition.supplier_cost_components.order(:position, :id).lock.to_a
-          component = definition.supplier_cost_components.create!(
-            attrs.merge(owner_attributes_for(definition), position: components.size + 1)
+          component = build_supplier_cost_component_already_locked!(
+            definition: definition,
+            attributes: attrs,
+            position: components.size + 1,
+            base_links: links
           )
-          replace_base_links!(definition, component, links)
           touch_definition_after_change!(definition)
           audit_cost!("supplier_arrangement.cost_component_created", arrangement, version, {
             "supplier_cost_source_id" => source.id, "supplier_cost_definition_id" => definition.id,

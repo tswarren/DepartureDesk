@@ -69,9 +69,13 @@ class ArrangementItemsController < ApplicationController
       arrangement_item_ids: params[:arrangement_item_ids],
       version_lock_version: params[:version_lock_version]
     ).call
-    redirect_to departure_arrangement_path(@departure, @supplier_arrangement), notice: "Items reordered."
+    redirect_to departure_arrangement_path(
+      @departure, @supplier_arrangement, structure_mode: "items"
+    ), notice: "Items reordered."
   rescue AgencyCommand::Error => error
-    redirect_to departure_arrangement_path(@departure, @supplier_arrangement), alert: error.message
+    redirect_to departure_arrangement_path(
+      @departure, @supplier_arrangement, structure_mode: "items"
+    ), alert: error.message
   end
 
   private

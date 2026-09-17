@@ -35,7 +35,7 @@
         <% components = definition.supplier_cost_components.sort_by(&:position) %>
         <% ordered_component_ids = components.map(&:id) %>
         <% definition_path = item ? departure_arrangement_item_cost_definition_path(@departure, @supplier_arrangement, item, source, definition) : departure_arrangement_cost_definition_path(@departure, @supplier_arrangement, source, definition) %>
-        <% ready_path = item ? forecast_ready_departure_arrangement_item_cost_definition_path(@departure, @supplier_arrangement, item, source, definition) : forecast_ready_departure_arrangement_cost_definition_path(@departure, @supplier_arrangement, source, definition) %>
+        <% review_path = item ? departure_arrangement_item_cost_definition_review_path(@departure, @supplier_arrangement, item, source, definition) : departure_arrangement_cost_definition_review_path(@departure, @supplier_arrangement, source, definition) %>
         <% components_path = item ? departure_arrangement_item_cost_definition_components_path(@departure, @supplier_arrangement, item, source, definition) : departure_arrangement_cost_definition_components_path(@departure, @supplier_arrangement, source, definition) %>
         <% reorder_path = item ? reorder_departure_arrangement_item_cost_definition_components_path(@departure, @supplier_arrangement, item, source, definition) : reorder_departure_arrangement_cost_definition_components_path(@departure, @supplier_arrangement, source, definition) %>
         <section id="definition-<%= definition.id %>">
@@ -131,6 +131,7 @@
             </div>
           <% end %>
 
+          <%= link_to "Review definition", review_path, class: "dd-button dd-button--quiet" %>
           <% if source_editable %>
             <details>
               <summary>Edit <%= definition.stage %> stage</summary>
@@ -141,13 +142,6 @@
                 <%= form.submit "Save stage", class: "dd-button" %>
               <% end %>
             </details>
-            <% unless definition.forecast_ready? %>
-              <%= form_with url: ready_path, method: :post, class: "dd-form" do |form| %>
-                <%= form.hidden_field :lock_version, value: definition.lock_version %>
-                <div class="dd-field"><%= form.label :readiness_provenance, definition.contracted? ? "Contracted-term attestation" : "Provenance note (optional)" %><%= form.text_field :readiness_provenance, required: definition.contracted? %></div>
-                <%= form.submit "Mark forecast ready", class: "dd-button" %>
-              <% end %>
-            <% end %>
             <% if definition.calculated? %>
               <details>
                 <summary>Add component</summary>
@@ -186,8 +180,10 @@
 <% end %>
 
 <% if editable %>
+  <% setup_path = item ? departure_arrangement_item_new_cost_setup_path(@departure, @supplier_arrangement, item) : departure_arrangement_new_cost_setup_path(@departure, @supplier_arrangement) %>
+  <%= link_to(item ? "Add Item cost" : "Add Arrangement cost", setup_path, class: "dd-button") %>
   <details>
-    <summary>Add cost source</summary>
+    <summary>Advanced: add source only</summary>
     <%= form_with url: source_collection_path, method: :post, class: "dd-form" do |form| %>
       <%= form.hidden_field :idempotency_key, value: SecureRandom.uuid %>
       <%= form.hidden_field :version_lock_version, value: @supplier_arrangement_version.lock_version %>

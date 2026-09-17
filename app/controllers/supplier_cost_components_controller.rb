@@ -58,7 +58,7 @@ class SupplierCostComponentsController < ApplicationController
 
   def component_params
     params.fetch(:supplier_cost_component, {}).permit(
-      :label, :economic_role, :calculation_kind, :amount, :amount_minor_units, :rate,
+      :label, :economic_role, :calculation_kind, :amount, :amount_minor_units, :rate, :percentage,
       :minimum_amount, :minimum_minor_units, :minimum_quantity, :quantity_basis,
       :participant_category_id, :occupancy_position_from, :occupancy_position_to,
       :percentage_treatment, :pass_through, :lock_version

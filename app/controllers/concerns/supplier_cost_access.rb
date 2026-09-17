@@ -30,7 +30,9 @@ module SupplierCostAccess
   end
 
   def set_cost_source
-    @supplier_cost_source = cost_sources.find(params[:cost_source_id] || params[:cost_id] || params[:id])
+    @supplier_cost_source = cost_sources.find(
+      params[:source_id] || params[:cost_source_id] || params[:cost_id] || params[:id]
+    )
   end
 
   def set_cost_definition

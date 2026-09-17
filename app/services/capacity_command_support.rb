@@ -426,6 +426,70 @@ module CapacityCommandSupport
     version.capacity_pool_definitions.where(capacity_pair_definition: pair).maximum(:position).to_i + 1
   end
 
+  # Internal mutations for composites after the canonical capacity graph is
+  # locked and validated. These deliberately do not bump, audit, or reacquire.
+  def classify_capacity_pair_already_locked!(
+    departure:, arrangement:, version:, item:, occurrence:, resource:, classification:, pair: nil
+  )
+    if pair
+      return [ pair, nil, :noop ] if pair.classification == classification
+
+      previous = pair.classification
+      pair.update!(classification: classification)
+      [ pair, previous, :updated ]
+    else
+      pair = version.capacity_pair_definitions.create!(
+        agency: @agency,
+        departure: departure,
+        supplier_arrangement: arrangement,
+        arrangement_item: item,
+        service_occurrence: occurrence,
+        supplier_resource: resource,
+        classification: classification
+      )
+      [ pair, nil, :created ]
+    end
+  end
+
+  def build_capacity_pool_already_locked!(
+    departure:, arrangement:, version:, item:, occurrence:, resource:, pair:, provider:,
+    inventory_mode:, measurement_basis:, effective_time_zone:, definition_attributes:, siblings:
+  )
+    attrs = definition_attributes.dup
+    attrs[:label] ||= generated_capacity_label(
+      inventory_mode: inventory_mode,
+      quantity: attrs[:proposed_opening_quantity],
+      unit_label: attrs[:unit_label],
+      siblings: siblings
+    )
+    attrs[:normalized_label] = attrs[:label].downcase.strip
+    pool = arrangement.capacity_pools.create!(
+      agency: @agency,
+      departure: departure,
+      arrangement_item: item,
+      service_occurrence: occurrence,
+      supplier_resource: resource,
+      supplying_supplier: provider,
+      inventory_mode: inventory_mode,
+      measurement_basis: measurement_basis,
+      effective_time_zone: effective_time_zone
+    )
+    definition = version.capacity_pool_definitions.create!(
+      attrs.merge(
+        agency: @agency,
+        departure: departure,
+        supplier_arrangement: arrangement,
+        arrangement_item: item,
+        service_occurrence: occurrence,
+        supplier_resource: resource,
+        capacity_pair_definition: pair,
+        capacity_pool: pool,
+        position: next_pool_position(version, pair)
+      )
+    )
+    [ pool, definition ]
+  end
+
   def next_capacity_event_sequence(pool, effective_on, pending_events: [])
     persisted = pool.capacity_events.where(effective_on: effective_on).maximum(:effective_sequence).to_i
     pending = pending_events.count { |event| event.effective_on == effective_on }

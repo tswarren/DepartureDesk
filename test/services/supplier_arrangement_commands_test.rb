@@ -571,6 +571,181 @@ class SupplierArrangementCommandsTest < ActiveSupport::TestCase
     assert_equal "draft", departure.reload.status
   end
 
+  test "guided item setup is atomic and replays its exact child result association" do
+    arrangement = create_arrangement.record
+    version = arrangement.versions.first
+    arguments = {
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement,
+      version_lock_version: version.lock_version,
+      idempotency_key: "guided-item-setup-1",
+      item_attributes: {
+        name: "Harbor stay",
+        category: "lodging",
+        default_service_provider_id: @provider.id
+      },
+      occurrence_attributes: {
+        name: "First stay",
+        starts_on: "2026-10-01",
+        ends_on: "2026-10-03"
+      },
+      resource_attributes: { name: "Standard room" }
+    }
+
+    created = CreateArrangementItemSetup.new(**arguments).call
+    replay = CreateArrangementItemSetup.new(**arguments.merge(version_lock_version: -1)).call
+
+    assert_equal :created, created.status
+    assert_equal :replayed, replay.status
+    assert_equal created.record.id, replay.record.id
+    association = AgencyCommandIdempotencyKey.find_by!(
+      agency: @agency, command_name: "CreateArrangementItemSetup",
+      idempotency_key: "guided-item-setup-1"
+    ).arrangement_item_setup_result
+    assert_equal created.record.id, association.arrangement_item_id
+    assert_equal created.record.service_occurrences.sole.id, association.service_occurrence_id
+    assert_equal created.record.supplier_resources.sole.id, association.supplier_resource_id
+    assert_equal 1, AuditEvent.where(
+      action: "supplier_arrangement.item_setup_created", subject_id: arrangement.id
+    ).count
+    assert_equal 0, AuditEvent.where(
+      action: %w[
+        supplier_arrangement.item_created
+        supplier_arrangement.occurrence_created
+        supplier_arrangement.resource_created
+      ],
+      subject_id: arrangement.id
+    ).count
+
+    assert_raises(AgencyCommand::Error) do
+      CreateArrangementItemSetup.new(
+        **arguments.merge(item_attributes: { name: "Changed", category: "lodging" })
+      ).call
+    end
+
+    counts = [
+      ArrangementItem.count, ServiceOccurrence.count, SupplierResource.count, AuditEvent.count
+    ]
+    error = assert_raises(AgencyCommand::Error) do
+      CreateArrangementItemSetup.new(
+        **arguments.merge(
+          idempotency_key: "guided-item-setup-invalid",
+          version_lock_version: version.reload.lock_version,
+          occurrence_attributes: {
+            name: "Invalid stay", starts_on: "2026-10-03", ends_on: "2026-10-01"
+          }
+        )
+      ).call
+    end
+    assert_equal :invalid, error.code
+    assert_equal counts, [
+      ArrangementItem.count, ServiceOccurrence.count, SupplierResource.count, AuditEvent.count
+    ]
+  end
+
+  test "guided item setup rejects stale cross-Agency inactive and departed expansion" do
+    arrangement = create_arrangement.record
+    version = arrangement.versions.first
+    base = {
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement,
+      version_lock_version: version.lock_version - 1,
+      idempotency_key: "guided-item-stale",
+      item_attributes: { name: "Stale cabin", category: "lodging" }
+    }
+    stale = assert_raises(AgencyCommand::Error) { CreateArrangementItemSetup.new(**base).call }
+    assert_equal :conflict, stale.code
+    assert_empty arrangement.arrangement_items
+
+    other_supplier = @other.suppliers.create!(
+      kind: "organization",
+      supplier_reference: "SUP-#{SecureRandom.random_number(900_000) + 100_000}",
+      display_name: "Other setup Supplier"
+    )
+    other_departure = @other.departures.create!(
+      name: "Other setup departure",
+      responsible_office: @other.offices.first,
+      responsible_agency_user: @other.agency_users.active.first
+    )
+    other_arrangement = @other.supplier_arrangements.create!(
+      departure: other_departure,
+      contracting_supplier: other_supplier,
+      name: "Other setup arrangement"
+    )
+    other_version = other_arrangement.versions.create!(
+      agency: @other,
+      departure: other_departure,
+      version_number: 1
+    )
+    assert_raises(ActiveRecord::RecordNotFound) do
+      CreateArrangementItemSetup.new(
+        agency: @agency,
+        actor: @staff,
+        arrangement: other_arrangement,
+        version_lock_version: other_version.lock_version,
+        idempotency_key: "guided-item-cross-agency",
+        item_attributes: { name: "Forbidden", category: "lodging" }
+      ).call
+    end
+
+    ChangeSupplierStatus.new(
+      agency: @agency,
+      actor: @admin,
+      supplier: @contractor,
+      status: "inactive",
+      lock_version: @contractor.lock_version,
+      force: true,
+      force_reason: "Supplier closed"
+    ).call
+    inactive = assert_raises(AgencyCommand::Error) do
+      CreateArrangementItemSetup.new(
+        **base.merge(
+          version_lock_version: version.reload.lock_version,
+          idempotency_key: "guided-item-inactive"
+        )
+      ).call
+    end
+    assert_equal :invalid_state, inactive.code
+
+    active_supplier = @agency.suppliers.create!(
+      kind: "organization",
+      supplier_reference: "SUP-#{SecureRandom.random_number(900_000) + 100_000}",
+      display_name: "Departed setup Supplier"
+    )
+    departed_arrangement = @agency.supplier_arrangements.create!(
+      departure: @departure,
+      contracting_supplier: active_supplier,
+      name: "Departed setup arrangement"
+    )
+    departed_version = departed_arrangement.versions.create!(
+      agency: @agency,
+      departure: @departure,
+      version_number: 1
+    )
+    ActivateDeparture.new(
+      agency: @agency,
+      actor: @admin,
+      departure: @departure.reload,
+      lock_version: @departure.lock_version
+    ).call
+    Departure.where(id: @departure.id).update_all(
+      status: "departed", departed_at: Time.current, updated_at: Time.current
+    )
+    departed = assert_raises(AgencyCommand::Error) do
+      CreateArrangementItemSetup.new(
+        agency: @agency,
+        actor: @staff,
+        arrangement: departed_arrangement,
+        version_lock_version: departed_version.lock_version,
+        idempotency_key: "guided-item-departed",
+        item_attributes: { name: "Too late", category: "lodging" }
+      ).call
+    end
+    assert_equal :invalid_state, departed.code
+  end
+
   private
 
   def create_arrangement(name: "Hotel Block", idempotency_key: SecureRandom.hex(6))

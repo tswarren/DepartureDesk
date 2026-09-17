@@ -34,6 +34,181 @@ class SupplierCostCommandsTest < ActiveSupport::TestCase
     ).count
   end
 
+  test "guided calculated setup is atomic uses component replay root and does not mark ready" do
+    key = "guided-calculated"
+    attributes = {
+      agency: @agency, actor: @admin, arrangement: @arrangement,
+      source_attributes: { label: "Coach hire", charging_supplier_id: @supplier.id },
+      definition_attributes: {
+        stage: "estimate", mode: "calculated", currency: "USD", rounding_mode: "half_up"
+      },
+      component_attributes: {
+        label: "Coach", economic_role: "supplier_charge", calculation_kind: "fixed",
+        amount: "1200.00", pass_through: false
+      },
+      version_lock_version: @version.lock_version, idempotency_key: key
+    }
+
+    result = CreateSupplierCostSetup.new(**attributes).call
+    replay = CreateSupplierCostSetup.new(**attributes).call
+
+    assert_equal :created, result.status
+    assert_instance_of SupplierCostComponent, result.record
+    assert_equal :replayed, replay.status
+    assert_equal result.record.id, replay.record.id
+    definition = result.record.supplier_cost_definition
+    assert definition.working?
+    assert_equal "Coach hire", definition.supplier_cost_source.label
+    assert_equal 1, AuditEvent.where(
+      subject_type: "SupplierArrangement", subject_id: @arrangement.id,
+      action: "supplier_arrangement.cost_setup_created"
+    ).count
+  end
+
+  test "guided zero-cost setup uses definition replay root and rolls back invalid component" do
+    base = {
+      agency: @agency, actor: @admin, arrangement: @arrangement,
+      source_attributes: { label: "Amenity", charging_supplier_id: @supplier.id },
+      definition_attributes: {
+        stage: "contracted", mode: "zero_cost", currency: "USD",
+        rounding_mode: "half_up", zero_cost_reason: "Complimentary"
+      },
+      version_lock_version: @version.lock_version, idempotency_key: "guided-zero"
+    }
+    result = CreateSupplierCostSetup.new(**base).call
+    assert_instance_of SupplierCostDefinition, result.record
+    assert result.record.zero_cost?
+    assert result.record.working?
+
+    assert_no_difference -> { @version.supplier_cost_sources.count } do
+      assert_raises(AgencyCommand::Error) do
+        CreateSupplierCostSetup.new(
+          **base.merge(
+            source_attributes: { label: "Invalid", charging_supplier_id: @supplier.id },
+            definition_attributes: base[:definition_attributes].merge(mode: "calculated"),
+            component_attributes: {
+              label: "Broken", economic_role: "supplier_charge",
+              calculation_kind: "unit_rate", amount: "10.00"
+            },
+            version_lock_version: @version.reload.lock_version,
+            idempotency_key: "guided-invalid"
+          )
+        ).call
+      end
+    end
+  end
+
+  test "guided setup rejects stale and cross-Agency versions" do
+    stale = assert_raises(AgencyCommand::Error) do
+      CreateSupplierCostSetup.new(
+        **guided_setup_arguments(
+          arrangement: @arrangement,
+          supplier: @supplier,
+          version_lock_version: @version.lock_version - 1,
+          idempotency_key: "guided-cost-stale"
+        )
+      ).call
+    end
+    assert_equal :conflict, stale.code
+    assert_empty @version.supplier_cost_sources
+
+    other = agencies(:cove)
+    other_supplier = other.suppliers.create!(
+      kind: "organization",
+      supplier_reference: "SUP-#{SecureRandom.random_number(900_000) + 100_000}",
+      display_name: "Other cost Supplier"
+    )
+    other_departure = other.departures.create!(
+      name: "Other cost departure",
+      operating_currency: "USD",
+      responsible_office: other.offices.first,
+      responsible_agency_user: other.agency_users.active.first
+    )
+    other_arrangement = other.supplier_arrangements.create!(
+      departure: other_departure,
+      contracting_supplier: other_supplier,
+      name: "Other cost arrangement"
+    )
+    other_version = other_arrangement.versions.create!(
+      agency: other,
+      departure: other_departure,
+      version_number: 1
+    )
+
+    assert_raises(ActiveRecord::RecordNotFound) do
+      CreateSupplierCostSetup.new(
+        **guided_setup_arguments(
+          arrangement: other_arrangement,
+          supplier: other_supplier,
+          version_lock_version: other_version.lock_version,
+          idempotency_key: "guided-cost-cross-agency"
+        )
+      ).call
+    end
+  end
+
+  test "guided setup rejects inactive Supplier and departed expansion" do
+    ChangeSupplierStatus.new(
+      agency: @agency,
+      actor: @admin,
+      supplier: @supplier,
+      status: "inactive",
+      lock_version: @supplier.lock_version,
+      force: true,
+      force_reason: "Supplier closed"
+    ).call
+    inactive = assert_raises(AgencyCommand::Error) do
+      CreateSupplierCostSetup.new(
+        **guided_setup_arguments(
+          arrangement: @arrangement,
+          supplier: @supplier,
+          version_lock_version: @version.lock_version,
+          idempotency_key: "guided-cost-inactive"
+        )
+      ).call
+    end
+    assert_equal :invalid_state, inactive.code
+    assert_empty @version.supplier_cost_sources
+
+    active_supplier = @agency.suppliers.create!(
+      kind: "organization",
+      supplier_reference: "SUP-#{SecureRandom.random_number(900_000) + 100_000}",
+      display_name: "Departed cost Supplier"
+    )
+    departed_arrangement = @agency.supplier_arrangements.create!(
+      departure: @departure,
+      contracting_supplier: active_supplier,
+      name: "Departed cost arrangement"
+    )
+    departed_version = departed_arrangement.versions.create!(
+      agency: @agency,
+      departure: @departure,
+      version_number: 1
+    )
+    ActivateDeparture.new(
+      agency: @agency,
+      actor: @admin,
+      departure: @departure.reload,
+      lock_version: @departure.lock_version
+    ).call
+    Departure.where(id: @departure.id).update_all(
+      status: "departed", departed_at: Time.current, updated_at: Time.current
+    )
+
+    departed = assert_raises(AgencyCommand::Error) do
+      CreateSupplierCostSetup.new(
+        **guided_setup_arguments(
+          arrangement: departed_arrangement,
+          supplier: active_supplier,
+          version_lock_version: departed_version.lock_version,
+          idempotency_key: "guided-cost-departed"
+        )
+      ).call
+    end
+    assert_equal :invalid_state, departed.code
+    assert_empty departed_version.supplier_cost_sources
+  end
+
   test "readiness is explicit and a consequential component edit clears it" do
     source = create_source("source-ready", @version.lock_version).record
     definition = CreateSupplierCostDefinition.new(
@@ -285,6 +460,33 @@ class SupplierCostCommandsTest < ActiveSupport::TestCase
   end
 
   private
+
+  def guided_setup_arguments(arrangement:, supplier:, version_lock_version:, idempotency_key:)
+    {
+      agency: @agency,
+      actor: @admin,
+      arrangement: arrangement,
+      source_attributes: {
+        label: "Guided fixed cost",
+        charging_supplier_id: supplier.id
+      },
+      definition_attributes: {
+        stage: "estimate",
+        mode: "calculated",
+        currency: "USD",
+        rounding_mode: "half_up"
+      },
+      component_attributes: {
+        label: "Fixed charge",
+        economic_role: "supplier_charge",
+        calculation_kind: "fixed",
+        amount: "100.00",
+        pass_through: false
+      },
+      version_lock_version: version_lock_version,
+      idempotency_key: idempotency_key
+    }
+  end
 
   def create_source(key, version_lock)
     CreateSupplierCostSource.new(

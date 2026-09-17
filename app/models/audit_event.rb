@@ -82,8 +82,11 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.resource_updated
     supplier_arrangement.resource_removed
     supplier_arrangement.resources_reordered
+    supplier_arrangement.item_setup_created
     supplier_arrangement.capacity_applicability_updated
     supplier_arrangement.capacity_pair_classified
+    supplier_arrangement.capacity_pairs_bulk_classified
+    supplier_arrangement.capacity_pair_pool_configured
     supplier_arrangement.capacity_pair_removed
     supplier_arrangement.capacity_pool_created
     supplier_arrangement.capacity_pool_updated
@@ -93,6 +96,7 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.capacity_reconciled
     supplier_arrangement.capacity_reconciliation_resolved
     supplier_arrangement.cost_source_created
+    supplier_arrangement.cost_setup_created
     supplier_arrangement.cost_source_updated
     supplier_arrangement.cost_source_removed
     supplier_arrangement.cost_sources_reordered

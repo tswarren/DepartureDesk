@@ -2,20 +2,26 @@
 <% pool = pool_definition.capacity_pool if pool_definition.persisted? %>
 <% inventory_mode = values[:inventory_mode].presence || pool&.inventory_mode || "block" %>
 <% measurement_basis = values[:measurement_basis].presence || pool&.measurement_basis || "resource_units" %>
+<% include_semantics = local_assigns.fetch(:include_semantics, false) %>
 
-<%= form_with scope: :capacity_pool, url: url, method: method, class: "dd-form" do |form| %>
+<%= form_with scope: :capacity_pool, url: url, method: method, class: "dd-form",
+  data: (include_semantics ? { controller: "capacity-pool-fields" } : {}) do |form| %>
   <%= render "shared/form_errors", object: pool_definition %>
   <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version if local_assigns[:include_version_lock] %>
   <%= hidden_field_tag :idempotency_key, idempotency_key if local_assigns[:idempotency_key].present? %>
   <%= form.hidden_field :lock_version, value: pool_definition.lock_version if pool_definition.persisted? %>
 
-  <% if local_assigns.fetch(:include_semantics, false) %>
+  <% if include_semantics %>
     <div class="dd-field-group">
       <%= form.label :inventory_mode, "Inventory mode", class: "dd-label" %>
       <%= form.select :inventory_mode,
         CapacityPool::INVENTORY_MODES.map { |mode| [ capacity_inventory_mode_label(mode), mode ] },
         { selected: inventory_mode },
         class: "dd-field",
+        data: {
+          capacity_pool_fields_target: "inventoryMode",
+          action: "change->capacity-pool-fields#update"
+        },
         required: true %>
     </div>
 
@@ -51,10 +57,15 @@
     <%= form.text_field :unit_label, value: values.fetch(:unit_label, pool_definition.unit_label), maxlength: CapacityPoolDefinition::UNIT_LABEL_LIMIT, class: "dd-field", required: true %>
   </div>
 
-  <div class="dd-field-group">
+  <div class="dd-field-group" data-capacity-pool-fields-target="quantityGroup">
     <%= form.label :proposed_opening_quantity, "Proposed opening quantity", class: "dd-label" %>
-    <%= form.number_field :proposed_opening_quantity, value: values.fetch(:proposed_opening_quantity, pool_definition.proposed_opening_quantity), min: 1, step: 1, class: "dd-field" %>
-    <p class="dd-field-hint">Required before activation for block and allotment Pools. Leave blank for on-request or externally managed Pools.</p>
+    <%= form.number_field :proposed_opening_quantity,
+      value: values.fetch(:proposed_opening_quantity, pool_definition.proposed_opening_quantity),
+      min: 1,
+      step: 1,
+      class: "dd-field",
+      data: { capacity_pool_fields_target: "quantity" } %>
+    <p class="dd-field-hint">Required before activation for block and allotment Pools.</p>
   </div>
 
   <div class="dd-field-group">
