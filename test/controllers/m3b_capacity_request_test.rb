@@ -154,6 +154,75 @@ class M3BCapacityRequestTest < ActionDispatch::IntegrationTest
     assert_empty graph[:version].capacity_pair_definitions
   end
 
+  test "staff bulk classifies reviewed pairs and configures a pooled pair with its first Pool" do
+    bulk_graph = create_capacity_graph(prefix: "Bulk request")
+    second_resource = bulk_graph[:item].supplier_resources.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: bulk_graph[:arrangement]
+    )
+    bulk_graph[:version].supplier_resource_definitions.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: bulk_graph[:arrangement],
+      arrangement_item: bulk_graph[:item],
+      supplier_resource: second_resource,
+      name: "Second resource",
+      position: 2
+    )
+    sign_in_as @staff
+
+    get departure_arrangement_item_capacity_path(@departure, bulk_graph[:arrangement], bulk_graph[:item])
+    assert_response :success
+    assert_match "Review undecided capacity pairs", response.body
+    assert_match "Classify as pooled and add first Pool", response.body
+
+    patch departure_arrangement_item_bulk_capacity_pairs_path(
+      @departure, bulk_graph[:arrangement], bulk_graph[:item]
+    ), params: {
+      version_lock_version: bulk_graph[:version].lock_version,
+      idempotency_key: SecureRandom.uuid,
+      decisions: {
+        "first" => {
+          selected: "1",
+          service_occurrence_id: bulk_graph[:occurrence].id,
+          supplier_resource_id: bulk_graph[:resource].id,
+          classification: "pooled"
+        },
+        "second" => {
+          selected: "1",
+          service_occurrence_id: bulk_graph[:occurrence].id,
+          supplier_resource_id: second_resource.id,
+          classification: "not_applicable"
+        }
+      }
+    }
+    assert_redirected_to departure_arrangement_item_capacity_path(
+      @departure, bulk_graph[:arrangement], bulk_graph[:item]
+    )
+    assert_equal %w[not_applicable pooled],
+      bulk_graph[:version].capacity_pair_definitions.order(:classification).pluck(:classification)
+
+    setup_graph = create_capacity_graph(prefix: "Pool setup request")
+    post departure_arrangement_item_capacity_pair_pool_setup_path(
+      @departure,
+      setup_graph[:arrangement],
+      setup_graph[:item],
+      setup_graph[:occurrence],
+      setup_graph[:resource]
+    ), params: {
+      version_lock_version: setup_graph[:version].lock_version,
+      idempotency_key: SecureRandom.uuid,
+      capacity_pool: pool_params(label: "First room block", quantity: 8)
+    }
+    pool = setup_graph[:arrangement].capacity_pools.sole
+    assert_redirected_to departure_arrangement_item_capacity_path(
+      @departure, setup_graph[:arrangement], setup_graph[:item], anchor: "capacity-pool-#{pool.id}"
+    )
+    assert_predicate setup_graph[:version].capacity_pair_definitions.sole, :pooled?
+    assert_equal pool.id, setup_graph[:version].capacity_pool_definitions.sole.capacity_pool_id
+  end
+
   private
 
   def pool_params(label:, quantity:, inventory_mode: "block", evidence: true)
