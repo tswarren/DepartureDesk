@@ -61,8 +61,11 @@ module CapacityActivatedGraphHelper
       override: false,
       position: 1
     )
-    graph[:arrangement].update!(status: "active")
-    graph[:version].update!(status: "activated")
+    graph[:version].update!(status: "activated", activated_at: Time.current)
+    graph[:arrangement].update!(
+      status: "active",
+      governing_version: graph[:version]
+    )
     graph.merge(pair: pair, pool: pool, pool_definition: definition, actor: actor)
   end
 

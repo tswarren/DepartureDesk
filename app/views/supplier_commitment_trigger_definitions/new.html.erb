@@ -1,0 +1,20 @@
+<% content_for :title, "Add commitment trigger · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= @supplier_arrangement.name %> · Version <%= @supplier_arrangement_version.version_number %></p>
+    <h1 class="dd-page-title">Add commitment trigger</h1>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @trigger,
+      url: departure_arrangement_version_commitment_triggers_path(
+        @departure, @supplier_arrangement, @supplier_arrangement_version
+      ) do |form| %>
+      <%= render "shared/form_errors", object: @trigger %>
+      <%= render "form", form: form %>
+    <% end %>
+  </div>
+</article>

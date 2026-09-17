@@ -1,4 +1,5 @@
 class ServiceOccurrenceDefinition < ApplicationRecord
+  include ExactVersionCopyLineage
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
 

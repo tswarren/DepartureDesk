@@ -1,4 +1,5 @@
 class SupplierCostComponentBase < ApplicationRecord
+  include ExactVersionCopyLineage
   DIRECTIONS = %w[add subtract].freeze
 
   belongs_to :agency

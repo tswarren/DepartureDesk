@@ -154,6 +154,12 @@ Rails.application.routes.draw do
       end
       get "items/setup", to: "arrangement_item_setups#new", as: :new_item_setup
       post "items/setup", to: "arrangement_item_setups#create", as: :item_setup
+      resources :versions, only: [] do
+        resources :commitment_triggers,
+          path: "commitment-triggers",
+          controller: "supplier_commitment_trigger_definitions",
+          only: %i[index new create edit update destroy]
+      end
       resources :items, controller: "arrangement_items", only: %i[new create edit update destroy] do
         collection { patch :reorder }
         patch "capacity/pairs/bulk", to: "bulk_capacity_pairs#update", as: :bulk_capacity_pairs

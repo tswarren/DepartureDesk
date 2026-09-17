@@ -1,4 +1,5 @@
 class SupplierCostSource < ApplicationRecord
+  include ExactVersionCopyLineage
   LABEL_LIMIT = 160
   NOTES_LIMIT = 2_000
 

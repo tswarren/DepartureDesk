@@ -1,0 +1,68 @@
+<% content_for :title, "Commitment triggers · #{@supplier_arrangement.name} · DepartureDesk" %>
+<% manageable = Current.agency_user.permitted?(:manage_departures) && @supplier_arrangement_version.draft? %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning · Version <%= @supplier_arrangement_version.version_number %></p>
+    <h1 class="dd-page-title">Commitment triggers</h1>
+    <p class="dd-page-description">Explicit rules for commitments opened by Supplier confirmation.</p>
+  </div>
+  <div class="dd-page-actions">
+    <% if manageable %>
+      <%= link_to "Add commitment trigger",
+        new_departure_arrangement_version_commitment_trigger_path(
+          @departure, @supplier_arrangement, @supplier_arrangement_version
+        ), class: "dd-button" %>
+    <% end %>
+    <%= link_to "Back to arrangement",
+      departure_arrangement_path(@departure, @supplier_arrangement),
+      class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @triggers.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Trigger</th>
+            <th scope="col">Authority</th>
+            <th scope="col">Committed Supplier</th>
+            <th scope="col">Description</th>
+            <% if manageable %><th scope="col">Actions</th><% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% @triggers.each do |trigger| %>
+            <tr>
+              <td><%= trigger.trigger_kind.humanize %></td>
+              <td><%= trigger.authority_shape.humanize %></td>
+              <td><%= supplier_option_label(trigger.committed_supplier) %></td>
+              <td><%= trigger.description %></td>
+              <% if manageable %>
+                <td>
+                  <div class="dd-inline-actions">
+                    <%= link_to "Edit",
+                      edit_departure_arrangement_version_commitment_trigger_path(
+                        @departure, @supplier_arrangement, @supplier_arrangement_version, trigger
+                      ), class: "dd-row-action dd-row-action--edit" %>
+                    <%= button_to "Remove",
+                      departure_arrangement_version_commitment_trigger_path(
+                        @departure, @supplier_arrangement, @supplier_arrangement_version, trigger
+                      ), method: :delete, class: "dd-row-action",
+                      form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this commitment trigger?" } },
+                      params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+                  </div>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="<%= empty_state_classes.join(" ") %>">No commitment triggers declared.</p>
+      <p class="dd-field-hint">No trigger does not assert that exposure is zero. Activation will require coverage attestation.</p>
+    <% end %>
+  </div>
+</article>

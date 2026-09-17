@@ -94,7 +94,8 @@ class SupplierArrangementConstraintsTest < ActiveSupport::TestCase
       departure: @departure,
       supplier_arrangement: arrangement,
       version_number: 2,
-      status: "activated"
+      status: "activated",
+      activated_at: Time.current
     )
     assert_raises(ActiveRecord::RecordNotUnique) do
       SupplierArrangementVersion.create!(
@@ -102,7 +103,8 @@ class SupplierArrangementConstraintsTest < ActiveSupport::TestCase
         departure: @departure,
         supplier_arrangement: arrangement,
         version_number: 3,
-        status: "activated"
+        status: "activated",
+        activated_at: Time.current
       )
     end
 
@@ -345,13 +347,16 @@ class SupplierArrangementConstraintsTest < ActiveSupport::TestCase
     assert_equal ArrangementItemDefinition::CATEGORIES, checked_item_categories
 
     AuditEvent::ACTIONS.grep(/\Asupplier_arrangement\./).then do |actions|
-      assert_equal 51, actions.size
+      assert_equal 54, actions.size
       assert_includes actions, "supplier_arrangement.item_setup_created"
       assert_includes actions, "supplier_arrangement.capacity_pairs_bulk_classified"
       assert_includes actions, "supplier_arrangement.capacity_pair_pool_configured"
       assert_includes actions, "supplier_arrangement.cost_setup_created"
       assert_includes actions, "supplier_arrangement.capacity_reconciliation_resolved"
       assert_includes actions, "supplier_arrangement.cost_occupancy_profiles_reordered"
+      assert_includes actions, "supplier_arrangement.commitment_trigger_created"
+      assert_includes actions, "supplier_arrangement.commitment_trigger_updated"
+      assert_includes actions, "supplier_arrangement.commitment_trigger_removed"
     end
     assert_includes AuditEvent::SUBJECT_TYPES, "SupplierArrangement"
 

@@ -387,6 +387,10 @@
     </div>
     <div class="dd-inline-actions">
       <%= link_to "Arrangement costs", departure_arrangement_costs_workspace_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+      <%= link_to "Commitment triggers",
+        departure_arrangement_version_commitment_triggers_path(
+          @departure, @supplier_arrangement, @supplier_arrangement_version
+        ), class: "dd-button dd-button--quiet" %>
       <%= link_to "Cost forecast", departure_arrangement_cost_forecast_path(@departure, @supplier_arrangement), class: "dd-button" %>
     </div>
   </header>

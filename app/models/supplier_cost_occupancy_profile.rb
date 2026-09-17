@@ -1,4 +1,5 @@
 class SupplierCostOccupancyProfile < ApplicationRecord
+  include ExactVersionCopyLineage
   LABEL_LIMIT = 120
 
   belongs_to :agency

@@ -1,4 +1,5 @@
 class ArrangementItemDefinition < ApplicationRecord
+  include ExactVersionCopyLineage
   CATEGORIES = %w[
     cruise
     lodging
