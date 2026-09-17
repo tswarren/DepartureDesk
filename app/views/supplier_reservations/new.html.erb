@@ -1,0 +1,37 @@
+<% content_for :title, "Create planned Reservation · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier Reservation</p>
+    <h1 class="dd-page-title">Create planned Reservation</h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %> · exact version <%= @supplier_arrangement_version.version_number %></p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to reservations", departure_arrangement_reservations_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<% if flash.now[:alert].present? %>
+  <div class="dd-error-summary" role="alert" tabindex="-1">
+    <h2>Reservation could not be planned</h2>
+    <p><%= flash.now[:alert] %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Booking intent</h2>
+      <p>Create internal intent first. Recording a request later preserves the external communication fact.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <%= form_with url: departure_arrangement_reservations_path(@departure, @supplier_arrangement), method: :post do %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <%= render "form" %>
+      <div class="dd-page-actions">
+        <%= submit_tag "Create planned reservation", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</article>

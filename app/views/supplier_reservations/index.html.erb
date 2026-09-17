@@ -1,0 +1,59 @@
+<% content_for :title, "Reservations · #{@supplier_arrangement.name} · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_departures) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier Reservations</p>
+    <h1 class="dd-page-title"><%= @supplier_arrangement.name %></h1>
+    <p class="dd-page-description">Supplier-facing bookings retain exact Arrangement version history.</p>
+  </div>
+  <div class="dd-page-actions">
+    <% if manage && (@departure.draft? || @departure.active?) && (@supplier_arrangement.draft? || @supplier_arrangement.active?) %>
+      <%= link_to "Create planned reservation", new_departure_arrangement_reservation_path(@departure, @supplier_arrangement), class: "dd-button" %>
+    <% end %>
+    <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Reservations</h2>
+      <p>Current state is rebuilt from immutable request and withdrawal events.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if @reservations.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Booking Supplier</th>
+            <th scope="col">State</th>
+            <th scope="col">Scopes</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @reservations.each do |reservation| %>
+            <% projection = reservation.projection %>
+            <tr>
+              <td><%= supplier_option_label(reservation.booking_supplier) %></td>
+              <td><%= projection&.state&.humanize || "Not rebuilt" %></td>
+              <td>
+                <% if projection&.planned? %>
+                  <%= pluralize(projection.planned_scope_count, "planned scope") %>
+                <% else %>
+                  <%= pluralize(projection&.pending_scope_count.to_i, "pending scope") %>;
+                  <%= pluralize(projection&.withdrawn_scope_count.to_i, "withdrawn scope") %>
+                <% end %>
+              </td>
+              <td><%= link_to "Open", departure_arrangement_reservation_path(@departure, @supplier_arrangement, reservation), class: "dd-row-action dd-row-action--edit" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="<%= empty_state_classes.join(" ") %>">No Supplier Reservations yet.</p>
+    <% end %>
+  </div>
+</article>

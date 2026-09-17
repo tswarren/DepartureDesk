@@ -49,6 +49,12 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
       supplier_locations
       supplier_phone_numbers
       supplier_postal_addresses
+      supplier_reservation_event_scope_outcomes
+      supplier_reservation_events
+      supplier_reservation_projections
+      supplier_reservation_revisions
+      supplier_reservation_scopes
+      supplier_reservations
       supplier_resource_definitions
       supplier_resources
       supplier_websites

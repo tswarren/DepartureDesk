@@ -1,0 +1,97 @@
+<% existing_scopes = local_assigns[:revision]&.scopes&.order(:position, :id)&.to_a || [] %>
+<% submitted_scopes = params.dig(:supplier_reservation, :scopes)&.values.presence %>
+<% rows = submitted_scopes || existing_scopes.map { |scope|
+  {
+    "target_kind" => scope.target_kind,
+    "arrangement_item_id" => scope.arrangement_item_id,
+    "service_occurrence_id" => scope.service_occurrence_id,
+    "supplier_resource_id" => scope.supplier_resource_id,
+    "capacity_pool_id" => scope.capacity_pool_id,
+    "label" => scope.label,
+    "requested_quantity" => scope.requested_quantity,
+    "quantity_basis" => scope.quantity_basis
+  }
+} %>
+<% rows = [{ "target_kind" => "arrangement" }] if rows.blank? %>
+<% rows += Array.new([3 - rows.size, 0].max) { {} } %>
+
+<%= hidden_field_tag "supplier_reservation[supplier_arrangement_version_id]", @supplier_arrangement_version.id %>
+
+<% unless local_assigns[:revision] %>
+  <div class="dd-field">
+    <%= label_tag "supplier_reservation_booking_supplier_id", "Booking Supplier" %>
+    <%= select_tag "supplier_reservation[booking_supplier_id]",
+      options_from_collection_for_select(@booking_supplier_options, :id, :display_name, params.dig(:supplier_reservation, :booking_supplier_id) || @supplier_arrangement.contracting_supplier_id),
+      class: "dd-select" %>
+    <p class="dd-field-hint">Use the contracting Supplier or an effective Provider for this exact version.</p>
+  </div>
+<% end %>
+
+<fieldset class="dd-field">
+  <legend>Reservation scopes</legend>
+  <p class="dd-field-hint">Leave unused rows blank. Whole-Arrangement scope is useful for common single booking requests.</p>
+  <% rows.each_with_index do |scope, index| %>
+    <% target_kind = scope["target_kind"].presence %>
+    <section class="dd-panel">
+      <div class="dd-panel-body">
+        <div class="dd-field">
+          <%= label_tag "supplier_reservation_scopes_#{index}_target_kind", "Scope #{index + 1} target" %>
+          <%= select_tag "supplier_reservation[scopes][#{index}][target_kind]",
+            options_for_select([
+              ["Skip this row", ""],
+              ["Whole Arrangement", "arrangement"],
+              ["Item", "item"],
+              ["Occurrence", "occurrence"],
+              ["Resource", "resource"],
+              ["Capacity Pool", "capacity_pool"]
+            ], target_kind),
+            id: "supplier_reservation_scopes_#{index}_target_kind",
+            class: "dd-select" %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "supplier_reservation_scopes_#{index}_arrangement_item_id", "Item target" %>
+          <%= select_tag "supplier_reservation[scopes][#{index}][arrangement_item_id]",
+            options_for_select([["Choose Item", ""]] + @item_definitions.map { |definition| [definition.name, definition.arrangement_item_id] }, scope["arrangement_item_id"]),
+            id: "supplier_reservation_scopes_#{index}_arrangement_item_id",
+            class: "dd-select" %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "supplier_reservation_scopes_#{index}_service_occurrence_id", "Occurrence target" %>
+          <%= select_tag "supplier_reservation[scopes][#{index}][service_occurrence_id]",
+            options_for_select([["Choose Occurrence", ""]] + @occurrence_definitions.map { |definition| [definition.name, definition.service_occurrence_id] }, scope["service_occurrence_id"]),
+            id: "supplier_reservation_scopes_#{index}_service_occurrence_id",
+            class: "dd-select" %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "supplier_reservation_scopes_#{index}_supplier_resource_id", "Resource target" %>
+          <%= select_tag "supplier_reservation[scopes][#{index}][supplier_resource_id]",
+            options_for_select([["Choose Resource", ""]] + @resource_definitions.map { |definition| [definition.name, definition.supplier_resource_id] }, scope["supplier_resource_id"]),
+            id: "supplier_reservation_scopes_#{index}_supplier_resource_id",
+            class: "dd-select" %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "supplier_reservation_scopes_#{index}_capacity_pool_id", "Capacity Pool target" %>
+          <%= select_tag "supplier_reservation[scopes][#{index}][capacity_pool_id]",
+            options_for_select([["Choose Pool", ""]] + @capacity_pool_definitions.map { |definition| [definition.label, definition.capacity_pool_id] }, scope["capacity_pool_id"]),
+            id: "supplier_reservation_scopes_#{index}_capacity_pool_id",
+            class: "dd-select" %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "supplier_reservation_scopes_#{index}_label", "Scope note" %>
+          <%= text_field_tag "supplier_reservation[scopes][#{index}][label]", scope["label"], id: "supplier_reservation_scopes_#{index}_label", class: "dd-input", maxlength: 160 %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "supplier_reservation_scopes_#{index}_requested_quantity", "Requested quantity" %>
+          <%= number_field_tag "supplier_reservation[scopes][#{index}][requested_quantity]", scope["requested_quantity"], id: "supplier_reservation_scopes_#{index}_requested_quantity", min: 1, step: 1, class: "dd-input" %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "supplier_reservation_scopes_#{index}_quantity_basis", "Quantity basis" %>
+          <%= select_tag "supplier_reservation[scopes][#{index}][quantity_basis]",
+            options_for_select([["No quantity basis", ""]] + SupplierReservationScope::QUANTITY_BASES.map { |basis| [basis.humanize, basis] }, scope["quantity_basis"]),
+            id: "supplier_reservation_scopes_#{index}_quantity_basis",
+            class: "dd-select" %>
+        </div>
+      </div>
+    </section>
+  <% end %>
+</fieldset>
