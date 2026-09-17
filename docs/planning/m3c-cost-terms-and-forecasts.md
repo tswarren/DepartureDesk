@@ -1,8 +1,8 @@
 # M3C — Supplier cost terms and forecasts
 
-**Status:** Accepted. Implementation authority for Supplier cost terms and draft forecasts only. Not yet shipped.
+**Status:** Shipped. Merged to `main` on 2026-09-17 in pull request #66. This document remains the Supplier cost-terms and draft-forecasts contract. It is not authority to start Arrangement activation, effective contracted terms, persisted forecast results, Reservations, commitments, Deadlines, exposure, remittance, FX, or later M3 slices.
 
-**Parent:** [M3 — Supplier planning](m3-supplier-planning.md), Accepted and amended for M3B and M3C. M3A and M3B are shipped.
+**Parent:** [M3 — Supplier planning](m3-supplier-planning.md), Accepted and amended for M3B and M3C. M3A, M3B, and M3C are shipped.
 
 **Architecture:** [ADR 0001](../adr/0001-money-and-currency.md), [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), [ADR 0009](../adr/0009-supplier-contracting-and-service-provider-roles.md), and [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md).
 
@@ -927,16 +927,13 @@ Represent a genuinely complimentary or Supplier-collected service with a zero-co
 
 ## Documentation when this slice ships
 
-After implementation merges to `main` and CI is green, use a separate documentation PR to:
+Completed after merge of pull request #66 to `main`:
 
-- mark M3C Shipped;
-- update `AGENTS.md`, `docs/README.md`, roadmap, terminology, architecture/current-state, schema catalog, and interface contract;
-- record the first shipped monetary-table pattern and M3C audit actions;
-- state that Arrangement activation and effective terms remain M3D;
-- retain M3B capacity and M3C cost distinctions; and
-- keep M3D–M3F unimplemented.
-
-Do not mark M3C shipped in the implementation PR.
+- Marked M3C Shipped in this plan, `AGENTS.md`, `README.md`, `docs/README.md`, ADR index, current architecture, terminology, interface contract, and roadmap.
+- Recorded the first shipped monetary-table pattern (`*_minor_units` plus definition currency) and M3C Arrangement cost audit actions.
+- Stated that Arrangement activation and effective contracted terms remain M3D.
+- Retained M3B capacity and M3C cost distinctions.
+- Kept M3D–M3F unimplemented.
 
 ## Exit gate
 

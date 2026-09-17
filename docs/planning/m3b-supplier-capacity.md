@@ -1,6 +1,6 @@
 # M3B — Supplier capacity
 
-**Status:** Shipped. Merged to `main` on 2026-09-17 in pull request #64. This document remains the Supplier capacity contract. It is not authority to start Arrangement activation, user-accessible effective-capacity or event controls, costs, Reservations, commitments, Deadlines, exposure, or later M3 slices.
+**Status:** Shipped. Merged to `main` on 2026-09-17 in pull request #64. This document remains the Supplier capacity contract. It is not authority to start Arrangement activation, user-accessible effective-capacity or event controls, Reservations, commitments, Deadlines, exposure, or later M3 slices. Cost terms and draft forecasts are governed by shipped [M3C](m3c-cost-terms-and-forecasts.md).
 
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md), Accepted and amended for M3B.
 
@@ -812,7 +812,7 @@ Completed after merge of pull request #64 to `main`:
 - Marked M3B Shipped in this plan, `AGENTS.md`, `README.md`, `docs/README.md`, ADR index, current architecture, terminology, interface contract, and roadmap.
 - Confirmed the parent already records the M3B amendment and ADR 0010 Accepted status.
 - Recorded the shipped `override_supplier_planning_terms` permission in architecture/current-state.
-- Kept M3C–M3F unimplemented.
+- Kept later M3 slices unimplemented after M3B.
 - Stated explicitly that effective capacity and user-accessible event controls still require M3D activation.
 
 ## Exit gate
