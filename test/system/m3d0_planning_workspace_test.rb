@@ -14,10 +14,12 @@ class M3D0PlanningWorkspaceTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit departure_arrangement_new_item_setup_path(@departure, arrangement)
 
+    fill_in "Name", with: "Celebrity O1 cabins", match: :first
+    select "Lodging", from: "Category"
     find_field("Add first occurrence").send_keys(:space)
     within(:xpath, "//article[.//h2[normalize-space()='First occurrence']]") do
       fill_in "Name", with: "Celebrity sailing"
-      fill_in_html_date "Start date", "2026-06-01"
+      fill_in_html_date "Start date", "2026-06-08"
       fill_in_html_date "End date", "2026-06-01"
     end
     find_field("Add first resource").send_keys(:space)
@@ -30,12 +32,14 @@ class M3D0PlanningWorkspaceTest < ApplicationSystemTestCase
     assert_selector "#form-error-summary"
     assert_equal "form-error-summary",
       page.evaluate_script("document.activeElement && document.activeElement.id")
+    assert_text "First occurrence: End date must be on or after the start date"
     within("#form-error-summary") { find("a", match: :first).send_keys(:return) }
-    assert_equal "arrangement_item_definition_name",
+    assert_equal "service_occurrence_definition_ends_on",
       page.evaluate_script("document.activeElement && document.activeElement.id")
 
-    fill_in "Name", with: "Celebrity O1 cabins", match: :first
-    select "Lodging", from: "Category"
+    within(:xpath, "//article[.//h2[normalize-space()='First occurrence']]") do
+      fill_in_html_date "End date", "2026-06-08"
+    end
     find_button("Save item setup").send_keys(:return)
     wait_for_turbo
 
@@ -71,7 +75,7 @@ class M3D0PlanningWorkspaceTest < ApplicationSystemTestCase
     find_button("Save applicability").send_keys(:return)
     wait_for_turbo
     check "Review Room block"
-    select "Not applicable", from: "Decision for Hilton stay and Room block"
+    find("select[aria-label='Decision for Hilton stay and Room block']").select("Not applicable")
     find_button("Save reviewed decisions").send_keys(:return)
     wait_for_turbo
 
