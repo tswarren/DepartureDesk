@@ -1,12 +1,17 @@
 class OpenSupplierCommitmentAlreadyLocked
   def initialize(trigger:, confirmation:, actor:, activation: nil,
-    confirmed_quantity: nil, confirmed_amount_minor_units: nil)
+    confirmed_quantity: nil, confirmed_amount_minor_units: nil,
+    reservation: nil, revision: nil, scope: nil, response_event: nil)
     @trigger = trigger
     @confirmation = confirmation
     @actor = actor
     @activation = activation
     @confirmed_quantity = confirmed_quantity
     @confirmed_amount_minor_units = confirmed_amount_minor_units
+    @reservation = reservation
+    @revision = revision
+    @scope = scope
+    @response_event = response_event
   end
 
   # Internal operation only. The enclosing confirmation command must already
@@ -19,6 +24,10 @@ class OpenSupplierCommitmentAlreadyLocked
         supplier_arrangement_activation: @activation,
         supplier_commitment_trigger_definition: @trigger,
         supplier_confirmation: @confirmation,
+        supplier_reservation: @reservation,
+        supplier_reservation_revision: @revision,
+        supplier_reservation_scope: @scope,
+        supplier_reservation_event: @response_event,
         committed_supplier_id: @trigger.committed_supplier_id,
         commitment_type: commitment_type(quantity, amount),
         description: @trigger.description,
@@ -63,6 +72,16 @@ class OpenSupplierCommitmentAlreadyLocked
     end
     if @activation && owner_ids.any? { |field| @activation.public_send(field) != @trigger.public_send(field) }
       raise AgencyCommand::Error.new("Activation does not own this trigger.", code: :invalid)
+    end
+    return if @reservation.nil?
+
+    unless @revision && @response_event &&
+        @reservation.agency_id == @trigger.agency_id &&
+        @reservation.departure_id == @trigger.departure_id &&
+        @reservation.supplier_arrangement_id == @trigger.supplier_arrangement_id &&
+        @revision.supplier_arrangement_version_id == @trigger.supplier_arrangement_version_id &&
+        @response_event.supplier_reservation_id == @reservation.id
+      raise AgencyCommand::Error.new("Reservation confirmation context is incomplete.", code: :invalid)
     end
   end
 

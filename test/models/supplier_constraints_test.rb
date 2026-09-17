@@ -32,6 +32,10 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
       supplier_confirmation_capacity_event_links
       supplier_confirmation_commitment_links
       supplier_confirmation_identifier_links
+
+      supplier_confirmation_reservation_response_links
+
+      supplier_confirmation_reservation_scope_links
       supplier_confirmations
       supplier_contact_email_addresses
       supplier_contact_phone_numbers
