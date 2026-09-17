@@ -89,7 +89,7 @@ class M3D0PlanningWorkspaceTest < ApplicationSystemTestCase
     wait_for_turbo
 
     assert_selector "h1.dd-page-title", exact_text: "Hilton room terms"
-    assert_text "Supplier cost review"
+    assert_selector "p.dd-eyebrow", text: /Supplier cost review/i
     assert_text "Known zero"
     assert_text "Readiness attestation"
   end
