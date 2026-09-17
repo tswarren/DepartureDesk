@@ -34,7 +34,7 @@ class M3D5SupplierReservationsTest < ApplicationSystemTestCase
 
     select @supplier.display_name, from: "Booking Supplier"
     select "Whole Arrangement", from: "Scope 1 target"
-    fill_in "Scope note", with: "Whole booking"
+    fill_in "Scope 1 note", with: "Whole booking"
     click_button "Create planned reservation"
 
     assert_text "Reservation planned."

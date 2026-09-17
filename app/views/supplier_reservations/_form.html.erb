@@ -77,15 +77,15 @@
             class: "dd-select" %>
         </div>
         <div class="dd-field">
-          <%= label_tag "supplier_reservation_scopes_#{index}_label", "Scope note" %>
+          <%= label_tag "supplier_reservation_scopes_#{index}_label", "Scope #{index + 1} note" %>
           <%= text_field_tag "supplier_reservation[scopes][#{index}][label]", scope["label"], id: "supplier_reservation_scopes_#{index}_label", class: "dd-input", maxlength: 160 %>
         </div>
         <div class="dd-field">
-          <%= label_tag "supplier_reservation_scopes_#{index}_requested_quantity", "Requested quantity" %>
+          <%= label_tag "supplier_reservation_scopes_#{index}_requested_quantity", "Scope #{index + 1} requested quantity" %>
           <%= number_field_tag "supplier_reservation[scopes][#{index}][requested_quantity]", scope["requested_quantity"], id: "supplier_reservation_scopes_#{index}_requested_quantity", min: 1, step: 1, class: "dd-input" %>
         </div>
         <div class="dd-field">
-          <%= label_tag "supplier_reservation_scopes_#{index}_quantity_basis", "Quantity basis" %>
+          <%= label_tag "supplier_reservation_scopes_#{index}_quantity_basis", "Scope #{index + 1} quantity basis" %>
           <%= select_tag "supplier_reservation[scopes][#{index}][quantity_basis]",
             options_for_select([["No quantity basis", ""]] + SupplierReservationScope::QUANTITY_BASES.map { |basis| [basis.humanize, basis] }, scope["quantity_basis"]),
             id: "supplier_reservation_scopes_#{index}_quantity_basis",
