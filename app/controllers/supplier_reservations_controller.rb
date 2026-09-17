@@ -242,13 +242,15 @@ class SupplierReservationsController < ApplicationController
     )
     permitted[:scope_ids] = params[:scope_ids] if params[:scope_ids].present?
     if params[:outcomes].present?
-      permitted[:outcomes] = params.fetch(:outcomes).each_with_object({}) do |(scope_id, values), memo|
+      outcomes = {}
+      params.fetch(:outcomes).each do |scope_id, values|
         next unless values.respond_to?(:permit)
 
-        memo[scope_id] = values.permit(
+        outcomes[scope_id] = values.permit(
           :outcome_kind, :quantity, :quantity_basis, :supplier_note, :decline_reason
         ).to_h
       end
+      permitted[:outcomes] = outcomes
     end
     permitted
   end
