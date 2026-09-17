@@ -1,10 +1,10 @@
 # M3D.0 — Supplier-planning workspace compression
 
-**Status:** Accepted 2026-09-17. Implementation authority for M3A–M3C workflow remediation only. Not authority for Arrangement activation or other M3D domain records.
+**Status:** Shipped. Merged to `main` on 2026-09-17 in pull request #70. This document remains the M3A–M3C workflow-remediation contract. It is not authority for Arrangement activation or other M3D domain records.
 
 **Parent authority:** [M3 — Supplier planning](m3-supplier-planning.md), shipped [M3A](m3a-draft-arrangement-structure.md), [M3B](m3b-supplier-capacity.md), and [M3C](m3c-cost-terms-and-forecasts.md), and the active [interface contract](../ui/interface-contract.md).
 
-**Relationship to M3D:** **HARD prerequisite.** This is a bounded remediation slice over shipped M3A–M3C behavior. It introduces no Arrangement activation, successor, Reservation, confirmation, commitment, effective-capacity event UI, or other M3D domain record. Accepted-and-shipped M3D.0 is required before production [M3D](m3d-activation-reservations-confirmations.md) activation, Reservation, or effective-capacity implementation begins. There is no waiver path.
+**Relationship to M3D:** **HARD prerequisite, now satisfied.** This is a bounded remediation slice over shipped M3A–M3C behavior. It introduces no Arrangement activation, successor, Reservation, confirmation, commitment, effective-capacity event UI, or other M3D domain record. [M3D](m3d-activation-reservations-confirmations.md) remains Accepted and not yet shipped.
 
 ## Goal
 
@@ -461,14 +461,12 @@ The scenarios prove workflow compression, not automatic inference or service-spe
 
 ## Documentation when this slice ships
 
-Acceptance authorizes implementation. The status changes to Shipped only after the implementation is merged and every required proof and exit criterion passes. At that point:
+Completed after merge of pull request #70 to `main`:
 
-- mark this plan Shipped;
-- update `AGENTS.md`, root `README.md`, `docs/README.md`, roadmap immediate work, current architecture, and terminology only to describe the compressed shipped workflows;
-- amend the Departure section of the active interface contract with guided Item setup, bulk hierarchical capacity decisions, conditional Pool forms, guided initial cost, contextual assumptions, readiness review, and reorder mode;
-- retain the interface contract's no-capacity-matrix rule;
-- leave the M3A, M3B, and M3C domain contracts and ADR decisions unchanged; and
-- continue to describe every M3D domain record as unimplemented until its Accepted slice ships it.
+- Marked M3D.0 Shipped in this plan, the M3 parent, `AGENTS.md`, root `README.md`, `docs/README.md`, roadmap immediate work, current architecture, and terminology.
+- Amended the Departure section of the active interface contract with guided Item setup, bulk hierarchical capacity decisions, conditional Pool forms, guided initial cost, contextual assumptions, readiness review, and reorder mode while retaining the no-capacity-matrix rule.
+- Left the M3A, M3B, and M3C domain contracts and ADR decisions unchanged.
+- Continued to describe every M3D domain record as unimplemented until its Accepted slice ships it.
 
 ## Exit gate
 
