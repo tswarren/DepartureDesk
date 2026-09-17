@@ -93,6 +93,110 @@
       <% end %>
     </div>
   </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Record Supplier response</h2>
+        <p>Confirmed outcomes require booking-Supplier evidence. Counterproposals never open commitments.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <%= form_with url: respond_departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), method: :post do %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <% @pending_scopes.each do |scope| %>
+          <div class="dd-field">
+            <%= check_box_tag "scope_ids[]", scope.id, true, id: "response_scope_ids_#{scope.id}" %>
+            <%= label_tag "response_scope_ids_#{scope.id}", scope.label.presence || scope.target_kind.humanize %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "outcomes_#{scope.id}_outcome_kind", "Outcome for #{scope.label.presence || scope.target_kind.humanize}" %>
+            <%= select_tag "outcomes[#{scope.id}][outcome_kind]",
+              options_for_select([
+                ["Confirmed", "confirmed"],
+                ["Declined", "declined"],
+                ["Counterproposed", "counterproposed"]
+              ], "confirmed"),
+              class: "dd-select" %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "outcomes_#{scope.id}_decline_reason", "Decline reason" %>
+            <%= text_field_tag "outcomes[#{scope.id}][decline_reason]", nil, class: "dd-input", maxlength: 500 %>
+          </div>
+        <% end %>
+        <div class="dd-field">
+          <%= label_tag "response_event_channel", "Response channel" %>
+          <%= text_field_tag "response_event[channel]", nil, class: "dd-input", maxlength: 80, required: true %>
+        </div>
+        <div class="dd-field">
+          <%= label_tag "response_event_reference_note", "Response reference note" %>
+          <%= text_area_tag "response_event[reference_note]", nil, class: "dd-textarea", maxlength: 500, required: true %>
+        </div>
+        <fieldset class="dd-field">
+          <legend>Confirmation evidence</legend>
+          <div class="dd-field">
+            <%= label_tag "response_event_evidence_evidence_kind", "Evidence kind" %>
+            <%= select_tag "response_event[evidence][evidence_kind]",
+              options_for_select(SupplierConfirmation::EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] }, "supplier_confirmation"),
+              class: "dd-select" %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "response_event_evidence_evidence_on", "Evidence date" %>
+            <%= date_field_tag "response_event[evidence][evidence_on]", Date.current, class: "dd-input", required: true %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "response_event_evidence_confirmed_without_identifier_reason", "Confirmed without identifier reason" %>
+            <%= text_area_tag "response_event[evidence][confirmed_without_identifier_reason]", "Identifier not issued yet", class: "dd-textarea", maxlength: 500 %>
+          </div>
+        </fieldset>
+        <%= submit_tag "Record response", class: "dd-button" %>
+      <% end %>
+    </div>
+  </article>
+<% end %>
+
+<% if manage && @confirmed_scopes.any? %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Cancel confirmed scopes</h2>
+        <p>Cancellation does not automatically release capacity or dispose commitments.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <%= form_with url: cancel_scopes_departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), method: :post do %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <% @confirmed_scopes.each do |scope| %>
+          <div class="dd-field">
+            <%= check_box_tag "scope_ids[]", scope.id, true, id: "cancel_scope_ids_#{scope.id}" %>
+            <%= label_tag "cancel_scope_ids_#{scope.id}", scope.label.presence || scope.target_kind.humanize %>
+          </div>
+        <% end %>
+        <div class="dd-field">
+          <%= label_tag :reason, "Cancellation reason" %>
+          <%= text_area_tag :reason, nil, class: "dd-textarea", maxlength: 500, required: true %>
+        </div>
+        <%= submit_tag "Cancel confirmed scopes", class: "dd-button dd-button--danger" %>
+      <% end %>
+    </div>
+  </article>
+<% end %>
+
+<% if manage && @supplier_reservation.revisions.where(status: "planned").none? && @supplier_arrangement.active? %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Create planned revision</h2>
+        <p>Copy selected history into a new planned revision on the current activated version or sole successor draft.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <%= form_with url: revise_departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), method: :post do %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <%= submit_tag "Create planned revision", class: "dd-button" %>
+      <% end %>
+    </div>
+  </article>
 <% end %>
 
 <article class="dd-panel">

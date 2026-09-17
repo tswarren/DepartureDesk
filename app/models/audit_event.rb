@@ -130,6 +130,9 @@ class AuditEvent < ApplicationRecord
     supplier_reservation.abandoned
     supplier_reservation.requested
     supplier_reservation.withdrawn
+    supplier_reservation.response_recorded
+    supplier_reservation.revised
+    supplier_reservation.scopes_cancelled
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze

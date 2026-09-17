@@ -34,10 +34,14 @@ class ChangeSupplierStatus < AgencyCommand
         lock_m3a_dependencies!(dependency_ids)
         commitment_ids = unresolved_commitment_ids(supplier)
         lock_unresolved_commitments!(commitment_ids)
-        if dependency_ids.any? || commitment_ids.any?
+        reservation_ids = nonterminal_reservation_ids(supplier)
+        lock_nonterminal_reservations!(reservation_ids)
+        if dependency_ids.any? || commitment_ids.any? || reservation_ids.any?
           unless @force
             message = if commitment_ids.any?
               "This supplier has unresolved supplier commitments."
+            elsif reservation_ids.any?
+              "This supplier has open supplier reservations."
             else
               "This supplier is used by active supplier arrangement planning."
             end
@@ -46,7 +50,7 @@ class ChangeSupplierStatus < AgencyCommand
           ensure_force_allowed!
         end
         cascade_descendants!(supplier).merge(
-          force_details(supplier, dependency_ids, commitment_ids)
+          force_details(supplier, dependency_ids, commitment_ids, reservation_ids)
         )
       else
         empty_affected
@@ -72,15 +76,16 @@ class ChangeSupplierStatus < AgencyCommand
     normalize_reason(@force_reason)
   end
 
-  def force_details(supplier, dependency_ids, commitment_ids)
+  def force_details(supplier, dependency_ids, commitment_ids, reservation_ids = [])
     capacity_pool_ids = affected_capacity_pool_ids(supplier)
-    if dependency_ids.empty? && commitment_ids.empty?
+    if dependency_ids.empty? && commitment_ids.empty? && reservation_ids.empty?
       return {
         "forced" => false,
         "force_reason" => nil,
         "affected_supplier_arrangement_ids" => [],
         "affected_capacity_pool_ids" => capacity_pool_ids,
-        "preserved_supplier_commitment_ids" => []
+        "preserved_supplier_commitment_ids" => [],
+        "preserved_supplier_reservation_ids" => []
       }
     end
 
@@ -89,7 +94,8 @@ class ChangeSupplierStatus < AgencyCommand
       "force_reason" => normalize_reason(@force_reason),
       "affected_supplier_arrangement_ids" => dependency_ids,
       "affected_capacity_pool_ids" => capacity_pool_ids,
-      "preserved_supplier_commitment_ids" => commitment_ids
+      "preserved_supplier_commitment_ids" => commitment_ids,
+      "preserved_supplier_reservation_ids" => reservation_ids
     }
   end
 
@@ -97,6 +103,24 @@ class ChangeSupplierStatus < AgencyCommand
     SupplierCommitment.where(
       agency_id: @agency.id, committed_supplier_id: supplier.id
     ).order(:id).pluck(:id)
+  end
+
+  def nonterminal_reservation_ids(supplier)
+    SupplierReservationProjection
+      .joins(:supplier_reservation)
+      .where(agency_id: @agency.id)
+      .where(supplier_reservations: { booking_supplier_id: supplier.id })
+      .where(state: %w[planned requested partially_confirmed confirmed])
+      .order("supplier_reservations.id")
+      .pluck("supplier_reservations.id")
+  end
+
+  def lock_nonterminal_reservations!(reservation_ids)
+    return if reservation_ids.empty?
+
+    @agency.supplier_reservations.where(id: reservation_ids).order(:id).lock.to_a
+    SupplierReservationProjection.where(agency_id: @agency.id, supplier_reservation_id: reservation_ids)
+      .order(:id).lock.to_a
   end
 
   def lock_unresolved_commitments!(commitment_ids)

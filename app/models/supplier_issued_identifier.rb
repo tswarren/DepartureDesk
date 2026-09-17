@@ -11,10 +11,11 @@ class SupplierIssuedIdentifier < ApplicationRecord
   belongs_to :supplier
   belongs_to :first_supplier_confirmation, class_name: "SupplierConfirmation"
   belongs_to :supersedes, class_name: "SupplierIssuedIdentifier", optional: true
+  belongs_to :supplier_reservation, optional: true
 
   enum :identifier_type, IDENTIFIER_TYPES.index_by(&:itself), validate: true
 
-  attr_readonly :agency_id, :departure_id, :supplier_arrangement_id, :supplier_id
+  attr_readonly :agency_id, :departure_id, :supplier_arrangement_id, :supplier_id, :supplier_reservation_id
 
   normalizes :issuer_context, :other_type_label, :display_value,
     with: ->(value) { value.to_s.strip.presence }

@@ -22,6 +22,8 @@ class SupplierConfirmation < ApplicationRecord
   has_many :capacity_events, through: :supplier_confirmation_capacity_event_links
   has_many :supplier_confirmation_commitment_links, dependent: :restrict_with_exception
   has_many :supplier_commitments, through: :supplier_confirmation_commitment_links
+  has_many :supplier_confirmation_reservation_response_links, dependent: :restrict_with_exception
+  has_many :supplier_confirmation_reservation_scope_links, dependent: :restrict_with_exception
 
   enum :evidence_kind, EVIDENCE_KINDS.index_by(&:itself), validate: true
 

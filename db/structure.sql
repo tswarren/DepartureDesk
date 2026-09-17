@@ -2180,11 +2180,16 @@ CREATE TABLE public.supplier_commitments (
     agency_command_idempotency_key_id uuid,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    supplier_reservation_id uuid,
+    supplier_reservation_revision_id uuid,
+    supplier_reservation_scope_id uuid,
+    supplier_reservation_event_id uuid,
     CONSTRAINT supplier_commitments_authority_shape CHECK (((((commitment_type)::text = 'quantity'::text) AND (quantity IS NOT NULL) AND (amount_minor_units IS NULL)) OR (((commitment_type)::text = 'monetary'::text) AND (quantity IS NULL) AND (amount_minor_units IS NOT NULL)) OR (((commitment_type)::text = 'quantity_and_monetary'::text) AND (quantity IS NOT NULL) AND (amount_minor_units IS NOT NULL)))),
     CONSTRAINT supplier_commitments_calculation_snapshot CHECK (((btrim((calculation_snapshot)::text) <> ''::text) AND (char_length((calculation_snapshot)::text) <= 2000))),
     CONSTRAINT supplier_commitments_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 500))),
     CONSTRAINT supplier_commitments_money_shape CHECK ((((amount_minor_units IS NULL) = (currency IS NULL)) AND ((amount_minor_units IS NULL) OR (amount_minor_units >= 0)))),
     CONSTRAINT supplier_commitments_quantity_shape CHECK ((((quantity IS NULL) = (quantity_basis IS NULL)) AND ((quantity IS NULL) OR (quantity > 0)))),
+    CONSTRAINT supplier_commitments_reservation_shape CHECK ((((supplier_reservation_id IS NULL) AND (supplier_reservation_revision_id IS NULL) AND (supplier_reservation_scope_id IS NULL) AND (supplier_reservation_event_id IS NULL)) OR ((supplier_reservation_id IS NOT NULL) AND (supplier_reservation_revision_id IS NOT NULL) AND (supplier_reservation_event_id IS NOT NULL)))),
     CONSTRAINT supplier_commitments_type CHECK (((commitment_type)::text = ANY ((ARRAY['quantity'::character varying, 'monetary'::character varying, 'quantity_and_monetary'::character varying])::text[])))
 );
 
@@ -2254,6 +2259,44 @@ CREATE TABLE public.supplier_confirmation_identifier_links (
     supplier_issued_identifier_id uuid CONSTRAINT supplier_confirmation_ident_supplier_issued_identifier_not_null NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: supplier_confirmation_reservation_response_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_confirmation_reservation_response_links (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid CONSTRAINT supplier_confirmation_reservation_response_l_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_confirmation_reservation_respons_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_confirmation_reservat_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_confirmation_reser_supplier_arrangement_versi_not_null NOT NULL,
+    supplier_confirmation_id uuid CONSTRAINT supplier_confirmation_reserva_supplier_confirmation_id_not_null NOT NULL,
+    supplier_reservation_id uuid CONSTRAINT supplier_confirmation_reservat_supplier_reservation_id_not_null NOT NULL,
+    supplier_reservation_revision_id uuid CONSTRAINT supplier_confirmation_reser_supplier_reservation_revis_not_null NOT NULL,
+    supplier_reservation_event_id uuid CONSTRAINT supplier_confirmation_reser_supplier_reservation_event_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_confirmation_reservation_response__created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_confirmation_reservation_response__updated_at_not_null NOT NULL
+);
+
+
+--
+-- Name: supplier_confirmation_reservation_scope_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_confirmation_reservation_scope_links (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid CONSTRAINT supplier_confirmation_reservation_scope_link_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_confirmation_reservation_scope_l_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_confirmation_reserva_supplier_arrangement_id_not_null1 NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_confirmation_rese_supplier_arrangement_versi_not_null1 NOT NULL,
+    supplier_confirmation_id uuid CONSTRAINT supplier_confirmation_reserv_supplier_confirmation_id_not_null1 NOT NULL,
+    supplier_reservation_id uuid CONSTRAINT supplier_confirmation_reserva_supplier_reservation_id_not_null1 NOT NULL,
+    supplier_reservation_revision_id uuid CONSTRAINT supplier_confirmation_rese_supplier_reservation_revis_not_null1 NOT NULL,
+    supplier_reservation_scope_id uuid CONSTRAINT supplier_confirmation_reser_supplier_reservation_scope_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_confirmation_reservation_scope_lin_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_confirmation_reservation_scope_lin_updated_at_not_null NOT NULL
 );
 
 
@@ -2647,6 +2690,7 @@ CREATE TABLE public.supplier_issued_identifiers (
     superseded_at timestamp with time zone,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    supplier_reservation_id uuid,
     CONSTRAINT supplier_identifiers_display_value CHECK (((btrim((display_value)::text) <> ''::text) AND (char_length((display_value)::text) <= 160))),
     CONSTRAINT supplier_identifiers_issuer_context CHECK (((btrim((issuer_context)::text) <> ''::text) AND (char_length((issuer_context)::text) <= 80))),
     CONSTRAINT supplier_identifiers_normalized_value CHECK (((btrim((normalized_value)::text) <> ''::text) AND (char_length((normalized_value)::text) <= 160))),
@@ -3417,6 +3461,22 @@ ALTER TABLE ONLY public.supplier_confirmation_identifier_links
 
 
 --
+-- Name: supplier_confirmation_reservation_response_links supplier_confirmation_reservation_response_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmation_reservation_response_links
+    ADD CONSTRAINT supplier_confirmation_reservation_response_links_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_confirmation_reservation_scope_links supplier_confirmation_reservation_scope_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmation_reservation_scope_links
+    ADD CONSTRAINT supplier_confirmation_reservation_scope_links_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_confirmations supplier_confirmations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3693,10 +3753,24 @@ CREATE UNIQUE INDEX capacity_pool_defs_lineage_owner_idx ON public.capacity_pool
 
 
 --
+-- Name: idx_on_agency_id_272858808f; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_agency_id_272858808f ON public.supplier_confirmation_reservation_response_links USING btree (agency_id);
+
+
+--
 -- Name: idx_on_agency_id_47e72d1a5f; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_on_agency_id_47e72d1a5f ON public.supplier_arrangement_activation_cost_selections USING btree (agency_id);
+
+
+--
+-- Name: idx_on_agency_id_751f094529; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_agency_id_751f094529 ON public.supplier_confirmation_reservation_scope_links USING btree (agency_id);
 
 
 --
@@ -4834,6 +4908,20 @@ CREATE UNIQUE INDEX index_confirmation_identifier_links_on_version_owner ON publ
 
 
 --
+-- Name: index_confirmation_response_links_on_pair; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_confirmation_response_links_on_pair ON public.supplier_confirmation_reservation_response_links USING btree (supplier_confirmation_id, supplier_reservation_event_id);
+
+
+--
+-- Name: index_confirmation_scope_links_on_pair; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_confirmation_scope_links_on_pair ON public.supplier_confirmation_reservation_scope_links USING btree (supplier_confirmation_id, supplier_reservation_scope_id);
+
+
+--
 -- Name: index_departures_on_agency_and_name_search_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5016,6 +5104,20 @@ CREATE UNIQUE INDEX index_reservation_projections_on_reservation ON public.suppl
 
 
 --
+-- Name: index_reservation_response_links_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_reservation_response_links_on_full_owner ON public.supplier_confirmation_reservation_response_links USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_reservation_response_links_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_reservation_response_links_on_id_agency ON public.supplier_confirmation_reservation_response_links USING btree (id, agency_id);
+
+
+--
 -- Name: index_reservation_revisions_on_number; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5034,6 +5136,20 @@ CREATE UNIQUE INDEX index_reservation_revisions_on_one_planned ON public.supplie
 --
 
 CREATE UNIQUE INDEX index_reservation_revisions_on_owner ON public.supplier_reservation_revisions USING btree (id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_reservation_scope_links_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_reservation_scope_links_on_full_owner ON public.supplier_confirmation_reservation_scope_links USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_reservation_scope_links_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_reservation_scope_links_on_id_agency ON public.supplier_confirmation_reservation_scope_links USING btree (id, agency_id);
 
 
 --
@@ -5849,6 +5965,13 @@ CREATE UNIQUE INDEX index_supplier_identifiers_on_active_owner_value ON public.s
 
 
 --
+-- Name: index_supplier_identifiers_on_active_reservation_value; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_identifiers_on_active_reservation_value ON public.supplier_issued_identifiers USING btree (supplier_reservation_id, supplier_id, identifier_type, issuer_context, normalized_value) WHERE ((superseded_at IS NULL) AND (supplier_reservation_id IS NOT NULL));
+
+
+--
 -- Name: index_supplier_identifiers_on_candidate_lookup; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5874,6 +5997,13 @@ CREATE UNIQUE INDEX index_supplier_identifiers_on_id_agency ON public.supplier_i
 --
 
 CREATE UNIQUE INDEX index_supplier_identifiers_on_id_departure_agency ON public.supplier_issued_identifiers USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_supplier_identifiers_on_reservation_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_identifiers_on_reservation_owner ON public.supplier_issued_identifiers USING btree (id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -6815,6 +6945,34 @@ CREATE TRIGGER supplier_confirmation_identifier_links_reject_update BEFORE UPDAT
 
 
 --
+-- Name: supplier_confirmation_reservation_response_links supplier_confirmation_reservation_response_links_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_confirmation_reservation_response_links_reject_delete BEFORE DELETE ON public.supplier_confirmation_reservation_response_links FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_confirmation_reservation_response_links supplier_confirmation_reservation_response_links_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_confirmation_reservation_response_links_reject_update BEFORE UPDATE ON public.supplier_confirmation_reservation_response_links FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_confirmation_reservation_scope_links supplier_confirmation_reservation_scope_links_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_confirmation_reservation_scope_links_reject_delete BEFORE DELETE ON public.supplier_confirmation_reservation_scope_links FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_confirmation_reservation_scope_links supplier_confirmation_reservation_scope_links_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_confirmation_reservation_scope_links_reject_update BEFORE UPDATE ON public.supplier_confirmation_reservation_scope_links FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
 -- Name: supplier_confirmations supplier_confirmations_reject_delete; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7734,6 +7892,38 @@ ALTER TABLE ONLY public.supplier_confirmation_identifier_links
 
 
 --
+-- Name: supplier_confirmation_reservation_response_links confirmation_response_links_confirmation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmation_reservation_response_links
+    ADD CONSTRAINT confirmation_response_links_confirmation_fk FOREIGN KEY (supplier_confirmation_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_confirmations(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_confirmation_reservation_response_links confirmation_response_links_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmation_reservation_response_links
+    ADD CONSTRAINT confirmation_response_links_event_fk FOREIGN KEY (supplier_reservation_event_id, supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_reservation_events(id, supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_confirmation_reservation_scope_links confirmation_scope_links_confirmation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmation_reservation_scope_links
+    ADD CONSTRAINT confirmation_scope_links_confirmation_fk FOREIGN KEY (supplier_confirmation_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_confirmations(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_confirmation_reservation_scope_links confirmation_scope_links_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmation_reservation_scope_links
+    ADD CONSTRAINT confirmation_scope_links_scope_fk FOREIGN KEY (supplier_reservation_scope_id, supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_reservation_scopes(id, supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: departures departures_agency_user_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7787,6 +7977,14 @@ ALTER TABLE ONLY public.client_person_postal_addresses
 
 ALTER TABLE ONLY public.capacity_pools
     ADD CONSTRAINT fk_rails_19d5f960c4 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_confirmation_reservation_response_links fk_rails_1c041b2616; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmation_reservation_response_links
+    ADD CONSTRAINT fk_rails_1c041b2616 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -7963,6 +8161,14 @@ ALTER TABLE ONLY public.reference_sequences
 
 ALTER TABLE ONLY public.supplier_arrangement_activations
     ADD CONSTRAINT fk_rails_5bedb1c962 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_confirmation_reservation_scope_links fk_rails_62fbdad473; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmation_reservation_scope_links
+    ADD CONSTRAINT fk_rails_62fbdad473 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -8414,6 +8620,14 @@ ALTER TABLE ONLY public.supplier_reservation_projections
 
 
 --
+-- Name: supplier_confirmation_reservation_response_links reservation_response_links_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmation_reservation_response_links
+    ADD CONSTRAINT reservation_response_links_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_reservation_revisions reservation_revisions_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8435,6 +8649,14 @@ ALTER TABLE ONLY public.supplier_reservation_revisions
 
 ALTER TABLE ONLY public.supplier_reservation_revisions
     ADD CONSTRAINT reservation_revisions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_confirmation_reservation_scope_links reservation_scope_links_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_confirmation_reservation_scope_links
+    ADD CONSTRAINT reservation_scope_links_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -8643,6 +8865,38 @@ ALTER TABLE ONLY public.supplier_commitments
 
 ALTER TABLE ONLY public.supplier_commitments
     ADD CONSTRAINT supplier_commitments_occurrence_definition_fk FOREIGN KEY (service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrence_definitions(service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_reservation_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_reservation_event_fk FOREIGN KEY (supplier_reservation_event_id, supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_reservation_events(id, supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_reservation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_reservation_fk FOREIGN KEY (supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_reservations(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_reservation_revision_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_reservation_revision_fk FOREIGN KEY (supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_reservation_revisions(id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_reservation_scope_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_reservation_scope_fk FOREIGN KEY (supplier_reservation_scope_id, supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_reservation_scopes(id, supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -8990,6 +9244,14 @@ ALTER TABLE ONLY public.supplier_issued_identifiers
 
 
 --
+-- Name: supplier_issued_identifiers supplier_identifiers_reservation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_issued_identifiers
+    ADD CONSTRAINT supplier_identifiers_reservation_fk FOREIGN KEY (supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_reservations(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_issued_identifiers supplier_identifiers_supersedes_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9084,6 +9346,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260917232000'),
 ('20260917230500'),
 ('20260917230400'),
 ('20260917230300'),

@@ -157,6 +157,9 @@ Rails.application.routes.draw do
           post :abandon
           post :request_booking
           post :withdraw
+          post :respond
+          post :cancel_scopes
+          post :revise
         end
       end
       member do

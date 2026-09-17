@@ -17,6 +17,10 @@ class SupplierCommitment < ApplicationRecord
   belongs_to :supplier_resource, optional: true
   belongs_to :capacity_pool, optional: true
   belongs_to :supplier_cost_source, optional: true
+  belongs_to :supplier_reservation, optional: true
+  belongs_to :supplier_reservation_revision, optional: true
+  belongs_to :supplier_reservation_scope, optional: true
+  belongs_to :supplier_reservation_event, optional: true
   belongs_to :actor, class_name: "AgencyUser"
   belongs_to :agency_command_idempotency_key, optional: true
 
