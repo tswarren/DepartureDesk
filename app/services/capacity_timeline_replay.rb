@@ -13,14 +13,18 @@ class CapacityTimelineReplay
 
   Result = Struct.new(:quantity, :events, keyword_init: true)
   NegativeQuantity = Class.new(StandardError)
+  InvalidEstablishmentOrder = Class.new(StandardError)
 
   def initialize(events)
     @events = events
   end
 
   def call
+    ordered = ordered_events
+    ensure_established_first!(ordered)
+
     running_quantity = 0
-    ordered_events.each do |event|
+    ordered.each do |event|
       direction = DIRECTIONS.fetch(event.event_type)
       running_quantity += direction.sign * event.quantity
       if running_quantity.negative?
@@ -28,7 +32,7 @@ class CapacityTimelineReplay
       end
     end
 
-    Result.new(quantity: running_quantity, events: ordered_events)
+    Result.new(quantity: running_quantity, events: ordered)
   end
 
   private
@@ -43,6 +47,19 @@ class CapacityTimelineReplay
         event.recorded_at,
         event.id
       ]
+    end
+  end
+
+  def ensure_established_first!(ordered)
+    return if ordered.empty?
+
+    first = ordered.first
+    unless first.event_type == "established"
+      raise InvalidEstablishmentOrder, "capacity timeline must begin with an established event"
+    end
+
+    if ordered.drop(1).any? { |event| event.event_type == "established" }
+      raise InvalidEstablishmentOrder, "capacity timeline may contain only one established event"
     end
   end
 end

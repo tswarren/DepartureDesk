@@ -166,7 +166,7 @@ class CapacityConstraintsTest < ActiveSupport::TestCase
     end
   end
 
-  test "timeline replay computes running quantity and rejects negative prefixes" do
+  test "timeline replay requires established first and rejects negative prefixes" do
     increase = capacity_event_double("increased", 3, 2)
     opening = capacity_event_double("established", 8, 1)
     release = capacity_event_double("released", 4, 3)
@@ -174,8 +174,16 @@ class CapacityConstraintsTest < ActiveSupport::TestCase
     result = CapacityTimelineReplay.new([ increase, release, opening ]).call
     assert_equal 7, result.quantity
 
-    assert_raises(CapacityTimelineReplay::NegativeQuantity) do
+    assert_raises(CapacityTimelineReplay::InvalidEstablishmentOrder) do
       CapacityTimelineReplay.new([ release ]).call
+    end
+
+    assert_raises(CapacityTimelineReplay::InvalidEstablishmentOrder) do
+      CapacityTimelineReplay.new([ opening, capacity_event_double("increased", 1, 1, effective_on: Date.new(2026, 5, 1)) ]).call
+    end
+
+    assert_raises(CapacityTimelineReplay::NegativeQuantity) do
+      CapacityTimelineReplay.new([ opening, capacity_event_double("released", 9, 2) ]).call
     end
   end
 
@@ -559,11 +567,11 @@ class CapacityConstraintsTest < ActiveSupport::TestCase
     }.merge(attrs)
   end
 
-  def capacity_event_double(event_type, quantity, sequence)
+  def capacity_event_double(event_type, quantity, sequence, effective_on: Date.new(2026, 6, 1))
     Struct.new(:event_type, :quantity, :effective_on, :effective_sequence, :recorded_at, :id).new(
       event_type,
       quantity,
-      Date.new(2026, 6, 1),
+      effective_on,
       sequence,
       Time.zone.parse("2026-06-01 12:00:00 UTC"),
       SecureRandom.uuid_v7

@@ -17,6 +17,7 @@ class RemoveArrangementItem < AgencyCommand
       item = lock_arrangement_item_for!(arrangement, @item)
       ensure_cleanup_edit!(departure, arrangement, version)
       ensure_current_lock_version!(version, @version_lock_version)
+      ensure_no_capacity_structure_for_item!(version, item)
 
       occurrence_definitions = version.service_occurrence_definitions.where(arrangement_item: item).order(:id).lock.to_a
       occurrences = item.service_occurrences.order(:id).lock.to_a

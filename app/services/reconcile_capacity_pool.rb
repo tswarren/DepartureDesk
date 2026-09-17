@@ -17,7 +17,6 @@ class ReconcileCapacityPool < AgencyCommand
     ensure_arrangement_actor!
     observed_quantity = normalize_observed_capacity_quantity(@observed_quantity)
     observed_at = normalize_observed_at(@observed_at)
-    recorded_at = normalize_recorded_at(@recorded_at)
     submitted_recorded_at = @recorded_at
     evidence_attrs = normalize_capacity_event_evidence_or_override(@attributes)
 
@@ -28,6 +27,23 @@ class ReconcileCapacityPool < AgencyCommand
       ensure_numeric_capacity_pool!(locked_pool)
       ensure_capacity_pool_established!(locked_pool)
 
+      payload = {
+        capacity_pool_id: locked_pool.id,
+        observed_quantity: observed_quantity,
+        observed_at: observed_at,
+        recorded_at: recorded_at_fingerprint(submitted_recorded_at),
+        evidence: evidence_attrs
+      }
+
+      if (replayed = replay_idempotent_capacity_reconciliation(
+        command_name: self.class.name,
+        idempotency_key: @idempotency_key,
+        payload: payload
+      ))
+        return replayed
+      end
+
+      recorded_at = normalize_recorded_at(submitted_recorded_at)
       projection = locked_pool.capacity_projection
       raise Error.new("Capacity projection is missing.", code: :invalid_state) if projection.nil?
 
@@ -52,15 +68,8 @@ class ReconcileCapacityPool < AgencyCommand
         recorded_at: recorded_at,
         **evidence_attrs
       )
-      payload = {
-        capacity_pool_id: locked_pool.id,
-        observed_quantity: observed_quantity,
-        observed_at: observed_at,
-        recorded_at: recorded_at_fingerprint(submitted_recorded_at, recorded_at),
-        evidence: evidence_attrs
-      }
 
-      idempotent_capacity_reconciliation!(
+      claim_idempotent_capacity_reconciliation!(
         command_name: self.class.name,
         idempotency_key: @idempotency_key,
         payload: payload,

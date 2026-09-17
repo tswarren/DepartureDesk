@@ -17,11 +17,13 @@ class EstablishCapacity < AgencyCommand
     quantity = definition.proposed_opening_quantity
     raise Error.new("Enter a proposed opening quantity before establishing capacity.", code: :invalid) if quantity.blank?
 
+    # Omitted effective_on resolves to the local recorded date so opening supply
+    # becomes effective at activation/recording time, not the Occurrence start.
     record_capacity_event!(
       pool: definition.capacity_pool,
       event_type: "established",
       quantity: quantity,
-      effective_on: @effective_on || opening_effective_on(definition),
+      effective_on: @effective_on,
       effective_sequence: @effective_sequence,
       recorded_at: @recorded_at,
       projection_lock_version: @projection_lock_version,
@@ -35,14 +37,5 @@ class EstablishCapacity < AgencyCommand
         override_reason: definition.override_reason
       }
     )
-  end
-
-  private
-
-  def opening_effective_on(definition)
-    definition.supplier_arrangement_version.service_occurrence_definitions.find_by!(
-      service_occurrence: definition.service_occurrence,
-      arrangement_item: definition.arrangement_item
-    ).starts_on
   end
 end

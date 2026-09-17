@@ -135,7 +135,7 @@
               <h3 class="dd-panel-title">Capacity</h3>
               <p><%= capacity_management_label(item_definition.capacity_management) %></p>
             </div>
-            <% if manage %>
+            <% if ordinary_editable || recovery_cleanup %>
               <%= link_to "Configure capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, item), class: "dd-button dd-button--quiet" %>
             <% end %>
           </header>

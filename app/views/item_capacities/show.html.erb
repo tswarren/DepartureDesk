@@ -1,5 +1,15 @@
 <% content_for :title, "#{@arrangement_item_definition.name} Capacity · DepartureDesk" %>
-<% manage = Current.agency_user.permitted?(:manage_departures) %>
+<% supplying_suppliers = @capacity_pool_definitions_by_pair_id.values.flatten.map { |definition| definition.capacity_pool.supplying_supplier } %>
+<% capacity_mode = capacity_configuration_mode(
+  departure: @departure,
+  arrangement: @supplier_arrangement,
+  version: @supplier_arrangement_version,
+  contractor: @supplier_arrangement.contracting_supplier,
+  supplying_suppliers: supplying_suppliers
+) %>
+<% ordinary = capacity_mode == :ordinary %>
+<% recovery = capacity_mode == :recovery %>
+<% can_remove_structure = ordinary || recovery %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
@@ -20,7 +30,7 @@
     </div>
   </header>
   <div class="dd-panel-body">
-    <% if manage %>
+    <% if ordinary %>
       <%= form_with model: @arrangement_item_definition, url: departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item), method: :patch, class: "dd-form" do |form| %>
         <%= render "shared/form_errors", object: form.object %>
         <%= form.hidden_field :lock_version %>
@@ -34,6 +44,21 @@
           <%= form.submit "Save applicability", class: "dd-button" %>
         </div>
       <% end %>
+    <% elsif recovery && @arrangement_item_definition.managed? %>
+      <%= form_with model: @arrangement_item_definition, url: departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item), method: :patch, class: "dd-form" do |form| %>
+        <%= render "shared/form_errors", object: form.object %>
+        <%= form.hidden_field :lock_version %>
+        <fieldset class="dd-field-group">
+          <legend class="dd-label">Recovery choice</legend>
+          <label><%= form.radio_button :capacity_management, "unmanaged" %> No managed capacity</label>
+        </fieldset>
+        <p>Recovery mode may only clear managed capacity after pair and Pool structure is removed.</p>
+        <div class="dd-form-actions">
+          <%= form.submit "Save applicability", class: "dd-button" %>
+        </div>
+      <% end %>
+    <% elsif recovery %>
+      <p>Recovery mode shows dependency-reducing controls only. Managed capacity is already cleared.</p>
     <% else %>
       <p>Viewer access shows draft capacity facts without configuration controls.</p>
     <% end %>
@@ -85,7 +110,7 @@
                 <h3 class="dd-panel-title"><%= resource_definition.name %></h3>
                 <p><%= capacity_pair_badge(pair) %></p>
               </div>
-              <% if manage %>
+              <% if ordinary %>
                 <div class="dd-inline-actions">
                   <%= form_with url: pair_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, occurrence_definition.service_occurrence, resource_definition.supplier_resource), method: :patch, class: "dd-inline-form" do |form| %>
                     <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
@@ -99,6 +124,10 @@
                   <% if pair && pool_definitions.empty? %>
                     <%= button_to "Remove decision", defined_pair_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id), method: :delete, class: "dd-row-action", form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this capacity pair decision?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version, lock_version: pair.lock_version } %>
                   <% end %>
+                </div>
+              <% elsif recovery && pair && pool_definitions.empty? %>
+                <div class="dd-inline-actions">
+                  <%= button_to "Remove decision", defined_pair_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id), method: :delete, class: "dd-row-action", form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this capacity pair decision?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version, lock_version: pair.lock_version } %>
                 </div>
               <% end %>
             </header>
@@ -117,7 +146,7 @@
                             <h4 class="dd-panel-title"><%= pool_definition.label %></h4>
                             <p><%= capacity_inventory_mode_label(pool.inventory_mode) %> · <%= capacity_measurement_basis_label(pool.measurement_basis) %> · <%= pool_definition.unit_label %></p>
                           </div>
-                          <% if manage %>
+                          <% if ordinary %>
                             <div class="dd-inline-actions">
                               <%= link_to "Edit", edit_pair_pool_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id, id: pool.id), class: "dd-row-action dd-row-action--edit" %>
                               <% if pool_index.positive? %>
@@ -128,6 +157,10 @@
                                 <% moved_pool_ids = ordered_pool_ids.dup.tap { |ids| ids[pool_index + 1], ids[pool_index] = ids[pool_index], ids[pool_index + 1] } %>
                                 <%= button_to "Move down", reorder_pair_pools_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id), method: :patch, class: "dd-row-action", form: { class: "dd-inline-form" }, params: { version_lock_version: @supplier_arrangement_version.lock_version, capacity_pool_ids: moved_pool_ids } %>
                               <% end %>
+                              <%= button_to "Remove", pair_pool_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id, id: pool.id), method: :delete, class: "dd-row-action", form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this capacity pool?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version, lock_version: pool_definition.lock_version } %>
+                            </div>
+                          <% elsif can_remove_structure %>
+                            <div class="dd-inline-actions">
                               <%= button_to "Remove", pair_pool_departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item, pair_id: pair.id, id: pool.id), method: :delete, class: "dd-row-action", form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this capacity pool?" } }, params: { version_lock_version: @supplier_arrangement_version.lock_version, lock_version: pool_definition.lock_version } %>
                             </div>
                           <% end %>
@@ -165,7 +198,7 @@
                 <p class="<%= empty_state_classes.join(" ") %>">No Pools yet. A pooled pair needs at least one Pool before activation.</p>
               <% end %>
 
-              <% if manage %>
+              <% if ordinary %>
                 <section class="dd-panel">
                   <div class="dd-panel-body">
                     <h4 class="dd-panel-title">Add Pool</h4>

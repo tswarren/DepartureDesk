@@ -10,7 +10,12 @@ class RefreshDueCapacityProjection < AgencyCommand
   def call
     ActiveRecord::Base.transaction do
       lock_system_agency!
-      pool = @agency.capacity_pools.lock.find(@pool.id)
+      begin
+        _departure, _arrangement, _version, _item, _occurrence, _resource, _supplier, pool = lock_capacity_event_graph!(@pool)
+      rescue ActiveRecord::RecordNotFound
+        return AgencyCommand::Result.new(status: :noop, record: nil)
+      end
+
       return AgencyCommand::Result.new(status: :noop, record: nil) unless pool.numeric_inventory?
 
       projection = pool.capacity_projection

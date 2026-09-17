@@ -113,6 +113,39 @@ module ArrangementCommandSupport
     raise AgencyCommand::Error.new("That departure cannot be edited.", code: :invalid_state)
   end
 
+  def ensure_no_capacity_structure_for_item!(version, item)
+    if version.capacity_pair_definitions.where(arrangement_item: item).exists? ||
+        version.capacity_pool_definitions.where(arrangement_item: item).exists? ||
+        item.capacity_pools.exists?
+      raise AgencyCommand::Error.new(
+        "Remove capacity pools and pair classifications before removing this item.",
+        code: :dependency_exists
+      )
+    end
+  end
+
+  def ensure_no_capacity_structure_for_occurrence!(version, occurrence)
+    if version.capacity_pair_definitions.where(service_occurrence: occurrence).exists? ||
+        version.capacity_pool_definitions.where(service_occurrence: occurrence).exists? ||
+        occurrence.capacity_pools.exists?
+      raise AgencyCommand::Error.new(
+        "Remove capacity pools and pair classifications before removing this occurrence.",
+        code: :dependency_exists
+      )
+    end
+  end
+
+  def ensure_no_capacity_structure_for_resource!(version, resource)
+    if version.capacity_pair_definitions.where(supplier_resource: resource).exists? ||
+        version.capacity_pool_definitions.where(supplier_resource: resource).exists? ||
+        resource.capacity_pools.exists?
+      raise AgencyCommand::Error.new(
+        "Remove capacity pools and pair classifications before removing this resource.",
+        code: :dependency_exists
+      )
+    end
+  end
+
   def ensure_editable_draft_arrangement!(departure, arrangement, version, allow_departed: false)
     ensure_draft_graph!(arrangement, version)
 

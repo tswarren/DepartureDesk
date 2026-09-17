@@ -21,8 +21,19 @@ class CreateCapacityPool < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      contractor = locked_supplier!(@pair.supplier_arrangement.contracting_supplier_id)
-      departure, arrangement, version = lock_departure_arrangement_version!(@pair.supplier_arrangement)
+      arrangement = @agency.supplier_arrangements.find(@pair.supplier_arrangement_id)
+      version = arrangement.versions.find_by!(status: "draft", version_number: 1)
+      item_definition = version.arrangement_item_definitions.find_by!(arrangement_item_id: @pair.arrangement_item_id)
+      occurrence_definition = version.service_occurrence_definitions.find_by!(
+        arrangement_item_id: @pair.arrangement_item_id,
+        service_occurrence_id: @pair.service_occurrence_id
+      )
+      provider_id = occurrence_definition.service_provider_id ||
+        item_definition.default_service_provider_id ||
+        arrangement.contracting_supplier_id
+      locked_suppliers = lock_suppliers_in_uuid_order!(arrangement.contracting_supplier_id, provider_id).index_by(&:id)
+      contractor = locked_suppliers.fetch(arrangement.contracting_supplier_id)
+      departure, arrangement, version = lock_departure_arrangement_version!(arrangement)
       ensure_capacity_ordinary_edit!(departure, arrangement, version, contractor)
       pair = lock_pair_for!(version, @pair)
       ensure_pooled_pair!(pair)
@@ -35,7 +46,13 @@ class CreateCapacityPool < AgencyCommand
       )
       ensure_managed_item!(item_definition)
       ensure_occurrence_accepts_capacity!(occurrence)
-      provider = effective_provider_for!(arrangement, item_definition, occurrence_definition)
+      resolved_provider_id = occurrence_definition.service_provider_id ||
+        item_definition.default_service_provider_id ||
+        arrangement.contracting_supplier_id
+      unless locked_suppliers.key?(resolved_provider_id)
+        raise Error.new("Service provider changed during capacity pool creation.", code: :conflict)
+      end
+      provider = locked_suppliers.fetch(resolved_provider_id)
       ensure_active_effective_provider!(provider)
       raise Error.new("Capacity pool time zone is incomplete.", code: :invalid) if occurrence_definition.time_zone.blank?
 

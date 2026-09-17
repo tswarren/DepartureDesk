@@ -393,6 +393,18 @@ module ApplicationHelper
     end
   end
 
+  def capacity_configuration_mode(departure:, arrangement:, version:, contractor:, supplying_suppliers: [])
+    return :read_only unless Current.agency_user&.permitted?(:manage_departures)
+    return :read_only if arrangement.abandoned? || version.abandoned?
+    return :read_only unless arrangement.draft? && version.draft?
+    return :recovery if departure.departed? ||
+      contractor&.inactive? ||
+      Array(supplying_suppliers).compact.any?(&:inactive?)
+    return :ordinary if departure.draft? || departure.active?
+
+    :read_only
+  end
+
   def capacity_pair_label(pair)
     case pair&.classification
     when "pooled" then "Pooled"

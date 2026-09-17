@@ -365,6 +365,138 @@ class CapacityEventCommandsTest < ActiveSupport::TestCase
     assert_equal 9, graph[:projection].reload.current_supplier_capacity
   end
 
+  test "establish defaults effective on to recorded local date and rejects backdated increase before it" do
+    graph = build_activated_unestablished_capacity_graph
+    recorded_at = Time.zone.parse("2026-03-15 18:00:00 UTC")
+
+    established = EstablishCapacity.new(
+      agency: @agency,
+      actor: @actor,
+      definition: graph[:pool_definition],
+      projection_lock_version: 0,
+      idempotency_key: "establish-local-date",
+      recorded_at: recorded_at
+    ).call.record
+
+    assert_equal Date.new(2026, 3, 15), established.effective_on
+    assert_equal 8, graph[:pool].reload.capacity_projection.current_supplier_capacity
+
+    error = assert_raises(AgencyCommand::Error) do
+      IncreaseCapacity.new(
+        agency: @agency,
+        actor: @actor,
+        pool: graph[:pool],
+        quantity: 1,
+        effective_on: Date.new(2026, 3, 1),
+        projection_lock_version: graph[:pool].capacity_projection.lock_version,
+        idempotency_key: "backdated-before-establish",
+        recorded_at: recorded_at + 1.hour,
+        attributes: ordinary_evidence
+      ).call
+    end
+    assert_equal :invalid_state, error.code
+  end
+
+  test "aggregate reinstate cannot exceed one release remainder" do
+    graph = build_activated_established_capacity_graph(recorded_at: @recorded_at)
+    release = ReleaseCapacity.new(
+      agency: @agency,
+      actor: @actor,
+      pool: graph[:pool],
+      quantity: 5,
+      projection_lock_version: graph[:projection].reload.lock_version,
+      idempotency_key: "release-five",
+      recorded_at: @recorded_at + 1.hour,
+      attributes: ordinary_evidence
+    ).call.record
+
+    error = assert_raises(AgencyCommand::Error) do
+      ReinstateCapacity.new(
+        agency: @agency,
+        actor: @actor,
+        projection_lock_version: graph[:projection].reload.lock_version,
+        idempotency_key: "over-reinstate",
+        recorded_at: @recorded_at + 2.hours,
+        attributes: ordinary_evidence,
+        releases: [
+          { release_event: release, quantity: 3 },
+          { release_event: release, quantity: 3 }
+        ]
+      ).call
+    end
+    assert_equal :invalid_state, error.code
+    assert_equal 0, graph[:pool].capacity_events.where(event_type: "reinstated").count
+    assert_equal 3, graph[:projection].reload.current_supplier_capacity
+  end
+
+  test "idempotent replay does not catch up projection and tolerates omitted effective on across midnight" do
+    graph = build_activated_established_capacity_graph(recorded_at: @recorded_at)
+    future = IncreaseCapacity.new(
+      agency: @agency,
+      actor: @actor,
+      pool: graph[:pool],
+      quantity: 2,
+      effective_on: Date.new(2026, 6, 10),
+      projection_lock_version: graph[:projection].reload.lock_version,
+      idempotency_key: "future-for-replay",
+      recorded_at: @recorded_at + 1.hour,
+      attributes: ordinary_evidence
+    ).call.record
+
+    first = nil
+    projection_before = nil
+    travel_to(@recorded_at + 2.hours) do
+      first = IncreaseCapacity.new(
+        agency: @agency,
+        actor: @actor,
+        pool: graph[:pool],
+        quantity: 1,
+        projection_lock_version: graph[:projection].reload.lock_version,
+        idempotency_key: "omit-effective-on",
+        attributes: ordinary_evidence
+      ).call
+      assert_equal :created, first.status
+      projection_before = graph[:projection].reload.attributes.slice(
+        "current_supplier_capacity",
+        "last_event_id",
+        "next_applies_at",
+        "next_event_id",
+        "lock_version"
+      )
+    end
+
+    travel_to(future.applies_at + 1.minute) do
+      replayed = IncreaseCapacity.new(
+        agency: @agency,
+        actor: @actor,
+        pool: graph[:pool],
+        quantity: 1,
+        projection_lock_version: 0,
+        idempotency_key: "omit-effective-on",
+        attributes: ordinary_evidence
+      ).call
+      assert_equal :replayed, replayed.status
+      assert_equal first.record.id, replayed.record.id
+      assert_equal projection_before, graph[:projection].reload.attributes.slice(
+        "current_supplier_capacity",
+        "last_event_id",
+        "next_applies_at",
+        "next_event_id",
+        "lock_version"
+      )
+    end
+  end
+
+  test "rebuild rejects draft pools without establishment" do
+    graph = build_activated_unestablished_capacity_graph
+
+    error = assert_raises(AgencyCommand::Error) do
+      RebuildCapacityProjection.new(agency: @agency, pool: graph[:pool]).call
+    end
+    assert_equal :invalid_state, error.code
+    assert_nil graph[:pool].reload.capacity_projection
+  end
+
   test "app code does not branch on Rails env test" do
     text_extensions = %w[.rb .erb .js .css .html]
     app_files = Rails.root.glob("app/**/*").select do |path|

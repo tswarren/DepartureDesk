@@ -18,6 +18,7 @@ class RemoveSupplierResource < AgencyCommand
       resource = lock_resource_for!(item, @resource)
       ensure_cleanup_edit!(departure, arrangement, version)
       ensure_current_lock_version!(version, @version_lock_version)
+      ensure_no_capacity_structure_for_resource!(version, resource)
 
       definitions = version.supplier_resource_definitions.where(supplier_resource: resource).order(:id).lock.to_a
       evidence = {

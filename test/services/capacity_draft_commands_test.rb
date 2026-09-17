@@ -287,6 +287,45 @@ class CapacityDraftCommandsTest < ActiveSupport::TestCase
     assert_equal "managed", definition.capacity_management
   end
 
+  test "m3a removals require capacity structure cleanup first" do
+    graph = create_capacity_graph
+    pair = classify_pair(graph).record
+    create_pool(pair, key: "removal-blocker-pool")
+
+    occurrence_error = assert_raises(AgencyCommand::Error) do
+      RemoveServiceOccurrence.new(
+        agency: @agency,
+        actor: @actor,
+        occurrence: graph[:occurrence],
+        version_lock_version: graph[:version].reload.lock_version
+      ).call
+    end
+    assert_equal :dependency_exists, occurrence_error.code
+    assert ServiceOccurrence.exists?(graph[:occurrence].id)
+
+    resource_error = assert_raises(AgencyCommand::Error) do
+      RemoveSupplierResource.new(
+        agency: @agency,
+        actor: @actor,
+        resource: graph[:resource],
+        version_lock_version: graph[:version].reload.lock_version
+      ).call
+    end
+    assert_equal :dependency_exists, resource_error.code
+    assert SupplierResource.exists?(graph[:resource].id)
+
+    item_error = assert_raises(AgencyCommand::Error) do
+      RemoveArrangementItem.new(
+        agency: @agency,
+        actor: @actor,
+        item: graph[:item],
+        version_lock_version: graph[:version].reload.lock_version
+      ).call
+    end
+    assert_equal :dependency_exists, item_error.code
+    assert ArrangementItem.exists?(graph[:item].id)
+  end
+
   private
 
   def classify_pair(graph, classification: "pooled")
