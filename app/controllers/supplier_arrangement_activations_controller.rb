@@ -53,7 +53,7 @@ class SupplierArrangementActivationsController < ApplicationController
       definition.estimate?
     end
     @capacity_definitions = @supplier_arrangement_version.capacity_pool_definitions
-      .includes(capacity_pool: :supplying_supplier).order(:position, :id)
+      .includes(capacity_pool: [ :supplying_supplier, :capacity_events ]).order(:position, :id)
     @triggers = @supplier_arrangement_version.supplier_commitment_trigger_definitions
       .includes(:committed_supplier).order(:position, :id)
     @existing_confirmations = @supplier_arrangement_version.supplier_confirmations

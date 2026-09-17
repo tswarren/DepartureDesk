@@ -18,10 +18,16 @@ class AbandonSupplierArrangement < AgencyCommand
       departure = lock_departure_for!(@arrangement.departure_id)
       arrangement = lock_arrangement_for!(@arrangement)
       version = arrangement.versions.lock.find_by(status: "draft") ||
-        arrangement.versions.lock.find_by!(status: "abandoned")
-      return Result.new(status: :noop, record: arrangement) if arrangement.abandoned? && version.abandoned?
+        arrangement.versions.where(status: "abandoned").order(version_number: :desc).lock.first!
+      if version.abandoned? && (arrangement.abandoned? || arrangement.active?)
+        return Result.new(status: :noop, record: arrangement)
+      end
 
-      unless arrangement.draft? && arrangement.governing_version_id.nil?
+      initial = arrangement.draft? && arrangement.governing_version_id.nil? &&
+        version.copied_from_id.nil?
+      successor = arrangement.active? && arrangement.governing_version_id.present? &&
+        version.copied_from_id == arrangement.governing_version_id
+      unless initial || successor
         raise Error.new("That supplier arrangement cannot be abandoned here.", code: :invalid_state)
       end
       ensure_cleanup_edit!(departure, arrangement, version)
@@ -30,7 +36,7 @@ class AbandonSupplierArrangement < AgencyCommand
       reason = normalize_reason(@reason)
       abandoned_at = Time.current
 
-      arrangement.update!(status: "abandoned", abandoned_at: abandoned_at)
+      arrangement.update!(status: "abandoned", abandoned_at: abandoned_at) if initial
       version.update!(status: "abandoned", abandoned_at: abandoned_at, abandoned_reason: reason)
       audit!(
         agency: @agency,
@@ -40,6 +46,7 @@ class AbandonSupplierArrangement < AgencyCommand
         details: {
           "supplier_arrangement_id" => arrangement.id,
           "supplier_arrangement_version_id" => version.id,
+          "abandonment_kind" => initial ? "initial" : "successor",
           "reason" => reason
         }
       )
