@@ -1,5 +1,6 @@
 class SupplierResourceDefinition < ApplicationRecord
   include ExactVersionCopyLineage
+  include DraftVersionDefinition
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
 

@@ -1,5 +1,6 @@
 class SupplierCostParticipantCategory < ApplicationRecord
   include ExactVersionCopyLineage
+  include DraftVersionDefinition
   LABEL_LIMIT = 80
 
   belongs_to :agency

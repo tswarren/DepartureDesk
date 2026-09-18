@@ -1,4 +1,5 @@
 class SupplierCommitmentTriggerDefinition < ApplicationRecord
+  include DraftVersionDefinition
   TRIGGER_KINDS = %w[arrangement_confirmation reservation_confirmation].freeze
   AUTHORITY_SHAPES = %w[
     fixed_quantity confirmed_quantity fixed_contracted_amount confirmed_amount

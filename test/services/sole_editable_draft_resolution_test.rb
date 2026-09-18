@@ -114,8 +114,7 @@ class SoleEditableDraftResolutionTest < ActiveSupport::TestCase
 
   def create_version(number, status, activated_at: nil, superseded_at: nil)
     version = @arrangement.versions.create!(
-      agency: @agency, departure: @departure, version_number: number,
-      status: status, activated_at: activated_at, superseded_at: superseded_at
+      agency: @agency, departure: @departure, version_number: number, status: "draft"
     )
     version.arrangement_item_definitions.create!(
       owner_attributes(version).merge(
@@ -138,6 +137,23 @@ class SoleEditableDraftResolutionTest < ActiveSupport::TestCase
         name: "Version #{number} resource", position: 1
       )
     )
+    case status
+    when "draft"
+      version
+    when "activated"
+      version.update!(status: "activated", activated_at: activated_at || Time.current)
+    when "superseded"
+      version.update!(status: "activated", activated_at: activated_at || 2.days.ago)
+      version.update!(status: "superseded", superseded_at: superseded_at || 1.day.ago)
+    when "abandoned"
+      version.update!(
+        status: "abandoned",
+        abandoned_at: Time.current,
+        abandoned_reason: "Test abandoned version"
+      )
+    else
+      raise ArgumentError, "unsupported status #{status}"
+    end
     version
   end
 

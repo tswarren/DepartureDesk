@@ -20,6 +20,17 @@ class M3d5ReservationResponseRequestTest < ActionDispatch::IntegrationTest
     )
     @arrangement = @graph[:arrangement]
     @version = @graph[:version]
+    @trigger = SupplierCommitmentTriggerDefinition.create!(
+      agency: @agency, departure: @departure,
+      supplier_arrangement: @arrangement,
+      supplier_arrangement_version: @version,
+      trigger_kind: "reservation_confirmation",
+      authority_shape: "confirmed_amount",
+      committed_supplier: @supplier,
+      description: "Deposit",
+      currency: @departure.operating_currency,
+      position: 1
+    )
     @version.update!(status: "activated", activated_at: Time.current)
     @arrangement.update!(status: "active", governing_version: @version)
     @reservation = CreateSupplierReservation.new(
@@ -36,17 +47,6 @@ class M3d5ReservationResponseRequestTest < ActionDispatch::IntegrationTest
       attributes: { channel: "email", reference_note: "Sent" },
       idempotency_key: SecureRandom.uuid
     ).call
-    @trigger = SupplierCommitmentTriggerDefinition.create!(
-      agency: @agency, departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
-      trigger_kind: "reservation_confirmation",
-      authority_shape: "confirmed_amount",
-      committed_supplier: @supplier,
-      description: "Deposit",
-      currency: @departure.operating_currency,
-      position: 1
-    )
   end
 
   test "show renders keyed commitment inputs and response posts keyed amounts" do
@@ -84,31 +84,33 @@ class M3d5ReservationResponseRequestTest < ActionDispatch::IntegrationTest
 
   test "activation show renders keyed amount fields per trigger" do
     sign_in_as @staff
+    draft_graph = create_capacity_graph(
+      agency: @agency, departure: @departure,
+      contractor: @supplier, provider: @supplier,
+      prefix: "Activation UI", capacity_management: "unmanaged"
+    )
     activation_trigger = SupplierCommitmentTriggerDefinition.create!(
       agency: @agency, departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
+      supplier_arrangement: draft_graph[:arrangement],
+      supplier_arrangement_version: draft_graph[:version],
       trigger_kind: "arrangement_confirmation",
       authority_shape: "confirmed_amount",
       committed_supplier: @supplier,
       description: "Activation deposit",
       currency: @departure.operating_currency,
-      position: 2
+      position: 1
     )
-    # Reset to draft for activation UI
-    @arrangement.update!(status: "draft", governing_version: nil)
-    @version.update!(status: "draft", activated_at: nil)
     source = SupplierCostSource.create!(
       agency: @agency, departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
-      arrangement_item: @graph[:item], charging_supplier: @supplier,
+      supplier_arrangement: draft_graph[:arrangement],
+      supplier_arrangement_version: draft_graph[:version],
+      arrangement_item: draft_graph[:item], charging_supplier: @supplier,
       label: "Lodging", position: 1
     )
     SupplierCostDefinition.create!(
       agency: @agency, departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
+      supplier_arrangement: draft_graph[:arrangement],
+      supplier_arrangement_version: draft_graph[:version],
       supplier_cost_source: source, stage: "contracted",
       status: "forecast_ready", mode: "zero_cost",
       zero_cost_reason: "Included", currency: "USD",
@@ -117,7 +119,7 @@ class M3d5ReservationResponseRequestTest < ActionDispatch::IntegrationTest
       readiness_provenance: "Signed"
     )
 
-    get departure_arrangement_activation_path(@departure, @arrangement)
+    get departure_arrangement_activation_path(@departure, draft_graph[:arrangement])
     assert_response :success
     assert_select "input[name='confirmed_amounts_minor_units[#{activation_trigger.id}]']"
     assert_select "input[name='confirmed_amount_minor_units']", count: 0
