@@ -15,7 +15,7 @@ class RecordSupplierReservationRequest < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      _booking_supplier, departure, arrangement, version, reservation, revision =
+      booking_supplier, departure, arrangement, version, reservation, revision =
         lock_reservation_mutation_graph!(@reservation, revision_status: "planned")
 
       if revision.nil?
@@ -23,7 +23,7 @@ class RecordSupplierReservationRequest < AgencyCommand
       end
 
       scopes = revision.scopes.lock.order(:position, :id).to_a
-      validate_request_state!(departure, arrangement, version, scopes)
+      validate_request_state!(departure, arrangement, version, scopes, booking_supplier)
       payload = request_payload(reservation, revision, scopes)
       if (replay = replay_reservation_idempotency(key, payload, SupplierReservationEvent))
         return replay
@@ -36,6 +36,7 @@ class RecordSupplierReservationRequest < AgencyCommand
         scopes: scopes,
         departure: departure,
         arrangement: arrangement,
+        booking_supplier: booking_supplier,
         key: key,
         payload: payload,
         audit: true
@@ -69,9 +70,9 @@ class RecordSupplierReservationRequest < AgencyCommand
   # Validates request state unless skip_validation is true (orchestrator already validated).
   def record_request_already_locked!(
     reservation:, revision:, version:, scopes:, departure:, arrangement:,
-    key: nil, payload: nil, audit: true
+    booking_supplier:, key: nil, payload: nil, audit: true
   )
-    validate_request_state!(departure, arrangement, version, scopes)
+    validate_request_state!(departure, arrangement, version, scopes, booking_supplier)
 
     now = Time.current
     event = SupplierReservationEvent.new(
@@ -93,9 +94,7 @@ class RecordSupplierReservationRequest < AgencyCommand
     end
     event.save!
     scopes.each do |scope|
-      event.scope_outcomes.create!(
-        outcome_owner(scope, event).merge(outcome_kind: "requested")
-      )
+      create_scope_outcome!(event, scope, outcome_kind: "requested")
     end
     reservation.revisions.where(status: "requested").where.not(id: revision.id).find_each do |older|
       older.update!(status: "superseded")
@@ -118,7 +117,7 @@ class RecordSupplierReservationRequest < AgencyCommand
 
   private
 
-  def validate_request_state!(departure, arrangement, version, scopes)
+  def validate_request_state!(departure, arrangement, version, scopes, booking_supplier)
     raise Error.new("Add at least one reservation scope before requesting.", code: :invalid) if scopes.empty?
     unless departure.active?
       raise Error.new("Only active departures can record reservation requests.", code: :invalid_state)
@@ -126,6 +125,7 @@ class RecordSupplierReservationRequest < AgencyCommand
     unless arrangement.active? && arrangement.governing_version_id == version.id && version.activated?
       raise Error.new("A reservation can only be requested after its exact version is activated.", code: :invalid_state)
     end
+    ensure_booking_supplier_eligible!(arrangement, version, booking_supplier)
   end
 
   def request_payload(reservation, revision, scopes)
@@ -162,18 +162,5 @@ class RecordSupplierReservationRequest < AgencyCommand
 
   def event_owner(reservation, revision, version)
     reservation_owner(reservation, version).merge(supplier_reservation_revision: revision)
-  end
-
-  def outcome_owner(scope, event)
-    {
-      agency: @agency,
-      departure_id: scope.departure_id,
-      supplier_arrangement_id: scope.supplier_arrangement_id,
-      supplier_arrangement_version_id: scope.supplier_arrangement_version_id,
-      supplier_reservation_id: scope.supplier_reservation_id,
-      supplier_reservation_revision_id: scope.supplier_reservation_revision_id,
-      supplier_reservation_event: event,
-      supplier_reservation_scope: scope
-    }
   end
 end

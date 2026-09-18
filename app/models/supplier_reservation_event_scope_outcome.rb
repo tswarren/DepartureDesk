@@ -5,6 +5,14 @@ class SupplierReservationEventScopeOutcome < ApplicationRecord
   QUANTITY_BASES = %w[resource_units traveler_positions].freeze
   TEXT_LIMIT = 500
 
+  COMPATIBLE_OUTCOME_KINDS = {
+    "request" => %w[requested].freeze,
+    "withdrawal" => %w[withdrawn].freeze,
+    "cancellation" => %w[cancelled].freeze,
+    "response" => %w[confirmed declined counterproposed].freeze,
+    "revision" => [].freeze
+  }.freeze
+
   belongs_to :agency
   belongs_to :departure
   belongs_to :supplier_arrangement
@@ -29,6 +37,7 @@ class SupplierReservationEventScopeOutcome < ApplicationRecord
   validates :supplier_note, :decline_reason, length: { maximum: TEXT_LIMIT }, allow_nil: true
   validate :quantity_shape
   validate :decline_reason_shape
+  validate :outcome_compatible_with_event
 
   private
 
@@ -39,5 +48,15 @@ class SupplierReservationEventScopeOutcome < ApplicationRecord
 
   def decline_reason_shape
     errors.add(:decline_reason, "must match outcome") unless declined? == decline_reason.present?
+  end
+
+  def outcome_compatible_with_event
+    event = supplier_reservation_event
+    return if event.nil?
+
+    allowed = COMPATIBLE_OUTCOME_KINDS.fetch(event.event_kind, [])
+    return if allowed.include?(outcome_kind)
+
+    errors.add(:outcome_kind, "is not compatible with the parent event")
   end
 end
