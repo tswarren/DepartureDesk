@@ -5,6 +5,91 @@ module ReservationCommandSupport
 
   private
 
+  # Canonical order after Agency: Suppliers → Departure → Arrangement → version → Reservation → revision.
+  # Returns [booking_supplier, departure, arrangement, version, reservation, revision]
+  def lock_reservation_mutation_graph!(reservation_ref, revision_status: nil)
+    unlocked = @agency.supplier_reservations.find(
+      reservation_ref.respond_to?(:id) ? reservation_ref.id : reservation_ref
+    )
+    booking_supplier = lock_suppliers_in_uuid_order!(unlocked.booking_supplier_id).first
+    departure = lock_departure_for!(unlocked.departure_id)
+    arrangement = lock_arrangement_for!(unlocked.supplier_arrangement_id)
+
+    revision = nil
+    version = nil
+    unlocked_revision = nil
+    if revision_status
+      unlocked_revision = unlocked.revisions.where(status: revision_status).order(revision_number: :desc).first
+      if unlocked_revision
+        version = arrangement.versions.lock.find(unlocked_revision.supplier_arrangement_version_id)
+      end
+    end
+
+    reservation = @agency.supplier_reservations.lock.find(unlocked.id)
+    if unlocked_revision
+      revision = reservation.revisions.lock.find_by(id: unlocked_revision.id, status: revision_status)
+      version = nil if revision.nil?
+    end
+
+    [ booking_supplier, departure, arrangement, version, reservation, revision ]
+  end
+
+  # Create path: unlock arrangement → resolve booking supplier → lock suppliers → Departure → Arrangement → version.
+  def lock_create_reservation_graph!(arrangement_ref, attributes)
+    unlocked_arrangement = @agency.supplier_arrangements.find(
+      arrangement_ref.respond_to?(:id) ? arrangement_ref.id : arrangement_ref
+    )
+    unlocked_version = resolve_reservation_version!(
+      unlocked_arrangement,
+      attributes[:supplier_arrangement_version_id]
+    )
+    booking_supplier_id = attributes[:booking_supplier_id].presence || unlocked_arrangement.contracting_supplier_id
+    booking_supplier = lock_suppliers_in_uuid_order!(booking_supplier_id).first
+    departure = lock_departure_for!(unlocked_arrangement.departure_id)
+    arrangement = lock_arrangement_for!(unlocked_arrangement)
+    version = arrangement.versions.lock.find(unlocked_version.id)
+    unless eligible_booking_supplier_ids(arrangement, version).include?(booking_supplier.id)
+      raise AgencyCommand::Error.new(
+        "Choose the contracting supplier or an effective provider for this version.", code: :invalid
+      )
+    end
+
+    [ booking_supplier, departure, arrangement, version ]
+  end
+
+  def rebuild_reservation_projection_already_locked!(reservation)
+    RebuildSupplierReservationProjectionAlreadyLocked.new(
+      agency: @agency,
+      reservation: reservation
+    ).call
+  end
+
+  def replay_reservation_idempotency(key, payload, result_class)
+    lock_idempotency_slot!(self.class.name, key)
+    existing = @agency.agency_command_idempotency_keys.where(
+      command_name: self.class.name, idempotency_key: key
+    ).lock.first
+    return unless existing
+    unless existing.payload_digest == payload_digest(payload)
+      raise AgencyCommand::Error.new(
+        "That idempotency key was already used for different input.", code: :conflict
+      )
+    end
+
+    AgencyCommand::Result.new(status: :replayed, record: result_class.find(existing.result_record_id))
+  end
+
+  def claim_reservation_idempotency!(key, payload, record)
+    AgencyCommandIdempotencyKey.create!(
+      agency: @agency,
+      command_name: self.class.name,
+      idempotency_key: key,
+      payload_digest: payload_digest(payload),
+      result_record_type: record.class.name,
+      result_record_id: record.id
+    )
+  end
+
   def resolve_reservation_version!(arrangement, explicit_version = nil)
     scope = arrangement.versions
     version = if explicit_version.present?

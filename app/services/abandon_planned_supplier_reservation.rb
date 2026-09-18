@@ -15,15 +15,15 @@ class AbandonPlannedSupplierReservation < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      reservation = @agency.supplier_reservations.lock.find(@reservation.id)
-      revision = reservation.revisions.lock.where(status: "planned").sole
+      _booking_supplier, _departure, _arrangement, _version, reservation, revision =
+        lock_reservation_mutation_graph!(@reservation, revision_status: "planned")
+      raise Error.new("That reservation does not have one planned revision.", code: :invalid_state) if revision.nil?
+
       ensure_current_lock_version!(revision, @revision_lock_version)
       revision.update!(
         status: "abandoned", abandoned_at: Time.current, abandoned_reason: reason
       )
-      RebuildSupplierReservationProjection.new(
-        agency: @agency, actor: @actor, reservation: reservation
-      ).call
+      rebuild_reservation_projection_already_locked!(reservation)
       audit!(
         agency: @agency, action: "supplier_reservation.abandoned", subject: reservation, actor: @actor,
         details: {

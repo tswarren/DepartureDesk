@@ -17,11 +17,10 @@ class WithdrawSupplierReservation < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      reservation = @agency.supplier_reservations.lock.find(@reservation.id)
-      revision = reservation.revisions.lock.where(status: "requested").order(revision_number: :desc).first
+      _booking_supplier, _departure, _arrangement, version, reservation, revision =
+        lock_reservation_mutation_graph!(@reservation, revision_status: "requested")
       raise Error.new("That reservation has no requested revision.", code: :invalid_state) unless revision
 
-      version = @agency.supplier_arrangement_versions.lock.find(revision.supplier_arrangement_version_id)
       all_scopes = revision.scopes.lock.order(:position, :id).to_a
       selected = selected_pending_scopes!(revision, all_scopes)
       payload = {
@@ -30,7 +29,7 @@ class WithdrawSupplierReservation < AgencyCommand
         scope_ids: selected.map(&:id),
         reason: reason
       }
-      if (replay = replay_idempotency(key, payload))
+      if (replay = replay_reservation_idempotency(key, payload, SupplierReservationEvent))
         return replay
       end
 
@@ -46,7 +45,7 @@ class WithdrawSupplierReservation < AgencyCommand
           scope_fingerprint: scope_fingerprint(selected)
         )
       )
-      key_record = claim_idempotency!(key, payload, event)
+      key_record = claim_reservation_idempotency!(key, payload, event)
       event.agency_command_idempotency_key = key_record
       event.save!
       selected.each do |scope|
@@ -62,9 +61,7 @@ class WithdrawSupplierReservation < AgencyCommand
           outcome_kind: "withdrawn"
         )
       end
-      RebuildSupplierReservationProjection.new(
-        agency: @agency, actor: @actor, reservation: reservation
-      ).call
+      rebuild_reservation_projection_already_locked!(reservation)
       audit!(
         agency: @agency, action: "supplier_reservation.withdrawn", subject: reservation, actor: @actor,
         details: {
@@ -96,29 +93,5 @@ class WithdrawSupplierReservation < AgencyCommand
     end
 
     selected
-  end
-
-  def replay_idempotency(key, payload)
-    lock_idempotency_slot!(self.class.name, key)
-    existing = @agency.agency_command_idempotency_keys.where(
-      command_name: self.class.name, idempotency_key: key
-    ).lock.first
-    return unless existing
-    unless existing.payload_digest == payload_digest(payload)
-      raise Error.new("That idempotency key was already used for different input.", code: :conflict)
-    end
-
-    Result.new(status: :replayed, record: SupplierReservationEvent.find(existing.result_record_id))
-  end
-
-  def claim_idempotency!(key, payload, event)
-    AgencyCommandIdempotencyKey.create!(
-      agency: @agency,
-      command_name: self.class.name,
-      idempotency_key: key,
-      payload_digest: payload_digest(payload),
-      result_record_type: SupplierReservationEvent.name,
-      result_record_id: event.id
-    )
   end
 end

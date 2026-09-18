@@ -15,51 +15,94 @@ class RecordSupplierReservationRequest < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      reservation = @agency.supplier_reservations.lock.find(@reservation.id)
-      arrangement = @agency.supplier_arrangements.lock.find(reservation.supplier_arrangement_id)
-      departure = @agency.departures.lock.find(reservation.departure_id)
-      lock_idempotency_slot!(self.class.name, key)
-      if (existing = existing_idempotency(key))
-        return Result.new(status: :replayed, record: SupplierReservationEvent.find(existing.result_record_id))
+      _booking_supplier, departure, arrangement, version, reservation, revision =
+        lock_reservation_mutation_graph!(@reservation, revision_status: "planned")
+
+      if revision.nil?
+        return replay_request_without_planned_revision!(key, reservation)
       end
-      revision = reservation.revisions.lock.where(status: "planned").sole
-      version = arrangement.versions.lock.find(revision.supplier_arrangement_version_id)
+
       scopes = revision.scopes.lock.order(:position, :id).to_a
       validate_request_state!(departure, arrangement, version, scopes)
       payload = request_payload(reservation, revision, scopes)
-      if (replay = replay_idempotency(key, payload))
+      if (replay = replay_reservation_idempotency(key, payload, SupplierReservationEvent))
         return replay
       end
 
-      now = Time.current
-      event = SupplierReservationEvent.new(
-        event_owner(reservation, revision, version).merge(
-          event_kind: "request",
-          occurred_at: normalize_occurred_at(@attributes[:occurred_at]) || now,
-          recorded_at: now,
-          actor: @actor,
-          supplier_contact: resolve_contact(reservation, @attributes[:supplier_contact_id]),
-          channel: @attributes[:channel].to_s.strip,
-          safe_contact_snapshot: @attributes[:safe_contact_snapshot].to_s.strip.presence,
-          reference_note: @attributes[:reference_note].to_s.strip,
-          scope_fingerprint: scope_fingerprint(scopes)
-        )
+      record_request_already_locked!(
+        reservation: reservation,
+        revision: revision,
+        version: version,
+        scopes: scopes,
+        departure: departure,
+        arrangement: arrangement,
+        key: key,
+        payload: payload,
+        audit: true
       )
-      key_record = claim_idempotency!(key, payload, event)
+    end
+  rescue ActiveRecord::SoleRecordExceeded
+    raise Error.new("That reservation does not have one planned revision.", code: :invalid_state)
+  rescue ActiveRecord::RecordInvalid => error
+    command_error_from(error)
+  end
+
+  def replay_request_without_planned_revision!(key, reservation)
+    lock_idempotency_slot!(self.class.name, key)
+    existing = @agency.agency_command_idempotency_keys.where(
+      command_name: self.class.name, idempotency_key: key
+    ).lock.first
+    raise Error.new("That reservation does not have one planned revision.", code: :invalid_state) unless existing
+
+    event = SupplierReservationEvent.find(existing.result_record_id)
+    revision = event.supplier_reservation_revision
+    scopes = revision.scopes.order(:position, :id).to_a
+    payload = request_payload(reservation, revision, scopes)
+    unless existing.payload_digest == payload_digest(payload)
+      raise Error.new("That idempotency key was already used for different input.", code: :conflict)
+    end
+
+    Result.new(status: :replayed, record: event)
+  end
+
+  # Caller must already hold the Reservation mutation lock graph and planned revision.
+  # Validates request state unless skip_validation is true (orchestrator already validated).
+  def record_request_already_locked!(
+    reservation:, revision:, version:, scopes:, departure:, arrangement:,
+    key: nil, payload: nil, audit: true
+  )
+    validate_request_state!(departure, arrangement, version, scopes)
+
+    now = Time.current
+    event = SupplierReservationEvent.new(
+      event_owner(reservation, revision, version).merge(
+        event_kind: "request",
+        occurred_at: normalize_occurred_at(@attributes[:occurred_at]) || now,
+        recorded_at: now,
+        actor: @actor,
+        supplier_contact: resolve_contact(reservation, @attributes[:supplier_contact_id]),
+        channel: @attributes[:channel].to_s.strip,
+        safe_contact_snapshot: @attributes[:safe_contact_snapshot].to_s.strip.presence,
+        reference_note: @attributes[:reference_note].to_s.strip,
+        scope_fingerprint: scope_fingerprint(scopes)
+      )
+    )
+    if key && payload
+      key_record = claim_reservation_idempotency!(key, payload, event)
       event.agency_command_idempotency_key = key_record
-      event.save!
-      scopes.each do |scope|
-        event.scope_outcomes.create!(
-          outcome_owner(scope, event).merge(outcome_kind: "requested")
-        )
-      end
-      reservation.revisions.where(status: "requested").where.not(id: revision.id).find_each do |older|
-        older.update!(status: "superseded")
-      end
-      revision.update!(status: "requested", requested_at: event.occurred_at)
-      RebuildSupplierReservationProjection.new(
-        agency: @agency, actor: @actor, reservation: reservation
-      ).call
+    end
+    event.save!
+    scopes.each do |scope|
+      event.scope_outcomes.create!(
+        outcome_owner(scope, event).merge(outcome_kind: "requested")
+      )
+    end
+    reservation.revisions.where(status: "requested").where.not(id: revision.id).find_each do |older|
+      older.update!(status: "superseded")
+    end
+    revision.update!(status: "requested", requested_at: event.occurred_at)
+    rebuild_reservation_projection_already_locked!(reservation)
+    if audit
       audit!(
         agency: @agency, action: "supplier_reservation.requested", subject: reservation, actor: @actor,
         details: {
@@ -69,12 +112,8 @@ class RecordSupplierReservationRequest < AgencyCommand
           "scope_count" => scopes.size
         }
       )
-      Result.new(status: :created, record: event)
     end
-  rescue ActiveRecord::SoleRecordExceeded
-    raise Error.new("That reservation does not have one planned revision.", code: :invalid_state)
-  rescue ActiveRecord::RecordInvalid => error
-    command_error_from(error)
+    Result.new(status: :created, record: event)
   end
 
   private
@@ -100,34 +139,6 @@ class RecordSupplierReservationRequest < AgencyCommand
       safe_contact_snapshot: @attributes[:safe_contact_snapshot].to_s.strip,
       reference_note: @attributes[:reference_note].to_s.strip
     }
-  end
-
-  def replay_idempotency(key, payload)
-    lock_idempotency_slot!(self.class.name, key)
-    existing = existing_idempotency(key)
-    return unless existing
-    unless existing.payload_digest == payload_digest(payload)
-      raise Error.new("That idempotency key was already used for different input.", code: :conflict)
-    end
-
-    Result.new(status: :replayed, record: SupplierReservationEvent.find(existing.result_record_id))
-  end
-
-  def existing_idempotency(key)
-    @agency.agency_command_idempotency_keys.where(
-      command_name: self.class.name, idempotency_key: key
-    ).lock.first
-  end
-
-  def claim_idempotency!(key, payload, event)
-    AgencyCommandIdempotencyKey.create!(
-      agency: @agency,
-      command_name: self.class.name,
-      idempotency_key: key,
-      payload_digest: payload_digest(payload),
-      result_record_type: SupplierReservationEvent.name,
-      result_record_id: event.id
-    )
   end
 
   def normalize_occurred_at(value)

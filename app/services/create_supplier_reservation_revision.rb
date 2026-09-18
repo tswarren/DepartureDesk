@@ -15,20 +15,23 @@ class CreateSupplierReservationRevision < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      reservation = @agency.supplier_reservations.lock.find(@reservation.id)
-      arrangement = @agency.supplier_arrangements.lock.find(reservation.supplier_arrangement_id)
-      departure = @agency.departures.lock.find(reservation.departure_id)
-      lock_idempotency_slot!(self.class.name, key)
-      if (existing = existing_idempotency(key))
-        return Result.new(status: :replayed, record: SupplierReservationRevision.find(existing.result_record_id))
-      end
+      booking_supplier = lock_suppliers_in_uuid_order!(
+        @agency.supplier_reservations.find(@reservation.id).booking_supplier_id
+      ).first
+      unlocked = @agency.supplier_reservations.find(@reservation.id)
+      departure = lock_departure_for!(unlocked.departure_id)
+      arrangement = lock_arrangement_for!(unlocked.supplier_arrangement_id)
+      # Version before Reservation before source revision.
+      version = resolve_target_version!(arrangement)
+      reservation = @agency.supplier_reservations.lock.find(unlocked.id)
       if reservation.revisions.where(status: "planned").exists?
         raise Error.new("Abandon or request the current planned revision first.", code: :invalid_state)
       end
 
-      source = reservation.revisions.lock.find(@attributes[:source_revision_id] || reservation.revisions.order(:revision_number).last.id)
-      version = resolve_target_version!(arrangement)
-      ensure_reservation_planning_state!(departure, arrangement, version, reservation.booking_supplier)
+      source = reservation.revisions.lock.find(
+        @attributes[:source_revision_id] || reservation.revisions.order(:revision_number).last.id
+      )
+      ensure_reservation_planning_state!(departure, arrangement, version, booking_supplier)
       scopes = if @attributes[:scopes].present?
         normalize_scopes!(arrangement, version, @attributes[:scopes])
       else
@@ -45,11 +48,8 @@ class CreateSupplierReservationRevision < AgencyCommand
         version_id: version.id,
         scopes: scopes
       }
-      if (existing = existing_idempotency(key))
-        unless existing.payload_digest == payload_digest(payload)
-          raise Error.new("That idempotency key was already used for different input.", code: :conflict)
-        end
-        return Result.new(status: :replayed, record: SupplierReservationRevision.find(existing.result_record_id))
+      if (replay = replay_reservation_idempotency(key, payload, SupplierReservationRevision))
+        return replay
       end
 
       revision = reservation.revisions.create!(
@@ -62,17 +62,8 @@ class CreateSupplierReservationRevision < AgencyCommand
       scopes.each do |attrs|
         revision.scopes.create!(reservation_owner(reservation, version).merge(attrs))
       end
-      AgencyCommandIdempotencyKey.create!(
-        agency: @agency,
-        command_name: self.class.name,
-        idempotency_key: key,
-        payload_digest: payload_digest(payload),
-        result_record_type: SupplierReservationRevision.name,
-        result_record_id: revision.id
-      )
-      RebuildSupplierReservationProjection.new(
-        agency: @agency, actor: @actor, reservation: reservation
-      ).call
+      claim_reservation_idempotency!(key, payload, revision)
+      rebuild_reservation_projection_already_locked!(reservation)
       audit!(
         agency: @agency, action: "supplier_reservation.revised", subject: reservation, actor: @actor,
         details: {
@@ -102,11 +93,5 @@ class CreateSupplierReservationRevision < AgencyCommand
     return arrangement.governing_version.lock! if arrangement.governing_version
 
     raise Error.new("No editable arrangement version is available for a new reservation revision.", code: :invalid_state)
-  end
-
-  def existing_idempotency(key)
-    @agency.agency_command_idempotency_keys.where(
-      command_name: self.class.name, idempotency_key: key
-    ).lock.first
   end
 end
