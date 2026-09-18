@@ -24,6 +24,8 @@ class SupplierReservationScope < ApplicationRecord
     :supplier_arrangement_version_id, :supplier_reservation_id,
     :supplier_reservation_revision_id
 
+  validate :immutable_when_revision_requested
+
   normalizes :label, with: ->(value) { value.to_s.strip.presence }
 
   validates :position, numericality: { only_integer: true, greater_than: 0 }
@@ -57,5 +59,13 @@ class SupplierReservationScope < ApplicationRecord
   def quantity_shape
     errors.add(:quantity_basis, "must be present with quantity") if requested_quantity.present? && quantity_basis.blank?
     errors.add(:quantity_basis, "must be blank without quantity") if requested_quantity.blank? && quantity_basis.present?
+  end
+
+  def immutable_when_revision_requested
+    return if supplier_reservation_revision.blank?
+    return if supplier_reservation_revision.planned?
+    return unless changed?
+
+    errors.add(:base, "Requested reservation scopes are immutable")
   end
 end

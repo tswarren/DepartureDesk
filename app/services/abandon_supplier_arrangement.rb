@@ -36,6 +36,8 @@ class AbandonSupplierArrangement < AgencyCommand
       reason = normalize_reason(@reason)
       abandoned_at = Time.current
 
+      abandon_successor_planned_reservations!(arrangement, version, abandoned_at, reason) if successor
+
       arrangement.update!(status: "abandoned", abandoned_at: abandoned_at) if initial
       version.update!(status: "abandoned", abandoned_at: abandoned_at, abandoned_reason: reason)
       audit!(
@@ -54,5 +56,28 @@ class AbandonSupplierArrangement < AgencyCommand
     end
   rescue ActiveRecord::RecordInvalid => error
     command_error_from(error)
+  end
+
+  private
+
+  def abandon_successor_planned_reservations!(arrangement, version, abandoned_at, reason)
+    planned = SupplierReservationRevision
+      .where(
+        agency_id: arrangement.agency_id,
+        supplier_arrangement_id: arrangement.id,
+        supplier_arrangement_version_id: version.id,
+        status: "planned"
+      ).lock.order(:id)
+    planned.find_each do |revision|
+      revision.update!(
+        status: "abandoned",
+        abandoned_at: abandoned_at,
+        abandoned_reason: reason
+      )
+      reservation = arrangement.supplier_reservations.lock.find(revision.supplier_reservation_id)
+      RebuildSupplierReservationProjectionAlreadyLocked.new(
+        agency: @agency, reservation: reservation
+      ).call
+    end
   end
 end
