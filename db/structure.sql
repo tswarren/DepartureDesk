@@ -433,6 +433,59 @@ $$;
 
 
 --
+-- Name: reject_illegal_supplier_arrangement_version_lifecycle(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_illegal_supplier_arrangement_version_lifecycle() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF OLD.status IS NOT DISTINCT FROM NEW.status THEN
+    IF OLD.status = 'draft' THEN
+      RETURN NEW;
+    END IF;
+    RAISE EXCEPTION 'supplier arrangement version lifecycle is immutable except for accepted transitions';
+  END IF;
+
+  IF OLD.status = 'draft' AND NEW.status = 'activated' THEN
+    IF NEW.activated_at IS NULL
+      OR NEW.superseded_at IS NOT NULL
+      OR NEW.abandoned_at IS NOT NULL
+      OR NEW.abandoned_reason IS NOT NULL
+    THEN
+      RAISE EXCEPTION 'supplier arrangement version lifecycle transition is invalid';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF OLD.status = 'activated' AND NEW.status = 'superseded' THEN
+    IF NEW.activated_at IS DISTINCT FROM OLD.activated_at
+      OR NEW.superseded_at IS NULL
+      OR NEW.abandoned_at IS NOT NULL
+      OR NEW.abandoned_reason IS NOT NULL
+    THEN
+      RAISE EXCEPTION 'supplier arrangement version lifecycle transition is invalid';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF OLD.status = 'draft' AND NEW.status = 'abandoned' THEN
+    IF NEW.abandoned_at IS NULL
+      OR NEW.abandoned_reason IS NULL
+      OR NEW.activated_at IS NOT NULL
+      OR NEW.superseded_at IS NOT NULL
+    THEN
+      RAISE EXCEPTION 'supplier arrangement version lifecycle transition is invalid';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'supplier arrangement version lifecycle transition is not permitted';
+END;
+$$;
+
+
+--
 -- Name: reject_invalid_capacity_pool_zone(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -481,6 +534,46 @@ CREATE FUNCTION public.reject_m3d_immutable_mutation() RETURNS trigger
     AS $$
 BEGIN
   RAISE EXCEPTION '% is append-only', TG_TABLE_NAME;
+END;
+$$;
+
+
+--
+-- Name: reject_non_draft_arrangement_version_definition_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  version_id uuid;
+  version_status text;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    version_id := NEW.supplier_arrangement_version_id;
+    -- Serialize against activation: either finish before activation reads the
+    -- graph, or wait and re-check status after activation commits. UPDATE and
+    -- DELETE already serialize on existing definition-row locks held by
+    -- activation.
+    SELECT status INTO version_status
+    FROM public.supplier_arrangement_versions
+    WHERE id = version_id
+    FOR SHARE;
+  ELSE
+    version_id := OLD.supplier_arrangement_version_id;
+    SELECT status INTO version_status
+    FROM public.supplier_arrangement_versions
+    WHERE id = version_id;
+  END IF;
+
+  IF version_status IS DISTINCT FROM 'draft' THEN
+    RAISE EXCEPTION 'exact-version definitions are immutable after leaving draft';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -716,6 +809,27 @@ BEGIN
     OR NEW.supplier_id IS DISTINCT FROM OLD.supplier_id
     OR NEW.category_code IS DISTINCT FROM OLD.category_code THEN
     RAISE EXCEPTION 'supplier category assignment identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_supplier_commitment_trigger_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_commitment_trigger_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+    OR NEW.copied_from_id IS DISTINCT FROM OLD.copied_from_id
+  THEN
+    RAISE EXCEPTION 'supplier commitment trigger definition owner is immutable';
   END IF;
   RETURN NEW;
 END;
@@ -6657,6 +6771,13 @@ CREATE TRIGGER agency_users_reject_agency_id_change BEFORE UPDATE ON public.agen
 
 
 --
+-- Name: arrangement_item_definitions arrangement_item_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER arrangement_item_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.arrangement_item_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
 -- Name: arrangement_item_definitions arrangement_item_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6699,6 +6820,13 @@ CREATE TRIGGER capacity_events_reject_update BEFORE UPDATE ON public.capacity_ev
 
 
 --
+-- Name: capacity_pair_definitions capacity_pair_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pair_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.capacity_pair_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
 -- Name: capacity_pair_definitions capacity_pair_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6710,6 +6838,13 @@ CREATE TRIGGER capacity_pair_definitions_reject_owner_change BEFORE UPDATE ON pu
 --
 
 CREATE TRIGGER capacity_pairs_reject_cancelled_occurrence BEFORE INSERT OR UPDATE OF service_occurrence_id ON public.capacity_pair_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_pair_for_cancelled_occurrence();
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pool_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.capacity_pool_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
 
 
 --
@@ -6895,6 +7030,13 @@ CREATE TRIGGER service_occurrence_definitions_reject_invalid_zone BEFORE INSERT 
 
 
 --
+-- Name: service_occurrence_definitions service_occurrence_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_occurrence_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.service_occurrence_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
 -- Name: service_occurrence_definitions service_occurrence_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6951,6 +7093,13 @@ CREATE TRIGGER supplier_arrangement_activations_reject_update BEFORE UPDATE ON p
 
 
 --
+-- Name: supplier_arrangement_versions supplier_arrangement_versions_reject_illegal_lifecycle; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_arrangement_versions_reject_illegal_lifecycle BEFORE UPDATE ON public.supplier_arrangement_versions FOR EACH ROW EXECUTE FUNCTION public.reject_illegal_supplier_arrangement_version_lifecycle();
+
+
+--
 -- Name: supplier_arrangement_versions supplier_arrangement_versions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6969,6 +7118,20 @@ CREATE TRIGGER supplier_arrangements_reject_owner_change BEFORE UPDATE ON public
 --
 
 CREATE TRIGGER supplier_category_assignments_reject_identity_change BEFORE UPDATE ON public.supplier_category_assignments FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_category_identity_change();
+
+
+--
+-- Name: supplier_commitment_trigger_definitions supplier_commitment_trigger_definitions_reject_non_draft_mutati; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_trigger_definitions_reject_non_draft_mutati BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_commitment_trigger_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_commitment_trigger_definitions supplier_commitment_trigger_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_trigger_definitions_reject_owner_change BEFORE UPDATE ON public.supplier_commitment_trigger_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_commitment_trigger_definition_owner_change();
 
 
 --
@@ -7105,6 +7268,13 @@ CREATE TRIGGER supplier_contacts_reject_owner_change BEFORE UPDATE ON public.sup
 
 
 --
+-- Name: supplier_cost_component_bases supplier_cost_component_bases_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_component_bases_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_component_bases FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
 -- Name: supplier_cost_component_bases supplier_cost_component_bases_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7126,6 +7296,13 @@ CREATE TRIGGER supplier_cost_components_clear_bases_for_kind AFTER UPDATE OF cal
 
 
 --
+-- Name: supplier_cost_components supplier_cost_components_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_components_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_components FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
 -- Name: supplier_cost_components supplier_cost_components_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7137,6 +7314,13 @@ CREATE TRIGGER supplier_cost_components_reject_owner_change BEFORE UPDATE ON pub
 --
 
 CREATE TRIGGER supplier_cost_components_validate_context BEFORE INSERT OR UPDATE ON public.supplier_cost_components FOR EACH ROW EXECUTE FUNCTION public.validate_supplier_cost_component();
+
+
+--
+-- Name: supplier_cost_definitions supplier_cost_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
 
 
 --
@@ -7161,10 +7345,24 @@ CREATE TRIGGER supplier_cost_definitions_validate_mode_change BEFORE UPDATE OF m
 
 
 --
+-- Name: supplier_cost_occupancy_profile_positions supplier_cost_occupancy_profile_positions_reject_non_draft_muta; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_occupancy_profile_positions_reject_non_draft_muta BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_occupancy_profile_positions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
 -- Name: supplier_cost_occupancy_profile_positions supplier_cost_occupancy_profile_positions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER supplier_cost_occupancy_profile_positions_reject_owner_change BEFORE UPDATE ON public.supplier_cost_occupancy_profile_positions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_cost_occupancy_profile_position_owner_change();
+
+
+--
+-- Name: supplier_cost_occupancy_profiles supplier_cost_occupancy_profiles_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_occupancy_profiles_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_occupancy_profiles FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
 
 
 --
@@ -7175,6 +7373,13 @@ CREATE TRIGGER supplier_cost_occupancy_profiles_reject_owner_change BEFORE UPDAT
 
 
 --
+-- Name: supplier_cost_participant_categories supplier_cost_participant_categories_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_participant_categories_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_participant_categories FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
 -- Name: supplier_cost_participant_categories supplier_cost_participant_categories_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7182,10 +7387,24 @@ CREATE TRIGGER supplier_cost_participant_categories_reject_owner_change BEFORE U
 
 
 --
+-- Name: supplier_cost_sources supplier_cost_sources_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_sources_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_sources FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
 -- Name: supplier_cost_sources supplier_cost_sources_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER supplier_cost_sources_reject_owner_change BEFORE UPDATE ON public.supplier_cost_sources FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_cost_source_owner_change();
+
+
+--
+-- Name: supplier_cost_usage_assumptions supplier_cost_usage_assumptions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_usage_assumptions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_usage_assumptions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
 
 
 --
@@ -7284,6 +7503,13 @@ CREATE TRIGGER supplier_reservation_scopes_freeze_after_request BEFORE INSERT OR
 --
 
 CREATE TRIGGER supplier_reservations_reject_owner_change BEFORE UPDATE ON public.supplier_reservations FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_reservation_owner_change();
+
+
+--
+-- Name: supplier_resource_definitions supplier_resource_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_resource_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_resource_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
 
 
 --
@@ -9457,6 +9683,8 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260918060000'),
+('20260918050000'),
 ('20260918040000'),
 ('20260918030000'),
 ('20260918020000'),

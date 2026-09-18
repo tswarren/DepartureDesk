@@ -1,6 +1,10 @@
 class SupplierArrangementVersion < ApplicationRecord
   STATUSES = %w[draft activated superseded abandoned].freeze
   ABANDONED_REASON_LIMIT = 500
+  ALLOWED_LIFECYCLE_TRANSITIONS = {
+    "draft" => %w[activated abandoned],
+    "activated" => %w[superseded]
+  }.freeze
 
   belongs_to :agency
   belongs_to :departure
@@ -40,6 +44,7 @@ class SupplierArrangementVersion < ApplicationRecord
   validates :abandoned_reason, length: { maximum: ABANDONED_REASON_LIMIT }, allow_nil: true
   validate :abandonment_fields_match_status
   validate :lifecycle_timestamps_match_status
+  validate :lifecycle_transition_is_permitted, on: :update
 
   private
 
@@ -60,5 +65,16 @@ class SupplierArrangementVersion < ApplicationRecord
     else activated_at.nil? && superseded_at.nil?
     end
     errors.add(:base, "Lifecycle timestamps do not match status") unless valid
+  end
+
+  def lifecycle_transition_is_permitted
+    return unless status_changed?
+
+    from = status_was
+    to = status
+    allowed = ALLOWED_LIFECYCLE_TRANSITIONS.fetch(from, [])
+    return if allowed.include?(to)
+
+    errors.add(:status, "transition from #{from} to #{to} is not permitted")
   end
 end

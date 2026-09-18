@@ -86,13 +86,74 @@ class CapacityRecoveryTest < ActiveSupport::TestCase
   end
 
   test "force supplier inactivation reports capacity pools without mutating capacity" do
-    graph = build_activated_established_capacity_graph(recorded_at: @recorded_at - 1.day)
+    graph = create_capacity_graph(
+      agency: @agency, departure: @departure,
+      contractor: @contractor, provider: @provider,
+      prefix: "Force Inactivate Cap"
+    )
     graph[:occurrence_definition].update!(
       starts_on: Date.current + 30.days,
       ends_on: Date.current + 31.days
     )
-    event_count = graph[:pool].capacity_events.count
-    projection_quantity = graph[:projection].reload.current_supplier_capacity
+    pair = classify_capacity_graph_pair(graph)
+    pool = CapacityPool.create!(
+      agency: @agency, departure: @departure,
+      supplier_arrangement: graph[:arrangement],
+      arrangement_item: graph[:item],
+      service_occurrence: graph[:occurrence],
+      supplier_resource: graph[:resource],
+      supplying_supplier: @provider,
+      inventory_mode: "block", measurement_basis: "resource_units",
+      effective_time_zone: graph[:occurrence_definition].time_zone
+    )
+    definition = CapacityPoolDefinition.create!(
+      agency: @agency, departure: @departure,
+      supplier_arrangement: graph[:arrangement],
+      supplier_arrangement_version: graph[:version],
+      arrangement_item: graph[:item],
+      service_occurrence: graph[:occurrence],
+      supplier_resource: graph[:resource],
+      capacity_pair_definition: pair, capacity_pool: pool,
+      label: "Force pool", normalized_label: "force pool", unit_label: "cabins",
+      proposed_opening_quantity: 8, evidence_kind: "contract",
+      evidence_on: Date.current, evidence_reference_note: "Contracted",
+      override: false, position: 1
+    )
+    recorded_at = @recorded_at - 1.day
+    graph[:version].update!(status: "activated", activated_at: Time.current)
+    graph[:arrangement].update!(status: "active", governing_version: graph[:version])
+    event = CapacityEvent.create!(
+      agency: @agency, departure: @departure,
+      supplier_arrangement: graph[:arrangement],
+      supplier_arrangement_version: graph[:version],
+      arrangement_item: graph[:item],
+      service_occurrence: graph[:occurrence],
+      supplier_resource: graph[:resource],
+      capacity_pool: pool, supplying_supplier: @provider,
+      event_type: "established", quantity: 8,
+      measurement_basis: pool.measurement_basis,
+      effective_on: graph[:occurrence_definition].starts_on,
+      effective_time_zone: pool.effective_time_zone,
+      applies_at: recorded_at, effective_sequence: 1, recorded_at: recorded_at,
+      evidence_kind: definition.evidence_kind, evidence_on: definition.evidence_on,
+      evidence_reference_note: definition.evidence_reference_note, actor: @actor
+    )
+    projection = CapacityProjection.create!(
+      agency: @agency, departure: @departure,
+      supplier_arrangement: graph[:arrangement],
+      arrangement_item: graph[:item],
+      service_occurrence: graph[:occurrence],
+      supplier_resource: graph[:resource],
+      capacity_pool: pool,
+      current_supplier_capacity: 8,
+      last_event: event,
+      last_effective_on: event.effective_on,
+      last_effective_sequence: event.effective_sequence,
+      last_recorded_at: event.recorded_at,
+      rebuilt_at: recorded_at
+    )
+    event_count = pool.capacity_events.count
+    projection_quantity = projection.reload.current_supplier_capacity
 
     result = ChangeSupplierStatus.new(
       agency: @agency,
@@ -105,10 +166,10 @@ class CapacityRecoveryTest < ActiveSupport::TestCase
     ).call
 
     assert_equal :updated, result.status
-    assert_equal event_count, graph[:pool].capacity_events.count
-    assert_equal projection_quantity, graph[:projection].reload.current_supplier_capacity
+    assert_equal event_count, pool.capacity_events.count
+    assert_equal projection_quantity, projection.reload.current_supplier_capacity
     audit = AuditEvent.where(action: "supplier.inactivated", subject_id: @provider.id).last
-    assert_equal [ graph[:pool].id ], audit.details["affected_capacity_pool_ids"]
+    assert_equal [ pool.id ], audit.details["affected_capacity_pool_ids"]
     assert_equal [ graph[:arrangement].id ], audit.details["affected_supplier_arrangement_ids"]
   end
 

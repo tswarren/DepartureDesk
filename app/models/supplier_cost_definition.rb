@@ -1,5 +1,6 @@
 class SupplierCostDefinition < ApplicationRecord
   include ExactVersionCopyLineage
+  include DraftVersionDefinition
   STAGES = %w[estimate contracted].freeze
   STATUSES = %w[working forecast_ready].freeze
   MODES = %w[calculated zero_cost].freeze

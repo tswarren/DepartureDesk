@@ -20,8 +20,6 @@ class UnresolvedReservationCommitmentTriggersTest < ActiveSupport::TestCase
     )
     @arrangement = @graph[:arrangement]
     @version = @graph[:version]
-    @version.update!(status: "activated", activated_at: Time.current)
-    @arrangement.update!(status: "active", governing_version: @version)
     @item_trigger = SupplierCommitmentTriggerDefinition.create!(
       agency: @agency, departure: @departure,
       supplier_arrangement: @arrangement,
@@ -34,6 +32,8 @@ class UnresolvedReservationCommitmentTriggersTest < ActiveSupport::TestCase
       currency: @departure.operating_currency,
       position: 1
     )
+    @version.update!(status: "activated", activated_at: Time.current)
+    @arrangement.update!(status: "active", governing_version: @version)
   end
 
   test "scopes from another reservation do not make triggers unresolved for this reservation" do

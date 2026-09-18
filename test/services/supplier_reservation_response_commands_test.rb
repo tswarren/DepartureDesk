@@ -95,22 +95,18 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
   end
 
   test "missing confirmed amount soft-skips commitment and exposes unresolved trigger" do
-    single = CreateSupplierReservation.new(
-      agency: @agency, actor: @actor, arrangement: @arrangement,
-      attributes: {
-        booking_supplier_id: @supplier.id,
-        supplier_arrangement_version_id: @version.id,
-        scopes: [ { target_kind: "arrangement", label: "Whole" } ]
-      },
-      idempotency_key: SecureRandom.uuid
-    ).call.record
-    request_reservation(single)
-
+    graph = create_capacity_graph(
+      agency: @agency, departure: @departure,
+      contractor: @supplier, provider: @supplier,
+      prefix: "SoftSkip", capacity_management: "unmanaged"
+    )
+    arrangement = graph[:arrangement]
+    version = graph[:version]
     trigger = SupplierCommitmentTriggerDefinition.create!(
       agency: @agency,
       departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: version,
       trigger_kind: "reservation_confirmation",
       authority_shape: "confirmed_amount",
       committed_supplier: @supplier,
@@ -118,6 +114,24 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
       currency: @departure.operating_currency,
       position: 1
     )
+    version.update!(status: "activated", activated_at: Time.current)
+    arrangement.update!(status: "active", governing_version: version)
+    @departure.update!(
+      status: "active",
+      departure_reference: "D-#{SecureRandom.random_number(900_000) + 100_000}",
+      first_activated_at: Time.current
+    ) unless @departure.active?
+
+    single = CreateSupplierReservation.new(
+      agency: @agency, actor: @actor, arrangement: arrangement,
+      attributes: {
+        booking_supplier_id: @supplier.id,
+        supplier_arrangement_version_id: version.id,
+        scopes: [ { target_kind: "arrangement", label: "Whole" } ]
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    request_reservation(single)
 
     respond_reservation(single)
     assert_equal 0, SupplierCommitment.where(supplier_commitment_trigger_definition_id: trigger.id).count
@@ -126,32 +140,64 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
   end
 
   test "unresolved derivation ignores triggers that do not match confirmed scopes" do
+    graph = create_capacity_graph(
+      agency: @agency, departure: @departure,
+      contractor: @supplier, provider: @supplier,
+      prefix: "ScopeMatch", capacity_management: "unmanaged"
+    )
+    arrangement = graph[:arrangement]
+    version = graph[:version]
     item_trigger = SupplierCommitmentTriggerDefinition.create!(
       agency: @agency,
       departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: version,
       trigger_kind: "reservation_confirmation",
       authority_shape: "confirmed_amount",
       committed_supplier: @supplier,
-      arrangement_item: @graph[:item],
+      arrangement_item: graph[:item],
       description: "Item deposit",
       currency: @departure.operating_currency,
       position: 1
     )
+    version.update!(status: "activated", activated_at: Time.current)
+    arrangement.update!(status: "active", governing_version: version)
+    @departure.update!(
+      status: "active",
+      departure_reference: "D-#{SecureRandom.random_number(900_000) + 100_000}",
+      first_activated_at: Time.current
+    ) unless @departure.active?
+
+    reservation = CreateSupplierReservation.new(
+      agency: @agency, actor: @actor, arrangement: arrangement,
+      attributes: {
+        booking_supplier_id: @supplier.id,
+        supplier_arrangement_version_id: version.id,
+        scopes: [
+          { target_kind: "arrangement", label: "Whole" },
+          {
+            target_kind: "item",
+            arrangement_item_id: graph[:item].id,
+            label: "Item scope"
+          }
+        ]
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    request_reservation(reservation)
 
     respond_reservation(
-      @reservation,
-      outcomes: @reservation.revisions.sole.scopes.select { |scope| scope.target_kind == "arrangement" }.map { |scope|
+      reservation,
+      outcomes: reservation.revisions.sole.scopes.select { |scope| scope.target_kind == "arrangement" }.map { |scope|
         [ scope.id, { outcome_kind: "confirmed" } ]
       }.to_h.merge(
-        @reservation.revisions.sole.scopes.reject { |scope| scope.target_kind == "arrangement" }.map { |scope|
+        reservation.revisions.sole.scopes.reject { |scope| scope.target_kind == "arrangement" }.map { |scope|
           [ scope.id, { outcome_kind: "declined", decline_reason: "Not needed" } ]
         }.to_h
       )
     )
 
-    unresolved = UnresolvedReservationCommitmentTriggers.call(agency: @agency, reservation: @reservation)
+    unresolved = UnresolvedReservationCommitmentTriggers.call(agency: @agency, reservation: reservation)
     assert unresolved.none? { |row| row.trigger.id == item_trigger.id }
   end
 

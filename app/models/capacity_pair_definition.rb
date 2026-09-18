@@ -1,5 +1,6 @@
 class CapacityPairDefinition < ApplicationRecord
   include ExactVersionCopyLineage
+  include DraftVersionDefinition
   CLASSIFICATIONS = %w[pooled not_applicable].freeze
 
   belongs_to :agency
