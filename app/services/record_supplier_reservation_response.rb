@@ -472,6 +472,13 @@ class RecordSupplierReservationResponse < AgencyCommand
         )
       end
 
+      definition = version.capacity_pool_definitions.lock.find_by(capacity_pool_id: pool_id)
+      unless definition
+        raise Error.new(
+          "Capacity consequence Pool must be defined on this exact Arrangement version.",
+          code: :invalid
+        )
+      end
       pool = arrangement.capacity_pools.lock.find(pool_id)
       unless pool.supplying_supplier_id == confirmation.confirming_supplier_id
         raise Error.new(

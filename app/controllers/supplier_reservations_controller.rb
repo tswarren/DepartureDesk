@@ -232,13 +232,18 @@ class SupplierReservationsController < ApplicationController
     @scopes_by_latest_outcome = nil
     @pending_scopes = pending_scopes
     @confirmed_scopes = confirmed_scopes
-    @capacity_pool_options = @supplier_arrangement.capacity_pools
-      .includes(:supplying_supplier).order(:id)
     @unresolved_commitment_triggers = UnresolvedReservationCommitmentTriggers.call(
       agency: Current.agency, reservation: @supplier_reservation
     )
     requested_revision = @supplier_reservation.revisions.where(status: "requested").order(revision_number: :desc).first
     @response_version = requested_revision&.supplier_arrangement_version
+    @capacity_pool_options = if @response_version
+      CapacityPool.where(
+        id: @response_version.capacity_pool_definitions.select(:capacity_pool_id)
+      ).includes(:supplying_supplier).order(:id)
+    else
+      CapacityPool.none
+    end
     @reservation_triggers = if @response_version
       @response_version.supplier_commitment_trigger_definitions
         .where(trigger_kind: "reservation_confirmation", committed_supplier_id: @supplier_reservation.booking_supplier_id)

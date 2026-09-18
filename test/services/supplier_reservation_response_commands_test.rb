@@ -189,6 +189,116 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
     assert_match(/confirmed scopes/i, error.message)
   end
 
+  test "predecessor response rejects capacity Pool defined only on successor version" do
+    capacity = build_activated_established_capacity_graph(
+      agency: @agency,
+      departure: create_capacity_departure(@agency, name: "Exact Version Cap"),
+      contractor: @supplier,
+      provider: @supplier,
+      actor: @actor,
+      prefix: "Exact Cap"
+    )
+    arrangement = capacity[:arrangement]
+    predecessor = capacity[:version]
+    reservation = CreateSupplierReservation.new(
+      agency: @agency, actor: @actor, arrangement: arrangement,
+      attributes: {
+        booking_supplier_id: @supplier.id,
+        supplier_arrangement_version_id: predecessor.id,
+        scopes: [ { target_kind: "arrangement", label: "Whole" } ]
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    RecordSupplierReservationRequest.new(
+      agency: @agency, actor: @actor, reservation: reservation,
+      attributes: { channel: "email", reference_note: "Sent" },
+      idempotency_key: SecureRandom.uuid
+    ).call
+    scope = reservation.revisions.where(status: "requested").sole.scopes.sole
+
+    successor = arrangement.versions.create!(
+      agency: @agency,
+      departure: capacity[:departure],
+      version_number: 2,
+      status: "activated",
+      activated_at: Time.current,
+      copied_from: predecessor
+    )
+    successor_pair = CapacityPairDefinition.create!(
+      agency: @agency,
+      departure: capacity[:departure],
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: successor,
+      arrangement_item: capacity[:item],
+      service_occurrence: capacity[:occurrence],
+      supplier_resource: capacity[:resource],
+      classification: "pooled"
+    )
+    successor_only_pool = CapacityPool.create!(
+      agency: @agency,
+      departure: capacity[:departure],
+      supplier_arrangement: arrangement,
+      arrangement_item: capacity[:item],
+      service_occurrence: capacity[:occurrence],
+      supplier_resource: capacity[:resource],
+      supplying_supplier: @supplier,
+      inventory_mode: "block",
+      measurement_basis: "resource_units",
+      effective_time_zone: capacity[:occurrence_definition].time_zone
+    )
+    CapacityPoolDefinition.create!(
+      agency: @agency,
+      departure: capacity[:departure],
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: successor,
+      arrangement_item: capacity[:item],
+      service_occurrence: capacity[:occurrence],
+      supplier_resource: capacity[:resource],
+      capacity_pair_definition: successor_pair,
+      capacity_pool: successor_only_pool,
+      label: "Successor only pool",
+      normalized_label: "successor only pool",
+      unit_label: "cabins",
+      proposed_opening_quantity: 4,
+      evidence_kind: "contract",
+      evidence_on: Date.current,
+      evidence_reference_note: "Successor pool",
+      override: false,
+      position: 1
+    )
+    predecessor.update!(status: "superseded", superseded_at: Time.current)
+    arrangement.update!(governing_version: successor)
+
+    error = assert_raises(AgencyCommand::Error) do
+      RecordSupplierReservationResponse.new(
+        agency: @agency, actor: @actor, reservation: reservation,
+        attributes: {
+          scope_ids: [ scope.id ],
+          channel: "portal",
+          reference_note: "Predecessor with successor pool",
+          outcomes: { scope.id => { outcome_kind: "confirmed" } },
+          evidence: {
+            evidence_kind: "supplier_confirmation",
+            evidence_on: Date.current,
+            channel: "portal",
+            reference_note: "Predecessor with successor pool",
+            confirmed_without_identifier_reason: "Later"
+          },
+          capacity_consequences: [ {
+            capacity_pool_id: successor_only_pool.id,
+            event_type: "increased",
+            quantity: 1,
+            effective_on: capacity[:occurrence_definition].starts_on
+          } ]
+        },
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert_equal :invalid, error.code
+    assert_match(/exact Arrangement version/i, error.message)
+    assert_equal 0, successor_only_pool.capacity_events.where(event_type: "increased").count
+  end
+
   test "response succeeds on predecessor requested revision after successor activation" do
     planned = create_reservation.record
     predecessor_version = @version

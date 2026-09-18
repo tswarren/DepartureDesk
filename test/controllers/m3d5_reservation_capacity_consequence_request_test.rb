@@ -41,6 +41,7 @@ class M3d5ReservationCapacityConsequenceRequestTest < ActionDispatch::Integratio
     sign_in_as @staff
     get departure_arrangement_reservation_path(@departure, @arrangement, @reservation)
     assert_response :success
+    assert_select "select[name='capacity_consequences[0][capacity_pool_id]'] option[value='#{@pool.id}']"
     assert_select "select[name='capacity_consequences[0][event_type]'] option[value='increased']"
     assert_select "select[name='capacity_consequences[0][event_type]'] option[value='released']"
     assert_select "select[name='capacity_consequences[0][event_type]'] option[value='withdrawn']"
