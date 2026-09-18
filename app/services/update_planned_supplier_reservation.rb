@@ -14,12 +14,11 @@ class UpdatePlannedSupplierReservation < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      reservation = @agency.supplier_reservations.lock.find(@reservation.id)
-      arrangement = @agency.supplier_arrangements.lock.find(reservation.supplier_arrangement_id)
-      departure = @agency.departures.lock.find(reservation.departure_id)
-      revision = reservation.revisions.lock.where(status: "planned").sole
-      version = arrangement.versions.lock.find(revision.supplier_arrangement_version_id)
-      ensure_reservation_planning_state!(departure, arrangement, version, reservation.booking_supplier)
+      booking_supplier, departure, arrangement, version, reservation, revision =
+        lock_reservation_mutation_graph!(@reservation, revision_status: "planned")
+      raise Error.new("That reservation does not have one planned revision.", code: :invalid_state) if revision.nil?
+
+      ensure_reservation_planning_state!(departure, arrangement, version, booking_supplier)
       ensure_current_lock_version!(revision, @revision_lock_version)
       scopes = normalize_scopes!(arrangement, version, @attributes[:scopes])
 
@@ -36,9 +35,7 @@ class UpdatePlannedSupplierReservation < AgencyCommand
         )
       end
       revision.touch
-      RebuildSupplierReservationProjection.new(
-        agency: @agency, actor: @actor, reservation: reservation
-      ).call
+      rebuild_reservation_projection_already_locked!(reservation)
       audit!(
         agency: @agency, action: "supplier_reservation.updated", subject: reservation, actor: @actor,
         details: {

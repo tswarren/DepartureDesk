@@ -18,18 +18,10 @@ class CancelSupplierReservationScopes < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      reservation = @agency.supplier_reservations.lock.find(@reservation.id)
-      arrangement = @agency.supplier_arrangements.lock.find(reservation.supplier_arrangement_id)
-      @agency.departures.lock.find(reservation.departure_id)
-      lock_idempotency_slot!(self.class.name, key)
-      if (existing = existing_idempotency(key))
-        return Result.new(status: :replayed, record: SupplierReservationEvent.find(existing.result_record_id))
-      end
-
-      revision = reservation.revisions.lock.where(status: "requested").order(revision_number: :desc).first
+      _booking_supplier, _departure, _arrangement, version, reservation, revision =
+        lock_reservation_mutation_graph!(@reservation, revision_status: "requested")
       raise Error.new("That reservation has no requested revision.", code: :invalid_state) if revision.nil?
 
-      version = arrangement.versions.lock.find(revision.supplier_arrangement_version_id)
       scopes = confirmed_scopes(revision)
       raise Error.new("Choose previously confirmed scopes to cancel.", code: :invalid) if scopes.empty?
 
@@ -39,11 +31,8 @@ class CancelSupplierReservationScopes < AgencyCommand
         scope_ids: scopes.map(&:id),
         reason: reason
       }
-      if (existing = existing_idempotency(key))
-        unless existing.payload_digest == payload_digest(payload)
-          raise Error.new("That idempotency key was already used for different input.", code: :conflict)
-        end
-        return Result.new(status: :replayed, record: SupplierReservationEvent.find(existing.result_record_id))
+      if (replay = replay_reservation_idempotency(key, payload, SupplierReservationEvent))
+        return replay
       end
 
       now = Time.current
@@ -58,14 +47,7 @@ class CancelSupplierReservationScopes < AgencyCommand
           scope_fingerprint: scope_fingerprint(scopes)
         )
       )
-      key_record = AgencyCommandIdempotencyKey.create!(
-        agency: @agency,
-        command_name: self.class.name,
-        idempotency_key: key,
-        payload_digest: payload_digest(payload),
-        result_record_type: SupplierReservationEvent.name,
-        result_record_id: event.id
-      )
+      key_record = claim_reservation_idempotency!(key, payload, event)
       event.agency_command_idempotency_key = key_record
       event.save!
       scopes.each do |scope|
@@ -81,9 +63,7 @@ class CancelSupplierReservationScopes < AgencyCommand
           outcome_kind: "cancelled"
         )
       end
-      RebuildSupplierReservationProjection.new(
-        agency: @agency, actor: @actor, reservation: reservation
-      ).call
+      rebuild_reservation_projection_already_locked!(reservation)
       audit!(
         agency: @agency, action: "supplier_reservation.scopes_cancelled", subject: reservation, actor: @actor,
         details: {
@@ -102,15 +82,8 @@ class CancelSupplierReservationScopes < AgencyCommand
 
   def confirmed_scopes(revision)
     latest = latest_outcomes_by_scope(revision)
-    selected = revision.scopes.lock.order(:position, :id).select do |scope|
+    revision.scopes.lock.order(:position, :id).select do |scope|
       latest[scope.id]&.confirmed? && (@scope_ids.blank? || @scope_ids.map(&:to_s).include?(scope.id))
     end
-    selected
-  end
-
-  def existing_idempotency(key)
-    @agency.agency_command_idempotency_keys.where(
-      command_name: self.class.name, idempotency_key: key
-    ).lock.first
   end
 end

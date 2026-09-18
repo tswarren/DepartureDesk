@@ -15,10 +15,9 @@ class CreateSupplierReservation < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      arrangement = lock_arrangement_for!(@arrangement)
-      departure = lock_departure_for!(arrangement.departure_id)
-      version = resolve_reservation_version!(arrangement, @attributes[:supplier_arrangement_version_id])
-      booking_supplier = resolve_booking_supplier!(arrangement, version, @attributes[:booking_supplier_id])
+      booking_supplier, departure, arrangement, version = lock_create_reservation_graph!(
+        @arrangement, @attributes
+      )
       ensure_reservation_planning_state!(departure, arrangement, version, booking_supplier)
       scopes = normalize_scopes!(arrangement, version, @attributes[:scopes])
       payload = {
@@ -34,25 +33,35 @@ class CreateSupplierReservation < AgencyCommand
         payload: payload,
         result_class: SupplierReservation
       ) do
-        reservation = SupplierReservation.create!(
-          agency: @agency, departure: departure, supplier_arrangement: arrangement,
-          booking_supplier: booking_supplier
+        create_reservation_already_locked!(
+          arrangement: arrangement,
+          departure: departure,
+          version: version,
+          booking_supplier: booking_supplier,
+          scopes: scopes,
+          audit: true
         )
-        revision = reservation.revisions.create!(
-          agency: @agency, departure: departure, supplier_arrangement: arrangement,
-          supplier_arrangement_version: version, revision_number: 1, status: "planned",
-          actor: @actor
-        )
-        create_scopes!(revision, scopes)
-        RebuildSupplierReservationProjection.new(
-          agency: @agency, actor: @actor, reservation: reservation
-        ).call
-        audit_reservation!(reservation, revision, "supplier_reservation.created")
-        reservation
       end
     end
   rescue ActiveRecord::RecordInvalid => error
     command_error_from(error)
+  end
+
+  # Caller must already hold Agency + Supplier → Departure → Arrangement → version locks.
+  def create_reservation_already_locked!(arrangement:, departure:, version:, booking_supplier:, scopes:, audit: true)
+    reservation = SupplierReservation.create!(
+      agency: @agency, departure: departure, supplier_arrangement: arrangement,
+      booking_supplier: booking_supplier
+    )
+    revision = reservation.revisions.create!(
+      agency: @agency, departure: departure, supplier_arrangement: arrangement,
+      supplier_arrangement_version: version, revision_number: 1, status: "planned",
+      actor: @actor
+    )
+    create_scopes!(revision, scopes)
+    rebuild_reservation_projection_already_locked!(reservation)
+    audit_reservation!(reservation, revision, "supplier_reservation.created") if audit
+    reservation
   end
 
   private

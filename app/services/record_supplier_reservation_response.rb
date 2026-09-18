@@ -15,101 +15,153 @@ class RecordSupplierReservationResponse < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      reservation = @agency.supplier_reservations.lock.find(@reservation.id)
-      arrangement = @agency.supplier_arrangements.lock.find(reservation.supplier_arrangement_id)
-      departure = @agency.departures.lock.find(reservation.departure_id)
-      booking_supplier = @agency.suppliers.lock.find(reservation.booking_supplier_id)
-      lock_idempotency_slot!(self.class.name, key)
-      if (existing = existing_idempotency(key))
-        return Result.new(status: :replayed, record: SupplierReservationEvent.find(existing.result_record_id))
-      end
-
-      revision = reservation.revisions.lock.where(status: "requested").order(revision_number: :desc).first
+      booking_supplier, departure, arrangement, version, reservation, revision =
+        lock_reservation_mutation_graph!(@reservation, revision_status: "requested")
       raise Error.new("That reservation has no requested revision to respond to.", code: :invalid_state) if revision.nil?
 
-      version = arrangement.versions.lock.find(revision.supplier_arrangement_version_id)
       validate_response_state!(departure, arrangement, version)
-      scopes = selected_pending_scopes(revision)
+
+      latest = latest_outcomes_by_scope(revision)
+      pending = revision.scopes.lock.order(:position, :id).select { |scope| latest[scope.id]&.requested? }
+      if pending.empty?
+        return replay_response_without_pending!(key, reservation, revision)
+      end
+
+      scopes = selected_pending_scopes_from(pending)
       outcomes = normalize_outcomes!(scopes)
       payload = response_payload(reservation, revision, outcomes)
-      if (replay = replay_idempotency(key, payload))
+      if (replay = replay_reservation_idempotency(key, payload, SupplierReservationEvent))
         return replay
       end
 
-      now = Time.current
-      event = SupplierReservationEvent.new(
-        event_owner(reservation, revision, version).merge(
-          event_kind: "response",
-          occurred_at: normalize_occurred_at(@attributes[:occurred_at]) || now,
-          recorded_at: now,
-          actor: @actor,
-          channel: @attributes[:channel].to_s.strip,
-          reference_note: @attributes[:reference_note].to_s.strip,
-          scope_fingerprint: scope_fingerprint(scopes)
+      record_response_already_locked!(
+        booking_supplier: booking_supplier,
+        departure: departure,
+        arrangement: arrangement,
+        version: version,
+        reservation: reservation,
+        revision: revision,
+        scopes: scopes,
+        outcomes: outcomes,
+        key: key,
+        payload: payload,
+        audit: true
+      )
+    end
+  rescue ActiveRecord::RecordInvalid => error
+    command_error_from(error)
+  end
+
+  def replay_response_without_pending!(key, reservation, revision)
+    lock_idempotency_slot!(self.class.name, key)
+    existing = @agency.agency_command_idempotency_keys.where(
+      command_name: self.class.name, idempotency_key: key
+    ).lock.first
+    raise Error.new("There are no pending requested scopes to respond to.", code: :invalid_state) unless existing
+
+    event = SupplierReservationEvent.find(existing.result_record_id)
+    scopes = event.scope_outcomes.includes(:supplier_reservation_scope).map(&:supplier_reservation_scope)
+    outcomes = event.scope_outcomes.map do |outcome|
+      {
+        scope: outcome.supplier_reservation_scope,
+        outcome_kind: outcome.outcome_kind,
+        quantity: outcome.quantity,
+        quantity_basis: outcome.quantity_basis,
+        supplier_note: outcome.supplier_note,
+        decline_reason: outcome.decline_reason
+      }
+    end
+    # Digest must match the original submission attributes, not persisted outcome snapshot alone.
+    payload = response_payload(reservation, revision, normalize_outcomes!(scopes))
+    unless existing.payload_digest == payload_digest(payload)
+      raise Error.new("That idempotency key was already used for different input.", code: :conflict)
+    end
+
+    Result.new(status: :replayed, record: event)
+  end
+
+  # Caller must already hold the Reservation mutation lock graph and requested revision.
+  def record_response_already_locked!(
+    booking_supplier:, departure:, arrangement:, version:, reservation:, revision:,
+    scopes:, outcomes:, key: nil, payload: nil, audit: true
+  )
+    validate_response_state!(departure, arrangement, version)
+
+    now = Time.current
+    event = SupplierReservationEvent.new(
+      event_owner(reservation, revision, version).merge(
+        event_kind: "response",
+        occurred_at: normalize_occurred_at(@attributes[:occurred_at]) || now,
+        recorded_at: now,
+        actor: @actor,
+        channel: @attributes[:channel].to_s.strip,
+        reference_note: @attributes[:reference_note].to_s.strip,
+        scope_fingerprint: scope_fingerprint(scopes)
+      )
+    )
+    if key && payload
+      key_record = claim_reservation_idempotency!(key, payload, event)
+      event.agency_command_idempotency_key = key_record
+    end
+    event.save!
+
+    confirmation = nil
+    confirmed_outcomes = outcomes.select { |entry| entry[:outcome_kind] == "confirmed" }
+    if confirmed_outcomes.any?
+      confirmation = resolve_confirmation!(
+        arrangement: arrangement,
+        version: version,
+        reservation: reservation,
+        booking_supplier: booking_supplier,
+        recorded_at: now
+      )
+      link_response!(confirmation, reservation, revision, event, version)
+    end
+
+    capacity_events = []
+    outcomes.each do |entry|
+      scope = entry[:scope]
+      outcome = event.scope_outcomes.create!(
+        outcome_owner(scope, event).merge(
+          outcome_kind: entry[:outcome_kind],
+          quantity: entry[:quantity],
+          quantity_basis: entry[:quantity_basis],
+          supplier_note: entry[:supplier_note],
+          decline_reason: entry[:decline_reason]
         )
       )
-      key_record = claim_idempotency!(key, payload, event)
-      event.agency_command_idempotency_key = key_record
-      event.save!
+      next unless confirmation && entry[:outcome_kind] == "confirmed"
 
-      confirmation = nil
-      confirmed_outcomes = outcomes.select { |entry| entry[:outcome_kind] == "confirmed" }
-      if confirmed_outcomes.any?
-        confirmation = resolve_confirmation!(
+      SupplierConfirmationReservationScopeLink.create!(
+        owner_attributes(arrangement, version).merge(
+          supplier_confirmation: confirmation,
+          supplier_reservation: reservation,
+          supplier_reservation_revision: revision,
+          supplier_reservation_scope: scope
+        )
+      )
+      capacity_events.concat(
+        apply_capacity_consequences!(
+          confirmation: confirmation,
           arrangement: arrangement,
           version: version,
-          reservation: reservation,
-          booking_supplier: booking_supplier,
+          scope: scope,
           recorded_at: now
         )
-        link_response!(confirmation, reservation, revision, event, version)
-      end
+      )
+      open_reservation_commitments!(
+        confirmation: confirmation,
+        version: version,
+        reservation: reservation,
+        revision: revision,
+        scope: scope,
+        event: event,
+        confirmed_quantity: outcome.quantity || scope.requested_quantity
+      )
+    end
 
-      capacity_events = []
-      outcomes.each do |entry|
-        scope = entry[:scope]
-        outcome = event.scope_outcomes.create!(
-          outcome_owner(scope, event).merge(
-            outcome_kind: entry[:outcome_kind],
-            quantity: entry[:quantity],
-            quantity_basis: entry[:quantity_basis],
-            supplier_note: entry[:supplier_note],
-            decline_reason: entry[:decline_reason]
-          )
-        )
-        next unless confirmation && entry[:outcome_kind] == "confirmed"
-
-        SupplierConfirmationReservationScopeLink.create!(
-          owner_attributes(arrangement, version).merge(
-            supplier_confirmation: confirmation,
-            supplier_reservation: reservation,
-            supplier_reservation_revision: revision,
-            supplier_reservation_scope: scope
-          )
-        )
-        capacity_events.concat(
-          apply_capacity_consequences!(
-            confirmation: confirmation,
-            arrangement: arrangement,
-            version: version,
-            scope: scope,
-            recorded_at: now
-          )
-        )
-        open_reservation_commitments!(
-          confirmation: confirmation,
-          version: version,
-          reservation: reservation,
-          revision: revision,
-          scope: scope,
-          event: event,
-          confirmed_quantity: outcome.quantity || scope.requested_quantity
-        )
-      end
-
-      RebuildSupplierReservationProjection.new(
-        agency: @agency, actor: @actor, reservation: reservation
-      ).call
+    rebuild_reservation_projection_already_locked!(reservation)
+    if audit
       audit!(
         agency: @agency, action: "supplier_reservation.response_recorded", subject: reservation, actor: @actor,
         details: {
@@ -121,10 +173,8 @@ class RecordSupplierReservationResponse < AgencyCommand
           "outcome_kinds" => outcomes.map { |entry| entry[:outcome_kind] }
         }
       )
-      Result.new(status: :created, record: event)
     end
-  rescue ActiveRecord::RecordInvalid => error
-    command_error_from(error)
+    Result.new(status: :created, record: event)
   end
 
   private
@@ -133,7 +183,7 @@ class RecordSupplierReservationResponse < AgencyCommand
     unless departure.active? || departure.departed?
       raise Error.new("That departure cannot record reservation responses.", code: :invalid_state)
     end
-    unless arrangement.active? && arrangement.governing_version_id == version.id && version.activated?
+    unless arrangement.active? && (version.activated? || version.superseded?)
       raise Error.new("Responses require the reservation's exact activated version.", code: :invalid_state)
     end
   end
@@ -143,6 +193,10 @@ class RecordSupplierReservationResponse < AgencyCommand
     pending = revision.scopes.lock.order(:position, :id).select { |scope| latest[scope.id]&.requested? }
     raise Error.new("There are no pending requested scopes to respond to.", code: :invalid_state) if pending.empty?
 
+    selected_pending_scopes_from(pending)
+  end
+
+  def selected_pending_scopes_from(pending)
     requested_ids = Array(@attributes[:scope_ids]).presence
     return pending if requested_ids.blank?
 
@@ -395,9 +449,12 @@ class RecordSupplierReservationResponse < AgencyCommand
           outcome_kind: entry[:outcome_kind],
           quantity: entry[:quantity],
           quantity_basis: entry[:quantity_basis],
-          decline_reason: entry[:decline_reason]
+          decline_reason: entry[:decline_reason],
+          supplier_note: entry[:supplier_note]
         }
       end,
+      occurred_at: @attributes[:occurred_at].presence,
+      confirmed_amount_minor_units: @attributes[:confirmed_amount_minor_units],
       channel: @attributes[:channel].to_s.strip,
       reference_note: @attributes[:reference_note].to_s.strip,
       existing_confirmation_id: @attributes[:existing_confirmation_id],
@@ -405,33 +462,6 @@ class RecordSupplierReservationResponse < AgencyCommand
       identifier: @attributes[:identifier],
       capacity_consequences: @attributes[:capacity_consequences] || @attributes[:capacity_consequence]
     }
-  end
-
-  def replay_idempotency(key, payload)
-    existing = existing_idempotency(key)
-    return unless existing
-    unless existing.payload_digest == payload_digest(payload)
-      raise Error.new("That idempotency key was already used for different input.", code: :conflict)
-    end
-
-    Result.new(status: :replayed, record: SupplierReservationEvent.find(existing.result_record_id))
-  end
-
-  def existing_idempotency(key)
-    @agency.agency_command_idempotency_keys.where(
-      command_name: self.class.name, idempotency_key: key
-    ).lock.first
-  end
-
-  def claim_idempotency!(key, payload, event)
-    AgencyCommandIdempotencyKey.create!(
-      agency: @agency,
-      command_name: self.class.name,
-      idempotency_key: key,
-      payload_digest: payload_digest(payload),
-      result_record_type: SupplierReservationEvent.name,
-      result_record_id: event.id
-    )
   end
 
   def normalize_occurred_at(value)
