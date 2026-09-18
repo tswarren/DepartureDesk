@@ -1046,6 +1046,33 @@ $$;
 
 
 --
+-- Name: stamp_supplier_identifier_superseded_by_successor(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.stamp_supplier_identifier_superseded_by_successor() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.supersedes_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  UPDATE public.supplier_issued_identifiers
+  SET superseded_at = COALESCE(NEW.created_at, CURRENT_TIMESTAMP)
+  WHERE id = NEW.supersedes_id
+    AND agency_id = NEW.agency_id
+    AND superseded_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'supplier identifier supersession target is missing or already superseded';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: validate_supplier_cost_component(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -7176,6 +7203,13 @@ CREATE TRIGGER supplier_issued_identifiers_reject_update BEFORE UPDATE ON public
 
 
 --
+-- Name: supplier_issued_identifiers supplier_issued_identifiers_stamp_superseded; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_issued_identifiers_stamp_superseded AFTER INSERT ON public.supplier_issued_identifiers FOR EACH ROW WHEN ((new.supersedes_id IS NOT NULL)) EXECUTE FUNCTION public.stamp_supplier_identifier_superseded_by_successor();
+
+
+--
 -- Name: supplier_locations supplier_locations_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -9409,6 +9443,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260918030000'),
 ('20260918020000'),
 ('20260918010000'),
 ('20260917232000'),

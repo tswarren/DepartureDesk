@@ -12,6 +12,10 @@ class SupplierIssuedIdentifier < ApplicationRecord
   belongs_to :first_supplier_confirmation, class_name: "SupplierConfirmation"
   belongs_to :supersedes, class_name: "SupplierIssuedIdentifier", optional: true
   belongs_to :supplier_reservation, optional: true
+  has_one :successor, class_name: "SupplierIssuedIdentifier", foreign_key: :supersedes_id,
+    inverse_of: :supersedes, dependent: :restrict_with_exception
+
+  scope :current, -> { where(superseded_at: nil) }
 
   enum :identifier_type, IDENTIFIER_TYPES.index_by(&:itself), validate: true
 
@@ -35,7 +39,12 @@ class SupplierIssuedIdentifier < ApplicationRecord
   end
 
   def supersession_fields_pair
-    errors.add(:base, "Supersession fields must be paired") unless
-      supersedes_id.present? == superseded_at.present?
+    # Replacement rows carry supersedes_id without their own superseded_at.
+    # Prior rows may later receive superseded_at via the successor-insert stamp trigger.
+    return if supersedes_id.blank? && superseded_at.blank?
+    return if supersedes_id.present? && superseded_at.blank?
+    return if supersedes_id.blank? && superseded_at.present?
+
+    errors.add(:base, "Supersession fields cannot both be set on one identifier row")
   end
 end

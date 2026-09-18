@@ -371,7 +371,7 @@ An immutable identifier fact belongs to one stable Arrangement or Reservation an
 - other-type label when needed; and
 - first evidence provenance.
 
-Correction appends a replacement/supersession fact rather than rewriting evidence. Search uses current and retained aliases where safe and labels superseded values.
+Correction appends a replacement/supersession fact rather than rewriting evidence. The replacement row sets `supersedes_id` to the prior current row; the prior row is stamped `superseded_at` by a database trigger on successor insert, not by application UPDATE. Current lookups use `superseded_at IS NULL` (equivalently: no successor references the row). Search uses current and retained aliases where safe and labels superseded values.
 
 Duplicate candidate lookup is Agency-scoped and access-safe. A strong match on another owner requires a short-lived create-anyway token bound to normalized fields and candidate fingerprint. Same-key replay is idempotent. Candidate-set change returns `conflict` and requires review again.
 

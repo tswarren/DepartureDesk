@@ -122,6 +122,7 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.activated
     supplier_arrangement.successor_created
     supplier_arrangement.successor_activated
+    supplier_arrangement.identifier_superseded
     supplier_arrangement.commitment_trigger_created
     supplier_arrangement.commitment_trigger_updated
     supplier_arrangement.commitment_trigger_removed
