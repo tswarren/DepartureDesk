@@ -64,6 +64,7 @@ Apply the shared non-draft freeze to:
 - Activate a version, then attempt `update!`, `update_columns`, `destroy`, and raw SQL UPDATE/DELETE against one representative row from each definition family; every attempt fails and values are unchanged.
 - Repeat against a superseded predecessor and an abandoned retained version.
 - INSERT referencing an activated or superseded version is rejected.
+- Concurrent INSERT while activation holds the version lock waits on a parent-version `FOR SHARE` and is rejected after activation commits.
 - A successor draft remains fully editable and independent.
 - Attempt to alter an activated contracted cost component, then open a Reservation confirmation commitment and assert the original activated rate.
 - Legal lifecycle transitions succeed; reversals and unsupported pairs fail in Rails and PostgreSQL.
