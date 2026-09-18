@@ -25,6 +25,39 @@ COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiS
 
 
 --
+-- Name: allow_supplier_identifier_supersession_stamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.allow_supplier_identifier_supersession_stamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF OLD.superseded_at IS NULL
+    AND NEW.superseded_at IS NOT NULL
+    AND NEW.id IS NOT DISTINCT FROM OLD.id
+    AND NEW.created_at IS NOT DISTINCT FROM OLD.created_at
+    AND NEW.updated_at IS NOT DISTINCT FROM OLD.updated_at
+    AND NEW.supersedes_id IS NOT DISTINCT FROM OLD.supersedes_id
+    AND NEW.agency_id IS NOT DISTINCT FROM OLD.agency_id
+    AND NEW.departure_id IS NOT DISTINCT FROM OLD.departure_id
+    AND NEW.supplier_arrangement_id IS NOT DISTINCT FROM OLD.supplier_arrangement_id
+    AND NEW.supplier_reservation_id IS NOT DISTINCT FROM OLD.supplier_reservation_id
+    AND NEW.supplier_id IS NOT DISTINCT FROM OLD.supplier_id
+    AND NEW.issuer_context IS NOT DISTINCT FROM OLD.issuer_context
+    AND NEW.identifier_type IS NOT DISTINCT FROM OLD.identifier_type
+    AND NEW.other_type_label IS NOT DISTINCT FROM OLD.other_type_label
+    AND NEW.display_value IS NOT DISTINCT FROM OLD.display_value
+    AND NEW.normalized_value IS NOT DISTINCT FROM OLD.normalized_value
+    AND NEW.first_supplier_confirmation_id IS NOT DISTINCT FROM OLD.first_supplier_confirmation_id
+  THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'supplier_issued_identifiers is append-only';
+END;
+$$;
+
+
+--
 -- Name: clear_supplier_cost_component_bases_for_kind(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -562,6 +595,39 @@ $$;
 
 
 --
+-- Name: reject_requested_reservation_scope_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_requested_reservation_scope_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  revision_status text;
+  revision_id uuid;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    revision_id := NEW.supplier_reservation_revision_id;
+  ELSE
+    revision_id := OLD.supplier_reservation_revision_id;
+  END IF;
+
+  SELECT status INTO revision_status
+  FROM supplier_reservation_revisions
+  WHERE id = revision_id;
+
+  IF revision_status IS DISTINCT FROM 'planned' THEN
+    RAISE EXCEPTION 'requested reservation scopes are immutable';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_service_occurrence_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -984,6 +1050,37 @@ BEGIN
     OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id THEN
     RAISE EXCEPTION 'supplier resource owner is immutable';
   END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: stamp_supplier_identifier_superseded_by_successor(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.stamp_supplier_identifier_superseded_by_successor() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.supersedes_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  UPDATE public.supplier_issued_identifiers
+  SET superseded_at = COALESCE(NEW.created_at, CURRENT_TIMESTAMP)
+  WHERE id = NEW.supersedes_id
+    AND agency_id = NEW.agency_id
+    AND departure_id = NEW.departure_id
+    AND supplier_arrangement_id = NEW.supplier_arrangement_id
+    AND supplier_id = NEW.supplier_id
+    AND supplier_reservation_id IS NOT DISTINCT FROM NEW.supplier_reservation_id
+    AND superseded_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'supplier identifier supersession target is missing, already superseded, or ownership differs';
+  END IF;
+
   RETURN NEW;
 END;
 $$;
@@ -2696,7 +2793,7 @@ CREATE TABLE public.supplier_issued_identifiers (
     CONSTRAINT supplier_identifiers_normalized_value CHECK (((btrim((normalized_value)::text) <> ''::text) AND (char_length((normalized_value)::text) <= 160))),
     CONSTRAINT supplier_identifiers_other_label_pair CHECK ((((identifier_type)::text = 'other'::text) = (other_type_label IS NOT NULL))),
     CONSTRAINT supplier_identifiers_other_type_label CHECK (((other_type_label IS NULL) OR ((btrim((other_type_label)::text) <> ''::text) AND (char_length((other_type_label)::text) <= 80)))),
-    CONSTRAINT supplier_identifiers_supersession_pair CHECK (((supersedes_id IS NULL) = (superseded_at IS NULL))),
+    CONSTRAINT supplier_identifiers_supersession_pair CHECK (((superseded_at IS NULL) OR (supersedes_id IS NULL))),
     CONSTRAINT supplier_identifiers_type CHECK (((identifier_type)::text = ANY ((ARRAY['group_number'::character varying, 'reservation_number'::character varying, 'confirmation_number'::character varying, 'policy_number'::character varying, 'other'::character varying])::text[])))
 );
 
@@ -5170,7 +5267,7 @@ CREATE UNIQUE INDEX index_reservation_scopes_on_position ON public.supplier_rese
 -- Name: index_reservation_scopes_on_target; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_reservation_scopes_on_target ON public.supplier_reservation_scopes USING btree (supplier_reservation_revision_id, target_kind, arrangement_item_id, service_occurrence_id, supplier_resource_id, capacity_pool_id);
+CREATE UNIQUE INDEX index_reservation_scopes_on_target ON public.supplier_reservation_scopes USING btree (supplier_reservation_revision_id, target_kind, arrangement_item_id, service_occurrence_id, supplier_resource_id, capacity_pool_id) NULLS NOT DISTINCT;
 
 
 --
@@ -7116,7 +7213,14 @@ CREATE TRIGGER supplier_issued_identifiers_reject_delete BEFORE DELETE ON public
 -- Name: supplier_issued_identifiers supplier_issued_identifiers_reject_update; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER supplier_issued_identifiers_reject_update BEFORE UPDATE ON public.supplier_issued_identifiers FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+CREATE TRIGGER supplier_issued_identifiers_reject_update BEFORE UPDATE ON public.supplier_issued_identifiers FOR EACH ROW EXECUTE FUNCTION public.allow_supplier_identifier_supersession_stamp();
+
+
+--
+-- Name: supplier_issued_identifiers supplier_issued_identifiers_stamp_superseded; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_issued_identifiers_stamp_superseded BEFORE INSERT ON public.supplier_issued_identifiers FOR EACH ROW WHEN ((new.supersedes_id IS NOT NULL)) EXECUTE FUNCTION public.stamp_supplier_identifier_superseded_by_successor();
 
 
 --
@@ -7166,6 +7270,13 @@ CREATE TRIGGER supplier_reservation_outcomes_reject_delete BEFORE DELETE ON publ
 --
 
 CREATE TRIGGER supplier_reservation_outcomes_reject_update BEFORE UPDATE ON public.supplier_reservation_event_scope_outcomes FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_reservation_scopes supplier_reservation_scopes_freeze_after_request; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_reservation_scopes_freeze_after_request BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_reservation_scopes FOR EACH ROW EXECUTE FUNCTION public.reject_requested_reservation_scope_mutation();
 
 
 --
@@ -9346,6 +9457,9 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260918040000'),
+('20260918030000'),
+('20260918020000'),
 ('20260918010000'),
 ('20260917232000'),
 ('20260917230500'),

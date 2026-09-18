@@ -105,6 +105,8 @@ An identifier records Supplier, issuer context, identifier type, display value, 
 
 Reuse on the same stable owner is allowed. A matching normalized Supplier/type/context identifier on another owner produces an access-safe duplicate warning and requires explicit confirmation to continue. Only an identifier type proven contractually unique may receive a hard uniqueness constraint.
 
+Correction appends a replacement row with `supersedes_id` pointing at the prior current identifier. Application code does not UPDATE prior identifier columns; a database trigger stamps `superseded_at` on the prior row when the successor inserts. Current means `superseded_at IS NULL`.
+
 ### Successor copying
 
 Creating a successor copies the current activated version into one independent editable draft. Stable Arrangement, Item, Occurrence, Resource, and Capacity Pool identities are reused where the concept continues. Version-specific definitions receive new identity and explicit predecessor lineage. Removed concepts are omitted; new concepts receive new stable identities.

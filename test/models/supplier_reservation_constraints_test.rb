@@ -75,6 +75,54 @@ class SupplierReservationConstraintsTest < ActiveSupport::TestCase
     assert_not outcome.destroy
   end
 
+  test "database rejects scope insert on a requested revision" do
+    reservation = CreateSupplierReservation.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement,
+      attributes: {
+        booking_supplier_id: @supplier.id,
+        supplier_arrangement_version_id: @version.id,
+        scopes: [ { target_kind: "arrangement", label: "Whole" } ]
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    @version.update!(status: "activated", activated_at: Time.current)
+    @arrangement.update!(status: "active", governing_version: @version)
+    @departure.update!(
+      status: "active",
+      departure_reference: "D-#{SecureRandom.random_number(900_000) + 100_000}",
+      first_activated_at: Time.current
+    )
+    RecordSupplierReservationRequest.new(
+      agency: @agency, actor: @actor, reservation: reservation,
+      attributes: { channel: "email", reference_note: "Sent" },
+      idempotency_key: SecureRandom.uuid
+    ).call
+    revision = reservation.revisions.where(status: "requested").sole
+
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierReservationScope.transaction(requires_new: true) do
+        SupplierReservationScope.insert_all!([
+          {
+            id: SecureRandom.uuid_v7,
+            agency_id: @agency.id,
+            departure_id: @departure.id,
+            supplier_arrangement_id: @arrangement.id,
+            supplier_arrangement_version_id: @version.id,
+            supplier_reservation_id: reservation.id,
+            supplier_reservation_revision_id: revision.id,
+            position: 2,
+            target_kind: "arrangement",
+            label: "Smuggled",
+            created_at: Time.current,
+            updated_at: Time.current
+          }
+        ])
+      end
+    end
+    assert_match(/requested reservation scopes are immutable/i, error.message)
+    assert_equal 1, revision.scopes.count
+  end
+
   private
 
   def base_scope

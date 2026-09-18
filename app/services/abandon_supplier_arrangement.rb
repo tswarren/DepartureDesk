@@ -36,6 +36,8 @@ class AbandonSupplierArrangement < AgencyCommand
       reason = normalize_reason(@reason)
       abandoned_at = Time.current
 
+      abandon_successor_planned_reservations!(arrangement, version, abandoned_at, reason) if successor
+
       arrangement.update!(status: "abandoned", abandoned_at: abandoned_at) if initial
       version.update!(status: "abandoned", abandoned_at: abandoned_at, abandoned_reason: reason)
       audit!(
@@ -54,5 +56,38 @@ class AbandonSupplierArrangement < AgencyCommand
     end
   rescue ActiveRecord::RecordInvalid => error
     command_error_from(error)
+  end
+
+  private
+
+  def abandon_successor_planned_reservations!(arrangement, version, abandoned_at, reason)
+    planned_rows = SupplierReservationRevision
+      .where(
+        agency_id: arrangement.agency_id,
+        supplier_arrangement_id: arrangement.id,
+        supplier_arrangement_version_id: version.id,
+        status: "planned"
+      ).order(:id).to_a
+    return if planned_rows.empty?
+
+    # Version is already locked. Lock Reservations before revisions (canonical graph).
+    reservation_ids = planned_rows.map(&:supplier_reservation_id).uniq.sort
+    reservations_by_id = arrangement.supplier_reservations
+      .where(id: reservation_ids).lock.order(:id).index_by(&:id)
+
+    planned_rows.each do |unlocked_revision|
+      reservation = reservations_by_id.fetch(unlocked_revision.supplier_reservation_id)
+      revision = reservation.revisions.lock.find(unlocked_revision.id)
+      next unless revision.planned?
+
+      revision.update!(
+        status: "abandoned",
+        abandoned_at: abandoned_at,
+        abandoned_reason: reason
+      )
+      RebuildSupplierReservationProjectionAlreadyLocked.new(
+        agency: @agency, reservation: reservation
+      ).call
+    end
   end
 end
