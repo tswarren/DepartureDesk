@@ -313,8 +313,10 @@ class RecordSupplierReservationResponse < AgencyCommand
     if evidence_on.blank? || channel.blank? || note.blank?
       raise Error.new("Enter complete Supplier confirmation evidence.", code: :invalid)
     end
-    identifier = (@attributes[:identifier] || {}).to_h
-    if identifier.blank? && reason.blank?
+    identifier_attrs = (@attributes[:identifier] || {}).to_h.with_indifferent_access
+    identifier_present = %i[identifier_type display_value issuer_context other_type_label]
+      .any? { |key| identifier_attrs[key].to_s.strip.present? }
+    if !identifier_present && reason.blank?
       raise Error.new(
         "Enter a Supplier identifier or explain why this is confirmed without one.", code: :invalid
       )
@@ -339,16 +341,16 @@ class RecordSupplierReservationResponse < AgencyCommand
 
   def resolve_identifier!(confirmation, arrangement, reservation, booking_supplier)
     attrs = (@attributes[:identifier] || {}).to_h.with_indifferent_access
-    return if attrs.blank?
-
     type = attrs[:identifier_type].to_s.strip
+    display = attrs[:display_value].to_s.strip
+    issuer = attrs[:issuer_context].to_s.strip
+    other_label = attrs[:other_type_label].to_s.strip.presence
+    return if type.blank? && display.blank? && issuer.blank? && other_label.blank?
+
     unless SupplierIssuedIdentifier::IDENTIFIER_TYPES.include?(type)
       raise Error.new("Choose a valid Supplier identifier type.", code: :invalid)
     end
-    display = attrs[:display_value].to_s.strip
     normalized = display.downcase
-    issuer = attrs[:issuer_context].to_s.strip
-    other_label = attrs[:other_type_label].to_s.strip.presence
     if display.blank? || issuer.blank? || ((type == "other") != other_label.present?)
       raise Error.new("Enter a complete qualified Supplier identifier.", code: :invalid)
     end

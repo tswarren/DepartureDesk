@@ -54,9 +54,12 @@ class SupplierArrangementActivationsController < ApplicationController
   def keyed_commitment_params(key)
     raw = params[key]
     return {} if raw.blank?
-    return raw.permit!.to_h if raw.respond_to?(:permit!)
+    return raw.to_h unless raw.respond_to?(:permit)
 
-    raw.to_h
+    allowed = @supplier_arrangement_version.supplier_commitment_trigger_definitions
+      .pluck(:id)
+      .flat_map { |id| [ id.to_s, id ] }
+    raw.permit(*allowed).to_h
   end
 
   def load_preview

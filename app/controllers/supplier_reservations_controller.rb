@@ -341,8 +341,14 @@ class SupplierReservationsController < ApplicationController
     %i[confirmed_amounts_minor_units confirmed_quantities coverage_scope_ids].each do |key|
       raw = params[key].presence || params.dig(:response_event, key)
       next if raw.blank?
+      next unless raw.respond_to?(:permit)
 
-      permitted[key] = raw.permit!.to_h if raw.respond_to?(:permit!)
+      version = @supplier_reservation.revisions.where(status: "requested")
+        .order(revision_number: :desc).first&.supplier_arrangement_version
+      allowed = version&.supplier_commitment_trigger_definitions
+        &.pluck(:id)
+        &.flat_map { |id| [ id.to_s, id ] } || []
+      permitted[key] = raw.permit(*allowed).to_h
     end
     if params[:capacity_consequences].present?
       raw_consequences = params[:capacity_consequences]
