@@ -125,6 +125,50 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
     assert_equal :invalid_state, error.code
   end
 
+  test "partial response replay succeeds while other scopes remain pending" do
+    revision = @reservation.revisions.where(status: "requested").sole
+    first_scope, = revision.scopes.order(:position, :id).to_a
+    key = SecureRandom.uuid
+    attrs = {
+      scope_ids: [ first_scope.id ],
+      channel: "portal",
+      reference_note: "Partial confirm",
+      outcomes: { first_scope.id => { outcome_kind: "confirmed" } },
+      evidence: {
+        evidence_kind: "supplier_confirmation",
+        evidence_on: Date.current,
+        channel: "portal",
+        reference_note: "Partial confirm",
+        confirmed_without_identifier_reason: "Supplier will issue later"
+      }
+    }
+
+    result = RecordSupplierReservationResponse.new(
+      agency: @agency, actor: @actor, reservation: @reservation,
+      attributes: attrs, idempotency_key: key
+    ).call
+    assert_equal :created, result.status
+    assert_equal "partially_confirmed", @reservation.projection.reload.state
+
+    assert_no_changes -> { SupplierReservationEvent.count } do
+      replay = RecordSupplierReservationResponse.new(
+        agency: @agency, actor: @actor, reservation: @reservation,
+        attributes: attrs, idempotency_key: key
+      ).call
+      assert_equal :replayed, replay.status
+      assert_equal result.record.id, replay.record.id
+    end
+  end
+
+  test "mutation graph locks version before reservation and revision" do
+    source = File.read(Rails.root.join("app/services/reservation_command_support.rb"))
+    version_idx = source.index("arrangement.versions.lock.find")
+    reservation_idx = source.index("@agency.supplier_reservations.lock.find(unlocked.id)")
+    revision_idx = source.index("reservation.revisions.lock.find_by")
+    assert version_idx < reservation_idx
+    assert reservation_idx < revision_idx
+  end
+
   private
 
   def activate_version_directly

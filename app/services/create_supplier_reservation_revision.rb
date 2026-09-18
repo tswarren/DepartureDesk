@@ -15,8 +15,15 @@ class CreateSupplierReservationRevision < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      booking_supplier, departure, arrangement, _version, reservation, _revision =
-        lock_reservation_mutation_graph!(@reservation)
+      booking_supplier = lock_suppliers_in_uuid_order!(
+        @agency.supplier_reservations.find(@reservation.id).booking_supplier_id
+      ).first
+      unlocked = @agency.supplier_reservations.find(@reservation.id)
+      departure = lock_departure_for!(unlocked.departure_id)
+      arrangement = lock_arrangement_for!(unlocked.supplier_arrangement_id)
+      # Version before Reservation before source revision.
+      version = resolve_target_version!(arrangement)
+      reservation = @agency.supplier_reservations.lock.find(unlocked.id)
       if reservation.revisions.where(status: "planned").exists?
         raise Error.new("Abandon or request the current planned revision first.", code: :invalid_state)
       end
@@ -24,7 +31,6 @@ class CreateSupplierReservationRevision < AgencyCommand
       source = reservation.revisions.lock.find(
         @attributes[:source_revision_id] || reservation.revisions.order(:revision_number).last.id
       )
-      version = resolve_target_version!(arrangement)
       ensure_reservation_planning_state!(departure, arrangement, version, booking_supplier)
       scopes = if @attributes[:scopes].present?
         normalize_scopes!(arrangement, version, @attributes[:scopes])

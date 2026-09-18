@@ -15,15 +15,13 @@ class RecordSupplierReservationRequest < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      _booking_supplier, departure, arrangement, _version, reservation, _revision =
-        lock_reservation_mutation_graph!(@reservation)
-      revision = reservation.revisions.lock.where(status: "planned").order(revision_number: :desc).first
+      _booking_supplier, departure, arrangement, version, reservation, revision =
+        lock_reservation_mutation_graph!(@reservation, revision_status: "planned")
 
       if revision.nil?
         return replay_request_without_planned_revision!(key, reservation)
       end
 
-      version = arrangement.versions.lock.find(revision.supplier_arrangement_version_id)
       scopes = revision.scopes.lock.order(:position, :id).to_a
       validate_request_state!(departure, arrangement, version, scopes)
       payload = request_payload(reservation, revision, scopes)

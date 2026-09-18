@@ -5,8 +5,8 @@ module ReservationCommandSupport
 
   private
 
-  # Canonical order after Agency: Suppliers → Departure → Arrangement → version → Reservation.
-  # Returns [booking_supplier, departure, arrangement, version, reservation]
+  # Canonical order after Agency: Suppliers → Departure → Arrangement → version → Reservation → revision.
+  # Returns [booking_supplier, departure, arrangement, version, reservation, revision]
   def lock_reservation_mutation_graph!(reservation_ref, revision_status: nil)
     unlocked = @agency.supplier_reservations.find(
       reservation_ref.respond_to?(:id) ? reservation_ref.id : reservation_ref
@@ -14,15 +14,21 @@ module ReservationCommandSupport
     booking_supplier = lock_suppliers_in_uuid_order!(unlocked.booking_supplier_id).first
     departure = lock_departure_for!(unlocked.departure_id)
     arrangement = lock_arrangement_for!(unlocked.supplier_arrangement_id)
-    reservation = @agency.supplier_reservations.lock.find(unlocked.id)
 
     revision = nil
     version = nil
+    unlocked_revision = nil
     if revision_status
-      revision = reservation.revisions.lock.where(status: revision_status).order(revision_number: :desc).first
-      if revision
-        version = arrangement.versions.lock.find(revision.supplier_arrangement_version_id)
+      unlocked_revision = unlocked.revisions.where(status: revision_status).order(revision_number: :desc).first
+      if unlocked_revision
+        version = arrangement.versions.lock.find(unlocked_revision.supplier_arrangement_version_id)
       end
+    end
+
+    reservation = @agency.supplier_reservations.lock.find(unlocked.id)
+    if unlocked_revision
+      revision = reservation.revisions.lock.find_by(id: unlocked_revision.id, status: revision_status)
+      version = nil if revision.nil?
     end
 
     [ booking_supplier, departure, arrangement, version, reservation, revision ]

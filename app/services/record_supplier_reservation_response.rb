@@ -21,18 +21,21 @@ class RecordSupplierReservationResponse < AgencyCommand
 
       validate_response_state!(departure, arrangement, version)
 
+      # Digest-before-pending: replay must succeed even when some submitted scopes
+      # were already resolved by the original command.
+      if (replay = replay_response_if_claimed!(key, reservation, revision))
+        return replay
+      end
+
       latest = latest_outcomes_by_scope(revision)
       pending = revision.scopes.lock.order(:position, :id).select { |scope| latest[scope.id]&.requested? }
       if pending.empty?
-        return replay_response_without_pending!(key, reservation, revision)
+        raise Error.new("There are no pending requested scopes to respond to.", code: :invalid_state)
       end
 
       scopes = selected_pending_scopes_from(pending)
       outcomes = normalize_outcomes!(scopes)
       payload = response_payload(reservation, revision, outcomes)
-      if (replay = replay_reservation_idempotency(key, payload, SupplierReservationEvent))
-        return replay
-      end
 
       record_response_already_locked!(
         booking_supplier: booking_supplier,
@@ -52,32 +55,33 @@ class RecordSupplierReservationResponse < AgencyCommand
     command_error_from(error)
   end
 
-  def replay_response_without_pending!(key, reservation, revision)
+  def replay_response_if_claimed!(key, reservation, revision)
     lock_idempotency_slot!(self.class.name, key)
     existing = @agency.agency_command_idempotency_keys.where(
       command_name: self.class.name, idempotency_key: key
     ).lock.first
-    raise Error.new("There are no pending requested scopes to respond to.", code: :invalid_state) unless existing
+    return nil unless existing
 
-    event = SupplierReservationEvent.find(existing.result_record_id)
-    scopes = event.scope_outcomes.includes(:supplier_reservation_scope).map(&:supplier_reservation_scope)
-    outcomes = event.scope_outcomes.map do |outcome|
-      {
-        scope: outcome.supplier_reservation_scope,
-        outcome_kind: outcome.outcome_kind,
-        quantity: outcome.quantity,
-        quantity_basis: outcome.quantity_basis,
-        supplier_note: outcome.supplier_note,
-        decline_reason: outcome.decline_reason
-      }
-    end
-    # Digest must match the original submission attributes, not persisted outcome snapshot alone.
-    payload = response_payload(reservation, revision, normalize_outcomes!(scopes))
+    scopes = scopes_for_submitted_response!(revision)
+    outcomes = normalize_outcomes!(scopes)
+    payload = response_payload(reservation, revision, outcomes)
     unless existing.payload_digest == payload_digest(payload)
       raise Error.new("That idempotency key was already used for different input.", code: :conflict)
     end
 
-    Result.new(status: :replayed, record: event)
+    Result.new(status: :replayed, record: SupplierReservationEvent.find(existing.result_record_id))
+  end
+
+  def scopes_for_submitted_response!(revision)
+    all_scopes = revision.scopes.order(:position, :id).to_a
+    requested_ids = Array(@attributes[:scope_ids]).presence
+    return all_scopes if requested_ids.blank?
+
+    selected = all_scopes.select { |scope| requested_ids.map(&:to_s).include?(scope.id.to_s) }
+    if selected.size != requested_ids.map(&:to_s).uniq.size
+      raise Error.new("Choose only scopes that belong to this revision.", code: :invalid)
+    end
+    selected
   end
 
   # Caller must already hold the Reservation mutation lock graph and requested revision.
