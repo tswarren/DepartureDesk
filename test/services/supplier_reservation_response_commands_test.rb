@@ -176,7 +176,7 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
           },
           capacity_consequences: [ {
             capacity_pool_id: SecureRandom.uuid,
-            event_type: "hold",
+            event_type: "increased",
             quantity: 1,
             effective_on: Date.current,
             supplier_reservation_scope_id: other.id
