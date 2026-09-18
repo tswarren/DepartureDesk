@@ -45,13 +45,14 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m2a-departure-core.md`](planning/m2a-departure-core.md) | Shipped M2A slice. |
 | [`planning/m2b-departed-lifecycle.md`](planning/m2b-departed-lifecycle.md) | Shipped M2B slice. |
 | [`planning/m2c-acceptance-and-hardening.md`](planning/m2c-acceptance-and-hardening.md) | Shipped M2C proof and hardening slice. |
-| [`planning/m3-supplier-planning.md`](planning/m3-supplier-planning.md) | Accepted M3 parent, amended through M3D authority. M3A–M3D, M3D.0, and M3D.7 shipped. Not implementation authority for M3E–M3F. |
+| [`planning/m3-supplier-planning.md`](planning/m3-supplier-planning.md) | Accepted M3 parent, amended through M3D authority. M3A–M3D, M3D.0, M3D.7, and M3D.8 shipped. Not implementation authority for M3E–M3F. |
 | [`planning/m3a-draft-arrangement-structure.md`](planning/m3a-draft-arrangement-structure.md) | Shipped M3A draft Arrangement structure slice. |
 | [`planning/m3b-supplier-capacity.md`](planning/m3b-supplier-capacity.md) | Shipped M3B Supplier capacity slice. Draft configuration and the capacity engine are shipped; Arrangement activation and Staff event UI ship with M3D. |
 | [`planning/m3c-cost-terms-and-forecasts.md`](planning/m3c-cost-terms-and-forecasts.md) | Shipped M3C Supplier cost terms and forecasts slice. Draft cost sources, definitions, components, assumptions, and derived forecasts are shipped; Arrangement activation and effective contracted terms ship with M3D. |
 | [`planning/m3d0-planning-workspace-compression.md`](planning/m3d0-planning-workspace-compression.md) | Shipped M3D.0 Supplier-planning workspace compression over M3A–M3C workflows. No Arrangement activation or other M3D domain records. |
 | [`planning/m3d-activation-reservations-confirmations.md`](planning/m3d-activation-reservations-confirmations.md) | Shipped M3D Arrangement activation, Reservations, and confirmations slice. |
 | [`planning/m3d7-activated-definition-immutability.md`](planning/m3d7-activated-definition-immutability.md) | Shipped M3D.7 post-ship remediation: freeze exact-version definition graphs after leaving draft (Rails and PostgreSQL). |
+| [`planning/m3d8-activation-reservation-product-quality.md`](planning/m3d8-activation-reservation-product-quality.md) | Shipped M3D.8 post-ship remediation: canonical forms, error recovery, progressive disclosure, exclusive composers, bounded Reservation lists/histories, and table overflow. |
 | [`planning/drafts/README.md`](planning/drafts/README.md) | Short index of active planning drafts. Currently empty after M3D promotion. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |

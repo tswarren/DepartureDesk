@@ -572,4 +572,28 @@ module ApplicationHelper
 
     tag.p(form.object.errors[attribute].to_sentence, class: "dd-field-error", id: "#{form.object.model_name.param_key}_#{attribute}_error")
   end
+
+  def dd_tag_field_options(error_form, attribute, **options)
+    options = options.dup
+    options[:class] = [ options[:class], "dd-field" ].compact.join(" ")
+    return options if error_form.nil?
+
+    field_id = options[:id].presence || "#{error_form.model_name.param_key}_#{attribute}"
+    error_id = "#{field_id}_error"
+    has_error = error_form.errors[attribute].any?
+    described_by = [ options.delete(:aria_describedby_extra), (error_id if has_error) ].compact.join(" ").presence
+    options[:id] ||= field_id
+    options[:aria] = (options[:aria] || {}).merge(
+      invalid: (has_error || nil),
+      describedby: described_by
+    ).compact
+    options
+  end
+
+  def dd_tag_field_error(error_form, attribute, field_id: nil)
+    return if error_form.nil? || error_form.errors[attribute].blank?
+
+    id = field_id || "#{error_form.model_name.param_key}_#{attribute}_error"
+    tag.p(error_form.errors[attribute].to_sentence, class: "dd-field-error", id: id)
+  end
 end

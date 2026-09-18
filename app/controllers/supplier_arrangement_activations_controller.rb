@@ -38,14 +38,22 @@ class SupplierArrangementActivationsController < ApplicationController
     @idempotency_key = params[:idempotency_key]
     @acknowledgement_token = error.token
     @duplicate_candidates = error.candidates
-    flash.now[:alert] = error.message
+    @command_form = CommandForm.new(param_key: "confirmation")
+    @command_form.add_message(:base, error.message)
+    if params.dig(:identifier, :display_value).present?
+      @command_form.add_message(:display_value, error.message)
+    end
     render :show, status: :unprocessable_entity
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
     load_preview
     @idempotency_key = params[:idempotency_key]
-    flash.now[:alert] = error.message
+    @command_form = CommandForm.new(param_key: "confirmation")
+    @command_form.add_command_error(error)
+    if error.message.to_s.downcase.include?("identifier")
+      @command_form.add_message(:display_value, error.message)
+    end
     render :show, status: :unprocessable_entity
   end
 

@@ -11,12 +11,7 @@
   </div>
 </header>
 
-<% if flash.now[:alert].present? %>
-  <div class="dd-error-summary" role="alert" tabindex="-1">
-    <h2>Reservation could not be planned</h2>
-    <p><%= flash.now[:alert] %></p>
-  </div>
-<% end %>
+<%= render "shared/form_errors", object: @command_form if @command_form&.errors&.any? %>
 
 <article class="dd-panel">
   <header class="dd-panel-header">

@@ -1,0 +1,87 @@
+<% target_kind = scope["target_kind"].presence %>
+<% index_token = index %>
+<section class="dd-panel" data-reservation-scope-fields-target="row">
+  <div class="dd-panel-body">
+    <div class="dd-field-group">
+      <%= label_tag "supplier_reservation_scopes_#{index_token}_target_kind", "Scope target", class: "dd-label" %>
+      <%= select_tag "supplier_reservation[scopes][#{index_token}][target_kind]",
+        options_for_select([
+          ["Choose target", ""],
+          ["Whole Arrangement", "arrangement"],
+          ["Item", "item"],
+          ["Occurrence", "occurrence"],
+          ["Resource", "resource"],
+          ["Capacity Pool", "capacity_pool"]
+        ], target_kind),
+        **dd_tag_field_options(error_form, :"scopes_#{index_token}_target_kind",
+          id: "supplier_reservation_scopes_#{index_token}_target_kind",
+          data: { scope_kind: true, action: "change->reservation-scope-fields#update" }) %>
+      <%= dd_tag_field_error(error_form, :"scopes_#{index_token}_target_kind") %>
+    </div>
+
+    <div class="dd-field-group" data-scope-for="item occurrence resource capacity_pool" <%= "hidden".html_safe unless %w[item occurrence resource capacity_pool].include?(target_kind) %>>
+      <%= label_tag "supplier_reservation_scopes_#{index_token}_arrangement_item_id", "Item target", class: "dd-label" %>
+      <%= select_tag "supplier_reservation[scopes][#{index_token}][arrangement_item_id]",
+        options_for_select([["Choose Item", ""]] + @item_definitions.map { |definition| [definition.name, definition.arrangement_item_id] }, scope["arrangement_item_id"]),
+        **dd_tag_field_options(error_form, :"scopes_#{index_token}_arrangement_item_id",
+          id: "supplier_reservation_scopes_#{index_token}_arrangement_item_id",
+          disabled: !%w[item occurrence resource capacity_pool].include?(target_kind)) %>
+    </div>
+
+    <div class="dd-field-group" data-scope-for="occurrence" <%= "hidden".html_safe unless target_kind == "occurrence" %>>
+      <%= label_tag "supplier_reservation_scopes_#{index_token}_service_occurrence_id", "Occurrence target", class: "dd-label" %>
+      <%= select_tag "supplier_reservation[scopes][#{index_token}][service_occurrence_id]",
+        options_for_select([["Choose Occurrence", ""]] + @occurrence_definitions.map { |definition| [definition.name, definition.service_occurrence_id] }, scope["service_occurrence_id"]),
+        **dd_tag_field_options(error_form, :"scopes_#{index_token}_service_occurrence_id",
+          id: "supplier_reservation_scopes_#{index_token}_service_occurrence_id",
+          disabled: target_kind != "occurrence") %>
+    </div>
+
+    <div class="dd-field-group" data-scope-for="resource" <%= "hidden".html_safe unless target_kind == "resource" %>>
+      <%= label_tag "supplier_reservation_scopes_#{index_token}_supplier_resource_id", "Resource target", class: "dd-label" %>
+      <%= select_tag "supplier_reservation[scopes][#{index_token}][supplier_resource_id]",
+        options_for_select([["Choose Resource", ""]] + @resource_definitions.map { |definition| [definition.name, definition.supplier_resource_id] }, scope["supplier_resource_id"]),
+        **dd_tag_field_options(error_form, :"scopes_#{index_token}_supplier_resource_id",
+          id: "supplier_reservation_scopes_#{index_token}_supplier_resource_id",
+          disabled: target_kind != "resource") %>
+    </div>
+
+    <div class="dd-field-group" data-scope-for="capacity_pool" <%= "hidden".html_safe unless target_kind == "capacity_pool" %>>
+      <%= label_tag "supplier_reservation_scopes_#{index_token}_capacity_pool_id", "Capacity Pool target", class: "dd-label" %>
+      <%= select_tag "supplier_reservation[scopes][#{index_token}][capacity_pool_id]",
+        options_for_select([["Choose Pool", ""]] + @capacity_pool_definitions.map { |definition| [definition.label, definition.capacity_pool_id] }, scope["capacity_pool_id"]),
+        **dd_tag_field_options(error_form, :"scopes_#{index_token}_capacity_pool_id",
+          id: "supplier_reservation_scopes_#{index_token}_capacity_pool_id",
+          disabled: target_kind != "capacity_pool") %>
+    </div>
+
+    <div class="dd-field-group" data-scope-for="arrangement item occurrence resource capacity_pool" <%= "hidden".html_safe if target_kind.blank? %>>
+      <%= label_tag "supplier_reservation_scopes_#{index_token}_label", "Scope note", class: "dd-label" %>
+      <%= text_field_tag "supplier_reservation[scopes][#{index_token}][label]", scope["label"],
+        **dd_tag_field_options(error_form, :"scopes_#{index_token}_label",
+          id: "supplier_reservation_scopes_#{index_token}_label", maxlength: 160,
+          disabled: target_kind.blank?) %>
+    </div>
+
+    <div class="dd-field-group" data-scope-for="arrangement item occurrence resource capacity_pool" <%= "hidden".html_safe if target_kind.blank? %>>
+      <%= label_tag "supplier_reservation_scopes_#{index_token}_requested_quantity", "Requested quantity", class: "dd-label" %>
+      <%= number_field_tag "supplier_reservation[scopes][#{index_token}][requested_quantity]", scope["requested_quantity"],
+        **dd_tag_field_options(error_form, :"scopes_#{index_token}_requested_quantity",
+          id: "supplier_reservation_scopes_#{index_token}_requested_quantity", min: 1, step: 1,
+          disabled: target_kind.blank?) %>
+    </div>
+
+    <div class="dd-field-group" data-scope-for="arrangement item occurrence resource capacity_pool" <%= "hidden".html_safe if target_kind.blank? %>>
+      <%= label_tag "supplier_reservation_scopes_#{index_token}_quantity_basis", "Quantity basis", class: "dd-label" %>
+      <%= select_tag "supplier_reservation[scopes][#{index_token}][quantity_basis]",
+        options_for_select([["No quantity basis", ""]] + SupplierReservationScope::QUANTITY_BASES.map { |basis| [basis.humanize, basis] }, scope["quantity_basis"]),
+        **dd_tag_field_options(error_form, :"scopes_#{index_token}_quantity_basis",
+          id: "supplier_reservation_scopes_#{index_token}_quantity_basis",
+          disabled: target_kind.blank?) %>
+    </div>
+
+    <div class="dd-page-actions">
+      <button type="button" class="dd-button dd-button--quiet" data-action="reservation-scope-fields#remove">Remove scope</button>
+    </div>
+  </div>
+</section>

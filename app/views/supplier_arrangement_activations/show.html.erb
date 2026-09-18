@@ -13,12 +13,7 @@
   </div>
 </header>
 
-<% if flash.now[:alert].present? %>
-  <div id="form-error-summary" class="dd-error-summary" role="alert" tabindex="-1" data-controller="form-error-summary" data-form-error-summary-focus-value="true">
-    <h2>Activation could not be completed</h2>
-    <p><%= flash.now[:alert] %></p>
-  </div>
-<% end %>
+<%= render "shared/form_errors", object: @command_form if @command_form&.errors&.any? %>
 
 <article class="dd-panel">
   <header class="dd-panel-header">
@@ -52,7 +47,8 @@
   <% end %>
 
   <% if @acknowledgement_token.present? %>
-    <div class="dd-notice" role="status">
+    <div class="dd-alert dd-alert--warning" role="status">
+      <p class="dd-alert-title">Matching Supplier identifiers</p>
       <p>Review the matching Supplier identifiers, then activate again to create this Arrangement identifier anyway.</p>
       <ul>
         <% Array(@duplicate_candidates).each do |candidate| %>
@@ -94,73 +90,80 @@
       <% arrangement_triggers = @triggers.select { |trigger| trigger.trigger_kind == "arrangement_confirmation" } %>
       <% if arrangement_triggers.any? %>
         <h3 class="dd-panel-title">Commitment consequence preview</h3>
-        <table class="dd-table">
-          <thead>
-            <tr>
-              <th scope="col">Trigger</th>
-              <th scope="col">Committed Supplier</th>
-              <th scope="col">Authority</th>
-              <th scope="col">Scope</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% arrangement_triggers.each do |trigger| %>
+        <div class="dd-table-wrap">
+          <table class="dd-table">
+            <thead>
               <tr>
-                <td><%= trigger.description.presence || trigger.authority_shape.humanize %></td>
-                <td><%= supplier_option_label(trigger.committed_supplier) %></td>
-                <td><%= trigger.authority_shape.humanize %></td>
-                <td>
-                  <% if trigger.arrangement_item_id.present? %>
-                    Item
-                  <% elsif trigger.service_occurrence_id.present? %>
-                    Occurrence
-                  <% elsif trigger.supplier_resource_id.present? %>
-                    Resource
-                  <% elsif trigger.capacity_pool_id.present? %>
-                    Capacity Pool
-                  <% else %>
-                    Arrangement-wide
-                  <% end %>
-                </td>
+                <th scope="col">Trigger</th>
+                <th scope="col">Committed Supplier</th>
+                <th scope="col">Authority</th>
+                <th scope="col">Scope</th>
               </tr>
-            <% end %>
-          </tbody>
-        </table>
-      <% end %>
-
-      <div class="dd-field">
-        <%= check_box_tag :cost_source_coverage_acknowledged, "1", params[:cost_source_coverage_acknowledged] == "1", required: true %>
-        <%= label_tag :cost_source_coverage_acknowledged, "I confirm the entered cost-source list is complete." %>
-      </div>
-      <% if @provisional_selections.any? %>
-        <div class="dd-field">
-          <p><strong>Provisional estimates:</strong> <%= @provisional_selections.map { |source, _definition| source.label }.to_sentence %></p>
-          <%= check_box_tag :provisional_costs_acknowledged, "1", params[:provisional_costs_acknowledged] == "1", required: true %>
-          <%= label_tag :provisional_costs_acknowledged, "I acknowledge these listed provisional estimate sources." %>
+            </thead>
+            <tbody>
+              <% arrangement_triggers.each do |trigger| %>
+                <tr>
+                  <td><%= trigger.description.presence || trigger.authority_shape.humanize %></td>
+                  <td><%= supplier_option_label(trigger.committed_supplier) %></td>
+                  <td><%= trigger.authority_shape.humanize %></td>
+                  <td>
+                    <% if trigger.arrangement_item_id.present? %>
+                      Item
+                    <% elsif trigger.service_occurrence_id.present? %>
+                      Occurrence
+                    <% elsif trigger.supplier_resource_id.present? %>
+                      Resource
+                    <% elsif trigger.capacity_pool_id.present? %>
+                      Capacity Pool
+                    <% else %>
+                      Arrangement-wide
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
         </div>
       <% end %>
-      <div class="dd-field">
+
+      <div class="dd-field-group">
+        <%= check_box_tag :cost_source_coverage_acknowledged, "1", params[:cost_source_coverage_acknowledged] == "1",
+          id: "activation_cost_source_coverage_acknowledged", required: true %>
+        <%= label_tag :cost_source_coverage_acknowledged, "I confirm the entered cost-source list is complete.", class: "dd-label" %>
+      </div>
+      <% if @provisional_selections.any? %>
+        <div class="dd-field-group">
+          <p><strong>Provisional estimates:</strong> <%= @provisional_selections.map { |source, _definition| source.label }.to_sentence %></p>
+          <%= check_box_tag :provisional_costs_acknowledged, "1", params[:provisional_costs_acknowledged] == "1", required: true %>
+          <%= label_tag :provisional_costs_acknowledged, "I acknowledge these listed provisional estimate sources.", class: "dd-label" %>
+        </div>
+      <% end %>
+      <div class="dd-field-group">
         <%= check_box_tag :commitment_trigger_coverage_acknowledged, "1", params[:commitment_trigger_coverage_acknowledged] == "1", required: true %>
-        <%= label_tag :commitment_trigger_coverage_acknowledged, "I confirm known confirmation-triggered commitments are covered by the listed triggers." %>
+        <%= label_tag :commitment_trigger_coverage_acknowledged, "I confirm known confirmation-triggered commitments are covered by the listed triggers.", class: "dd-label" %>
       </div>
       <% arrangement_triggers.select { |trigger|
            %w[confirmed_quantity contracted_unit_rate_times_confirmed_quantity].include?(trigger.authority_shape)
          }.each do |trigger| %>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <%= label_tag "confirmed_quantities_#{trigger.id}",
-            "Supplier-confirmed quantity · #{trigger.description.presence || trigger.authority_shape.humanize}" %>
+            "Supplier-confirmed quantity · #{trigger.description.presence || trigger.authority_shape.humanize}",
+            class: "dd-label" %>
           <%= number_field_tag "confirmed_quantities[#{trigger.id}]",
             params.dig(:confirmed_quantities, trigger.id.to_s),
-            min: 1, step: 1, class: "dd-input", required: true %>
+            **dd_tag_field_options(@command_form, :"confirmed_quantities_#{trigger.id}",
+              id: "confirmed_quantities_#{trigger.id}", min: 1, step: 1, required: true) %>
         </div>
       <% end %>
       <% arrangement_triggers.select { |trigger| trigger.authority_shape == "confirmed_amount" }.each do |trigger| %>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <%= label_tag "confirmed_amounts_minor_units_#{trigger.id}",
-            "Supplier-confirmed amount in minor units · #{trigger.description.presence || trigger.authority_shape.humanize}" %>
+            "Supplier-confirmed amount in minor units · #{trigger.description.presence || trigger.authority_shape.humanize}",
+            class: "dd-label" %>
           <%= number_field_tag "confirmed_amounts_minor_units[#{trigger.id}]",
             params.dig(:confirmed_amounts_minor_units, trigger.id.to_s),
-            min: 0, step: 1, class: "dd-input", required: true %>
+            **dd_tag_field_options(@command_form, :"confirmed_amounts_minor_units_#{trigger.id}",
+              id: "confirmed_amounts_minor_units_#{trigger.id}", min: 0, step: 1, required: true) %>
           <p class="dd-field-hint">Currency: <%= @departure.operating_currency %>.</p>
         </div>
       <% end %>
@@ -176,59 +179,71 @@
     </header>
     <div class="dd-panel-body">
       <% if @existing_confirmations.any? %>
-        <div class="dd-field">
-          <%= label_tag :existing_confirmation_id, "Existing compatible evidence" %>
+        <div class="dd-field-group">
+          <%= label_tag :existing_confirmation_id, "Existing compatible evidence", class: "dd-label" %>
           <%= select_tag :existing_confirmation_id,
             options_for_select([["Create new evidence", ""]] + @existing_confirmations.map { |entry| ["#{entry.evidence_on}: #{entry.reference_note}", entry.id] }, params[:existing_confirmation_id]),
-            class: "dd-select" %>
+            **dd_tag_field_options(@command_form, :existing_confirmation_id, id: "activation_existing_confirmation_id") %>
         </div>
       <% end %>
-      <div class="dd-field">
-        <%= label_tag "confirmation_evidence_kind", "Evidence kind" %>
+      <div class="dd-field-group">
+        <%= label_tag "confirmation_evidence_kind", "Evidence kind", class: "dd-label" %>
         <%= select_tag "confirmation[evidence_kind]",
           options_for_select(SupplierConfirmation::EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] }, params.dig(:confirmation, :evidence_kind)),
-          include_blank: "Choose evidence", class: "dd-select" %>
+          **dd_tag_field_options(@command_form, :evidence_kind, id: "confirmation_evidence_kind", include_blank: "Choose evidence") %>
+        <%= dd_tag_field_error(@command_form, :evidence_kind) %>
       </div>
-      <div class="dd-field">
-        <%= label_tag "confirmation_other_evidence_label", "Other evidence label" %>
-        <%= text_field_tag "confirmation[other_evidence_label]", params.dig(:confirmation, :other_evidence_label), class: "dd-input", maxlength: 80 %>
+      <div class="dd-field-group">
+        <%= label_tag "confirmation_other_evidence_label", "Other evidence label", class: "dd-label" %>
+        <%= text_field_tag "confirmation[other_evidence_label]", params.dig(:confirmation, :other_evidence_label),
+          **dd_tag_field_options(@command_form, :other_evidence_label, id: "confirmation_other_evidence_label", maxlength: 80) %>
       </div>
-      <div class="dd-field">
-        <%= label_tag "confirmation_evidence_on", "Evidence date" %>
-        <%= date_field_tag "confirmation[evidence_on]", params.dig(:confirmation, :evidence_on), class: "dd-input" %>
+      <div class="dd-field-group">
+        <%= label_tag "confirmation_evidence_on", "Evidence date", class: "dd-label" %>
+        <%= date_field_tag "confirmation[evidence_on]", params.dig(:confirmation, :evidence_on),
+          **dd_tag_field_options(@command_form, :evidence_on, id: "confirmation_evidence_on") %>
+        <%= dd_tag_field_error(@command_form, :evidence_on) %>
       </div>
-      <div class="dd-field">
-        <%= label_tag "confirmation_channel", "Channel" %>
-        <%= text_field_tag "confirmation[channel]", params.dig(:confirmation, :channel), class: "dd-input", maxlength: 80 %>
+      <div class="dd-field-group">
+        <%= label_tag "confirmation_channel", "Channel", class: "dd-label" %>
+        <%= text_field_tag "confirmation[channel]", params.dig(:confirmation, :channel),
+          **dd_tag_field_options(@command_form, :channel, id: "confirmation_channel", maxlength: 80) %>
+        <%= dd_tag_field_error(@command_form, :channel) %>
       </div>
-      <div class="dd-field">
-        <%= label_tag "confirmation_reference_note", "Safe reference note" %>
-        <%= text_area_tag "confirmation[reference_note]", params.dig(:confirmation, :reference_note), class: "dd-textarea", maxlength: 500 %>
+      <div class="dd-field-group">
+        <%= label_tag "confirmation_reference_note", "Safe reference note", class: "dd-label" %>
+        <%= text_area_tag "confirmation[reference_note]", params.dig(:confirmation, :reference_note),
+          **dd_tag_field_options(@command_form, :reference_note, id: "confirmation_reference_note", maxlength: 500) %>
       </div>
-      <div class="dd-field">
-        <%= label_tag "confirmation_confirmed_without_identifier_reason", "Confirmed without identifier reason" %>
-        <%= text_area_tag "confirmation[confirmed_without_identifier_reason]", params.dig(:confirmation, :confirmed_without_identifier_reason), class: "dd-textarea", maxlength: 500 %>
+      <div class="dd-field-group">
+        <%= label_tag "confirmation_confirmed_without_identifier_reason", "Confirmed without identifier reason", class: "dd-label" %>
+        <%= text_area_tag "confirmation[confirmed_without_identifier_reason]", params.dig(:confirmation, :confirmed_without_identifier_reason),
+          **dd_tag_field_options(@command_form, :confirmed_without_identifier_reason, id: "confirmation_confirmed_without_identifier_reason", maxlength: 500) %>
       </div>
 
-      <details>
+      <details <%= "open".html_safe if @command_form&.errors&.any? { |e| e.attribute.to_s.start_with?("display_value", "identifier") } %>>
         <summary>Add a Supplier-issued identifier</summary>
-        <div class="dd-field">
-          <%= label_tag "identifier_identifier_type", "Identifier type" %>
+        <div class="dd-field-group">
+          <%= label_tag "identifier_identifier_type", "Identifier type", class: "dd-label" %>
           <%= select_tag "identifier[identifier_type]",
             options_for_select(SupplierIssuedIdentifier::IDENTIFIER_TYPES.map { |kind| [kind.humanize, kind] }, params.dig(:identifier, :identifier_type)),
-            include_blank: "No identifier", class: "dd-select" %>
+            **dd_tag_field_options(@command_form, :identifier_type, id: "identifier_identifier_type", include_blank: "No identifier") %>
         </div>
-        <div class="dd-field">
-          <%= label_tag "identifier_other_type_label", "Other identifier label" %>
-          <%= text_field_tag "identifier[other_type_label]", params.dig(:identifier, :other_type_label), class: "dd-input", maxlength: 80 %>
+        <div class="dd-field-group">
+          <%= label_tag "identifier_other_type_label", "Other identifier label", class: "dd-label" %>
+          <%= text_field_tag "identifier[other_type_label]", params.dig(:identifier, :other_type_label),
+            **dd_tag_field_options(@command_form, :other_type_label, id: "identifier_other_type_label", maxlength: 80) %>
         </div>
-        <div class="dd-field">
-          <%= label_tag "identifier_issuer_context", "Issuer context" %>
-          <%= text_field_tag "identifier[issuer_context]", params.dig(:identifier, :issuer_context), class: "dd-input", maxlength: 80 %>
+        <div class="dd-field-group">
+          <%= label_tag "identifier_issuer_context", "Issuer context", class: "dd-label" %>
+          <%= text_field_tag "identifier[issuer_context]", params.dig(:identifier, :issuer_context),
+            **dd_tag_field_options(@command_form, :issuer_context, id: "identifier_issuer_context", maxlength: 80) %>
         </div>
-        <div class="dd-field">
-          <%= label_tag "identifier_display_value", "Identifier" %>
-          <%= text_field_tag "identifier[display_value]", params.dig(:identifier, :display_value), class: "dd-input", maxlength: 160 %>
+        <div class="dd-field-group">
+          <%= label_tag "confirmation_display_value", "Identifier", class: "dd-label" %>
+          <%= text_field_tag "identifier[display_value]", params.dig(:identifier, :display_value),
+            **dd_tag_field_options(@command_form, :display_value, id: "confirmation_display_value", maxlength: 160) %>
+          <%= dd_tag_field_error(@command_form, :display_value) %>
         </div>
       </details>
     </div>

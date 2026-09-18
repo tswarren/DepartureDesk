@@ -33,18 +33,20 @@ class M3D5SupplierReservationsTest < ApplicationSystemTestCase
     click_link "Create planned reservation"
 
     select @supplier.display_name, from: "Booking Supplier"
-    select "Whole Arrangement", from: "Scope 1 target"
-    fill_in "Scope 1 note", with: "Whole booking"
+    select "Whole Arrangement", from: "Scope target"
+    fill_in "Scope note", with: "Whole booking"
     click_button "Create planned reservation"
 
     assert_text "Reservation planned."
     assert_text "Planned"
+    click_link "Record request sent"
     fill_in "Channel", with: "portal"
     fill_in "Request reference note", with: "Portal request"
     click_button "Record request sent"
 
     assert_text "Reservation request recorded."
     assert_text "Requested"
+    click_link "Withdraw pending scopes"
     fill_in "Withdrawal reason", with: "Supplier asked us to resend later"
     click_button "Record withdrawal"
 

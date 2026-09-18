@@ -13,6 +13,15 @@ export default class extends Controller {
     if (!target) return
 
     event.preventDefault()
+    this.openAncestorDetails(target)
     target.focus()
+  }
+
+  openAncestorDetails(target) {
+    let node = target.parentElement
+    while (node) {
+      if (node.tagName === "DETAILS") node.open = true
+      node = node.parentElement
+    }
   }
 }

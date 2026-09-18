@@ -39,7 +39,7 @@ class M3d5ReservationCapacityConsequenceRequestTest < ActionDispatch::Integratio
 
   test "show offers closed capacity event types and blank rows do not block response" do
     sign_in_as @staff
-    get departure_arrangement_reservation_path(@departure, @arrangement, @reservation)
+    get departure_arrangement_reservation_path(@departure, @arrangement, @reservation, composer: "respond")
     assert_response :success
     assert_select "select[name='capacity_consequences[0][capacity_pool_id]'] option[value='#{@pool.id}']"
     assert_select "select[name='capacity_consequences[0][event_type]'] option[value='increased']"

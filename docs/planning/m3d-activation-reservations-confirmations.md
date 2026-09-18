@@ -1,6 +1,6 @@
 # M3D — Arrangement activation, Reservations, and confirmations
 
-**Status:** Shipped. Merged to `main` on 2026-09-17 through M3D.1–M3D.6 implementation PRs (#73–#82). Remediation PRs closed the post-ship review findings. [M3D.7](m3d7-activated-definition-immutability.md) ships the activated exact-version definition immutability remediation in Rails and PostgreSQL. This document remains the M3D contract. It is not authority for M3E Arrangement ending, full commitment disposition, Deadlines, exposure, or later commercial records.
+**Status:** Shipped. Merged to `main` on 2026-09-17 through M3D.1–M3D.6 implementation PRs (#73–#82). Remediation PRs closed the post-ship review findings. [M3D.7](m3d7-activated-definition-immutability.md) ships the activated exact-version definition immutability remediation in Rails and PostgreSQL. [M3D.8](m3d8-activation-reservation-product-quality.md) ships activation and Reservation product-quality remediation. This document remains the M3D contract. It is not authority for M3E Arrangement ending, full commitment disposition, Deadlines, exposure, or later commercial records.
 
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md), Accepted and amended for shipped M3B and M3C and Accepted M3D authority.
 
