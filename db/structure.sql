@@ -34,6 +34,9 @@ CREATE FUNCTION public.allow_supplier_identifier_supersession_stamp() RETURNS tr
 BEGIN
   IF OLD.superseded_at IS NULL
     AND NEW.superseded_at IS NOT NULL
+    AND NEW.id IS NOT DISTINCT FROM OLD.id
+    AND NEW.created_at IS NOT DISTINCT FROM OLD.created_at
+    AND NEW.updated_at IS NOT DISTINCT FROM OLD.updated_at
     AND NEW.supersedes_id IS NOT DISTINCT FROM OLD.supersedes_id
     AND NEW.agency_id IS NOT DISTINCT FROM OLD.agency_id
     AND NEW.departure_id IS NOT DISTINCT FROM OLD.departure_id
@@ -600,10 +603,17 @@ CREATE FUNCTION public.reject_requested_reservation_scope_mutation() RETURNS tri
     AS $$
 DECLARE
   revision_status text;
+  revision_id uuid;
 BEGIN
+  IF TG_OP = 'INSERT' THEN
+    revision_id := NEW.supplier_reservation_revision_id;
+  ELSE
+    revision_id := OLD.supplier_reservation_revision_id;
+  END IF;
+
   SELECT status INTO revision_status
   FROM supplier_reservation_revisions
-  WHERE id = OLD.supplier_reservation_revision_id;
+  WHERE id = revision_id;
 
   IF revision_status IS DISTINCT FROM 'planned' THEN
     RAISE EXCEPTION 'requested reservation scopes are immutable';
@@ -1061,10 +1071,14 @@ BEGIN
   SET superseded_at = COALESCE(NEW.created_at, CURRENT_TIMESTAMP)
   WHERE id = NEW.supersedes_id
     AND agency_id = NEW.agency_id
+    AND departure_id = NEW.departure_id
+    AND supplier_arrangement_id = NEW.supplier_arrangement_id
+    AND supplier_id = NEW.supplier_id
+    AND supplier_reservation_id IS NOT DISTINCT FROM NEW.supplier_reservation_id
     AND superseded_at IS NULL;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'supplier identifier supersession target is missing or already superseded';
+    RAISE EXCEPTION 'supplier identifier supersession target is missing, already superseded, or ownership differs';
   END IF;
 
   RETURN NEW;
@@ -7206,7 +7220,7 @@ CREATE TRIGGER supplier_issued_identifiers_reject_update BEFORE UPDATE ON public
 -- Name: supplier_issued_identifiers supplier_issued_identifiers_stamp_superseded; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER supplier_issued_identifiers_stamp_superseded AFTER INSERT ON public.supplier_issued_identifiers FOR EACH ROW WHEN ((new.supersedes_id IS NOT NULL)) EXECUTE FUNCTION public.stamp_supplier_identifier_superseded_by_successor();
+CREATE TRIGGER supplier_issued_identifiers_stamp_superseded BEFORE INSERT ON public.supplier_issued_identifiers FOR EACH ROW WHEN ((new.supersedes_id IS NOT NULL)) EXECUTE FUNCTION public.stamp_supplier_identifier_superseded_by_successor();
 
 
 --
@@ -7262,7 +7276,7 @@ CREATE TRIGGER supplier_reservation_outcomes_reject_update BEFORE UPDATE ON publ
 -- Name: supplier_reservation_scopes supplier_reservation_scopes_freeze_after_request; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER supplier_reservation_scopes_freeze_after_request BEFORE DELETE OR UPDATE ON public.supplier_reservation_scopes FOR EACH ROW EXECUTE FUNCTION public.reject_requested_reservation_scope_mutation();
+CREATE TRIGGER supplier_reservation_scopes_freeze_after_request BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_reservation_scopes FOR EACH ROW EXECUTE FUNCTION public.reject_requested_reservation_scope_mutation();
 
 
 --
@@ -9443,6 +9457,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260918040000'),
 ('20260918030000'),
 ('20260918020000'),
 ('20260918010000'),

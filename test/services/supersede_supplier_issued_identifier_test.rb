@@ -221,6 +221,112 @@ class SupersedeSupplierIssuedIdentifierTest < ActiveSupport::TestCase
     assert_match(/immutable|requested reservation scopes/i, error.message)
   end
 
+  test "same normalized value supersession stamps prior before uniqueness check" do
+    result = SupersedeSupplierIssuedIdentifier.new(
+      agency: @agency, actor: @actor, identifier: @prior,
+      confirmation: @confirmation,
+      attributes: {
+        display_value: "grp-100",
+        issuer_context: "cruise line",
+        identifier_type: "group_number"
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    assert_equal :created, result.status
+    assert_equal "grp-100", result.record.display_value
+    assert_equal "grp-100", result.record.normalized_value
+    assert_equal @prior.id, result.record.supersedes_id
+    assert_predicate @prior.reload.superseded_at, :present?
+    assert_equal 1, SupplierIssuedIdentifier.current.where(
+      supplier_arrangement_id: @arrangement.id, normalized_value: "grp-100"
+    ).count
+  end
+
+  test "database rejects supersession that targets a different reservation owner" do
+    reservation_a = create_requested_reservation
+    reservation_b = create_requested_reservation
+    respond_reservation(reservation_a)
+    respond_reservation(reservation_b)
+    confirmation_b = SupplierConfirmationReservationResponseLink
+      .find_by!(supplier_reservation_id: reservation_b.id).supplier_confirmation
+    prior_a = SupplierIssuedIdentifier.create!(
+      agency: @agency, departure: @departure,
+      supplier_arrangement: @arrangement,
+      supplier_reservation: reservation_a,
+      supplier: @supplier,
+      issuer_context: "cruise line",
+      identifier_type: "group_number",
+      display_value: "OWN-A",
+      normalized_value: "own-a",
+      first_supplier_confirmation: confirmation_b
+    )
+
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierIssuedIdentifier.transaction(requires_new: true) do
+        SupplierIssuedIdentifier.insert_all!([ {
+          id: SecureRandom.uuid_v7,
+          agency_id: @agency.id,
+          departure_id: @departure.id,
+          supplier_arrangement_id: @arrangement.id,
+          supplier_reservation_id: reservation_b.id,
+          supplier_id: @supplier.id,
+          issuer_context: "cruise line",
+          identifier_type: "group_number",
+          display_value: "OWN-B",
+          normalized_value: "own-b",
+          first_supplier_confirmation_id: confirmation_b.id,
+          supersedes_id: prior_a.id,
+          created_at: Time.current,
+          updated_at: Time.current
+        } ])
+      end
+    end
+    assert_match(/ownership differs|already superseded|missing/i, error.message)
+    assert_nil prior_a.reload.superseded_at
+  end
+
+  test "database rejects supersession that targets a different supplier under the arrangement" do
+    other_supplier = create_capacity_supplier(@agency, "Other Identifier Supplier")
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierIssuedIdentifier.transaction(requires_new: true) do
+        SupplierIssuedIdentifier.insert_all!([ {
+          id: SecureRandom.uuid_v7,
+          agency_id: @agency.id,
+          departure_id: @departure.id,
+          supplier_arrangement_id: @arrangement.id,
+          supplier_id: other_supplier.id,
+          issuer_context: "cruise line",
+          identifier_type: "group_number",
+          display_value: "GRP-OTHER",
+          normalized_value: "grp-other",
+          first_supplier_confirmation_id: @confirmation.id,
+          supersedes_id: @prior.id,
+          created_at: Time.current,
+          updated_at: Time.current
+        } ])
+      end
+    end
+    assert_match(/ownership differs|already superseded|missing/i, error.message)
+    assert_nil @prior.reload.superseded_at
+  end
+
+  test "supersession stamp permits only superseded_at mutation" do
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierIssuedIdentifier.transaction(requires_new: true) do
+        SupplierIssuedIdentifier.connection.execute(<<~SQL.squish)
+          UPDATE supplier_issued_identifiers
+          SET superseded_at = CURRENT_TIMESTAMP,
+              display_value = 'mutated'
+          WHERE id = '#{@prior.id}'
+        SQL
+      end
+    end
+    assert_match(/append-only/i, error.message)
+    assert_nil @prior.reload.superseded_at
+    assert_equal "GRP-100", @prior.display_value
+  end
+
   private
 
   def create_requested_reservation

@@ -3,7 +3,8 @@
 require "ostruct"
 
 # Appends an immutable replacement identifier. The prior row is stamped superseded by
-# a database trigger when the successor insert commits; application code never UPDATEs it.
+# a BEFORE INSERT database trigger so active uniqueness can release before the successor
+# row is checked; application code never UPDATEs the prior row.
 #
 # Lock order after Agency: Supplier → Departure → Arrangement → version →
 # Reservation (when present) → confirmation → prior identifier.
