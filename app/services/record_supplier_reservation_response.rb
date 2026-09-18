@@ -348,17 +348,18 @@ class RecordSupplierReservationResponse < AgencyCommand
     if display.blank? || issuer.blank? || ((type == "other") != other_label.present?)
       raise Error.new("Enter a complete qualified Supplier identifier.", code: :invalid)
     end
-    candidate_scope = SupplierIssuedIdentifier.where(agency_id: @agency.id).where(
+    lookup = SupplierIssuedIdentifierOwnerLookup.call(
+      agency: @agency,
       supplier_id: booking_supplier.id,
-      identifier_type: type, issuer_context: issuer, normalized_value: normalized,
-      superseded_at: nil
+      identifier_type: type,
+      issuer_context: issuer,
+      normalized_value: normalized,
+      arrangement: arrangement,
+      reservation: reservation
     )
-    foreign_rows = candidate_scope.where.not(supplier_reservation_id: [ nil, reservation.id ])
-      .or(candidate_scope.where(supplier_reservation_id: nil).where.not(supplier_arrangement_id: arrangement.id))
-      .to_a
-    if foreign_rows.any?
+    if lookup.foreign.any?
       acknowledge_identifier_duplicate!(
-        foreign_rows,
+        lookup.foreign,
         fingerprint_fields: {
           supplier_id: booking_supplier.id,
           identifier_type: type,
@@ -367,7 +368,7 @@ class RecordSupplierReservationResponse < AgencyCommand
         }
       )
     end
-    candidate_scope.find_by(supplier_reservation_id: reservation.id) ||
+    lookup.same_owner.first ||
       SupplierIssuedIdentifier.create!(
         agency: @agency, departure_id: arrangement.departure_id,
         supplier_arrangement: arrangement,

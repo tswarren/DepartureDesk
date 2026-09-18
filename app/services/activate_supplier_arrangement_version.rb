@@ -284,20 +284,23 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     if display.blank? || issuer.blank? || ((type == "other") != other_label.present?)
       raise Error.new("Enter a complete qualified Supplier identifier.", code: :invalid)
     end
-    candidate_scope = SupplierIssuedIdentifier.where(agency_id: @agency.id).where(
+    lookup = SupplierIssuedIdentifierOwnerLookup.call(
+      agency: @agency,
       supplier_id: arrangement.contracting_supplier_id,
-      identifier_type: type, issuer_context: issuer, normalized_value: normalized,
-      superseded_at: nil
+      identifier_type: type,
+      issuer_context: issuer,
+      normalized_value: normalized,
+      arrangement: arrangement,
+      reservation: nil
     )
-    foreign_rows = candidate_scope.where.not(supplier_arrangement_id: arrangement.id).to_a
-    if foreign_rows.any?
+    if lookup.foreign.any?
       fingerprint = DuplicateAcknowledgement.fingerprint(
         supplier_id: arrangement.contracting_supplier_id,
         identifier_type: type,
         issuer_context: issuer,
         normalized_value: normalized
       )
-      candidates = foreign_rows.map do |row|
+      candidates = lookup.foreign.map do |row|
         OpenStruct.new(id: row.id, signals: [ "supplier_issued_identifier", row.display_value ])
       end
       candidate_digest = DuplicateAcknowledgement.candidate_digest(candidates)
@@ -328,7 +331,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         raise Error.new("That acknowledgement has expired.", code: :invalid)
       end
     end
-    candidate_scope.find_by(supplier_arrangement_id: arrangement.id) ||
+    lookup.same_owner.first ||
       SupplierIssuedIdentifier.create!(
         agency: @agency, departure_id: arrangement.departure_id,
         supplier_arrangement: arrangement,

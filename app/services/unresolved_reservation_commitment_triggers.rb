@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Derived query: reservation_confirmation triggers covered by a confirmation's linked
-# scopes but still missing a commitment.
+# scopes on the current response link's Reservation/revision, still missing a commitment.
 class UnresolvedReservationCommitmentTriggers
   Result = Data.define(:confirmation, :trigger, :reservation, :revision)
 
@@ -28,12 +28,15 @@ class UnresolvedReservationCommitmentTriggers
     links = links.where(supplier_confirmation_id: @confirmation.id) if @confirmation
 
     results = []
+    seen = {}
     links.find_each do |link|
       confirmation = link.supplier_confirmation
       confirmed_scopes = SupplierReservationScope.where(
-        id: SupplierConfirmationReservationScopeLink
-          .where(supplier_confirmation_id: confirmation.id)
-          .select(:supplier_reservation_scope_id)
+        id: SupplierConfirmationReservationScopeLink.where(
+          supplier_confirmation_id: confirmation.id,
+          supplier_reservation_id: link.supplier_reservation_id,
+          supplier_reservation_revision_id: link.supplier_reservation_revision_id
+        ).select(:supplier_reservation_scope_id)
       ).to_a
       next if confirmed_scopes.empty?
 
@@ -47,6 +50,15 @@ class UnresolvedReservationCommitmentTriggers
           supplier_commitment_trigger_definition_id: trigger.id
         )
 
+        key = [
+          confirmation.id,
+          trigger.id,
+          link.supplier_reservation_id,
+          link.supplier_reservation_revision_id
+        ]
+        next if seen[key]
+
+        seen[key] = true
         results << Result.new(
           confirmation: confirmation,
           trigger: trigger,
