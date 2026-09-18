@@ -27,6 +27,12 @@ class OpenSupplierCommitmentAlreadyLocked
       raise AgencyCommand::Error.new("Reservation confirmation commitments require exact scope.", code: :invalid)
     end
 
+    existing = SupplierCommitment.find_by(
+      supplier_confirmation_id: @confirmation.id,
+      supplier_commitment_trigger_definition_id: @trigger.id
+    )
+    return existing if existing
+
     quantity, amount = authoritative_values
     commitment = SupplierCommitment.create!(
       owner_attributes.merge(
@@ -62,8 +68,9 @@ class OpenSupplierCommitmentAlreadyLocked
   rescue IncompleteInputs
     nil
   rescue ActiveRecord::RecordNotUnique
-    raise AgencyCommand::Error.new(
-      "That confirmation already opened this commitment trigger.", code: :conflict
+    SupplierCommitment.find_by!(
+      supplier_confirmation_id: @confirmation.id,
+      supplier_commitment_trigger_definition_id: @trigger.id
     )
   end
 
