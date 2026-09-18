@@ -17,17 +17,7 @@ class SupplierReservationsController < ApplicationController
   end
 
   def show
-    @projection = @supplier_reservation.projection
-    @revisions = @supplier_reservation.revisions
-      .includes(:supplier_arrangement_version, scopes: [ :arrangement_item, :service_occurrence, :supplier_resource, :capacity_pool ])
-      .order(revision_number: :desc)
-    @events = @supplier_reservation.events
-      .includes(:scope_outcomes, :supplier_contact)
-      .order(recorded_at: :desc, id: :desc)
-    @idempotency_key = SecureRandom.uuid
-    @pending_scopes = pending_scopes
-    @confirmed_scopes = confirmed_scopes
-    @capacity_pool_options = @supplier_arrangement.capacity_pools.order(:id)
+    prepare_reservation_show!
   end
 
   def new
@@ -143,8 +133,9 @@ class SupplierReservationsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation),
-      alert: error.message
+    prepare_reservation_show!
+    flash.now[:alert] = error.message
+    render :show, status: :unprocessable_entity
   end
 
   def withdraw
@@ -161,8 +152,9 @@ class SupplierReservationsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation),
-      alert: error.message
+    prepare_reservation_show!
+    flash.now[:alert] = error.message
+    render :show, status: :unprocessable_entity
   end
 
   def respond
@@ -175,11 +167,18 @@ class SupplierReservationsController < ApplicationController
     ).call
     redirect_to departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation),
       notice: result.status == :replayed ? "Reservation response was already recorded." : "Reservation response recorded."
+  rescue AgencyCommand::DuplicateReviewRequired => error
+    prepare_reservation_show!
+    @acknowledgement_token = error.token
+    @duplicate_candidates = error.candidates
+    flash.now[:alert] = error.message
+    render :show, status: :unprocessable_entity
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation),
-      alert: error.message
+    prepare_reservation_show!
+    flash.now[:alert] = error.message
+    render :show, status: :unprocessable_entity
   end
 
   def cancel_scopes
@@ -196,8 +195,9 @@ class SupplierReservationsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation),
-      alert: error.message
+    prepare_reservation_show!
+    flash.now[:alert] = error.message
+    render :show, status: :unprocessable_entity
   end
 
   def revise
@@ -213,11 +213,52 @@ class SupplierReservationsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation),
-      alert: error.message
+    prepare_reservation_show!
+    flash.now[:alert] = error.message
+    render :show, status: :unprocessable_entity
   end
 
   private
+
+  def prepare_reservation_show!
+    @projection = @supplier_reservation.projection
+    @revisions = @supplier_reservation.revisions
+      .includes(:supplier_arrangement_version, scopes: [ :arrangement_item, :service_occurrence, :supplier_resource, :capacity_pool ])
+      .order(revision_number: :desc)
+    @events = @supplier_reservation.events
+      .includes(:scope_outcomes, :supplier_contact)
+      .order(recorded_at: :desc, id: :desc)
+    @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
+    @scopes_by_latest_outcome = nil
+    @pending_scopes = pending_scopes
+    @confirmed_scopes = confirmed_scopes
+    @unresolved_commitment_triggers = UnresolvedReservationCommitmentTriggers.call(
+      agency: Current.agency, reservation: @supplier_reservation
+    )
+    requested_revision = @supplier_reservation.revisions.where(status: "requested").order(revision_number: :desc).first
+    @response_version = requested_revision&.supplier_arrangement_version
+    @capacity_pool_options = if @response_version
+      CapacityPool.where(
+        id: @response_version.capacity_pool_definitions.select(:capacity_pool_id)
+      ).includes(:supplying_supplier).order(:id)
+    else
+      CapacityPool.none
+    end
+    @reservation_triggers = if @response_version
+      @response_version.supplier_commitment_trigger_definitions
+        .where(trigger_kind: "reservation_confirmation", committed_supplier_id: @supplier_reservation.booking_supplier_id)
+        .order(:position, :id)
+    else
+      SupplierCommitmentTriggerDefinition.none
+    end
+    @existing_confirmations = if @response_version
+      @response_version.supplier_confirmations
+        .where(confirming_supplier_id: @supplier_reservation.booking_supplier_id)
+        .order(recorded_at: :desc, id: :desc)
+    else
+      SupplierConfirmation.none
+    end
+  end
 
   def set_reservation_version
     @supplier_arrangement_version =
@@ -266,19 +307,26 @@ class SupplierReservationsController < ApplicationController
 
   def response_params
     permitted = params.fetch(:response_event, ActionController::Parameters.new).permit(
-      :occurred_at, :channel, :reference_note, :existing_confirmation_id, :confirmed_amount_minor_units,
+      :occurred_at, :channel, :reference_note, :existing_confirmation_id,
+      :duplicate_acknowledgement_token,
       scope_ids: [],
       evidence: [
         :evidence_kind, :other_evidence_label, :evidence_on, :channel, :reference_note,
         :confirmed_without_identifier_reason
       ],
       identifier: [ :identifier_type, :other_type_label, :display_value, :issuer_context ],
-      capacity_consequence: [
+      capacity_consequences: [
         :capacity_pool_id, :event_type, :quantity, :effective_on, :supplier_reservation_scope_id,
         { evidence: [ :evidence_kind, :evidence_on, :evidence_reference_note, :evidence_external_reference ] }
-      ]
+      ],
+      confirmed_amounts_minor_units: {},
+      confirmed_quantities: {},
+      coverage_scope_ids: {}
     )
     permitted[:scope_ids] = params[:scope_ids] if params[:scope_ids].present?
+    if params[:duplicate_acknowledgement_token].present?
+      permitted[:duplicate_acknowledgement_token] = params[:duplicate_acknowledgement_token]
+    end
     if params[:outcomes].present?
       outcomes = {}
       params.fetch(:outcomes).each do |scope_id, values|
@@ -289,6 +337,34 @@ class SupplierReservationsController < ApplicationController
         ).to_h
       end
       permitted[:outcomes] = outcomes
+    end
+    %i[confirmed_amounts_minor_units confirmed_quantities coverage_scope_ids].each do |key|
+      raw = params[key].presence || params.dig(:response_event, key)
+      next if raw.blank?
+      next unless raw.respond_to?(:permit)
+
+      version = @supplier_reservation.revisions.where(status: "requested")
+        .order(revision_number: :desc).first&.supplier_arrangement_version
+      allowed = version&.supplier_commitment_trigger_definitions
+        &.pluck(:id)
+        &.flat_map { |id| [ id.to_s, id ] } || []
+      permitted[key] = raw.permit(*allowed).to_h
+    end
+    if params[:capacity_consequences].present?
+      raw_consequences = params[:capacity_consequences]
+      entries = if raw_consequences.is_a?(ActionController::Parameters) || raw_consequences.is_a?(Hash)
+        raw_consequences.values
+      else
+        Array(raw_consequences)
+      end
+      permitted[:capacity_consequences] = entries.filter_map do |entry|
+        next unless entry.respond_to?(:permit)
+
+        entry.permit(
+          :capacity_pool_id, :event_type, :quantity, :effective_on, :supplier_reservation_scope_id,
+          evidence: [ :evidence_kind, :evidence_on, :evidence_reference_note, :evidence_external_reference ]
+        ).to_h
+      end
     end
     permitted
   end
@@ -315,26 +391,26 @@ class SupplierReservationsController < ApplicationController
   end
 
   def pending_scopes
-    revision = @supplier_reservation.revisions.where(status: "requested").order(revision_number: :desc).first
-    return SupplierReservationScope.none unless revision
-
-    latest = SupplierReservationEventScopeOutcome
-      .where(supplier_reservation_revision_id: revision.id)
-      .order(:created_at, :id)
-      .group_by(&:supplier_reservation_scope_id)
-      .transform_values(&:last)
-    revision.scopes.order(:position, :id).select { |scope| latest[scope.id]&.requested? }
+    scopes_by_latest_outcome.select { |_scope, outcome| outcome&.requested? }.keys
   end
 
   def confirmed_scopes
-    revision = @supplier_reservation.revisions.where(status: "requested").order(revision_number: :desc).first
-    return SupplierReservationScope.none unless revision
+    scopes_by_latest_outcome.select { |_scope, outcome| outcome&.confirmed? }.keys
+  end
 
-    latest = SupplierReservationEventScopeOutcome
-      .where(supplier_reservation_revision_id: revision.id)
-      .order(:created_at, :id)
-      .group_by(&:supplier_reservation_scope_id)
-      .transform_values(&:last)
-    revision.scopes.order(:position, :id).select { |scope| latest[scope.id]&.confirmed? }
+  def scopes_by_latest_outcome
+    @scopes_by_latest_outcome ||= begin
+      revision = @supplier_reservation.revisions.where(status: "requested").order(revision_number: :desc).first
+      if revision.nil?
+        {}
+      else
+        latest = SupplierReservationEventScopeOutcome
+          .where(supplier_reservation_revision_id: revision.id)
+          .order(:created_at, :id)
+          .group_by(&:supplier_reservation_scope_id)
+          .transform_values(&:last)
+        revision.scopes.order(:position, :id).index_with { |scope| latest[scope.id] }
+      end
+    end
   end
 end

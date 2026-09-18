@@ -27,11 +27,19 @@ class SupplierArrangementActivationsController < ApplicationController
       cost_source_coverage_acknowledged: params[:cost_source_coverage_acknowledged],
       provisional_costs_acknowledged: params[:provisional_costs_acknowledged],
       commitment_trigger_coverage_acknowledged: params[:commitment_trigger_coverage_acknowledged],
-      confirmed_quantity: params[:confirmed_quantity],
-      confirmed_amount_minor_units: params[:confirmed_amount_minor_units]
+      confirmed_quantities: keyed_commitment_params(:confirmed_quantities),
+      confirmed_amounts_minor_units: keyed_commitment_params(:confirmed_amounts_minor_units),
+      duplicate_acknowledgement_token: params[:duplicate_acknowledgement_token]
     ).call
     redirect_to departure_arrangement_path(@departure, @supplier_arrangement),
       notice: result.status == :replayed ? "Arrangement was already activated." : "Arrangement activated."
+  rescue AgencyCommand::DuplicateReviewRequired => error
+    load_preview
+    @idempotency_key = params[:idempotency_key]
+    @acknowledgement_token = error.token
+    @duplicate_candidates = error.candidates
+    flash.now[:alert] = error.message
+    render :show, status: :unprocessable_entity
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
@@ -42,6 +50,17 @@ class SupplierArrangementActivationsController < ApplicationController
   end
 
   private
+
+  def keyed_commitment_params(key)
+    raw = params[key]
+    return {} if raw.blank?
+    return raw.to_h unless raw.respond_to?(:permit)
+
+    allowed = @supplier_arrangement_version.supplier_commitment_trigger_definitions
+      .pluck(:id)
+      .flat_map { |id| [ id.to_s, id ] }
+    raw.permit(*allowed).to_h
+  end
 
   def load_preview
     @readiness = SupplierArrangementActivationReadiness.new(

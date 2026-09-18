@@ -42,9 +42,33 @@ class M3D5SupplierReservationResponsesTest < ApplicationSystemTestCase
 
     fill_in "Response channel", with: "portal"
     fill_in "Response reference note", with: "Supplier confirmed"
+    fill_in "Confirmed without identifier reason", with: "Identifier follows later"
     click_button "Record response"
 
     assert_text "Reservation response recorded."
     assert_text "Confirmed"
+  end
+
+  test "failed response preserves submitted values and focuses the error summary" do
+    sign_in_from_browser(@staff)
+
+    visit departure_arrangement_path(@departure, @arrangement)
+    click_link "Reservations"
+    click_link "Create planned reservation"
+    select @supplier.display_name, from: "Booking Supplier"
+    select "Whole Arrangement", from: "Scope 1 target"
+    fill_in "Scope 1 note", with: "Whole booking"
+    click_button "Create planned reservation"
+
+    fill_in "Channel", with: "portal"
+    fill_in "Request reference note", with: "Portal request"
+    click_button "Record request sent"
+
+    fill_in "Response channel", with: "portal"
+    fill_in "Response reference note", with: "Missing attestation"
+    click_button "Record response"
+
+    assert_selector "#form-error-summary", text: /identifier|evidence|confirm/i
+    assert_field "Response reference note", with: "Missing attestation"
   end
 end

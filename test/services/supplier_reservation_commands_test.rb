@@ -132,7 +132,7 @@ class SupplierReservationCommandsTest < ActiveSupport::TestCase
       reservation: reservation,
       idempotency_key: idempotency_key,
       attributes: {
-        occurred_at: Time.current,
+        occurred_at: Time.zone.parse("2026-06-01 12:00:00 UTC"),
         channel: "portal",
         reference_note: "Supplier request submitted"
       }
