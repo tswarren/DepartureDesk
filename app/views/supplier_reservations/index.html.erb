@@ -26,35 +26,40 @@
     </div>
   </header>
   <div class="dd-panel-body">
+    <% if @reservations_truncated %>
+      <p>Showing the first 50 reservations. Narrow by reviewing older bookings from the Arrangement timeline as needed.</p>
+    <% end %>
     <% if @reservations.any? %>
-      <table class="dd-table">
-        <thead>
-          <tr>
-            <th scope="col">Booking Supplier</th>
-            <th scope="col">State</th>
-            <th scope="col">Scopes</th>
-            <th scope="col">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% @reservations.each do |reservation| %>
-            <% projection = reservation.projection %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-table--reservations">
+          <thead>
             <tr>
-              <td><%= supplier_option_label(reservation.booking_supplier) %></td>
-              <td><%= projection&.state&.humanize || "Not rebuilt" %></td>
-              <td>
-                <% if projection&.planned? %>
-                  <%= pluralize(projection.planned_scope_count, "planned scope") %>
-                <% else %>
-                  <%= pluralize(projection&.pending_scope_count.to_i, "pending scope") %>;
-                  <%= pluralize(projection&.withdrawn_scope_count.to_i, "withdrawn scope") %>
-                <% end %>
-              </td>
-              <td><%= link_to "Open", departure_arrangement_reservation_path(@departure, @supplier_arrangement, reservation), class: "dd-row-action dd-row-action--edit" %></td>
+              <th scope="col">Booking Supplier</th>
+              <th scope="col">State</th>
+              <th scope="col">Scopes</th>
+              <th scope="col">Actions</th>
             </tr>
-          <% end %>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <% @reservations.each do |reservation| %>
+              <% projection = reservation.projection %>
+              <tr class="dd-reservation-row">
+                <td data-label="Booking Supplier"><%= supplier_option_label(reservation.booking_supplier) %></td>
+                <td data-label="State"><%= projection&.state&.humanize || "Not rebuilt" %></td>
+                <td data-label="Scopes">
+                  <% if projection&.planned? %>
+                    <%= pluralize(projection.planned_scope_count, "planned scope") %>
+                  <% else %>
+                    <%= pluralize(projection&.pending_scope_count.to_i, "pending scope") %>;
+                    <%= pluralize(projection&.withdrawn_scope_count.to_i, "withdrawn scope") %>
+                  <% end %>
+                </td>
+                <td data-label="Actions"><%= link_to "Open", departure_arrangement_reservation_path(@departure, @supplier_arrangement, reservation), class: "dd-row-action dd-row-action--edit" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
     <% else %>
       <p class="<%= empty_state_classes.join(" ") %>">No Supplier Reservations yet.</p>
     <% end %>

@@ -104,6 +104,7 @@
       </div>
     </header>
     <div class="dd-panel-body">
+      <div class="dd-table-wrap">
       <table class="dd-table">
         <thead>
           <tr>
@@ -132,6 +133,7 @@
           <% end %>
         </tbody>
       </table>
+      </div>
     </div>
   </article>
 <% end %>
@@ -338,6 +340,7 @@
             <% end %>
           </header>
           <% if occurrence_definitions.any? %>
+            <div class="dd-table-wrap">
             <table class="dd-table">
               <thead>
                 <tr>
@@ -373,6 +376,7 @@
                 <% end %>
               </tbody>
             </table>
+            </div>
           <% else %>
             <p class="<%= empty_state_classes.join(" ") %>">No occurrences yet.</p>
           <% end %>
@@ -401,6 +405,7 @@
           </header>
           <% if resource_definitions.any? %>
             <% ordered_resource_ids = resource_definitions.map(&:supplier_resource_id) %>
+            <div class="dd-table-wrap">
             <table class="dd-table">
               <thead>
                 <tr>
@@ -440,6 +445,7 @@
                 <% end %>
               </tbody>
             </table>
+            </div>
           <% else %>
             <p class="<%= empty_state_classes.join(" ") %>">No resources yet.</p>
           <% end %>

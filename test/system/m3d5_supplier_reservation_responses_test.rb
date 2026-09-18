@@ -32,14 +32,16 @@ class M3D5SupplierReservationResponsesTest < ApplicationSystemTestCase
     click_link "Reservations"
     click_link "Create planned reservation"
     select @supplier.display_name, from: "Booking Supplier"
-    select "Whole Arrangement", from: "Scope 1 target"
-    fill_in "Scope 1 note", with: "Whole booking"
+    select "Whole Arrangement", from: "Scope target"
+    fill_in "Scope note", with: "Whole booking"
     click_button "Create planned reservation"
 
+    click_link "Record request sent"
     fill_in "Channel", with: "portal"
     fill_in "Request reference note", with: "Portal request"
     click_button "Record request sent"
 
+    click_link "Record Supplier response"
     fill_in "Response channel", with: "portal"
     fill_in "Response reference note", with: "Supplier confirmed"
     fill_in "Confirmed without identifier reason", with: "Identifier follows later"
@@ -56,19 +58,22 @@ class M3D5SupplierReservationResponsesTest < ApplicationSystemTestCase
     click_link "Reservations"
     click_link "Create planned reservation"
     select @supplier.display_name, from: "Booking Supplier"
-    select "Whole Arrangement", from: "Scope 1 target"
-    fill_in "Scope 1 note", with: "Whole booking"
+    select "Whole Arrangement", from: "Scope target"
+    fill_in "Scope note", with: "Whole booking"
     click_button "Create planned reservation"
 
+    click_link "Record request sent"
     fill_in "Channel", with: "portal"
     fill_in "Request reference note", with: "Portal request"
     click_button "Record request sent"
 
+    click_link "Record Supplier response"
     fill_in "Response channel", with: "portal"
     fill_in "Response reference note", with: "Missing attestation"
     click_button "Record response"
 
-    assert_selector "#form-error-summary", text: /identifier|evidence|confirm/i
+    assert_selector "#form-error-summary", text: /identifier|evidence|confirm|Please fix/i
+    assert_equal "form-error-summary", page.evaluate_script("document.activeElement && document.activeElement.id")
     assert_field "Response reference note", with: "Missing attestation"
   end
 end

@@ -51,7 +51,7 @@ class M3d5ReservationResponseRequestTest < ActionDispatch::IntegrationTest
 
   test "show renders keyed commitment inputs and response posts keyed amounts" do
     sign_in_as @staff
-    get departure_arrangement_reservation_path(@departure, @arrangement, @reservation)
+    get departure_arrangement_reservation_path(@departure, @arrangement, @reservation, composer: "respond")
     assert_response :success
     assert_select "input[name='confirmed_amounts_minor_units[#{@trigger.id}]']"
     assert_select "input[name='response_event[identifier][display_value]']"

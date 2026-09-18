@@ -11,9 +11,9 @@ class SupplierReservationsController < ApplicationController
   ]
 
   def index
-    @reservations = @supplier_arrangement.supplier_reservations
-      .includes(:booking_supplier, projection: :current_revision)
-      .order(created_at: :desc, id: :desc)
+    list = ListSupplierReservations.new(agency: Current.agency, arrangement: @supplier_arrangement).call
+    @reservations = list.records
+    @reservations_truncated = list.truncated
   end
 
   def show
@@ -45,7 +45,8 @@ class SupplierReservationsController < ApplicationController
 
     load_scope_options
     @idempotency_key = params[:idempotency_key]
-    flash.now[:alert] = error.message
+    @command_form = CommandForm.new(param_key: "supplier_reservation")
+    @command_form.add_command_error(error)
     render :new, status: :unprocessable_entity
   end
 
@@ -64,7 +65,8 @@ class SupplierReservationsController < ApplicationController
 
     load_scope_options
     @idempotency_key = params[:idempotency_key]
-    flash.now[:alert] = error.message
+    @command_form = CommandForm.new(param_key: "existing_reservation")
+    @command_form.add_command_error(error)
     render :new_existing, status: :unprocessable_entity
   end
 
@@ -91,7 +93,8 @@ class SupplierReservationsController < ApplicationController
 
     @planned_revision = @supplier_reservation.revisions.where(status: "planned").first
     load_scope_options(@planned_revision&.supplier_arrangement_version || @supplier_arrangement_version)
-    flash.now[:alert] = error.message
+    @command_form = CommandForm.new(param_key: "supplier_reservation")
+    @command_form.add_command_error(error)
     render :edit, status: :unprocessable_entity
   end
 
@@ -116,7 +119,8 @@ class SupplierReservationsController < ApplicationController
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
     @planned_revision = @supplier_reservation.revisions.where(status: "planned").first
-    flash.now[:alert] = error.message
+    @command_form = CommandForm.new(param_key: "abandon")
+    @command_form.add_command_error(error, default_attribute: :reason)
     render :edit_abandon, status: :unprocessable_entity
   end
 
@@ -133,8 +137,9 @@ class SupplierReservationsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    prepare_reservation_show!
-    flash.now[:alert] = error.message
+    prepare_reservation_show!(composer: "request")
+    @command_form = CommandForm.new(param_key: "request_event")
+    @command_form.add_command_error(error)
     render :show, status: :unprocessable_entity
   end
 
@@ -152,8 +157,9 @@ class SupplierReservationsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    prepare_reservation_show!
-    flash.now[:alert] = error.message
+    prepare_reservation_show!(composer: "withdraw")
+    @command_form = CommandForm.new(param_key: "withdraw")
+    @command_form.add_command_error(error, default_attribute: :reason)
     render :show, status: :unprocessable_entity
   end
 
@@ -168,16 +174,18 @@ class SupplierReservationsController < ApplicationController
     redirect_to departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation),
       notice: result.status == :replayed ? "Reservation response was already recorded." : "Reservation response recorded."
   rescue AgencyCommand::DuplicateReviewRequired => error
-    prepare_reservation_show!
+    prepare_reservation_show!(composer: "respond")
     @acknowledgement_token = error.token
     @duplicate_candidates = error.candidates
-    flash.now[:alert] = error.message
+    @command_form = CommandForm.new(param_key: "response_event")
+    @command_form.add_message(:base, error.message)
     render :show, status: :unprocessable_entity
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    prepare_reservation_show!
-    flash.now[:alert] = error.message
+    prepare_reservation_show!(composer: "respond")
+    @command_form = CommandForm.new(param_key: "response_event")
+    @command_form.add_command_error(error)
     render :show, status: :unprocessable_entity
   end
 
@@ -195,8 +203,9 @@ class SupplierReservationsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    prepare_reservation_show!
-    flash.now[:alert] = error.message
+    prepare_reservation_show!(composer: "cancel")
+    @command_form = CommandForm.new(param_key: "cancel")
+    @command_form.add_command_error(error, default_attribute: :reason)
     render :show, status: :unprocessable_entity
   end
 
@@ -213,21 +222,35 @@ class SupplierReservationsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    prepare_reservation_show!
-    flash.now[:alert] = error.message
+    prepare_reservation_show!(composer: "revise")
+    @command_form = CommandForm.new(param_key: "revise")
+    @command_form.add_command_error(error)
     render :show, status: :unprocessable_entity
   end
 
   private
 
-  def prepare_reservation_show!
+  COMPOSERS = %w[request withdraw respond cancel revise].freeze
+  HISTORY_LIMIT = 50
+  HISTORY_FETCH_LIMIT = HISTORY_LIMIT + 1
+
+  def prepare_reservation_show!(composer: nil)
+    @composer = COMPOSERS.include?(composer.to_s) ? composer.to_s : (COMPOSERS.include?(params[:composer].to_s) ? params[:composer].to_s : nil)
     @projection = @supplier_reservation.projection
-    @revisions = @supplier_reservation.revisions
+    revision_rows = @supplier_reservation.revisions
       .includes(:supplier_arrangement_version, scopes: [ :arrangement_item, :service_occurrence, :supplier_resource, :capacity_pool ])
       .order(revision_number: :desc)
-    @events = @supplier_reservation.events
+      .limit(HISTORY_FETCH_LIMIT)
+      .to_a
+    @revisions_truncated = revision_rows.size > HISTORY_LIMIT
+    @revisions = revision_rows.first(HISTORY_LIMIT)
+    event_rows = @supplier_reservation.events
       .includes(:scope_outcomes, :supplier_contact)
       .order(recorded_at: :desc, id: :desc)
+      .limit(HISTORY_FETCH_LIMIT)
+      .to_a
+    @events_truncated = event_rows.size > HISTORY_LIMIT
+    @events = event_rows.first(HISTORY_LIMIT)
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     @scopes_by_latest_outcome = nil
     @pending_scopes = pending_scopes
