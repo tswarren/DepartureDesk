@@ -22,21 +22,30 @@
           <legend>Confirmation evidence</legend>
           <div class="dd-field">
             <%= label_tag "existing_reservation_channel", "Channel" %>
-            <%= text_field_tag "existing_reservation[channel]", "portal", class: "dd-input", maxlength: 80, required: true %>
+            <%= text_field_tag "existing_reservation[channel]",
+              params.dig(:existing_reservation, :channel),
+              class: "dd-input", maxlength: 80, required: true, placeholder: "Channel used for the existing booking" %>
           </div>
           <div class="dd-field">
             <%= label_tag "existing_reservation_reference_note", "Reference note" %>
-            <%= text_area_tag "existing_reservation[reference_note]", "Existing confirmed booking", class: "dd-textarea", maxlength: 500, required: true %>
+            <%= text_area_tag "existing_reservation[reference_note]",
+              params.dig(:existing_reservation, :reference_note),
+              class: "dd-textarea", maxlength: 500, required: true, placeholder: "Safe reference for the existing confirmation" %>
           </div>
           <div class="dd-field">
             <%= label_tag "existing_reservation_evidence_evidence_kind", "Evidence kind" %>
             <%= select_tag "existing_reservation[evidence][evidence_kind]",
-              options_for_select(SupplierConfirmation::EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] }, "supplier_confirmation"),
+              options_for_select(
+                SupplierConfirmation::EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] },
+                params.dig(:existing_reservation, :evidence, :evidence_kind) || "supplier_confirmation"
+              ),
               class: "dd-select" %>
           </div>
           <div class="dd-field">
             <%= label_tag "existing_reservation_evidence_evidence_on", "Evidence date" %>
-            <%= date_field_tag "existing_reservation[evidence][evidence_on]", Date.current, class: "dd-input", required: true %>
+            <%= date_field_tag "existing_reservation[evidence][evidence_on]",
+              params.dig(:existing_reservation, :evidence, :evidence_on) || Date.current,
+              class: "dd-input", required: true %>
           </div>
           <div class="dd-field">
             <%= label_tag "existing_reservation_evidence_confirmed_without_identifier_reason", "Confirmed without identifier reason" %>

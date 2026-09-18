@@ -232,10 +232,27 @@ class SupplierReservationsController < ApplicationController
     @scopes_by_latest_outcome = nil
     @pending_scopes = pending_scopes
     @confirmed_scopes = confirmed_scopes
-    @capacity_pool_options = @supplier_arrangement.capacity_pools.order(:id)
+    @capacity_pool_options = @supplier_arrangement.capacity_pools
+      .includes(:supplying_supplier).order(:id)
     @unresolved_commitment_triggers = UnresolvedReservationCommitmentTriggers.call(
       agency: Current.agency, reservation: @supplier_reservation
     )
+    requested_revision = @supplier_reservation.revisions.where(status: "requested").order(revision_number: :desc).first
+    @response_version = requested_revision&.supplier_arrangement_version
+    @reservation_triggers = if @response_version
+      @response_version.supplier_commitment_trigger_definitions
+        .where(trigger_kind: "reservation_confirmation", committed_supplier_id: @supplier_reservation.booking_supplier_id)
+        .order(:position, :id)
+    else
+      SupplierCommitmentTriggerDefinition.none
+    end
+    @existing_confirmations = if @response_version
+      @response_version.supplier_confirmations
+        .where(confirming_supplier_id: @supplier_reservation.booking_supplier_id)
+        .order(recorded_at: :desc, id: :desc)
+    else
+      SupplierConfirmation.none
+    end
   end
 
   def set_reservation_version
@@ -285,19 +302,26 @@ class SupplierReservationsController < ApplicationController
 
   def response_params
     permitted = params.fetch(:response_event, ActionController::Parameters.new).permit(
-      :occurred_at, :channel, :reference_note, :existing_confirmation_id, :confirmed_amount_minor_units,
+      :occurred_at, :channel, :reference_note, :existing_confirmation_id,
+      :duplicate_acknowledgement_token,
       scope_ids: [],
       evidence: [
         :evidence_kind, :other_evidence_label, :evidence_on, :channel, :reference_note,
         :confirmed_without_identifier_reason
       ],
       identifier: [ :identifier_type, :other_type_label, :display_value, :issuer_context ],
-      capacity_consequence: [
+      capacity_consequences: [
         :capacity_pool_id, :event_type, :quantity, :effective_on, :supplier_reservation_scope_id,
         { evidence: [ :evidence_kind, :evidence_on, :evidence_reference_note, :evidence_external_reference ] }
-      ]
+      ],
+      confirmed_amounts_minor_units: {},
+      confirmed_quantities: {},
+      coverage_scope_ids: {}
     )
     permitted[:scope_ids] = params[:scope_ids] if params[:scope_ids].present?
+    if params[:duplicate_acknowledgement_token].present?
+      permitted[:duplicate_acknowledgement_token] = params[:duplicate_acknowledgement_token]
+    end
     if params[:outcomes].present?
       outcomes = {}
       params.fetch(:outcomes).each do |scope_id, values|
@@ -308,6 +332,28 @@ class SupplierReservationsController < ApplicationController
         ).to_h
       end
       permitted[:outcomes] = outcomes
+    end
+    %i[confirmed_amounts_minor_units confirmed_quantities coverage_scope_ids].each do |key|
+      raw = params[key].presence || params.dig(:response_event, key)
+      next if raw.blank?
+
+      permitted[key] = raw.permit!.to_h if raw.respond_to?(:permit!)
+    end
+    if params[:capacity_consequences].present?
+      raw_consequences = params[:capacity_consequences]
+      entries = if raw_consequences.is_a?(ActionController::Parameters) || raw_consequences.is_a?(Hash)
+        raw_consequences.values
+      else
+        Array(raw_consequences)
+      end
+      permitted[:capacity_consequences] = entries.filter_map do |entry|
+        next unless entry.respond_to?(:permit)
+
+        entry.permit(
+          :capacity_pool_id, :event_type, :quantity, :effective_on, :supplier_reservation_scope_id,
+          evidence: [ :evidence_kind, :evidence_on, :evidence_reference_note, :evidence_external_reference ]
+        ).to_h
+      end
     end
     permitted
   end

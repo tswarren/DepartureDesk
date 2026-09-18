@@ -109,57 +109,272 @@
       </div>
     </header>
     <div class="dd-panel-body">
+      <% if @acknowledgement_token.present? %>
+        <div class="dd-notice" role="status">
+          <p>Review the matching Supplier identifiers, then submit again to create this reservation-owned identifier anyway.</p>
+          <ul>
+            <% Array(@duplicate_candidates).each do |candidate| %>
+              <li><%= Array(candidate.signals).to_sentence %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+      <% if @unresolved_commitment_triggers.any? %>
+        <div class="dd-notice" role="status">
+          <p>Unresolved commitment triggers remain after prior confirmations:</p>
+          <ul>
+            <% @unresolved_commitment_triggers.each do |row| %>
+              <li><%= row.trigger.description.presence || row.trigger.authority_shape.humanize %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
       <%= form_with url: respond_departure_arrangement_reservation_path(@departure, @supplier_arrangement, @supplier_reservation), method: :post do %>
-        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
-        <% @pending_scopes.each do |scope| %>
-          <div class="dd-field">
-            <%= check_box_tag "scope_ids[]", scope.id, true, id: "response_scope_ids_#{scope.id}" %>
-            <%= label_tag "response_scope_ids_#{scope.id}", scope.label.presence || scope.target_kind.humanize %>
-          </div>
-          <div class="dd-field">
-            <%= label_tag "outcomes_#{scope.id}_outcome_kind", "Outcome for #{scope.label.presence || scope.target_kind.humanize}" %>
-            <%= select_tag "outcomes[#{scope.id}][outcome_kind]",
-              options_for_select([
-                ["Confirmed", "confirmed"],
-                ["Declined", "declined"],
-                ["Counterproposed", "counterproposed"]
-              ], "confirmed"),
-              class: "dd-select" %>
-          </div>
-          <div class="dd-field">
-            <%= label_tag "outcomes_#{scope.id}_decline_reason", "Decline reason" %>
-            <%= text_field_tag "outcomes[#{scope.id}][decline_reason]", nil, class: "dd-input", maxlength: 500 %>
-          </div>
+        <%= hidden_field_tag :idempotency_key, params[:idempotency_key].presence || SecureRandom.uuid %>
+        <% if @acknowledgement_token.present? %>
+          <%= hidden_field_tag :duplicate_acknowledgement_token, @acknowledgement_token %>
+        <% elsif params[:duplicate_acknowledgement_token].present? %>
+          <%= hidden_field_tag :duplicate_acknowledgement_token, params[:duplicate_acknowledgement_token] %>
         <% end %>
+
+        <% @pending_scopes.each do |scope| %>
+          <% scope_label = scope.label.presence || scope.target_kind.humanize %>
+          <% selected_kind = params.dig(:outcomes, scope.id.to_s, :outcome_kind) || params.dig(:outcomes, scope.id, :outcome_kind) || "confirmed" %>
+          <fieldset class="dd-field">
+            <legend><%= scope_label %></legend>
+            <div class="dd-field">
+              <%= check_box_tag "scope_ids[]", scope.id,
+                Array(params[:scope_ids]).blank? || Array(params[:scope_ids]).map(&:to_s).include?(scope.id.to_s),
+                id: "response_scope_ids_#{scope.id}" %>
+              <%= label_tag "response_scope_ids_#{scope.id}", "Include this scope" %>
+            </div>
+            <div class="dd-field">
+              <%= label_tag "outcomes_#{scope.id}_outcome_kind", "Outcome" %>
+              <%= select_tag "outcomes[#{scope.id}][outcome_kind]",
+                options_for_select([
+                  ["Confirmed", "confirmed"],
+                  ["Declined", "declined"],
+                  ["Counterproposed", "counterproposed"]
+                ], selected_kind),
+                class: "dd-select" %>
+            </div>
+            <div class="dd-field">
+              <%= label_tag "outcomes_#{scope.id}_quantity", "Confirmed quantity" %>
+              <%= number_field_tag "outcomes[#{scope.id}][quantity]",
+                params.dig(:outcomes, scope.id.to_s, :quantity) || params.dig(:outcomes, scope.id, :quantity),
+                min: 1, step: 1, class: "dd-input" %>
+            </div>
+            <div class="dd-field">
+              <%= label_tag "outcomes_#{scope.id}_quantity_basis", "Quantity basis" %>
+              <%= select_tag "outcomes[#{scope.id}][quantity_basis]",
+                options_for_select(
+                  [[ "Use requested basis", "" ]] + SupplierReservationScope::QUANTITY_BASES.map { |basis| [basis.humanize, basis] },
+                  params.dig(:outcomes, scope.id.to_s, :quantity_basis) || params.dig(:outcomes, scope.id, :quantity_basis) || scope.quantity_basis
+                ),
+                class: "dd-select" %>
+            </div>
+            <div class="dd-field">
+              <%= label_tag "outcomes_#{scope.id}_supplier_note", "Supplier note" %>
+              <%= text_field_tag "outcomes[#{scope.id}][supplier_note]",
+                params.dig(:outcomes, scope.id.to_s, :supplier_note) || params.dig(:outcomes, scope.id, :supplier_note),
+                class: "dd-input", maxlength: 500 %>
+            </div>
+            <div class="dd-field">
+              <%= label_tag "outcomes_#{scope.id}_decline_reason", "Decline reason" %>
+              <%= text_field_tag "outcomes[#{scope.id}][decline_reason]",
+                params.dig(:outcomes, scope.id.to_s, :decline_reason) || params.dig(:outcomes, scope.id, :decline_reason),
+                class: "dd-input", maxlength: 500 %>
+            </div>
+          </fieldset>
+        <% end %>
+
+        <div class="dd-field">
+          <%= label_tag "response_event_occurred_at", "Response time" %>
+          <%= datetime_field_tag "response_event[occurred_at]",
+            params.dig(:response_event, :occurred_at) || Time.current.strftime("%Y-%m-%dT%H:%M"),
+            class: "dd-input" %>
+        </div>
         <div class="dd-field">
           <%= label_tag "response_event_channel", "Response channel" %>
-          <%= text_field_tag "response_event[channel]", nil, class: "dd-input", maxlength: 80, required: true %>
+          <%= text_field_tag "response_event[channel]", params.dig(:response_event, :channel), class: "dd-input", maxlength: 80, required: true %>
         </div>
         <div class="dd-field">
           <%= label_tag "response_event_reference_note", "Response reference note" %>
-          <%= text_area_tag "response_event[reference_note]", nil, class: "dd-textarea", maxlength: 500, required: true %>
+          <%= text_area_tag "response_event[reference_note]", params.dig(:response_event, :reference_note), class: "dd-textarea", maxlength: 500, required: true %>
         </div>
+
+        <% if @existing_confirmations.any? %>
+          <div class="dd-field">
+            <%= label_tag "response_event_existing_confirmation_id", "Reuse existing confirmation evidence" %>
+            <%= select_tag "response_event[existing_confirmation_id]",
+              options_for_select(
+                [["Create new evidence", ""]] + @existing_confirmations.map { |entry| ["#{entry.evidence_on}: #{entry.reference_note}", entry.id] },
+                params.dig(:response_event, :existing_confirmation_id)
+              ),
+              class: "dd-select" %>
+          </div>
+        <% end %>
+
         <fieldset class="dd-field">
           <legend>Confirmation evidence</legend>
           <div class="dd-field">
             <%= label_tag "response_event_evidence_evidence_kind", "Evidence kind" %>
             <%= select_tag "response_event[evidence][evidence_kind]",
-              options_for_select(SupplierConfirmation::EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] }, "supplier_confirmation"),
+              options_for_select(
+                SupplierConfirmation::EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] },
+                params.dig(:response_event, :evidence, :evidence_kind) || "supplier_confirmation"
+              ),
               class: "dd-select" %>
           </div>
           <div class="dd-field">
             <%= label_tag "response_event_evidence_evidence_on", "Evidence date" %>
-            <%= date_field_tag "response_event[evidence][evidence_on]", Date.current, class: "dd-input", required: true %>
+            <%= date_field_tag "response_event[evidence][evidence_on]",
+              params.dig(:response_event, :evidence, :evidence_on) || Date.current,
+              class: "dd-input", required: true %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "response_event_evidence_reference_note", "Evidence reference note" %>
+            <p class="dd-field-hint">Distinct from the response event note when evidence wording differs.</p>
+            <%= text_area_tag "response_event[evidence][reference_note]",
+              params.dig(:response_event, :evidence, :reference_note),
+              class: "dd-textarea", maxlength: 500 %>
           </div>
           <div class="dd-field">
             <%= label_tag "response_event_evidence_confirmed_without_identifier_reason", "Confirmed without identifier reason" %>
-            <p class="dd-field-hint">Explain why this confirmation has no Supplier identifier yet.</p>
+            <p class="dd-field-hint">Leave blank when recording a Supplier identifier below.</p>
             <%= text_area_tag "response_event[evidence][confirmed_without_identifier_reason]",
               params.dig(:response_event, :evidence, :confirmed_without_identifier_reason),
               class: "dd-textarea", maxlength: 500, placeholder: "Enter the reason Staff is confirming without an identifier" %>
           </div>
         </fieldset>
-        <%= submit_tag "Record response", class: "dd-button" %>
+
+        <fieldset class="dd-field">
+          <legend>Supplier-issued identifier</legend>
+          <div class="dd-field">
+            <%= label_tag "response_event_identifier_identifier_type", "Identifier type" %>
+            <%= select_tag "response_event[identifier][identifier_type]",
+              options_for_select(
+                [["No identifier", ""]] + SupplierIssuedIdentifier::IDENTIFIER_TYPES.map { |kind| [kind.humanize, kind] },
+                params.dig(:response_event, :identifier, :identifier_type)
+              ),
+              class: "dd-select" %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "response_event_identifier_display_value", "Identifier" %>
+            <%= text_field_tag "response_event[identifier][display_value]",
+              params.dig(:response_event, :identifier, :display_value),
+              class: "dd-input", maxlength: 160 %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "response_event_identifier_issuer_context", "Issuer context" %>
+            <%= text_field_tag "response_event[identifier][issuer_context]",
+              params.dig(:response_event, :identifier, :issuer_context),
+              class: "dd-input", maxlength: 80 %>
+          </div>
+          <div class="dd-field">
+            <%= label_tag "response_event_identifier_other_type_label", "Other type label" %>
+            <%= text_field_tag "response_event[identifier][other_type_label]",
+              params.dig(:response_event, :identifier, :other_type_label),
+              class: "dd-input", maxlength: 80 %>
+          </div>
+        </fieldset>
+
+        <% amount_triggers = @reservation_triggers.select { |trigger| trigger.authority_shape == "confirmed_amount" } %>
+        <% quantity_triggers = @reservation_triggers.select { |trigger|
+             %w[confirmed_quantity contracted_unit_rate_times_confirmed_quantity].include?(trigger.authority_shape)
+           } %>
+        <% if amount_triggers.any? || quantity_triggers.any? %>
+          <fieldset class="dd-field">
+            <legend>Commitment inputs by trigger</legend>
+            <% amount_triggers.each do |trigger| %>
+              <div class="dd-field">
+                <%= label_tag "confirmed_amounts_minor_units_#{trigger.id}",
+                  "Confirmed amount (minor units) · #{trigger.description.presence || trigger.authority_shape.humanize}" %>
+                <%= number_field_tag "confirmed_amounts_minor_units[#{trigger.id}]",
+                  params.dig(:confirmed_amounts_minor_units, trigger.id.to_s) || params.dig(:response_event, :confirmed_amounts_minor_units, trigger.id.to_s),
+                  min: 0, step: 1, class: "dd-input" %>
+                <p class="dd-field-hint">Currency: <%= @departure.operating_currency %>.</p>
+              </div>
+            <% end %>
+            <% quantity_triggers.each do |trigger| %>
+              <div class="dd-field">
+                <%= label_tag "confirmed_quantities_#{trigger.id}",
+                  "Confirmed quantity · #{trigger.description.presence || trigger.authority_shape.humanize}" %>
+                <%= number_field_tag "confirmed_quantities[#{trigger.id}]",
+                  params.dig(:confirmed_quantities, trigger.id.to_s) || params.dig(:response_event, :confirmed_quantities, trigger.id.to_s),
+                  min: 1, step: 1, class: "dd-input" %>
+              </div>
+            <% end %>
+            <% if @pending_scopes.size > 1 && @reservation_triggers.any? { |trigger|
+                 trigger.arrangement_item_id.blank? && trigger.service_occurrence_id.blank? &&
+                   trigger.supplier_resource_id.blank? && trigger.capacity_pool_id.blank?
+               } %>
+              <% @reservation_triggers.select { |trigger|
+                   trigger.arrangement_item_id.blank? && trigger.service_occurrence_id.blank? &&
+                     trigger.supplier_resource_id.blank? && trigger.capacity_pool_id.blank?
+                 }.each do |trigger| %>
+                <div class="dd-field">
+                  <%= label_tag "coverage_scope_ids_#{trigger.id}",
+                    "Coverage scope · #{trigger.description.presence || "Arrangement-wide trigger"}" %>
+                  <%= select_tag "coverage_scope_ids[#{trigger.id}]",
+                    options_for_select(
+                      [["Choose covering scope", ""]] + @pending_scopes.map { |scope| [scope.label.presence || scope.target_kind.humanize, scope.id] },
+                      params.dig(:coverage_scope_ids, trigger.id.to_s)
+                    ),
+                    class: "dd-select" %>
+                </div>
+              <% end %>
+            <% end %>
+          </fieldset>
+        <% end %>
+
+        <% if @capacity_pool_options.any? %>
+          <fieldset class="dd-field">
+            <legend>Capacity consequences</legend>
+            <p class="dd-field-hint">Leave Pool blank to skip. Scoped consequences must name a confirmed scope.</p>
+            <% 2.times do |index| %>
+              <% raw = params.dig(:capacity_consequences, index.to_s) || params.dig(:capacity_consequences, index) || {} %>
+              <div class="dd-field">
+                <%= label_tag "capacity_consequences_#{index}_capacity_pool_id", "Pool #{index + 1}" %>
+                <%= select_tag "capacity_consequences[#{index}][capacity_pool_id]",
+                  options_for_select(
+                    [["No capacity event", ""]] + @capacity_pool_options.map { |pool| ["#{pool.measurement_basis.humanize} · #{supplier_option_label(pool.supplying_supplier)}", pool.id] },
+                    raw[:capacity_pool_id] || raw["capacity_pool_id"]
+                  ),
+                  class: "dd-select" %>
+              </div>
+              <div class="dd-field">
+                <%= label_tag "capacity_consequences_#{index}_event_type", "Event type #{index + 1}" %>
+                <%= text_field_tag "capacity_consequences[#{index}][event_type]",
+                  raw[:event_type] || raw["event_type"] || "hold",
+                  class: "dd-input", maxlength: 80 %>
+              </div>
+              <div class="dd-field">
+                <%= label_tag "capacity_consequences_#{index}_quantity", "Quantity #{index + 1}" %>
+                <%= number_field_tag "capacity_consequences[#{index}][quantity]",
+                  raw[:quantity] || raw["quantity"],
+                  min: 1, step: 1, class: "dd-input" %>
+              </div>
+              <div class="dd-field">
+                <%= label_tag "capacity_consequences_#{index}_effective_on", "Effective on #{index + 1}" %>
+                <%= date_field_tag "capacity_consequences[#{index}][effective_on]",
+                  raw[:effective_on] || raw["effective_on"] || Date.current,
+                  class: "dd-input" %>
+              </div>
+              <div class="dd-field">
+                <%= label_tag "capacity_consequences_#{index}_supplier_reservation_scope_id", "Scope #{index + 1} (optional)" %>
+                <%= select_tag "capacity_consequences[#{index}][supplier_reservation_scope_id]",
+                  options_for_select(
+                    [["Arrangement-wide / unscoped", ""]] + @pending_scopes.map { |scope| [scope.label.presence || scope.target_kind.humanize, scope.id] },
+                    raw[:supplier_reservation_scope_id] || raw["supplier_reservation_scope_id"]
+                  ),
+                  class: "dd-select" %>
+              </div>
+            <% end %>
+          </fieldset>
+        <% end %>
+
+        <%= submit_tag @acknowledgement_token.present? ? "Create identifier anyway" : "Record response", class: "dd-button" %>
       <% end %>
     </div>
   </article>
