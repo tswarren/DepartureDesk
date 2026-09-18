@@ -62,26 +62,28 @@ class RecordSupplierReservationResponse < AgencyCommand
     ).lock.first
     return nil unless existing
 
-    scopes = scopes_for_submitted_response!(revision)
+    event = reservation.events.find_by(
+      id: existing.result_record_id,
+      agency_id: @agency.id,
+      supplier_reservation_revision_id: revision.id,
+      event_kind: "response"
+    )
+    unless event
+      raise Error.new("That idempotency key was already used for different input.", code: :conflict)
+    end
+
+    scopes = event.scope_outcomes
+      .includes(:supplier_reservation_scope)
+      .map(&:supplier_reservation_scope)
+      .uniq
+      .sort_by { |scope| [ scope.position, scope.id ] }
     outcomes = normalize_outcomes!(scopes)
     payload = response_payload(reservation, revision, outcomes)
     unless existing.payload_digest == payload_digest(payload)
       raise Error.new("That idempotency key was already used for different input.", code: :conflict)
     end
 
-    Result.new(status: :replayed, record: SupplierReservationEvent.find(existing.result_record_id))
-  end
-
-  def scopes_for_submitted_response!(revision)
-    all_scopes = revision.scopes.order(:position, :id).to_a
-    requested_ids = Array(@attributes[:scope_ids]).presence
-    return all_scopes if requested_ids.blank?
-
-    selected = all_scopes.select { |scope| requested_ids.map(&:to_s).include?(scope.id.to_s) }
-    if selected.size != requested_ids.map(&:to_s).uniq.size
-      raise Error.new("Choose only scopes that belong to this revision.", code: :invalid)
-    end
-    selected
+    Result.new(status: :replayed, record: event)
   end
 
   # Caller must already hold the Reservation mutation lock graph and requested revision.
