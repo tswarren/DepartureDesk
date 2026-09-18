@@ -2189,7 +2189,7 @@ CREATE TABLE public.supplier_commitments (
     CONSTRAINT supplier_commitments_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 500))),
     CONSTRAINT supplier_commitments_money_shape CHECK ((((amount_minor_units IS NULL) = (currency IS NULL)) AND ((amount_minor_units IS NULL) OR (amount_minor_units >= 0)))),
     CONSTRAINT supplier_commitments_quantity_shape CHECK ((((quantity IS NULL) = (quantity_basis IS NULL)) AND ((quantity IS NULL) OR (quantity > 0)))),
-    CONSTRAINT supplier_commitments_reservation_shape CHECK ((((supplier_reservation_id IS NULL) AND (supplier_reservation_revision_id IS NULL) AND (supplier_reservation_scope_id IS NULL) AND (supplier_reservation_event_id IS NULL)) OR ((supplier_reservation_id IS NOT NULL) AND (supplier_reservation_revision_id IS NOT NULL) AND (supplier_reservation_event_id IS NOT NULL)))),
+    CONSTRAINT supplier_commitments_reservation_shape CHECK ((((supplier_reservation_id IS NULL) AND (supplier_reservation_revision_id IS NULL) AND (supplier_reservation_scope_id IS NULL) AND (supplier_reservation_event_id IS NULL)) OR ((supplier_reservation_id IS NOT NULL) AND (supplier_reservation_revision_id IS NOT NULL) AND (supplier_reservation_scope_id IS NOT NULL) AND (supplier_reservation_event_id IS NOT NULL)))),
     CONSTRAINT supplier_commitments_type CHECK (((commitment_type)::text = ANY ((ARRAY['quantity'::character varying, 'monetary'::character varying, 'quantity_and_monetary'::character varying])::text[])))
 );
 
@@ -5961,7 +5961,7 @@ CREATE INDEX index_supplier_emails_on_agency_and_normalized ON public.supplier_e
 -- Name: index_supplier_identifiers_on_active_owner_value; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_supplier_identifiers_on_active_owner_value ON public.supplier_issued_identifiers USING btree (supplier_arrangement_id, supplier_id, identifier_type, issuer_context, normalized_value) WHERE (superseded_at IS NULL);
+CREATE UNIQUE INDEX index_supplier_identifiers_on_active_owner_value ON public.supplier_issued_identifiers USING btree (supplier_arrangement_id, supplier_id, identifier_type, issuer_context, normalized_value) WHERE ((superseded_at IS NULL) AND (supplier_reservation_id IS NULL));
 
 
 --
@@ -9346,6 +9346,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260918010000'),
 ('20260917232000'),
 ('20260917230500'),
 ('20260917230400'),
