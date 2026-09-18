@@ -1,7 +1,10 @@
 class OpenSupplierCommitmentAlreadyLocked
+  IncompleteInputs = Class.new(StandardError)
+
   def initialize(trigger:, confirmation:, actor:, activation: nil,
     confirmed_quantity: nil, confirmed_amount_minor_units: nil,
-    reservation: nil, revision: nil, scope: nil, response_event: nil)
+    reservation: nil, revision: nil, scope: nil, response_event: nil,
+    allow_unresolved: false)
     @trigger = trigger
     @confirmation = confirmation
     @actor = actor
@@ -12,12 +15,18 @@ class OpenSupplierCommitmentAlreadyLocked
     @revision = revision
     @scope = scope
     @response_event = response_event
+    @allow_unresolved = allow_unresolved
   end
 
   # Internal operation only. The enclosing confirmation command must already
   # hold the complete owner, Supplier, trigger, and confirmation lock graph.
+  # Returns nil when allow_unresolved and external inputs are incomplete.
   def call
     validate_owners!
+    if @reservation && @scope.nil?
+      raise AgencyCommand::Error.new("Reservation confirmation commitments require exact scope.", code: :invalid)
+    end
+
     quantity, amount = authoritative_values
     commitment = SupplierCommitment.create!(
       owner_attributes.merge(
@@ -50,10 +59,11 @@ class OpenSupplierCommitmentAlreadyLocked
       )
     )
     commitment
+  rescue IncompleteInputs
+    nil
   rescue ActiveRecord::RecordNotUnique
-    SupplierCommitment.find_by!(
-      supplier_confirmation: @confirmation,
-      supplier_commitment_trigger_definition: @trigger
+    raise AgencyCommand::Error.new(
+      "That confirmation already opened this commitment trigger.", code: :conflict
     )
   end
 
@@ -75,7 +85,7 @@ class OpenSupplierCommitmentAlreadyLocked
     end
     return if @reservation.nil?
 
-    unless @revision && @response_event &&
+    unless @revision && @response_event && @scope &&
         @reservation.agency_id == @trigger.agency_id &&
         @reservation.departure_id == @trigger.departure_id &&
         @reservation.supplier_arrangement_id == @trigger.supplier_arrangement_id &&
@@ -99,7 +109,7 @@ class OpenSupplierCommitmentAlreadyLocked
       quantity = positive_input(@confirmed_quantity, "confirmed quantity")
       [ quantity, contracted_component_amount("unit_rate") * quantity ]
     else
-      raise AgencyCommand::Error.new("Commitment authority is incomplete.", code: :invalid)
+      raise incomplete_or_invalid!("Commitment authority is incomplete.")
     end
   end
 
@@ -109,9 +119,7 @@ class OpenSupplierCommitmentAlreadyLocked
     unless definition&.contracted? && definition.forecast_ready? &&
         component&.supplier_charge? && component.calculation_kind == kind &&
         definition.currency == @trigger.currency
-      raise AgencyCommand::Error.new(
-        "The contracted monetary authority is no longer complete.", code: :invalid
-      )
+      raise incomplete_or_invalid!("The contracted monetary authority is no longer complete.")
     end
     component.amount_minor_units
   end
@@ -119,21 +127,30 @@ class OpenSupplierCommitmentAlreadyLocked
   def positive_input(value, label)
     number = Integer(value)
     raise ArgumentError unless number.positive?
+
     number
   rescue ArgumentError, TypeError
-    raise AgencyCommand::Error.new("Enter a positive whole #{label}.", code: :invalid)
+    raise incomplete_or_invalid!("Enter a positive whole #{label}.")
   end
 
   def nonnegative_input(value, label)
     number = Integer(value)
     raise ArgumentError if number.negative?
+
     number
   rescue ArgumentError, TypeError
-    raise AgencyCommand::Error.new("Enter a valid #{label} in minor units.", code: :invalid)
+    raise incomplete_or_invalid!("Enter a valid #{label} in minor units.")
+  end
+
+  def incomplete_or_invalid!(message)
+    raise IncompleteInputs, message if @allow_unresolved
+
+    raise AgencyCommand::Error.new(message, code: :invalid)
   end
 
   def commitment_type(quantity, amount)
     return "quantity_and_monetary" if quantity && amount
+
     quantity ? "quantity" : "monetary"
   end
 

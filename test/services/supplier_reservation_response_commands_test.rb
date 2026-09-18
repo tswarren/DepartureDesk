@@ -94,6 +94,37 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
     assert_equal :conflict, error.code
   end
 
+  test "missing confirmed amount soft-skips commitment and exposes unresolved trigger" do
+    single = CreateSupplierReservation.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement,
+      attributes: {
+        booking_supplier_id: @supplier.id,
+        supplier_arrangement_version_id: @version.id,
+        scopes: [ { target_kind: "arrangement", label: "Whole" } ]
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    request_reservation(single)
+
+    trigger = SupplierCommitmentTriggerDefinition.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: @arrangement,
+      supplier_arrangement_version: @version,
+      trigger_kind: "reservation_confirmation",
+      authority_shape: "confirmed_amount",
+      committed_supplier: @supplier,
+      description: "Deposit",
+      currency: @departure.operating_currency,
+      position: 1
+    )
+
+    respond_reservation(single)
+    assert_equal 0, SupplierCommitment.where(supplier_commitment_trigger_definition_id: trigger.id).count
+    unresolved = UnresolvedReservationCommitmentTriggers.call(agency: @agency, reservation: single)
+    assert unresolved.any? { |row| row.trigger.id == trigger.id }
+  end
+
   test "response succeeds on predecessor requested revision after successor activation" do
     planned = create_reservation.record
     predecessor_version = @version

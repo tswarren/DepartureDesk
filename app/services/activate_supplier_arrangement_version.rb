@@ -1,3 +1,5 @@
+require "ostruct"
+
 class ActivateSupplierArrangementVersion < AgencyCommand
   include ArrangementCommandSupport
 
@@ -11,7 +13,8 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     provisional_costs_acknowledged: false,
     commitment_trigger_coverage_acknowledged: false,
     confirmed_quantity: nil, confirmed_amount_minor_units: nil,
-    acknowledgments: nil)
+    confirmed_quantities: nil, confirmed_amounts_minor_units: nil,
+    acknowledgments: nil, duplicate_acknowledgement_token: nil)
     @agency = agency
     @actor = actor
     @arrangement = arrangement
@@ -35,6 +38,9 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     ))
     @confirmed_quantity = confirmed_quantity
     @confirmed_amount_minor_units = confirmed_amount_minor_units
+    @confirmed_quantities = (confirmed_quantities || {}).to_h.with_indifferent_access
+    @confirmed_amounts_minor_units = (confirmed_amounts_minor_units || {}).to_h.with_indifferent_access
+    @duplicate_acknowledgement_token = duplicate_acknowledgement_token
   end
 
   def call
@@ -283,9 +289,37 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       identifier_type: type, issuer_context: issuer, normalized_value: normalized,
       superseded_at: nil
     )
-    foreign = candidate_scope.where.not(supplier_arrangement_id: arrangement.id).exists?
-    if foreign
-      raise Error.new("That Supplier identifier matches another arrangement.", code: :conflict)
+    foreign_rows = candidate_scope.where.not(supplier_arrangement_id: arrangement.id).to_a
+    if foreign_rows.any?
+      fingerprint = DuplicateAcknowledgement.fingerprint(
+        supplier_id: arrangement.contracting_supplier_id,
+        identifier_type: type,
+        issuer_context: issuer,
+        normalized_value: normalized
+      )
+      if @duplicate_acknowledgement_token.blank?
+        candidates = foreign_rows.map do |row|
+          OpenStruct.new(id: row.id, signals: [ "supplier_issued_identifier", row.display_value ])
+        end
+        raise DuplicateReviewRequired.new(
+          token: DuplicateAcknowledgement.issue(
+            "shape" => "create",
+            "command" => "supplier_issued_identifier.create",
+            "agency_id" => @agency.id,
+            "actor_id" => @actor.id,
+            "fingerprint" => fingerprint,
+            "candidate_digest" => DuplicateAcknowledgement.candidate_digest(candidates)
+          ),
+          candidates: candidates
+        )
+      end
+      payload = DuplicateAcknowledgement.verify!(
+        @duplicate_acknowledgement_token,
+        agency: @agency, actor: @actor, command: "supplier_issued_identifier.create"
+      )
+      unless payload["fingerprint"] == fingerprint
+        raise Error.new("That acknowledgement does not match this identifier.", code: :conflict)
+      end
     end
     candidate_scope.find_by(supplier_arrangement_id: arrangement.id) ||
       SupplierIssuedIdentifier.create!(
@@ -356,10 +390,23 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       .where(trigger_kind: "arrangement_confirmation").order(:position, :id).map do |trigger|
       OpenSupplierCommitmentAlreadyLocked.new(
         trigger: trigger, confirmation: confirmation, actor: @actor,
-        activation: activation, confirmed_quantity: @confirmed_quantity,
-        confirmed_amount_minor_units: @confirmed_amount_minor_units
+        activation: activation,
+        confirmed_quantity: activation_confirmed_quantity_for(trigger),
+        confirmed_amount_minor_units: activation_confirmed_amount_for(trigger)
       ).call
     end
+  end
+
+  def activation_confirmed_quantity_for(trigger)
+    @confirmed_quantities[trigger.id].presence ||
+      @confirmed_quantities[trigger.id.to_s].presence ||
+      @confirmed_quantity
+  end
+
+  def activation_confirmed_amount_for(trigger)
+    @confirmed_amounts_minor_units[trigger.id].presence ||
+      @confirmed_amounts_minor_units[trigger.id.to_s].presence ||
+      @confirmed_amount_minor_units
   end
 
   def create_confirmation_links!(activation:, confirmation:, identifier:, capacity_events:)
@@ -411,7 +458,9 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       provisional_costs_acknowledged: @provisional_ack,
       commitment_trigger_coverage_acknowledged: @trigger_ack,
       confirmed_quantity: @confirmed_quantity,
-      confirmed_amount_minor_units: @confirmed_amount_minor_units
+      confirmed_amount_minor_units: @confirmed_amount_minor_units,
+      confirmed_quantities: @confirmed_quantities,
+      confirmed_amounts_minor_units: @confirmed_amounts_minor_units
     }
   end
 

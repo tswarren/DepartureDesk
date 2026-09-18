@@ -1,3 +1,7 @@
+# frozen_string_literal: true
+
+require "ostruct"
+
 class RecordSupplierReservationResponse < AgencyCommand
   include ReservationCommandSupport
 
@@ -125,6 +129,7 @@ class RecordSupplierReservationResponse < AgencyCommand
     end
 
     capacity_events = []
+    confirmed_entries = []
     outcomes.each do |entry|
       scope = entry[:scope]
       outcome = event.scope_outcomes.create!(
@@ -146,23 +151,24 @@ class RecordSupplierReservationResponse < AgencyCommand
           supplier_reservation_scope: scope
         )
       )
-      capacity_events.concat(
-        apply_capacity_consequences!(
-          confirmation: confirmation,
-          arrangement: arrangement,
-          version: version,
-          scope: scope,
-          recorded_at: now
-        )
+      confirmed_entries << { scope: scope, quantity: outcome.quantity }
+    end
+
+    if confirmation && confirmed_entries.any?
+      capacity_events = apply_capacity_consequences!(
+        confirmation: confirmation,
+        arrangement: arrangement,
+        version: version,
+        confirmed_scopes: confirmed_entries.map { |entry| entry[:scope] },
+        recorded_at: now
       )
-      open_reservation_commitments!(
+      open_reservation_commitments_once!(
         confirmation: confirmation,
         version: version,
         reservation: reservation,
         revision: revision,
-        scope: scope,
         event: event,
-        confirmed_quantity: outcome.quantity || scope.requested_quantity
+        confirmed_entries: confirmed_entries
       )
     end
 
@@ -347,11 +353,19 @@ class RecordSupplierReservationResponse < AgencyCommand
       identifier_type: type, issuer_context: issuer, normalized_value: normalized,
       superseded_at: nil
     )
-    foreign = candidate_scope.where.not(supplier_reservation_id: [ nil, reservation.id ])
+    foreign_rows = candidate_scope.where.not(supplier_reservation_id: [ nil, reservation.id ])
       .or(candidate_scope.where(supplier_reservation_id: nil).where.not(supplier_arrangement_id: arrangement.id))
-      .exists?
-    if foreign
-      raise Error.new("That Supplier identifier matches another arrangement or reservation.", code: :conflict)
+      .to_a
+    if foreign_rows.any?
+      acknowledge_identifier_duplicate!(
+        foreign_rows,
+        fingerprint_fields: {
+          supplier_id: booking_supplier.id,
+          identifier_type: type,
+          issuer_context: issuer,
+          normalized_value: normalized
+        }
+      )
     end
     candidate_scope.find_by(supplier_reservation_id: reservation.id) ||
       SupplierIssuedIdentifier.create!(
@@ -365,6 +379,38 @@ class RecordSupplierReservationResponse < AgencyCommand
       )
   end
 
+  def acknowledge_identifier_duplicate!(foreign_rows, fingerprint_fields:)
+    fingerprint = DuplicateAcknowledgement.fingerprint(fingerprint_fields)
+    token = @attributes[:duplicate_acknowledgement_token].presence ||
+      @attributes[:acknowledgement_token].presence
+    if token.blank?
+      candidates = foreign_rows.map do |row|
+        OpenStruct.new(id: row.id, signals: [ "supplier_issued_identifier", row.display_value ])
+      end
+      raise DuplicateReviewRequired.new(
+        token: DuplicateAcknowledgement.issue(
+          "shape" => "create",
+          "command" => "supplier_issued_identifier.create",
+          "agency_id" => @agency.id,
+          "actor_id" => @actor.id,
+          "fingerprint" => fingerprint,
+          "candidate_digest" => DuplicateAcknowledgement.candidate_digest(candidates)
+        ),
+        candidates: candidates
+      )
+    end
+
+    payload = DuplicateAcknowledgement.verify!(
+      token, agency: @agency, actor: @actor, command: "supplier_issued_identifier.create"
+    )
+    unless payload["fingerprint"] == fingerprint
+      raise Error.new("That acknowledgement does not match this identifier.", code: :conflict)
+    end
+    if DuplicateAcknowledgement.expired?(payload)
+      raise Error.new("That acknowledgement has expired.", code: :invalid)
+    end
+  end
+
   def link_response!(confirmation, reservation, revision, event, version)
     SupplierConfirmationReservationResponseLink.create!(
       owner_attributes(confirmation.supplier_arrangement, version).merge(
@@ -376,18 +422,38 @@ class RecordSupplierReservationResponse < AgencyCommand
     )
   end
 
-  def apply_capacity_consequences!(confirmation:, arrangement:, version:, scope:, recorded_at:)
+  def apply_capacity_consequences!(confirmation:, arrangement:, version:, confirmed_scopes:, recorded_at:)
     consequences = Array(@attributes[:capacity_consequences]).presence ||
       Array((@attributes[:capacity_consequence].presence && [ @attributes[:capacity_consequence] ]))
     return [] if consequences.blank?
 
+    confirmed_ids = confirmed_scopes.map { |scope| scope.id.to_s }
     consequences.filter_map do |raw|
       attrs = raw.to_h.with_indifferent_access
       next if attrs.values.all?(&:blank?)
-      next if attrs[:supplier_reservation_scope_id].present? &&
-        attrs[:supplier_reservation_scope_id].to_s != scope.id
+
+      scope_id = attrs[:supplier_reservation_scope_id].presence
+      if scope_id.present? && !confirmed_ids.include?(scope_id.to_s)
+        next
+      end
 
       pool = arrangement.capacity_pools.lock.find(attrs[:capacity_pool_id])
+      unless pool.supplying_supplier_id == confirmation.confirming_supplier_id
+        raise Error.new(
+          "Capacity consequence Pool must be supplied by the confirming Supplier.",
+          code: :invalid
+        )
+      end
+      if scope_id.present?
+        scope = confirmed_scopes.find { |row| row.id.to_s == scope_id.to_s }
+        unless capacity_pool_compatible_with_scope?(pool, scope)
+          raise Error.new(
+            "Capacity consequence Pool is not compatible with the confirmed scope.",
+            code: :invalid
+          )
+        end
+      end
+
       event = AppendCapacityEventAlreadyLocked.new(
         pool: pool,
         actor: @actor,
@@ -401,25 +467,38 @@ class RecordSupplierReservationResponse < AgencyCommand
           evidence_reference_note: confirmation.reference_note
         }
       ).call
-      if event.supplying_supplier_id == confirmation.confirming_supplier_id
-        SupplierConfirmationCapacityEventLink.create!(
-          owner_attributes(arrangement, version).merge(
-            supplier_confirmation: confirmation,
-            capacity_event: event
-          )
+      SupplierConfirmationCapacityEventLink.create!(
+        owner_attributes(arrangement, version).merge(
+          supplier_confirmation: confirmation,
+          capacity_event: event
         )
-      end
+      )
       event
     rescue ArgumentError, TypeError
       raise Error.new("Capacity consequence quantity must be a positive whole number.", code: :invalid)
     end
   end
 
-  def open_reservation_commitments!(confirmation:, version:, reservation:, revision:, scope:, event:, confirmed_quantity:)
+  def capacity_pool_compatible_with_scope?(pool, scope)
+    return true if scope.nil?
+    return pool.id == scope.capacity_pool_id if scope.target_kind == "capacity_pool"
+
+    (scope.arrangement_item_id.blank? || pool.arrangement_item_id == scope.arrangement_item_id) &&
+      (scope.service_occurrence_id.blank? || pool.service_occurrence_id == scope.service_occurrence_id) &&
+      (scope.supplier_resource_id.blank? || pool.supplier_resource_id == scope.supplier_resource_id)
+  end
+
+  def open_reservation_commitments_once!(confirmation:, version:, reservation:, revision:, event:, confirmed_entries:)
     version.supplier_commitment_trigger_definitions
       .where(trigger_kind: "reservation_confirmation").order(:position, :id).each do |trigger|
-      next unless trigger_matches_scope?(trigger, scope)
       next unless trigger.committed_supplier_id == confirmation.confirming_supplier_id
+
+      covering = confirmed_entries.select { |entry| trigger_matches_scope?(trigger, entry[:scope]) }
+      next if covering.empty?
+
+      coverage_scope = resolve_coverage_scope!(trigger, covering)
+      quantity = confirmed_quantity_for(trigger, covering, coverage_scope)
+      amount = confirmed_amount_for(trigger)
 
       OpenSupplierCommitmentAlreadyLocked.new(
         trigger: trigger,
@@ -427,12 +506,55 @@ class RecordSupplierReservationResponse < AgencyCommand
         actor: @actor,
         reservation: reservation,
         revision: revision,
-        scope: scope,
+        scope: coverage_scope,
         response_event: event,
-        confirmed_quantity: confirmed_quantity,
-        confirmed_amount_minor_units: @attributes[:confirmed_amount_minor_units]
+        confirmed_quantity: quantity,
+        confirmed_amount_minor_units: amount,
+        allow_unresolved: true
       ).call
     end
+  end
+
+  def resolve_coverage_scope!(trigger, covering)
+    if covering.size == 1
+      return covering.first[:scope]
+    end
+
+    coverage_id = coverage_scope_id_for(trigger)
+    if coverage_id.blank?
+      raise Error.new(
+        "Choose which confirmed scope covers this Arrangement-wide commitment trigger.",
+        code: :invalid
+      )
+    end
+    selected = covering.find { |entry| entry[:scope].id.to_s == coverage_id.to_s }
+    unless selected
+      raise Error.new(
+        "Coverage scope must be one of the confirmed scopes for this trigger.",
+        code: :invalid
+      )
+    end
+    selected[:scope]
+  end
+
+  def coverage_scope_id_for(trigger)
+    keyed = (@attributes[:coverage_scope_ids] || {}).to_h.with_indifferent_access
+    keyed[trigger.id].presence || keyed[trigger.id.to_s].presence || @attributes[:coverage_scope_id].presence
+  end
+
+  def confirmed_quantity_for(trigger, covering, coverage_scope)
+    keyed = (@attributes[:confirmed_quantities] || {}).to_h.with_indifferent_access
+    keyed_value = keyed[trigger.id].presence || keyed[trigger.id.to_s].presence
+    return keyed_value if keyed_value.present?
+
+    entry = covering.find { |row| row[:scope].id == coverage_scope.id } || covering.first
+    entry[:quantity]
+  end
+
+  def confirmed_amount_for(trigger)
+    keyed = (@attributes[:confirmed_amounts_minor_units] || {}).to_h.with_indifferent_access
+    keyed[trigger.id].presence || keyed[trigger.id.to_s].presence ||
+      @attributes[:confirmed_amount_minor_units]
   end
 
   def trigger_matches_scope?(trigger, scope)
@@ -461,6 +583,10 @@ class RecordSupplierReservationResponse < AgencyCommand
       end,
       occurred_at: @attributes[:occurred_at].presence,
       confirmed_amount_minor_units: @attributes[:confirmed_amount_minor_units],
+      confirmed_amounts_minor_units: @attributes[:confirmed_amounts_minor_units],
+      confirmed_quantities: @attributes[:confirmed_quantities],
+      coverage_scope_id: @attributes[:coverage_scope_id],
+      coverage_scope_ids: @attributes[:coverage_scope_ids],
       channel: @attributes[:channel].to_s.strip,
       reference_note: @attributes[:reference_note].to_s.strip,
       existing_confirmation_id: @attributes[:existing_confirmation_id],
