@@ -1,6 +1,6 @@
 # ADR 0012: Arrangement activation, Reservation history, and Supplier confirmation evidence
 
-- Status: Accepted. Implemented by [M3D](../planning/m3d-activation-reservations-confirmations.md) (Implemented—remediation pending; not yet re-marked Shipped). Sole-editable-draft is the implemented rule after M3D.3 remediation.
+- Status: Accepted. Implemented by shipped [M3D](../planning/m3d-activation-reservations-confirmations.md). Sole-editable-draft is the shipped rule after M3D.3 remediation.
 - Date: 2026-09-17
 - Decision owners: DepartureDesk maintainers
 - Parent: [M3 — Supplier planning](../planning/m3-supplier-planning.md)
