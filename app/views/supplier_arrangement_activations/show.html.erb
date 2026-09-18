@@ -127,8 +127,7 @@
       <% end %>
 
       <div class="dd-field-group">
-        <%= check_box_tag :cost_source_coverage_acknowledged, "1", params[:cost_source_coverage_acknowledged] == "1",
-          id: "activation_cost_source_coverage_acknowledged", required: true %>
+        <%= check_box_tag :cost_source_coverage_acknowledged, "1", params[:cost_source_coverage_acknowledged] == "1", required: true %>
         <%= label_tag :cost_source_coverage_acknowledged, "I confirm the entered cost-source list is complete.", class: "dd-label" %>
       </div>
       <% if @provisional_selections.any? %>
