@@ -4,6 +4,9 @@ require "ostruct"
 
 # Appends an immutable replacement identifier. The prior row is stamped superseded by
 # a database trigger when the successor insert commits; application code never UPDATEs it.
+#
+# Lock order after Agency: Supplier → Departure → Arrangement → version →
+# Reservation (when present) → confirmation → prior identifier.
 class SupersedeSupplierIssuedIdentifier < AgencyCommand
   include ArrangementCommandSupport
 
@@ -22,10 +25,42 @@ class SupersedeSupplierIssuedIdentifier < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      prior = SupplierIssuedIdentifier.lock.find_by!(id: @identifier.id, agency_id: @agency.id)
-      arrangement = lock_arrangement_for!(prior.supplier_arrangement_id)
-      lock_departure_for!(arrangement.departure_id)
-      confirmation = SupplierConfirmation.lock.find_by!(id: @confirmation.id, agency_id: @agency.id)
+
+      unlocked_prior = SupplierIssuedIdentifier.find_by!(id: @identifier.id, agency_id: @agency.id)
+      unlocked_confirmation = SupplierConfirmation.find_by!(id: @confirmation.id, agency_id: @agency.id)
+
+      lock_suppliers_in_uuid_order!(unlocked_prior.supplier_id)
+      departure = lock_departure_for!(unlocked_prior.departure_id)
+      arrangement = lock_arrangement_for!(unlocked_prior.supplier_arrangement_id)
+      version = arrangement.versions.lock.find(unlocked_confirmation.supplier_arrangement_version_id)
+
+      reservation = nil
+      if unlocked_prior.supplier_reservation_id.present?
+        reservation = arrangement.supplier_reservations.lock.find(unlocked_prior.supplier_reservation_id)
+      end
+
+      confirmation = SupplierConfirmation.lock.find_by!(
+        id: unlocked_confirmation.id,
+        agency_id: @agency.id,
+        supplier_arrangement_id: arrangement.id,
+        supplier_arrangement_version_id: version.id
+      )
+      prior = SupplierIssuedIdentifier.lock.find_by!(
+        id: unlocked_prior.id,
+        agency_id: @agency.id,
+        supplier_arrangement_id: arrangement.id
+      )
+
+      recheck_discovery!(
+        prior: prior,
+        unlocked_prior: unlocked_prior,
+        confirmation: confirmation,
+        unlocked_confirmation: unlocked_confirmation,
+        arrangement: arrangement,
+        departure: departure,
+        version: version,
+        reservation: reservation
+      )
 
       type = @attributes[:identifier_type].to_s.strip.presence || prior.identifier_type
       unless SupplierIssuedIdentifier::IDENTIFIER_TYPES.include?(type)
@@ -53,10 +88,12 @@ class SupersedeSupplierIssuedIdentifier < AgencyCommand
       end
 
       raise Error.new("That identifier is already superseded.", code: :invalid_state) if already_superseded?(prior)
-      ensure_confirmation_compatible!(confirmation, prior, arrangement)
+      ensure_confirmation_compatible!(confirmation, prior, arrangement, version, reservation)
 
       acknowledge_cross_owner_duplicates!(
         prior: prior,
+        arrangement: arrangement,
+        reservation: reservation,
         type: type,
         issuer: issuer,
         normalized: normalized
@@ -75,6 +112,14 @@ class SupersedeSupplierIssuedIdentifier < AgencyCommand
         normalized_value: normalized,
         first_supplier_confirmation: confirmation,
         supersedes_id: prior.id
+      )
+      SupplierConfirmationIdentifierLink.create!(
+        agency: @agency,
+        departure_id: arrangement.departure_id,
+        supplier_arrangement: arrangement,
+        supplier_arrangement_version: version,
+        supplier_confirmation: confirmation,
+        supplier_issued_identifier: replacement
       )
       claim_idempotency!(key, payload, replacement)
       audit!(
@@ -96,18 +141,53 @@ class SupersedeSupplierIssuedIdentifier < AgencyCommand
 
   private
 
+  def recheck_discovery!(prior:, unlocked_prior:, confirmation:, unlocked_confirmation:, arrangement:, departure:, version:, reservation:)
+    unless prior.id == unlocked_prior.id &&
+        prior.supplier_id == unlocked_prior.supplier_id &&
+        prior.supplier_arrangement_id == unlocked_prior.supplier_arrangement_id &&
+        prior.supplier_reservation_id == unlocked_prior.supplier_reservation_id &&
+        prior.departure_id == unlocked_prior.departure_id
+      raise Error.new("That identifier changed during supersession.", code: :conflict)
+    end
+    unless confirmation.id == unlocked_confirmation.id &&
+        confirmation.supplier_arrangement_version_id == unlocked_confirmation.supplier_arrangement_version_id &&
+        confirmation.confirming_supplier_id == unlocked_confirmation.confirming_supplier_id
+      raise Error.new("That confirmation changed during supersession.", code: :conflict)
+    end
+    unless departure.id == arrangement.departure_id && version.supplier_arrangement_id == arrangement.id
+      raise Error.new("That Arrangement version is not compatible with this identifier.", code: :invalid)
+    end
+    if prior.supplier_reservation_id.present?
+      unless reservation&.id == prior.supplier_reservation_id
+        raise Error.new("That Reservation is not compatible with this identifier.", code: :invalid)
+      end
+    end
+  end
+
   def already_superseded?(prior)
     prior.superseded_at.present? ||
       SupplierIssuedIdentifier.exists?(agency_id: @agency.id, supersedes_id: prior.id)
   end
 
-  def ensure_confirmation_compatible!(confirmation, prior, arrangement)
+  def ensure_confirmation_compatible!(confirmation, prior, arrangement, version, reservation)
     unless confirmation.supplier_arrangement_id == arrangement.id &&
-        confirmation.confirming_supplier_id == prior.supplier_id
+        confirmation.confirming_supplier_id == prior.supplier_id &&
+        confirmation.supplier_arrangement_version_id == version.id
       raise Error.new("That confirmation is not compatible with this identifier.", code: :invalid)
     end
-    unless confirmation.supplier_arrangement_version.supplier_arrangement_id == arrangement.id
-      raise Error.new("That confirmation belongs to a different Arrangement version.", code: :invalid)
+
+    if prior.supplier_reservation_id.present?
+      covered = SupplierConfirmationReservationResponseLink.exists?(
+        supplier_confirmation_id: confirmation.id,
+        supplier_reservation_id: prior.supplier_reservation_id
+      )
+      unless covered
+        raise Error.new(
+          "Choose confirmation evidence that covers the owning Reservation.",
+          code: :invalid
+        )
+      end
+      return
     end
 
     linked = SupplierConfirmationIdentifierLink.exists?(
@@ -126,21 +206,17 @@ class SupersedeSupplierIssuedIdentifier < AgencyCommand
     end
   end
 
-  def acknowledge_cross_owner_duplicates!(prior:, type:, issuer:, normalized:)
-    candidate_scope = SupplierIssuedIdentifier.where(agency_id: @agency.id).where(
+  def acknowledge_cross_owner_duplicates!(prior:, arrangement:, reservation:, type:, issuer:, normalized:)
+    lookup = SupplierIssuedIdentifierOwnerLookup.call(
+      agency: @agency,
       supplier_id: prior.supplier_id,
       identifier_type: type,
       issuer_context: issuer,
       normalized_value: normalized,
-      superseded_at: nil
-    ).where.not(id: prior.id)
-    foreign_rows = if prior.supplier_reservation_id.present?
-      candidate_scope.where.not(supplier_reservation_id: [ nil, prior.supplier_reservation_id ])
-        .or(candidate_scope.where(supplier_reservation_id: nil))
-        .to_a
-    else
-      candidate_scope.where.not(supplier_arrangement_id: prior.supplier_arrangement_id).to_a
-    end
+      arrangement: arrangement,
+      reservation: reservation
+    )
+    foreign_rows = lookup.foreign.reject { |row| row.id == prior.id }
     return if foreign_rows.empty?
 
     fingerprint = DuplicateAcknowledgement.fingerprint(

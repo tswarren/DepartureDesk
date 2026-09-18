@@ -86,8 +86,11 @@ class SupersedeSupplierIssuedIdentifierTest < ActiveSupport::TestCase
     assert_equal other_prior.id, replacement.supersedes_id
     assert_nil replacement.superseded_at
     assert_equal "Internal allotment", replacement.other_type_label
-    assert_equal other_prior.id, replacement.supersedes_id
     assert_predicate other_prior.reload.superseded_at, :present?
+    assert SupplierConfirmationIdentifierLink.exists?(
+      supplier_issued_identifier_id: replacement.id,
+      supplier_confirmation_id: other_confirmation.id
+    )
     assert_equal 1, SupplierIssuedIdentifier.current.where(supplier_arrangement_id: @arrangement.id, normalized_value: "alt-2").count
     assert_equal 0, SupplierIssuedIdentifier.current.where(id: other_prior.id).count
 
@@ -99,6 +102,69 @@ class SupersedeSupplierIssuedIdentifierTest < ActiveSupport::TestCase
     ).call
     assert_equal :replayed, replay.status
     assert_equal replacement.id, replay.record.id
+  end
+
+  test "reservation-owned identifier rejects confirmation that covers another reservation" do
+    reservation_a = create_requested_reservation
+    reservation_b = create_requested_reservation
+    respond_reservation(reservation_a)
+    respond_reservation(reservation_b)
+    confirmation_b = SupplierConfirmationReservationResponseLink
+      .find_by!(supplier_reservation_id: reservation_b.id).supplier_confirmation
+    prior = SupplierIssuedIdentifier.create!(
+      agency: @agency, departure: @departure,
+      supplier_arrangement: @arrangement,
+      supplier_reservation: reservation_a,
+      supplier: @supplier,
+      issuer_context: "cruise line",
+      identifier_type: "group_number",
+      display_value: "RSV-A",
+      normalized_value: "rsv-a",
+      first_supplier_confirmation: confirmation_b
+    )
+
+    error = assert_raises(AgencyCommand::Error) do
+      SupersedeSupplierIssuedIdentifier.new(
+        agency: @agency, actor: @actor, identifier: prior,
+        confirmation: confirmation_b,
+        attributes: { display_value: "RSV-A2", issuer_context: "cruise line" },
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert_equal :invalid, error.code
+    assert_match(/owning Reservation/i, error.message)
+  end
+
+  test "arrangement supersession requires acknowledgement for reservation-owned collision" do
+    reservation = create_requested_reservation
+    respond_reservation(reservation)
+    confirmation = SupplierConfirmationReservationResponseLink
+      .find_by!(supplier_reservation_id: reservation.id).supplier_confirmation
+    SupplierIssuedIdentifier.create!(
+      agency: @agency, departure: @departure,
+      supplier_arrangement: @arrangement,
+      supplier_reservation: reservation,
+      supplier: @supplier,
+      issuer_context: "cruise line",
+      identifier_type: "group_number",
+      display_value: "GRP-COLLIDE",
+      normalized_value: "grp-collide",
+      first_supplier_confirmation: confirmation
+    )
+
+    error = assert_raises(AgencyCommand::DuplicateReviewRequired) do
+      SupersedeSupplierIssuedIdentifier.new(
+        agency: @agency, actor: @actor, identifier: @prior,
+        confirmation: @confirmation,
+        attributes: {
+          display_value: "GRP-COLLIDE",
+          issuer_context: "cruise line",
+          identifier_type: "group_number"
+        },
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert error.token.present?
   end
 
   test "confirmation from another arrangement version is rejected" do
@@ -153,5 +219,46 @@ class SupersedeSupplierIssuedIdentifierTest < ActiveSupport::TestCase
       scope.update_columns(label: "Mutated")
     end
     assert_match(/immutable|requested reservation scopes/i, error.message)
+  end
+
+  private
+
+  def create_requested_reservation
+    reservation = CreateSupplierReservation.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement,
+      attributes: {
+        booking_supplier_id: @supplier.id,
+        supplier_arrangement_version_id: @version.id,
+        scopes: [ { target_kind: "arrangement", label: "Whole" } ]
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    RecordSupplierReservationRequest.new(
+      agency: @agency, actor: @actor, reservation: reservation,
+      attributes: { channel: "email", reference_note: "Sent" },
+      idempotency_key: SecureRandom.uuid
+    ).call
+    reservation
+  end
+
+  def respond_reservation(reservation)
+    RecordSupplierReservationResponse.new(
+      agency: @agency, actor: @actor, reservation: reservation,
+      attributes: {
+        channel: "portal",
+        reference_note: "Confirmed",
+        outcomes: reservation.revisions.where(status: "requested").sole.scopes.map { |scope|
+          [ scope.id, { outcome_kind: "confirmed" } ]
+        }.to_h,
+        evidence: {
+          evidence_kind: "supplier_confirmation",
+          evidence_on: Date.current,
+          channel: "portal",
+          reference_note: "Confirmed",
+          confirmed_without_identifier_reason: "Later"
+        }
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call
   end
 end
