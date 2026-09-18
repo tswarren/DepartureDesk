@@ -69,7 +69,7 @@ class RebuildSupplierReservationProjectionAlreadyLocked
     return "declined" if scope_count.positive? && counts["declined"] == scope_count
     return "withdrawn" if scope_count.positive? && counts["withdrawn"] == scope_count
     return "cancelled" if scope_count.positive? && counts["cancelled"] == scope_count
-    return "partially_confirmed" if counts["confirmed"].positive? || counts["counterproposed"].positive?
+    return "partially_confirmed" if counts["confirmed"].positive?
 
     "requested"
   end

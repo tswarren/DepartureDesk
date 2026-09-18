@@ -99,7 +99,9 @@ class SearchSupplierArrangements < AgencyCommand
     reference = stripped.upcase
 
     identifier_exact_ids = SupplierIssuedIdentifier.where(agency_id: @agency.id, superseded_at: nil)
-      .where("normalized_value = ?", exact).select(:supplier_arrangement_id)
+      .where(supplier_reservation_id: nil)
+      .where("normalized_value = ? OR normalized_value LIKE ?", exact, like)
+      .select(:supplier_arrangement_id)
     reservation_identifier_ids = SupplierIssuedIdentifier.where(agency_id: @agency.id, superseded_at: nil)
       .where.not(supplier_reservation_id: nil)
       .where("normalized_value = ? OR normalized_value LIKE ?", exact, like)

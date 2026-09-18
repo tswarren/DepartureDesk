@@ -40,7 +40,10 @@
           </div>
           <div class="dd-field">
             <%= label_tag "existing_reservation_evidence_confirmed_without_identifier_reason", "Confirmed without identifier reason" %>
-            <%= text_area_tag "existing_reservation[evidence][confirmed_without_identifier_reason]", "Identifier retained externally", class: "dd-textarea", maxlength: 500 %>
+            <p class="dd-field-hint">Explain why the existing booking keeps its identifier outside DepartureDesk.</p>
+            <%= text_area_tag "existing_reservation[evidence][confirmed_without_identifier_reason]",
+              params.dig(:existing_reservation, :evidence, :confirmed_without_identifier_reason),
+              class: "dd-textarea", maxlength: 500, placeholder: "Enter why the identifier is retained externally" %>
           </div>
         </fieldset>
         <%= submit_tag "Record existing confirmed booking", class: "dd-button" %>

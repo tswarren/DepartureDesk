@@ -33,7 +33,7 @@ class SupplierArrangementsController < ApplicationController
       query: params[:q],
       status: @status,
       contracting_supplier_id: params[:contracting_supplier_id],
-      departure_id: params[:filter_departure_id].presence || @departure.id,
+      departure_id: params[:filter_departure_id].presence,
       identifier_type: params[:identifier_type]
     )
   rescue AgencyCommand::Error => error

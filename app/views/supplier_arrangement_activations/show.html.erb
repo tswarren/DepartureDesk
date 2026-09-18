@@ -14,7 +14,7 @@
 </header>
 
 <% if flash.now[:alert].present? %>
-  <div class="dd-error-summary" role="alert" tabindex="-1">
+  <div id="form-error-summary" class="dd-error-summary" role="alert" tabindex="-1" data-controller="form-error-summary" data-form-error-summary-focus-value="true">
     <h2>Activation could not be completed</h2>
     <p><%= flash.now[:alert] %></p>
   </div>
