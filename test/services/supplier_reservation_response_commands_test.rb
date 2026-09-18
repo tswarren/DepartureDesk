@@ -190,9 +190,10 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
   end
 
   test "predecessor response rejects capacity Pool defined only on successor version" do
+    departure = create_capacity_departure(@agency, name: "Exact Version Cap")
     capacity = build_activated_established_capacity_graph(
       agency: @agency,
-      departure: create_capacity_departure(@agency, name: "Exact Version Cap"),
+      departure: departure,
       contractor: @supplier,
       provider: @supplier,
       actor: @actor,
@@ -216,27 +217,16 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
     ).call
     scope = reservation.revisions.where(status: "requested").sole.scopes.sole
 
-    successor = arrangement.versions.create!(
-      agency: @agency,
-      departure: capacity[:departure],
-      version_number: 2,
-      status: "activated",
-      activated_at: Time.current,
-      copied_from: predecessor
-    )
-    successor_pair = CapacityPairDefinition.create!(
-      agency: @agency,
-      departure: capacity[:departure],
-      supplier_arrangement: arrangement,
-      supplier_arrangement_version: successor,
-      arrangement_item: capacity[:item],
-      service_occurrence: capacity[:occurrence],
-      supplier_resource: capacity[:resource],
-      classification: "pooled"
-    )
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: arrangement,
+      arrangement_lock_version: arrangement.reload.lock_version,
+      version_lock_version: predecessor.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    successor_pair = successor.capacity_pair_definitions.sole
     successor_only_pool = CapacityPool.create!(
       agency: @agency,
-      departure: capacity[:departure],
+      departure: departure,
       supplier_arrangement: arrangement,
       arrangement_item: capacity[:item],
       service_occurrence: capacity[:occurrence],
@@ -248,7 +238,7 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
     )
     CapacityPoolDefinition.create!(
       agency: @agency,
-      departure: capacity[:departure],
+      departure: departure,
       supplier_arrangement: arrangement,
       supplier_arrangement_version: successor,
       arrangement_item: capacity[:item],
@@ -264,10 +254,14 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
       evidence_on: Date.current,
       evidence_reference_note: "Successor pool",
       override: false,
-      position: 1
+      position: successor_pair.capacity_pool_definitions.maximum(:position).to_i + 1
     )
     predecessor.update!(status: "superseded", superseded_at: Time.current)
+    successor.update!(status: "activated", activated_at: Time.current)
     arrangement.update!(governing_version: successor)
+
+    assert_equal "superseded", predecessor.reload.status
+    assert_equal successor.id, arrangement.reload.governing_version_id
 
     error = assert_raises(AgencyCommand::Error) do
       RecordSupplierReservationResponse.new(
