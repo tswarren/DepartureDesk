@@ -1,7 +1,7 @@
 class AppendCapacityEventAlreadyLocked
   DIRECTIONS = CapacityTimelineReplay::DIRECTIONS.transform_values(&:sign).freeze
 
-  def initialize(pool:, actor:, event_type:, quantity:, effective_on:, recorded_at:, evidence:)
+  def initialize(pool:, actor:, event_type:, quantity:, effective_on:, recorded_at:, evidence:, version: nil)
     @pool = pool
     @actor = actor
     @event_type = event_type.to_s
@@ -9,6 +9,7 @@ class AppendCapacityEventAlreadyLocked
     @effective_on = effective_on
     @recorded_at = recorded_at
     @evidence = evidence.to_h.with_indifferent_access
+    @version = version
   end
 
   # Internal only. Caller must already hold Pool/projection locks and own the
@@ -16,11 +17,14 @@ class AppendCapacityEventAlreadyLocked
   def call
     validate!
     sequence = next_sequence
+    version_id = @version&.id || @pool.try(:supplier_arrangement_version_id)
+    raise AgencyCommand::Error.new("Capacity consequence requires an exact Arrangement version.", code: :invalid) if version_id.blank?
+
     event = CapacityEvent.create!(
       agency_id: @pool.agency_id,
       departure_id: @pool.departure_id,
       supplier_arrangement_id: @pool.supplier_arrangement_id,
-      supplier_arrangement_version_id: @pool.supplier_arrangement_version_id,
+      supplier_arrangement_version_id: version_id,
       arrangement_item_id: @pool.arrangement_item_id,
       service_occurrence_id: @pool.service_occurrence_id,
       supplier_resource_id: @pool.supplier_resource_id,

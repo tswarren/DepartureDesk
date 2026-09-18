@@ -5,6 +5,10 @@ require "ostruct"
 class RecordSupplierReservationResponse < AgencyCommand
   include ReservationCommandSupport
 
+  # Independently appendable capacity events from a Reservation response.
+  # Lineage-based types (reinstated, corrections) are out of scope for this form.
+  CAPACITY_CONSEQUENCE_EVENT_TYPES = %w[increased released withdrawn].freeze
+
   def initialize(agency:, actor:, reservation:, attributes:, idempotency_key:)
     @agency = agency
     @actor = actor
@@ -437,7 +441,30 @@ class RecordSupplierReservationResponse < AgencyCommand
       attrs = raw.to_h.with_indifferent_access
       next if attrs.values.all?(&:blank?)
 
+      pool_id = attrs[:capacity_pool_id].presence
+      event_type = attrs[:event_type].to_s.strip.presence
+      quantity = attrs[:quantity]
+      effective_on = attrs[:effective_on]
       scope_id = attrs[:supplier_reservation_scope_id].presence
+
+      if pool_id.blank?
+        raise Error.new(
+          "Choose a Capacity Pool for each capacity consequence, or clear the other fields.",
+          code: :invalid
+        )
+      end
+      if event_type.blank? || quantity.blank? || effective_on.blank?
+        raise Error.new(
+          "Enter event type, quantity, and effective date for each capacity consequence.",
+          code: :invalid
+        )
+      end
+      unless CAPACITY_CONSEQUENCE_EVENT_TYPES.include?(event_type)
+        raise Error.new(
+          "Choose increased, released, or withdrawn for a Reservation capacity consequence.",
+          code: :invalid
+        )
+      end
       if scope_id.present? && !confirmed_ids.include?(scope_id.to_s)
         raise Error.new(
           "Capacity consequence scope must be one of the confirmed scopes on this response.",
@@ -445,7 +472,7 @@ class RecordSupplierReservationResponse < AgencyCommand
         )
       end
 
-      pool = arrangement.capacity_pools.lock.find(attrs[:capacity_pool_id])
+      pool = arrangement.capacity_pools.lock.find(pool_id)
       unless pool.supplying_supplier_id == confirmation.confirming_supplier_id
         raise Error.new(
           "Capacity consequence Pool must be supplied by the confirming Supplier.",
@@ -465,10 +492,11 @@ class RecordSupplierReservationResponse < AgencyCommand
       event = AppendCapacityEventAlreadyLocked.new(
         pool: pool,
         actor: @actor,
-        event_type: attrs[:event_type],
-        quantity: Integer(attrs[:quantity]),
-        effective_on: parse_date(attrs[:effective_on], "Capacity effective date"),
+        event_type: event_type,
+        quantity: Integer(quantity),
+        effective_on: parse_date(effective_on, "Capacity effective date"),
         recorded_at: recorded_at,
+        version: version,
         evidence: attrs[:evidence] || {
           evidence_kind: confirmation.evidence_kind,
           evidence_on: confirmation.evidence_on,

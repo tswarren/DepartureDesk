@@ -331,23 +331,27 @@
         <% if @capacity_pool_options.any? %>
           <fieldset class="dd-field">
             <legend>Capacity consequences</legend>
-            <p class="dd-field-hint">Leave Pool blank to skip. Scoped consequences must name a confirmed scope.</p>
+            <p class="dd-field-hint">Leave all fields blank to skip. A Pool requires type, quantity, and effective date.</p>
             <% 2.times do |index| %>
               <% raw = params.dig(:capacity_consequences, index.to_s) || params.dig(:capacity_consequences, index) || {} %>
+              <% selected_pool = raw[:capacity_pool_id] || raw["capacity_pool_id"] %>
               <div class="dd-field">
                 <%= label_tag "capacity_consequences_#{index}_capacity_pool_id", "Pool #{index + 1}" %>
                 <%= select_tag "capacity_consequences[#{index}][capacity_pool_id]",
                   options_for_select(
                     [["No capacity event", ""]] + @capacity_pool_options.map { |pool| ["#{pool.measurement_basis.humanize} · #{supplier_option_label(pool.supplying_supplier)}", pool.id] },
-                    raw[:capacity_pool_id] || raw["capacity_pool_id"]
+                    selected_pool
                   ),
                   class: "dd-select" %>
               </div>
               <div class="dd-field">
                 <%= label_tag "capacity_consequences_#{index}_event_type", "Event type #{index + 1}" %>
-                <%= text_field_tag "capacity_consequences[#{index}][event_type]",
-                  raw[:event_type] || raw["event_type"] || "hold",
-                  class: "dd-input", maxlength: 80 %>
+                <%= select_tag "capacity_consequences[#{index}][event_type]",
+                  options_for_select(
+                    [["Choose type", ""]] + RecordSupplierReservationResponse::CAPACITY_CONSEQUENCE_EVENT_TYPES.map { |type| [type.humanize, type] },
+                    raw[:event_type] || raw["event_type"]
+                  ),
+                  class: "dd-select" %>
               </div>
               <div class="dd-field">
                 <%= label_tag "capacity_consequences_#{index}_quantity", "Quantity #{index + 1}" %>
@@ -358,7 +362,7 @@
               <div class="dd-field">
                 <%= label_tag "capacity_consequences_#{index}_effective_on", "Effective on #{index + 1}" %>
                 <%= date_field_tag "capacity_consequences[#{index}][effective_on]",
-                  raw[:effective_on] || raw["effective_on"] || Date.current,
+                  raw[:effective_on] || raw["effective_on"],
                   class: "dd-input" %>
               </div>
               <div class="dd-field">
