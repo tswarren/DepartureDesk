@@ -125,6 +125,70 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
     assert unresolved.any? { |row| row.trigger.id == trigger.id }
   end
 
+  test "unresolved derivation ignores triggers that do not match confirmed scopes" do
+    item_trigger = SupplierCommitmentTriggerDefinition.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: @arrangement,
+      supplier_arrangement_version: @version,
+      trigger_kind: "reservation_confirmation",
+      authority_shape: "confirmed_amount",
+      committed_supplier: @supplier,
+      arrangement_item: @graph[:item],
+      description: "Item deposit",
+      currency: @departure.operating_currency,
+      position: 1
+    )
+
+    respond_reservation(
+      @reservation,
+      outcomes: @reservation.revisions.sole.scopes.select { |scope| scope.target_kind == "arrangement" }.map { |scope|
+        [ scope.id, { outcome_kind: "confirmed" } ]
+      }.to_h.merge(
+        @reservation.revisions.sole.scopes.reject { |scope| scope.target_kind == "arrangement" }.map { |scope|
+          [ scope.id, { outcome_kind: "declined", decline_reason: "Not needed" } ]
+        }.to_h
+      )
+    )
+
+    unresolved = UnresolvedReservationCommitmentTriggers.call(agency: @agency, reservation: @reservation)
+    assert unresolved.none? { |row| row.trigger.id == item_trigger.id }
+  end
+
+  test "capacity consequence for a non-confirmed scope is invalid" do
+    revision = @reservation.revisions.where(status: "requested").sole
+    confirmed, other = revision.scopes.order(:position, :id).to_a
+
+    error = assert_raises(AgencyCommand::Error) do
+      RecordSupplierReservationResponse.new(
+        agency: @agency, actor: @actor, reservation: @reservation,
+        attributes: {
+          scope_ids: [ confirmed.id ],
+          channel: "portal",
+          reference_note: "Confirm one",
+          outcomes: { confirmed.id => { outcome_kind: "confirmed" } },
+          evidence: {
+            evidence_kind: "supplier_confirmation",
+            evidence_on: Date.current,
+            channel: "portal",
+            reference_note: "Confirm one",
+            confirmed_without_identifier_reason: "Later"
+          },
+          capacity_consequences: [ {
+            capacity_pool_id: SecureRandom.uuid,
+            event_type: "hold",
+            quantity: 1,
+            effective_on: Date.current,
+            supplier_reservation_scope_id: other.id
+          } ]
+        },
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert_equal :invalid, error.code
+    assert_match(/confirmed scopes/i, error.message)
+  end
+
   test "response succeeds on predecessor requested revision after successor activation" do
     planned = create_reservation.record
     predecessor_version = @version

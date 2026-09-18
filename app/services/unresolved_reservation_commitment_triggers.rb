@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
-require "ostruct"
-
-# Derived query: reservation_confirmation triggers with a confirmation but no commitment.
+# Derived query: reservation_confirmation triggers covered by a confirmation's linked
+# scopes but still missing a commitment.
 class UnresolvedReservationCommitmentTriggers
   Result = Data.define(:confirmation, :trigger, :reservation, :revision)
 
@@ -30,12 +29,19 @@ class UnresolvedReservationCommitmentTriggers
 
     results = []
     links.find_each do |link|
-      version = link.supplier_arrangement_version
       confirmation = link.supplier_confirmation
-      version.supplier_commitment_trigger_definitions
+      confirmed_scopes = SupplierReservationScope.where(
+        id: SupplierConfirmationReservationScopeLink
+          .where(supplier_confirmation_id: confirmation.id)
+          .select(:supplier_reservation_scope_id)
+      ).to_a
+      next if confirmed_scopes.empty?
+
+      link.supplier_arrangement_version.supplier_commitment_trigger_definitions
         .where(trigger_kind: "reservation_confirmation")
         .where(committed_supplier_id: confirmation.confirming_supplier_id)
         .find_each do |trigger|
+        next unless confirmed_scopes.any? { |scope| trigger_matches_scope?(trigger, scope) }
         next if SupplierCommitment.exists?(
           supplier_confirmation_id: confirmation.id,
           supplier_commitment_trigger_definition_id: trigger.id
@@ -50,5 +56,17 @@ class UnresolvedReservationCommitmentTriggers
       end
     end
     results
+  end
+
+  private
+
+  def trigger_matches_scope?(trigger, scope)
+    return true if trigger.arrangement_item_id.blank? && trigger.service_occurrence_id.blank? &&
+      trigger.supplier_resource_id.blank? && trigger.capacity_pool_id.blank?
+
+    (trigger.arrangement_item_id.blank? || trigger.arrangement_item_id == scope.arrangement_item_id) &&
+      (trigger.service_occurrence_id.blank? || trigger.service_occurrence_id == scope.service_occurrence_id) &&
+      (trigger.supplier_resource_id.blank? || trigger.supplier_resource_id == scope.supplier_resource_id) &&
+      (trigger.capacity_pool_id.blank? || trigger.capacity_pool_id == scope.capacity_pool_id)
   end
 end

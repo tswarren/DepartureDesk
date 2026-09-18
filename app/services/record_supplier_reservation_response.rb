@@ -381,12 +381,13 @@ class RecordSupplierReservationResponse < AgencyCommand
 
   def acknowledge_identifier_duplicate!(foreign_rows, fingerprint_fields:)
     fingerprint = DuplicateAcknowledgement.fingerprint(fingerprint_fields)
+    candidates = foreign_rows.map do |row|
+      OpenStruct.new(id: row.id, signals: [ "supplier_issued_identifier", row.display_value ])
+    end
+    candidate_digest = DuplicateAcknowledgement.candidate_digest(candidates)
     token = @attributes[:duplicate_acknowledgement_token].presence ||
       @attributes[:acknowledgement_token].presence
     if token.blank?
-      candidates = foreign_rows.map do |row|
-        OpenStruct.new(id: row.id, signals: [ "supplier_issued_identifier", row.display_value ])
-      end
       raise DuplicateReviewRequired.new(
         token: DuplicateAcknowledgement.issue(
           "shape" => "create",
@@ -394,7 +395,7 @@ class RecordSupplierReservationResponse < AgencyCommand
           "agency_id" => @agency.id,
           "actor_id" => @actor.id,
           "fingerprint" => fingerprint,
-          "candidate_digest" => DuplicateAcknowledgement.candidate_digest(candidates)
+          "candidate_digest" => candidate_digest
         ),
         candidates: candidates
       )
@@ -405,6 +406,9 @@ class RecordSupplierReservationResponse < AgencyCommand
     )
     unless payload["fingerprint"] == fingerprint
       raise Error.new("That acknowledgement does not match this identifier.", code: :conflict)
+    end
+    unless payload["candidate_digest"] == candidate_digest
+      raise Error.new("Duplicate candidates changed. Review them again.", code: :conflict)
     end
     if DuplicateAcknowledgement.expired?(payload)
       raise Error.new("That acknowledgement has expired.", code: :invalid)
@@ -434,7 +438,10 @@ class RecordSupplierReservationResponse < AgencyCommand
 
       scope_id = attrs[:supplier_reservation_scope_id].presence
       if scope_id.present? && !confirmed_ids.include?(scope_id.to_s)
-        next
+        raise Error.new(
+          "Capacity consequence scope must be one of the confirmed scopes on this response.",
+          code: :invalid
+        )
       end
 
       pool = arrangement.capacity_pools.lock.find(attrs[:capacity_pool_id])

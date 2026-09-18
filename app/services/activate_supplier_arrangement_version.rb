@@ -297,10 +297,11 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         issuer_context: issuer,
         normalized_value: normalized
       )
+      candidates = foreign_rows.map do |row|
+        OpenStruct.new(id: row.id, signals: [ "supplier_issued_identifier", row.display_value ])
+      end
+      candidate_digest = DuplicateAcknowledgement.candidate_digest(candidates)
       if @duplicate_acknowledgement_token.blank?
-        candidates = foreign_rows.map do |row|
-          OpenStruct.new(id: row.id, signals: [ "supplier_issued_identifier", row.display_value ])
-        end
         raise DuplicateReviewRequired.new(
           token: DuplicateAcknowledgement.issue(
             "shape" => "create",
@@ -308,7 +309,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
             "agency_id" => @agency.id,
             "actor_id" => @actor.id,
             "fingerprint" => fingerprint,
-            "candidate_digest" => DuplicateAcknowledgement.candidate_digest(candidates)
+            "candidate_digest" => candidate_digest
           ),
           candidates: candidates
         )
@@ -319,6 +320,12 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       )
       unless payload["fingerprint"] == fingerprint
         raise Error.new("That acknowledgement does not match this identifier.", code: :conflict)
+      end
+      unless payload["candidate_digest"] == candidate_digest
+        raise Error.new("Duplicate candidates changed. Review them again.", code: :conflict)
+      end
+      if DuplicateAcknowledgement.expired?(payload)
+        raise Error.new("That acknowledgement has expired.", code: :invalid)
       end
     end
     candidate_scope.find_by(supplier_arrangement_id: arrangement.id) ||
