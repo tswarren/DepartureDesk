@@ -49,17 +49,7 @@ class WithdrawSupplierReservation < AgencyCommand
       event.agency_command_idempotency_key = key_record
       event.save!
       selected.each do |scope|
-        event.scope_outcomes.create!(
-          agency: @agency,
-          departure_id: scope.departure_id,
-          supplier_arrangement_id: scope.supplier_arrangement_id,
-          supplier_arrangement_version_id: scope.supplier_arrangement_version_id,
-          supplier_reservation_id: scope.supplier_reservation_id,
-          supplier_reservation_revision_id: scope.supplier_reservation_revision_id,
-          supplier_reservation_event: event,
-          supplier_reservation_scope: scope,
-          outcome_kind: "withdrawn"
-        )
+        create_scope_outcome!(event, scope, outcome_kind: "withdrawn")
       end
       rebuild_reservation_projection_already_locked!(reservation)
       audit!(

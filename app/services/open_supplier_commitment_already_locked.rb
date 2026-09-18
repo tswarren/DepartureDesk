@@ -2,7 +2,7 @@ class OpenSupplierCommitmentAlreadyLocked
   IncompleteInputs = Class.new(StandardError)
 
   def initialize(trigger:, confirmation:, actor:, activation: nil,
-    confirmed_quantity: nil, confirmed_amount_minor_units: nil,
+    confirmed_quantity: nil, confirmed_quantity_basis: nil, confirmed_amount_minor_units: nil,
     reservation: nil, revision: nil, scope: nil, response_event: nil,
     allow_unresolved: false)
     @trigger = trigger
@@ -10,6 +10,7 @@ class OpenSupplierCommitmentAlreadyLocked
     @actor = actor
     @activation = activation
     @confirmed_quantity = confirmed_quantity
+    @confirmed_quantity_basis = confirmed_quantity_basis
     @confirmed_amount_minor_units = confirmed_amount_minor_units
     @reservation = reservation
     @revision = revision
@@ -34,6 +35,7 @@ class OpenSupplierCommitmentAlreadyLocked
     return existing if existing
 
     quantity, amount = authoritative_values
+    basis = quantity_basis_for(quantity)
     commitment = SupplierCommitment.create!(
       owner_attributes.merge(
         supplier_arrangement_activation: @activation,
@@ -47,10 +49,10 @@ class OpenSupplierCommitmentAlreadyLocked
         commitment_type: commitment_type(quantity, amount),
         description: @trigger.description,
         quantity:,
-        quantity_basis: quantity && @trigger.quantity_basis,
+        quantity_basis: basis,
         amount_minor_units: amount,
         currency: amount && @trigger.currency,
-        calculation_snapshot: calculation_snapshot(quantity, amount),
+        calculation_snapshot: calculation_snapshot(quantity, amount, basis),
         actor: @actor,
         opened_at: Time.current
       )
@@ -120,6 +122,26 @@ class OpenSupplierCommitmentAlreadyLocked
     end
   end
 
+  def quantity_basis_for(quantity)
+    return nil if quantity.nil?
+
+    if confirmed_quantity_authority?
+      basis = @confirmed_quantity_basis.to_s.strip.presence
+      unless basis.present? && basis == @trigger.quantity_basis
+        raise incomplete_or_invalid!(
+          "Confirmed quantity basis must match the commitment trigger quantity basis."
+        )
+      end
+      return basis
+    end
+
+    @trigger.quantity_basis
+  end
+
+  def confirmed_quantity_authority?
+    %w[confirmed_quantity contracted_unit_rate_times_confirmed_quantity].include?(@trigger.authority_shape)
+  end
+
   def contracted_component_amount(kind)
     definition = @trigger.supplier_cost_definition
     component = @trigger.supplier_cost_component
@@ -161,10 +183,11 @@ class OpenSupplierCommitmentAlreadyLocked
     quantity ? "quantity" : "monetary"
   end
 
-  def calculation_snapshot(quantity, amount)
+  def calculation_snapshot(quantity, amount, basis)
     [
       "authority=#{@trigger.authority_shape}",
       ("quantity=#{quantity}" if quantity),
+      ("basis=#{basis}" if basis),
       ("amount_minor_units=#{amount}" if amount),
       ("component_id=#{@trigger.supplier_cost_component_id}" if @trigger.supplier_cost_component_id)
     ].compact.join(";")

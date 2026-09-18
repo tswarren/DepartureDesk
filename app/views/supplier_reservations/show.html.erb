@@ -256,24 +256,14 @@ end.select { |row| row.present? } %>
             </div>
 
             <div class="dd-field-group" data-outcome-for="confirmed">
-              <%= label_tag "response_bulk_quantity_basis", "Quantity basis (all scopes)", class: "dd-label" %>
-              <%= select_tag :bulk_quantity_basis,
-                options_for_select(
-                  [[ "Use requested basis", "" ]] + SupplierReservationScope::QUANTITY_BASES.map { |basis| [ basis.humanize, basis ] },
-                  params[:bulk_quantity_basis].presence ||
-                    params.dig(:outcomes, @pending_scopes.first&.id.to_s, :quantity_basis) ||
-                    @pending_scopes.first&.quantity_basis
-                ),
-                **dd_tag_field_options(@command_form, :bulk_quantity_basis, id: "response_bulk_quantity_basis",
-                  onchange: "document.querySelectorAll('[data-bulk-quantity-basis-field]').forEach((el) => { el.value = this.value })") %>
+              <span class="dd-label">Quantity basis (locked to requested scope)</span>
               <% @pending_scopes.each do |scope| %>
-                <%= hidden_field_tag "outcomes[#{scope.id}][quantity_basis]",
-                  params[:bulk_quantity_basis].presence ||
-                    params.dig(:outcomes, scope.id.to_s, :quantity_basis) ||
-                    params.dig(:outcomes, scope.id, :quantity_basis) ||
-                    scope.quantity_basis,
-                  id: "bulk_outcomes_#{scope.id}_quantity_basis",
-                  data: { bulk_quantity_basis_field: true } %>
+                <% if scope.quantity_basis.present? %>
+                  <p class="dd-help"><%= scope.label.presence || scope.target_kind.humanize %>: <%= scope.quantity_basis.humanize %></p>
+                  <%= hidden_field_tag "outcomes[#{scope.id}][quantity_basis]", scope.quantity_basis,
+                    id: "bulk_outcomes_#{scope.id}_quantity_basis",
+                    data: { bulk_quantity_basis_field: true } %>
+                <% end %>
               <% end %>
             </div>
 
@@ -350,16 +340,14 @@ end.select { |row| row.present? } %>
                   **dd_tag_field_options(@command_form, :"outcomes_#{scope.id}_quantity", id: "outcomes_#{scope.id}_quantity") %>
               </div>
               <div class="dd-field-group" data-outcome-for="confirmed">
-                <%= label_tag "outcomes_#{scope.id}_quantity_basis", "Quantity basis", class: "dd-label" %>
-                <%= select_tag "outcomes[#{scope.id}][quantity_basis]",
-                  options_for_select(
-                    [[ "Use requested basis", "" ]] + SupplierReservationScope::QUANTITY_BASES.map { |basis| [ basis.humanize, basis ] },
-                    params.dig(:outcomes, scope.id.to_s, :quantity_basis) ||
-                      params.dig(:outcomes, scope.id, :quantity_basis) ||
-                      scope.quantity_basis
-                  ),
-                  **dd_tag_field_options(@command_form, :"outcomes_#{scope.id}_quantity_basis",
-                    id: "outcomes_#{scope.id}_quantity_basis") %>
+                <span class="dd-label" id="outcomes_<%= scope.id %>_quantity_basis_label">Quantity basis</span>
+                <% if scope.quantity_basis.present? %>
+                  <p class="dd-help"><%= scope.quantity_basis.humanize %> (locked to requested scope)</p>
+                  <%= hidden_field_tag "outcomes[#{scope.id}][quantity_basis]", scope.quantity_basis,
+                    id: "outcomes_#{scope.id}_quantity_basis" %>
+                <% else %>
+                  <p class="dd-help">No requested quantity basis on this scope.</p>
+                <% end %>
               </div>
               <div class="dd-field-group" data-outcome-for="counterproposed declined confirmed">
                 <%= label_tag "outcomes_#{scope.id}_supplier_note", "Supplier note", class: "dd-label" %>

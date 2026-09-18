@@ -35,12 +35,13 @@ class CreateSupplierReservationRevision < AgencyCommand
       scopes = if @attributes[:scopes].present?
         normalize_scopes!(arrangement, version, @attributes[:scopes])
       else
-        source.scopes.order(:position, :id).map do |scope|
+        copied = source.scopes.order(:position, :id).map do |scope|
           scope.attributes.symbolize_keys.slice(
             :position, :target_kind, :arrangement_item_id, :service_occurrence_id,
             :supplier_resource_id, :capacity_pool_id, :label, :requested_quantity, :quantity_basis
           )
         end
+        normalize_scopes!(arrangement, version, copied)
       end
       payload = {
         reservation_id: reservation.id,

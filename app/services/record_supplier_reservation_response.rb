@@ -121,7 +121,9 @@ class RecordSupplierReservationResponse < AgencyCommand
 
     confirmation = nil
     confirmed_outcomes = outcomes.select { |entry| entry[:outcome_kind] == "confirmed" }
-    if confirmed_outcomes.any?
+    if confirmed_outcomes.empty? && outcomes.any? && outcomes.all? { |entry| entry[:outcome_kind] == "counterproposed" }
+      # Counterproposal-only responses never create or link confirmation evidence.
+    elsif confirmed_outcomes.any?
       confirmation = resolve_confirmation!(
         arrangement: arrangement,
         version: version,
@@ -136,14 +138,14 @@ class RecordSupplierReservationResponse < AgencyCommand
     confirmed_entries = []
     outcomes.each do |entry|
       scope = entry[:scope]
-      outcome = event.scope_outcomes.create!(
-        outcome_owner(scope, event).merge(
-          outcome_kind: entry[:outcome_kind],
-          quantity: entry[:quantity],
-          quantity_basis: entry[:quantity_basis],
-          supplier_note: entry[:supplier_note],
-          decline_reason: entry[:decline_reason]
-        )
+      outcome = create_scope_outcome!(
+        event,
+        scope,
+        outcome_kind: entry[:outcome_kind],
+        quantity: entry[:quantity],
+        quantity_basis: entry[:quantity_basis],
+        supplier_note: entry[:supplier_note],
+        decline_reason: entry[:decline_reason]
       )
       next unless confirmation && entry[:outcome_kind] == "confirmed"
 
@@ -155,7 +157,11 @@ class RecordSupplierReservationResponse < AgencyCommand
           supplier_reservation_scope: scope
         )
       )
-      confirmed_entries << { scope: scope, quantity: outcome.quantity }
+      confirmed_entries << {
+        scope: scope,
+        quantity: outcome.quantity,
+        quantity_basis: outcome.quantity_basis
+      }
     end
 
     if confirmation && confirmed_entries.any?
@@ -245,6 +251,15 @@ class RecordSupplierReservationResponse < AgencyCommand
       if quantity.present?
         unless SupplierReservationScope::QUANTITY_BASES.include?(basis)
           raise Error.new("Choose a valid confirmed quantity basis.", code: :invalid)
+        end
+        if scope.quantity_basis.present? && basis != scope.quantity_basis
+          raise Error.new("Confirmed quantity basis must match the requested scope basis.", code: :invalid)
+        end
+        if scope.capacity_pool_id.present?
+          pool_basis = CapacityPool.find(scope.capacity_pool_id).measurement_basis
+          unless basis == pool_basis
+            raise Error.new("Confirmed quantity basis must match the Capacity Pool.", code: :invalid)
+          end
         end
       elsif basis.present?
         raise Error.new("Quantity basis requires a quantity.", code: :invalid)
@@ -545,6 +560,7 @@ class RecordSupplierReservationResponse < AgencyCommand
       quantity = confirmed_quantity_for(trigger, covering, coverage_scope)
       amount = confirmed_amount_for(trigger)
 
+      entry = covering.find { |row| row[:scope].id == coverage_scope.id } || covering.first
       OpenSupplierCommitmentAlreadyLocked.new(
         trigger: trigger,
         confirmation: confirmation,
@@ -554,6 +570,7 @@ class RecordSupplierReservationResponse < AgencyCommand
         scope: coverage_scope,
         response_event: event,
         confirmed_quantity: quantity,
+        confirmed_quantity_basis: entry[:quantity_basis],
         confirmed_amount_minor_units: amount,
         allow_unresolved: true
       ).call
@@ -661,19 +678,6 @@ class RecordSupplierReservationResponse < AgencyCommand
 
   def event_owner(reservation, revision, version)
     reservation_owner(reservation, version).merge(supplier_reservation_revision: revision)
-  end
-
-  def outcome_owner(scope, event)
-    {
-      agency: @agency,
-      departure_id: scope.departure_id,
-      supplier_arrangement_id: scope.supplier_arrangement_id,
-      supplier_arrangement_version_id: scope.supplier_arrangement_version_id,
-      supplier_reservation_id: scope.supplier_reservation_id,
-      supplier_reservation_revision_id: scope.supplier_reservation_revision_id,
-      supplier_reservation_event: event,
-      supplier_reservation_scope: scope
-    }
   end
 
   def owner_attributes(arrangement, version)

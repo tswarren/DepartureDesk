@@ -65,6 +65,7 @@ class RecordExistingConfirmedSupplierReservation < AgencyCommand
         scopes: revision_scopes,
         departure: departure,
         arrangement: arrangement,
+        booking_supplier: booking_supplier,
         audit: false
       )
 

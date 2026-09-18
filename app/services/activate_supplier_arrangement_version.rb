@@ -402,6 +402,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         trigger: trigger, confirmation: confirmation, actor: @actor,
         activation: activation,
         confirmed_quantity: activation_confirmed_quantity_for(trigger),
+        confirmed_quantity_basis: trigger.quantity_basis,
         confirmed_amount_minor_units: activation_confirmed_amount_for(trigger)
       ).call
     end

@@ -114,6 +114,22 @@ module ReservationCommandSupport
     unless booking_supplier.active?
       raise AgencyCommand::Error.new("The booking supplier is not active.", code: :invalid_state)
     end
+    unless eligible_booking_supplier_ids(arrangement, version).include?(booking_supplier.id)
+      raise AgencyCommand::Error.new(
+        "Choose the contracting supplier or an effective provider for this version.", code: :invalid
+      )
+    end
+  end
+
+  def ensure_booking_supplier_eligible!(arrangement, version, booking_supplier)
+    unless booking_supplier.active?
+      raise AgencyCommand::Error.new("The booking supplier is not active.", code: :invalid_state)
+    end
+    unless eligible_booking_supplier_ids(arrangement, version).include?(booking_supplier.id)
+      raise AgencyCommand::Error.new(
+        "Choose the contracting supplier or an effective provider for this version.", code: :invalid
+      )
+    end
   end
 
   def resolve_booking_supplier!(arrangement, version, supplier_id)
@@ -236,17 +252,29 @@ module ReservationCommandSupport
 
   def ensure_item_defined!(version, item_id)
     version.arrangement_item_definitions.find_by!(arrangement_item_id: item_id)
+  rescue ActiveRecord::RecordNotFound
+    raise AgencyCommand::Error.new(
+      "That Arrangement Item is not defined on this arrangement version.", code: :invalid
+    )
   end
 
   def ensure_occurrence_defined!(version, item_id, occurrence_id)
     version.service_occurrence_definitions.find_by!(
       arrangement_item_id: item_id, service_occurrence_id: occurrence_id
     )
+  rescue ActiveRecord::RecordNotFound
+    raise AgencyCommand::Error.new(
+      "That Service Occurrence is not defined on this arrangement version.", code: :invalid
+    )
   end
 
   def ensure_resource_defined!(version, item_id, resource_id)
     version.supplier_resource_definitions.find_by!(
       arrangement_item_id: item_id, supplier_resource_id: resource_id
+    )
+  rescue ActiveRecord::RecordNotFound
+    raise AgencyCommand::Error.new(
+      "That Supplier Resource is not defined on this arrangement version.", code: :invalid
     )
   end
 
@@ -257,6 +285,29 @@ module ReservationCommandSupport
       supplier_resource_id: resource_id,
       capacity_pool_id: pool_id
     )
+  rescue ActiveRecord::RecordNotFound
+    raise AgencyCommand::Error.new(
+      "That Capacity Pool is not defined on this arrangement version.", code: :invalid
+    )
+  end
+
+  def create_scope_outcome!(event, scope, **attributes)
+    event.scope_outcomes.create!(
+      outcome_owner(scope, event).merge(attributes)
+    )
+  end
+
+  def outcome_owner(scope, event)
+    {
+      agency: @agency,
+      departure_id: scope.departure_id,
+      supplier_arrangement_id: scope.supplier_arrangement_id,
+      supplier_arrangement_version_id: scope.supplier_arrangement_version_id,
+      supplier_reservation_id: scope.supplier_reservation_id,
+      supplier_reservation_revision_id: scope.supplier_reservation_revision_id,
+      supplier_reservation_event: event,
+      supplier_reservation_scope: scope
+    }
   end
 
   def reservation_owner(reservation, version = nil)
