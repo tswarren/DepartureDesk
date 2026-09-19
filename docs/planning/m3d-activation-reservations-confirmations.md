@@ -49,7 +49,7 @@ The common experience must remain operationally calm. The domain creates several
 
 - Normal Arrangement ending; M3E owns it after the complete commitment blocker catalog exists.
 - Arrangement `cancelled`; entire-agreement cancellation remains M7 Cancellation Case work.
-- Manual commitment opening, release, satisfaction, supersession, cancellation, or other post-opening disposition.
+- Definition-driven commitment opening beyond M3D confirmation triggers, release, satisfaction, supersession, cancellation, or other post-opening disposition.
 - Deposit requirements, Deadline rules/workflow, qualified exposure reporting, or the formal needs-attention catalog.
 - Supplier Obligations, invoices, Payments, commission settlement/receipt, accounting posting, or cash state.
 - Client Trips, Travelers, Holds, Allocations, Assignments, occupancy, sales availability, or fulfillment.
@@ -539,7 +539,7 @@ Ordinary inactivation is blocked by current nonterminal Reservations where the S
 
 Historical confirmations and terminal withdrawn/declined/cancelled Reservation scopes do not block. A confirmed future service and every unresolved M3D commitment remain current blockers until later accepted disposition makes them terminal. M3D does not infer fulfillment.
 
-Forced inactivation preserves every activation, Reservation, confirmation, identifier, capacity event, and commitment opening. It creates no cancellation, release, withdrawal, reassignment, or disposition. Existing requested Reservations may record truthful Supplier responses; new/expanded requests and new Supplier selection are prohibited. Existing M3B recovery commands remain available under their exact allow-list. M3E owns manual commitment opening and the disposition and terminal rules that cease commitment blocking.
+Forced inactivation preserves every activation, Reservation, confirmation, identifier, capacity event, and commitment opening. It creates no cancellation, release, withdrawal, reassignment, or disposition. Existing requested Reservations may record truthful Supplier responses; new/expanded requests and new Supplier selection are prohibited. Existing M3B recovery commands remain available under their exact allow-list. M3E owns definition-driven / source-shaped commitment opening and the disposition and terminal rules that cease commitment blocking.
 
 Reactivation restores only the Supplier and no M3D state.
 
@@ -917,7 +917,7 @@ M3D is complete only when:
 10. Supplier identifiers search correctly, warn on cross-owner matches, and never assume global uniqueness without contract authority.
 11. Confirmation capacity consequences are explicit M3B events, never inferred.
 12. Confirmation-triggered commitments use explicit eligible committed Suppliers, compatible evidence, complete activated rules, and authoritative quantity/contracted/confirmed money only; activation triggers cannot remain unresolved, while Reservation omissions expose the derived unresolved condition without placeholders.
-13. Ordinary Supplier inactivation blocks on every unresolved M3D commitment by committed Supplier snapshot; forced inactivation preserves openings; M3E owns manual opening and terminal disposition rules.
+13. Ordinary Supplier inactivation blocks on every unresolved M3D commitment by committed Supplier snapshot; forced inactivation preserves openings; M3E owns definition-driven / source-shaped opening and terminal disposition rules.
 14. No normal Arrangement ending, full commitment lifecycle, needs-attention catalog, Supplier Obligation, Payment, Client demand, fulfillment, or later-slice placeholder appears.
 15. The four primary workflows compress internal records into accessible, responsive, keyboard-complete Staff interactions.
 16. M3D.6 proves M3D only; M3F remains responsible for the milestone-wide M3A–M3E exit gate.
