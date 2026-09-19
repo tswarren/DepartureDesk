@@ -473,6 +473,10 @@
         departure_arrangement_version_deadlines_path(
           @departure, @supplier_arrangement, @supplier_arrangement_version
         ), class: "dd-button dd-button--quiet" %>
+      <%= link_to "Deposit requirements",
+        departure_arrangement_version_deposits_path(
+          @departure, @supplier_arrangement, @supplier_arrangement_version
+        ), class: "dd-button dd-button--quiet" %>
       <%= link_to "Cost forecast", departure_arrangement_cost_forecast_path(@departure, @supplier_arrangement), class: "dd-button" %>
     </div>
   </header>
@@ -486,3 +490,74 @@
     <p class="dd-field-hint">This subtotal does not assert that every real-world Supplier cost has been entered.</p>
   </div>
 </article>
+
+<% if @supplier_arrangement.active? || @open_deposit_commitments.any? %>
+  <article class="dd-panel" id="arrangement-deposits">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Open deposit requirements</h2>
+        <p>Planning facts only. Attestation confirms handled outside DepartureDesk — never paid.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <% if @open_deposit_commitments.any? %>
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th scope="col">Current amount</th>
+              <th scope="col">Due</th>
+              <th scope="col">Attest</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @open_deposit_commitments.each do |commitment| %>
+              <% tranche = commitment.supplier_deposit_requirement_tranche %>
+              <tr>
+                <td><%= Money.new(tranche.current_amount_minor_units, tranche.currency).format %></td>
+                <td>
+                  <% occ = tranche.governing_deadline_occurrence %>
+                  <%= occ&.calculated_on || occ&.calculated_at || "—" %>
+                </td>
+                <td>
+                  <% if Current.agency_user.permitted?(:manage_departures) %>
+                    <%= form_with url: departure_arrangement_deposit_attest_path(
+                      @departure, @supplier_arrangement, commitment_id: commitment.id
+                    ), method: :post, class: "dd-form dd-inline-form" do %>
+                      <%= hidden_field_tag :idempotency_key, @deposit_attest_idempotency_key %>
+                      <label class="dd-label">
+                        <%= check_box_tag :confirmed_complete, "1", false, required: true %>
+                        Confirmed handled outside DepartureDesk
+                      </label>
+                      <%= text_field_tag :note, nil, required: true, placeholder: "Required note",
+                        class: "dd-input", maxlength: 2000 %>
+                      <%= submit_tag "Attest", class: "dd-button dd-button--quiet" %>
+                    <% end %>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <p class="dd-empty-state">No open deposit requirements.</p>
+      <% end %>
+
+      <% if Current.agency_user.permitted?(:manage_departures) && @supplier_arrangement.active? %>
+        <hr class="dd-separator">
+        <h3 class="dd-section-title">Record planning milestone</h3>
+        <%= form_with url: departure_arrangement_planning_milestones_path(@departure, @supplier_arrangement),
+          method: :post, class: "dd-form" do %>
+          <%= hidden_field_tag :idempotency_key, @planning_milestone_idempotency_key %>
+          <%= hidden_field_tag :kind, "names_assigned_to_supplier" %>
+          <div class="dd-field-group">
+            <%= label_tag :occurred_on, "Names assigned to supplier on", class: "dd-label" %>
+            <%= date_field_tag :occurred_on, Date.current, required: true, class: "dd-input" %>
+            <%= label_tag :note, "Note (optional)", class: "dd-label" %>
+            <%= text_field_tag :note, nil, class: "dd-input", maxlength: 2000 %>
+          </div>
+          <%= submit_tag "Record names assigned to supplier", class: "dd-button" %>
+        <% end %>
+      <% end %>
+    </div>
+  </article>
+<% end %>

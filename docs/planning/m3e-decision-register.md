@@ -3,12 +3,13 @@
 **Status:** Accepted 2026-09-18  
 **Decision date:** 2026-09-18  
 **Amended:** 2026-09-18 (opening-source shapes, `released`, time-automation retention, planning milestones, inactivation open-state rule). Amended again 2026-09-18 (earlier-of activation materialization, deposit tranche identity, successor reconciliation matrix, closed ending cascades, projection source locators, cumulative staged deposit). Accepted and promoted 2026-09-18.  
-**Implementation gate:** [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19). M3D.9 is shipped; final M3D correctness QC is green at pinned base `344ab86`. ADR 0013 and the M3E plan are Accepted. M3E.1 and M3E.2 are shipped; production work continues with later M3E PRs from that base.
+**Implementation gate:** [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19). M3D.9 is shipped; final M3D correctness QC is green at pinned base `344ab86`. ADR 0013 and the M3E plan are Accepted. M3E.1, M3E.2, and M3E.3 are shipped; production work continues with later M3E PRs from that base.
 
 ## Ship notes
 
 - **M3E.1 shipped:** source-shaped `confirmation_trigger` openings, append-only dispositions/reopen, multi-member evidence coverage, open-state inactivation.
 - **M3E.2 shipped:** Deadline definitions and coverage/commitment lines; immutable occurrences with precision exclusivity; activation materialization and elapsed acknowledgment; due/overdue/warning projection catch-up on queue `deadlines` with no time-created domain events; `deadline_requirement` openings; M3D.7 freeze extension; successor definition copy and reconciliation matrix (`one_shared` cardinality only; `per_source` deferred).
+- **M3E.3 shipped:** Deposit Requirement definitions with closed amount shapes and embedded due rules (including `planning_milestone` arms); immutable tranches and append-only components; activation materialization with `deposit_requirement` openings and `deposit_due` Deadlines; external-handled attestation (`handled_externally`, never labeled paid); Staff planning milestones (`names_assigned_to_supplier`) that replace unelapsed earlier-of Deadlines without duplicate commitments; successor copy/reconciliation; M3D.7 freeze for deposit definition families.
 
 ## Scope boundary
 

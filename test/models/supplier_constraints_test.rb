@@ -59,10 +59,17 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
       supplier_deadline_definitions
       supplier_deadline_occurrences
       supplier_deadline_projections
+      supplier_deposit_external_attestations
+      supplier_deposit_requirement_definition_cost_links
+      supplier_deposit_requirement_definition_coverage_links
+      supplier_deposit_requirement_definitions
+      supplier_deposit_requirement_tranche_components
+      supplier_deposit_requirement_tranches
       supplier_email_addresses
       supplier_issued_identifiers
       supplier_locations
       supplier_phone_numbers
+      supplier_planning_milestone_occurrences
       supplier_postal_addresses
       supplier_reservation_event_scope_outcomes
       supplier_reservation_events

@@ -38,6 +38,7 @@ BEGIN
     OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
     OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
     OR NEW.supplier_deadline_definition_id IS DISTINCT FROM OLD.supplier_deadline_definition_id
+    OR NEW.supplier_deposit_requirement_definition_id IS DISTINCT FROM OLD.supplier_deposit_requirement_definition_id
     OR NEW.supplier_arrangement_activation_id IS DISTINCT FROM OLD.supplier_arrangement_activation_id
     OR NEW.deadline_type IS DISTINCT FROM OLD.deadline_type
     OR NEW.other_label IS DISTINCT FROM OLD.other_label
@@ -64,6 +65,39 @@ BEGIN
   END IF;
   IF NEW.superseded_at IS NULL THEN
     RAISE EXCEPTION 'supplier_deadline_occurrences is append-only';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: allow_deposit_tranche_derived_updates_only(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.allow_deposit_tranche_derived_updates_only() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.id IS DISTINCT FROM OLD.id
+    OR NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+    OR NEW.supplier_deposit_requirement_definition_id IS DISTINCT FROM OLD.supplier_deposit_requirement_definition_id
+    OR NEW.supplier_arrangement_activation_id IS DISTINCT FROM OLD.supplier_arrangement_activation_id
+    OR NEW.amount_shape IS DISTINCT FROM OLD.amount_shape
+    OR NEW.amount_inputs_snapshot IS DISTINCT FROM OLD.amount_inputs_snapshot
+    OR NEW.coverage_snapshot IS DISTINCT FROM OLD.coverage_snapshot
+    OR NEW.initial_amount_minor_units IS DISTINCT FROM OLD.initial_amount_minor_units
+    OR NEW.currency IS DISTINCT FROM OLD.currency
+    OR NEW.materialization_key IS DISTINCT FROM OLD.materialization_key
+    OR NEW.predecessor_tranche_id IS DISTINCT FROM OLD.predecessor_tranche_id
+    OR NEW.actor_id IS DISTINCT FROM OLD.actor_id
+    OR NEW.materialized_at IS DISTINCT FROM OLD.materialized_at
+    OR NEW.created_at IS DISTINCT FROM OLD.created_at
+  THEN
+    RAISE EXCEPTION 'supplier_deposit_requirement_tranches is append-only except derived fields';
   END IF;
   RETURN NEW;
 END;
@@ -1251,6 +1285,27 @@ BEGIN
     OR NEW.copied_from_id IS DISTINCT FROM OLD.copied_from_id
   THEN
     RAISE EXCEPTION 'supplier deadline definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_supplier_deposit_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_deposit_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+    OR NEW.copied_from_id IS DISTINCT FROM OLD.copied_from_id
+  THEN
+    RAISE EXCEPTION 'supplier deposit requirement definition owner is immutable';
   END IF;
   RETURN NEW;
 END;
@@ -2523,8 +2578,9 @@ CREATE TABLE public.supplier_commitment_dispositions (
     agency_command_idempotency_key_id uuid,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT commitment_dispositions_outcome CHECK (((outcome)::text = ANY (ARRAY[('satisfied'::character varying)::text, ('released'::character varying)::text, ('waived'::character varying)::text, ('cancelled'::character varying)::text, ('superseded'::character varying)::text]))),
-    CONSTRAINT commitment_dispositions_outcome_proof CHECK (((((outcome)::text = ANY (ARRAY[('satisfied'::character varying)::text, ('released'::character varying)::text])) AND (supplier_commitment_evidence_coverage_id IS NOT NULL) AND (reason IS NULL) AND (accepted_risk_acknowledged = false) AND (replacement_supplier_commitment_id IS NULL)) OR (((outcome)::text = 'waived'::text) AND (supplier_commitment_evidence_coverage_id IS NULL) AND (reason IS NOT NULL) AND (btrim((reason)::text) <> ''::text) AND (accepted_risk_acknowledged = true) AND (replacement_supplier_commitment_id IS NULL)) OR (((outcome)::text = 'cancelled'::text) AND (supplier_commitment_evidence_coverage_id IS NULL) AND (accepted_risk_acknowledged = false) AND (replacement_supplier_commitment_id IS NULL)) OR (((outcome)::text = 'superseded'::text) AND (supplier_commitment_evidence_coverage_id IS NULL) AND (accepted_risk_acknowledged = false) AND (replacement_supplier_commitment_id IS NOT NULL) AND (replacement_supplier_commitment_id <> supplier_commitment_id)))),
+    supplier_deposit_external_attestation_id uuid,
+    CONSTRAINT commitment_dispositions_outcome CHECK (((outcome)::text = ANY ((ARRAY['satisfied'::character varying, 'released'::character varying, 'waived'::character varying, 'cancelled'::character varying, 'superseded'::character varying, 'handled_externally'::character varying])::text[]))),
+    CONSTRAINT commitment_dispositions_outcome_proof CHECK (((((outcome)::text = ANY ((ARRAY['satisfied'::character varying, 'released'::character varying])::text[])) AND (supplier_commitment_evidence_coverage_id IS NOT NULL) AND (reason IS NULL) AND (accepted_risk_acknowledged = false) AND (replacement_supplier_commitment_id IS NULL) AND (supplier_deposit_external_attestation_id IS NULL)) OR (((outcome)::text = 'waived'::text) AND (supplier_commitment_evidence_coverage_id IS NULL) AND (reason IS NOT NULL) AND (btrim((reason)::text) <> ''::text) AND (accepted_risk_acknowledged = true) AND (replacement_supplier_commitment_id IS NULL) AND (supplier_deposit_external_attestation_id IS NULL)) OR (((outcome)::text = 'cancelled'::text) AND (supplier_commitment_evidence_coverage_id IS NULL) AND (accepted_risk_acknowledged = false) AND (replacement_supplier_commitment_id IS NULL) AND (supplier_deposit_external_attestation_id IS NULL)) OR (((outcome)::text = 'superseded'::text) AND (supplier_commitment_evidence_coverage_id IS NULL) AND (accepted_risk_acknowledged = false) AND (replacement_supplier_commitment_id IS NOT NULL) AND (replacement_supplier_commitment_id <> supplier_commitment_id) AND (supplier_deposit_external_attestation_id IS NULL)) OR (((outcome)::text = 'handled_externally'::text) AND (supplier_commitment_evidence_coverage_id IS NULL) AND (reason IS NOT NULL) AND (btrim((reason)::text) <> ''::text) AND (accepted_risk_acknowledged = false) AND (replacement_supplier_commitment_id IS NULL) AND (supplier_deposit_external_attestation_id IS NOT NULL)))),
     CONSTRAINT commitment_dispositions_reason_length CHECK (((reason IS NULL) OR (char_length((reason)::text) <= 2000)))
 );
 
@@ -2717,12 +2773,13 @@ CREATE TABLE public.supplier_commitments (
     opening_kind character varying DEFAULT 'confirmation_trigger'::character varying NOT NULL,
     supplier_deadline_occurrence_id uuid,
     supplier_deadline_commitment_definition_line_id uuid,
+    supplier_deposit_requirement_tranche_id uuid,
     CONSTRAINT supplier_commitments_authority_shape CHECK (((((commitment_type)::text = 'quantity'::text) AND (quantity IS NOT NULL) AND (amount_minor_units IS NULL)) OR (((commitment_type)::text = 'monetary'::text) AND (quantity IS NULL) AND (amount_minor_units IS NOT NULL)) OR (((commitment_type)::text = 'quantity_and_monetary'::text) AND (quantity IS NOT NULL) AND (amount_minor_units IS NOT NULL)))),
     CONSTRAINT supplier_commitments_calculation_snapshot CHECK (((btrim((calculation_snapshot)::text) <> ''::text) AND (char_length((calculation_snapshot)::text) <= 2000))),
     CONSTRAINT supplier_commitments_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 500))),
     CONSTRAINT supplier_commitments_money_shape CHECK ((((amount_minor_units IS NULL) = (currency IS NULL)) AND ((amount_minor_units IS NULL) OR (amount_minor_units >= 0)))),
-    CONSTRAINT supplier_commitments_opening_kind CHECK (((opening_kind)::text = ANY (ARRAY[('confirmation_trigger'::character varying)::text, ('deadline_requirement'::character varying)::text]))),
-    CONSTRAINT supplier_commitments_opening_shape CHECK (((((opening_kind)::text = 'confirmation_trigger'::text) AND (supplier_commitment_trigger_definition_id IS NOT NULL) AND (supplier_confirmation_id IS NOT NULL) AND (supplier_deadline_occurrence_id IS NULL) AND (supplier_deadline_commitment_definition_line_id IS NULL)) OR (((opening_kind)::text = 'deadline_requirement'::text) AND (supplier_commitment_trigger_definition_id IS NULL) AND (supplier_confirmation_id IS NULL) AND (supplier_deadline_occurrence_id IS NOT NULL) AND (supplier_deadline_commitment_definition_line_id IS NOT NULL)))),
+    CONSTRAINT supplier_commitments_opening_kind CHECK (((opening_kind)::text = ANY ((ARRAY['confirmation_trigger'::character varying, 'deadline_requirement'::character varying, 'deposit_requirement'::character varying])::text[]))),
+    CONSTRAINT supplier_commitments_opening_shape CHECK (((((opening_kind)::text = 'confirmation_trigger'::text) AND (supplier_commitment_trigger_definition_id IS NOT NULL) AND (supplier_confirmation_id IS NOT NULL) AND (supplier_deadline_occurrence_id IS NULL) AND (supplier_deadline_commitment_definition_line_id IS NULL) AND (supplier_deposit_requirement_tranche_id IS NULL)) OR (((opening_kind)::text = 'deadline_requirement'::text) AND (supplier_commitment_trigger_definition_id IS NULL) AND (supplier_confirmation_id IS NULL) AND (supplier_deadline_occurrence_id IS NOT NULL) AND (supplier_deadline_commitment_definition_line_id IS NOT NULL) AND (supplier_deposit_requirement_tranche_id IS NULL)) OR (((opening_kind)::text = 'deposit_requirement'::text) AND (supplier_commitment_trigger_definition_id IS NULL) AND (supplier_confirmation_id IS NULL) AND (supplier_deadline_occurrence_id IS NULL) AND (supplier_deadline_commitment_definition_line_id IS NULL) AND (supplier_deposit_requirement_tranche_id IS NOT NULL)))),
     CONSTRAINT supplier_commitments_quantity_shape CHECK ((((quantity IS NULL) = (quantity_basis IS NULL)) AND ((quantity IS NULL) OR (quantity > 0)))),
     CONSTRAINT supplier_commitments_reservation_shape CHECK ((((supplier_reservation_id IS NULL) AND (supplier_reservation_revision_id IS NULL) AND (supplier_reservation_scope_id IS NULL) AND (supplier_reservation_event_id IS NULL)) OR ((supplier_reservation_id IS NOT NULL) AND (supplier_reservation_revision_id IS NOT NULL) AND (supplier_reservation_scope_id IS NOT NULL) AND (supplier_reservation_event_id IS NOT NULL)))),
     CONSTRAINT supplier_commitments_type CHECK (((commitment_type)::text = ANY (ARRAY[('quantity'::character varying)::text, ('monetary'::character varying)::text, ('quantity_and_monetary'::character varying)::text])))
@@ -3291,7 +3348,7 @@ CREATE TABLE public.supplier_deadline_occurrences (
     departure_id uuid NOT NULL,
     supplier_arrangement_id uuid NOT NULL,
     supplier_arrangement_version_id uuid CONSTRAINT supplier_deadline_occurrenc_supplier_arrangement_versi_not_null NOT NULL,
-    supplier_deadline_definition_id uuid CONSTRAINT supplier_deadline_occurrenc_supplier_deadline_definiti_not_null NOT NULL,
+    supplier_deadline_definition_id uuid,
     supplier_arrangement_activation_id uuid,
     deadline_type character varying NOT NULL,
     other_label character varying(120),
@@ -3312,12 +3369,14 @@ CREATE TABLE public.supplier_deadline_occurrences (
     materialized_at timestamp with time zone NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    supplier_deposit_requirement_definition_id uuid,
     CONSTRAINT deadline_occurrences_cardinality CHECK (((cardinality)::text = ANY (ARRAY[('one_shared'::character varying)::text, ('per_source'::character varying)::text]))),
     CONSTRAINT deadline_occurrences_kind CHECK (((kind)::text = ANY (ARRAY[('actionable'::character varying)::text, ('informational'::character varying)::text]))),
     CONSTRAINT deadline_occurrences_materialization_key CHECK (((btrim((materialization_key)::text) <> ''::text) AND (char_length((materialization_key)::text) <= 256))),
     CONSTRAINT deadline_occurrences_precision CHECK ((("precision")::text = ANY (ARRAY[('date_only'::character varying)::text, ('local_date_time'::character varying)::text]))),
     CONSTRAINT deadline_occurrences_precision_exclusivity CHECK ((((("precision")::text = 'date_only'::text) AND (calculated_on IS NOT NULL) AND (calculated_at IS NULL)) OR ((("precision")::text = 'local_date_time'::text) AND (calculated_at IS NOT NULL) AND (calculated_on IS NULL)))),
     CONSTRAINT deadline_occurrences_rule_shape CHECK (((rule_shape)::text = ANY (ARRAY[('fixed_date'::character varying)::text, ('fixed_local_datetime'::character varying)::text, ('days_before_departure'::character varying)::text, ('days_after_departure'::character varying)::text, ('hours_before_departure'::character varying)::text, ('hours_after_departure'::character varying)::text, ('earlier_of'::character varying)::text, ('later_of'::character varying)::text]))),
+    CONSTRAINT deadline_occurrences_source_shape CHECK ((((supplier_deadline_definition_id IS NOT NULL) AND (supplier_deposit_requirement_definition_id IS NULL)) OR ((supplier_deadline_definition_id IS NULL) AND (supplier_deposit_requirement_definition_id IS NOT NULL) AND ((deadline_type)::text = 'deposit_due'::text)))),
     CONSTRAINT deadline_occurrences_time_zone CHECK (((btrim((time_zone)::text) <> ''::text) AND (char_length((time_zone)::text) <= 64))),
     CONSTRAINT deadline_occurrences_type CHECK (((deadline_type)::text = ANY (ARRAY[('deposit_due'::character varying)::text, ('option_or_release_date'::character varying)::text, ('rooming_list_due'::character varying)::text, ('legal_names_due'::character varying)::text, ('final_count_due'::character varying)::text, ('final_schedule_or_departure_time_due'::character varying)::text, ('cancellation_cutoff'::character varying)::text, ('accessibility_confirmation_due'::character varying)::text, ('other'::character varying)::text])))
 );
@@ -3346,6 +3405,181 @@ CREATE TABLE public.supplier_deadline_projections (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT deadline_projections_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT deadline_projections_status CHECK (((status)::text = ANY (ARRAY[('upcoming'::character varying)::text, ('warning'::character varying)::text, ('due'::character varying)::text, ('overdue'::character varying)::text, ('superseded'::character varying)::text])))
+);
+
+
+--
+-- Name: supplier_deposit_external_attestations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deposit_external_attestations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_deposit_external_atte_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deposit_external_a_supplier_arrangement_versi_not_null NOT NULL,
+    supplier_deposit_requirement_tranche_id uuid CONSTRAINT supplier_deposit_external_a_supplier_deposit_requireme_not_null NOT NULL,
+    supplier_commitment_id uuid CONSTRAINT supplier_deposit_external_attes_supplier_commitment_id_not_null NOT NULL,
+    attested_amount_minor_units bigint CONSTRAINT supplier_deposit_external_a_attested_amount_minor_unit_not_null NOT NULL,
+    currency character varying(3) NOT NULL,
+    confirmed_complete boolean DEFAULT false CONSTRAINT supplier_deposit_external_attestati_confirmed_complete_not_null NOT NULL,
+    note character varying(2000) NOT NULL,
+    actor_id uuid NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    agency_command_idempotency_key_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT deposit_attestations_amount_nonnegative CHECK ((attested_amount_minor_units >= 0)),
+    CONSTRAINT deposit_attestations_confirmed_complete CHECK ((confirmed_complete = true)),
+    CONSTRAINT deposit_attestations_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT deposit_attestations_note CHECK (((btrim((note)::text) <> ''::text) AND (char_length((note)::text) <= 2000)))
+);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_cost_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deposit_requirement_definition_cost_links (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid CONSTRAINT supplier_deposit_requirement_definition_cost_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_deposit_requirement_definition__departure_id_not_null1 NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_deposit_requirement__supplier_arrangement_id_not_null2 NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deposit_requireme_supplier_arrangement_versi_not_null2 NOT NULL,
+    supplier_deposit_requirement_definition_id uuid CONSTRAINT supplier_deposit_requireme_supplier_deposit_requireme_not_null1 NOT NULL,
+    supplier_cost_source_id uuid CONSTRAINT supplier_deposit_requirement_d_supplier_cost_source_id_not_null NOT NULL,
+    supplier_cost_definition_id uuid,
+    supplier_cost_component_id uuid,
+    "position" integer CONSTRAINT supplier_deposit_requirement_definition_cost__position_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_deposit_requirement_definition_cos_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_deposit_requirement_definition_cos_updated_at_not_null NOT NULL,
+    CONSTRAINT deposit_cost_links_definition_before_component CHECK ((((supplier_cost_definition_id IS NULL) AND (supplier_cost_component_id IS NULL)) OR (supplier_cost_definition_id IS NOT NULL))),
+    CONSTRAINT deposit_cost_links_position_positive CHECK (("position" > 0))
+);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_coverage_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deposit_requirement_definition_coverage_links (
+    id uuid DEFAULT uuidv7() CONSTRAINT supplier_deposit_requirement_definition_coverage_li_id_not_null NOT NULL,
+    agency_id uuid CONSTRAINT supplier_deposit_requirement_definition_cove_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_deposit_requirement_definition_c_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_deposit_requirement__supplier_arrangement_id_not_null1 NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deposit_requireme_supplier_arrangement_versi_not_null1 NOT NULL,
+    supplier_deposit_requirement_definition_id uuid CONSTRAINT supplier_deposit_requiremen_supplier_deposit_requireme_not_null NOT NULL,
+    arrangement_item_id uuid,
+    service_occurrence_id uuid,
+    supplier_resource_id uuid,
+    capacity_pool_id uuid,
+    "position" integer CONSTRAINT supplier_deposit_requirement_definition_cover_position_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_deposit_requirement_definition_cov_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_deposit_requirement_definition_cov_updated_at_not_null NOT NULL,
+    CONSTRAINT deposit_coverage_links_exactly_one_target CHECK ((((arrangement_item_id IS NOT NULL) AND (service_occurrence_id IS NULL) AND (supplier_resource_id IS NULL) AND (capacity_pool_id IS NULL)) OR ((arrangement_item_id IS NOT NULL) AND (service_occurrence_id IS NOT NULL) AND (supplier_resource_id IS NULL) AND (capacity_pool_id IS NULL)) OR ((arrangement_item_id IS NOT NULL) AND (supplier_resource_id IS NOT NULL) AND (service_occurrence_id IS NULL) AND (capacity_pool_id IS NULL)) OR ((arrangement_item_id IS NOT NULL) AND (service_occurrence_id IS NOT NULL) AND (supplier_resource_id IS NOT NULL) AND (capacity_pool_id IS NOT NULL)))),
+    CONSTRAINT deposit_coverage_links_position_positive CHECK (("position" > 0))
+);
+
+
+--
+-- Name: supplier_deposit_requirement_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deposit_requirement_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_deposit_requirement_d_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deposit_requiremen_supplier_arrangement_versi_not_null NOT NULL,
+    amount_shape character varying NOT NULL,
+    fixed_amount_minor_units bigint,
+    rate_minor_units bigint,
+    quantity_basis character varying,
+    explicit_quantity bigint,
+    percentage numeric(9,6),
+    rounding_scope character varying,
+    target_amount_minor_units bigint,
+    currency character varying(3) NOT NULL,
+    rule_shape character varying NOT NULL,
+    rule_parameters jsonb DEFAULT '{}'::jsonb CONSTRAINT supplier_deposit_requirement_definitio_rule_parameters_not_null NOT NULL,
+    "precision" character varying DEFAULT 'date_only'::character varying NOT NULL,
+    time_zone character varying(64) NOT NULL,
+    "position" integer NOT NULL,
+    description character varying(500),
+    copied_from_id uuid,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT deposit_definitions_amount_fields CHECK (((((amount_shape)::text = 'fixed_amount'::text) AND (fixed_amount_minor_units IS NOT NULL) AND (fixed_amount_minor_units >= 0) AND (rate_minor_units IS NULL) AND (quantity_basis IS NULL) AND (explicit_quantity IS NULL) AND (percentage IS NULL) AND (rounding_scope IS NULL) AND (target_amount_minor_units IS NULL)) OR (((amount_shape)::text = 'quantity_times_rate'::text) AND (rate_minor_units IS NOT NULL) AND (rate_minor_units >= 0) AND (quantity_basis IS NOT NULL) AND (fixed_amount_minor_units IS NULL) AND (percentage IS NULL) AND (rounding_scope IS NULL) AND (target_amount_minor_units IS NULL) AND ((((quantity_basis)::text = 'explicit'::text) AND (explicit_quantity IS NOT NULL) AND (explicit_quantity > 0)) OR (((quantity_basis)::text <> 'explicit'::text) AND (explicit_quantity IS NULL)))) OR (((amount_shape)::text = 'percentage_of_cost_sources'::text) AND (percentage IS NOT NULL) AND (percentage > (0)::numeric) AND (rounding_scope IS NOT NULL) AND (fixed_amount_minor_units IS NULL) AND (rate_minor_units IS NULL) AND (quantity_basis IS NULL) AND (explicit_quantity IS NULL) AND (target_amount_minor_units IS NULL)) OR (((amount_shape)::text = 'cumulative_target'::text) AND (target_amount_minor_units IS NOT NULL) AND (target_amount_minor_units >= 0) AND (fixed_amount_minor_units IS NULL) AND (rate_minor_units IS NULL) AND (quantity_basis IS NULL) AND (explicit_quantity IS NULL) AND (percentage IS NULL) AND (rounding_scope IS NULL)))),
+    CONSTRAINT deposit_definitions_amount_shape CHECK (((amount_shape)::text = ANY ((ARRAY['fixed_amount'::character varying, 'quantity_times_rate'::character varying, 'percentage_of_cost_sources'::character varying, 'cumulative_target'::character varying])::text[]))),
+    CONSTRAINT deposit_definitions_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT deposit_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 500)))),
+    CONSTRAINT deposit_definitions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT deposit_definitions_position_positive CHECK (("position" > 0)),
+    CONSTRAINT deposit_definitions_precision CHECK ((("precision")::text = ANY ((ARRAY['date_only'::character varying, 'local_date_time'::character varying])::text[]))),
+    CONSTRAINT deposit_definitions_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY ((ARRAY['resource_units'::character varying, 'traveler_positions'::character varying, 'explicit'::character varying])::text[])))),
+    CONSTRAINT deposit_definitions_rounding_scope CHECK (((rounding_scope IS NULL) OR ((rounding_scope)::text = ANY ((ARRAY['aggregate'::character varying, 'per_source'::character varying])::text[])))),
+    CONSTRAINT deposit_definitions_rule_shape CHECK (((rule_shape)::text = ANY ((ARRAY['fixed_date'::character varying, 'fixed_local_datetime'::character varying, 'days_before_departure'::character varying, 'days_after_departure'::character varying, 'hours_before_departure'::character varying, 'hours_after_departure'::character varying, 'earlier_of'::character varying, 'later_of'::character varying])::text[]))),
+    CONSTRAINT deposit_definitions_time_zone CHECK (((btrim((time_zone)::text) <> ''::text) AND (char_length((time_zone)::text) <= 64)))
+);
+
+
+--
+-- Name: supplier_deposit_requirement_tranche_components; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deposit_requirement_tranche_components (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid CONSTRAINT supplier_deposit_requirement_tranche_compone_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_deposit_requirement_tranche_comp_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_deposit_requirement__supplier_arrangement_id_not_null3 NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deposit_requireme_supplier_arrangement_versi_not_null4 NOT NULL,
+    supplier_deposit_requirement_tranche_id uuid CONSTRAINT supplier_deposit_requireme_supplier_deposit_requireme_not_null3 NOT NULL,
+    component_kind character varying CONSTRAINT supplier_deposit_requirement_tranche_co_component_kind_not_null NOT NULL,
+    amount_delta_minor_units bigint CONSTRAINT supplier_deposit_requirement__amount_delta_minor_units_not_null NOT NULL,
+    calculation_snapshot jsonb DEFAULT '{}'::jsonb CONSTRAINT supplier_deposit_requirement_tran_calculation_snapshot_not_null NOT NULL,
+    note character varying(2000),
+    actor_id uuid CONSTRAINT supplier_deposit_requirement_tranche_componen_actor_id_not_null NOT NULL,
+    recorded_at timestamp with time zone CONSTRAINT supplier_deposit_requirement_tranche_compo_recorded_at_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_deposit_requirement_tranche_compon_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_deposit_requirement_tranche_compon_updated_at_not_null NOT NULL,
+    CONSTRAINT deposit_tranche_components_kind CHECK (((component_kind)::text = ANY ((ARRAY['initial_calculation'::character varying, 'adjustment_increase'::character varying, 'adjustment_decrease'::character varying, 'post_satisfaction_increment'::character varying])::text[]))),
+    CONSTRAINT deposit_tranche_components_note CHECK (((note IS NULL) OR ((btrim((note)::text) <> ''::text) AND (char_length((note)::text) <= 2000))))
+);
+
+
+--
+-- Name: supplier_deposit_requirement_tranches; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deposit_requirement_tranches (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_deposit_requirement_t_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deposit_requireme_supplier_arrangement_versi_not_null3 NOT NULL,
+    supplier_deposit_requirement_definition_id uuid CONSTRAINT supplier_deposit_requireme_supplier_deposit_requireme_not_null2 NOT NULL,
+    supplier_arrangement_activation_id uuid,
+    amount_shape character varying NOT NULL,
+    amount_inputs_snapshot jsonb DEFAULT '{}'::jsonb CONSTRAINT supplier_deposit_requirement_tr_amount_inputs_snapshot_not_null NOT NULL,
+    coverage_snapshot jsonb DEFAULT '[]'::jsonb CONSTRAINT supplier_deposit_requirement_tranche_coverage_snapshot_not_null NOT NULL,
+    initial_amount_minor_units bigint CONSTRAINT supplier_deposit_requiremen_initial_amount_minor_units_not_null NOT NULL,
+    current_amount_minor_units bigint CONSTRAINT supplier_deposit_requiremen_current_amount_minor_units_not_null NOT NULL,
+    currency character varying(3) NOT NULL,
+    materialization_key character varying(256) CONSTRAINT supplier_deposit_requirement_tranc_materialization_key_not_null NOT NULL,
+    predecessor_tranche_id uuid,
+    governing_deadline_occurrence_id uuid,
+    actor_id uuid NOT NULL,
+    materialized_at timestamp with time zone NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT deposit_tranches_amount_shape CHECK (((amount_shape)::text = ANY ((ARRAY['fixed_amount'::character varying, 'quantity_times_rate'::character varying, 'percentage_of_cost_sources'::character varying, 'cumulative_target'::character varying])::text[]))),
+    CONSTRAINT deposit_tranches_amounts_nonnegative CHECK (((initial_amount_minor_units >= 0) AND (current_amount_minor_units >= 0))),
+    CONSTRAINT deposit_tranches_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT deposit_tranches_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT deposit_tranches_materialization_key CHECK (((btrim((materialization_key)::text) <> ''::text) AND (char_length((materialization_key)::text) <= 256)))
 );
 
 
@@ -3470,6 +3704,31 @@ CREATE TABLE public.supplier_phone_numbers (
     CONSTRAINT supplier_phone_numbers_label_length CHECK (((label IS NULL) OR (char_length((label)::text) <= 40))),
     CONSTRAINT supplier_phone_numbers_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_phone_numbers_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+);
+
+
+--
+-- Name: supplier_planning_milestone_occurrences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_planning_milestone_occurrences (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_planning_milestone_oc_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_planning_milestone_supplier_arrangement_versi_not_null NOT NULL,
+    kind character varying NOT NULL,
+    occurred_on date,
+    occurred_at timestamp with time zone,
+    note character varying(2000),
+    actor_id uuid NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    agency_command_idempotency_key_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT planning_milestones_kind CHECK (((kind)::text = 'names_assigned_to_supplier'::text)),
+    CONSTRAINT planning_milestones_note CHECK (((note IS NULL) OR ((btrim((note)::text) <> ''::text) AND (char_length((note)::text) <= 2000)))),
+    CONSTRAINT planning_milestones_precision_exclusivity CHECK ((((occurred_on IS NOT NULL) AND (occurred_at IS NULL)) OR ((occurred_at IS NOT NULL) AND (occurred_on IS NULL))))
 );
 
 
@@ -4387,6 +4646,54 @@ ALTER TABLE ONLY public.supplier_deadline_projections
 
 
 --
+-- Name: supplier_deposit_external_attestations supplier_deposit_external_attestations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_external_attestations
+    ADD CONSTRAINT supplier_deposit_external_attestations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_cost_links supplier_deposit_requirement_definition_cost_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_cost_links
+    ADD CONSTRAINT supplier_deposit_requirement_definition_cost_links_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_coverage_links supplier_deposit_requirement_definition_coverage_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_coverage_links
+    ADD CONSTRAINT supplier_deposit_requirement_definition_coverage_links_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deposit_requirement_definitions supplier_deposit_requirement_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definitions
+    ADD CONSTRAINT supplier_deposit_requirement_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranche_components supplier_deposit_requirement_tranche_components_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranche_components
+    ADD CONSTRAINT supplier_deposit_requirement_tranche_components_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranches supplier_deposit_requirement_tranches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranches
+    ADD CONSTRAINT supplier_deposit_requirement_tranches_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_email_addresses supplier_email_addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4416,6 +4723,14 @@ ALTER TABLE ONLY public.supplier_locations
 
 ALTER TABLE ONLY public.supplier_phone_numbers
     ADD CONSTRAINT supplier_phone_numbers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_planning_milestone_occurrences supplier_planning_milestone_occurrences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_planning_milestone_occurrences
+    ADD CONSTRAINT supplier_planning_milestone_occurrences_pkey PRIMARY KEY (id);
 
 
 --
@@ -6083,6 +6398,90 @@ CREATE UNIQUE INDEX index_deadline_projections_on_occurrence ON public.supplier_
 
 
 --
+-- Name: index_dep_att_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_att_on_id_agency ON public.supplier_deposit_external_attestations USING btree (id, agency_id);
+
+
+--
+-- Name: index_dep_att_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_att_on_id_departure_agency ON public.supplier_deposit_external_attestations USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_dep_cmp_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_cmp_on_id_agency ON public.supplier_deposit_requirement_tranche_components USING btree (id, agency_id);
+
+
+--
+-- Name: index_dep_cmp_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_cmp_on_id_departure_agency ON public.supplier_deposit_requirement_tranche_components USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_dep_cost_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_cost_on_id_agency ON public.supplier_deposit_requirement_definition_cost_links USING btree (id, agency_id);
+
+
+--
+-- Name: index_dep_cost_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_cost_on_id_departure_agency ON public.supplier_deposit_requirement_definition_cost_links USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_dep_cov_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_cov_on_id_agency ON public.supplier_deposit_requirement_definition_coverage_links USING btree (id, agency_id);
+
+
+--
+-- Name: index_dep_cov_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_cov_on_id_departure_agency ON public.supplier_deposit_requirement_definition_coverage_links USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_dep_defs_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_defs_on_id_agency ON public.supplier_deposit_requirement_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_dep_defs_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_defs_on_id_departure_agency ON public.supplier_deposit_requirement_definitions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_dep_trn_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_trn_on_id_agency ON public.supplier_deposit_requirement_tranches USING btree (id, agency_id);
+
+
+--
+-- Name: index_dep_trn_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_trn_on_id_departure_agency ON public.supplier_deposit_requirement_tranches USING btree (id, departure_id, agency_id);
+
+
+--
 -- Name: index_departures_on_agency_and_name_search_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6153,6 +6552,97 @@ CREATE UNIQUE INDEX index_departures_on_id_and_agency_id ON public.departures US
 
 
 --
+-- Name: index_deposit_attestations_on_commitment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_attestations_on_commitment ON public.supplier_deposit_external_attestations USING btree (supplier_commitment_id);
+
+
+--
+-- Name: index_deposit_attestations_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_attestations_on_full_owner ON public.supplier_deposit_external_attestations USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deposit_cost_links_on_definition_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_cost_links_on_definition_position ON public.supplier_deposit_requirement_definition_cost_links USING btree (supplier_deposit_requirement_definition_id, "position");
+
+
+--
+-- Name: index_deposit_cost_links_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_cost_links_on_full_owner ON public.supplier_deposit_requirement_definition_cost_links USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deposit_coverage_links_on_definition_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_coverage_links_on_definition_position ON public.supplier_deposit_requirement_definition_coverage_links USING btree (supplier_deposit_requirement_definition_id, "position");
+
+
+--
+-- Name: index_deposit_coverage_links_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_coverage_links_on_full_owner ON public.supplier_deposit_requirement_definition_coverage_links USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deposit_definitions_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_definitions_on_full_owner ON public.supplier_deposit_requirement_definitions USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deposit_definitions_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_definitions_on_lineage_owner ON public.supplier_deposit_requirement_definitions USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deposit_definitions_on_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_definitions_on_position ON public.supplier_deposit_requirement_definitions USING btree (supplier_arrangement_version_id, "position");
+
+
+--
+-- Name: index_deposit_tranche_components_on_timeline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_deposit_tranche_components_on_timeline ON public.supplier_deposit_requirement_tranche_components USING btree (supplier_deposit_requirement_tranche_id, recorded_at, id);
+
+
+--
+-- Name: index_deposit_tranches_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_tranches_on_full_owner ON public.supplier_deposit_requirement_tranches USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deposit_tranches_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_tranches_on_lineage_owner ON public.supplier_deposit_requirement_tranches USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deposit_tranches_on_materialization_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_tranches_on_materialization_key ON public.supplier_deposit_requirement_tranches USING btree (supplier_arrangement_version_id, materialization_key);
+
+
+--
 -- Name: index_idempotency_keys_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6199,6 +6689,34 @@ CREATE UNIQUE INDEX index_offices_on_agency_id_and_code ON public.offices USING 
 --
 
 CREATE UNIQUE INDEX index_offices_on_id_and_agency_id ON public.offices USING btree (id, agency_id);
+
+
+--
+-- Name: index_planning_milestones_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_planning_milestones_on_full_owner ON public.supplier_planning_milestone_occurrences USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_planning_milestones_on_kind_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_planning_milestones_on_kind_date ON public.supplier_planning_milestone_occurrences USING btree (supplier_arrangement_id, kind, occurred_on, id);
+
+
+--
+-- Name: index_pln_ms_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_pln_ms_on_id_agency ON public.supplier_planning_milestone_occurrences USING btree (id, agency_id);
+
+
+--
+-- Name: index_pln_ms_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_pln_ms_on_id_departure_agency ON public.supplier_planning_milestone_occurrences USING btree (id, departure_id, agency_id);
 
 
 --
@@ -6570,6 +7088,13 @@ CREATE UNIQUE INDEX index_supplier_commitments_on_confirmation_trigger ON public
 --
 
 CREATE UNIQUE INDEX index_supplier_commitments_on_deadline_opening ON public.supplier_commitments USING btree (supplier_deadline_occurrence_id, supplier_deadline_commitment_definition_line_id) WHERE ((opening_kind)::text = 'deadline_requirement'::text);
+
+
+--
+-- Name: index_supplier_commitments_on_deposit_tranche; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_commitments_on_deposit_tranche ON public.supplier_commitments USING btree (supplier_deposit_requirement_tranche_id) WHERE ((opening_kind)::text = 'deposit_requirement'::text);
 
 
 --
@@ -8533,6 +9058,76 @@ CREATE TRIGGER supplier_deadline_occurrences_reject_update BEFORE UPDATE ON publ
 
 
 --
+-- Name: supplier_deposit_external_attestations supplier_deposit_external_attestations_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_external_attestations_reject_delete BEFORE DELETE ON public.supplier_deposit_external_attestations FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_deposit_external_attestations supplier_deposit_external_attestations_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_external_attestations_reject_update BEFORE UPDATE ON public.supplier_deposit_external_attestations FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_deposit_requirement_definition_cost_links supplier_deposit_requirement_definition_cost_links_reject_non_d; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_definition_cost_links_reject_non_d BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deposit_requirement_definition_cost_links FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_deposit_requirement_definition_coverage_links supplier_deposit_requirement_definition_coverage_links_reject_n; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_definition_coverage_links_reject_n BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deposit_requirement_definition_coverage_links FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_deposit_requirement_definitions supplier_deposit_requirement_definitions_reject_non_draft_mutat; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_definitions_reject_non_draft_mutat BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deposit_requirement_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_deposit_requirement_definitions supplier_deposit_requirement_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_definitions_reject_owner_change BEFORE UPDATE ON public.supplier_deposit_requirement_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_deposit_definition_owner_change();
+
+
+--
+-- Name: supplier_deposit_requirement_tranche_components supplier_deposit_requirement_tranche_components_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_tranche_components_reject_delete BEFORE DELETE ON public.supplier_deposit_requirement_tranche_components FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_deposit_requirement_tranche_components supplier_deposit_requirement_tranche_components_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_tranche_components_reject_update BEFORE UPDATE ON public.supplier_deposit_requirement_tranche_components FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_deposit_requirement_tranches supplier_deposit_requirement_tranches_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_tranches_reject_delete BEFORE DELETE ON public.supplier_deposit_requirement_tranches FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_deposit_requirement_tranches supplier_deposit_requirement_tranches_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_tranches_reject_update BEFORE UPDATE ON public.supplier_deposit_requirement_tranches FOR EACH ROW EXECUTE FUNCTION public.allow_deposit_tranche_derived_updates_only();
+
+
+--
 -- Name: supplier_email_addresses supplier_email_addresses_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -8572,6 +9167,20 @@ CREATE TRIGGER supplier_locations_reject_owner_change BEFORE UPDATE ON public.su
 --
 
 CREATE TRIGGER supplier_phone_numbers_reject_owner_change BEFORE UPDATE ON public.supplier_phone_numbers FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_contact_owner_change();
+
+
+--
+-- Name: supplier_planning_milestone_occurrences supplier_planning_milestone_occurrences_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_planning_milestone_occurrences_reject_delete BEFORE DELETE ON public.supplier_planning_milestone_occurrences FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_planning_milestone_occurrences supplier_planning_milestone_occurrences_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_planning_milestone_occurrences_reject_update BEFORE UPDATE ON public.supplier_planning_milestone_occurrences FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
 
 
 --
@@ -9201,6 +9810,14 @@ ALTER TABLE ONLY public.supplier_commitment_dispositions
 
 
 --
+-- Name: supplier_commitment_dispositions commitment_dispositions_deposit_attestation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_dispositions
+    ADD CONSTRAINT commitment_dispositions_deposit_attestation_fk FOREIGN KEY (supplier_deposit_external_attestation_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_external_attestations(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_commitment_dispositions commitment_dispositions_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9761,6 +10378,14 @@ ALTER TABLE ONLY public.supplier_deadline_occurrences
 
 
 --
+-- Name: supplier_deadline_occurrences deadline_occurrences_deposit_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_occurrences
+    ADD CONSTRAINT deadline_occurrences_deposit_definition_fk FOREIGN KEY (supplier_deposit_requirement_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_deadline_occurrences deadline_occurrences_predecessor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9806,6 +10431,222 @@ ALTER TABLE ONLY public.departures
 
 ALTER TABLE ONLY public.departures
     ADD CONSTRAINT departures_office_agency_fk FOREIGN KEY (responsible_office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
+-- Name: supplier_deposit_external_attestations deposit_attestations_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_external_attestations
+    ADD CONSTRAINT deposit_attestations_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_deposit_external_attestations deposit_attestations_commitment_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_external_attestations
+    ADD CONSTRAINT deposit_attestations_commitment_fk FOREIGN KEY (supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitments(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_external_attestations deposit_attestations_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_external_attestations
+    ADD CONSTRAINT deposit_attestations_idempotency_fk FOREIGN KEY (agency_command_idempotency_key_id) REFERENCES public.agency_command_idempotency_keys(id);
+
+
+--
+-- Name: supplier_deposit_external_attestations deposit_attestations_tranche_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_external_attestations
+    ADD CONSTRAINT deposit_attestations_tranche_fk FOREIGN KEY (supplier_deposit_requirement_tranche_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_tranches(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_external_attestations deposit_attestations_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_external_attestations
+    ADD CONSTRAINT deposit_attestations_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_cost_links deposit_cost_links_cost_component_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_cost_links
+    ADD CONSTRAINT deposit_cost_links_cost_component_fk FOREIGN KEY (supplier_cost_component_id, supplier_cost_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_cost_components(id, supplier_cost_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_cost_links deposit_cost_links_cost_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_cost_links
+    ADD CONSTRAINT deposit_cost_links_cost_definition_fk FOREIGN KEY (supplier_cost_definition_id, supplier_cost_source_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_cost_definitions(id, supplier_cost_source_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_cost_links deposit_cost_links_cost_source_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_cost_links
+    ADD CONSTRAINT deposit_cost_links_cost_source_fk FOREIGN KEY (supplier_cost_source_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_cost_sources(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_cost_links deposit_cost_links_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_cost_links
+    ADD CONSTRAINT deposit_cost_links_definition_fk FOREIGN KEY (supplier_deposit_requirement_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_cost_links deposit_cost_links_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_cost_links
+    ADD CONSTRAINT deposit_cost_links_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_coverage_links deposit_coverage_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_coverage_links
+    ADD CONSTRAINT deposit_coverage_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_item_definitions(arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_coverage_links deposit_coverage_links_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_coverage_links
+    ADD CONSTRAINT deposit_coverage_links_definition_fk FOREIGN KEY (supplier_deposit_requirement_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_coverage_links deposit_coverage_links_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_coverage_links
+    ADD CONSTRAINT deposit_coverage_links_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_coverage_links deposit_coverage_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_coverage_links
+    ADD CONSTRAINT deposit_coverage_occurrence_fk FOREIGN KEY (service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrence_definitions(service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_coverage_links deposit_coverage_pool_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_coverage_links
+    ADD CONSTRAINT deposit_coverage_pool_fk FOREIGN KEY (capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pools(id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_coverage_links deposit_coverage_resource_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_coverage_links
+    ADD CONSTRAINT deposit_coverage_resource_fk FOREIGN KEY (supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_resource_definitions(supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definitions deposit_definitions_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definitions
+    ADD CONSTRAINT deposit_definitions_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_definitions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definitions deposit_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definitions
+    ADD CONSTRAINT deposit_definitions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranche_components deposit_tranche_components_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranche_components
+    ADD CONSTRAINT deposit_tranche_components_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranche_components deposit_tranche_components_tranche_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranche_components
+    ADD CONSTRAINT deposit_tranche_components_tranche_fk FOREIGN KEY (supplier_deposit_requirement_tranche_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_tranches(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranche_components deposit_tranche_components_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranche_components
+    ADD CONSTRAINT deposit_tranche_components_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranches deposit_tranches_activation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranches
+    ADD CONSTRAINT deposit_tranches_activation_fk FOREIGN KEY (supplier_arrangement_activation_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_activations(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranches deposit_tranches_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranches
+    ADD CONSTRAINT deposit_tranches_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranches deposit_tranches_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranches
+    ADD CONSTRAINT deposit_tranches_definition_fk FOREIGN KEY (supplier_deposit_requirement_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranches deposit_tranches_governing_deadline_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranches
+    ADD CONSTRAINT deposit_tranches_governing_deadline_fk FOREIGN KEY (governing_deadline_occurrence_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deadline_occurrences(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranches deposit_tranches_predecessor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranches
+    ADD CONSTRAINT deposit_tranches_predecessor_fk FOREIGN KEY (predecessor_tranche_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_tranches(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_tranches deposit_tranches_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_tranches
+    ADD CONSTRAINT deposit_tranches_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -10425,6 +11266,30 @@ ALTER TABLE ONLY public.service_occurrence_definitions
 
 
 --
+-- Name: supplier_planning_milestone_occurrences planning_milestones_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_planning_milestone_occurrences
+    ADD CONSTRAINT planning_milestones_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_planning_milestone_occurrences planning_milestones_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_planning_milestone_occurrences
+    ADD CONSTRAINT planning_milestones_idempotency_fk FOREIGN KEY (agency_command_idempotency_key_id) REFERENCES public.agency_command_idempotency_keys(id);
+
+
+--
+-- Name: supplier_planning_milestone_occurrences planning_milestones_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_planning_milestone_occurrences
+    ADD CONSTRAINT planning_milestones_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_reservation_events reservation_events_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10726,6 +11591,14 @@ ALTER TABLE ONLY public.supplier_commitments
 
 ALTER TABLE ONLY public.supplier_commitments
     ADD CONSTRAINT supplier_commitments_deadline_occurrence_fk FOREIGN KEY (supplier_deadline_occurrence_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deadline_occurrences(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_deposit_tranche_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_deposit_tranche_fk FOREIGN KEY (supplier_deposit_requirement_tranche_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_tranches(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -11231,6 +12104,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260919180000'),
 ('20260919140000'),
 ('20260919120000'),
 ('20260919070000'),

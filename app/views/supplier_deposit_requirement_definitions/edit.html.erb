@@ -1,0 +1,25 @@
+<% content_for :title, "Edit deposit requirement · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <h1 class="dd-page-title">Edit deposit requirement</h1>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @definition,
+      url: departure_arrangement_version_deposit_path(
+        @departure, @supplier_arrangement, @supplier_arrangement_version, @definition
+      ), method: :patch, class: "dd-form" do |form| %>
+      <%= render "form", form: form %>
+      <div class="dd-form-actions">
+        <%= form.submit "Update deposit requirement", class: "dd-button" %>
+        <%= link_to "Cancel",
+          departure_arrangement_version_deposits_path(
+            @departure, @supplier_arrangement, @supplier_arrangement_version
+          ), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

@@ -1,0 +1,120 @@
+<% params_hash = @definition.rule_parameters || {} %>
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+<%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key %>
+
+<% if @definition.errors.any? %>
+  <div class="dd-form-errors" role="alert">
+    <ul>
+      <% @definition.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<div class="dd-field-group">
+  <%= form.label :amount_shape, "Amount shape", class: "dd-label" %>
+  <%= form.select :amount_shape,
+    SupplierDepositRequirementDefinition::AMOUNT_SHAPES.map { |value| [value.humanize, value] },
+    {}, required: true, **dd_field_options(form, :amount_shape) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :currency, "Currency", class: "dd-label" %>
+  <%= form.text_field :currency, maxlength: 3, required: true, **dd_field_options(form, :currency) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :fixed_amount_minor_units, "Fixed amount (minor units)", class: "dd-label" %>
+  <%= form.number_field :fixed_amount_minor_units, min: 0, step: 1,
+    **dd_field_options(form, :fixed_amount_minor_units) %>
+  <%= form.label :rate_minor_units, "Rate (minor units)", class: "dd-label" %>
+  <%= form.number_field :rate_minor_units, min: 0, step: 1, **dd_field_options(form, :rate_minor_units) %>
+  <%= form.label :quantity_basis, "Quantity basis", class: "dd-label" %>
+  <%= form.select :quantity_basis,
+    SupplierDepositRequirementDefinition::QUANTITY_BASES.map { |value| [value.humanize, value] },
+    { include_blank: "—" }, **dd_field_options(form, :quantity_basis) %>
+  <%= form.label :explicit_quantity, "Explicit quantity", class: "dd-label" %>
+  <%= form.number_field :explicit_quantity, min: 1, step: 1, **dd_field_options(form, :explicit_quantity) %>
+  <%= form.label :percentage, "Percentage", class: "dd-label" %>
+  <%= form.number_field :percentage, min: 0, step: 0.000001, **dd_field_options(form, :percentage) %>
+  <%= form.label :rounding_scope, "Rounding scope", class: "dd-label" %>
+  <%= form.select :rounding_scope,
+    SupplierDepositRequirementDefinition::ROUNDING_SCOPES.map { |value| [value.humanize, value] },
+    { include_blank: "—" }, **dd_field_options(form, :rounding_scope) %>
+  <%= form.label :target_amount_minor_units, "Cumulative target (minor units)", class: "dd-label" %>
+  <%= form.number_field :target_amount_minor_units, min: 0, step: 1,
+    **dd_field_options(form, :target_amount_minor_units) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :rule_shape, "Due rule", class: "dd-label" %>
+  <%= form.select :rule_shape,
+    SupplierDepositRequirementDefinition::RULE_SHAPES.map { |value| [value.humanize, value] },
+    {}, required: true, **dd_field_options(form, :rule_shape) %>
+  <%= form.label :precision, "Precision", class: "dd-label" %>
+  <%= form.select :precision,
+    SupplierDepositRequirementDefinition::PRECISIONS.map { |value| [value.humanize, value] },
+    {}, required: true, **dd_field_options(form, :precision) %>
+  <%= form.label :time_zone, "Time zone", class: "dd-label" %>
+  <%= form.text_field :time_zone, required: true, **dd_field_options(form, :time_zone) %>
+</div>
+
+<div class="dd-field-group">
+  <%= label_tag :fixed_date, "Fixed date", class: "dd-label" %>
+  <%= date_field_tag "supplier_deposit_requirement_definition[fixed_date]", params_hash["date"],
+    **dd_tag_field_options(form.object, :fixed_date) %>
+  <%= label_tag :offset_days, "Day offset", class: "dd-label" %>
+  <%= number_field_tag "supplier_deposit_requirement_definition[offset_days]", params_hash["days"],
+    min: 0, step: 1, **dd_tag_field_options(form.object, :offset_days) %>
+</div>
+
+<% arms = Array(params_hash["arms"]) %>
+<% 2.times do |index| %>
+  <% arm = (arms[index] || {}).with_indifferent_access %>
+  <% prefix = "arm#{index + 1}" %>
+  <fieldset class="dd-field-group">
+    <legend class="dd-label">Composite arm <%= index + 1 %></legend>
+    <%= select_tag "supplier_deposit_requirement_definition[#{prefix}_rule_shape]",
+      options_for_select(
+        (SupplierDeadlineRuleEvaluator::SIMPLE_SHAPES + [SupplierDeadlineRuleEvaluator::MILESTONE_SHAPE])
+          .map { |value| [value.humanize, value] },
+        arm[:rule_shape]
+      ), include_blank: "Unused unless earlier/later of",
+      **dd_tag_field_options(form.object, :"#{prefix}_rule_shape") %>
+    <%= date_field_tag "supplier_deposit_requirement_definition[#{prefix}_fixed_date]",
+      arm.dig(:rule_parameters, :date) || arm.dig(:rule_parameters, "date"),
+      **dd_tag_field_options(form.object, :"#{prefix}_fixed_date") %>
+    <%= select_tag "supplier_deposit_requirement_definition[#{prefix}_milestone_kind]",
+      options_for_select(
+        SupplierPlanningMilestoneOccurrence::KINDS.map { |value| [value.humanize, value] },
+        arm.dig(:rule_parameters, :kind) || arm.dig(:rule_parameters, "kind")
+      ), include_blank: "Milestone kind",
+      **dd_tag_field_options(form.object, :"#{prefix}_milestone_kind") %>
+  </fieldset>
+<% end %>
+
+<div class="dd-field-group">
+  <%= form.label :description, "Description", class: "dd-label" %>
+  <%= form.text_field :description, maxlength: 500, **dd_field_options(form, :description) %>
+</div>
+
+<% coverage = @definition.supplier_deposit_requirement_definition_coverage_links.first %>
+<div class="dd-field-group">
+  <%= label_tag :coverage_item, "Coverage item (optional)", class: "dd-label" %>
+  <%= select_tag "supplier_deposit_requirement_definition[coverage_links][][arrangement_item_id]",
+    options_from_collection_for_select(@items, :arrangement_item_id, :name, coverage&.arrangement_item_id),
+    include_blank: "Arrangement-level / none",
+    **dd_tag_field_options(form.object, :coverage_item) %>
+</div>
+
+<% if @cost_sources.any? %>
+  <div class="dd-field-group">
+    <%= label_tag :cost_source, "Cost source (percentage deposits)", class: "dd-label" %>
+    <%= select_tag "supplier_deposit_requirement_definition[cost_links][][supplier_cost_source_id]",
+      options_from_collection_for_select(@cost_sources, :id, :label),
+      include_blank: "None",
+      **dd_tag_field_options(form.object, :cost_source) %>
+  </div>
+<% end %>

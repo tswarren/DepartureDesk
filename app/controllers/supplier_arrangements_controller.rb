@@ -210,5 +210,20 @@ class SupplierArrangementsController < ApplicationController
       .to_a
     @arrangement_cost_sources = @cost_sources.select(&:arrangement_wide?)
     @cost_sources_by_item_id = @cost_sources.reject(&:arrangement_wide?).group_by(&:arrangement_item_id)
+    load_deposit_operations!
+  end
+
+  def load_deposit_operations!
+    version = @supplier_arrangement.governing_version || @supplier_arrangement_version
+    @open_deposit_commitments = @supplier_arrangement.supplier_commitments
+      .where(opening_kind: "deposit_requirement", supplier_arrangement_version_id: version.id)
+      .includes(
+        supplier_deposit_requirement_tranche: :governing_deadline_occurrence,
+        supplier_commitment_dispositions: :supplier_commitment_reopening
+      )
+      .order(:opened_at, :id)
+      .select(&:open_state?)
+    @deposit_attest_idempotency_key = SecureRandom.uuid
+    @planning_milestone_idempotency_key = SecureRandom.uuid
   end
 end

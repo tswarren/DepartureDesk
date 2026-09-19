@@ -130,6 +130,12 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.deadline_definition_updated
     supplier_arrangement.deadline_definition_removed
     supplier_arrangement.deadlines_materialized
+    supplier_arrangement.deposit_definition_created
+    supplier_arrangement.deposit_definition_updated
+    supplier_arrangement.deposit_definition_removed
+    supplier_arrangement.deposits_materialized
+    supplier_arrangement.deposit_attested_external
+    supplier_arrangement.planning_milestone_recorded
     supplier_arrangement.commitments_disposed
     supplier_arrangement.commitment_reopened
     supplier_arrangement.evidence_coverage_revoked
