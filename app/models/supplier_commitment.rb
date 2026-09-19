@@ -5,15 +5,17 @@ class SupplierCommitment < ApplicationRecord
 
   COMMITMENT_TYPES = %w[quantity monetary quantity_and_monetary].freeze
   QUANTITY_BASES = SupplierCommitmentTriggerDefinition::QUANTITY_BASES
-  OPENING_KINDS = %w[confirmation_trigger].freeze
+  OPENING_KINDS = %w[confirmation_trigger deadline_requirement].freeze
 
   belongs_to :agency
   belongs_to :departure
   belongs_to :supplier_arrangement
   belongs_to :supplier_arrangement_version
   belongs_to :supplier_arrangement_activation, optional: true
-  belongs_to :supplier_commitment_trigger_definition
-  belongs_to :supplier_confirmation
+  belongs_to :supplier_commitment_trigger_definition, optional: true
+  belongs_to :supplier_confirmation, optional: true
+  belongs_to :supplier_deadline_occurrence, optional: true
+  belongs_to :supplier_deadline_commitment_definition_line, optional: true
   belongs_to :committed_supplier, class_name: "Supplier"
   belongs_to :arrangement_item, optional: true
   belongs_to :service_occurrence, optional: true

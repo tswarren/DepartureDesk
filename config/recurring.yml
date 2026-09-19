@@ -18,6 +18,10 @@ development: &recurring_defaults
     class: RefreshDueCapacityProjectionsJob
     queue: capacity
     schedule: every hour
+  refresh_due_deadline_projections:
+    class: RefreshDueDeadlineProjectionsJob
+    queue: deadlines
+    schedule: every hour
 
 production:
   <<: *recurring_defaults

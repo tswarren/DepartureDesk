@@ -16,6 +16,7 @@ class M3d1ActivationPersistenceTest < ActiveSupport::TestCase
       supplier_cost_components supplier_cost_component_bases
       supplier_cost_participant_categories supplier_cost_usage_assumptions
       supplier_cost_occupancy_profiles supplier_cost_occupancy_profile_positions
+      supplier_commitment_trigger_definitions supplier_deadline_definitions
     ].each do |table|
       assert_includes ActiveRecord::Base.connection.columns(table).map(&:name),
         "copied_from_id", "#{table} must retain predecessor lineage"

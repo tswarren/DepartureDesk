@@ -207,6 +207,10 @@ Rails.application.routes.draw do
           path: "commitment-triggers",
           controller: "supplier_commitment_trigger_definitions",
           only: %i[index new create edit update destroy]
+        resources :deadlines,
+          path: "deadlines",
+          controller: "supplier_deadline_definitions",
+          only: %i[index new create edit update destroy]
       end
       resources :items, controller: "arrangement_items", only: %i[new create edit update destroy] do
         collection { patch :reorder }

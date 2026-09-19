@@ -141,6 +141,25 @@
         <%= check_box_tag :commitment_trigger_coverage_acknowledged, "1", params[:commitment_trigger_coverage_acknowledged] == "1", required: true %>
         <%= label_tag :commitment_trigger_coverage_acknowledged, "I confirm known confirmation-triggered commitments are covered by the listed triggers.", class: "dd-label" %>
       </div>
+      <% if @elapsed_deadlines.any? %>
+        <div class="dd-field-group">
+          <p><strong>Already-elapsed Deadlines:</strong></p>
+          <ul>
+            <% @elapsed_deadlines.each do |row| %>
+              <li>
+                <%= row[:definition].display_label %>
+                <% if row[:calculated_on] %>
+                  · <%= row[:calculated_on].strftime("%b %-d, %Y") %>
+                <% else %>
+                  · <%= row[:calculated_at].in_time_zone(row[:definition].time_zone).strftime("%b %-d, %Y %-l:%M %p %Z") %>
+                <% end %>
+              </li>
+            <% end %>
+          </ul>
+          <%= check_box_tag :elapsed_deadlines_acknowledged, "1", params[:elapsed_deadlines_acknowledged] == "1", required: true %>
+          <%= label_tag :elapsed_deadlines_acknowledged, "I acknowledge these Deadlines are already elapsed and will open as overdue where actionable.", class: "dd-label" %>
+        </div>
+      <% end %>
       <% arrangement_triggers.select { |trigger|
            %w[confirmed_quantity contracted_unit_rate_times_confirmed_quantity].include?(trigger.authority_shape)
          }.each do |trigger| %>

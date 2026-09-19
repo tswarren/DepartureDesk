@@ -89,9 +89,16 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
       supplier_cost_sources supplier_cost_definitions supplier_cost_components
       supplier_cost_participant_categories supplier_cost_usage_assumptions
       supplier_cost_occupancy_profiles supplier_commitment_trigger_definitions
+      supplier_deadline_definitions
     ].each { |association| version.public_send(association).order(:id).lock.load }
     SupplierCostComponentBase.where(supplier_arrangement_version_id: version.id).order(:id).lock.load
     SupplierCostOccupancyProfilePosition.where(
+      supplier_arrangement_version_id: version.id
+    ).order(:id).lock.load
+    SupplierDeadlineDefinitionCoverageLink.where(
+      supplier_arrangement_version_id: version.id
+    ).order(:id).lock.load
+    SupplierDeadlineCommitmentDefinitionLine.where(
       supplier_arrangement_version_id: version.id
     ).order(:id).lock.load
   end
@@ -136,6 +143,7 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
     copy_component_bases!(from, to, definitions, components)
     carry_cost_readiness!(definitions)
     copy_triggers!(from, to, sources, definitions, components)
+    copy_deadlines!(from, to, sources, definitions, components)
 
     # These maps are intentionally built even where stable identity means no FK remap.
     # Their construction proves each retained structural definition was copied once.
@@ -210,6 +218,34 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
         supplier_cost_component_id: remap_optional(components, record.supplier_cost_component_id)
       }
     end
+  end
+
+  def copy_deadlines!(from, to, sources, definitions, components)
+    deadline_copies = copy_family(
+      from.supplier_deadline_definitions,
+      to.supplier_deadline_definitions
+    )
+    from.supplier_deadline_definition_coverage_links.order(:id).each do |link|
+      to.supplier_deadline_definition_coverage_links.create!(
+        copy_attributes(link).merge(
+          supplier_arrangement_version: to,
+          supplier_deadline_definition_id: deadline_copies.fetch(link.supplier_deadline_definition_id).id
+        )
+      )
+    end
+    from.supplier_deadline_commitment_definition_lines.order(:id).each do |line|
+      to.supplier_deadline_commitment_definition_lines.create!(
+        copy_attributes(line).merge(
+          supplier_arrangement_version: to,
+          supplier_deadline_definition_id: deadline_copies.fetch(line.supplier_deadline_definition_id).id,
+          supplier_cost_source_id: remap_optional(sources, line.supplier_cost_source_id),
+          supplier_cost_definition_id: remap_optional(definitions, line.supplier_cost_definition_id),
+          supplier_cost_component_id: remap_optional(components, line.supplier_cost_component_id),
+          copied_from: line
+        )
+      )
+    end
+    deadline_copies
   end
 
   def remap_optional(map, id)
