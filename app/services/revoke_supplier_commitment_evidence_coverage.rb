@@ -3,12 +3,14 @@
 class RevokeSupplierCommitmentEvidenceCoverage < AgencyCommand
   include ArrangementCommandSupport
 
-  def initialize(agency:, actor:, coverage:, reason:, idempotency_key:, occurred_at: nil)
+  def initialize(agency:, actor:, coverage:, reason:, idempotency_key:, commitment_ids:,
+    occurred_at: nil)
     @agency = agency
     @actor = actor
     @coverage = coverage
     @reason = reason.to_s.strip
     @idempotency_key = idempotency_key
+    @commitment_ids = Array(commitment_ids).map(&:to_s).uniq.sort
     @occurred_at = occurred_at
   end
 
@@ -26,10 +28,25 @@ class RevokeSupplierCommitmentEvidenceCoverage < AgencyCommand
       confirmation = SupplierConfirmation.find_by!(
         id: coverage_row.supplier_confirmation_id, agency_id: @agency.id
       )
-      dependent_commitments = current_dependent_commitments(coverage_row)
+
+      payload = {
+        supplier_commitment_evidence_coverage_id: coverage_row.id,
+        supplier_commitment_ids: @commitment_ids,
+        reason: @reason,
+        occurred_at: occurred&.utc&.iso8601(6)
+      }
+
+      reviewed_commitments = if @commitment_ids.empty?
+        []
+      else
+        SupplierCommitment.where(id: @commitment_ids, agency_id: @agency.id).to_a
+      end
+      if reviewed_commitments.size != @commitment_ids.size
+        raise Error.new("One or more reviewed commitments could not be found.", code: :not_found)
+      end
 
       lock_suppliers_in_uuid_order!(
-        dependent_commitments.map(&:committed_supplier_id) + [ confirmation.confirming_supplier_id ]
+        reviewed_commitments.map(&:committed_supplier_id) + [ confirmation.confirming_supplier_id ]
       )
       lock_departure_for!(arrangement_row.departure_id)
       arrangement = lock_arrangement_for!(arrangement_row)
@@ -37,19 +54,11 @@ class RevokeSupplierCommitmentEvidenceCoverage < AgencyCommand
       raise Error.new("That supplier arrangement has been abandoned.", code: :invalid_state) if arrangement.abandoned?
 
       coverage = arrangement.supplier_commitment_evidence_coverages.lock.find(coverage_row.id)
-      if coverage.supplier_commitment_evidence_coverage_revocation.present?
-        raise Error.new("That evidence coverage is already revoked.", code: :invalid_state)
+      commitments = if @commitment_ids.empty?
+        []
+      else
+        SupplierCommitment.where(id: @commitment_ids, agency_id: @agency.id).order(:id).lock.to_a
       end
-
-      commitments = SupplierCommitment.where(id: dependent_commitments.map(&:id), agency_id: @agency.id)
-        .order(:id).lock.to_a
-
-      payload = {
-        supplier_commitment_evidence_coverage_id: coverage.id,
-        supplier_commitment_ids: commitments.map(&:id).sort,
-        reason: @reason,
-        occurred_at: occurred&.utc&.iso8601(6)
-      }
 
       idempotent_create!(
         command_name: self.class.name,
@@ -59,6 +68,11 @@ class RevokeSupplierCommitmentEvidenceCoverage < AgencyCommand
       ) do
         if coverage.reload.supplier_commitment_evidence_coverage_revocation.present?
           raise Error.new("That evidence coverage is already revoked.", code: :invalid_state)
+        end
+
+        current_ids = current_dependent_commitments(coverage).map(&:id).map(&:to_s).sort
+        if current_ids != @commitment_ids
+          raise Error.new("Evidence coverage dependents changed. Reload and try again.", code: :conflict)
         end
 
         now = Time.current

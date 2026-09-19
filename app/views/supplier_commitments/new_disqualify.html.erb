@@ -20,6 +20,8 @@
     <%= form_with url: disqualify_departure_arrangement_commitment_path(@departure, @supplier_arrangement, @commitment),
       method: :post, class: "dd-form", html: { novalidate: true } do |form| %>
       <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <%= hidden_field_tag :supplier_commitment_evidence_coverage_id, @coverage.id %>
+      <%= hidden_field_tag :supplier_commitment_disposition_id, @disposition.id %>
 
       <div class="dd-field">
         <p class="dd-field-hint">

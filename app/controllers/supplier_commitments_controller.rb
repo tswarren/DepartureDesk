@@ -29,10 +29,7 @@ class SupplierCommitmentsController < ApplicationController
   end
 
   def new_dispose
-    @outcome = params[:outcome].presence_in(%w[satisfied released]) || "satisfied"
-    @open_commitments = open_commitments_scope
-    @confirmations = confirmation_scope_for_outcome(@outcome)
-    @selected_commitment_ids = selected_or_preselected_commitment_ids(@open_commitments)
+    prepare_dispose_form!
     @idempotency_key = SecureRandom.uuid
   end
 
@@ -50,9 +47,7 @@ class SupplierCommitmentsController < ApplicationController
     redirect_to departure_arrangement_commitments_path(@departure, @supplier_arrangement),
       notice: "Commitment disposition recorded."
   rescue AgencyCommand::Error => error
-    @outcome = params[:outcome].presence_in(%w[satisfied released]) || "satisfied"
-    @open_commitments = open_commitments_scope
-    @confirmations = confirmation_scope_for_outcome(@outcome)
+    prepare_dispose_form!
     @selected_commitment_ids = Array(params[:supplier_commitment_ids]).map(&:to_s)
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     flash.now[:alert] = error.message
@@ -124,22 +119,25 @@ class SupplierCommitmentsController < ApplicationController
   end
 
   def disqualify
-    disposition = @commitment.current_disposition
-    raise ActiveRecord::RecordNotFound unless disposition&.supplier_commitment_evidence_coverage_id
-
+    coverage = @supplier_arrangement.supplier_commitment_evidence_coverages
+      .find(params.require(:supplier_commitment_evidence_coverage_id))
     DisqualifySupplierCommitmentFromEvidenceCoverage.new(
       agency: Current.agency,
       actor: Current.agency_user,
-      coverage: disposition.supplier_commitment_evidence_coverage,
+      coverage:,
       commitment: @commitment,
+      disposition_id: params.require(:supplier_commitment_disposition_id),
       reason: params[:reason],
       idempotency_key: params.require(:idempotency_key)
     ).call
     redirect_to departure_arrangement_commitments_path(@departure, @supplier_arrangement),
       notice: "Commitment disqualified from evidence coverage."
   rescue AgencyCommand::Error => error
-    @disposition = @commitment.current_disposition
-    @coverage = @disposition&.supplier_commitment_evidence_coverage
+    @disposition = @commitment.supplier_commitment_dispositions.find_by(id: params[:supplier_commitment_disposition_id]) ||
+      @commitment.current_disposition
+    @coverage = @supplier_arrangement.supplier_commitment_evidence_coverages
+      .find_by(id: params[:supplier_commitment_evidence_coverage_id]) ||
+      @disposition&.supplier_commitment_evidence_coverage
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     flash.now[:alert] = error.message
     render :new_disqualify, status: :unprocessable_entity
@@ -151,10 +149,25 @@ class SupplierCommitmentsController < ApplicationController
     @commitment = @supplier_arrangement.supplier_commitments.find(params[:id])
   end
 
+  def prepare_dispose_form!
+    @outcome = params[:outcome].presence_in(%w[satisfied released]) || "satisfied"
+    @confirmations = confirmation_scope_for_outcome(@outcome)
+    @selected_confirmation_id = params[:supplier_confirmation_id].presence
+    @selected_confirmation = @confirmations.find_by(id: @selected_confirmation_id)
+    all_open = open_commitments_scope
+    if @selected_confirmation
+      @open_commitments = compatible_open_commitments(all_open, @selected_confirmation, @outcome)
+      @selected_commitment_ids = selected_or_preselected_commitment_ids(@open_commitments)
+    else
+      @open_commitments = []
+      @selected_commitment_ids = []
+    end
+  end
+
   def open_commitments_scope
     @supplier_arrangement.supplier_commitments
       .with_current_disposition_state
-      .includes(:committed_supplier)
+      .includes(:committed_supplier, :supplier_confirmation)
       .order(:opened_at, :id)
       .to_a
       .select(&:open_state?)
@@ -166,7 +179,25 @@ class SupplierCommitmentsController < ApplicationController
     else
       SupplierConfirmation::BOOKING_EVIDENCE_KINDS
     end
-    confirmation_scope.where(evidence_kind: kinds)
+    confirmation_scope.includes(:confirming_supplier).where(evidence_kind: kinds)
+  end
+
+  def compatible_open_commitments(commitments, confirmation, outcome)
+    kinds = if outcome == "released"
+      DisposeSupplierCommitmentsWithEvidence::RELEASE_EVIDENCE_KINDS
+    else
+      DisposeSupplierCommitmentsWithEvidence::SATISFACTION_EVIDENCE_KINDS
+    end
+    return [] unless kinds.include?(confirmation.evidence_kind)
+
+    commitments.select do |commitment|
+      confirmation.agency_id == commitment.agency_id &&
+        confirmation.departure_id == commitment.departure_id &&
+        confirmation.supplier_arrangement_id == commitment.supplier_arrangement_id &&
+        confirmation.supplier_arrangement_version_id == commitment.supplier_arrangement_version_id &&
+        confirmation.confirming_supplier_id == commitment.committed_supplier_id &&
+        commitment.supplier_confirmation_id != confirmation.id
+    end
   end
 
   def selected_or_preselected_commitment_ids(open_commitments)

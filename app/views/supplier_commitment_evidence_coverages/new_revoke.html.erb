@@ -20,6 +20,9 @@
     <%= form_with url: revoke_departure_arrangement_evidence_coverage_path(@departure, @supplier_arrangement, @coverage),
       method: :post, class: "dd-form", html: { novalidate: true } do |form| %>
       <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <% @reviewed_commitment_ids.each do |commitment_id| %>
+        <%= hidden_field_tag "supplier_commitment_ids[]", commitment_id %>
+      <% end %>
 
       <div class="dd-field">
         <h2 class="dd-panel-title">Commitments that will reopen</h2>

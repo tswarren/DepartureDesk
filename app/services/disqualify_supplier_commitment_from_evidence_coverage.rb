@@ -3,11 +3,13 @@
 class DisqualifySupplierCommitmentFromEvidenceCoverage < AgencyCommand
   include ArrangementCommandSupport
 
-  def initialize(agency:, actor:, coverage:, commitment:, reason:, idempotency_key:, occurred_at: nil)
+  def initialize(agency:, actor:, coverage:, commitment:, reason:, idempotency_key:,
+    disposition_id:, occurred_at: nil)
     @agency = agency
     @actor = actor
     @coverage = coverage
     @commitment = commitment
+    @disposition_id = disposition_id.to_s.presence
     @reason = reason.to_s.strip
     @idempotency_key = idempotency_key
     @occurred_at = occurred_at
@@ -16,6 +18,7 @@ class DisqualifySupplierCommitmentFromEvidenceCoverage < AgencyCommand
   def call
     ensure_arrangement_actor!
     raise Error.new("Enter a disqualification reason.", code: :invalid) if @reason.blank?
+    raise Error.new("That commitment is not currently closed by this evidence coverage.", code: :invalid) if @disposition_id.blank?
 
     occurred = normalize_optional_occurred_at(@occurred_at)
 
@@ -26,6 +29,14 @@ class DisqualifySupplierCommitmentFromEvidenceCoverage < AgencyCommand
       commitment_row = SupplierCommitment.find_by!(id: @commitment.id, agency_id: @agency.id)
       arrangement_row = @agency.supplier_arrangements.find(commitment_row.supplier_arrangement_id)
 
+      payload = {
+        supplier_commitment_evidence_coverage_id: coverage_row.id,
+        supplier_commitment_id: commitment_row.id,
+        supplier_commitment_disposition_id: @disposition_id,
+        reason: @reason,
+        occurred_at: occurred&.utc&.iso8601(6)
+      }
+
       lock_suppliers_in_uuid_order!(commitment_row.committed_supplier_id)
       lock_departure_for!(arrangement_row.departure_id)
       arrangement = lock_arrangement_for!(arrangement_row)
@@ -33,23 +44,8 @@ class DisqualifySupplierCommitmentFromEvidenceCoverage < AgencyCommand
       raise Error.new("That supplier arrangement has been abandoned.", code: :invalid_state) if arrangement.abandoned?
 
       coverage = arrangement.supplier_commitment_evidence_coverages.lock.find(coverage_row.id)
-      if coverage.supplier_commitment_evidence_coverage_revocation.present?
-        raise Error.new("That evidence coverage is already revoked.", code: :invalid_state)
-      end
       commitment = arrangement.supplier_commitments.lock.find(commitment_row.id)
-      disposition = commitment.current_disposition
-      if disposition.blank? || disposition.supplier_commitment_evidence_coverage_id != coverage.id
-        raise Error.new("That commitment is not currently closed by this evidence coverage.", code: :invalid_state)
-      end
-      disposition = commitment.supplier_commitment_dispositions.lock.find(disposition.id)
-
-      payload = {
-        supplier_commitment_evidence_coverage_id: coverage.id,
-        supplier_commitment_id: commitment.id,
-        supplier_commitment_disposition_id: disposition.id,
-        reason: @reason,
-        occurred_at: occurred&.utc&.iso8601(6)
-      }
+      disposition = commitment.supplier_commitment_dispositions.lock.find(@disposition_id)
 
       idempotent_create!(
         command_name: self.class.name,
@@ -57,6 +53,9 @@ class DisqualifySupplierCommitmentFromEvidenceCoverage < AgencyCommand
         payload:,
         result_class: SupplierCommitmentEvidenceMemberDisqualification
       ) do
+        if coverage.supplier_commitment_evidence_coverage_revocation.present?
+          raise Error.new("That evidence coverage is already revoked.", code: :invalid_state)
+        end
         if commitment.reload.open_state?
           raise Error.new("That commitment is already open.", code: :invalid_state)
         end

@@ -5342,6 +5342,13 @@ CREATE INDEX index_commitment_dispositions_on_commitment_timeline ON public.supp
 
 
 --
+-- Name: index_commitment_dispositions_on_coverage_member_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commitment_dispositions_on_coverage_member_owner ON public.supplier_commitment_dispositions USING btree (id, supplier_commitment_evidence_coverage_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: index_commitment_dispositions_on_version_owner; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5423,6 +5430,13 @@ CREATE UNIQUE INDEX index_commitment_evidence_revocations_on_version_owner ON pu
 --
 
 CREATE UNIQUE INDEX index_commitment_reopenings_on_disposition ON public.supplier_commitment_reopenings USING btree (supplier_commitment_disposition_id);
+
+
+--
+-- Name: index_commitment_reopenings_on_disposition_commitment_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commitment_reopenings_on_disposition_commitment_owner ON public.supplier_commitment_reopenings USING btree (id, supplier_commitment_disposition_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -8732,7 +8746,7 @@ ALTER TABLE ONLY public.supplier_commitment_evidence_member_disqualifications
 --
 
 ALTER TABLE ONLY public.supplier_commitment_evidence_member_disqualifications
-    ADD CONSTRAINT commitment_evidence_disqualifications_disposition_fk FOREIGN KEY (supplier_commitment_disposition_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitment_dispositions(id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+    ADD CONSTRAINT commitment_evidence_disqualifications_disposition_fk FOREIGN KEY (supplier_commitment_disposition_id, supplier_commitment_evidence_coverage_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitment_dispositions(id, supplier_commitment_evidence_coverage_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -8756,7 +8770,7 @@ ALTER TABLE ONLY public.supplier_commitment_evidence_member_disqualifications
 --
 
 ALTER TABLE ONLY public.supplier_commitment_evidence_member_disqualifications
-    ADD CONSTRAINT commitment_evidence_disqualifications_reopening_fk FOREIGN KEY (supplier_commitment_reopening_id, agency_id) REFERENCES public.supplier_commitment_reopenings(id, agency_id);
+    ADD CONSTRAINT commitment_evidence_disqualifications_reopening_fk FOREIGN KEY (supplier_commitment_reopening_id, supplier_commitment_disposition_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitment_reopenings(id, supplier_commitment_disposition_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -10494,6 +10508,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260919070000'),
 ('20260919060000'),
 ('20260919050000'),
 ('20260919040000'),
