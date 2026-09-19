@@ -7,6 +7,8 @@
 - Architecture: [ADR 0008](0008-supplier-arrangement-version-topology.md), [ADR 0009](0009-supplier-contracting-and-service-provider-roles.md), [ADR 0010](0010-supplier-capacity-ledger-and-projection.md), and [ADR 0011](0011-supplier-cost-definitions-and-forecast-evaluation.md)
 - Prerequisite: [M3D.0](../planning/m3d0-planning-workspace-compression.md) must be Accepted and shipped before any production activation, Reservation, confirmation, effective-capacity, or commitment-opening implementation. There is no waiver.
 - Implementing slice: [M3D](../planning/m3d-activation-reservations-confirmations.md)
+- Supersession 2026-09-18: [ADR 0013](0013-supplier-operational-commitments-deadlines-exposure-and-ending.md) supersedes “manual opening” / unrestricted commitment-opening language and the M3D “every unresolved commitment row blocks ordinary inactivation” rule for post-M3E behavior. M3E openings are source-shaped and definition-driven; ordinary inactivation blocks only commitments whose current event-derived state is open. Historical decision text below is retained.
+
 
 ## Context
 

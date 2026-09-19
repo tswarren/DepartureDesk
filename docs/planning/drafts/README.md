@@ -1,12 +1,11 @@
 # Planning drafts
 
-No active planning drafts.
+## Historical note
 
-The M3D package was Accepted and promoted on 2026-09-17:
+The M3E package was Accepted and promoted on 2026-09-18:
 
-- [M3D.0](../m3d0-planning-workspace-compression.md) — Shipped workflow remediation
-- [M3D](../m3d-activation-reservations-confirmations.md) — Accepted activation/Reservations slice (not yet shipped; requires shipped M3D.0)
-- [ADR 0012](../../adr/0012-arrangement-activation-reservations-and-confirmations.md) — Accepted
-- M3D authority amendment — incorporated into [M3 parent](../m3-supplier-planning.md)
+- [ADR 0013](../../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
+- [M3E plan](../m3e-supplier-operational-control.md)
+- [M3E decision register](../m3e-decision-register.md)
 
 Place new draft slice plans or amendments here until they are Accepted and moved into the canonical `docs/planning/` or `docs/adr/` trees.
