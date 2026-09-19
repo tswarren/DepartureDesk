@@ -7,7 +7,7 @@
 - Parent: [M3 — Supplier planning](../planning/m3-supplier-planning.md)
 - Architecture: [ADR 0008](0008-supplier-arrangement-version-topology.md), [ADR 0009](0009-supplier-contracting-and-service-provider-roles.md), [ADR 0010](0010-supplier-capacity-ledger-and-projection.md), [ADR 0011](0011-supplier-cost-definitions-and-forecast-evaluation.md), and [ADR 0012](0012-arrangement-activation-reservations-and-confirmations.md)
 - Decision register: [M3E Decision Register](../planning/m3e-decision-register.md)
-- Prerequisite: M3D, including M3D.9 Reservation-integrity remediation, must be shipped and final M3D correctness QC must be green at the implementation branch base.
+- Prerequisite: M3D, including M3D.9 Reservation-integrity remediation, must be shipped and final M3D correctness QC must be green at the implementation branch base. [M3E.0](../planning/m3e0-m3d-closure-gate.md) records that gate as satisfied on pinned base `344ab86`.
 - Implementing slice: [M3E](../planning/m3e-supplier-operational-control.md)
 
 ## Context

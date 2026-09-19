@@ -3,7 +3,7 @@
 **Status:** Accepted 2026-09-18  
 **Decision date:** 2026-09-18  
 **Amended:** 2026-09-18 (opening-source shapes, `released`, time-automation retention, planning milestones, inactivation open-state rule). Amended again 2026-09-18 (earlier-of activation materialization, deposit tranche identity, successor reconciliation matrix, closed ending cascades, projection source locators, cumulative staged deposit). Accepted and promoted 2026-09-18.  
-**Implementation gate:** M3E implementation must not begin until M3D.9 is shipped on `main` and final M3D correctness QC is green at the implementation branch base. ADR 0013 and the M3E plan are Accepted.
+**Implementation gate:** [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19). M3D.9 is shipped; final M3D correctness QC is green at pinned base `344ab86`. ADR 0013 and the M3E plan are Accepted. Production M3E.1+ may begin from that base.
 
 ## Scope boundary
 
@@ -263,4 +263,4 @@ Second amendment wave (same day) after further acceptance review:
 
 ## Next artifact
 
-ADR 0013 and the [M3E plan](m3e-supplier-operational-control.md) are Accepted and aligned with this register. Do not begin production M3E code until M3E.0 / QC prerequisites are met.
+ADR 0013 and the [M3E plan](m3e-supplier-operational-control.md) are Accepted and aligned with this register. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied. Production M3E.1+ may begin from the pinned implementation base; M3E remains not shipped until M3E.7.
