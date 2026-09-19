@@ -85,6 +85,8 @@ class DisposeSupplierCommitmentsWithEvidence < AgencyCommand
               supplier_commitment: commitment
             )
           )
+        end
+        commitments.each do |commitment|
           SupplierCommitmentDisposition.create!(
             owner.merge(
               supplier_commitment: commitment,

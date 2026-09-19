@@ -179,6 +179,14 @@ Rails.application.routes.draw do
         member do
           get :reopen, action: :new_reopen
           post :reopen
+          get :disqualify, action: :new_disqualify
+          post :disqualify
+        end
+      end
+      resources :evidence_coverages, controller: "supplier_commitment_evidence_coverages", only: [] do
+        member do
+          get :revoke, action: :new_revoke
+          post :revoke
         end
       end
       member do

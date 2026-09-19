@@ -7,24 +7,32 @@ class SupplierCommitmentsController < ApplicationController
   before_action :require_departure_management!, except: :index
   before_action :set_departure
   before_action :set_supplier_arrangement
-  before_action :set_commitment, only: %i[new_reopen reopen]
+  before_action :set_commitment, only: %i[new_reopen reopen new_disqualify disqualify]
 
   def index
     commitments = @supplier_arrangement.supplier_commitments
       .with_current_disposition_state
-      .includes(:committed_supplier, :supplier_confirmation)
+      .includes(
+        :committed_supplier,
+        :supplier_confirmation,
+        { supplier_commitment_dispositions: [ :supplier_commitment_reopening, :supplier_commitment_evidence_coverage ] }
+      )
       .order(opened_at: :desc, id: :desc)
       .to_a
     @open_commitments = commitments.select(&:open_state?)
     @accepted_exceptions = commitments.select { |commitment| commitment.disposition_outcome == "waived" }
     @other_terminal = commitments.reject(&:open_state?).reject { |commitment| commitment.disposition_outcome == "waived" }
     @confirmations = @supplier_arrangement.supplier_confirmations.order(recorded_at: :desc, id: :desc)
+    @evidence_coverages = @supplier_arrangement.supplier_commitment_evidence_coverages
+      .includes(:supplier_confirmation, :supplier_commitment_evidence_coverage_revocation, members: :supplier_commitment)
+      .order(recorded_at: :desc, id: :desc)
   end
 
   def new_dispose
     @outcome = params[:outcome].presence_in(%w[satisfied released]) || "satisfied"
     @open_commitments = open_commitments_scope
     @confirmations = confirmation_scope_for_outcome(@outcome)
+    @selected_commitment_ids = selected_or_preselected_commitment_ids(@open_commitments)
     @idempotency_key = SecureRandom.uuid
   end
 
@@ -45,6 +53,7 @@ class SupplierCommitmentsController < ApplicationController
     @outcome = params[:outcome].presence_in(%w[satisfied released]) || "satisfied"
     @open_commitments = open_commitments_scope
     @confirmations = confirmation_scope_for_outcome(@outcome)
+    @selected_commitment_ids = Array(params[:supplier_commitment_ids]).map(&:to_s)
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     flash.now[:alert] = error.message
     render :new_dispose, status: :unprocessable_entity
@@ -104,6 +113,38 @@ class SupplierCommitmentsController < ApplicationController
     render :new_reopen, status: :unprocessable_entity
   end
 
+  def new_disqualify
+    @disposition = @commitment.current_disposition
+    raise ActiveRecord::RecordNotFound unless @disposition&.supplier_commitment_evidence_coverage_id
+
+    @coverage = @disposition.supplier_commitment_evidence_coverage
+    raise ActiveRecord::RecordNotFound if @coverage.blank? || @coverage.revoked?
+
+    @idempotency_key = SecureRandom.uuid
+  end
+
+  def disqualify
+    disposition = @commitment.current_disposition
+    raise ActiveRecord::RecordNotFound unless disposition&.supplier_commitment_evidence_coverage_id
+
+    DisqualifySupplierCommitmentFromEvidenceCoverage.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      coverage: disposition.supplier_commitment_evidence_coverage,
+      commitment: @commitment,
+      reason: params[:reason],
+      idempotency_key: params.require(:idempotency_key)
+    ).call
+    redirect_to departure_arrangement_commitments_path(@departure, @supplier_arrangement),
+      notice: "Commitment disqualified from evidence coverage."
+  rescue AgencyCommand::Error => error
+    @disposition = @commitment.current_disposition
+    @coverage = @disposition&.supplier_commitment_evidence_coverage
+    @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
+    flash.now[:alert] = error.message
+    render :new_disqualify, status: :unprocessable_entity
+  end
+
   private
 
   def set_commitment
@@ -126,6 +167,13 @@ class SupplierCommitmentsController < ApplicationController
       SupplierConfirmation::BOOKING_EVIDENCE_KINDS
     end
     confirmation_scope.where(evidence_kind: kinds)
+  end
+
+  def selected_or_preselected_commitment_ids(open_commitments)
+    submitted = Array(params[:supplier_commitment_ids]).map(&:to_s).presence
+    return submitted if submitted
+
+    open_commitments.map { |commitment| commitment.id.to_s }
   end
 
   def find_open_commitment!(id)

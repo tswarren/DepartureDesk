@@ -30,6 +30,7 @@ class SupplierArrangement < ApplicationRecord
   has_many :supplier_confirmations, dependent: :restrict_with_exception
   has_many :supplier_issued_identifiers, dependent: :restrict_with_exception
   has_many :supplier_commitments, dependent: :restrict_with_exception
+  has_many :supplier_commitment_evidence_coverages, dependent: :restrict_with_exception
   has_many :supplier_reservations, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"

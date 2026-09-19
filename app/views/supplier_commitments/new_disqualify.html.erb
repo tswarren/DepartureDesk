@@ -1,0 +1,41 @@
+<% content_for :title, "Disqualify commitment · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title">Disqualify from evidence coverage</h1>
+    <p class="dd-page-description">
+      Reopen <%= @commitment.description %> while retaining the shared evidence for other covered commitments.
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to commitments",
+      departure_arrangement_commitments_path(@departure, @supplier_arrangement),
+      class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: disqualify_departure_arrangement_commitment_path(@departure, @supplier_arrangement, @commitment),
+      method: :post, class: "dd-form", html: { novalidate: true } do |form| %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+
+      <div class="dd-field">
+        <p class="dd-field-hint">
+          Coverage purpose: <%= @coverage.purpose.humanize %>.
+          Other members stay closed under the same evidence.
+        </p>
+      </div>
+
+      <div class="dd-field">
+        <%= label_tag :reason, "Reason", class: "dd-label" %>
+        <%= text_area_tag :reason, params[:reason], class: "dd-input", rows: 3, required: true %>
+      </div>
+
+      <div class="dd-form-actions">
+        <%= form.submit "Disqualify commitment", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</article>

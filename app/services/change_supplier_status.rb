@@ -33,7 +33,7 @@ class ChangeSupplierStatus < AgencyCommand
         dependency_ids = m3a_dependency_arrangement_ids(supplier)
         lock_m3a_dependencies!(dependency_ids)
         commitment_ids = unresolved_commitment_ids(supplier)
-        lock_unresolved_commitments!(commitment_ids)
+        commitment_ids = lock_unresolved_commitments!(commitment_ids)
         reservation_ids = nonterminal_reservation_ids(supplier)
         lock_nonterminal_reservations!(reservation_ids)
         if dependency_ids.any? || commitment_ids.any? || reservation_ids.any?
@@ -100,9 +100,21 @@ class ChangeSupplierStatus < AgencyCommand
   end
 
   def unresolved_commitment_ids(supplier)
-    SupplierCommitment.where(
-      agency_id: @agency.id, committed_supplier_id: supplier.id
-    ).order(:id).pluck(:id)
+    open_commitment_scope(supplier).order(:id).pluck(:id)
+  end
+
+  def open_commitment_scope(supplier)
+    SupplierCommitment.where(agency_id: @agency.id, committed_supplier_id: supplier.id)
+      .where(<<~SQL.squish)
+        NOT EXISTS (
+          SELECT 1
+          FROM supplier_commitment_dispositions dispositions
+          LEFT JOIN supplier_commitment_reopenings reopenings
+            ON reopenings.supplier_commitment_disposition_id = dispositions.id
+          WHERE dispositions.supplier_commitment_id = supplier_commitments.id
+            AND reopenings.id IS NULL
+        )
+      SQL
   end
 
   def nonterminal_reservation_ids(supplier)
@@ -124,10 +136,11 @@ class ChangeSupplierStatus < AgencyCommand
   end
 
   def lock_unresolved_commitments!(commitment_ids)
-    return if commitment_ids.empty?
+    return [] if commitment_ids.empty?
 
-    SupplierCommitment.where(agency_id: @agency.id, id: commitment_ids)
+    locked = SupplierCommitment.where(agency_id: @agency.id, id: commitment_ids)
       .order(:id).lock.to_a
+    locked.select(&:open_state?).map(&:id)
   end
 
   def affected_capacity_pool_ids(supplier)

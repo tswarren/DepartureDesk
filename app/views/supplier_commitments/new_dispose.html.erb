@@ -5,7 +5,9 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Supplier planning</p>
     <h1 class="dd-page-title">Record <%= outcome_label %></h1>
-    <p class="dd-page-description">Link compatible Supplier confirmation evidence to one open commitment.</p>
+    <p class="dd-page-description">
+      Link one Supplier confirmation to the compatible open commitments it covers. Review the set once, then submit.
+    </p>
   </div>
   <div class="dd-page-actions">
     <%= link_to "Back to commitments",
@@ -30,16 +32,25 @@
         <%= hidden_field_tag :idempotency_key, @idempotency_key %>
         <%= hidden_field_tag :outcome, @outcome %>
 
-        <div class="dd-field">
-          <label class="dd-label" for="supplier_commitment_ids">Open commitment</label>
-          <select class="dd-input" id="supplier_commitment_ids" name="supplier_commitment_ids[]" required>
+        <fieldset class="dd-field">
+          <legend class="dd-label">Open commitments</legend>
+          <p class="dd-field-hint">
+            Compatible candidates for this Arrangement are preselected. Narrow the set before submit if needed.
+            Every selected commitment must match the confirming Supplier and evidence meaning.
+          </p>
+          <ul>
             <% @open_commitments.each do |commitment| %>
-              <option value="<%= commitment.id %>">
-                <%= commitment.description %> · <%= supplier_option_label(commitment.committed_supplier) %>
-              </option>
+              <li>
+                <label>
+                  <%= check_box_tag "supplier_commitment_ids[]", commitment.id,
+                    @selected_commitment_ids.include?(commitment.id.to_s),
+                    id: "supplier_commitment_#{commitment.id}" %>
+                  <%= commitment.description %> · <%= supplier_option_label(commitment.committed_supplier) %>
+                </label>
+              </li>
             <% end %>
-          </select>
-        </div>
+          </ul>
+        </fieldset>
 
         <div class="dd-field">
           <label class="dd-label" for="supplier_confirmation_id">Confirmation evidence</label>
@@ -52,9 +63,9 @@
           </select>
           <p class="dd-field-hint">
             <% if @outcome == "released" %>
-              Release requires Supplier or contract release evidence from the committed Supplier, not the opening confirmation.
+              Release requires Supplier or contract release evidence from the committed Supplier, not an opening confirmation.
             <% else %>
-              Satisfaction requires booking confirmation evidence from the committed Supplier, not the opening confirmation.
+              Satisfaction requires booking confirmation evidence from the committed Supplier, not an opening confirmation.
             <% end %>
           </p>
         </div>

@@ -1,0 +1,47 @@
+<% content_for :title, "Revoke evidence coverage · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title">Revoke evidence coverage</h1>
+    <p class="dd-page-description">
+      Revoke this shared evidence set and reopen every commitment whose current disposition still depends on it.
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to commitments",
+      departure_arrangement_commitments_path(@departure, @supplier_arrangement),
+      class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: revoke_departure_arrangement_evidence_coverage_path(@departure, @supplier_arrangement, @coverage),
+      method: :post, class: "dd-form", html: { novalidate: true } do |form| %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+
+      <div class="dd-field">
+        <h2 class="dd-panel-title">Commitments that will reopen</h2>
+        <% if @dependents.any? %>
+          <ul>
+            <% @dependents.each do |commitment| %>
+              <li><%= commitment.description %></li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p class="dd-field-hint">No current dependents remain. Revocation still records that this coverage is no longer authoritative.</p>
+        <% end %>
+      </div>
+
+      <div class="dd-field">
+        <%= label_tag :reason, "Reason", class: "dd-label" %>
+        <%= text_area_tag :reason, params[:reason], class: "dd-input", rows: 3, required: true %>
+      </div>
+
+      <div class="dd-form-actions">
+        <%= form.submit "Revoke coverage", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</article>
