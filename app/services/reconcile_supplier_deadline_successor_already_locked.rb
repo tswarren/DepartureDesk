@@ -2,13 +2,15 @@
 
 # Internal successor-activation helper. Caller must already hold the exact-version lock graph.
 class ReconcileSupplierDeadlineSuccessorAlreadyLocked
+  # Actionable requirement identity only. Display copy and warning timing may change
+  # without reopening a terminal predecessor commitment.
   MATERIAL_DEFINITION_ATTRS = %w[
     deadline_type other_label kind rule_shape rule_parameters precision time_zone
-    cardinality warning_lead_days description
+    cardinality
   ].freeze
 
   MATERIAL_LINE_ATTRS = %w[
-    authority_shape description committed_supplier_id fixed_quantity quantity_basis
+    authority_shape committed_supplier_id fixed_quantity quantity_basis
     currency supplier_cost_source_id supplier_cost_definition_id supplier_cost_component_id
   ].freeze
 

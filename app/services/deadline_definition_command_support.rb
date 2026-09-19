@@ -377,10 +377,44 @@ module DeadlineDefinitionCommandSupport
     end
   end
 
+  # Update retained children in place so successor `copied_from_id` lineage survives
+  # ordinary edits (for example warning lead time only).
   def replace_deadline_children!(definition, coverage_links, commitment_lines)
-    definition.supplier_deadline_commitment_definition_lines.order(:id).lock.load.each(&:destroy!)
-    definition.supplier_deadline_definition_coverage_links.order(:id).lock.load.each(&:destroy!)
-    persist_deadline_children!(definition, coverage_links, commitment_lines)
+    existing_coverage = definition.supplier_deadline_definition_coverage_links
+      .order(:position, :id).lock.to_a
+    coverage_links.each_with_index do |attrs, index|
+      if (existing = existing_coverage[index])
+        existing.update!(attrs)
+      else
+        definition.supplier_deadline_definition_coverage_links.create!(
+          attrs.merge(child_owner_attrs(definition))
+        )
+      end
+    end
+    existing_coverage.drop(coverage_links.size).each(&:destroy!)
+
+    existing_lines = definition.supplier_deadline_commitment_definition_lines
+      .order(:position, :id).lock.to_a
+    commitment_lines.each_with_index do |attrs, index|
+      if (existing = existing_lines[index])
+        existing.update!(attrs)
+      else
+        definition.supplier_deadline_commitment_definition_lines.create!(
+          attrs.merge(child_owner_attrs(definition))
+        )
+      end
+    end
+    existing_lines.drop(commitment_lines.size).each(&:destroy!)
+  end
+
+  def child_owner_attrs(definition)
+    {
+      agency_id: definition.agency_id,
+      departure_id: definition.departure_id,
+      supplier_arrangement_id: definition.supplier_arrangement_id,
+      supplier_arrangement_version_id: definition.supplier_arrangement_version_id,
+      supplier_deadline_definition_id: definition.id
+    }
   end
 
   def deadline_details(definition)

@@ -365,6 +365,134 @@ class M3e2DeadlineDefinitionsOccurrencesTest < ActiveSupport::TestCase
     assert_equal 1, SupplierCommitment.where(opening_kind: "deadline_requirement").select(&:open_state?).size
   end
 
+  test "successor edit preserves commitment lineage and still transfers open predecessors" do
+    create_deadline!(
+      kind: "actionable",
+      deadline_type: "option_or_release_date",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => "2027-05-01" },
+      precision: "date_only",
+      warning_lead_days: 2,
+      description: "Original option hold",
+      commitment_lines: [ {
+        authority_shape: "fixed_quantity",
+        description: "Hold inventory",
+        committed_supplier_id: @supplier.id,
+        fixed_quantity: 4,
+        quantity_basis: "resource_units"
+      } ]
+    )
+    activate_with_deadlines
+    predecessor_commitment = SupplierCommitment.find_by!(opening_kind: "deadline_requirement")
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    definition = successor.supplier_deadline_definitions.sole
+    line = definition.supplier_deadline_commitment_definition_lines.sole
+    copied_from_id = line.copied_from_id
+    assert copied_from_id.present?
+
+    UpdateSupplierDeadlineDefinition.new(
+      agency: @agency, actor: @actor, definition:,
+      attributes: informational_deadline_attrs(
+        deadline_type: "option_or_release_date",
+        kind: "actionable",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-05-01" },
+        precision: "date_only",
+        warning_lead_days: 9,
+        description: "Edited option hold copy",
+        commitment_lines: [ {
+          authority_shape: "fixed_quantity",
+          description: "Hold inventory",
+          committed_supplier_id: @supplier.id,
+          fixed_quantity: 4,
+          quantity_basis: "resource_units"
+        } ]
+      ),
+      lock_version: definition.lock_version
+    ).call
+
+    line.reload
+    assert_equal line.id, definition.supplier_deadline_commitment_definition_lines.sole.id
+    assert_equal copied_from_id, line.copied_from_id
+    assert_equal 9, definition.reload.warning_lead_days
+
+    activate_successor(successor.reload)
+    open_deadline = SupplierCommitment.where(opening_kind: "deadline_requirement").select(&:open_state?)
+    assert_equal 1, open_deadline.size
+    assert_equal "superseded", predecessor_commitment.reload.disposition_outcome
+  end
+
+  test "presentation-only successor edits do not reopen terminal deadline commitments" do
+    create_deadline!(
+      kind: "actionable",
+      deadline_type: "option_or_release_date",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => "2027-05-01" },
+      precision: "date_only",
+      warning_lead_days: 2,
+      description: "Terminal option hold",
+      commitment_lines: [ {
+        authority_shape: "fixed_quantity",
+        description: "Hold inventory",
+        committed_supplier_id: @supplier.id,
+        fixed_quantity: 4,
+        quantity_basis: "resource_units"
+      } ]
+    )
+    activate_with_deadlines
+    predecessor_commitment = SupplierCommitment.find_by!(opening_kind: "deadline_requirement")
+    WaiveSupplierCommitment.new(
+      agency: @agency, actor: agency_users(:harbor_admin),
+      commitment: predecessor_commitment,
+      reason: "Supplier released the option before successor work.",
+      accepted_risk_acknowledged: true,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    assert_equal "waived", predecessor_commitment.reload.disposition_outcome
+
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    definition = successor.supplier_deadline_definitions.sole
+    UpdateSupplierDeadlineDefinition.new(
+      agency: @agency, actor: @actor, definition:,
+      attributes: informational_deadline_attrs(
+        deadline_type: "option_or_release_date",
+        kind: "actionable",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-05-01" },
+        precision: "date_only",
+        warning_lead_days: 14,
+        description: "Only presentation changed",
+        commitment_lines: [ {
+          authority_shape: "fixed_quantity",
+          description: "Hold inventory rewritten label",
+          committed_supplier_id: @supplier.id,
+          fixed_quantity: 4,
+          quantity_basis: "resource_units"
+        } ]
+      ),
+      lock_version: definition.lock_version
+    ).call
+    assert definition.supplier_deadline_commitment_definition_lines.sole.copied_from_id.present?
+
+    assert_no_difference -> {
+      SupplierCommitment.where(opening_kind: "deadline_requirement").count
+    } do
+      activate_successor(successor.reload)
+    end
+    assert_equal 0, SupplierCommitment.where(opening_kind: "deadline_requirement").select(&:open_state?).size
+    assert_equal "waived", predecessor_commitment.reload.disposition_outcome
+  end
+
   test "superseded occurrence projection leaves catch-up and shows superseded status" do
     create_deadline!(
       kind: "informational",
