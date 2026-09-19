@@ -11,8 +11,10 @@ class SupplierCommitmentsController < ApplicationController
 
   def index
     commitments = @supplier_arrangement.supplier_commitments
-      .includes(:committed_supplier, :supplier_confirmation, :supplier_commitment_dispositions)
+      .with_current_disposition_state
+      .includes(:committed_supplier, :supplier_confirmation)
       .order(opened_at: :desc, id: :desc)
+      .to_a
     @open_commitments = commitments.select(&:open_state?)
     @accepted_exceptions = commitments.select { |commitment| commitment.disposition_outcome == "waived" }
     @other_terminal = commitments.reject(&:open_state?).reject { |commitment| commitment.disposition_outcome == "waived" }
@@ -22,7 +24,7 @@ class SupplierCommitmentsController < ApplicationController
   def new_dispose
     @outcome = params[:outcome].presence_in(%w[satisfied released]) || "satisfied"
     @open_commitments = open_commitments_scope
-    @confirmations = confirmation_scope
+    @confirmations = confirmation_scope_for_outcome(@outcome)
     @idempotency_key = SecureRandom.uuid
   end
 
@@ -42,7 +44,7 @@ class SupplierCommitmentsController < ApplicationController
   rescue AgencyCommand::Error => error
     @outcome = params[:outcome].presence_in(%w[satisfied released]) || "satisfied"
     @open_commitments = open_commitments_scope
-    @confirmations = confirmation_scope
+    @confirmations = confirmation_scope_for_outcome(@outcome)
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     flash.now[:alert] = error.message
     render :new_dispose, status: :unprocessable_entity
@@ -110,10 +112,20 @@ class SupplierCommitmentsController < ApplicationController
 
   def open_commitments_scope
     @supplier_arrangement.supplier_commitments
-      .includes(:committed_supplier, :supplier_commitment_dispositions, :supplier_commitment_reopenings)
+      .with_current_disposition_state
+      .includes(:committed_supplier)
       .order(:opened_at, :id)
       .to_a
       .select(&:open_state?)
+  end
+
+  def confirmation_scope_for_outcome(outcome)
+    kinds = if outcome == "released"
+      SupplierConfirmation::RELEASE_EVIDENCE_KINDS
+    else
+      SupplierConfirmation::BOOKING_EVIDENCE_KINDS
+    end
+    confirmation_scope.where(evidence_kind: kinds)
   end
 
   def find_open_commitment!(id)

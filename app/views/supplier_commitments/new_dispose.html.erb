@@ -50,7 +50,13 @@
               </option>
             <% end %>
           </select>
-          <p class="dd-field-hint">Evidence must belong to the same Arrangement version as the commitment.</p>
+          <p class="dd-field-hint">
+            <% if @outcome == "released" %>
+              Release requires Supplier or contract release evidence from the committed Supplier, not the opening confirmation.
+            <% else %>
+              Satisfaction requires booking confirmation evidence from the committed Supplier, not the opening confirmation.
+            <% end %>
+          </p>
         </div>
 
         <div class="dd-form-actions">

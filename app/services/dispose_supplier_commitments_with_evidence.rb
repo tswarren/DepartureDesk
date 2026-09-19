@@ -4,6 +4,8 @@ class DisposeSupplierCommitmentsWithEvidence < AgencyCommand
   include ArrangementCommandSupport
 
   EVIDENCE_OUTCOMES = %w[satisfied released].freeze
+  RELEASE_EVIDENCE_KINDS = SupplierConfirmation::RELEASE_EVIDENCE_KINDS
+  SATISFACTION_EVIDENCE_KINDS = SupplierConfirmation::BOOKING_EVIDENCE_KINDS
 
   def initialize(agency:, actor:, arrangement:, confirmation:, commitment_ids:, outcome:,
     idempotency_key:, occurred_at: nil)
@@ -26,14 +28,27 @@ class DisposeSupplierCommitmentsWithEvidence < AgencyCommand
       raise Error.new("Select at least one open commitment.", code: :invalid)
     end
 
+    occurred = normalize_optional_occurred_at(@occurred_at)
+
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
-      arrangement = lock_arrangement_for!(@arrangement)
+
+      arrangement_row = @agency.supplier_arrangements.find(@arrangement.id)
+      confirmation_row = arrangement_row.supplier_confirmations.find(@confirmation.id)
+      commitment_rows = arrangement_row.supplier_commitments.where(id: @commitment_ids).to_a
+      if commitment_rows.size != @commitment_ids.size
+        raise Error.new("One or more commitments could not be found.", code: :not_found)
+      end
+
+      lock_suppliers_in_uuid_order!(
+        commitment_rows.map(&:committed_supplier_id) + [ confirmation_row.confirming_supplier_id ]
+      )
+      lock_departure_for!(arrangement_row.departure_id)
+      arrangement = lock_arrangement_for!(arrangement_row)
       raise Error.new("That supplier arrangement has ended.", code: :invalid_state) if arrangement.ended?
       raise Error.new("That supplier arrangement has been abandoned.", code: :invalid_state) if arrangement.abandoned?
 
-      departure = lock_departure_for!(arrangement.departure_id)
-      confirmation = arrangement.supplier_confirmations.lock.find(@confirmation.id)
+      confirmation = arrangement.supplier_confirmations.lock.find(confirmation_row.id)
       version_id = confirmation.supplier_arrangement_version_id
 
       payload = {
@@ -41,7 +56,8 @@ class DisposeSupplierCommitmentsWithEvidence < AgencyCommand
         supplier_confirmation_id: confirmation.id,
         supplier_commitment_ids: @commitment_ids.sort,
         supplier_arrangement_id: arrangement.id,
-        supplier_arrangement_version_id: version_id
+        supplier_arrangement_version_id: version_id,
+        occurred_at: occurred&.utc&.iso8601(6)
       }
 
       idempotent_create!(
@@ -52,7 +68,7 @@ class DisposeSupplierCommitmentsWithEvidence < AgencyCommand
       ) do
         commitments = lock_open_commitments!(arrangement, confirmation)
         now = Time.current
-        occurred = @occurred_at.presence || now
+        occurred_at = occurred || now
         owner = owner_attrs(commitments.first)
         coverage = SupplierCommitmentEvidenceCoverage.create!(
           owner.merge(
@@ -75,7 +91,7 @@ class DisposeSupplierCommitmentsWithEvidence < AgencyCommand
               outcome: @outcome,
               supplier_commitment_evidence_coverage: coverage,
               actor: @actor,
-              occurred_at: occurred,
+              occurred_at: occurred_at,
               recorded_at: now,
               accepted_risk_acknowledged: false
             )
@@ -129,10 +145,21 @@ class DisposeSupplierCommitmentsWithEvidence < AgencyCommand
   end
 
   def confirmation_compatible?(commitment, confirmation)
-    confirmation.agency_id == commitment.agency_id &&
-      confirmation.departure_id == commitment.departure_id &&
-      confirmation.supplier_arrangement_id == commitment.supplier_arrangement_id &&
-      confirmation.supplier_arrangement_version_id == commitment.supplier_arrangement_version_id
+    return false unless confirmation.agency_id == commitment.agency_id
+    return false unless confirmation.departure_id == commitment.departure_id
+    return false unless confirmation.supplier_arrangement_id == commitment.supplier_arrangement_id
+    return false unless confirmation.supplier_arrangement_version_id == commitment.supplier_arrangement_version_id
+    return false unless confirmation.confirming_supplier_id == commitment.committed_supplier_id
+    return false if commitment.supplier_confirmation_id == confirmation.id
+
+    case @outcome
+    when "released"
+      RELEASE_EVIDENCE_KINDS.include?(confirmation.evidence_kind)
+    when "satisfied"
+      SATISFACTION_EVIDENCE_KINDS.include?(confirmation.evidence_kind)
+    else
+      false
+    end
   end
 
   def owner_attrs(commitment)
@@ -142,5 +169,16 @@ class DisposeSupplierCommitmentsWithEvidence < AgencyCommand
       supplier_arrangement_id: commitment.supplier_arrangement_id,
       supplier_arrangement_version_id: commitment.supplier_arrangement_version_id
     }
+  end
+
+  def normalize_optional_occurred_at(value)
+    return nil if value.blank?
+    return value if value.is_a?(Time) || value.is_a?(ActiveSupport::TimeWithZone)
+
+    Time.zone.parse(value.to_s).tap do |parsed|
+      raise Error.new("occurred_at is not a valid time.", code: :invalid) if parsed.blank?
+    end
+  rescue ArgumentError, TypeError
+    raise Error.new("occurred_at is not a valid time.", code: :invalid)
   end
 end

@@ -242,5 +242,4 @@ class CreateM3e1aCommitmentLifecycle < ActiveRecord::Migration[8.1]
       primary_key: [ :id, :agency_id ],
       name: name
   end
-
 end

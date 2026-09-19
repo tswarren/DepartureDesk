@@ -85,6 +85,15 @@ CREATE FUNCTION public.dd_search_normalize(input text) RETURNS text
 
 
 --
+-- Name: enforce_commitment_disposition_coverage_purpose(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.enforce_commitment_disposition_coverage_purpose() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$ DECLARE coverage_purpose text; BEGIN IF NEW.supplier_commitment_evidence_coverage_id IS NULL THEN RETURN NEW; END IF; SELECT purpose INTO coverage_purpose FROM supplier_commitment_evidence_coverages WHERE id = NEW.supplier_commitment_evidence_coverage_id; IF coverage_purpose IS DISTINCT FROM NEW.outcome THEN RAISE EXCEPTION 'disposition outcome must match evidence coverage purpose' USING ERRCODE = 'check_violation'; END IF; RETURN NEW; END; $$;
+
+
+--
 -- Name: reject_agency_user_agency_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -430,6 +439,15 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: reject_evidence_member_after_disposition(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_evidence_member_after_disposition() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$ BEGIN IF EXISTS ( SELECT 1 FROM supplier_commitment_dispositions WHERE supplier_commitment_evidence_coverage_id = NEW.supplier_commitment_evidence_coverage_id ) THEN RAISE EXCEPTION 'evidence coverage membership is sealed after disposition' USING ERRCODE = 'check_violation'; END IF; RETURN NEW; END; $$;
 
 
 --
@@ -784,6 +802,15 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: reject_second_current_commitment_disposition(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_second_current_commitment_disposition() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$ BEGIN IF EXISTS ( SELECT 1 FROM supplier_commitment_dispositions d LEFT JOIN supplier_commitment_reopenings r ON r.supplier_commitment_disposition_id = d.id WHERE d.supplier_commitment_id = NEW.supplier_commitment_id AND r.id IS NULL ) THEN RAISE EXCEPTION 'commitment already has a current disposition' USING ERRCODE = 'check_violation'; END IF; RETURN NEW; END; $$;
 
 
 --
@@ -2691,7 +2718,7 @@ CREATE TABLE public.supplier_confirmations (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT supplier_confirmations_channel CHECK (((btrim((channel)::text) <> ''::text) AND (char_length((channel)::text) <= 80))),
     CONSTRAINT supplier_confirmations_confirmed_without_identifier_reason CHECK (((confirmed_without_identifier_reason IS NULL) OR ((btrim((confirmed_without_identifier_reason)::text) <> ''::text) AND (char_length((confirmed_without_identifier_reason)::text) <= 500)))),
-    CONSTRAINT supplier_confirmations_evidence_kind CHECK (((evidence_kind)::text = ANY ((ARRAY['contract'::character varying, 'supplier_confirmation'::character varying, 'supplier_message'::character varying, 'supplier_portal'::character varying, 'verbal_confirmation'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT supplier_confirmations_evidence_kind CHECK (((evidence_kind)::text = ANY ((ARRAY['contract'::character varying, 'supplier_confirmation'::character varying, 'supplier_message'::character varying, 'supplier_portal'::character varying, 'verbal_confirmation'::character varying, 'supplier_release'::character varying, 'contract_release'::character varying, 'other'::character varying])::text[]))),
     CONSTRAINT supplier_confirmations_other_evidence_label CHECK (((other_evidence_label IS NULL) OR ((btrim((other_evidence_label)::text) <> ''::text) AND (char_length((other_evidence_label)::text) <= 80)))),
     CONSTRAINT supplier_confirmations_other_label_pair CHECK ((((evidence_kind)::text = 'other'::text) = (other_evidence_label IS NOT NULL))),
     CONSTRAINT supplier_confirmations_reference_note CHECK (((btrim((reference_note)::text) <> ''::text) AND (char_length((reference_note)::text) <= 500)))
@@ -5245,6 +5272,13 @@ CREATE UNIQUE INDEX index_commitment_evidence_members_on_coverage_commitment ON 
 
 
 --
+-- Name: index_commitment_evidence_members_on_coverage_commitment_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commitment_evidence_members_on_coverage_commitment_owner ON public.supplier_commitment_evidence_coverage_members USING btree (supplier_commitment_evidence_coverage_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: index_commitment_evidence_members_on_version_owner; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7422,6 +7456,20 @@ CREATE TRIGGER supplier_category_assignments_reject_identity_change BEFORE UPDAT
 
 
 --
+-- Name: supplier_commitment_dispositions supplier_commitment_dispositions_enforce_coverage_purpose; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_dispositions_enforce_coverage_purpose BEFORE INSERT ON public.supplier_commitment_dispositions FOR EACH ROW EXECUTE FUNCTION public.enforce_commitment_disposition_coverage_purpose();
+
+
+--
+-- Name: supplier_commitment_dispositions supplier_commitment_dispositions_enforce_current; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_dispositions_enforce_current BEFORE INSERT ON public.supplier_commitment_dispositions FOR EACH ROW EXECUTE FUNCTION public.reject_second_current_commitment_disposition();
+
+
+--
 -- Name: supplier_commitment_dispositions supplier_commitment_dispositions_reject_delete; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7461,6 +7509,13 @@ CREATE TRIGGER supplier_commitment_evidence_coverages_reject_delete BEFORE DELET
 --
 
 CREATE TRIGGER supplier_commitment_evidence_coverages_reject_update BEFORE UPDATE ON public.supplier_commitment_evidence_coverages FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_commitment_evidence_coverage_members supplier_commitment_evidence_members_reject_after_disposition; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_evidence_members_reject_after_disposition BEFORE INSERT ON public.supplier_commitment_evidence_coverage_members FOR EACH ROW EXECUTE FUNCTION public.reject_evidence_member_after_disposition();
 
 
 --
@@ -8440,19 +8495,19 @@ ALTER TABLE ONLY public.supplier_commitment_dispositions
 
 
 --
--- Name: supplier_commitment_dispositions commitment_dispositions_coverage_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_commitment_dispositions
-    ADD CONSTRAINT commitment_dispositions_coverage_fk FOREIGN KEY (supplier_commitment_evidence_coverage_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitment_evidence_coverages(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
 -- Name: supplier_commitment_dispositions commitment_dispositions_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.supplier_commitment_dispositions
     ADD CONSTRAINT commitment_dispositions_idempotency_fk FOREIGN KEY (agency_command_idempotency_key_id, agency_id) REFERENCES public.agency_command_idempotency_keys(id, agency_id);
+
+
+--
+-- Name: supplier_commitment_dispositions commitment_dispositions_membership_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_dispositions
+    ADD CONSTRAINT commitment_dispositions_membership_fk FOREIGN KEY (supplier_commitment_evidence_coverage_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitment_evidence_coverage_members(supplier_commitment_evidence_coverage_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -10198,6 +10253,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260919050000'),
 ('20260919040000'),
 ('20260918070000'),
 ('20260918060000'),

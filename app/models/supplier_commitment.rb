@@ -46,11 +46,15 @@ class SupplierCommitment < ApplicationRecord
     numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
 
   def current_disposition
-    supplier_commitment_dispositions
-      .left_outer_joins(:supplier_commitment_reopening)
-      .where(supplier_commitment_reopenings: { id: nil })
-      .order(:recorded_at, :id)
-      .last
+    if association(:supplier_commitment_dispositions).loaded?
+      current_from_preloaded_dispositions
+    else
+      supplier_commitment_dispositions
+        .left_outer_joins(:supplier_commitment_reopening)
+        .where(supplier_commitment_reopenings: { id: nil })
+        .order(:recorded_at, :id)
+        .last
+    end
   end
 
   def open_state?
@@ -59,5 +63,25 @@ class SupplierCommitment < ApplicationRecord
 
   def disposition_outcome
     current_disposition&.outcome
+  end
+
+  def self.with_current_disposition_state
+    includes(supplier_commitment_dispositions: :supplier_commitment_reopening)
+  end
+
+  private
+
+  def current_from_preloaded_dispositions
+    supplier_commitment_dispositions
+      .reject { |disposition| disposition_reopened_from_preload?(disposition) }
+      .max_by { |disposition| [ disposition.recorded_at, disposition.id ] }
+  end
+
+  def disposition_reopened_from_preload?(disposition)
+    if disposition.association(:supplier_commitment_reopening).loaded?
+      disposition.supplier_commitment_reopening.present?
+    else
+      disposition.reopened?
+    end
   end
 end
