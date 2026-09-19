@@ -24,6 +24,10 @@ class RepairSupplierExposureProjectionJob < ApplicationJob
         agency: locked_agency,
         arrangement: locked
       ).call
+      RebuildSupplierAttentionProjectionAlreadyLocked.new(
+        agency: locked_agency,
+        arrangement: locked
+      ).call
     end
   end
 end

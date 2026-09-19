@@ -532,5 +532,15 @@ module ArrangementCommandSupport
       version:,
       at:
     ).call
+    rebuild_attention_projection_already_locked!(arrangement, version:, at:)
+  end
+
+  def rebuild_attention_projection_already_locked!(arrangement, version: nil, at: Time.current)
+    RebuildSupplierAttentionProjectionAlreadyLocked.new(
+      agency: @agency,
+      arrangement:,
+      version:,
+      at:
+    ).call
   end
 end

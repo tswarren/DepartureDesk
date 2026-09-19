@@ -1,6 +1,6 @@
 # M3E — Supplier operational control
 
-**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1, M3E.2, M3E.3, and M3E.4 shipped. Later M3E.5–M3E.7 remain unimplemented. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
+**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1, M3E.2, M3E.3, M3E.4, and M3E.5 shipped. Later M3E.6–M3E.7 remain unimplemented. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md)  
 **ADR:** [ADR 0013 — Supplier operational commitments, Deadlines, exposure, and Arrangement ending](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)  
 **Prerequisite:** Shipped M3D through M3D.9; [M3E.0](m3e0-m3d-closure-gate.md) M3D closure gate satisfied  
@@ -867,6 +867,8 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 - Action-grouped Arrangement workflow and read-only Departure rollup.
 - Accepted exceptions and technical-detail disclosures.
 - Accessibility, responsive, keyboard, and query-count proof.
+
+**Shipped:** M3E.5 (closed detector catalog with `attention_at`/`overdue_at` read-time visibility; Agency `attention_warning_lead_days` with Deadline definition override; synchronous Arrangement rebuild hooked beside exposure; Deadline catch-up rebuilds attention without time-created domain events; action-grouped Arrangement Needs-attention panel; Departure supplier-planning rollup counts).
 
 **Exit:** Staff can identify and resolve the next Supplier-planning action without navigating record topology.
 

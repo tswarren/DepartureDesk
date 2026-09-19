@@ -52,6 +52,7 @@ class Agency < ApplicationRecord
   has_many :supplier_reservation_events, dependent: :restrict_with_exception
   has_many :supplier_reservation_event_scope_outcomes, dependent: :restrict_with_exception
   has_many :supplier_reservation_projections, dependent: :restrict_with_exception
+  has_many :supplier_attention_findings, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 
@@ -68,6 +69,9 @@ class Agency < ApplicationRecord
   validates :workspace_code, uniqueness: true, format: { with: WORKSPACE_CODE_FORMAT }
   validates :country_code, format: { with: COUNTRY_CODE_FORMAT }
   validates :default_currency, format: { with: CURRENCY_FORMAT }
+  validates :attention_warning_lead_days,
+    numericality: { only_integer: true, greater_than_or_equal_to: 0 },
+    allow_nil: true
   validate :timezone_is_iana
   validate :currency_is_known
 

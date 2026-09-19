@@ -34,6 +34,13 @@
         <%= form.label :default_timezone, "Default timezone", class: "dd-label" %>
         <%= form.text_field :default_timezone, required: true, class: "dd-field" %>
       </div>
+      <div class="dd-field-group">
+        <%= form.label :attention_warning_lead_days, "Attention warning lead days", class: "dd-label" %>
+        <%= form.number_field :attention_warning_lead_days, min: 0, step: 1, class: "dd-field" %>
+        <p class="dd-field-hint">
+          Agency default for Deadline warning timing. A Deadline definition may override this value.
+        </p>
+      </div>
       <div class="dd-form-actions">
         <%= form.submit "Save profile", class: "dd-button" %>
         <%= link_to "Cancel", administration_agency_path, class: "dd-button dd-button--quiet" %>

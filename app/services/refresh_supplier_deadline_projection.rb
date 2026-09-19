@@ -79,7 +79,7 @@ class RefreshSupplierDeadlineProjection
 
   def compute_boundaries
     zone = ActiveSupport::TimeZone[@occurrence.time_zone] || Time.find_zone!("UTC")
-    lead_days = @occurrence.supplier_deadline_definition&.warning_lead_days
+    lead_days = warning_lead_days
     if @occurrence.date_only?
       due_on = @occurrence.calculated_on
       due_start = zone.local(due_on.year, due_on.month, due_on.day)
@@ -94,6 +94,14 @@ class RefreshSupplierDeadlineProjection
       end
       { due_on: nil, due_at:, warning_starts_at:, overdue_at: }
     end
+  end
+
+  def warning_lead_days
+    definition = @occurrence.supplier_deadline_definition
+    return definition.warning_lead_days unless definition.nil? || definition.warning_lead_days.nil?
+
+    agency = @occurrence.agency || Agency.find_by(id: @occurrence.agency_id)
+    agency&.attention_warning_lead_days
   end
 
   def status_for(boundaries)

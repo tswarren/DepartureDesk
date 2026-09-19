@@ -31,7 +31,9 @@ class DirectoryDuplicateGate
     @candidates = candidates
     return review_or_payload if @token.blank?
 
-    payload = DuplicateAcknowledgement.verify!(@token, agency: @agency, actor: @actor, command: @command)
+    payload = verify_acknowledgement!
+    return review_or_payload if payload.nil?
+
     replayed = replay(payload)
     return replayed if replayed
 
@@ -40,6 +42,16 @@ class DirectoryDuplicateGate
   end
 
   private
+
+  def verify_acknowledgement!
+    DuplicateAcknowledgement.verify!(@token, agency: @agency, actor: @actor, command: @command)
+  rescue AgencyCommand::Error => error
+    # Unsigned or otherwise invalid tokens restart review rather than dead-ending the form.
+    # Expired-but-signed tokens still verify and are handled in enforce!.
+    raise unless error.code == :invalid
+
+    nil
+  end
 
   def review_or_payload
     require_review!(@candidates.call)

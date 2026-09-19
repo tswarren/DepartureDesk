@@ -60,6 +60,22 @@ class SupplierDirectoryTest < ActiveSupport::TestCase
     assert_equal 1, AuditEvent.where(action: "supplier.created", subject_id: created.record.id).count
   end
 
+  test "invalid acknowledgement token restarts duplicate review instead of dead-ending" do
+    create_supplier(display_name: "Token Restart Supplier", categories: [ "cruise_line" ])
+    error = assert_raises(AgencyCommand::DuplicateReviewRequired) do
+      create_supplier(
+        display_name: "Token Restart Supplier",
+        categories: [ "cruise_line" ],
+        acknowledgement_token: "expired-token",
+        acknowledgement_reason: "confirmed_distinct"
+      )
+    end
+
+    assert error.token.present?
+    assert_equal 1, error.candidates.size
+    assert_equal "Token Restart Supplier", error.candidates.first.display_name
+  end
+
   test "duplicate finder respects kind and supplier-only contact signals" do
     organization = create_supplier(display_name: "Same Kind", legal_name: "Legal Supplier LLC", categories: [ "lodging" ]).record
     individual = create_supplier(kind: "individual", first_name: "Same", last_name: "Kind", categories: [ "tour_operator_dmc" ]).record

@@ -33,6 +33,13 @@ class DeparturesController < ApplicationController
       actor: Current.agency_user,
       departure: @departure
     )
+    @attention_findings = Current.agency.supplier_attention_findings
+      .where(departure_id: @departure.id)
+      .visible_at
+      .includes(:supplier_arrangement)
+      .order(:attention_at, :id)
+      .to_a
+    @attention_findings_by_arrangement_id = @attention_findings.group_by(&:supplier_arrangement_id)
   end
 
   def new
