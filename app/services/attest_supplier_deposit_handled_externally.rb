@@ -47,9 +47,6 @@ class AttestSupplierDepositHandledExternally < AgencyCommand
 
       commitment = arrangement.supplier_commitments.lock.find(commitment_row.id)
       tranche = commitment.supplier_deposit_requirement_tranche.lock!
-      unless commitment.open_state?
-        raise Error.new("That deposit commitment is no longer open.", code: :invalid_state)
-      end
 
       payload = {
         outcome: "handled_externally",
@@ -61,12 +58,18 @@ class AttestSupplierDepositHandledExternally < AgencyCommand
         occurred_at: occurred&.utc&.iso8601(6)
       }
 
+      # Resolve stable intent against the idempotency key before rejecting a terminal
+      # commitment so same-key retries after success replay.
       idempotent_create!(
         command_name: self.class.name,
         idempotency_key: @idempotency_key,
         payload:,
         result_class: SupplierDepositExternalAttestation
       ) do
+        unless commitment.reload.open_state?
+          raise Error.new("That deposit commitment is no longer open.", code: :invalid_state)
+        end
+
         now = Time.current
         attestation = SupplierDepositExternalAttestation.create!(
           agency_id: commitment.agency_id,
@@ -92,6 +95,7 @@ class AttestSupplierDepositHandledExternally < AgencyCommand
           outcome: "handled_externally",
           reason: @note,
           supplier_deposit_external_attestation: attestation,
+          supplier_deposit_requirement_tranche: tranche,
           accepted_risk_acknowledged: false,
           actor: @actor,
           occurred_at: occurred || now,

@@ -166,40 +166,33 @@ class SupplierDepositAmountEvaluator
   end
 
   def prior_tranche_amounts_sum
-    peer_def_ids = @version.supplier_deposit_requirement_definitions
+    # Sum earlier economic stages toward the same cumulative target once per stage.
+    # Prefer this version's tranche; otherwise use the predecessor-lineage tranche.
+    # Never subtract this definition's own predecessor cumulative tranche.
+    earlier = @version.supplier_deposit_requirement_definitions
       .where("position < ?", @definition.position)
-      .pluck(:id)
-    same_version = if peer_def_ids.any?
-      SupplierDepositRequirementTranche.where(
-        supplier_arrangement_version_id: @version.id,
-        supplier_deposit_requirement_definition_id: peer_def_ids
-      ).sum(:current_amount_minor_units)
-    else
-      0
-    end
+      .order(:position, :id)
 
-    lineage_ids = [ @definition.copied_from_id ].compact
-    prior_lineage = if lineage_ids.any?
-      SupplierDepositRequirementTranche.where(
-        agency_id: @arrangement.agency_id,
-        supplier_arrangement_id: @arrangement.id,
-        supplier_deposit_requirement_definition_id: lineage_ids
-      ).sum(:current_amount_minor_units)
-    else
-      0
-    end
-
-    same_version.to_i + prior_lineage.to_i
+    earlier.sum { |peer| governing_prior_amount_for(peer) }
   end
 
-  def lineage_definition_ids
-    ids = [ @definition.id ]
-    ids << @definition.copied_from_id if @definition.copied_from_id.present?
-    ids.concat(
-      @version.supplier_deposit_requirement_definitions
-        .where("position < ?", @definition.position)
-        .pluck(:id)
-    )
-    ids.uniq
+  def governing_prior_amount_for(definition)
+    tranche = latest_tranche_for_definition_id(definition.id)
+    return tranche.current_amount_minor_units if tranche
+
+    return 0 if definition.copied_from_id.blank?
+
+    latest_tranche_for_definition_id(definition.copied_from_id)&.current_amount_minor_units.to_i
+  end
+
+  def latest_tranche_for_definition_id(definition_id)
+    SupplierDepositRequirementTranche
+      .where(
+        agency_id: @arrangement.agency_id,
+        supplier_arrangement_id: @arrangement.id,
+        supplier_deposit_requirement_definition_id: definition_id
+      )
+      .order(:materialized_at, :id)
+      .last
   end
 end

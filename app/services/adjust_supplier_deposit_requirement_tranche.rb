@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 # Pre-satisfaction adjustment appends components that change the open tranche current amount.
-# Post-satisfaction positive increments create a new tranche and commitment.
+# Post-attestation positive increments create a new tranche and commitment only after
+# handled_externally, using the currently governing Deadline occurrence.
 class AdjustSupplierDepositRequirementTranche < AgencyCommand
   include ArrangementCommandSupport
 
@@ -43,11 +44,7 @@ class AdjustSupplierDepositRequirementTranche < AgencyCommand
       if commitment.open_state?
         adjust_open_tranche!(arrangement, tranche, commitment, delta, payload)
       else
-        raise Error.new(
-          "Post-satisfaction positive increments require a positive delta.", code: :invalid
-        ) if delta.negative?
-
-        create_increment_tranche!(arrangement, tranche, delta, payload)
+        create_increment_tranche!(arrangement, tranche, commitment, delta, payload)
       end
     end
   rescue ArgumentError, TypeError
@@ -91,7 +88,19 @@ class AdjustSupplierDepositRequirementTranche < AgencyCommand
     end
   end
 
-  def create_increment_tranche!(arrangement, prior_tranche, delta, payload)
+  def create_increment_tranche!(arrangement, prior_tranche, commitment, delta, payload)
+    unless commitment.disposition_outcome == "handled_externally"
+      raise Error.new(
+        "Post-attestation increments are only allowed after a deposit was confirmed handled outside DepartureDesk.",
+        code: :invalid_state
+      )
+    end
+    if delta.negative?
+      raise Error.new("Post-attestation increments require a positive delta.", code: :invalid)
+    end
+
+    governing = current_governing_deadline(prior_tranche)
+
     idempotent_create!(
       command_name: "#{self.class.name}#increment",
       idempotency_key: @idempotency_key,
@@ -117,7 +126,7 @@ class AdjustSupplierDepositRequirementTranche < AgencyCommand
         currency: prior_tranche.currency,
         materialization_key: key,
         predecessor_tranche: prior_tranche,
-        governing_deadline_occurrence: prior_tranche.governing_deadline_occurrence,
+        governing_deadline_occurrence: governing,
         actor: @actor,
         materialized_at: now
       )
@@ -141,5 +150,20 @@ class AdjustSupplierDepositRequirementTranche < AgencyCommand
       ).call
       tranche
     end
+  end
+
+  def current_governing_deadline(tranche)
+    occurrence = tranche.governing_deadline_occurrence
+    return occurrence if occurrence&.current?
+
+    SupplierDeadlineOccurrence
+      .where(
+        agency_id: tranche.agency_id,
+        supplier_arrangement_id: tranche.supplier_arrangement_id,
+        supplier_deposit_requirement_definition_id: tranche.supplier_deposit_requirement_definition_id,
+        superseded_at: nil
+      )
+      .order(:materialized_at, :id)
+      .last
   end
 end

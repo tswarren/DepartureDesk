@@ -267,6 +267,198 @@ class M3e3DepositRequirementsMilestonesTest < ActiveSupport::TestCase
     assert_equal "handled_externally", commitment.reload.disposition_outcome
   end
 
+  test "Celebrity successor keeps cumulative target balance without double-counting" do
+    create_deposit!(
+      amount_shape: "fixed_amount",
+      fixed_amount_minor_units: 5_000,
+      currency: "USD",
+      description: "Initial $50 deposit",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => "2027-01-15" },
+      precision: "date_only"
+    )
+    create_deposit!(
+      amount_shape: "cumulative_target",
+      target_amount_minor_units: 50_000,
+      currency: "USD",
+      description: "Final cumulative $500 target",
+      rule_shape: "earlier_of",
+      rule_parameters: {
+        "arms" => [
+          { "rule_shape" => "fixed_date", "rule_parameters" => { "date" => "2027-03-11" } },
+          {
+            "rule_shape" => "planning_milestone",
+            "rule_parameters" => { "kind" => "names_assigned_to_supplier" }
+          }
+        ]
+      },
+      precision: "date_only"
+    )
+    activate_arrangement
+    predecessor_final = SupplierDepositRequirementTranche
+      .joins(:supplier_deposit_requirement_definition)
+      .find_by!(supplier_deposit_requirement_definitions: { amount_shape: "cumulative_target" })
+    assert_equal 45_000, predecessor_final.current_amount_minor_units
+
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    ActivateSupplierArrangementVersion.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      version: successor,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: successor.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      evidence_attributes: {
+        evidence_kind: "supplier_confirmation", evidence_on: Date.current,
+        channel: "portal", reference_note: "Successor evidence",
+        confirmed_without_identifier_reason: "Supplier did not issue one"
+      },
+      cost_source_coverage_acknowledged: true,
+      provisional_costs_acknowledged: true,
+      commitment_trigger_coverage_acknowledged: true,
+      elapsed_deadlines_acknowledged: true
+    ).call
+
+    successor_tranches = SupplierDepositRequirementTranche
+      .where(supplier_arrangement_version_id: successor.id)
+      .includes(:supplier_deposit_requirement_definition)
+      .order(:materialized_at, :id)
+    assert_equal 2, successor_tranches.count
+    initial = successor_tranches.find { |row| row.amount_shape == "fixed_amount" }
+    final = successor_tranches.find { |row| row.amount_shape == "cumulative_target" }
+    assert_equal 5_000, initial.current_amount_minor_units
+    assert_equal 45_000, final.current_amount_minor_units,
+      "Successor cumulative remaining must stay $450, not $50 or $0"
+    open_deposits = SupplierCommitment.where(opening_kind: "deposit_requirement").select(&:open_state?)
+    assert_equal 2, open_deposits.size
+  end
+
+  test "post-attestation increment rejects waived cancelled or superseded deposits" do
+    create_deposit!(
+      amount_shape: "fixed_amount",
+      fixed_amount_minor_units: 2_000,
+      currency: "USD",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => "2027-05-01" },
+      precision: "date_only"
+    )
+    activate_arrangement
+    commitment = SupplierCommitment.find_by!(opening_kind: "deposit_requirement")
+    tranche = commitment.supplier_deposit_requirement_tranche
+    WaiveSupplierCommitment.new(
+      agency: @agency, actor: agency_users(:harbor_admin), commitment:,
+      reason: "Supplier waived the deposit stage.",
+      accepted_risk_acknowledged: true,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    error = assert_raises(AgencyCommand::Error) do
+      AdjustSupplierDepositRequirementTranche.new(
+        agency: @agency, actor: @actor, tranche:,
+        amount_delta_minor_units: 500,
+        note: "Should not reopen waived deposit",
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert_equal :invalid_state, error.code
+    assert_match(/handled outside DepartureDesk/i, error.message)
+  end
+
+  test "attestation same-key retry replays after success" do
+    create_deposit!(
+      amount_shape: "fixed_amount",
+      fixed_amount_minor_units: 1_200,
+      currency: "USD",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => "2027-05-01" },
+      precision: "date_only"
+    )
+    activate_arrangement
+    commitment = SupplierCommitment.find_by!(opening_kind: "deposit_requirement")
+    key = SecureRandom.uuid
+    first = AttestSupplierDepositHandledExternally.new(
+      agency: @agency, actor: @actor, commitment:,
+      note: "Confirmed handled outside DepartureDesk",
+      confirmed_complete: true,
+      idempotency_key: key
+    ).call
+    assert_equal :created, first.status
+
+    second = AttestSupplierDepositHandledExternally.new(
+      agency: @agency, actor: @actor, commitment:,
+      note: "Confirmed handled outside DepartureDesk",
+      confirmed_complete: true,
+      idempotency_key: key
+    ).call
+    assert_equal :replayed, second.status
+    assert_equal first.record.id, second.record.id
+  end
+
+  test "SQL cannot attach another commitment attestation as disposition proof" do
+    create_deposit!(
+      amount_shape: "fixed_amount",
+      fixed_amount_minor_units: 1_000,
+      currency: "USD",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => "2027-04-01" },
+      precision: "date_only"
+    )
+    create_deposit!(
+      amount_shape: "fixed_amount",
+      fixed_amount_minor_units: 2_000,
+      currency: "USD",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => "2027-05-01" },
+      precision: "date_only"
+    )
+    activate_arrangement
+    commitments = SupplierCommitment.where(opening_kind: "deposit_requirement").order(:opened_at, :id).to_a
+    assert_equal 2, commitments.size
+    first, second = commitments
+    attestation = AttestSupplierDepositHandledExternally.new(
+      agency: @agency, actor: @actor, commitment: first,
+      note: "Confirmed handled outside DepartureDesk",
+      confirmed_complete: true,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    assert_raises(ActiveRecord::InvalidForeignKey, ActiveRecord::StatementInvalid) do
+      SupplierCommitmentDisposition.transaction(requires_new: true) do
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
+          INSERT INTO supplier_commitment_dispositions (
+            id, agency_id, departure_id, supplier_arrangement_id, supplier_arrangement_version_id,
+            supplier_commitment_id, outcome, reason, supplier_deposit_external_attestation_id,
+            supplier_deposit_requirement_tranche_id, accepted_risk_acknowledged, actor_id,
+            occurred_at, recorded_at, created_at, updated_at
+          ) VALUES (
+            uuidv7(),
+            '#{second.agency_id}',
+            '#{second.departure_id}',
+            '#{second.supplier_arrangement_id}',
+            '#{second.supplier_arrangement_version_id}',
+            '#{second.id}',
+            'handled_externally',
+            'Cross-linked attestation',
+            '#{attestation.id}',
+            '#{second.supplier_deposit_requirement_tranche_id}',
+            FALSE,
+            '#{@actor.id}',
+            NOW(),
+            NOW(),
+            NOW(),
+            NOW()
+          )
+        SQL
+      end
+    end
+    assert second.reload.open_state?
+  end
+
   private
 
   def deposit_attrs(**overrides)
