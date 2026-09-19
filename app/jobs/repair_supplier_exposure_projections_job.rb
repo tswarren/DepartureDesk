@@ -18,15 +18,22 @@ class RepairSupplierExposureProjectionsJob < ApplicationJob
   private
 
   def repair_agency!(agency)
-    arrangements = agency.supplier_arrangements
-      .where(status: "active")
-      .order(:id)
-      .limit(BATCH_SIZE)
-    arrangements.each do |arrangement|
-      RepairSupplierExposureProjectionJob.perform_later(
-        agency_id: agency.id,
-        supplier_arrangement_id: arrangement.id
-      )
+    cursor = nil
+    loop do
+      relation = agency.supplier_arrangements.where(status: "active").order(:id)
+      relation = relation.where("id > ?", cursor) if cursor
+      batch = relation.limit(BATCH_SIZE).to_a
+      break if batch.empty?
+
+      batch.each do |arrangement|
+        RepairSupplierExposureProjectionJob.perform_later(
+          agency_id: agency.id,
+          supplier_arrangement_id: arrangement.id
+        )
+      end
+      break if batch.size < BATCH_SIZE
+
+      cursor = batch.last.id
     end
   end
 end

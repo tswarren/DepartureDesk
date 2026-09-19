@@ -9,7 +9,8 @@ class RebuildSupplierExposureProjectionAlreadyLocked
   ComponentDraft = Data.define(
     :source_kind, :source_id, :qualification_band, :completeness,
     :qualification_reason, :gross_minor_units, :expected_commission_minor_units,
-    :expected_net_minor_units, :currency, :source_fingerprint, :effective_at
+    :expected_net_minor_units, :currency, :source_fingerprint, :effective_at,
+    :economic_cost_source_id
   )
 
   def initialize(agency:, arrangement:, version: nil, at: Time.current)
@@ -22,6 +23,7 @@ class RebuildSupplierExposureProjectionAlreadyLocked
   def call
     version = resolve_version!
     lock_existing_projection_rows!(version)
+    @operating_currency = operating_currency_for(version)
 
     drafts = []
     drafts.concat(commitment_components(version))
@@ -47,6 +49,11 @@ class RebuildSupplierExposureProjectionAlreadyLocked
     end
 
     @agency.supplier_arrangement_versions.lock.find(version.id)
+  end
+
+  def operating_currency_for(version)
+    version.departure&.operating_currency ||
+      @arrangement.departure.operating_currency
   end
 
   def lock_existing_projection_rows!(version)
@@ -89,14 +96,18 @@ class RebuildSupplierExposureProjectionAlreadyLocked
         source_fingerprint: fingerprint(
           "commitment", commitment.id, commitment.amount_minor_units, commitment.calculation_snapshot
         ),
-        effective_at: commitment.opened_at
+        effective_at: commitment.opened_at,
+        economic_cost_source_id: commitment.supplier_cost_source_id
       )
     end
   end
 
   def cost_source_components(version)
     forecast = EvaluateSupplierCostForecast.new(
-      agency: @agency, departure: @arrangement.departure_id, arrangement: @arrangement
+      agency: @agency,
+      departure: @arrangement.departure_id,
+      arrangement: @arrangement,
+      version:
     ).call(isolated: false)
     arrangement_result = forecast.arrangements.find { |row| row.arrangement_id == @arrangement.id }
     return [] if arrangement_result.nil?
@@ -117,8 +128,9 @@ class RebuildSupplierExposureProjectionAlreadyLocked
 
   def build_cost_source_drafts(source, qualification, open_cost_source_ids)
     drafts = []
-    currency = source.currency
+    currency = source.currency.presence || @operating_currency
     effective_at = @at
+    already_guaranteed_by_commitment = open_cost_source_ids.include?(source.source_id)
 
     unless source.complete
       drafts << ComponentDraft.new(
@@ -130,15 +142,16 @@ class RebuildSupplierExposureProjectionAlreadyLocked
         gross_minor_units: nil,
         expected_commission_minor_units: nil,
         expected_net_minor_units: nil,
-        currency: currency || "USD",
+        currency:,
         source_fingerprint: fingerprint("cost", source.source_id, "incomplete", source.selected_stage),
-        effective_at:
+        effective_at:,
+        economic_cost_source_id: source.source_id
       )
       return drafts
     end
 
     totals = source.totals
-    forecast_draft = ComponentDraft.new(
+    drafts << ComponentDraft.new(
       source_kind: "supplier_cost_source",
       source_id: source.source_id,
       qualification_band: "forecast",
@@ -152,12 +165,17 @@ class RebuildSupplierExposureProjectionAlreadyLocked
         "cost", source.source_id, source.selected_stage, source.definition_id,
         totals.forecast_supplier_cost_minor_units, totals.expected_commission_minor_units
       ),
-      effective_at:
+      effective_at:,
+      economic_cost_source_id: source.source_id
     )
-    drafts << forecast_draft
 
     estimate_stage = source.selected_stage.to_s.include?("estimate")
-    already_guaranteed_by_commitment = open_cost_source_ids.include?(source.source_id)
+
+    # An open monetary commitment for this cost source already carries the
+    # guaranteed position; do not also emit qualified/contingent gross.
+    if already_guaranteed_by_commitment
+      return drafts
+    end
 
     if qualification&.guaranteed?
       drafts << ComponentDraft.new(
@@ -173,9 +191,10 @@ class RebuildSupplierExposureProjectionAlreadyLocked
         source_fingerprint: fingerprint(
           "qualified", source.source_id, qualification.id, totals.forecast_supplier_cost_minor_units
         ),
-        effective_at: qualification.recorded_at
+        effective_at: qualification.recorded_at,
+        economic_cost_source_id: source.source_id
       )
-    elsif !estimate_stage && !already_guaranteed_by_commitment
+    elsif !estimate_stage
       drafts << ComponentDraft.new(
         source_kind: "supplier_cost_source",
         source_id: source.source_id,
@@ -189,7 +208,8 @@ class RebuildSupplierExposureProjectionAlreadyLocked
         source_fingerprint: fingerprint(
           "contingent", source.source_id, source.definition_id, totals.forecast_supplier_cost_minor_units
         ),
-        effective_at:
+        effective_at:,
+        economic_cost_source_id: source.source_id
       )
     end
 
@@ -201,17 +221,20 @@ class RebuildSupplierExposureProjectionAlreadyLocked
       agency_id: @agency.id,
       supplier_arrangement_id: @arrangement.id,
       supplier_arrangement_version_id: version.id
-    ).where.not(supplier_cost_source_id: nil).order(:id).to_a
+    ).where.not(supplier_cost_source_id: nil)
+      .where.not(amount_minor_units: nil)
+      .order(:id).to_a
       .select(&:open_state?)
       .map(&:supplier_cost_source_id)
       .to_set
   end
 
-  # Same source position must not contribute guaranteed + contingent liabilities.
+  # Same economic source must not contribute guaranteed + contingent liabilities,
+  # and must not double-count guaranteed across commitment and cost-source rows.
   def dedupe_alternative_bands(drafts)
-    by_source = drafts.group_by { |draft| [ draft.source_kind, draft.source_id, draft.currency ] }
-    by_source.flat_map do |_key, group|
-      guaranteed = group.find { |draft| draft.qualification_band == "guaranteed" }
+    by_economic = drafts.group_by { |draft| economic_key(draft) }
+    by_economic.flat_map do |_key, group|
+      guaranteed = preferred_guaranteed(group)
       contingent = group.find { |draft| draft.qualification_band == "contingent" }
       forecasts = group.select { |draft| draft.qualification_band == "forecast" }
 
@@ -221,6 +244,21 @@ class RebuildSupplierExposureProjectionAlreadyLocked
       selected.concat(forecasts)
       selected
     end
+  end
+
+  def economic_key(draft)
+    if draft.economic_cost_source_id.present?
+      [ "cost_source", draft.economic_cost_source_id, draft.currency ]
+    else
+      [ draft.source_kind, draft.source_id, draft.currency ]
+    end
+  end
+
+  def preferred_guaranteed(group)
+    guaranteed = group.select { |draft| draft.qualification_band == "guaranteed" }
+    return nil if guaranteed.empty?
+
+    guaranteed.find { |draft| draft.source_kind == "supplier_commitment" } || guaranteed.first
   end
 
   def replace_components!(version, drafts)
@@ -361,10 +399,6 @@ class RebuildSupplierExposureProjectionAlreadyLocked
         commitment.amount_minor_units
       memo[currency] += amount.to_i
     end
-  end
-
-  def version_currency(version)
-    version.supplier_arrangement.departure.operating_currency
   end
 
   def fingerprint(*parts)

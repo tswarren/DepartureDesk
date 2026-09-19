@@ -3,6 +3,8 @@
 require "test_helper"
 
 class M3e4QualifiedExposureTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
   setup do
     @agency = agencies(:harbor)
     @actor = agency_users(:harbor_staff)
@@ -189,32 +191,200 @@ class M3e4QualifiedExposureTest < ActiveSupport::TestCase
     assert_equal [ "forecast" ], bands
   end
 
+  test "rebuild keeps governing costs when a changed successor draft exists" do
+    activate_arrangement!
+    before = SupplierExposureSummary.find_by!(
+      supplier_arrangement: @arrangement, qualification_band: "forecast", currency: "USD"
+    )
+    assert_equal 100_000, before.gross_minor_units
+
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    draft_source = successor.supplier_cost_sources.order(:position, :id).first
+    draft_definition = draft_source.supplier_cost_definitions.find_by!(stage: "contracted")
+    draft_charge = draft_definition.supplier_cost_components.find_by!(economic_role: "supplier_charge")
+    draft_charge.update!(amount_minor_units: 777_000)
+    draft_definition.update!(
+      readiness_fingerprint: SupplierCostDefinitionFingerprint.call(draft_definition.reload)
+    )
+
+    RebuildSupplierExposureProjection.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload
+    ).call
+
+    after = SupplierExposureSummary.find_by!(
+      supplier_arrangement: @arrangement, qualification_band: "forecast", currency: "USD"
+    )
+    assert_equal 100_000, after.gross_minor_units,
+      "Successor draft costs must not replace governing exposure"
+    assert_equal @version.id, after.supplier_arrangement_version_id
+    assert_not_equal draft_source.id,
+      SupplierExposureComponent.find_by!(
+        supplier_arrangement: @arrangement, qualification_band: "forecast"
+      ).source_id
+  end
+
+  test "qualified cost source plus sourced monetary commitment does not double guaranteed gross" do
+    activate_arrangement!
+    QualifySupplierContingentExposure.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement,
+      cost_source: @cost_source,
+      note: "Minimum enrollment reached",
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    trigger = SupplierCommitmentTriggerDefinition.find_by!(
+      supplier_arrangement_version: @version, description: "Confirm cabins"
+    )
+    confirmation = SupplierConfirmation.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement,
+      supplier_arrangement_version: @version, confirming_supplier: @supplier,
+      evidence_kind: "supplier_confirmation", evidence_on: Date.current,
+      channel: "portal", reference_note: "Sourced monetary opening",
+      actor: @actor, recorded_at: Time.current
+    )
+    SupplierCommitment.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement,
+      supplier_arrangement_version: @version,
+      opening_kind: "confirmation_trigger",
+      supplier_commitment_trigger_definition: trigger,
+      supplier_confirmation: confirmation,
+      committed_supplier: @supplier,
+      supplier_cost_source_id: @cost_source.id,
+      commitment_type: "monetary",
+      description: "Sourced monetary cabin commitment",
+      amount_minor_units: 100_000,
+      currency: "USD",
+      calculation_snapshot: "test-sourced-monetary",
+      actor: @actor,
+      opened_at: Time.current
+    )
+
+    RebuildSupplierExposureProjection.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement
+    ).call
+
+    guaranteed = SupplierExposureSummary.find_by!(
+      supplier_arrangement: @arrangement, qualification_band: "guaranteed", currency: "USD"
+    )
+    assert_equal 100_000, guaranteed.gross_minor_units,
+      "Commitment and qualified cost source must not both inflate guaranteed gross"
+    guaranteed_components = SupplierExposureComponent.where(
+      supplier_arrangement: @arrangement, qualification_band: "guaranteed"
+    )
+    assert_equal 1, guaranteed_components.count
+    assert guaranteed_components.sole.supplier_commitment?
+  end
+
+  test "incomplete cost source uses Departure operating currency not USD default" do
+    SupplierCostComponent.where(
+      supplier_cost_definition_id: SupplierCostDefinition.where(supplier_cost_source: @cost_source).select(:id)
+    ).delete_all
+    SupplierCostDefinition.where(supplier_cost_source: @cost_source).delete_all
+    @departure.update!(operating_currency: "CAD")
+
+    ActiveRecord::Base.transaction do
+      RebuildSupplierExposureProjectionAlreadyLocked.new(
+        agency: @agency, arrangement: @arrangement, version: @version
+      ).call
+    end
+
+    component = SupplierExposureComponent.find_by!(
+      supplier_arrangement: @arrangement,
+      source_kind: "supplier_cost_source",
+      source_id: @cost_source.id
+    )
+    assert_equal "unknown", component.completeness
+    assert_equal "CAD", component.currency
+  end
+
+  test "repair sweep pages through all active Arrangements" do
+    activate_arrangement!
+    second_graph = create_capacity_graph(
+      agency: @agency, departure: @departure,
+      contractor: @supplier, provider: @supplier,
+      prefix: "Exposure Two", capacity_management: "unmanaged"
+    )
+    second = second_graph[:arrangement]
+    second_version = second_graph[:version]
+    create_calculated_cost_on!(
+      arrangement: second, version: second_version, graph: second_graph,
+      amount_minor_units: 40_000, commission_minor_units: 4_000
+    )
+    SupplierCommitmentTriggerDefinition.create!(
+      agency: @agency, departure: @departure,
+      supplier_arrangement: second,
+      supplier_arrangement_version: second_version,
+      committed_supplier: @supplier,
+      trigger_kind: "arrangement_confirmation",
+      authority_shape: "fixed_quantity",
+      description: "Confirm second",
+      fixed_quantity: 1,
+      quantity_basis: "resource_units",
+      position: 1
+    )
+    ActivateSupplierArrangementVersion.new(
+      agency: @agency, actor: @actor, arrangement: second,
+      version: second_version.reload,
+      arrangement_lock_version: second.reload.lock_version,
+      version_lock_version: second_version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      evidence_attributes: {
+        evidence_kind: "supplier_confirmation", evidence_on: Date.current,
+        channel: "portal", reference_note: "Second arrangement",
+        confirmed_without_identifier_reason: "Supplier did not issue one"
+      },
+      cost_source_coverage_acknowledged: true,
+      provisional_costs_acknowledged: true,
+      commitment_trigger_coverage_acknowledged: true,
+      elapsed_deadlines_acknowledged: false
+    ).call
+
+    stub_const(RepairSupplierExposureProjectionsJob, :BATCH_SIZE, 1) do
+      assert_enqueued_jobs 2, only: RepairSupplierExposureProjectionJob do
+        RepairSupplierExposureProjectionsJob.perform_now(agency_id: @agency.id)
+      end
+    end
+  end
+
   private
 
   def create_calculated_cost!(amount_minor_units:, commission_minor_units:)
+    create_calculated_cost_on!(
+      arrangement: @arrangement, version: @version, graph: @graph,
+      amount_minor_units:, commission_minor_units:
+    )
+  end
+
+  def create_calculated_cost_on!(arrangement:, version:, graph:, amount_minor_units:, commission_minor_units:)
     source = SupplierCostSource.create!(
       agency: @agency, departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
-      arrangement_item: @graph[:item],
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: version,
+      arrangement_item: graph[:item],
       charging_supplier: @supplier,
       label: "Cabin cost", position: 1
     )
     definition = SupplierCostDefinition.create!(
       agency: @agency, departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: version,
       supplier_cost_source: source,
       stage: "contracted", status: "forecast_ready", mode: "calculated",
-      currency: "USD",
+      currency: arrangement.departure.operating_currency,
       forecast_ready_by: @actor, forecast_ready_at: Time.current,
-      readiness_fingerprint: "sha256:exposure-cabin",
+      readiness_fingerprint: "sha256:exposure-cabin-#{SecureRandom.hex(4)}",
       readiness_provenance: "Signed terms"
     )
-    charge = SupplierCostComponent.create!(
+    SupplierCostComponent.create!(
       agency: @agency, departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: version,
       supplier_cost_definition: definition,
       label: "Cabin fare", economic_role: "supplier_charge",
       calculation_kind: "fixed", amount_minor_units:,
@@ -222,8 +392,8 @@ class M3e4QualifiedExposureTest < ActiveSupport::TestCase
     )
     SupplierCostComponent.create!(
       agency: @agency, departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: version,
       supplier_cost_definition: definition,
       label: "Expected commission", economic_role: "expected_commission",
       calculation_kind: "fixed", amount_minor_units: commission_minor_units,
@@ -232,7 +402,6 @@ class M3e4QualifiedExposureTest < ActiveSupport::TestCase
     definition.update!(
       readiness_fingerprint: SupplierCostDefinitionFingerprint.call(definition.reload)
     )
-    charge
     source
   end
 
