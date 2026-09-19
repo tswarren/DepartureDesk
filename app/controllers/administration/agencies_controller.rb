@@ -17,6 +17,7 @@ module Administration
         country_code: agency_params[:country_code],
         default_currency: agency_params[:default_currency],
         default_timezone: agency_params[:default_timezone],
+        attention_warning_lead_days: agency_params[:attention_warning_lead_days],
         lock_version: agency_params[:lock_version]
       ).call
       redirect_to administration_agency_path, notice: "Agency profile updated."
@@ -27,7 +28,10 @@ module Administration
     private
 
     def agency_params
-      params.require(:agency).permit(:name, :legal_name, :country_code, :default_currency, :default_timezone, :lock_version)
+      params.require(:agency).permit(
+        :name, :legal_name, :country_code, :default_currency, :default_timezone,
+        :attention_warning_lead_days, :lock_version
+      )
     end
   end
 end

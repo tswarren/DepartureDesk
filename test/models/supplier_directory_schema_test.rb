@@ -17,6 +17,7 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
         supplier_arrangement_activations
         supplier_arrangement_versions
         supplier_arrangements
+        supplier_attention_findings
         supplier_category_assignments
         supplier_commitment_dispositions
         supplier_commitment_evidence_coverage_members

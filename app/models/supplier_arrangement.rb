@@ -40,6 +40,7 @@ class SupplierArrangement < ApplicationRecord
   has_many :supplier_exposure_components, dependent: :restrict_with_exception
   has_many :supplier_exposure_summaries, dependent: :restrict_with_exception
   has_many :supplier_exposure_source_qualifications, dependent: :restrict_with_exception
+  has_many :supplier_attention_findings, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 

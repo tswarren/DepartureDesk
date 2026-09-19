@@ -95,6 +95,99 @@
   </div>
 </article>
 
+<% if @attention_findings.any? %>
+  <article class="dd-panel dd-attention-callout" id="needs-attention">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Needs attention</h2>
+        <p>Grouped by the action that resolves each finding. Findings clear only when the source condition changes.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <% group_attention_findings(@attention_findings).each do |action_group, findings| %>
+        <section class="dd-stack">
+          <h3 class="dd-section-title"><%= attention_action_group_label(action_group) %></h3>
+          <table class="dd-table">
+            <thead>
+              <tr>
+                <th scope="col">Required action</th>
+                <th scope="col">Reason</th>
+                <th scope="col">Timing</th>
+                <th scope="col">Consequence</th>
+                <th scope="col">Resolve</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% findings.each do |finding| %>
+                <tr>
+                  <td>
+                    <%= finding.required_action %>
+                    <span class="dd-field-hint"><%= attention_severity_label(finding) %></span>
+                  </td>
+                  <td><%= finding.reason %></td>
+                  <td>
+                    <% if finding.overdue_at.present? %>
+                      Overdue <%= finding.overdue_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %>
+                    <% else %>
+                      Attention <%= finding.attention_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %>
+                    <% end %>
+                  </td>
+                  <td><%= finding.consequence_summary %></td>
+                  <td>
+                    <%= link_to "Open",
+                      attention_finding_path(@departure, @supplier_arrangement, finding, version: @supplier_arrangement_version),
+                      class: "dd-link" %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </section>
+      <% end %>
+    </div>
+  </article>
+<% end %>
+
+<% if @accepted_exception_commitments.any? %>
+  <article class="dd-panel" id="accepted-exceptions">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Accepted exceptions</h2>
+        <p>Waived commitments leave Needs attention and remain visible here until reopened or governed work ends.</p>
+      </div>
+      <div class="dd-inline-actions">
+        <%= link_to "All commitments", departure_arrangement_commitments_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Commitment</th>
+            <th scope="col">Reason</th>
+            <th scope="col">Accepted</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @accepted_exception_commitments.each do |commitment| %>
+            <% disposition = commitment.current_disposition %>
+            <tr>
+              <td><%= commitment.description %></td>
+              <td><%= disposition&.reason.presence || "—" %></td>
+              <td>
+                <%= disposition&.recorded_at&.in_time_zone(Current.agency.default_timezone)&.to_fs(:long) || "—" %>
+                <% if disposition&.actor %>
+                  · <%= disposition.actor.email_address %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </article>
+<% end %>
+
 <% if @effective_capacity_definitions.any? %>
   <article class="dd-panel" id="current-supplier-capacity">
     <header class="dd-panel-header">

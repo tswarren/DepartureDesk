@@ -1589,6 +1589,8 @@ CREATE TABLE public.agencies (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    attention_warning_lead_days integer,
+    CONSTRAINT agencies_attention_warning_lead_days CHECK (((attention_warning_lead_days IS NULL) OR (attention_warning_lead_days >= 0))),
     CONSTRAINT agencies_country_code_format CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
     CONSTRAINT agencies_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT agencies_lock_version_nonnegative CHECK ((lock_version >= 0)),
@@ -2536,6 +2538,45 @@ CREATE TABLE public.supplier_arrangements (
     CONSTRAINT supplier_arrangements_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_arrangements_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
     CONSTRAINT supplier_arrangements_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'ended'::character varying, 'abandoned'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_attention_findings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_attention_findings (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_attention_findings_supplier_arrangement_versi_not_null NOT NULL,
+    detector_key character varying NOT NULL,
+    action_group character varying NOT NULL,
+    severity character varying NOT NULL,
+    source_kind character varying NOT NULL,
+    source_id uuid NOT NULL,
+    required_action character varying NOT NULL,
+    reason character varying NOT NULL,
+    consequence_summary character varying NOT NULL,
+    primary_path character varying NOT NULL,
+    attention_at timestamp with time zone NOT NULL,
+    overdue_at timestamp with time zone,
+    rebuilt_at timestamp with time zone NOT NULL,
+    source_fingerprint character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT attention_findings_action_group CHECK (((action_group)::text = ANY ((ARRAY['dispose_or_satisfy_commitment'::character varying, 'resolve_deadline'::character varying, 'complete_deposit_inputs'::character varying, 'inspect_exposure'::character varying, 'resolve_reservation_response'::character varying, 'review_capacity'::character varying])::text[]))),
+    CONSTRAINT attention_findings_consequence CHECK (((btrim((consequence_summary)::text) <> ''::text) AND (char_length((consequence_summary)::text) <= 240))),
+    CONSTRAINT attention_findings_detector_key CHECK (((detector_key)::text = ANY ((ARRAY['open_commitment_without_future_deadline'::character varying, 'actionable_commitment_due_soon'::character varying, 'actionable_commitment_overdue'::character varying, 'deadline_materialization_incomplete'::character varying, 'deposit_calculation_incomplete'::character varying, 'exposure_incomplete'::character varying, 'unresolved_reservation_response_scope'::character varying, 'capacity_override_or_discrepancy'::character varying])::text[]))),
+    CONSTRAINT attention_findings_fingerprint CHECK (((btrim((source_fingerprint)::text) <> ''::text) AND (char_length((source_fingerprint)::text) <= 256))),
+    CONSTRAINT attention_findings_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT attention_findings_primary_path CHECK (((btrim((primary_path)::text) <> ''::text) AND (char_length((primary_path)::text) <= 120))),
+    CONSTRAINT attention_findings_reason CHECK (((btrim((reason)::text) <> ''::text) AND (char_length((reason)::text) <= 240))),
+    CONSTRAINT attention_findings_required_action CHECK (((btrim((required_action)::text) <> ''::text) AND (char_length((required_action)::text) <= 160))),
+    CONSTRAINT attention_findings_severity CHECK (((severity)::text = ANY ((ARRAY['attention'::character varying, 'overdue'::character varying, 'blocking'::character varying])::text[]))),
+    CONSTRAINT attention_findings_source_kind CHECK (((source_kind)::text = ANY ((ARRAY['supplier_commitment'::character varying, 'supplier_deadline_definition'::character varying, 'supplier_deadline_occurrence'::character varying, 'supplier_deposit_requirement_definition'::character varying, 'supplier_exposure_component'::character varying, 'supplier_reservation'::character varying, 'capacity_pool'::character varying, 'capacity_reconciliation'::character varying])::text[])))
 );
 
 
@@ -4463,6 +4504,14 @@ ALTER TABLE ONLY public.supplier_arrangements
 
 
 --
+-- Name: supplier_attention_findings supplier_attention_findings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_attention_findings
+    ADD CONSTRAINT supplier_attention_findings_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_category_assignments supplier_category_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5242,6 +5291,34 @@ CREATE UNIQUE INDEX index_arrangement_items_on_id_departure_agency ON public.arr
 --
 
 CREATE UNIQUE INDEX index_arrangement_versions_on_lineage_owner ON public.supplier_arrangement_versions USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_attention_findings_on_departure_attention; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_attention_findings_on_departure_attention ON public.supplier_attention_findings USING btree (departure_id, attention_at, id);
+
+
+--
+-- Name: index_attention_findings_on_departure_overdue; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_attention_findings_on_departure_overdue ON public.supplier_attention_findings USING btree (departure_id, overdue_at, id);
+
+
+--
+-- Name: index_attention_findings_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_attention_findings_on_id_agency ON public.supplier_attention_findings USING btree (id, agency_id);
+
+
+--
+-- Name: index_attention_findings_on_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_attention_findings_on_identity ON public.supplier_attention_findings USING btree (supplier_arrangement_id, detector_key, source_kind, source_id);
 
 
 --
@@ -9600,6 +9677,38 @@ ALTER TABLE ONLY public.arrangement_items
 
 
 --
+-- Name: supplier_attention_findings attention_findings_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_attention_findings
+    ADD CONSTRAINT attention_findings_agency_fk FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_attention_findings attention_findings_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_attention_findings
+    ADD CONSTRAINT attention_findings_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_attention_findings attention_findings_departure_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_attention_findings
+    ADD CONSTRAINT attention_findings_departure_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: supplier_attention_findings attention_findings_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_attention_findings
+    ADD CONSTRAINT attention_findings_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: audit_events audit_events_actor_agency_user_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12422,6 +12531,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260919210000'),
 ('20260919200000'),
 ('20260919190000'),
 ('20260919180000'),

@@ -596,4 +596,44 @@ module ApplicationHelper
     id = field_id || "#{error_form.model_name.param_key}_#{attribute}_error"
     tag.p(error_form.errors[attribute].to_sentence, class: "dd-field-error", id: id)
   end
+
+  def attention_action_group_label(action_group)
+    {
+      "dispose_or_satisfy_commitment" => "Dispose or satisfy commitment",
+      "resolve_deadline" => "Resolve Deadline",
+      "complete_deposit_inputs" => "Complete deposit inputs",
+      "inspect_exposure" => "Inspect exposure",
+      "resolve_reservation_response" => "Resolve reservation response",
+      "review_capacity" => "Review capacity"
+    }.fetch(action_group.to_s, action_group.to_s.humanize)
+  end
+
+  def attention_severity_label(finding, at: Time.current)
+    return "Overdue" if finding.overdue?(at)
+    return "Blocking" if finding.blocking?
+
+    "Needs attention"
+  end
+
+  def attention_finding_path(departure, arrangement, finding, version: nil)
+    version ||= arrangement.governing_version || arrangement.versions.order(:version_number, :id).last
+    case finding.primary_path
+    when "commitments"
+      departure_arrangement_commitments_path(departure, arrangement)
+    when "exposure"
+      departure_arrangement_exposure_path(departure, arrangement)
+    when "deadlines"
+      departure_arrangement_version_deadlines_path(departure, arrangement, version)
+    when "deposits"
+      departure_arrangement_version_deposits_path(departure, arrangement, version)
+    when "capacity"
+      departure_arrangement_path(departure, arrangement, anchor: "current-supplier-capacity")
+    else
+      departure_arrangement_path(departure, arrangement)
+    end
+  end
+
+  def group_attention_findings(findings)
+    findings.group_by(&:action_group).sort_by { |group, _| group }
+  end
 end

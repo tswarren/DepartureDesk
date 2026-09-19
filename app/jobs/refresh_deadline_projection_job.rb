@@ -19,6 +19,16 @@ class RefreshDeadlineProjectionJob < ApplicationJob
       next if locked.nil? || locked.superseded_at.present?
 
       RefreshSupplierDeadlineProjection.call(occurrence: locked)
+      arrangement = SupplierArrangement.lock.find_by(
+        id: locked.supplier_arrangement_id, agency_id: agency.id
+      )
+      next if arrangement.nil?
+
+      RebuildSupplierAttentionProjectionAlreadyLocked.new(
+        agency:,
+        arrangement:,
+        version: locked.supplier_arrangement_version
+      ).call
     end
   end
 end

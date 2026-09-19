@@ -41,6 +41,10 @@
         <dd><%= @agency.default_currency %></dd>
       </div>
       <div>
+        <dt>Attention warning lead days</dt>
+        <dd><%= @agency.attention_warning_lead_days.nil? ? "Not set" : @agency.attention_warning_lead_days %></dd>
+      </div>
+      <div>
         <dt>Status</dt>
         <dd><%= agency_status_badge(@agency) %></dd>
       </div>

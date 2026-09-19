@@ -84,7 +84,7 @@
   <header class="dd-panel-header">
     <div>
       <h2 class="dd-panel-title">Supplier planning</h2>
-      <p>Tentative arrangement structure for this Departure.</p>
+      <p>Arrangements for this Departure. Needs-attention counts roll up from Arrangement projections.</p>
     </div>
     <div class="dd-inline-actions">
       <%= link_to "View all", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
@@ -101,17 +101,32 @@
           <th scope="col">Contracting supplier</th>
           <th scope="col">Status</th>
           <th scope="col">Version</th>
+          <th scope="col">Needs attention</th>
         </tr>
       </thead>
       <tbody>
         <% @supplier_planning.records.each do |arrangement| %>
           <% version = arrangement.versions.find(&:draft?) ||
             arrangement.versions.find { |candidate| candidate.id == arrangement.governing_version_id } %>
+          <% findings = @attention_findings_by_arrangement_id.fetch(arrangement.id, []) %>
           <tr class="<%= "is-inactive" if arrangement.abandoned? %>">
             <td><%= link_to arrangement.name, departure_arrangement_path(@departure, arrangement) %></td>
             <td><%= supplier_option_label(arrangement.contracting_supplier) %></td>
             <td><%= supplier_arrangement_status_badge(arrangement.status) %></td>
             <td><%= version ? version.status.titleize : "Draft" %></td>
+            <td>
+              <% if findings.any? %>
+                <%= link_to pluralize(findings.size, "finding"),
+                  departure_arrangement_path(@departure, arrangement, anchor: "needs-attention"),
+                  class: "dd-link" %>
+                <% overdue = findings.count { |finding| finding.overdue? } %>
+                <% if overdue.positive? %>
+                  <span class="dd-field-hint"><%= pluralize(overdue, "overdue") %></span>
+                <% end %>
+              <% else %>
+                —
+              <% end %>
+            </td>
           </tr>
         <% end %>
       </tbody>

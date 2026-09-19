@@ -211,6 +211,7 @@ class SupplierArrangementsController < ApplicationController
     @arrangement_cost_sources = @cost_sources.select(&:arrangement_wide?)
     @cost_sources_by_item_id = @cost_sources.reject(&:arrangement_wide?).group_by(&:arrangement_item_id)
     load_deposit_operations!
+    load_attention_findings!
   end
 
   def load_deposit_operations!
@@ -225,5 +226,17 @@ class SupplierArrangementsController < ApplicationController
       .select(&:open_state?)
     @deposit_attest_idempotency_key = SecureRandom.uuid
     @planning_milestone_idempotency_key = SecureRandom.uuid
+  end
+
+  def load_attention_findings!
+    @attention_findings = @supplier_arrangement.supplier_attention_findings
+      .visible_at
+      .order(:attention_at, :id)
+      .to_a
+    @accepted_exception_commitments = @supplier_arrangement.supplier_commitments
+      .with_current_disposition_state
+      .includes(supplier_commitment_dispositions: [ :actor, :supplier_commitment_reopening ])
+      .order(opened_at: :desc, id: :desc)
+      .select { |commitment| commitment.disposition_outcome == "waived" }
   end
 end
