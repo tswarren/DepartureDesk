@@ -1,0 +1,170 @@
+<% params_hash = @definition.rule_parameters || {} %>
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+<%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key %>
+
+<% if @definition.errors.any? %>
+  <div class="dd-form-errors" role="alert">
+    <ul>
+      <% @definition.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<div class="dd-field-group">
+  <%= form.label :deadline_type, "Deadline type", class: "dd-label" %>
+  <%= form.select :deadline_type,
+    SupplierDeadlineDefinition::DEADLINE_TYPES.map { |value| [value.humanize, value] },
+    { include_blank: "Choose a type" }, required: true, **dd_field_options(form, :deadline_type) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :other_label, "Other label", class: "dd-label" %>
+  <%= form.text_field :other_label, maxlength: SupplierDeadlineDefinition::OTHER_LABEL_LIMIT,
+    **dd_field_options(form, :other_label) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :kind, "Kind", class: "dd-label" %>
+  <%= form.select :kind,
+    SupplierDeadlineDefinition::KINDS.map { |value| [value.humanize, value] },
+    {}, required: true, **dd_field_options(form, :kind) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :rule_shape, "Rule", class: "dd-label" %>
+  <%= form.select :rule_shape,
+    SupplierDeadlineDefinition::RULE_SHAPES.map { |value| [value.humanize, value] },
+    { include_blank: "Choose a rule" }, required: true, **dd_field_options(form, :rule_shape) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :precision, "Precision", class: "dd-label" %>
+  <%= form.select :precision,
+    SupplierDeadlineDefinition::PRECISIONS.map { |value| [value.humanize, value] },
+    {}, required: true, **dd_field_options(form, :precision) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :time_zone, "Time zone", class: "dd-label" %>
+  <%= form.text_field :time_zone, required: true, **dd_field_options(form, :time_zone) %>
+</div>
+
+<div class="dd-field-group">
+  <%= label_tag :fixed_date, "Fixed date", class: "dd-label" %>
+  <%= date_field_tag "supplier_deadline_definition[fixed_date]", params_hash["date"],
+    **dd_tag_field_options(form, :fixed_date) %>
+  <%= label_tag :fixed_datetime, "Fixed local datetime", class: "dd-label" %>
+  <%= text_field_tag "supplier_deadline_definition[fixed_datetime]", params_hash["datetime"],
+    placeholder: "2027-03-11T17:00", **dd_tag_field_options(form, :fixed_datetime) %>
+  <%= label_tag :offset_days, "Day offset", class: "dd-label" %>
+  <%= number_field_tag "supplier_deadline_definition[offset_days]", params_hash["days"],
+    min: 0, step: 1, **dd_tag_field_options(form, :offset_days) %>
+  <%= label_tag :offset_hours, "Hour offset", class: "dd-label" %>
+  <%= number_field_tag "supplier_deadline_definition[offset_hours]", params_hash["hours"],
+    min: 0, step: 1, **dd_tag_field_options(form, :offset_hours) %>
+</div>
+
+<% arms = Array(params_hash["arms"]) %>
+<% 2.times do |index| %>
+  <% arm = (arms[index] || {}).with_indifferent_access %>
+  <% prefix = "arm#{index + 1}" %>
+  <fieldset class="dd-field-group">
+    <legend class="dd-label">Composite arm <%= index + 1 %></legend>
+    <%= label_tag "supplier_deadline_definition_#{prefix}_rule_shape", "Arm rule", class: "dd-label" %>
+    <%= select_tag "supplier_deadline_definition[#{prefix}_rule_shape]",
+      options_for_select(
+        SupplierDeadlineRuleEvaluator::SIMPLE_SHAPES.map { |value| [value.humanize, value] },
+        arm[:rule_shape]
+      ), include_blank: "Unused unless earlier/later of",
+      **dd_tag_field_options(form, :"#{prefix}_rule_shape") %>
+    <%= label_tag "supplier_deadline_definition_#{prefix}_fixed_date", "Arm fixed date", class: "dd-label" %>
+    <%= date_field_tag "supplier_deadline_definition[#{prefix}_fixed_date]",
+      arm.dig(:rule_parameters, :date) || arm.dig(:rule_parameters, "date"),
+      **dd_tag_field_options(form, :"#{prefix}_fixed_date") %>
+    <%= label_tag "supplier_deadline_definition_#{prefix}_fixed_datetime", "Arm fixed datetime", class: "dd-label" %>
+    <%= text_field_tag "supplier_deadline_definition[#{prefix}_fixed_datetime]",
+      arm.dig(:rule_parameters, :datetime) || arm.dig(:rule_parameters, "datetime"),
+      **dd_tag_field_options(form, :"#{prefix}_fixed_datetime") %>
+    <%= label_tag "supplier_deadline_definition_#{prefix}_offset_days", "Arm day offset", class: "dd-label" %>
+    <%= number_field_tag "supplier_deadline_definition[#{prefix}_offset_days]",
+      arm.dig(:rule_parameters, :days) || arm.dig(:rule_parameters, "days"),
+      min: 0, step: 1, **dd_tag_field_options(form, :"#{prefix}_offset_days") %>
+    <%= label_tag "supplier_deadline_definition_#{prefix}_offset_hours", "Arm hour offset", class: "dd-label" %>
+    <%= number_field_tag "supplier_deadline_definition[#{prefix}_offset_hours]",
+      arm.dig(:rule_parameters, :hours) || arm.dig(:rule_parameters, "hours"),
+      min: 0, step: 1, **dd_tag_field_options(form, :"#{prefix}_offset_hours") %>
+  </fieldset>
+<% end %>
+
+<div class="dd-field-group">
+  <%= form.label :warning_lead_days, "Warning lead days", class: "dd-label" %>
+  <%= form.number_field :warning_lead_days, min: 0, step: 1, **dd_field_options(form, :warning_lead_days) %>
+</div>
+
+<div class="dd-field-group">
+  <%= form.label :description, "Description", class: "dd-label" %>
+  <%= form.text_area :description, maxlength: SupplierDeadlineDefinition::DESCRIPTION_LIMIT,
+    **dd_field_options(form, :description) %>
+</div>
+
+<fieldset class="dd-field-group">
+  <legend class="dd-label">Coverage (optional; empty = whole arrangement)</legend>
+  <%= fields_for "supplier_deadline_definition[coverage_links][]", OpenStruct.new do |coverage| %>
+    <%= coverage.label :arrangement_item_id, "Item", class: "dd-label" %>
+    <%= coverage.select :arrangement_item_id,
+      @item_definitions.map { |entry| [entry.name, entry.arrangement_item_id] },
+      { include_blank: "No item" }, **dd_tag_field_options(form, :arrangement_item_id) %>
+    <%= coverage.label :service_occurrence_id, "Occurrence", class: "dd-label" %>
+    <%= coverage.select :service_occurrence_id,
+      @occurrence_definitions.map { |entry| [entry.name, entry.service_occurrence_id] },
+      { include_blank: "No occurrence" }, **dd_tag_field_options(form, :service_occurrence_id) %>
+    <%= coverage.label :supplier_resource_id, "Resource", class: "dd-label" %>
+    <%= coverage.select :supplier_resource_id,
+      @resource_definitions.map { |entry| [entry.name, entry.supplier_resource_id] },
+      { include_blank: "No resource" }, **dd_tag_field_options(form, :supplier_resource_id) %>
+    <%= coverage.label :capacity_pool_id, "Capacity Pool", class: "dd-label" %>
+    <%= coverage.select :capacity_pool_id,
+      @pool_definitions.map { |entry| [entry.label, entry.capacity_pool_id] },
+      { include_blank: "No Capacity Pool" }, **dd_tag_field_options(form, :capacity_pool_id) %>
+  <% end %>
+</fieldset>
+
+<fieldset class="dd-field-group">
+  <legend class="dd-label">Actionable commitment line (optional)</legend>
+  <%= fields_for "supplier_deadline_definition[commitment_lines][]", OpenStruct.new do |line| %>
+    <%= line.label :authority_shape, "Authority", class: "dd-label" %>
+    <%= line.select :authority_shape,
+      SupplierDeadlineCommitmentDefinitionLine::AUTHORITY_SHAPES.map { |value| [value.humanize, value] },
+      { include_blank: "No commitment line" }, **dd_tag_field_options(form, :authority_shape) %>
+    <%= line.label :description, "Commitment description", class: "dd-label" %>
+    <%= line.text_area :description, maxlength: SupplierDeadlineCommitmentDefinitionLine::DESCRIPTION_LIMIT,
+      **dd_tag_field_options(form, :description) %>
+    <%= line.label :committed_supplier_id, "Committed Supplier", class: "dd-label" %>
+    <%= line.select :committed_supplier_id,
+      active_supplier_options.map { |supplier| [supplier_option_label(supplier), supplier.id] },
+      { include_blank: "Choose a Supplier" }, **dd_tag_field_options(form, :committed_supplier_id) %>
+    <%= line.label :fixed_quantity, "Fixed quantity", class: "dd-label" %>
+    <%= line.number_field :fixed_quantity, min: 1, step: 1, **dd_tag_field_options(form, :fixed_quantity) %>
+    <%= line.label :quantity_basis, "Quantity basis", class: "dd-label" %>
+    <%= line.select :quantity_basis,
+      SupplierDeadlineCommitmentDefinitionLine::QUANTITY_BASES.map { |value| [value.humanize, value] },
+      { include_blank: "No quantity" }, **dd_tag_field_options(form, :quantity_basis) %>
+    <%= line.label :supplier_cost_component_id, "Ready contracted fixed component", class: "dd-label" %>
+    <%= line.select :supplier_cost_component_id,
+      @contracted_components.map { |component|
+        ["#{component.supplier_cost_definition.supplier_cost_source.label} · #{component.label}", component.id]
+      }, { include_blank: "No contracted monetary authority" },
+      **dd_tag_field_options(form, :supplier_cost_component_id) %>
+  <% end %>
+</fieldset>
+
+<div class="dd-page-actions">
+  <%= form.submit class: "dd-button" %>
+  <%= link_to "Cancel",
+    departure_arrangement_version_deadlines_path(
+      @departure, @supplier_arrangement, @supplier_arrangement_version
+    ), class: "dd-button dd-button--quiet" %>
+</div>

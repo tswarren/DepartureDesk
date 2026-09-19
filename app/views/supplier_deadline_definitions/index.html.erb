@@ -1,0 +1,107 @@
+<% content_for :title, "Deadlines · #{@supplier_arrangement.name} · DepartureDesk" %>
+<% manageable = Current.agency_user.permitted?(:manage_departures) && @supplier_arrangement_version.draft? %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning · Version <%= @supplier_arrangement_version.version_number %></p>
+    <h1 class="dd-page-title">Deadlines</h1>
+    <p class="dd-page-description">Exact-version Deadline definitions and materialized occurrences.</p>
+  </div>
+  <div class="dd-page-actions">
+    <% if manageable %>
+      <%= link_to "Add Deadline",
+        new_departure_arrangement_version_deadline_path(
+          @departure, @supplier_arrangement, @supplier_arrangement_version
+        ), class: "dd-button" %>
+    <% end %>
+    <%= link_to "Back to arrangement",
+      departure_arrangement_path(@departure, @supplier_arrangement),
+      class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @definitions.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Type</th>
+            <th scope="col">Kind</th>
+            <th scope="col">Rule</th>
+            <th scope="col">Precision</th>
+            <th scope="col">Zone</th>
+            <% if manageable %><th scope="col">Actions</th><% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% @definitions.each do |definition| %>
+            <tr>
+              <td><%= definition.display_label %></td>
+              <td><%= definition.kind.humanize %></td>
+              <td><%= definition.rule_shape.humanize %></td>
+              <td><%= definition.precision.humanize %></td>
+              <td><%= definition.time_zone %></td>
+              <% if manageable %>
+                <td>
+                  <div class="dd-inline-actions">
+                    <%= link_to "Edit",
+                      edit_departure_arrangement_version_deadline_path(
+                        @departure, @supplier_arrangement, @supplier_arrangement_version, definition
+                      ), class: "dd-row-action dd-row-action--edit" %>
+                    <%= button_to "Remove",
+                      departure_arrangement_version_deadline_path(
+                        @departure, @supplier_arrangement, @supplier_arrangement_version, definition
+                      ), method: :delete, class: "dd-row-action",
+                      form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this Deadline?" } },
+                      params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+                  </div>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="<%= empty_state_classes.join(" ") %>">No Deadline definitions declared.</p>
+    <% end %>
+  </div>
+</article>
+
+<% if @occurrences.any? %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Materialized occurrences</h2>
+    </header>
+    <div class="dd-panel-body">
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Type</th>
+            <th scope="col">Kind</th>
+            <th scope="col">Calculated</th>
+            <th scope="col">Status</th>
+            <th scope="col">Current</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @occurrences.each do |occurrence| %>
+            <tr>
+              <td><%= occurrence.deadline_type == "other" ? occurrence.other_label : occurrence.deadline_type.humanize %></td>
+              <td><%= occurrence.kind.humanize %></td>
+              <td>
+                <% if occurrence.date_only? %>
+                  <%= occurrence.calculated_on.strftime("%b %-d, %Y") %>
+                <% else %>
+                  <%= occurrence.calculated_at.in_time_zone(occurrence.time_zone).strftime("%b %-d, %Y %-l:%M %p %Z") %>
+                <% end %>
+              </td>
+              <td><%= occurrence.supplier_deadline_projection&.status&.humanize || "—" %></td>
+              <td><%= occurrence.current? ? "Current" : "Superseded" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </article>
+<% end %>

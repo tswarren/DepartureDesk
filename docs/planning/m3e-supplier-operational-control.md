@@ -1,6 +1,6 @@
 # M3E — Supplier operational control
 
-**Status:** Accepted 2026-09-18. Not yet implemented. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code begins with M3E.1 from that verified base (or a descendant on `main`).  
+**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1 and M3E.2 shipped. Later M3E.3–M3E.7 remain unimplemented. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md)  
 **ADR:** [ADR 0013 — Supplier operational commitments, Deadlines, exposure, and Arrangement ending](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)  
 **Prerequisite:** Shipped M3D through M3D.9; [M3E.0](m3e0-m3d-closure-gate.md) M3D closure gate satisfied  
@@ -819,6 +819,8 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 
 **Exit:** every M3D opening has a correct terminal/correction lifecycle without generic manual invention; inactivation blocks only open commitments.
 
+**Shipped:** M3E.1 (source-shaped openings, dispositions, evidence coverage, open-state inactivation).
+
 ### M3E.2 — Deadline definitions, occurrences, and projection catch-up
 
 - Draft exact-version definitions, explicit coverage, templates, precision, zone, cardinality, and informational/actionable kinds.
@@ -829,6 +831,8 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 - M3D.7 freeze extension for Deadline definition families.
 
 **Exit:** Deadline state is deterministic, time-safe, explainable, and usable through compressed forms without background domain mutations.
+
+**Shipped:** M3E.2 (Deadline definitions, occurrences, activation materialization, projection catch-up, `deadline_requirement` openings).
 
 ### M3E.3 — Deposit Requirements and planning milestones
 

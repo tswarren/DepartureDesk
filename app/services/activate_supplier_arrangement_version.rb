@@ -3,7 +3,7 @@ require "ostruct"
 class ActivateSupplierArrangementVersion < AgencyCommand
   include ArrangementCommandSupport
 
-  ATTESTATION_VERSION = "m3d2-v1"
+  ATTESTATION_VERSION = "m3e2-v1"
 
   def initialize(agency:, actor:, arrangement:, idempotency_key:,
     version: nil, arrangement_lock_version: nil, version_lock_version: nil,
@@ -12,6 +12,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     identifier_attributes: nil, cost_source_coverage_acknowledged: false,
     provisional_costs_acknowledged: false,
     commitment_trigger_coverage_acknowledged: false,
+    elapsed_deadlines_acknowledged: false,
     confirmed_quantity: nil, confirmed_amount_minor_units: nil,
     confirmed_quantities: nil, confirmed_amounts_minor_units: nil,
     acknowledgments: nil, duplicate_acknowledgement_token: nil)
@@ -35,6 +36,9 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     ))
     @trigger_ack = boolean(acknowledgments.fetch(
       :commitment_trigger_coverage, commitment_trigger_coverage_acknowledged
+    ))
+    @elapsed_deadlines_ack = boolean(acknowledgments.fetch(
+      :elapsed_deadlines, elapsed_deadlines_acknowledged
     ))
     @confirmed_quantity = confirmed_quantity
     @confirmed_amount_minor_units = confirmed_amount_minor_units
@@ -80,8 +84,8 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         raise Error.new(message, code: :invalid)
       end
       validate_acknowledgments!(readiness)
-
       activated_at = Time.current
+      validate_elapsed_deadline_acknowledgment!(version, departure, at: activated_at)
       confirmation = resolve_confirmation!(
         arrangement: arrangement, version: version, recorded_at: activated_at
       )
@@ -94,6 +98,10 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       create_cost_selections!(activation, readiness)
       capacity_events = create_capacity_entries!(activation, version, activated_at)
       commitments = create_commitments!(activation, version, confirmation)
+      deadline_result = materialize_deadlines!(
+        activation:, arrangement:, version:, departure:, at: activated_at
+      )
+      commitments.concat(deadline_result[:commitments])
       create_confirmation_links!(
         activation: activation, confirmation: confirmation, identifier: identifier,
         capacity_events: capacity_events
@@ -106,6 +114,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       arrangement.update!(status: "active", governing_version: version)
       audit_activation!(
         arrangement, activation, capacity_events, commitments,
+        deadline_result[:occurrences],
         successor: activation_kind == "successor"
       )
       claim_idempotency!(key, payload, activation)
@@ -150,10 +159,13 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       supplier_cost_participant_categories
       supplier_cost_usage_assumptions supplier_cost_occupancy_profiles
       supplier_commitment_trigger_definitions
+      supplier_deadline_definitions
     ].each { |association| version.public_send(association).order(:id).lock.load }
     [
       SupplierCostComponentBase,
-      SupplierCostOccupancyProfilePosition
+      SupplierCostOccupancyProfilePosition,
+      SupplierDeadlineDefinitionCoverageLink,
+      SupplierDeadlineCommitmentDefinitionLine
     ].each do |model|
       model.where(supplier_arrangement_version_id: version.id).order(:id).lock.load
     end
@@ -204,6 +216,37 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     if estimates.any? && !@provisional_ack
       raise Error.new("Acknowledge every listed provisional estimate source.", code: :invalid)
     end
+  end
+
+  def validate_elapsed_deadline_acknowledgment!(version, departure, at:)
+    elapsed = MaterializeSupplierDeadlineDefinitionsAlreadyLocked.new(
+      agency: @agency, actor: @actor, arrangement: version.supplier_arrangement,
+      version:, activation: nil, departure:, at:
+    ).preview_elapsed
+    return if elapsed.empty?
+    return if @elapsed_deadlines_ack
+
+    raise Error.new(
+      "Acknowledge already-elapsed Deadline occurrences before activation.", code: :invalid
+    )
+  end
+
+  def materialize_deadlines!(activation:, arrangement:, version:, departure:, at:)
+    result = MaterializeSupplierDeadlineDefinitionsAlreadyLocked.new(
+      agency: @agency, actor: @actor, arrangement:, version:, activation:, departure:, at:
+    ).call
+    if result[:occurrences].any?
+      audit!(
+        agency: @agency, actor: @actor, subject: arrangement,
+        action: "supplier_arrangement.deadlines_materialized",
+        details: {
+          "supplier_arrangement_activation_id" => activation.id,
+          "supplier_deadline_occurrence_ids" => result[:occurrences].map(&:id),
+          "supplier_commitment_ids" => result[:commitments].map(&:id)
+        }
+      )
+    end
+    result
   end
 
   def resolve_confirmation!(arrangement:, version:, recorded_at:)
@@ -356,7 +399,8 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         coverage_fingerprint: coverage_fingerprint(version, readiness),
         cost_source_coverage_acknowledged: @cost_source_ack,
         provisional_costs_acknowledged: @provisional_ack,
-        commitment_trigger_coverage_acknowledged: @trigger_ack
+        commitment_trigger_coverage_acknowledged: @trigger_ack,
+        elapsed_deadlines_acknowledged: @elapsed_deadlines_ack
       )
     )
   end
@@ -452,7 +496,8 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       cost_selections: readiness.cost_selections.map { |source, definition| [ source.id, definition.id ] },
       capacity_definitions: version.capacity_pool_definitions.order(:id).pluck(:id),
       triggers: version.supplier_commitment_trigger_definitions.order(:id).pluck(:id),
-      acknowledgments: [ @cost_source_ack, @provisional_ack, @trigger_ack ]
+      deadlines: version.supplier_deadline_definitions.order(:id).pluck(:id),
+      acknowledgments: [ @cost_source_ack, @provisional_ack, @trigger_ack, @elapsed_deadlines_ack ]
     )
   end
 
@@ -468,6 +513,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       cost_source_coverage_acknowledged: @cost_source_ack,
       provisional_costs_acknowledged: @provisional_ack,
       commitment_trigger_coverage_acknowledged: @trigger_ack,
+      elapsed_deadlines_acknowledged: @elapsed_deadlines_ack,
       confirmed_quantity: @confirmed_quantity,
       confirmed_amount_minor_units: @confirmed_amount_minor_units,
       confirmed_quantities: @confirmed_quantities,
@@ -497,7 +543,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     )
   end
 
-  def audit_activation!(arrangement, activation, events, commitments, successor:)
+  def audit_activation!(arrangement, activation, events, commitments, occurrences, successor:)
     audit!(
       agency: @agency,
       action: successor ? "supplier_arrangement.successor_activated" : "supplier_arrangement.activated",
@@ -510,9 +556,11 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         "predecessor_version_id" => activation.predecessor_version_id,
         "capacity_event_ids" => events.map(&:id),
         "supplier_commitment_ids" => commitments.map(&:id),
+        "supplier_deadline_occurrence_ids" => occurrences.map(&:id),
         "cost_source_coverage_acknowledged" => @cost_source_ack,
         "provisional_costs_acknowledged" => @provisional_ack,
-        "commitment_trigger_coverage_acknowledged" => @trigger_ack
+        "commitment_trigger_coverage_acknowledged" => @trigger_ack,
+        "elapsed_deadlines_acknowledged" => @elapsed_deadlines_ack
       }
     )
   end

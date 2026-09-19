@@ -19,6 +19,7 @@ class SupplierArrangementActivation < ApplicationRecord
     class_name: "SupplierArrangementActivationCapacityEntry",
     dependent: :restrict_with_exception
   has_many :supplier_commitments, dependent: :restrict_with_exception
+  has_many :supplier_deadline_occurrences, dependent: :restrict_with_exception
 
   enum :activation_kind, ACTIVATION_KINDS.index_by(&:itself),
     validate: true, scopes: false, instance_methods: false
@@ -30,6 +31,7 @@ class SupplierArrangementActivation < ApplicationRecord
   validates :cost_source_coverage_acknowledged,
     :commitment_trigger_coverage_acknowledged,
     inclusion: { in: [ true ] }
+  validates :elapsed_deadlines_acknowledged, inclusion: { in: [ true, false ] }
   validate :predecessor_matches_kind
 
   private
