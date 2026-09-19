@@ -81,6 +81,7 @@ class ReopenSupplierCommitment < AgencyCommand
             "reason" => @reason
           }
         )
+        rebuild_exposure_projection_already_locked!(arrangement)
         reopening
       end
     end

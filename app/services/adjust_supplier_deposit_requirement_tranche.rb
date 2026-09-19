@@ -42,10 +42,12 @@ class AdjustSupplierDepositRequirementTranche < AgencyCommand
       }
 
       if commitment.open_state?
-        adjust_open_tranche!(arrangement, tranche, commitment, delta, payload)
+        result = adjust_open_tranche!(arrangement, tranche, commitment, delta, payload)
       else
-        create_increment_tranche!(arrangement, tranche, commitment, delta, payload)
+        result = create_increment_tranche!(arrangement, tranche, commitment, delta, payload)
       end
+      rebuild_exposure_projection_already_locked!(arrangement)
+      result
     end
   rescue ArgumentError, TypeError
     raise Error.new("Enter a whole-number amount adjustment.", code: :invalid)

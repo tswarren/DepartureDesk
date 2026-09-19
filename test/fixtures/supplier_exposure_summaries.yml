@@ -1,0 +1,2 @@
+# Empty fixture so Rails truncates projection rows between tests.
+# Exposure summaries are rebuildable projections, not seeded facts.

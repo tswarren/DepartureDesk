@@ -524,4 +524,13 @@ module ArrangementCommandSupport
   def changed_fields(record, attrs)
     attrs.keys.select { |field| record.saved_change_to_attribute?(field) }.map(&:to_s)
   end
+
+  def rebuild_exposure_projection_already_locked!(arrangement, version: nil, at: Time.current)
+    RebuildSupplierExposureProjectionAlreadyLocked.new(
+      agency: @agency,
+      arrangement:,
+      version:,
+      at:
+    ).call
+  end
 end

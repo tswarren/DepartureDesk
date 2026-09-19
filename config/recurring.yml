@@ -22,6 +22,10 @@ development: &recurring_defaults
     class: RefreshDueDeadlineProjectionsJob
     queue: deadlines
     schedule: every hour
+  repair_supplier_exposure_projections:
+    class: RepairSupplierExposureProjectionsJob
+    queue: exposure
+    schedule: every day at 3am
 
 production:
   <<: *recurring_defaults
