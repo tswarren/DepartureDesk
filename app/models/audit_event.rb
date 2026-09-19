@@ -126,6 +126,10 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.commitment_trigger_created
     supplier_arrangement.commitment_trigger_updated
     supplier_arrangement.commitment_trigger_removed
+    supplier_arrangement.deadline_definition_created
+    supplier_arrangement.deadline_definition_updated
+    supplier_arrangement.deadline_definition_removed
+    supplier_arrangement.deadlines_materialized
     supplier_arrangement.commitments_disposed
     supplier_arrangement.commitment_reopened
     supplier_arrangement.evidence_coverage_revoked

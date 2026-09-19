@@ -46,6 +46,11 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
         supplier_cost_participant_categories
         supplier_cost_sources
         supplier_cost_usage_assumptions
+        supplier_deadline_commitment_definition_lines
+        supplier_deadline_definition_coverage_links
+        supplier_deadline_definitions
+        supplier_deadline_occurrences
+        supplier_deadline_projections
         supplier_email_addresses
         supplier_issued_identifiers
         supplier_locations

@@ -27,6 +27,7 @@ class SupplierArrangementActivationsController < ApplicationController
       cost_source_coverage_acknowledged: params[:cost_source_coverage_acknowledged],
       provisional_costs_acknowledged: params[:provisional_costs_acknowledged],
       commitment_trigger_coverage_acknowledged: params[:commitment_trigger_coverage_acknowledged],
+      elapsed_deadlines_acknowledged: params[:elapsed_deadlines_acknowledged],
       confirmed_quantities: keyed_commitment_params(:confirmed_quantities),
       confirmed_amounts_minor_units: keyed_commitment_params(:confirmed_amounts_minor_units),
       duplicate_acknowledgement_token: params[:duplicate_acknowledgement_token]
@@ -83,6 +84,14 @@ class SupplierArrangementActivationsController < ApplicationController
       .includes(capacity_pool: [ :supplying_supplier, :capacity_events ]).order(:position, :id)
     @triggers = @supplier_arrangement_version.supplier_commitment_trigger_definitions
       .includes(:committed_supplier).order(:position, :id)
+    @elapsed_deadlines = MaterializeSupplierDeadlineDefinitionsAlreadyLocked.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      arrangement: @supplier_arrangement,
+      version: @supplier_arrangement_version,
+      activation: nil,
+      departure: @departure
+    ).preview_elapsed
     @existing_confirmations = @supplier_arrangement_version.supplier_confirmations
       .where(confirming_supplier_id: @supplier_arrangement.contracting_supplier_id)
       .order(recorded_at: :desc, id: :desc)

@@ -25,6 +25,52 @@ COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiS
 
 
 --
+-- Name: allow_deadline_occurrence_supersession_only(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.allow_deadline_occurrence_supersession_only() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.id IS DISTINCT FROM OLD.id
+    OR NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+    OR NEW.supplier_deadline_definition_id IS DISTINCT FROM OLD.supplier_deadline_definition_id
+    OR NEW.supplier_arrangement_activation_id IS DISTINCT FROM OLD.supplier_arrangement_activation_id
+    OR NEW.deadline_type IS DISTINCT FROM OLD.deadline_type
+    OR NEW.other_label IS DISTINCT FROM OLD.other_label
+    OR NEW.kind IS DISTINCT FROM OLD.kind
+    OR NEW.rule_shape IS DISTINCT FROM OLD.rule_shape
+    OR NEW.rule_parameters_snapshot IS DISTINCT FROM OLD.rule_parameters_snapshot
+    OR NEW.rule_inputs_snapshot IS DISTINCT FROM OLD.rule_inputs_snapshot
+    OR NEW.precision IS DISTINCT FROM OLD.precision
+    OR NEW.time_zone IS DISTINCT FROM OLD.time_zone
+    OR NEW.cardinality IS DISTINCT FROM OLD.cardinality
+    OR NEW.coverage_snapshot IS DISTINCT FROM OLD.coverage_snapshot
+    OR NEW.calculated_on IS DISTINCT FROM OLD.calculated_on
+    OR NEW.calculated_at IS DISTINCT FROM OLD.calculated_at
+    OR NEW.materialization_key IS DISTINCT FROM OLD.materialization_key
+    OR NEW.predecessor_occurrence_id IS DISTINCT FROM OLD.predecessor_occurrence_id
+    OR NEW.actor_id IS DISTINCT FROM OLD.actor_id
+    OR NEW.materialized_at IS DISTINCT FROM OLD.materialized_at
+    OR NEW.created_at IS DISTINCT FROM OLD.created_at
+  THEN
+    RAISE EXCEPTION 'supplier_deadline_occurrences is append-only';
+  END IF;
+  IF OLD.superseded_at IS NOT NULL THEN
+    RAISE EXCEPTION 'supplier_deadline_occurrences is append-only';
+  END IF;
+  IF NEW.superseded_at IS NULL THEN
+    RAISE EXCEPTION 'supplier_deadline_occurrences is append-only';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: allow_supplier_identifier_supersession_stamp(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1162,6 +1208,27 @@ BEGIN
           OR NEW.service_occurrence_id IS DISTINCT FROM OLD.service_occurrence_id
           OR NEW.supplier_resource_id IS DISTINCT FROM OLD.supplier_resource_id THEN
     RAISE EXCEPTION 'supplier_cost_usage_assumption owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_supplier_deadline_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_deadline_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+    OR NEW.copied_from_id IS DISTINCT FROM OLD.copied_from_id
+  THEN
+    RAISE EXCEPTION 'supplier deadline definition owner is immutable';
   END IF;
   RETURN NEW;
 END;
@@ -2333,6 +2400,7 @@ CREATE TABLE public.supplier_arrangement_activations (
     updated_at timestamp(6) with time zone NOT NULL,
     cost_source_coverage_acknowledged boolean DEFAULT false CONSTRAINT supplier_arrangement_activa_cost_source_coverage_ackno_not_null NOT NULL,
     commitment_trigger_coverage_acknowledged boolean DEFAULT false CONSTRAINT supplier_arrangement_activa_commitment_trigger_coverag_not_null NOT NULL,
+    elapsed_deadlines_acknowledged boolean DEFAULT false CONSTRAINT supplier_arrangement_activa_elapsed_deadlines_acknowle_not_null NOT NULL,
     CONSTRAINT arrangement_activations_coverage_attestation_version CHECK (((btrim((coverage_attestation_version)::text) <> ''::text) AND (char_length((coverage_attestation_version)::text) <= 40))),
     CONSTRAINT arrangement_activations_coverage_fingerprint CHECK (((btrim((coverage_fingerprint)::text) <> ''::text) AND (char_length((coverage_fingerprint)::text) <= 128))),
     CONSTRAINT arrangement_activations_kind CHECK (((activation_kind)::text = ANY ((ARRAY['first'::character varying, 'successor'::character varying])::text[]))),
@@ -2600,8 +2668,8 @@ CREATE TABLE public.supplier_commitments (
     supplier_arrangement_id uuid NOT NULL,
     supplier_arrangement_version_id uuid NOT NULL,
     supplier_arrangement_activation_id uuid,
-    supplier_commitment_trigger_definition_id uuid CONSTRAINT supplier_commitments_supplier_commitment_trigger_defin_not_null NOT NULL,
-    supplier_confirmation_id uuid NOT NULL,
+    supplier_commitment_trigger_definition_id uuid,
+    supplier_confirmation_id uuid,
     committed_supplier_id uuid NOT NULL,
     arrangement_item_id uuid,
     service_occurrence_id uuid,
@@ -2625,11 +2693,14 @@ CREATE TABLE public.supplier_commitments (
     supplier_reservation_scope_id uuid,
     supplier_reservation_event_id uuid,
     opening_kind character varying DEFAULT 'confirmation_trigger'::character varying NOT NULL,
+    supplier_deadline_occurrence_id uuid,
+    supplier_deadline_commitment_definition_line_id uuid,
     CONSTRAINT supplier_commitments_authority_shape CHECK (((((commitment_type)::text = 'quantity'::text) AND (quantity IS NOT NULL) AND (amount_minor_units IS NULL)) OR (((commitment_type)::text = 'monetary'::text) AND (quantity IS NULL) AND (amount_minor_units IS NOT NULL)) OR (((commitment_type)::text = 'quantity_and_monetary'::text) AND (quantity IS NOT NULL) AND (amount_minor_units IS NOT NULL)))),
     CONSTRAINT supplier_commitments_calculation_snapshot CHECK (((btrim((calculation_snapshot)::text) <> ''::text) AND (char_length((calculation_snapshot)::text) <= 2000))),
     CONSTRAINT supplier_commitments_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 500))),
     CONSTRAINT supplier_commitments_money_shape CHECK ((((amount_minor_units IS NULL) = (currency IS NULL)) AND ((amount_minor_units IS NULL) OR (amount_minor_units >= 0)))),
-    CONSTRAINT supplier_commitments_opening_kind CHECK (((opening_kind)::text = 'confirmation_trigger'::text)),
+    CONSTRAINT supplier_commitments_opening_kind CHECK (((opening_kind)::text = ANY ((ARRAY['confirmation_trigger'::character varying, 'deadline_requirement'::character varying])::text[]))),
+    CONSTRAINT supplier_commitments_opening_shape CHECK (((((opening_kind)::text = 'confirmation_trigger'::text) AND (supplier_commitment_trigger_definition_id IS NOT NULL) AND (supplier_confirmation_id IS NOT NULL) AND (supplier_deadline_occurrence_id IS NULL) AND (supplier_deadline_commitment_definition_line_id IS NULL)) OR (((opening_kind)::text = 'deadline_requirement'::text) AND (supplier_commitment_trigger_definition_id IS NULL) AND (supplier_confirmation_id IS NULL) AND (supplier_deadline_occurrence_id IS NOT NULL) AND (supplier_deadline_commitment_definition_line_id IS NOT NULL)))),
     CONSTRAINT supplier_commitments_quantity_shape CHECK ((((quantity IS NULL) = (quantity_basis IS NULL)) AND ((quantity IS NULL) OR (quantity > 0)))),
     CONSTRAINT supplier_commitments_reservation_shape CHECK ((((supplier_reservation_id IS NULL) AND (supplier_reservation_revision_id IS NULL) AND (supplier_reservation_scope_id IS NULL) AND (supplier_reservation_event_id IS NULL)) OR ((supplier_reservation_id IS NOT NULL) AND (supplier_reservation_revision_id IS NOT NULL) AND (supplier_reservation_scope_id IS NOT NULL) AND (supplier_reservation_event_id IS NOT NULL)))),
     CONSTRAINT supplier_commitments_type CHECK (((commitment_type)::text = ANY ((ARRAY['quantity'::character varying, 'monetary'::character varying, 'quantity_and_monetary'::character varying])::text[])))
@@ -3086,6 +3157,172 @@ CREATE TABLE public.supplier_cost_usage_assumptions (
     copied_from_id uuid,
     CONSTRAINT supplier_cost_assumptions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_cost_assumptions_quantities_nonnegative CHECK ((((expected_resource_units IS NULL) OR (expected_resource_units >= 0)) AND ((expected_persons IS NULL) OR (expected_persons >= 0)) AND ((expected_billable_nights IS NULL) OR (expected_billable_nights >= 0))))
+);
+
+
+--
+-- Name: supplier_deadline_commitment_definition_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deadline_commitment_definition_lines (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid CONSTRAINT supplier_deadline_commitment_definition_line_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_deadline_commitment_definition_l_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_deadline_commitment_d_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deadline_commitmen_supplier_arrangement_versi_not_null NOT NULL,
+    supplier_deadline_definition_id uuid CONSTRAINT supplier_deadline_commitmen_supplier_deadline_definiti_not_null NOT NULL,
+    committed_supplier_id uuid CONSTRAINT supplier_deadline_commitment_def_committed_supplier_id_not_null NOT NULL,
+    authority_shape character varying CONSTRAINT supplier_deadline_commitment_definitio_authority_shape_not_null NOT NULL,
+    description character varying(500) CONSTRAINT supplier_deadline_commitment_definition_li_description_not_null NOT NULL,
+    fixed_quantity bigint,
+    quantity_basis character varying,
+    fixed_amount_minor_units bigint,
+    currency character varying(3),
+    supplier_cost_source_id uuid,
+    supplier_cost_definition_id uuid,
+    supplier_cost_component_id uuid,
+    "position" integer NOT NULL,
+    lock_version integer DEFAULT 0 CONSTRAINT supplier_deadline_commitment_definition_l_lock_version_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_deadline_commitment_definition_lin_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_deadline_commitment_definition_lin_updated_at_not_null NOT NULL,
+    CONSTRAINT deadline_commitment_lines_authority_fields CHECK (((((authority_shape)::text = 'fixed_quantity'::text) AND (fixed_quantity > 0) AND (quantity_basis IS NOT NULL) AND (fixed_amount_minor_units IS NULL) AND (currency IS NULL) AND (supplier_cost_definition_id IS NULL) AND (supplier_cost_component_id IS NULL)) OR (((authority_shape)::text = 'fixed_contracted_amount'::text) AND (fixed_quantity IS NULL) AND (quantity_basis IS NULL) AND (fixed_amount_minor_units IS NULL) AND (currency IS NOT NULL) AND (supplier_cost_definition_id IS NOT NULL) AND (supplier_cost_component_id IS NOT NULL)))),
+    CONSTRAINT deadline_commitment_lines_authority_shape CHECK (((authority_shape)::text = ANY ((ARRAY['fixed_quantity'::character varying, 'fixed_contracted_amount'::character varying])::text[]))),
+    CONSTRAINT deadline_commitment_lines_currency CHECK (((currency IS NULL) OR ((currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT deadline_commitment_lines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 500))),
+    CONSTRAINT deadline_commitment_lines_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT deadline_commitment_lines_position_positive CHECK (("position" > 0)),
+    CONSTRAINT deadline_commitment_lines_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY ((ARRAY['resource_units'::character varying, 'traveler_positions'::character varying])::text[]))))
+);
+
+
+--
+-- Name: supplier_deadline_definition_coverage_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deadline_definition_coverage_links (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid CONSTRAINT supplier_deadline_definition_coverage_lin_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_deadline_definition_c_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deadline_definiti_supplier_arrangement_versi_not_null1 NOT NULL,
+    supplier_deadline_definition_id uuid CONSTRAINT supplier_deadline_definitio_supplier_deadline_definiti_not_null NOT NULL,
+    arrangement_item_id uuid,
+    service_occurrence_id uuid,
+    supplier_resource_id uuid,
+    capacity_pool_id uuid,
+    "position" integer NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT deadline_coverage_links_exactly_one_target CHECK ((((arrangement_item_id IS NOT NULL) AND (service_occurrence_id IS NULL) AND (supplier_resource_id IS NULL) AND (capacity_pool_id IS NULL)) OR ((arrangement_item_id IS NOT NULL) AND (service_occurrence_id IS NOT NULL) AND (supplier_resource_id IS NULL) AND (capacity_pool_id IS NULL)) OR ((arrangement_item_id IS NOT NULL) AND (supplier_resource_id IS NOT NULL) AND (service_occurrence_id IS NULL) AND (capacity_pool_id IS NULL)) OR ((arrangement_item_id IS NOT NULL) AND (service_occurrence_id IS NOT NULL) AND (supplier_resource_id IS NOT NULL) AND (capacity_pool_id IS NOT NULL)))),
+    CONSTRAINT deadline_coverage_links_position_positive CHECK (("position" > 0))
+);
+
+
+--
+-- Name: supplier_deadline_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deadline_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deadline_definitio_supplier_arrangement_versi_not_null NOT NULL,
+    deadline_type character varying NOT NULL,
+    other_label character varying(120),
+    kind character varying NOT NULL,
+    rule_shape character varying NOT NULL,
+    rule_parameters jsonb DEFAULT '{}'::jsonb NOT NULL,
+    "precision" character varying NOT NULL,
+    time_zone character varying(64) NOT NULL,
+    cardinality character varying DEFAULT 'one_shared'::character varying NOT NULL,
+    warning_lead_days integer,
+    "position" integer NOT NULL,
+    description character varying(500),
+    copied_from_id uuid,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT deadline_definitions_cardinality CHECK (((cardinality)::text = ANY ((ARRAY['one_shared'::character varying, 'per_source'::character varying])::text[]))),
+    CONSTRAINT deadline_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 500)))),
+    CONSTRAINT deadline_definitions_kind CHECK (((kind)::text = ANY ((ARRAY['actionable'::character varying, 'informational'::character varying])::text[]))),
+    CONSTRAINT deadline_definitions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT deadline_definitions_other_label CHECK (((((deadline_type)::text = 'other'::text) AND (other_label IS NOT NULL) AND (btrim((other_label)::text) <> ''::text)) OR (((deadline_type)::text <> 'other'::text) AND (other_label IS NULL)))),
+    CONSTRAINT deadline_definitions_other_label_length CHECK (((other_label IS NULL) OR ((btrim((other_label)::text) <> ''::text) AND (char_length((other_label)::text) <= 120)))),
+    CONSTRAINT deadline_definitions_position_positive CHECK (("position" > 0)),
+    CONSTRAINT deadline_definitions_precision CHECK ((("precision")::text = ANY ((ARRAY['date_only'::character varying, 'local_date_time'::character varying])::text[]))),
+    CONSTRAINT deadline_definitions_rule_shape CHECK (((rule_shape)::text = ANY ((ARRAY['fixed_date'::character varying, 'fixed_local_datetime'::character varying, 'days_before_departure'::character varying, 'days_after_departure'::character varying, 'hours_before_departure'::character varying, 'hours_after_departure'::character varying, 'earlier_of'::character varying, 'later_of'::character varying])::text[]))),
+    CONSTRAINT deadline_definitions_time_zone CHECK (((btrim((time_zone)::text) <> ''::text) AND (char_length((time_zone)::text) <= 64))),
+    CONSTRAINT deadline_definitions_type CHECK (((deadline_type)::text = ANY ((ARRAY['deposit_due'::character varying, 'option_or_release_date'::character varying, 'rooming_list_due'::character varying, 'legal_names_due'::character varying, 'final_count_due'::character varying, 'final_schedule_or_departure_time_due'::character varying, 'cancellation_cutoff'::character varying, 'accessibility_confirmation_due'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT deadline_definitions_warning_lead CHECK (((warning_lead_days IS NULL) OR (warning_lead_days >= 0)))
+);
+
+
+--
+-- Name: supplier_deadline_occurrences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deadline_occurrences (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deadline_occurrenc_supplier_arrangement_versi_not_null NOT NULL,
+    supplier_deadline_definition_id uuid CONSTRAINT supplier_deadline_occurrenc_supplier_deadline_definiti_not_null NOT NULL,
+    supplier_arrangement_activation_id uuid,
+    deadline_type character varying NOT NULL,
+    other_label character varying(120),
+    kind character varying NOT NULL,
+    rule_shape character varying NOT NULL,
+    rule_parameters_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
+    rule_inputs_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
+    "precision" character varying NOT NULL,
+    time_zone character varying(64) NOT NULL,
+    cardinality character varying NOT NULL,
+    coverage_snapshot jsonb DEFAULT '[]'::jsonb NOT NULL,
+    calculated_on date,
+    calculated_at timestamp with time zone,
+    materialization_key character varying(256) NOT NULL,
+    predecessor_occurrence_id uuid,
+    superseded_at timestamp with time zone,
+    actor_id uuid NOT NULL,
+    materialized_at timestamp with time zone NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT deadline_occurrences_cardinality CHECK (((cardinality)::text = ANY ((ARRAY['one_shared'::character varying, 'per_source'::character varying])::text[]))),
+    CONSTRAINT deadline_occurrences_kind CHECK (((kind)::text = ANY ((ARRAY['actionable'::character varying, 'informational'::character varying])::text[]))),
+    CONSTRAINT deadline_occurrences_materialization_key CHECK (((btrim((materialization_key)::text) <> ''::text) AND (char_length((materialization_key)::text) <= 256))),
+    CONSTRAINT deadline_occurrences_precision CHECK ((("precision")::text = ANY ((ARRAY['date_only'::character varying, 'local_date_time'::character varying])::text[]))),
+    CONSTRAINT deadline_occurrences_precision_exclusivity CHECK ((((("precision")::text = 'date_only'::text) AND (calculated_on IS NOT NULL) AND (calculated_at IS NULL)) OR ((("precision")::text = 'local_date_time'::text) AND (calculated_at IS NOT NULL) AND (calculated_on IS NULL)))),
+    CONSTRAINT deadline_occurrences_rule_shape CHECK (((rule_shape)::text = ANY ((ARRAY['fixed_date'::character varying, 'fixed_local_datetime'::character varying, 'days_before_departure'::character varying, 'days_after_departure'::character varying, 'hours_before_departure'::character varying, 'hours_after_departure'::character varying, 'earlier_of'::character varying, 'later_of'::character varying])::text[]))),
+    CONSTRAINT deadline_occurrences_time_zone CHECK (((btrim((time_zone)::text) <> ''::text) AND (char_length((time_zone)::text) <= 64))),
+    CONSTRAINT deadline_occurrences_type CHECK (((deadline_type)::text = ANY ((ARRAY['deposit_due'::character varying, 'option_or_release_date'::character varying, 'rooming_list_due'::character varying, 'legal_names_due'::character varying, 'final_count_due'::character varying, 'final_schedule_or_departure_time_due'::character varying, 'cancellation_cutoff'::character varying, 'accessibility_confirmation_due'::character varying, 'other'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_deadline_projections; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deadline_projections (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deadline_projectio_supplier_arrangement_versi_not_null NOT NULL,
+    supplier_deadline_occurrence_id uuid CONSTRAINT supplier_deadline_projectio_supplier_deadline_occurren_not_null NOT NULL,
+    status character varying NOT NULL,
+    due_on date,
+    due_at timestamp with time zone,
+    warning_starts_at timestamp with time zone,
+    overdue_at timestamp with time zone NOT NULL,
+    refreshed_at timestamp with time zone NOT NULL,
+    next_transition_at timestamp with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT deadline_projections_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT deadline_projections_status CHECK (((status)::text = ANY ((ARRAY['upcoming'::character varying, 'warning'::character varying, 'due'::character varying, 'overdue'::character varying])::text[])))
 );
 
 
@@ -4084,6 +4321,46 @@ ALTER TABLE ONLY public.supplier_cost_sources
 
 ALTER TABLE ONLY public.supplier_cost_usage_assumptions
     ADD CONSTRAINT supplier_cost_usage_assumptions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deadline_commitment_definition_lines supplier_deadline_commitment_definition_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_commitment_definition_lines
+    ADD CONSTRAINT supplier_deadline_commitment_definition_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deadline_definition_coverage_links supplier_deadline_definition_coverage_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_definition_coverage_links
+    ADD CONSTRAINT supplier_deadline_definition_coverage_links_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deadline_definitions supplier_deadline_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_definitions
+    ADD CONSTRAINT supplier_deadline_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deadline_occurrences supplier_deadline_occurrences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_occurrences
+    ADD CONSTRAINT supplier_deadline_occurrences_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deadline_projections supplier_deadline_projections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_projections
+    ADD CONSTRAINT supplier_deadline_projections_pkey PRIMARY KEY (id);
 
 
 --
@@ -5615,6 +5892,167 @@ CREATE UNIQUE INDEX index_confirmation_scope_links_on_pair ON public.supplier_co
 
 
 --
+-- Name: index_ddl_cov_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ddl_cov_on_id_agency ON public.supplier_deadline_definition_coverage_links USING btree (id, agency_id);
+
+
+--
+-- Name: index_ddl_cov_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ddl_cov_on_id_departure_agency ON public.supplier_deadline_definition_coverage_links USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_ddl_defs_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ddl_defs_on_id_agency ON public.supplier_deadline_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_ddl_defs_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ddl_defs_on_id_departure_agency ON public.supplier_deadline_definitions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_ddl_lines_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ddl_lines_on_id_agency ON public.supplier_deadline_commitment_definition_lines USING btree (id, agency_id);
+
+
+--
+-- Name: index_ddl_lines_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ddl_lines_on_id_departure_agency ON public.supplier_deadline_commitment_definition_lines USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_ddl_occ_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ddl_occ_on_id_agency ON public.supplier_deadline_occurrences USING btree (id, agency_id);
+
+
+--
+-- Name: index_ddl_occ_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ddl_occ_on_id_departure_agency ON public.supplier_deadline_occurrences USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_deadline_commitment_lines_on_definition_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_commitment_lines_on_definition_position ON public.supplier_deadline_commitment_definition_lines USING btree (supplier_deadline_definition_id, "position");
+
+
+--
+-- Name: index_deadline_commitment_lines_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_commitment_lines_on_full_owner ON public.supplier_deadline_commitment_definition_lines USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deadline_coverage_links_on_definition_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_coverage_links_on_definition_position ON public.supplier_deadline_definition_coverage_links USING btree (supplier_deadline_definition_id, "position");
+
+
+--
+-- Name: index_deadline_coverage_links_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_coverage_links_on_full_owner ON public.supplier_deadline_definition_coverage_links USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deadline_definitions_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_definitions_on_full_owner ON public.supplier_deadline_definitions USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deadline_definitions_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_definitions_on_lineage_owner ON public.supplier_deadline_definitions USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deadline_definitions_on_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_definitions_on_position ON public.supplier_deadline_definitions USING btree (supplier_arrangement_version_id, "position");
+
+
+--
+-- Name: index_deadline_occurrences_on_calculated_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_deadline_occurrences_on_calculated_at ON public.supplier_deadline_occurrences USING btree (agency_id, calculated_at, id);
+
+
+--
+-- Name: index_deadline_occurrences_on_calculated_on; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_deadline_occurrences_on_calculated_on ON public.supplier_deadline_occurrences USING btree (agency_id, calculated_on, id);
+
+
+--
+-- Name: index_deadline_occurrences_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_occurrences_on_full_owner ON public.supplier_deadline_occurrences USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deadline_occurrences_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_occurrences_on_lineage_owner ON public.supplier_deadline_occurrences USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deadline_occurrences_on_materialization_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_occurrences_on_materialization_key ON public.supplier_deadline_occurrences USING btree (supplier_arrangement_version_id, materialization_key);
+
+
+--
+-- Name: index_deadline_projections_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_projections_on_id_agency ON public.supplier_deadline_projections USING btree (id, agency_id);
+
+
+--
+-- Name: index_deadline_projections_on_next_transition; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_deadline_projections_on_next_transition ON public.supplier_deadline_projections USING btree (agency_id, next_transition_at, id);
+
+
+--
+-- Name: index_deadline_projections_on_occurrence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deadline_projections_on_occurrence ON public.supplier_deadline_projections USING btree (supplier_deadline_occurrence_id);
+
+
+--
 -- Name: index_departures_on_agency_and_name_search_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6094,7 +6532,14 @@ CREATE INDEX index_supplier_commitments_on_agency_id ON public.supplier_commitme
 -- Name: index_supplier_commitments_on_confirmation_trigger; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_supplier_commitments_on_confirmation_trigger ON public.supplier_commitments USING btree (supplier_confirmation_id, supplier_commitment_trigger_definition_id);
+CREATE UNIQUE INDEX index_supplier_commitments_on_confirmation_trigger ON public.supplier_commitments USING btree (supplier_confirmation_id, supplier_commitment_trigger_definition_id) WHERE ((opening_kind)::text = 'confirmation_trigger'::text);
+
+
+--
+-- Name: index_supplier_commitments_on_deadline_opening; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_commitments_on_deadline_opening ON public.supplier_commitments USING btree (supplier_deadline_occurrence_id, supplier_deadline_commitment_definition_line_id) WHERE ((opening_kind)::text = 'deadline_requirement'::text);
 
 
 --
@@ -8002,6 +8447,48 @@ CREATE TRIGGER supplier_cost_usage_assumptions_reject_owner_change BEFORE UPDATE
 
 
 --
+-- Name: supplier_deadline_commitment_definition_lines supplier_deadline_commitment_definition_lines_reject_non_draft_; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_commitment_definition_lines_reject_non_draft_ BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_commitment_definition_lines FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_deadline_definition_coverage_links supplier_deadline_definition_coverage_links_reject_non_draft_mu; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_definition_coverage_links_reject_non_draft_mu BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_definition_coverage_links FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_deadline_definitions supplier_deadline_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_deadline_definitions supplier_deadline_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_definitions_reject_owner_change BEFORE UPDATE ON public.supplier_deadline_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_deadline_definition_owner_change();
+
+
+--
+-- Name: supplier_deadline_occurrences supplier_deadline_occurrences_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_occurrences_reject_delete BEFORE DELETE ON public.supplier_deadline_occurrences FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_deadline_occurrences supplier_deadline_occurrences_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_occurrences_reject_update BEFORE UPDATE ON public.supplier_deadline_occurrences FOR EACH ROW EXECUTE FUNCTION public.allow_deadline_occurrence_supersession_only();
+
+
+--
 -- Name: supplier_email_addresses supplier_email_addresses_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -9086,6 +9573,174 @@ ALTER TABLE ONLY public.supplier_confirmation_reservation_scope_links
 
 
 --
+-- Name: supplier_deadline_commitment_definition_lines deadline_commitment_lines_cost_component_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_commitment_definition_lines
+    ADD CONSTRAINT deadline_commitment_lines_cost_component_fk FOREIGN KEY (supplier_cost_component_id, supplier_cost_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_cost_components(id, supplier_cost_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_commitment_definition_lines deadline_commitment_lines_cost_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_commitment_definition_lines
+    ADD CONSTRAINT deadline_commitment_lines_cost_definition_fk FOREIGN KEY (supplier_cost_definition_id, supplier_cost_source_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_cost_definitions(id, supplier_cost_source_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_commitment_definition_lines deadline_commitment_lines_cost_source_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_commitment_definition_lines
+    ADD CONSTRAINT deadline_commitment_lines_cost_source_fk FOREIGN KEY (supplier_cost_source_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_cost_sources(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_commitment_definition_lines deadline_commitment_lines_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_commitment_definition_lines
+    ADD CONSTRAINT deadline_commitment_lines_definition_fk FOREIGN KEY (supplier_deadline_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deadline_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_commitment_definition_lines deadline_commitment_lines_supplier_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_commitment_definition_lines
+    ADD CONSTRAINT deadline_commitment_lines_supplier_fk FOREIGN KEY (committed_supplier_id, agency_id) REFERENCES public.suppliers(id, agency_id);
+
+
+--
+-- Name: supplier_deadline_commitment_definition_lines deadline_commitment_lines_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_commitment_definition_lines
+    ADD CONSTRAINT deadline_commitment_lines_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_definition_coverage_links deadline_coverage_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_definition_coverage_links
+    ADD CONSTRAINT deadline_coverage_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_item_definitions(arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_definition_coverage_links deadline_coverage_links_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_definition_coverage_links
+    ADD CONSTRAINT deadline_coverage_links_definition_fk FOREIGN KEY (supplier_deadline_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deadline_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_definition_coverage_links deadline_coverage_links_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_definition_coverage_links
+    ADD CONSTRAINT deadline_coverage_links_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_definition_coverage_links deadline_coverage_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_definition_coverage_links
+    ADD CONSTRAINT deadline_coverage_occurrence_fk FOREIGN KEY (service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrence_definitions(service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_definition_coverage_links deadline_coverage_pool_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_definition_coverage_links
+    ADD CONSTRAINT deadline_coverage_pool_fk FOREIGN KEY (capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pools(id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_definition_coverage_links deadline_coverage_resource_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_definition_coverage_links
+    ADD CONSTRAINT deadline_coverage_resource_fk FOREIGN KEY (supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_resource_definitions(supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_definitions deadline_definitions_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_definitions
+    ADD CONSTRAINT deadline_definitions_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deadline_definitions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_definitions deadline_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_definitions
+    ADD CONSTRAINT deadline_definitions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_occurrences deadline_occurrences_activation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_occurrences
+    ADD CONSTRAINT deadline_occurrences_activation_fk FOREIGN KEY (supplier_arrangement_activation_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_activations(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_occurrences deadline_occurrences_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_occurrences
+    ADD CONSTRAINT deadline_occurrences_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_deadline_occurrences deadline_occurrences_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_occurrences
+    ADD CONSTRAINT deadline_occurrences_definition_fk FOREIGN KEY (supplier_deadline_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deadline_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_occurrences deadline_occurrences_predecessor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_occurrences
+    ADD CONSTRAINT deadline_occurrences_predecessor_fk FOREIGN KEY (predecessor_occurrence_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deadline_occurrences(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_occurrences deadline_occurrences_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_occurrences
+    ADD CONSTRAINT deadline_occurrences_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deadline_projections deadline_projections_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_projections
+    ADD CONSTRAINT deadline_projections_agency_fk FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_deadline_projections deadline_projections_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadline_projections
+    ADD CONSTRAINT deadline_projections_occurrence_fk FOREIGN KEY (supplier_deadline_occurrence_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deadline_occurrences(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: departures departures_agency_user_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10006,6 +10661,22 @@ ALTER TABLE ONLY public.supplier_commitments
 
 
 --
+-- Name: supplier_commitments supplier_commitments_deadline_line_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_deadline_line_fk FOREIGN KEY (supplier_deadline_commitment_definition_line_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deadline_commitment_definition_lines(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitments supplier_commitments_deadline_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitments
+    ADD CONSTRAINT supplier_commitments_deadline_occurrence_fk FOREIGN KEY (supplier_deadline_occurrence_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deadline_occurrences(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_commitments supplier_commitments_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10508,6 +11179,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260919120000'),
 ('20260919070000'),
 ('20260919060000'),
 ('20260919050000'),

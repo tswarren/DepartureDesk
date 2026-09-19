@@ -26,6 +26,8 @@ class Departure < ApplicationRecord
   has_many :supplier_arrangement_activations, dependent: :restrict_with_exception
   has_many :supplier_confirmations, dependent: :restrict_with_exception
   has_many :supplier_commitment_trigger_definitions, dependent: :restrict_with_exception
+  has_many :supplier_deadline_definitions, dependent: :restrict_with_exception
+  has_many :supplier_deadline_occurrences, dependent: :restrict_with_exception
   has_many :supplier_commitments, dependent: :restrict_with_exception
   has_many :supplier_issued_identifiers, dependent: :restrict_with_exception
 

@@ -1,0 +1,19 @@
+<% content_for :title, "Add Deadline · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning · Version <%= @supplier_arrangement_version.version_number %></p>
+    <h1 class="dd-page-title">Add Deadline</h1>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @definition,
+      url: departure_arrangement_version_deadlines_path(
+        @departure, @supplier_arrangement, @supplier_arrangement_version
+      ), class: "dd-form" do |form| %>
+      <%= render "form", form: form %>
+    <% end %>
+  </div>
+</article>
