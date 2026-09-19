@@ -463,6 +463,7 @@
       <p><%= pluralize(@arrangement_cost_sources.size, "Arrangement-wide source") %>. The forecast includes only entered, ready Supplier cost terms.</p>
     </div>
     <div class="dd-inline-actions">
+      <%= link_to "Commitments", departure_arrangement_commitments_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
       <%= link_to "Arrangement costs", departure_arrangement_costs_workspace_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
       <%= link_to "Commitment triggers",
         departure_arrangement_version_commitment_triggers_path(

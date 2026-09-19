@@ -188,7 +188,7 @@
       <div class="dd-field-group">
         <%= label_tag "confirmation_evidence_kind", "Evidence kind", class: "dd-label" %>
         <%= select_tag "confirmation[evidence_kind]",
-          options_for_select(SupplierConfirmation::EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] }, params.dig(:confirmation, :evidence_kind)),
+          options_for_select(SupplierConfirmation::BOOKING_EVIDENCE_KINDS.map { |kind| [kind.humanize, kind] }, params.dig(:confirmation, :evidence_kind)),
           **dd_tag_field_options(@command_form, :evidence_kind, id: "confirmation_evidence_kind", include_blank: "Choose evidence") %>
         <%= dd_tag_field_error(@command_form, :evidence_kind) %>
       </div>

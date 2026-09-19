@@ -1,0 +1,55 @@
+<% content_for :title, "Waive commitment · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title">Waive commitment</h1>
+    <p class="dd-page-description">Accept the unmet requirement with elevated override authority.</p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to commitments",
+      departure_arrangement_commitments_path(@departure, @supplier_arrangement),
+      class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @open_commitments.empty? %>
+      <p class="dd-empty-state">There are no open commitments to waive.</p>
+    <% else %>
+      <%= form_with url: waive_departure_arrangement_commitments_path(@departure, @supplier_arrangement),
+        method: :post, class: "dd-form", html: { novalidate: true } do |form| %>
+        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+
+        <div class="dd-field">
+          <label class="dd-label" for="supplier_commitment_id">Open commitment</label>
+          <select class="dd-input" id="supplier_commitment_id" name="supplier_commitment_id" required>
+            <% @open_commitments.each do |commitment| %>
+              <option value="<%= commitment.id %>">
+                <%= commitment.description %> · <%= supplier_option_label(commitment.committed_supplier) %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+
+        <div class="dd-field">
+          <label class="dd-label" for="reason">Reason</label>
+          <textarea class="dd-input" id="reason" name="reason" rows="4" required maxlength="2000"><%= params[:reason] %></textarea>
+        </div>
+
+        <div class="dd-field">
+          <label class="dd-checkbox">
+            <input type="checkbox" name="accepted_risk_acknowledged" value="1" required
+              <%= "checked" if params[:accepted_risk_acknowledged].present? %>>
+            <span>I accept the unmet requirement as an Agency risk exception.</span>
+          </label>
+        </div>
+
+        <div class="dd-form-actions">
+          <%= form.submit "Waive commitment", class: "dd-button" %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</article>

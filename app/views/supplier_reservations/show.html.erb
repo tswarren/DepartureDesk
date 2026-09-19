@@ -405,7 +405,7 @@ end.select { |row| row.present? } %>
               <%= label_tag "response_event_evidence_evidence_kind", "Evidence kind", class: "dd-label" %>
               <%= select_tag "response_event[evidence][evidence_kind]",
                 options_for_select(
-                  SupplierConfirmation::EVIDENCE_KINDS.map { |kind| [ kind.humanize, kind ] },
+                  SupplierConfirmation::BOOKING_EVIDENCE_KINDS.map { |kind| [ kind.humanize, kind ] },
                   params.dig(:response_event, :evidence, :evidence_kind) || "supplier_confirmation"
                 ),
                 **dd_tag_field_options(@command_form, :evidence_kind, id: "response_event_evidence_evidence_kind") %>

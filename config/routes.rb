@@ -169,6 +169,18 @@ Rails.application.routes.draw do
           post :revise
         end
       end
+      resources :commitments, controller: "supplier_commitments", only: %i[index] do
+        collection do
+          get :dispose, action: :new_dispose
+          post :dispose
+          get :waive, action: :new_waive
+          post :waive
+        end
+        member do
+          get :reopen, action: :new_reopen
+          post :reopen
+        end
+      end
       member do
         post :successor
         get :abandon, action: :edit_abandon

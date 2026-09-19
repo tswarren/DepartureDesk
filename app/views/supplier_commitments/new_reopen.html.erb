@@ -1,0 +1,44 @@
+<% content_for :title, "Reopen commitment · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title">Reopen commitment</h1>
+    <p class="dd-page-description">Append a reopening against the current disposition. History is preserved.</p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to commitments",
+      departure_arrangement_commitments_path(@departure, @supplier_arrangement),
+      class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Commitment</dt>
+        <dd><%= @commitment.description %></dd>
+      </div>
+      <div>
+        <dt>Current outcome</dt>
+        <dd><%= @disposition.outcome.humanize %></dd>
+      </div>
+    </dl>
+
+    <%= form_with url: reopen_departure_arrangement_commitment_path(@departure, @supplier_arrangement, @commitment),
+      method: :post, class: "dd-form", html: { novalidate: true } do |form| %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <%= hidden_field_tag :supplier_commitment_disposition_id, @disposition.id %>
+
+      <div class="dd-field">
+        <label class="dd-label" for="reason">Reason</label>
+        <textarea class="dd-input" id="reason" name="reason" rows="4" required maxlength="2000"><%= params[:reason] %></textarea>
+      </div>
+
+      <div class="dd-form-actions">
+        <%= form.submit "Reopen commitment", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</article>

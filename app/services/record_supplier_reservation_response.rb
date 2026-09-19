@@ -314,7 +314,7 @@ class RecordSupplierReservationResponse < AgencyCommand
   def normalized_confirmation_attributes
     evidence = (@attributes[:evidence] || @attributes).to_h.with_indifferent_access
     kind = evidence[:evidence_kind].to_s.strip
-    unless SupplierConfirmation::EVIDENCE_KINDS.include?(kind)
+    unless SupplierConfirmation::BOOKING_EVIDENCE_KINDS.include?(kind)
       raise Error.new("Choose valid Supplier confirmation evidence.", code: :invalid)
     end
     other_label = evidence[:other_evidence_label].to_s.strip.presence

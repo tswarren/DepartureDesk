@@ -1,9 +1,11 @@
 class SupplierConfirmation < ApplicationRecord
   include AppendOnlyRecord
 
-  EVIDENCE_KINDS = %w[
+  BOOKING_EVIDENCE_KINDS = %w[
     contract supplier_confirmation supplier_message supplier_portal verbal_confirmation other
   ].freeze
+  RELEASE_EVIDENCE_KINDS = %w[supplier_release contract_release].freeze
+  EVIDENCE_KINDS = (BOOKING_EVIDENCE_KINDS + RELEASE_EVIDENCE_KINDS).freeze
   TEXT_LIMIT = 500
 
   belongs_to :agency

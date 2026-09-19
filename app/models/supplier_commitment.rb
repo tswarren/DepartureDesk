@@ -1,8 +1,11 @@
+# frozen_string_literal: true
+
 class SupplierCommitment < ApplicationRecord
   include AppendOnlyRecord
 
   COMMITMENT_TYPES = %w[quantity monetary quantity_and_monetary].freeze
   QUANTITY_BASES = SupplierCommitmentTriggerDefinition::QUANTITY_BASES
+  OPENING_KINDS = %w[confirmation_trigger].freeze
 
   belongs_to :agency
   belongs_to :departure
@@ -24,8 +27,13 @@ class SupplierCommitment < ApplicationRecord
   belongs_to :actor, class_name: "AgencyUser"
   belongs_to :agency_command_idempotency_key, optional: true
 
+  has_many :supplier_commitment_dispositions, dependent: :restrict_with_exception
+  has_many :supplier_commitment_reopenings, dependent: :restrict_with_exception
+  has_many :supplier_commitment_evidence_coverage_members, dependent: :restrict_with_exception
+
   enum :commitment_type, COMMITMENT_TYPES.index_by(&:itself), validate: true
   enum :quantity_basis, QUANTITY_BASES.index_by(&:itself), validate: { allow_nil: true }
+  enum :opening_kind, OPENING_KINDS.index_by(&:itself), validate: true
 
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id,
     :supplier_arrangement_version_id
@@ -36,4 +44,44 @@ class SupplierCommitment < ApplicationRecord
   validates :quantity, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validates :amount_minor_units,
     numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
+
+  def current_disposition
+    if association(:supplier_commitment_dispositions).loaded?
+      current_from_preloaded_dispositions
+    else
+      supplier_commitment_dispositions
+        .left_outer_joins(:supplier_commitment_reopening)
+        .where(supplier_commitment_reopenings: { id: nil })
+        .order(:recorded_at, :id)
+        .last
+    end
+  end
+
+  def open_state?
+    current_disposition.nil?
+  end
+
+  def disposition_outcome
+    current_disposition&.outcome
+  end
+
+  def self.with_current_disposition_state
+    includes(supplier_commitment_dispositions: :supplier_commitment_reopening)
+  end
+
+  private
+
+  def current_from_preloaded_dispositions
+    supplier_commitment_dispositions
+      .reject { |disposition| disposition_reopened_from_preload?(disposition) }
+      .max_by { |disposition| [ disposition.recorded_at, disposition.id ] }
+  end
+
+  def disposition_reopened_from_preload?(disposition)
+    if disposition.association(:supplier_commitment_reopening).loaded?
+      disposition.supplier_commitment_reopening.present?
+    else
+      disposition.reopened?
+    end
+  end
 end
