@@ -31,11 +31,12 @@ class EvaluateSupplierCostForecast
     expected_net_cost_after_commission_minor_units: 0
   )
 
-  def initialize(agency:, departure:, arrangement: nil, probe_definition: nil)
+  def initialize(agency:, departure:, arrangement: nil, probe_definition: nil, version: nil)
     @agency = agency
     @departure = departure
     @arrangement = arrangement
     @probe_definition = probe_definition
+    @version = version
   end
 
   def call(isolated: true)
@@ -71,8 +72,11 @@ class EvaluateSupplierCostForecast
       agency_id: @agency.id, departure_id: @loaded_departure.id,
       supplier_arrangement_id: arrangement_ids, status: "draft"
     ).index_by(&:supplier_arrangement_id)
+    pinned_version_id = pinned_version_id_for_preload
     selected_version_ids = @arrangements.filter_map do |arrangement|
-      if @probe_definition&.supplier_arrangement_id == arrangement.id
+      if pinned_version_id && arrangement.id == arrangement_id_for_pin
+        pinned_version_id
+      elsif @probe_definition&.supplier_arrangement_id == arrangement.id
         @probe_definition.supplier_arrangement_version_id
       else
         draft_versions[arrangement.id]&.id || arrangement.governing_version_id
@@ -534,6 +538,21 @@ class EvaluateSupplierCostForecast
 
   def record_id(record)
     record.respond_to?(:id) ? record.id : record
+  end
+
+  # When set, evaluates that exact Arrangement version instead of preferring a
+  # draft successor (used by exposure rebuild against the governing version).
+  def pinned_version_id_for_preload
+    return nil if @version.nil?
+
+    record_id(@version)
+  end
+
+  def arrangement_id_for_pin
+    return record_id(@arrangement) if @arrangement
+
+    version = @version.is_a?(SupplierArrangementVersion) ? @version : SupplierArrangementVersion.find(@version)
+    version.supplier_arrangement_id
   end
 
   class MissingInput < StandardError

@@ -183,6 +183,10 @@ Rails.application.routes.draw do
           post :disqualify
         end
       end
+      resource :exposure, controller: "supplier_exposures", only: %i[show] do
+        post :rebuild
+        post :qualify
+      end
       resources :evidence_coverages, controller: "supplier_commitment_evidence_coverages", only: [] do
         member do
           get :revoke, action: :new_revoke

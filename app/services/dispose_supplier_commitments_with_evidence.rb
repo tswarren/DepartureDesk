@@ -109,6 +109,7 @@ class DisposeSupplierCommitmentsWithEvidence < AgencyCommand
             "supplier_commitment_evidence_coverage_id" => coverage.id
           }
         )
+        rebuild_exposure_projection_already_locked!(arrangement)
         coverage
       end
     end

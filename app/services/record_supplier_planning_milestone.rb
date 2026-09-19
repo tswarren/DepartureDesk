@@ -70,6 +70,7 @@ class RecordSupplierPlanningMilestone < AgencyCommand
           recorded_at: now
         )
         replace_unelapsed_deposit_deadlines!(arrangement, version, milestone, at: now)
+        rebuild_exposure_projection_already_locked!(arrangement, version:, at: now)
         audit!(
           agency: @agency, actor: @actor, subject: arrangement,
           action: "supplier_arrangement.planning_milestone_recorded",

@@ -58,6 +58,9 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
         supplier_deposit_requirement_tranche_components
         supplier_deposit_requirement_tranches
         supplier_email_addresses
+        supplier_exposure_components
+        supplier_exposure_source_qualifications
+        supplier_exposure_summaries
         supplier_issued_identifiers
         supplier_locations
         supplier_phone_numbers

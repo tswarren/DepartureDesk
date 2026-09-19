@@ -183,6 +183,7 @@ class RecordSupplierReservationResponse < AgencyCommand
     end
 
     rebuild_reservation_projection_already_locked!(reservation)
+    rebuild_exposure_projection_already_locked!(arrangement, version:)
     if audit
       audit!(
         agency: @agency, action: "supplier_reservation.response_recorded", subject: reservation, actor: @actor,

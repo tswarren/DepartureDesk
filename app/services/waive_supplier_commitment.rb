@@ -78,6 +78,7 @@ class WaiveSupplierCommitment < AgencyCommand
             "reason" => @reason
           }
         )
+        rebuild_exposure_projection_already_locked!(arrangement)
         disposition
       end
     end

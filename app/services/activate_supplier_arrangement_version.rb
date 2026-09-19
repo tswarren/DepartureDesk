@@ -123,6 +123,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         deadline_result[:occurrences] + deposit_result[:occurrences],
         successor: activation_kind == "successor"
       )
+      rebuild_exposure_projection_already_locked!(arrangement, version:, at: activated_at)
       claim_idempotency!(key, payload, activation)
       Result.new(status: :created, record: activation)
     end

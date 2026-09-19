@@ -3608,6 +3608,102 @@ CREATE TABLE public.supplier_email_addresses (
 
 
 --
+-- Name: supplier_exposure_components; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_exposure_components (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_exposure_component_supplier_arrangement_versi_not_null NOT NULL,
+    qualification_band character varying NOT NULL,
+    completeness character varying NOT NULL,
+    source_kind character varying NOT NULL,
+    source_id uuid NOT NULL,
+    qualification_reason character varying NOT NULL,
+    gross_minor_units bigint,
+    expected_commission_minor_units bigint,
+    expected_net_minor_units bigint,
+    currency character varying(3) NOT NULL,
+    source_fingerprint character varying NOT NULL,
+    effective_at timestamp with time zone NOT NULL,
+    rebuilt_at timestamp with time zone NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT exposure_components_amount_shape CHECK (((((completeness)::text = 'known'::text) AND (gross_minor_units IS NOT NULL) AND (gross_minor_units >= 0) AND (expected_commission_minor_units IS NOT NULL) AND (expected_commission_minor_units >= 0) AND (expected_net_minor_units IS NOT NULL)) OR (((completeness)::text = ANY ((ARRAY['incomplete'::character varying, 'unknown'::character varying])::text[])) AND (gross_minor_units IS NULL) AND (expected_commission_minor_units IS NULL) AND (expected_net_minor_units IS NULL)))),
+    CONSTRAINT exposure_components_band CHECK (((qualification_band)::text = ANY ((ARRAY['guaranteed'::character varying, 'contingent'::character varying, 'forecast'::character varying])::text[]))),
+    CONSTRAINT exposure_components_completeness CHECK (((completeness)::text = ANY ((ARRAY['known'::character varying, 'incomplete'::character varying, 'unknown'::character varying])::text[]))),
+    CONSTRAINT exposure_components_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT exposure_components_fingerprint CHECK (((btrim((source_fingerprint)::text) <> ''::text) AND (char_length((source_fingerprint)::text) <= 256))),
+    CONSTRAINT exposure_components_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT exposure_components_reason CHECK (((btrim((qualification_reason)::text) <> ''::text) AND (char_length((qualification_reason)::text) <= 120))),
+    CONSTRAINT exposure_components_source_kind CHECK (((source_kind)::text = ANY ((ARRAY['supplier_commitment'::character varying, 'supplier_cost_source'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_exposure_source_qualifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_exposure_source_qualifications (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_exposure_source_quali_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_exposure_source_qu_supplier_arrangement_versi_not_null NOT NULL,
+    source_kind character varying NOT NULL,
+    source_id uuid NOT NULL,
+    qualification_band character varying CONSTRAINT supplier_exposure_source_qualificat_qualification_band_not_null NOT NULL,
+    qualification_reason character varying CONSTRAINT supplier_exposure_source_qualific_qualification_reason_not_null NOT NULL,
+    note text NOT NULL,
+    actor_id uuid NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    agency_command_idempotency_key_id uuid,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT exposure_qualifications_band CHECK (((qualification_band)::text = 'guaranteed'::text)),
+    CONSTRAINT exposure_qualifications_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT exposure_qualifications_note CHECK (((btrim(note) <> ''::text) AND (char_length(note) <= 2000))),
+    CONSTRAINT exposure_qualifications_reason CHECK (((btrim((qualification_reason)::text) <> ''::text) AND (char_length((qualification_reason)::text) <= 120))),
+    CONSTRAINT exposure_qualifications_source_kind CHECK (((source_kind)::text = 'supplier_cost_source'::text))
+);
+
+
+--
+-- Name: supplier_exposure_summaries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_exposure_summaries (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_exposure_summaries_supplier_arrangement_versi_not_null NOT NULL,
+    qualification_band character varying NOT NULL,
+    completeness character varying NOT NULL,
+    currency character varying(3) NOT NULL,
+    gross_minor_units bigint,
+    expected_commission_minor_units bigint,
+    expected_net_minor_units bigint,
+    required_deposit_minor_units bigint,
+    component_count integer DEFAULT 0 NOT NULL,
+    rebuilt_at timestamp with time zone NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT exposure_summaries_amount_shape CHECK (((((completeness)::text = 'known'::text) AND (gross_minor_units IS NOT NULL) AND (gross_minor_units >= 0) AND (expected_commission_minor_units IS NOT NULL) AND (expected_commission_minor_units >= 0) AND (expected_net_minor_units IS NOT NULL)) OR (((completeness)::text = 'partially_known'::text) AND ((gross_minor_units IS NOT NULL) OR (expected_commission_minor_units IS NOT NULL) OR (expected_net_minor_units IS NOT NULL))) OR (((completeness)::text = ANY ((ARRAY['incomplete'::character varying, 'unknown'::character varying])::text[])) AND (gross_minor_units IS NULL) AND (expected_commission_minor_units IS NULL) AND (expected_net_minor_units IS NULL)))),
+    CONSTRAINT exposure_summaries_band CHECK (((qualification_band)::text = ANY ((ARRAY['guaranteed'::character varying, 'contingent'::character varying, 'forecast'::character varying])::text[]))),
+    CONSTRAINT exposure_summaries_completeness CHECK (((completeness)::text = ANY ((ARRAY['known'::character varying, 'incomplete'::character varying, 'unknown'::character varying, 'partially_known'::character varying])::text[]))),
+    CONSTRAINT exposure_summaries_counts CHECK (((component_count >= 0) AND (lock_version >= 0))),
+    CONSTRAINT exposure_summaries_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT exposure_summaries_required_deposit CHECK (((required_deposit_minor_units IS NULL) OR (required_deposit_minor_units >= 0)))
+);
+
+
+--
 -- Name: supplier_issued_identifiers; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4700,6 +4796,30 @@ ALTER TABLE ONLY public.supplier_deposit_requirement_tranches
 
 ALTER TABLE ONLY public.supplier_email_addresses
     ADD CONSTRAINT supplier_email_addresses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_exposure_components supplier_exposure_components_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_components
+    ADD CONSTRAINT supplier_exposure_components_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_exposure_source_qualifications supplier_exposure_source_qualifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_source_qualifications
+    ADD CONSTRAINT supplier_exposure_source_qualifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_exposure_summaries supplier_exposure_summaries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_summaries
+    ADD CONSTRAINT supplier_exposure_summaries_pkey PRIMARY KEY (id);
 
 
 --
@@ -6648,6 +6768,69 @@ CREATE UNIQUE INDEX index_deposit_tranches_on_lineage_owner ON public.supplier_d
 --
 
 CREATE UNIQUE INDEX index_deposit_tranches_on_materialization_key ON public.supplier_deposit_requirement_tranches USING btree (supplier_arrangement_version_id, materialization_key);
+
+
+--
+-- Name: index_exposure_components_on_band_currency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_exposure_components_on_band_currency ON public.supplier_exposure_components USING btree (supplier_arrangement_id, qualification_band, currency, id);
+
+
+--
+-- Name: index_exposure_components_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_exposure_components_on_id_agency ON public.supplier_exposure_components USING btree (id, agency_id);
+
+
+--
+-- Name: index_exposure_components_on_source_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_exposure_components_on_source_identity ON public.supplier_exposure_components USING btree (supplier_arrangement_id, source_kind, source_id, qualification_band, currency);
+
+
+--
+-- Name: index_exposure_qualifications_on_arrangement_source; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_exposure_qualifications_on_arrangement_source ON public.supplier_exposure_source_qualifications USING btree (supplier_arrangement_id, source_kind, source_id);
+
+
+--
+-- Name: index_exposure_qualifications_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_exposure_qualifications_on_id_agency ON public.supplier_exposure_source_qualifications USING btree (id, agency_id);
+
+
+--
+-- Name: index_exposure_qualifications_on_id_arrangement_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_exposure_qualifications_on_id_arrangement_agency ON public.supplier_exposure_source_qualifications USING btree (id, supplier_arrangement_id, agency_id);
+
+
+--
+-- Name: index_exposure_summaries_on_band_currency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_exposure_summaries_on_band_currency ON public.supplier_exposure_summaries USING btree (supplier_arrangement_id, qualification_band, currency);
+
+
+--
+-- Name: index_exposure_summaries_on_departure_band; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_exposure_summaries_on_departure_band ON public.supplier_exposure_summaries USING btree (departure_id, qualification_band, currency, id);
+
+
+--
+-- Name: index_exposure_summaries_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_exposure_summaries_on_id_agency ON public.supplier_exposure_summaries USING btree (id, agency_id);
 
 
 --
@@ -10673,6 +10856,118 @@ ALTER TABLE ONLY public.supplier_deposit_requirement_tranches
 
 
 --
+-- Name: supplier_exposure_components exposure_components_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_components
+    ADD CONSTRAINT exposure_components_agency_fk FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_exposure_components exposure_components_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_components
+    ADD CONSTRAINT exposure_components_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_exposure_components exposure_components_departure_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_components
+    ADD CONSTRAINT exposure_components_departure_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: supplier_exposure_components exposure_components_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_components
+    ADD CONSTRAINT exposure_components_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_exposure_source_qualifications exposure_qualifications_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_source_qualifications
+    ADD CONSTRAINT exposure_qualifications_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_exposure_source_qualifications exposure_qualifications_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_source_qualifications
+    ADD CONSTRAINT exposure_qualifications_agency_fk FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_exposure_source_qualifications exposure_qualifications_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_source_qualifications
+    ADD CONSTRAINT exposure_qualifications_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_exposure_source_qualifications exposure_qualifications_departure_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_source_qualifications
+    ADD CONSTRAINT exposure_qualifications_departure_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: supplier_exposure_source_qualifications exposure_qualifications_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_source_qualifications
+    ADD CONSTRAINT exposure_qualifications_idempotency_fk FOREIGN KEY (agency_command_idempotency_key_id) REFERENCES public.agency_command_idempotency_keys(id);
+
+
+--
+-- Name: supplier_exposure_source_qualifications exposure_qualifications_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_source_qualifications
+    ADD CONSTRAINT exposure_qualifications_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_exposure_summaries exposure_summaries_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_summaries
+    ADD CONSTRAINT exposure_summaries_agency_fk FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_exposure_summaries exposure_summaries_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_summaries
+    ADD CONSTRAINT exposure_summaries_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_exposure_summaries exposure_summaries_departure_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_summaries
+    ADD CONSTRAINT exposure_summaries_departure_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: supplier_exposure_summaries exposure_summaries_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_exposure_summaries
+    ADD CONSTRAINT exposure_summaries_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_arrangements fk_rails_089363381e; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12127,6 +12422,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260919200000'),
 ('20260919190000'),
 ('20260919180000'),
 ('20260919140000'),

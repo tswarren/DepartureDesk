@@ -112,6 +112,7 @@ class AttestSupplierDepositHandledExternally < AgencyCommand
             "currency" => attestation.currency
           }
         )
+        rebuild_exposure_projection_already_locked!(arrangement)
         attestation
       end
     end

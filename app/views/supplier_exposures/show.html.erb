@@ -1,0 +1,176 @@
+<% content_for :title, "Exposure — #{@supplier_arrangement.name}" %>
+
+<section class="dd-page-header">
+  <div>
+    <p class="dd-eyebrow"><%= link_to @departure.name, departure_path(@departure), class: "dd-link" %></p>
+    <h1 class="dd-page-title">Qualified Supplier exposure</h1>
+    <p class="dd-page-lede">
+      Guaranteed, contingent, and forecast bands are labeled separately and are not added as one liability.
+      Missing inputs stay unknown or incomplete — never zero.
+    </p>
+  </div>
+  <div class="dd-inline-actions">
+    <%= link_to "Arrangement", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+    <% if Current.agency_user.permitted?(:manage_departures) %>
+      <%= button_to "Rebuild projection",
+        rebuild_departure_arrangement_exposure_path(@departure, @supplier_arrangement),
+        method: :post,
+        class: "dd-button dd-button--quiet" %>
+    <% end %>
+  </div>
+</section>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Band summaries</h2>
+      <p>Grouped by qualification band and currency. Required deposit is listed under guaranteed.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if @summaries.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Band</th>
+            <th scope="col">Currency</th>
+            <th scope="col">Completeness</th>
+            <th scope="col">Gross</th>
+            <th scope="col">Expected commission</th>
+            <th scope="col">Expected net</th>
+            <th scope="col">Required deposit</th>
+            <th scope="col">Components</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @summaries.each do |summary| %>
+            <tr>
+              <td>
+                <% if summary.guaranteed? %>
+                  Guaranteed
+                <% else %>
+                  <%= summary.qualification_band.humanize %>
+                <% end %>
+              </td>
+              <td><%= summary.currency %></td>
+              <td><%= summary.completeness.humanize %></td>
+              <td>
+                <% if summary.gross_minor_units.nil? %>
+                  <%= summary.completeness.humanize %>
+                <% else %>
+                  <%= Money.new(summary.gross_minor_units, summary.currency).format %>
+                <% end %>
+              </td>
+              <td>
+                <% if summary.expected_commission_minor_units.nil? %>
+                  —
+                <% else %>
+                  <%= Money.new(summary.expected_commission_minor_units, summary.currency).format %>
+                <% end %>
+              </td>
+              <td>
+                <% if summary.expected_net_minor_units.nil? %>
+                  —
+                <% else %>
+                  <%= Money.new(summary.expected_net_minor_units, summary.currency).format %>
+                <% end %>
+              </td>
+              <td>
+                <% if summary.required_deposit_minor_units.nil? %>
+                  —
+                <% else %>
+                  <%= Money.new(summary.required_deposit_minor_units, summary.currency).format %>
+                <% end %>
+              </td>
+              <td><%= summary.component_count %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-state">No exposure projection yet. Activate the Arrangement or rebuild after source changes.</p>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Source components</h2>
+      <p>Each row retains stable source identity for drilldown. Forecast is not a legal commitment.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if @components.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Band</th>
+            <th scope="col">Source</th>
+            <th scope="col">Reason</th>
+            <th scope="col">Completeness</th>
+            <th scope="col">Gross</th>
+            <th scope="col">Commission</th>
+            <th scope="col">Net</th>
+            <th scope="col">Qualify</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @components.each do |component| %>
+            <tr>
+              <td><%= component.qualification_band.humanize %></td>
+              <td>
+                <%= component.source_kind.humanize %>
+                <span class="dd-field-hint"><%= component.source_id %></span>
+              </td>
+              <td><%= component.qualification_reason.humanize %></td>
+              <td><%= component.completeness.humanize %></td>
+              <td>
+                <% if component.gross_minor_units.nil? %>
+                  <%= component.completeness.humanize %>
+                <% else %>
+                  <%= Money.new(component.gross_minor_units, component.currency).format %>
+                <% end %>
+              </td>
+              <td>
+                <% if component.expected_commission_minor_units.nil? %>
+                  —
+                <% else %>
+                  <%= Money.new(component.expected_commission_minor_units, component.currency).format %>
+                <% end %>
+              </td>
+              <td>
+                <% if component.expected_net_minor_units.nil? %>
+                  —
+                <% else %>
+                  <%= Money.new(component.expected_net_minor_units, component.currency).format %>
+                <% end %>
+              </td>
+              <td>
+                <% if Current.agency_user.permitted?(:manage_departures) &&
+                     component.contingent? &&
+                     component.supplier_cost_source? &&
+                     component.known? %>
+                  <%= form_with url: qualify_departure_arrangement_exposure_path(@departure, @supplier_arrangement),
+                    method: :post, class: "dd-form dd-inline-form" do %>
+                    <%= hidden_field_tag :cost_source_id, component.source_id %>
+                    <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+                    <label class="dd-label">
+                      Note
+                      <%= text_field_tag :note, nil, required: true, class: "dd-input" %>
+                    </label>
+                    <%= submit_tag "Qualify as guaranteed", class: "dd-button dd-button--quiet" %>
+                  <% end %>
+                <% else %>
+                  —
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-state">No exposure components projected.</p>
+    <% end %>
+  </div>
+</article>
