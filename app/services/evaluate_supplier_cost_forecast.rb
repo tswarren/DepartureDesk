@@ -41,18 +41,125 @@ class EvaluateSupplierCostForecast
 
   def call(isolated: true)
     if isolated
-      ActiveRecord::Base.transaction(isolation: :repeatable_read) do
-        ActiveRecord::Base.connection.execute("SET TRANSACTION READ ONLY")
-        preload!
-        calculate
-      end
+      with_readonly_preload { calculate }
     else
       preload!
       calculate
     end
   end
 
+  # Read-only per-profile illustrations for one source/definition. Does not mutate
+  # stored occupancy counts. Each profile is evaluated alone at count 1 (per cabin)
+  # and again at its real resource_unit_count (forecast contribution).
+  def occupancy_preview(source:, assumption:)
+    with_readonly_preload do
+      build_occupancy_preview(source: source, assumption: assumption)
+    end
+  end
+
   private
+
+  def with_readonly_preload
+    ActiveRecord::Base.transaction(isolation: :repeatable_read) do
+      ActiveRecord::Base.connection.execute("SET TRANSACTION READ ONLY")
+      preload!
+      yield
+    end
+  end
+
+  PreviewProfile = Data.define(:id, :resource_unit_count)
+  OccupancySlice = Data.define(:complete, :totals, :components, :blockers)
+  OccupancyProfilePreview = Data.define(
+    :profile_id, :label, :expected_resource_units, :per_cabin, :contribution
+  )
+  OccupancyPreviewResult = Data.define(
+    :profiles, :combined_totals, :illustrated_totals, :rounding_differences, :rounding_explanation
+  )
+
+  ROUNDING_EXPLANATION =
+    "The authoritative forecast rounds each component after combining quantities " \
+    "across all occupancy profiles. Per-profile illustrations round each component " \
+    "for that profile alone, so their sum can differ at the currency minor-unit boundary."
+
+  def build_occupancy_preview(source:, assumption:)
+    source = @sources.find { |entry| entry.id == record_id(source) } ||
+      raise(ActiveRecord::RecordNotFound)
+    assumption_record = if assumption
+      @assumptions.find { |entry| entry.id == record_id(assumption) }
+    end
+    profiles = assumption_record ? Array(@profiles_by_assumption[assumption_record.id]) : []
+    definition = @probe_definition
+    raise ArgumentError, "probe_definition is required for occupancy preview" unless definition
+
+    components = Array(@components_by_definition[definition.id])
+    original_profiles = @profiles_by_assumption[assumption_record&.id]
+
+    profile_previews = profiles.map do |profile|
+      per_cabin = evaluate_slice_for_profile(
+        assumption_record, components, profile, resource_unit_count: 1
+      )
+      contribution = evaluate_slice_for_profile(
+        assumption_record, components, profile, resource_unit_count: profile.resource_unit_count
+      )
+      OccupancyProfilePreview.new(
+        profile_id: profile.id,
+        label: profile.label,
+        expected_resource_units: profile.resource_unit_count,
+        per_cabin: per_cabin,
+        contribution: contribution
+      )
+    ensure
+      @profiles_by_assumption[assumption_record.id] = original_profiles if assumption_record
+    end
+
+    complete_contributions = profile_previews.filter_map do |preview|
+      preview.contribution.totals if preview.contribution.complete
+    end
+    illustrated = complete_contributions.any? ? sum_totals(complete_contributions) : ZERO_TOTALS
+
+    combined_source = evaluate_source(
+      @arrangements.find { |arrangement| arrangement.id == source.supplier_arrangement_id },
+      @versions_by_arrangement[source.supplier_arrangement_id],
+      source
+    )
+    combined = combined_source.complete ? combined_source.totals : ZERO_TOTALS
+    differences = rounding_differences(illustrated, combined)
+
+    OccupancyPreviewResult.new(
+      profiles: profile_previews,
+      combined_totals: combined,
+      illustrated_totals: illustrated,
+      rounding_differences: differences,
+      rounding_explanation: differences.any? ? ROUNDING_EXPLANATION : nil
+    )
+  end
+
+  def evaluate_slice_for_profile(assumption, components, profile, resource_unit_count:)
+    @profiles_by_assumption[assumption.id] = [
+      PreviewProfile.new(id: profile.id, resource_unit_count: resource_unit_count)
+    ]
+    component_results, warnings = evaluate_components(components, assumption)
+    blockers = warnings.map { |warning| warning[:message] }
+    complete = blockers.empty?
+    OccupancySlice.new(
+      complete: complete,
+      totals: complete ? totals_for(component_results) : nil,
+      components: complete ? component_results : [],
+      blockers: blockers
+    )
+  end
+
+  def rounding_differences(illustrated, combined)
+    {
+      forecast_supplier_cost_minor_units:
+        illustrated.forecast_supplier_cost_minor_units - combined.forecast_supplier_cost_minor_units,
+      expected_commission_minor_units:
+        illustrated.expected_commission_minor_units - combined.expected_commission_minor_units,
+      expected_net_cost_after_commission_minor_units:
+        illustrated.expected_net_cost_after_commission_minor_units -
+          combined.expected_net_cost_after_commission_minor_units
+    }.reject { |_key, value| value.zero? }
+  end
 
   def preload!
     @loaded_departure = @agency.departures.find(record_id(@departure))

@@ -119,13 +119,57 @@
             nights: <%= assumption.expected_billable_nights.nil? ? "unknown" : assumption.expected_billable_nights %>
           </p>
           <% assumption.supplier_cost_occupancy_profiles.sort_by(&:position).each do |profile| %>
-            <p id="profile-<%= profile.id %>">
-              Occupancy pattern: <%= profile.label %> × <%= profile.resource_unit_count %> resource unit(s) —
-              <%= profile.supplier_cost_occupancy_profile_positions.sort_by(&:occupancy_position).map { |position|
-                    category = @categories.find { |entry| entry.id == position.participant_category_id }
-                    "pos #{position.occupancy_position}: #{category&.label || position.participant_category_id}"
-                  }.join(", ") %>
-            </p>
+            <% profile_positions = profile.supplier_cost_occupancy_profile_positions.sort_by(&:occupancy_position) %>
+            <div id="profile-<%= profile.id %>" class="dd-stack">
+              <p>
+                Occupancy pattern: <%= profile.label %> × <%= profile.resource_unit_count %> resource unit(s) —
+                <%= profile_positions.map { |position|
+                      category = @categories.find { |entry| entry.id == position.participant_category_id }
+                      "pos #{position.occupancy_position}: #{category&.label || position.participant_category_id}"
+                    }.join(", ") %>
+              </p>
+              <% if editable && @categories.any? %>
+                <details>
+                  <summary>Edit occupancy profile</summary>
+                  <%= form_with url: departure_arrangement_item_cost_assumption_occupancy_profile_path(
+                        @departure, @supplier_arrangement, @arrangement_item, assumption, profile
+                      ), method: :patch, class: "dd-form" do |form| %>
+                    <%= form.hidden_field "supplier_cost_occupancy_profile[lock_version]", value: profile.lock_version %>
+                    <div class="dd-field">
+                      <%= form.label "supplier_cost_occupancy_profile[label]", "Occupancy pattern label" %>
+                      <%= form.text_field "supplier_cost_occupancy_profile[label]", value: profile.label, required: true %>
+                    </div>
+                    <div class="dd-field">
+                      <%= form.label "supplier_cost_occupancy_profile[resource_unit_count]", "Like resource units" %>
+                      <%= form.number_field "supplier_cost_occupancy_profile[resource_unit_count]",
+                            value: profile.resource_unit_count, min: 1, required: true %>
+                    </div>
+                    <fieldset>
+                      <legend>Anonymous participant positions</legend>
+                      <p class="dd-field-hint">Choose a category for each occupancy seat in order. Leave unused seats blank to shorten the pattern.</p>
+                      <% selected_ids = profile_positions.map(&:participant_category_id) %>
+                      <% 4.times do |index| %>
+                        <div class="dd-field">
+                          <%= label_tag "edit_profile_#{profile.id}_position_#{index}", "Position #{index + 1}" %>
+                          <%= select_tag "participant_category_ids[]",
+                                options_from_collection_for_select(@categories, :id, :label, selected_ids[index]),
+                                include_blank: "Unused",
+                                id: "edit_profile_#{profile.id}_position_#{index}" %>
+                        </div>
+                      <% end %>
+                    </fieldset>
+                    <%= form.submit "Save occupancy profile", class: "dd-button dd-button--quiet" %>
+                  <% end %>
+                </details>
+                <%= button_to "Remove occupancy profile",
+                      departure_arrangement_item_cost_assumption_occupancy_profile_path(
+                        @departure, @supplier_arrangement, @arrangement_item, assumption, profile
+                      ),
+                      method: :delete, class: "dd-row-action",
+                      form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this occupancy profile?" } },
+                      params: { assumption_lock_version: assumption.lock_version } %>
+              <% end %>
+            </div>
           <% end %>
           <% if editable && @categories.any? %>
             <details>

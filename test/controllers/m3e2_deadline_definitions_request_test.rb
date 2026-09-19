@@ -17,6 +17,38 @@ class M3e2DeadlineDefinitionsRequestTest < ActionDispatch::IntegrationTest
     @version = @graph[:version]
   end
 
+  test "create validation failure redisplays fixed-date form fields without crashing" do
+    sign_in_as @staff
+
+    assert_no_difference -> { @version.supplier_deadline_definitions.count } do
+      post departure_arrangement_version_deadlines_path(
+        @departure, @arrangement, @version
+      ), params: {
+        version_lock_version: @version.lock_version,
+        idempotency_key: SecureRandom.uuid,
+        supplier_deadline_definition: {
+          deadline_type: "option_or_release_date",
+          kind: "actionable",
+          rule_shape: "fixed_date",
+          fixed_date: "2027-03-11",
+          precision: "date_only",
+          time_zone: "America/New_York",
+          commitment_lines: [ {
+            authority_shape: "",
+            description: "Review retained cabins and release any unretained block by the option date",
+            committed_supplier_id: @supplier.id
+          } ]
+        }
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_match(/Choose a valid deadline commitment authority/, response.body)
+    assert_select "input[name='supplier_deadline_definition[fixed_date]'][value=?]", "2027-03-11"
+    assert_select "textarea[name='supplier_deadline_definition[commitment_lines][][description]']",
+      text: "Review retained cabins and release any unretained block by the option date"
+  end
+
   test "edit form preserves coverage and commitment lines when only warning lead changes" do
     sign_in_as @staff
     definition = CreateSupplierDeadlineDefinition.new(
