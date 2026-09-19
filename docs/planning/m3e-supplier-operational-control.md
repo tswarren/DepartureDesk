@@ -1,10 +1,11 @@
 # M3E — Supplier operational control
 
-**Status:** Accepted 2026-09-18. Not yet implemented. Production M3E code begins only after M3D.9 is on `main`, final M3D correctness QC is green at the implementation branch base, and implementation starts from that verified base.  
+**Status:** Accepted 2026-09-18. Not yet implemented. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code begins with M3E.1 from that verified base (or a descendant on `main`).  
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md)  
 **ADR:** [ADR 0013 — Supplier operational commitments, Deadlines, exposure, and Arrangement ending](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)  
-**Prerequisite:** Shipped M3D through M3D.9; final M3D correctness QC green at the implementation branch base  
-**Decision register:** [M3E Decision Register](m3e-decision-register.md)
+**Prerequisite:** Shipped M3D through M3D.9; [M3E.0](m3e0-m3d-closure-gate.md) M3D closure gate satisfied  
+**Decision register:** [M3E Decision Register](m3e-decision-register.md)  
+**M3D closure gate:** [M3E.0](m3e0-m3d-closure-gate.md)
 
 ## Goal
 
@@ -47,9 +48,9 @@ Draft or future commercial plans remain context only. When this plan makes a lat
 Before M3E.1 begins:
 
 - M3D.9 is shipped on `main`;
-- final M3D correctness QC reports no release-blocking finding (explicit M3E.0 exit criterion);
+- final M3D correctness QC reports no release-blocking finding ([M3E.0](m3e0-m3d-closure-gate.md) documents this exit);
 - ADR 0013 and this plan are Accepted (promoted 2026-09-18);
-- the implementing branch starts from that verified `main`; and
+- the implementing branch starts from the [M3E.0](m3e0-m3d-closure-gate.md) pinned verified `main`; and
 - `AGENTS.md` and `docs/README.md` name M3E as current accepted work without describing it as shipped.
 
 There is no parallel implementation waiver.
@@ -802,6 +803,8 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 - Add no production M3E table, model, route, or placeholder.
 
 **Exit:** authority is Accepted; M3D.9 is shipped; final M3D correctness QC is documented green; indexes and supersession notes are in place.
+
+**Satisfied:** [M3E.0 — M3D closure gate](m3e0-m3d-closure-gate.md) (2026-09-19) pins base `344ab86` with green GitHub CI and local `bin/rails test`.
 
 ### M3E.1 — Source-shaped openings, disposition, evidence, inactivation
 

@@ -55,6 +55,7 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m3d8-activation-reservation-product-quality.md`](planning/m3d8-activation-reservation-product-quality.md) | Shipped M3D.8 post-ship remediation: canonical forms, error recovery, progressive disclosure, exclusive composers, bounded Reservation lists/histories, and table overflow. |
 | [`planning/m3d9-reservation-integrity.md`](planning/m3d9-reservation-integrity.md) | Shipped M3D.9 post-ship remediation: confirmed quantity-basis fidelity, successor revision/request revalidation, and event↔outcome compatibility. |
 | [`planning/m3e-supplier-operational-control.md`](planning/m3e-supplier-operational-control.md) | Accepted M3E Supplier operational-control slice. Not yet implemented. |
+| [`planning/m3e0-m3d-closure-gate.md`](planning/m3e0-m3d-closure-gate.md) | Satisfied M3E.0 M3D closure gate: pinned QC-green implementation base. |
 | [`planning/m3e-decision-register.md`](planning/m3e-decision-register.md) | Accepted M3E decision register. |
 | [`adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md`](adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md) | Accepted ADR 0013 for M3E commitments, Deadlines, deposits, exposure, and Arrangement ending. |
 | [`planning/drafts/README.md`](planning/drafts/README.md) | Draft staging area. M3E promoted 2026-09-18. |
