@@ -26,6 +26,10 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
       supplier_arrangement_versions
       supplier_arrangements
       supplier_category_assignments
+      supplier_commitment_dispositions
+      supplier_commitment_evidence_coverage_members
+      supplier_commitment_evidence_coverages
+      supplier_commitment_reopenings
       supplier_commitment_trigger_definitions
       supplier_commitments
       supplier_confirmation_activation_links

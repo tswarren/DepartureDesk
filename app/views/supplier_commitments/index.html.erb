@@ -1,0 +1,145 @@
+<% content_for :title, "Commitments · #{@supplier_arrangement.name} · DepartureDesk" %>
+<% manageable = Current.agency_user.permitted?(:manage_departures) %>
+<% can_waive = Current.agency_user.permitted?(:override_supplier_planning_terms) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title">Commitments</h1>
+    <p class="dd-page-description">Opened Supplier commitments and their current disposition state.</p>
+  </div>
+  <div class="dd-page-actions">
+    <% if manageable && @open_commitments.any? %>
+      <%= link_to "Record satisfaction",
+        dispose_departure_arrangement_commitments_path(@departure, @supplier_arrangement, outcome: "satisfied"),
+        class: "dd-button" %>
+      <%= link_to "Record release",
+        dispose_departure_arrangement_commitments_path(@departure, @supplier_arrangement, outcome: "released"),
+        class: "dd-button dd-button--quiet" %>
+    <% end %>
+    <% if can_waive && @open_commitments.any? %>
+      <%= link_to "Waive commitment",
+        waive_departure_arrangement_commitments_path(@departure, @supplier_arrangement),
+        class: "dd-button dd-button--quiet" %>
+    <% end %>
+    <%= link_to "Back to arrangement",
+      departure_arrangement_path(@departure, @supplier_arrangement),
+      class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel" id="open-commitments">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Open</h2>
+      <p>Commitments that still require action.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if @open_commitments.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Description</th>
+            <th scope="col">Committed Supplier</th>
+            <th scope="col">Type</th>
+            <th scope="col">Opened</th>
+            <th scope="col">Opening</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @open_commitments.each do |commitment| %>
+            <tr>
+              <td><%= commitment.description %></td>
+              <td><%= supplier_option_label(commitment.committed_supplier) %></td>
+              <td><%= commitment.commitment_type.humanize %></td>
+              <td><%= l(commitment.opened_at.to_date) %></td>
+              <td><%= commitment.opening_kind.humanize %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-state">No open commitments.</p>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel" id="accepted-exceptions">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Accepted exceptions</h2>
+      <p>Waived commitments remain visible until reopened or the governed work ends.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if @accepted_exceptions.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Description</th>
+            <th scope="col">Outcome</th>
+            <th scope="col">Reason</th>
+            <% if manageable %><th scope="col">Actions</th><% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% @accepted_exceptions.each do |commitment| %>
+            <% disposition = commitment.current_disposition %>
+            <tr>
+              <td><%= commitment.description %></td>
+              <td>Waived</td>
+              <td><%= disposition&.reason %></td>
+              <% if manageable %>
+                <td>
+                  <%= link_to "Reopen",
+                    reopen_departure_arrangement_commitment_path(@departure, @supplier_arrangement, commitment),
+                    class: "dd-row-action dd-row-action--edit" %>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-state">No accepted exceptions.</p>
+    <% end %>
+  </div>
+</article>
+
+<% if @other_terminal.any? %>
+  <article class="dd-panel" id="other-dispositions">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Other closed commitments</h2>
+        <p>Satisfied, released, cancelled, or superseded openings.</p>
+      </div>
+    </header>
+    <div class="dd-panel-body">
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Description</th>
+            <th scope="col">Outcome</th>
+            <% if manageable %><th scope="col">Actions</th><% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% @other_terminal.each do |commitment| %>
+            <tr>
+              <td><%= commitment.description %></td>
+              <td><%= commitment.disposition_outcome.to_s.humanize %></td>
+              <% if manageable %>
+                <td>
+                  <%= link_to "Reopen",
+                    reopen_departure_arrangement_commitment_path(@departure, @supplier_arrangement, commitment),
+                    class: "dd-row-action dd-row-action--edit" %>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </article>
+<% end %>

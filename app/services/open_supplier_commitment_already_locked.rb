@@ -38,6 +38,7 @@ class OpenSupplierCommitmentAlreadyLocked
     basis = quantity_basis_for(quantity)
     commitment = SupplierCommitment.create!(
       owner_attributes.merge(
+        opening_kind: "confirmation_trigger",
         supplier_arrangement_activation: @activation,
         supplier_commitment_trigger_definition: @trigger,
         supplier_confirmation: @confirmation,

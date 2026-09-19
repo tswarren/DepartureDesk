@@ -126,6 +126,8 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.commitment_trigger_created
     supplier_arrangement.commitment_trigger_updated
     supplier_arrangement.commitment_trigger_removed
+    supplier_arrangement.commitments_disposed
+    supplier_arrangement.commitment_reopened
     supplier_reservation.created
     supplier_reservation.updated
     supplier_reservation.abandoned

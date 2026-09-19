@@ -2385,6 +2385,95 @@ CREATE TABLE public.supplier_category_assignments (
 
 
 --
+-- Name: supplier_commitment_dispositions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_commitment_dispositions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_commitment_dispositio_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_commitment_disposi_supplier_arrangement_versi_not_null NOT NULL,
+    supplier_commitment_id uuid CONSTRAINT supplier_commitment_disposition_supplier_commitment_id_not_null NOT NULL,
+    outcome character varying NOT NULL,
+    supplier_commitment_evidence_coverage_id uuid,
+    replacement_supplier_commitment_id uuid,
+    reason character varying(2000),
+    accepted_risk_acknowledged boolean DEFAULT false CONSTRAINT supplier_commitment_disposi_accepted_risk_acknowledged_not_null NOT NULL,
+    actor_id uuid NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    agency_command_idempotency_key_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT commitment_dispositions_outcome CHECK (((outcome)::text = ANY ((ARRAY['satisfied'::character varying, 'released'::character varying, 'waived'::character varying, 'cancelled'::character varying, 'superseded'::character varying])::text[]))),
+    CONSTRAINT commitment_dispositions_outcome_proof CHECK (((((outcome)::text = ANY ((ARRAY['satisfied'::character varying, 'released'::character varying])::text[])) AND (supplier_commitment_evidence_coverage_id IS NOT NULL) AND (reason IS NULL) AND (accepted_risk_acknowledged = false) AND (replacement_supplier_commitment_id IS NULL)) OR (((outcome)::text = 'waived'::text) AND (supplier_commitment_evidence_coverage_id IS NULL) AND (reason IS NOT NULL) AND (btrim((reason)::text) <> ''::text) AND (accepted_risk_acknowledged = true) AND (replacement_supplier_commitment_id IS NULL)) OR (((outcome)::text = 'cancelled'::text) AND (supplier_commitment_evidence_coverage_id IS NULL) AND (accepted_risk_acknowledged = false) AND (replacement_supplier_commitment_id IS NULL)) OR (((outcome)::text = 'superseded'::text) AND (supplier_commitment_evidence_coverage_id IS NULL) AND (accepted_risk_acknowledged = false) AND (replacement_supplier_commitment_id IS NOT NULL) AND (replacement_supplier_commitment_id <> supplier_commitment_id)))),
+    CONSTRAINT commitment_dispositions_reason_length CHECK (((reason IS NULL) OR (char_length((reason)::text) <= 2000)))
+);
+
+
+--
+-- Name: supplier_commitment_evidence_coverage_members; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_commitment_evidence_coverage_members (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid CONSTRAINT supplier_commitment_evidence_coverage_member_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_commitment_evidence_coverage_mem_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_commitment_evidence__supplier_arrangement_id_not_null1 NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_commitment_eviden_supplier_arrangement_versi_not_null1 NOT NULL,
+    supplier_commitment_evidence_coverage_id uuid CONSTRAINT supplier_commitment_evidenc_supplier_commitment_eviden_not_null NOT NULL,
+    supplier_commitment_id uuid CONSTRAINT supplier_commitment_evidence_co_supplier_commitment_id_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_commitment_evidence_coverage_membe_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_commitment_evidence_coverage_membe_updated_at_not_null NOT NULL
+);
+
+
+--
+-- Name: supplier_commitment_evidence_coverages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_commitment_evidence_coverages (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_commitment_evidence_c_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_commitment_evidenc_supplier_arrangement_versi_not_null NOT NULL,
+    supplier_confirmation_id uuid CONSTRAINT supplier_commitment_evidence__supplier_confirmation_id_not_null NOT NULL,
+    purpose character varying NOT NULL,
+    actor_id uuid NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    agency_command_idempotency_key_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT commitment_evidence_coverages_purpose CHECK (((purpose)::text = ANY ((ARRAY['satisfied'::character varying, 'released'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_commitment_reopenings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_commitment_reopenings (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_commitment_reopeni_supplier_arrangement_versi_not_null NOT NULL,
+    supplier_commitment_id uuid NOT NULL,
+    supplier_commitment_disposition_id uuid CONSTRAINT supplier_commitment_reopeni_supplier_commitment_dispos_not_null NOT NULL,
+    reason character varying(2000) NOT NULL,
+    actor_id uuid NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    agency_command_idempotency_key_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT commitment_reopenings_reason CHECK (((btrim((reason)::text) <> ''::text) AND (char_length((reason)::text) <= 2000)))
+);
+
+
+--
 -- Name: supplier_commitment_trigger_definitions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2461,10 +2550,12 @@ CREATE TABLE public.supplier_commitments (
     supplier_reservation_revision_id uuid,
     supplier_reservation_scope_id uuid,
     supplier_reservation_event_id uuid,
+    opening_kind character varying DEFAULT 'confirmation_trigger'::character varying NOT NULL,
     CONSTRAINT supplier_commitments_authority_shape CHECK (((((commitment_type)::text = 'quantity'::text) AND (quantity IS NOT NULL) AND (amount_minor_units IS NULL)) OR (((commitment_type)::text = 'monetary'::text) AND (quantity IS NULL) AND (amount_minor_units IS NOT NULL)) OR (((commitment_type)::text = 'quantity_and_monetary'::text) AND (quantity IS NOT NULL) AND (amount_minor_units IS NOT NULL)))),
     CONSTRAINT supplier_commitments_calculation_snapshot CHECK (((btrim((calculation_snapshot)::text) <> ''::text) AND (char_length((calculation_snapshot)::text) <= 2000))),
     CONSTRAINT supplier_commitments_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 500))),
     CONSTRAINT supplier_commitments_money_shape CHECK ((((amount_minor_units IS NULL) = (currency IS NULL)) AND ((amount_minor_units IS NULL) OR (amount_minor_units >= 0)))),
+    CONSTRAINT supplier_commitments_opening_kind CHECK (((opening_kind)::text = 'confirmation_trigger'::text)),
     CONSTRAINT supplier_commitments_quantity_shape CHECK ((((quantity IS NULL) = (quantity_basis IS NULL)) AND ((quantity IS NULL) OR (quantity > 0)))),
     CONSTRAINT supplier_commitments_reservation_shape CHECK ((((supplier_reservation_id IS NULL) AND (supplier_reservation_revision_id IS NULL) AND (supplier_reservation_scope_id IS NULL) AND (supplier_reservation_event_id IS NULL)) OR ((supplier_reservation_id IS NOT NULL) AND (supplier_reservation_revision_id IS NOT NULL) AND (supplier_reservation_scope_id IS NOT NULL) AND (supplier_reservation_event_id IS NOT NULL)))),
     CONSTRAINT supplier_commitments_type CHECK (((commitment_type)::text = ANY ((ARRAY['quantity'::character varying, 'monetary'::character varying, 'quantity_and_monetary'::character varying])::text[])))
@@ -3687,6 +3778,38 @@ ALTER TABLE ONLY public.supplier_arrangements
 
 ALTER TABLE ONLY public.supplier_category_assignments
     ADD CONSTRAINT supplier_category_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_commitment_dispositions supplier_commitment_dispositions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_dispositions
+    ADD CONSTRAINT supplier_commitment_dispositions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_commitment_evidence_coverage_members supplier_commitment_evidence_coverage_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_evidence_coverage_members
+    ADD CONSTRAINT supplier_commitment_evidence_coverage_members_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_commitment_evidence_coverages supplier_commitment_evidence_coverages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_evidence_coverages
+    ADD CONSTRAINT supplier_commitment_evidence_coverages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_commitment_reopenings supplier_commitment_reopenings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_reopenings
+    ADD CONSTRAINT supplier_commitment_reopenings_pkey PRIMARY KEY (id);
 
 
 --
@@ -5024,10 +5147,122 @@ CREATE UNIQUE INDEX index_clients_on_id_and_agency_id ON public.clients USING bt
 
 
 --
+-- Name: index_cmt_disp_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cmt_disp_on_id_agency ON public.supplier_commitment_dispositions USING btree (id, agency_id);
+
+
+--
+-- Name: index_cmt_disp_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cmt_disp_on_id_departure_agency ON public.supplier_commitment_dispositions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_cmt_ev_cov_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cmt_ev_cov_on_id_agency ON public.supplier_commitment_evidence_coverages USING btree (id, agency_id);
+
+
+--
+-- Name: index_cmt_ev_cov_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cmt_ev_cov_on_id_departure_agency ON public.supplier_commitment_evidence_coverages USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_cmt_ev_mem_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cmt_ev_mem_on_id_agency ON public.supplier_commitment_evidence_coverage_members USING btree (id, agency_id);
+
+
+--
+-- Name: index_cmt_ev_mem_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cmt_ev_mem_on_id_departure_agency ON public.supplier_commitment_evidence_coverage_members USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_cmt_reopen_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cmt_reopen_on_id_agency ON public.supplier_commitment_reopenings USING btree (id, agency_id);
+
+
+--
+-- Name: index_cmt_reopen_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cmt_reopen_on_id_departure_agency ON public.supplier_commitment_reopenings USING btree (id, departure_id, agency_id);
+
+
+--
 -- Name: index_command_idempotency_on_agency_command_key; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX index_command_idempotency_on_agency_command_key ON public.agency_command_idempotency_keys USING btree (agency_id, command_name, idempotency_key);
+
+
+--
+-- Name: index_commitment_dispositions_on_commitment_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commitment_dispositions_on_commitment_owner ON public.supplier_commitment_dispositions USING btree (id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_commitment_dispositions_on_commitment_timeline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_commitment_dispositions_on_commitment_timeline ON public.supplier_commitment_dispositions USING btree (supplier_commitment_id, recorded_at, id);
+
+
+--
+-- Name: index_commitment_dispositions_on_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commitment_dispositions_on_version_owner ON public.supplier_commitment_dispositions USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_commitment_evidence_coverages_on_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commitment_evidence_coverages_on_version_owner ON public.supplier_commitment_evidence_coverages USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_commitment_evidence_members_on_coverage_commitment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commitment_evidence_members_on_coverage_commitment ON public.supplier_commitment_evidence_coverage_members USING btree (supplier_commitment_evidence_coverage_id, supplier_commitment_id);
+
+
+--
+-- Name: index_commitment_evidence_members_on_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commitment_evidence_members_on_version_owner ON public.supplier_commitment_evidence_coverage_members USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_commitment_reopenings_on_disposition; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commitment_reopenings_on_disposition ON public.supplier_commitment_reopenings USING btree (supplier_commitment_disposition_id);
+
+
+--
+-- Name: index_commitment_reopenings_on_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commitment_reopenings_on_version_owner ON public.supplier_commitment_reopenings USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -7187,6 +7422,62 @@ CREATE TRIGGER supplier_category_assignments_reject_identity_change BEFORE UPDAT
 
 
 --
+-- Name: supplier_commitment_dispositions supplier_commitment_dispositions_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_dispositions_reject_delete BEFORE DELETE ON public.supplier_commitment_dispositions FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_commitment_dispositions supplier_commitment_dispositions_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_dispositions_reject_update BEFORE UPDATE ON public.supplier_commitment_dispositions FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_commitment_evidence_coverage_members supplier_commitment_evidence_coverage_members_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_evidence_coverage_members_reject_delete BEFORE DELETE ON public.supplier_commitment_evidence_coverage_members FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_commitment_evidence_coverage_members supplier_commitment_evidence_coverage_members_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_evidence_coverage_members_reject_update BEFORE UPDATE ON public.supplier_commitment_evidence_coverage_members FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_commitment_evidence_coverages supplier_commitment_evidence_coverages_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_evidence_coverages_reject_delete BEFORE DELETE ON public.supplier_commitment_evidence_coverages FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_commitment_evidence_coverages supplier_commitment_evidence_coverages_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_evidence_coverages_reject_update BEFORE UPDATE ON public.supplier_commitment_evidence_coverages FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_commitment_reopenings supplier_commitment_reopenings_reject_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_reopenings_reject_delete BEFORE DELETE ON public.supplier_commitment_reopenings FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_commitment_reopenings supplier_commitment_reopenings_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_commitment_reopenings_reject_update BEFORE UPDATE ON public.supplier_commitment_reopenings FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
 -- Name: supplier_commitment_trigger_definitions supplier_commitment_trigger_definitions_reject_non_draft_mutati; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -8130,6 +8421,150 @@ ALTER TABLE ONLY public.clients
 
 ALTER TABLE ONLY public.clients
     ADD CONSTRAINT clients_person_agency_fk FOREIGN KEY (client_person_id, agency_id) REFERENCES public.client_people(id, agency_id);
+
+
+--
+-- Name: supplier_commitment_dispositions commitment_dispositions_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_dispositions
+    ADD CONSTRAINT commitment_dispositions_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_commitment_dispositions commitment_dispositions_commitment_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_dispositions
+    ADD CONSTRAINT commitment_dispositions_commitment_fk FOREIGN KEY (supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitments(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_dispositions commitment_dispositions_coverage_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_dispositions
+    ADD CONSTRAINT commitment_dispositions_coverage_fk FOREIGN KEY (supplier_commitment_evidence_coverage_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitment_evidence_coverages(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_dispositions commitment_dispositions_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_dispositions
+    ADD CONSTRAINT commitment_dispositions_idempotency_fk FOREIGN KEY (agency_command_idempotency_key_id, agency_id) REFERENCES public.agency_command_idempotency_keys(id, agency_id);
+
+
+--
+-- Name: supplier_commitment_dispositions commitment_dispositions_replacement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_dispositions
+    ADD CONSTRAINT commitment_dispositions_replacement_fk FOREIGN KEY (replacement_supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitments(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_dispositions commitment_dispositions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_dispositions
+    ADD CONSTRAINT commitment_dispositions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_evidence_coverages commitment_evidence_coverages_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_evidence_coverages
+    ADD CONSTRAINT commitment_evidence_coverages_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_commitment_evidence_coverages commitment_evidence_coverages_confirmation_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_evidence_coverages
+    ADD CONSTRAINT commitment_evidence_coverages_confirmation_fk FOREIGN KEY (supplier_confirmation_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_confirmations(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_evidence_coverages commitment_evidence_coverages_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_evidence_coverages
+    ADD CONSTRAINT commitment_evidence_coverages_idempotency_fk FOREIGN KEY (agency_command_idempotency_key_id, agency_id) REFERENCES public.agency_command_idempotency_keys(id, agency_id);
+
+
+--
+-- Name: supplier_commitment_evidence_coverages commitment_evidence_coverages_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_evidence_coverages
+    ADD CONSTRAINT commitment_evidence_coverages_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_evidence_coverage_members commitment_evidence_members_commitment_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_evidence_coverage_members
+    ADD CONSTRAINT commitment_evidence_members_commitment_fk FOREIGN KEY (supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitments(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_evidence_coverage_members commitment_evidence_members_coverage_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_evidence_coverage_members
+    ADD CONSTRAINT commitment_evidence_members_coverage_fk FOREIGN KEY (supplier_commitment_evidence_coverage_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitment_evidence_coverages(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_evidence_coverage_members commitment_evidence_members_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_evidence_coverage_members
+    ADD CONSTRAINT commitment_evidence_members_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_reopenings commitment_reopenings_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_reopenings
+    ADD CONSTRAINT commitment_reopenings_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_commitment_reopenings commitment_reopenings_commitment_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_reopenings
+    ADD CONSTRAINT commitment_reopenings_commitment_fk FOREIGN KEY (supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitments(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_reopenings commitment_reopenings_disposition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_reopenings
+    ADD CONSTRAINT commitment_reopenings_disposition_fk FOREIGN KEY (supplier_commitment_disposition_id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_commitment_dispositions(id, supplier_commitment_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_commitment_reopenings commitment_reopenings_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_reopenings
+    ADD CONSTRAINT commitment_reopenings_idempotency_fk FOREIGN KEY (agency_command_idempotency_key_id, agency_id) REFERENCES public.agency_command_idempotency_keys(id, agency_id);
+
+
+--
+-- Name: supplier_commitment_reopenings commitment_reopenings_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_commitment_reopenings
+    ADD CONSTRAINT commitment_reopenings_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -9763,6 +10198,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260919040000'),
 ('20260918070000'),
 ('20260918060000'),
 ('20260918050000'),
