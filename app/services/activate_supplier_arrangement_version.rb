@@ -99,7 +99,8 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       capacity_events = create_capacity_entries!(activation, version, activated_at)
       commitments = create_commitments!(activation, version, confirmation)
       deadline_result = materialize_deadlines!(
-        activation:, arrangement:, version:, departure:, at: activated_at
+        activation:, arrangement:, version:, departure:,
+        predecessor_version: predecessor, at: activated_at
       )
       commitments.concat(deadline_result[:commitments])
       create_confirmation_links!(
@@ -231,9 +232,11 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     )
   end
 
-  def materialize_deadlines!(activation:, arrangement:, version:, departure:, at:)
+  def materialize_deadlines!(activation:, arrangement:, version:, departure:,
+    predecessor_version:, at:)
     result = MaterializeSupplierDeadlineDefinitionsAlreadyLocked.new(
-      agency: @agency, actor: @actor, arrangement:, version:, activation:, departure:, at:
+      agency: @agency, actor: @actor, arrangement:, version:, activation:, departure:,
+      predecessor_version:, at:
     ).call
     if result[:occurrences].any?
       audit!(

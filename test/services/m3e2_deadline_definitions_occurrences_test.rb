@@ -293,7 +293,128 @@ class M3e2DeadlineDefinitionsOccurrencesTest < ActiveSupport::TestCase
     end
   end
 
+  test "successor activation transfers open deadline commitments without duplicates" do
+    create_deadline!(
+      kind: "actionable",
+      deadline_type: "option_or_release_date",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => "2027-05-01" },
+      precision: "date_only",
+      commitment_lines: [ {
+        authority_shape: "fixed_quantity",
+        description: "Hold eight cabins",
+        committed_supplier_id: @supplier.id,
+        fixed_quantity: 8,
+        quantity_basis: "resource_units"
+      } ]
+    )
+    activate_with_deadlines
+    predecessor_commitment = SupplierCommitment.find_by!(opening_kind: "deadline_requirement")
+    predecessor_occurrence = predecessor_commitment.supplier_deadline_occurrence
+
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    assert successor.supplier_deadline_commitment_definition_lines.sole.copied_from_id.present?
+
+    activate_successor(successor)
+    open_deadline = SupplierCommitment.where(opening_kind: "deadline_requirement").select(&:open_state?)
+    assert_equal 1, open_deadline.size
+    assert_equal successor.id, open_deadline.sole.supplier_arrangement_version_id
+    assert_equal "superseded", predecessor_commitment.reload.disposition_outcome
+    assert_equal open_deadline.sole.id,
+      predecessor_commitment.current_disposition.replacement_supplier_commitment_id
+    assert predecessor_occurrence.reload.superseded_at.present?
+    assert_equal "superseded", predecessor_occurrence.supplier_deadline_projection.reload.status
+  end
+
+  test "successor activation blocks when an open deadline definition is removed" do
+    create_deadline!(
+      kind: "actionable",
+      deadline_type: "option_or_release_date",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => "2027-05-01" },
+      precision: "date_only",
+      commitment_lines: [ {
+        authority_shape: "fixed_quantity",
+        description: "Hold inventory",
+        committed_supplier_id: @supplier.id,
+        fixed_quantity: 4,
+        quantity_basis: "resource_units"
+      } ]
+    )
+    activate_with_deadlines
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    RemoveSupplierDeadlineDefinition.new(
+      agency: @agency, actor: @actor,
+      definition: successor.supplier_deadline_definitions.sole,
+      version_lock_version: successor.lock_version
+    ).call
+
+    error = assert_raises(AgencyCommand::Error) { activate_successor(successor.reload) }
+    assert_equal :invalid_state, error.code
+    assert_match(/removed/i, error.message)
+    assert_equal 1, SupplierCommitment.where(opening_kind: "deadline_requirement").select(&:open_state?).size
+  end
+
+  test "superseded occurrence projection leaves catch-up and shows superseded status" do
+    create_deadline!(
+      kind: "informational",
+      deadline_type: "rooming_list_due",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => (Date.current + 30).iso8601 },
+      precision: "date_only",
+      warning_lead_days: 5
+    )
+    activate_with_deadlines
+    first_occurrence = SupplierDeadlineOccurrence.sole
+    assert_equal "upcoming", first_occurrence.supplier_deadline_projection.status
+
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    activate_successor(successor)
+
+    first_occurrence.reload
+    assert first_occurrence.superseded_at.present?
+    assert_equal "superseded", first_occurrence.supplier_deadline_projection.reload.status
+    assert_nil first_occurrence.supplier_deadline_projection.next_transition_at
+    assert_not_includes RefreshDueDeadlineProjectionsJob.candidate_relation(at: Time.current).pluck(
+      "supplier_deadline_projections.supplier_deadline_occurrence_id"
+    ), first_occurrence.id
+  end
+
   private
+
+  def activate_successor(successor)
+    ActivateSupplierArrangementVersion.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      version: successor,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: successor.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      evidence_attributes: {
+        evidence_kind: "supplier_confirmation", evidence_on: Date.current,
+        channel: "portal", reference_note: "Successor evidence",
+        confirmed_without_identifier_reason: "Supplier did not issue one"
+      },
+      cost_source_coverage_acknowledged: true,
+      provisional_costs_acknowledged: true,
+      commitment_trigger_coverage_acknowledged: true,
+      elapsed_deadlines_acknowledged: true
+    ).call
+  end
 
   def informational_deadline_attrs(**overrides)
     {

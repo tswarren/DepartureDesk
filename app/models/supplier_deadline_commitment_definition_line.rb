@@ -16,12 +16,13 @@ class SupplierDeadlineCommitmentDefinitionLine < ApplicationRecord
   belongs_to :supplier_cost_source, optional: true
   belongs_to :supplier_cost_definition, optional: true
   belongs_to :supplier_cost_component, optional: true
+  belongs_to :copied_from, class_name: "SupplierDeadlineCommitmentDefinitionLine", optional: true
 
   enum :authority_shape, AUTHORITY_SHAPES.index_by(&:itself), validate: true
   enum :quantity_basis, QUANTITY_BASES.index_by(&:itself), validate: { allow_nil: true }
 
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id,
-    :supplier_arrangement_version_id, :supplier_deadline_definition_id
+    :supplier_arrangement_version_id, :supplier_deadline_definition_id, :copied_from_id
 
   normalizes :description, with: ->(value) { value.to_s.strip }
   normalizes :currency, with: ->(value) { value.to_s.strip.upcase.presence }

@@ -765,7 +765,7 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 
 ### Port transfers
 
-- Materialize per-segment final-count and schedule Deadlines through explicit per-source cardinality.
+- Materialize per-segment final-count and schedule Deadlines through explicit per-source cardinality (**deferred past M3E.2**; M3E.2 ships `one_shared` only).
 - One shared Supplier-facing date may govern several commitments without copying the date into each commitment.
 - Projection catch-up racing with synchronous rebuild produces exactly one projection result and creates no domain event.
 - Fixed vehicle exposure remains distinct from per-person forecast cost.
@@ -823,7 +823,7 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 
 ### M3E.2 — Deadline definitions, occurrences, and projection catch-up
 
-- Draft exact-version definitions, explicit coverage, templates, precision, zone, cardinality, and informational/actionable kinds.
+- Draft exact-version definitions, explicit coverage, templates, precision, zone, **`one_shared` cardinality**, and informational/actionable kinds. Named `per_source` cardinality remains deferred (schema-ready; commands reject it until a later slice expands materialization).
 - Activation materialization and elapsed-date acknowledgment.
 - Immutable occurrences and replacement.
 - Due/overdue projection catch-up and synchronous rebuild; **no** time-created domain events.
@@ -832,7 +832,7 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 
 **Exit:** Deadline state is deterministic, time-safe, explainable, and usable through compressed forms without background domain mutations.
 
-**Shipped:** M3E.2 (Deadline definitions, occurrences, activation materialization, projection catch-up, `deadline_requirement` openings).
+**Shipped:** M3E.2 (Deadline definitions, occurrences, activation materialization, projection catch-up, `deadline_requirement` openings, successor reconciliation; **`one_shared` cardinality only**).
 
 ### M3E.3 — Deposit Requirements and planning milestones
 

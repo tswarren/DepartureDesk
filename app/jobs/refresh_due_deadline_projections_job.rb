@@ -7,8 +7,10 @@ class RefreshDueDeadlineProjectionsJob < ApplicationJob
 
   def self.candidate_relation(at:, cursor: nil)
     relation = SupplierDeadlineProjection
-      .joins(:agency)
+      .joins(:agency, :supplier_deadline_occurrence)
       .where(agencies: { status: "active" })
+      .where.not(status: "superseded")
+      .where(supplier_deadline_occurrences: { superseded_at: nil })
       .where("supplier_deadline_projections.next_transition_at <= ?", at)
     if cursor
       next_transition_at, id = cursor

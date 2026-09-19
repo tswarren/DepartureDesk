@@ -11,7 +11,9 @@ class RefreshSupplierDeadlineProjection
   end
 
   def call
-    return if @occurrence.superseded_at.present?
+    if @occurrence.superseded_at.present?
+      return mark_superseded!
+    end
 
     boundaries = compute_boundaries
     status = status_for(boundaries)
@@ -25,6 +27,36 @@ class RefreshSupplierDeadlineProjection
       next_transition_at: next_transition(boundaries, status)
     }
 
+    upsert_projection!(attrs)
+  end
+
+  private
+
+  def mark_superseded!
+    attrs = {
+      status: "superseded",
+      refreshed_at: @at,
+      next_transition_at: nil
+    }
+    projection = SupplierDeadlineProjection.find_by(
+      supplier_deadline_occurrence_id: @occurrence.id
+    )
+    if projection
+      projection.lock!
+      projection.update!(attrs)
+      projection
+    else
+      boundaries = compute_boundaries
+      upsert_projection!(attrs.merge(
+        due_on: boundaries[:due_on],
+        due_at: boundaries[:due_at],
+        warning_starts_at: boundaries[:warning_starts_at],
+        overdue_at: boundaries[:overdue_at]
+      ))
+    end
+  end
+
+  def upsert_projection!(attrs)
     projection = SupplierDeadlineProjection.find_by(
       supplier_deadline_occurrence_id: @occurrence.id
     )
@@ -44,8 +76,6 @@ class RefreshSupplierDeadlineProjection
       )
     end
   end
-
-  private
 
   def compute_boundaries
     zone = ActiveSupport::TimeZone[@occurrence.time_zone] || Time.find_zone!("UTC")

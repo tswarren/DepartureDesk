@@ -8,7 +8,7 @@
 ## Ship notes
 
 - **M3E.1 shipped:** source-shaped `confirmation_trigger` openings, append-only dispositions/reopen, multi-member evidence coverage, open-state inactivation.
-- **M3E.2 shipped:** Deadline definitions and coverage/commitment lines; immutable occurrences with precision exclusivity; activation materialization and elapsed acknowledgment; due/overdue/warning projection catch-up on queue `deadlines` with no time-created domain events; `deadline_requirement` openings; M3D.7 freeze extension; successor definition copy.
+- **M3E.2 shipped:** Deadline definitions and coverage/commitment lines; immutable occurrences with precision exclusivity; activation materialization and elapsed acknowledgment; due/overdue/warning projection catch-up on queue `deadlines` with no time-created domain events; `deadline_requirement` openings; M3D.7 freeze extension; successor definition copy and reconciliation matrix (`one_shared` cardinality only; `per_source` deferred).
 
 ## Scope boundary
 

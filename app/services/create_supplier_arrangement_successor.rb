@@ -240,7 +240,8 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
           supplier_deadline_definition_id: deadline_copies.fetch(line.supplier_deadline_definition_id).id,
           supplier_cost_source_id: remap_optional(sources, line.supplier_cost_source_id),
           supplier_cost_definition_id: remap_optional(definitions, line.supplier_cost_definition_id),
-          supplier_cost_component_id: remap_optional(components, line.supplier_cost_component_id)
+          supplier_cost_component_id: remap_optional(components, line.supplier_cost_component_id),
+          copied_from: line
         )
       )
     end

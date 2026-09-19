@@ -99,7 +99,10 @@ class SupplierDeadlineDefinitionsController < ApplicationController
   end
 
   def set_definition
-    @definition = definition_scope.find(params[:id])
+    @definition = definition_scope.includes(
+      :supplier_deadline_definition_coverage_links,
+      :supplier_deadline_commitment_definition_lines
+    ).find(params[:id])
   end
 
   def definition_scope

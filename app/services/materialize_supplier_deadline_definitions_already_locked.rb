@@ -2,17 +2,22 @@
 
 # Internal activation helper. Caller must already hold the exact-version lock graph.
 class MaterializeSupplierDeadlineDefinitionsAlreadyLocked
-  def initialize(agency:, actor:, arrangement:, version:, activation:, departure:, at: Time.current)
+  def initialize(agency:, actor:, arrangement:, version:, activation:, departure:,
+    predecessor_version: nil, at: Time.current)
     @agency = agency
     @actor = actor
     @arrangement = arrangement
     @version = version
     @activation = activation
     @departure = departure
+    @predecessor_version = predecessor_version
     @at = at
   end
 
   def call
+    reconciler = build_reconciler
+    reconciler&.assert_removals_resolved!
+
     occurrences = []
     commitments = []
     definitions = @version.supplier_deadline_definitions
@@ -29,9 +34,13 @@ class MaterializeSupplierDeadlineDefinitionsAlreadyLocked
       next unless definition.actionable?
 
       definition.supplier_deadline_commitment_definition_lines.order(:position, :id).each do |line|
-        commitments << OpenSupplierDeadlineCommitmentAlreadyLocked.new(
+        next if reconciler&.skip_open?(line)
+
+        commitment = OpenSupplierDeadlineCommitmentAlreadyLocked.new(
           occurrence:, line:, actor: @actor, activation: @activation
         ).call
+        reconciler&.after_open!(commitment, line)
+        commitments << commitment
       end
     end
 
@@ -61,6 +70,15 @@ class MaterializeSupplierDeadlineDefinitionsAlreadyLocked
   end
 
   private
+
+  def build_reconciler
+    return unless @predecessor_version
+
+    ReconcileSupplierDeadlineSuccessorAlreadyLocked.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement,
+      version: @version, predecessor_version: @predecessor_version, at: @at
+    )
+  end
 
   def materialize_definition!(definition)
     key = "definition:#{definition.id}:one_shared"

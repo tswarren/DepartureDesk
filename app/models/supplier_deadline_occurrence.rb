@@ -50,6 +50,7 @@ class SupplierDeadlineOccurrence < ApplicationRecord
     raise ActiveRecord::RecordInvalid, self if superseded_at.present?
 
     update_columns(superseded_at: at, updated_at: Time.current)
+    RefreshSupplierDeadlineProjection.call(occurrence: self, at:)
   end
 
   private

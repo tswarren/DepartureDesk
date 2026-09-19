@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class SupplierDeadlineProjection < ApplicationRecord
-  STATUSES = %w[upcoming warning due overdue].freeze
+  STATUSES = %w[upcoming warning due overdue superseded].freeze
 
   belongs_to :agency
   belongs_to :departure

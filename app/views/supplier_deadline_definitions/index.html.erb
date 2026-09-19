@@ -96,7 +96,13 @@
                   <%= occurrence.calculated_at.in_time_zone(occurrence.time_zone).strftime("%b %-d, %Y %-l:%M %p %Z") %>
                 <% end %>
               </td>
-              <td><%= occurrence.supplier_deadline_projection&.status&.humanize || "—" %></td>
+              <td>
+                <% if occurrence.current? %>
+                  <%= occurrence.supplier_deadline_projection&.status&.humanize || "—" %>
+                <% else %>
+                  Superseded
+                <% end %>
+              </td>
               <td><%= occurrence.current? ? "Current" : "Superseded" %></td>
             </tr>
           <% end %>
