@@ -128,6 +128,8 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.commitment_trigger_removed
     supplier_arrangement.commitments_disposed
     supplier_arrangement.commitment_reopened
+    supplier_arrangement.evidence_coverage_revoked
+    supplier_arrangement.evidence_member_disqualified
     supplier_reservation.created
     supplier_reservation.updated
     supplier_reservation.abandoned

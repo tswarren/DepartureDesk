@@ -5,7 +5,9 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Supplier planning</p>
     <h1 class="dd-page-title">Record <%= outcome_label %></h1>
-    <p class="dd-page-description">Link compatible Supplier confirmation evidence to one open commitment.</p>
+    <p class="dd-page-description">
+      Choose Supplier confirmation evidence first, review the compatible open commitments it covers, then submit once.
+    </p>
   </div>
   <div class="dd-page-actions">
     <%= link_to "Back to commitments",
@@ -16,52 +18,74 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <% if @open_commitments.empty? || @confirmations.empty? %>
+    <% if @confirmations.empty? %>
       <p class="dd-empty-state">
-        <% if @open_commitments.empty? %>
-          There are no open commitments to dispose.
-        <% else %>
-          Add Supplier confirmation evidence on this Arrangement before recording <%= outcome_label %>.
-        <% end %>
+        Add Supplier confirmation evidence on this Arrangement before recording <%= outcome_label %>.
       </p>
     <% else %>
       <%= form_with url: dispose_departure_arrangement_commitments_path(@departure, @supplier_arrangement),
-        method: :post, class: "dd-form", html: { novalidate: true } do |form| %>
-        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+        method: :get, class: "dd-form", html: { novalidate: true } do %>
         <%= hidden_field_tag :outcome, @outcome %>
-
-        <div class="dd-field">
-          <label class="dd-label" for="supplier_commitment_ids">Open commitment</label>
-          <select class="dd-input" id="supplier_commitment_ids" name="supplier_commitment_ids[]" required>
-            <% @open_commitments.each do |commitment| %>
-              <option value="<%= commitment.id %>">
-                <%= commitment.description %> · <%= supplier_option_label(commitment.committed_supplier) %>
-              </option>
-            <% end %>
-          </select>
-        </div>
-
         <div class="dd-field">
           <label class="dd-label" for="supplier_confirmation_id">Confirmation evidence</label>
           <select class="dd-input" id="supplier_confirmation_id" name="supplier_confirmation_id" required>
+            <option value="">Choose evidence</option>
             <% @confirmations.each do |confirmation| %>
-              <option value="<%= confirmation.id %>">
+              <option value="<%= confirmation.id %>" <%= "selected" if confirmation.id.to_s == @selected_confirmation_id.to_s %>>
                 <%= confirmation.evidence_kind.humanize %> · <%= confirmation.reference_note %> · <%= l(confirmation.evidence_on) %>
+                · <%= supplier_option_label(confirmation.confirming_supplier) %>
               </option>
             <% end %>
           </select>
           <p class="dd-field-hint">
             <% if @outcome == "released" %>
-              Release requires Supplier or contract release evidence from the committed Supplier, not the opening confirmation.
+              Release requires Supplier or contract release evidence from the committed Supplier, not an opening confirmation.
             <% else %>
-              Satisfaction requires booking confirmation evidence from the committed Supplier, not the opening confirmation.
+              Satisfaction requires booking confirmation evidence from the committed Supplier, not an opening confirmation.
             <% end %>
           </p>
         </div>
-
         <div class="dd-form-actions">
-          <%= form.submit "Record #{outcome_label}", class: "dd-button" %>
+          <%= submit_tag "Review compatible commitments", class: "dd-button dd-button--quiet" %>
         </div>
+      <% end %>
+
+      <% if @selected_confirmation %>
+        <% if @open_commitments.empty? %>
+          <p class="dd-empty-state">
+            No open commitments are compatible with that evidence.
+          </p>
+        <% else %>
+          <%= form_with url: dispose_departure_arrangement_commitments_path(@departure, @supplier_arrangement),
+            method: :post, class: "dd-form", html: { novalidate: true } do |form| %>
+            <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+            <%= hidden_field_tag :outcome, @outcome %>
+            <%= hidden_field_tag :supplier_confirmation_id, @selected_confirmation.id %>
+
+            <fieldset class="dd-field">
+              <legend class="dd-label">Compatible open commitments</legend>
+              <p class="dd-field-hint">
+                Candidates match this evidence’s Supplier and meaning. Narrow the set before submit if needed.
+              </p>
+              <ul>
+                <% @open_commitments.each do |commitment| %>
+                  <li>
+                    <label>
+                      <%= check_box_tag "supplier_commitment_ids[]", commitment.id,
+                        @selected_commitment_ids.include?(commitment.id.to_s),
+                        id: "supplier_commitment_#{commitment.id}" %>
+                      <%= commitment.description %> · <%= supplier_option_label(commitment.committed_supplier) %>
+                    </label>
+                  </li>
+                <% end %>
+              </ul>
+            </fieldset>
+
+            <div class="dd-form-actions">
+              <%= form.submit "Record #{outcome_label}", class: "dd-button" %>
+            </div>
+          <% end %>
+        <% end %>
       <% end %>
     <% end %>
   </div>
