@@ -72,13 +72,124 @@
     <% if @review_blockers.empty? %>
       <p>✓ Forecast evaluates successfully.</p>
       <dl class="dd-definition-list">
-        <div><dt>Forecast Supplier cost</dt><dd><%= Money.new(@review.totals.forecast_supplier_cost_minor_units, @supplier_cost_definition.currency).format %></dd></div>
+        <div><dt>Forecast Supplier cost (authoritative for this assumption)</dt><dd><%= Money.new(@review.totals.forecast_supplier_cost_minor_units, @supplier_cost_definition.currency).format %></dd></div>
         <div><dt>Expected commission</dt><dd><%= Money.new(@review.totals.expected_commission_minor_units, @supplier_cost_definition.currency).format %></dd></div>
         <div><dt>Expected net cost after commission</dt><dd><%= Money.new(@review.totals.expected_net_cost_after_commission_minor_units, @supplier_cost_definition.currency).format %></dd></div>
       </dl>
     <% else %>
       <p>⚠ Resolve these blockers before marking this definition ready:</p>
       <ul><% @review_blockers.each do |message| %><li><%= message %></li><% end %></ul>
+    <% end %>
+  </div>
+</section>
+
+<section class="dd-panel">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Occupancy cost preview</h2>
+      <p>Per-cabin Supplier cost for each occupancy profile. Planning quantities are not changed.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <p>
+      Exact context: <strong><%= @occupancy_preview.context_label %></strong>
+    </p>
+    <% if @occupancy_preview.empty_reason %>
+      <p><%= @occupancy_preview.empty_reason %></p>
+      <% if @planning_quantities_path %>
+        <p><%= link_to "Open Planning quantities", @planning_quantities_path %></p>
+      <% end %>
+    <% else %>
+      <p>
+        The combined forecast above remains the authoritative Supplier cost for the full expected mix.
+        Each row below evaluates one profile alone: per cabin uses one resource unit; forecast contribution
+        uses that profile’s Like resource units count.
+      </p>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th scope="col">Profile</th>
+              <th scope="col">Supplier gross per cabin</th>
+              <th scope="col">Expected commission per cabin</th>
+              <th scope="col">Net after commission per cabin</th>
+              <th scope="col">Expected cabins</th>
+              <th scope="col">Forecast contribution</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @occupancy_preview.profiles.each do |profile_preview| %>
+              <% currency = @occupancy_preview.currency %>
+              <tr>
+                <td>
+                  <details>
+                    <summary><%= profile_preview.label %></summary>
+                    <% if profile_preview.per_cabin.complete %>
+                      <ul>
+                        <% profile_preview.per_cabin.components.each do |component| %>
+                          <li>
+                            <%= component.label %> —
+                            <%= component.economic_role.humanize %>:
+                            <%= Money.new(component.rounded_minor_units, currency).format %>
+                            <% if component.quantity %>
+                              (quantity <%= component.quantity %>)
+                            <% end %>
+                          </li>
+                        <% end %>
+                      </ul>
+                    <% else %>
+                      <p>Per-cabin blockers:</p>
+                      <ul>
+                        <% profile_preview.per_cabin.blockers.each do |message| %>
+                          <li><%= message %></li>
+                        <% end %>
+                      </ul>
+                    <% end %>
+                    <% unless profile_preview.contribution.complete %>
+                      <p>Contribution blockers:</p>
+                      <ul>
+                        <% profile_preview.contribution.blockers.each do |message| %>
+                          <li><%= message %></li>
+                        <% end %>
+                      </ul>
+                    <% end %>
+                  </details>
+                </td>
+                <% if profile_preview.per_cabin.complete %>
+                  <td><%= Money.new(profile_preview.per_cabin.totals.forecast_supplier_cost_minor_units, currency).format %></td>
+                  <td><%= Money.new(profile_preview.per_cabin.totals.expected_commission_minor_units, currency).format %></td>
+                  <td><%= Money.new(profile_preview.per_cabin.totals.expected_net_cost_after_commission_minor_units, currency).format %></td>
+                <% else %>
+                  <td colspan="3">Blocked — expand profile for details</td>
+                <% end %>
+                <td><%= profile_preview.expected_resource_units %></td>
+                <td>
+                  <% if profile_preview.contribution.complete %>
+                    <%= Money.new(profile_preview.contribution.totals.forecast_supplier_cost_minor_units, currency).format %>
+                  <% else %>
+                    Blocked
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <% if @occupancy_preview.rounding_differences.any? %>
+        <p>
+          ⚠ Sum of profile forecast contributions differs from the authoritative combined forecast
+          at the currency minor-unit boundary.
+        </p>
+        <ul>
+          <% @occupancy_preview.rounding_differences.each do |field, difference| %>
+            <li>
+              <%= field.to_s.humanize %>:
+              <%= difference.positive? ? "+" : "" %><%= Money.new(difference, @occupancy_preview.currency).format %>
+            </li>
+          <% end %>
+        </ul>
+        <p><%= @occupancy_preview.rounding_explanation %></p>
+      <% end %>
     <% end %>
   </div>
 </section>

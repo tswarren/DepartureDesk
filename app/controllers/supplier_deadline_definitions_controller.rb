@@ -48,8 +48,7 @@ class SupplierDeadlineDefinitionsController < ApplicationController
       @departure, @supplier_arrangement, @supplier_arrangement_version
     ), notice: "Deadline definition saved."
   rescue AgencyCommand::Error => error
-    @definition = definition_scope.new(definition_params.except(:coverage_links, :commitment_lines, :rule_parameters))
-    @definition.rule_parameters = parse_rule_parameters_for_form
+    assign_definition_for_form
     @idempotency_key = params[:idempotency_key]
     add_definition_error(error)
     load_form_options
@@ -69,10 +68,7 @@ class SupplierDeadlineDefinitionsController < ApplicationController
       @departure, @supplier_arrangement, @supplier_arrangement_version
     ), notice: "Deadline definition updated."
   rescue AgencyCommand::Error => error
-    @definition.assign_attributes(
-      definition_params.except(:coverage_links, :commitment_lines, :rule_parameters, :lock_version)
-    )
-    @definition.rule_parameters = parse_rule_parameters_for_form
+    assign_definition_for_form(@definition)
     add_definition_error(error)
     load_form_options
     render :edit, status: :unprocessable_entity
@@ -109,6 +105,12 @@ class SupplierDeadlineDefinitionsController < ApplicationController
     @supplier_arrangement_version.supplier_deadline_definitions
   end
 
+  FORM_RULE_KEYS = %w[
+    fixed_date fixed_datetime offset_days offset_hours
+    arm1_rule_shape arm1_fixed_date arm1_fixed_datetime arm1_offset_days arm1_offset_hours
+    arm2_rule_shape arm2_fixed_date arm2_fixed_datetime arm2_offset_days arm2_offset_hours
+  ].freeze
+
   def definition_params
     raw = params.fetch(:supplier_deadline_definition, {}).permit(
       :deadline_type, :other_label, :kind, :rule_shape, :precision, :time_zone,
@@ -132,7 +134,32 @@ class SupplierDeadlineDefinitionsController < ApplicationController
     attrs[:commitment_lines] = Array(attrs[:commitment_lines]).reject { |line|
       line[:authority_shape].blank? && line[:description].blank?
     }
-    attrs
+    attrs.except(*FORM_RULE_KEYS)
+  end
+
+  def assign_definition_for_form(definition = nil)
+    attrs = definition_params
+    model_attrs = attrs.except(:coverage_links, :commitment_lines, :rule_parameters, :lock_version)
+    @definition = if definition
+      definition.assign_attributes(model_attrs)
+      definition
+    else
+      definition_scope.new(model_attrs)
+    end
+    @definition.rule_parameters = attrs[:rule_parameters] || {}
+    @definition.association(:supplier_deadline_definition_coverage_links).target =
+      Array(attrs[:coverage_links]).map { |link|
+        @definition.supplier_deadline_definition_coverage_links.build(link)
+      }
+    @definition.association(:supplier_deadline_commitment_definition_lines).target =
+      Array(attrs[:commitment_lines]).map { |line|
+        line_attrs = line.to_h.with_indifferent_access
+        shape = line_attrs[:authority_shape].to_s
+        unless SupplierDeadlineCommitmentDefinitionLine::AUTHORITY_SHAPES.include?(shape)
+          line_attrs = line_attrs.except(:authority_shape)
+        end
+        @definition.supplier_deadline_commitment_definition_lines.build(line_attrs)
+      }
   end
 
   def build_rule_parameters(attrs)
@@ -171,10 +198,6 @@ class SupplierDeadlineDefinitionsController < ApplicationController
       {}
     end
     { "rule_shape" => shape, "rule_parameters" => params }
-  end
-
-  def parse_rule_parameters_for_form
-    build_rule_parameters(definition_params)
   end
 
   def load_form_options

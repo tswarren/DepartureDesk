@@ -8,11 +8,13 @@ class SupplierCostDefinitionReviewsController < ApplicationController
     @components = @supplier_cost_definition.supplier_cost_components
       .includes(:supplier_cost_component_bases).order(:position, :id).to_a
     @components_by_id = @components.index_by(&:id)
-    @assumption = @supplier_arrangement_version.supplier_cost_usage_assumptions.find_by(
-      arrangement_item_id: @supplier_cost_source.arrangement_item_id,
-      service_occurrence_id: @supplier_cost_source.service_occurrence_id,
-      supplier_resource_id: @supplier_cost_source.supplier_resource_id
-    )
+    @assumption = @supplier_arrangement_version.supplier_cost_usage_assumptions
+      .includes(supplier_cost_occupancy_profiles: :supplier_cost_occupancy_profile_positions)
+      .find_by(
+        arrangement_item_id: @supplier_cost_source.arrangement_item_id,
+        service_occurrence_id: @supplier_cost_source.service_occurrence_id,
+        supplier_resource_id: @supplier_cost_source.supplier_resource_id
+      )
     forecast = EvaluateSupplierCostForecast.new(
       agency: Current.agency, departure: @departure, arrangement: @supplier_arrangement,
       probe_definition: @supplier_cost_definition
@@ -43,5 +45,43 @@ class SupplierCostDefinitionReviewsController < ApplicationController
     end
     @review_blockers.uniq!
     @editable = cost_source_ordinary_editable?(@supplier_cost_source)
+    assign_occupancy_preview
+  end
+
+  private
+
+  def assign_occupancy_preview
+    occurrence_definition = if @supplier_cost_source.service_occurrence_id && @arrangement_item
+      @supplier_arrangement_version.service_occurrence_definitions.find_by(
+        arrangement_item_id: @arrangement_item.id,
+        service_occurrence_id: @supplier_cost_source.service_occurrence_id
+      )
+    end
+    resource_definition = if @supplier_cost_source.supplier_resource_id && @arrangement_item
+      @supplier_arrangement_version.supplier_resource_definitions.find_by(
+        arrangement_item_id: @arrangement_item.id,
+        supplier_resource_id: @supplier_cost_source.supplier_resource_id
+      )
+    end
+    @occupancy_preview = EvaluateSupplierCostOccupancyPreview.new(
+      agency: Current.agency,
+      departure: @departure,
+      arrangement: @supplier_arrangement,
+      source: @supplier_cost_source,
+      definition: @supplier_cost_definition,
+      assumption: @assumption,
+      item_definition: @arrangement_item_definition,
+      occurrence_definition: occurrence_definition,
+      resource_definition: resource_definition
+    ).call
+    @planning_quantities_path = if @arrangement_item && @assumption
+      departure_arrangement_item_costs_workspace_path(
+        @departure, @supplier_arrangement, @arrangement_item, anchor: "assumption-#{@assumption.id}"
+      )
+    elsif @arrangement_item
+      departure_arrangement_item_costs_workspace_path(
+        @departure, @supplier_arrangement, @arrangement_item, anchor: "planning-quantities"
+      )
+    end
   end
 end

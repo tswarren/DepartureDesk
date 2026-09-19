@@ -164,6 +164,189 @@ class M3CSupplierCostsRequestTest < ActionDispatch::IntegrationTest
     assert_not SupplierCostParticipantCategory.exists?(category.id)
   end
 
+  test "item costs workspace edits and removes occupancy profiles" do
+    item = @arrangement.arrangement_items.create!(agency: @agency, departure: @departure)
+    @version.arrangement_item_definitions.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement,
+      arrangement_item: item, name: "I1 Inside", category: "lodging", position: 1
+    )
+    category = CreateSupplierCostParticipantCategory.new(
+      agency: @agency, actor: @admin, arrangement_item: item,
+      version_lock_version: @version.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { label: "Anonymous occupant" }
+    ).call.record
+    assumption = CreateSupplierCostUsageAssumption.new(
+      agency: @agency, actor: @admin, arrangement_item: item,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {}
+    ).call.record
+    profile = CreateSupplierCostOccupancyProfile.new(
+      agency: @agency, actor: @admin, assumption: assumption,
+      assumption_lock_version: assumption.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { label: "Double occupancy", resource_unit_count: 2 },
+      positions: [ category.id, category.id ]
+    ).call.record
+
+    sign_in_as @admin
+    get departure_arrangement_item_costs_workspace_path(@departure, @arrangement, item)
+    assert_response :success
+    assert_select "summary", text: "Edit occupancy profile", count: 1
+    assert_select "button[type=submit]", text: "Remove occupancy profile", count: 1
+    assert_select "form[action=?]", departure_arrangement_item_cost_assumption_occupancy_profile_path(
+      @departure, @arrangement, item, assumption, profile
+    ), minimum: 2
+
+    sign_in_as @viewer
+    get departure_arrangement_item_costs_workspace_path(@departure, @arrangement, item)
+    assert_response :success
+    assert_select "summary", text: "Edit occupancy profile", count: 0
+    assert_select "button[type=submit]", text: "Remove occupancy profile", count: 0
+
+    sign_in_as @admin
+    patch departure_arrangement_item_cost_assumption_occupancy_profile_path(
+      @departure, @arrangement, item, assumption, profile
+    ), params: {
+      supplier_cost_occupancy_profile: {
+        label: "Single occupancy",
+        resource_unit_count: 1,
+        lock_version: profile.lock_version
+      },
+      participant_category_ids: [ category.id, "" ]
+    }
+    assert_redirected_to departure_arrangement_item_costs_workspace_path(
+      @departure, @arrangement, item, anchor: "profile-#{profile.id}"
+    )
+    profile.reload
+    assert_equal "Single occupancy", profile.label
+    assert_equal 1, profile.resource_unit_count
+    assert_equal [ category.id ],
+      profile.supplier_cost_occupancy_profile_positions.order(:occupancy_position).pluck(:participant_category_id)
+
+    delete departure_arrangement_item_cost_assumption_occupancy_profile_path(
+      @departure, @arrangement, item, assumption, profile
+    ), params: { assumption_lock_version: assumption.reload.lock_version }
+    assert_redirected_to departure_arrangement_item_costs_workspace_path(
+      @departure, @arrangement, item, anchor: "assumption-#{assumption.id}"
+    )
+    assert_not SupplierCostOccupancyProfile.exists?(profile.id)
+  end
+
+  test "cost definition review shows occupancy preview for exact context only" do
+    item = @arrangement.arrangement_items.create!(agency: @agency, departure: @departure)
+    @version.arrangement_item_definitions.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement,
+      arrangement_item: item, name: "I1 Inside", category: "lodging", position: 1
+    )
+    occurrence = item.service_occurrences.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement, status: "planned"
+    )
+    @version.service_occurrence_definitions.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement,
+      arrangement_item: item, service_occurrence: occurrence,
+      name: "7-night Eastern Caribbean",
+      starts_on: @departure.starts_on, ends_on: @departure.ends_on,
+      time_zone: @departure.time_zone
+    )
+    category = CreateSupplierCostParticipantCategory.new(
+      agency: @agency, actor: @admin, arrangement_item: item,
+      version_lock_version: @version.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { label: "Anonymous occupant" }
+    ).call.record
+    item_assumption = CreateSupplierCostUsageAssumption.new(
+      agency: @agency, actor: @admin, arrangement_item: item,
+      idempotency_key: SecureRandom.uuid, attributes: {}
+    ).call.record
+    CreateSupplierCostOccupancyProfile.new(
+      agency: @agency, actor: @admin, assumption: item_assumption,
+      assumption_lock_version: item_assumption.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { label: "Double occupancy", resource_unit_count: 1 },
+      positions: [ category.id, category.id ]
+    ).call.record
+
+    item_source = CreateSupplierCostSource.new(
+      agency: @agency, actor: @admin, arrangement: @arrangement,
+      version_lock_version: @version.reload.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        arrangement_item_id: item.id, charging_supplier_id: @supplier.id, label: "Item-wide I1"
+      }
+    ).call.record
+    item_definition = CreateSupplierCostDefinition.new(
+      agency: @agency, actor: @admin, source: item_source,
+      source_lock_version: item_source.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        stage: "estimate", mode: "calculated", currency: "USD", rounding_mode: "half_up"
+      }
+    ).call.record
+    CreateSupplierCostComponent.new(
+      agency: @agency, actor: @admin, definition: item_definition,
+      definition_lock_version: item_definition.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        label: "First/second fare", economic_role: "supplier_charge",
+        calculation_kind: "unit_rate", amount_minor_units: 100_00,
+        quantity_basis: "occupancy_positions", occupancy_position_from: 1, occupancy_position_to: 2,
+        position: 1, pass_through: false
+      }
+    ).call.record
+
+    sailing_source = CreateSupplierCostSource.new(
+      agency: @agency, actor: @admin, arrangement: @arrangement,
+      version_lock_version: @version.reload.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        arrangement_item_id: item.id, service_occurrence_id: occurrence.id,
+        charging_supplier_id: @supplier.id, label: "Sailing I1"
+      }
+    ).call.record
+    sailing_definition = CreateSupplierCostDefinition.new(
+      agency: @agency, actor: @admin, source: sailing_source,
+      source_lock_version: sailing_source.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        stage: "estimate", mode: "calculated", currency: "USD", rounding_mode: "half_up"
+      }
+    ).call.record
+    CreateSupplierCostComponent.new(
+      agency: @agency, actor: @admin, definition: sailing_definition,
+      definition_lock_version: sailing_definition.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        label: "First/second fare", economic_role: "supplier_charge",
+        calculation_kind: "unit_rate", amount_minor_units: 100_00,
+        quantity_basis: "occupancy_positions", occupancy_position_from: 1, occupancy_position_to: 2,
+        position: 1, pass_through: false
+      }
+    ).call.record
+
+    audit_count = AuditEvent.count
+    ready_before = sailing_definition.reload.forecast_ready?
+
+    sign_in_as @admin
+    get departure_arrangement_item_cost_definition_review_path(
+      @departure, @arrangement, item, item_source, item_definition
+    )
+    assert_response :success
+    assert_select "h2", text: "Occupancy cost preview"
+    assert_select "summary", text: "Double occupancy", count: 1
+
+    get departure_arrangement_item_cost_definition_review_path(
+      @departure, @arrangement, item, sailing_source, sailing_definition
+    )
+    assert_response :success
+    assert_select "h2", text: "Occupancy cost preview"
+    assert_match(/7-night Eastern Caribbean/, response.body)
+    assert_select "summary", text: "Double occupancy", count: 0
+    assert_match(/No planning quantities exist for this exact context/, response.body)
+    assert_select "a", text: "Open Planning quantities"
+
+    assert_equal audit_count, AuditEvent.count
+    assert_equal ready_before, sailing_definition.reload.forecast_ready?
+
+    sign_in_as @viewer
+    get departure_arrangement_item_cost_definition_review_path(
+      @departure, @arrangement, item, item_source, item_definition
+    )
+    assert_response :success
+    assert_select "h2", text: "Occupancy cost preview"
+    assert_select "summary", text: "Double occupancy", count: 1
+  end
+
   test "guided setup preserves entered values on validation failure" do
     sign_in_as @admin
 
