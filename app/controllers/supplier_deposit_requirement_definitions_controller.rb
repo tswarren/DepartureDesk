@@ -164,12 +164,12 @@ class SupplierDepositRequirementDefinitionsController < ApplicationController
       {
         "rule_shape" => shape,
         "rule_parameters" => case shape
-        when "fixed_date" then { "date" => raw["#{prefix}_fixed_date"] }
-        when "fixed_local_datetime" then { "datetime" => raw["#{prefix}_fixed_datetime"] }
-        when "days_before_departure", "days_after_departure" then { "days" => raw["#{prefix}_offset_days"] }
-        when "hours_before_departure", "hours_after_departure" then { "hours" => raw["#{prefix}_offset_hours"] }
-        else {}
-        end
+                             when "fixed_date" then { "date" => raw["#{prefix}_fixed_date"] }
+                             when "fixed_local_datetime" then { "datetime" => raw["#{prefix}_fixed_datetime"] }
+                             when "days_before_departure", "days_after_departure" then { "days" => raw["#{prefix}_offset_days"] }
+                             when "hours_before_departure", "hours_after_departure" then { "hours" => raw["#{prefix}_offset_hours"] }
+                             else {}
+                             end
       }
     end
   end
