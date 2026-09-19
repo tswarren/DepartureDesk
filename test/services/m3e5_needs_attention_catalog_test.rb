@@ -4,6 +4,7 @@ require "test_helper"
 
 class M3e5NeedsAttentionCatalogTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
+  include ApplicationHelper
 
   setup do
     @agency = agencies(:harbor)
@@ -82,7 +83,7 @@ class M3e5NeedsAttentionCatalogTest < ActiveSupport::TestCase
       projection.warning_starts_at
   end
 
-  test "due soon and overdue commitment detectors evaluate stored boundaries at read time" do
+  test "due soon findings persist before attention_at and overdue labels use overdue_at on read" do
     create_actionable_deadline!(
       rule_parameters: { "date" => "2027-01-20" },
       warning_lead_days: 3
@@ -95,29 +96,21 @@ class M3e5NeedsAttentionCatalogTest < ActiveSupport::TestCase
 
     RebuildSupplierAttentionProjectionAlreadyLocked.new(
       agency: @agency, arrangement: @arrangement.reload,
-      at: Time.zone.parse("2027-01-18 12:00:00")
+      at: Time.zone.parse("2027-01-10 12:00:00")
     ).call
-    due_soon = SupplierAttentionFinding.find_by!(
+    finding = SupplierAttentionFinding.find_by!(
       supplier_arrangement: @arrangement,
       detector_key: "actionable_commitment_due_soon",
       source_id: commitment.id
     )
-    assert due_soon.visible?(Time.zone.parse("2027-01-18 12:00:00"))
-    assert_not due_soon.overdue?(Time.zone.parse("2027-01-18 12:00:00"))
-
-    RebuildSupplierAttentionProjectionAlreadyLocked.new(
-      agency: @agency, arrangement: @arrangement.reload,
-      at: Time.zone.parse("2027-01-21 12:00:00")
-    ).call
-    assert SupplierAttentionFinding.exists?(
-      supplier_arrangement: @arrangement,
-      detector_key: "actionable_commitment_overdue",
-      source_id: commitment.id
-    )
-    assert_not SupplierAttentionFinding.exists?(
-      supplier_arrangement: @arrangement,
-      detector_key: "actionable_commitment_due_soon",
-      source_id: commitment.id
+    assert_not finding.visible?(Time.zone.parse("2027-01-10 12:00:00")),
+      "Finding must exist before the warning boundary but stay hidden until attention_at"
+    assert finding.visible?(Time.zone.parse("2027-01-18 12:00:00"))
+    assert_not finding.overdue?(Time.zone.parse("2027-01-18 12:00:00"))
+    assert finding.overdue?(Time.zone.parse("2027-01-21 12:00:00")),
+      "Overdue labeling must use stored overdue_at without a status-changing rebuild"
+    assert_equal "Overdue", attention_severity_label(
+      finding, at: Time.zone.parse("2027-01-21 12:00:00")
     )
   end
 
@@ -190,10 +183,113 @@ class M3e5NeedsAttentionCatalogTest < ActiveSupport::TestCase
 
     assert_equal before_commitments, SupplierCommitment.count
     assert_equal before_audits, AuditEvent.count
-    assert SupplierAttentionFinding.exists?(
+    finding = SupplierAttentionFinding.find_by!(
       supplier_arrangement: @arrangement,
-      detector_key: "actionable_commitment_overdue"
+      detector_key: "actionable_commitment_due_soon"
     )
+    assert finding.overdue?(Time.zone.parse("2027-01-21 12:00:00"))
+  end
+
+  test "handled Celebrity deposit through successor activation does not invent incomplete finding" do
+    create_deposit!(
+      amount_shape: "fixed_amount",
+      fixed_amount_minor_units: 5_000,
+      currency: "USD",
+      rule_shape: "fixed_date",
+      rule_parameters: { "date" => "2027-01-15" },
+      precision: "date_only"
+    )
+    activate_arrangement!
+    commitment = SupplierCommitment.find_by!(opening_kind: "deposit_requirement")
+    AttestSupplierDepositHandledExternally.new(
+      agency: @agency, actor: @actor, commitment:,
+      note: "Confirmed handled outside DepartureDesk via remittance",
+      confirmed_complete: true,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    assert_equal "handled_externally", commitment.reload.disposition_outcome
+
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    ActivateSupplierArrangementVersion.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement.reload,
+      version: successor.reload,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: successor.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      evidence_attributes: {
+        evidence_kind: "supplier_confirmation", evidence_on: Date.current,
+        channel: "portal", reference_note: "Successor evidence",
+        confirmed_without_identifier_reason: "Supplier did not issue one"
+      },
+      cost_source_coverage_acknowledged: true,
+      provisional_costs_acknowledged: true,
+      commitment_trigger_coverage_acknowledged: true,
+      elapsed_deadlines_acknowledged: true
+    ).call
+
+    copied = successor.supplier_deposit_requirement_definitions.sole
+    assert_nil SupplierDepositRequirementTranche.find_by(
+      supplier_deposit_requirement_definition_id: copied.id
+    ), "Unchanged terminal deposit must not rematerialize on successor activation"
+    assert_not SupplierAttentionFinding.exists?(
+      supplier_arrangement: @arrangement,
+      detector_key: "deposit_calculation_incomplete",
+      source_id: copied.id
+    )
+  end
+
+  test "deadline catch-up and planning milestone share lock order without deadlock" do
+    create_deposit!(
+      amount_shape: "fixed_amount",
+      fixed_amount_minor_units: 2_500,
+      currency: "USD",
+      rule_shape: "earlier_of",
+      rule_parameters: {
+        "arms" => [
+          { "rule_shape" => "fixed_date", "rule_parameters" => { "date" => "2027-03-11" } },
+          {
+            "rule_shape" => "planning_milestone",
+            "rule_parameters" => { "kind" => "names_assigned_to_supplier" }
+          }
+        ]
+      },
+      precision: "date_only"
+    )
+    activate_arrangement!
+    occurrence = SupplierDeadlineOccurrence.find_by!(
+      supplier_arrangement_version: @version.reload,
+      deadline_type: "deposit_due"
+    )
+
+    outcomes = race do |index|
+      if index.zero?
+        RefreshDeadlineProjectionJob.perform_now(
+          agency_id: @agency.id,
+          supplier_deadline_occurrence_id: occurrence.id
+        )
+        :catch_up
+      else
+        RecordSupplierPlanningMilestone.new(
+          agency: @agency,
+          actor: @actor,
+          arrangement: @arrangement.reload,
+          version: @version.reload,
+          kind: "names_assigned_to_supplier",
+          occurred_on: Date.new(2027, 2, 1),
+          idempotency_key: SecureRandom.uuid
+        ).call
+      end
+    end
+
+    assert outcomes.none? { |outcome| outcome.is_a?(ActiveRecord::Deadlocked) },
+      "Catch-up must not reverse Arrangement/occurrence lock order against milestone replacement"
+    assert outcomes.any? { |outcome| outcome == :catch_up }
+    assert outcomes.any? { |outcome| outcome.is_a?(AgencyCommand::Result) }
   end
 
   test "agency timing update refreshes deadline projections using most-specific-wins" do
@@ -302,6 +398,54 @@ class M3e5NeedsAttentionCatalogTest < ActiveSupport::TestCase
       version_lock_version: @version.lock_version,
       idempotency_key: SecureRandom.uuid
     ).call.record
+  end
+
+  def create_deposit!(**attrs)
+    CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency, actor: @actor, version: @version.reload,
+      attributes: {
+        amount_shape: "fixed_amount",
+        fixed_amount_minor_units: 1_000,
+        currency: "USD",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-05-01" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        coverage_links: [],
+        cost_links: []
+      }.merge(attrs),
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+  end
+
+  def race
+    ready = Queue.new
+    release = Queue.new
+    threads = 2.times.map do |index|
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          ready << true
+          release.pop
+          yield index
+        end
+      rescue StandardError => error
+        error
+      end
+    end
+    2.times { ready.pop }
+    2.times { release << true }
+    outcomes = threads.map(&:value)
+    outcomes.each do |outcome|
+      next if outcome == :catch_up
+      next if outcome.is_a?(AgencyCommand::Result)
+      next if outcome.is_a?(AgencyCommand::Error) &&
+        %i[invalid invalid_state conflict].include?(outcome.code)
+      next if outcome.is_a?(ActiveRecord::Deadlocked)
+
+      raise outcome if outcome.is_a?(Exception)
+    end
+    outcomes
   end
 
   def activate_arrangement!

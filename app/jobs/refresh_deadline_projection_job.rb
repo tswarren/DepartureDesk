@@ -13,21 +13,35 @@ class RefreshDeadlineProjectionJob < ApplicationJob
     return if occurrence.nil? || occurrence.superseded_at.present?
 
     ActiveRecord::Base.transaction do
+      # Canonical M3E order: Agency → Departure → Arrangement → version → occurrence →
+      # attention projection. Do not lock the occurrence before the Arrangement (milestone
+      # replacement locks Arrangement first).
+      locked_agency = Agency.lock.find_by(id: agency.id)
+      next if locked_agency.nil? || !locked_agency.active?
+
+      departure = locked_agency.departures.lock.find_by(id: occurrence.departure_id)
+      next if departure.nil?
+
+      arrangement = locked_agency.supplier_arrangements.lock.find_by(
+        id: occurrence.supplier_arrangement_id
+      )
+      next if arrangement.nil?
+
+      version = arrangement.versions.lock.find_by(
+        id: occurrence.supplier_arrangement_version_id
+      )
+      next if version.nil?
+
       locked = SupplierDeadlineOccurrence.lock.find_by(
-        id: occurrence.id, agency_id: agency.id
+        id: occurrence.id, agency_id: locked_agency.id
       )
       next if locked.nil? || locked.superseded_at.present?
 
       RefreshSupplierDeadlineProjection.call(occurrence: locked)
-      arrangement = SupplierArrangement.lock.find_by(
-        id: locked.supplier_arrangement_id, agency_id: agency.id
-      )
-      next if arrangement.nil?
-
       RebuildSupplierAttentionProjectionAlreadyLocked.new(
-        agency:,
+        agency: locked_agency,
         arrangement:,
-        version: locked.supplier_arrangement_version
+        version:
       ).call
     end
   end

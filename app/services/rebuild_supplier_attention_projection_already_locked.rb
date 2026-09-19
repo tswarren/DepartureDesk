@@ -123,43 +123,31 @@ class RebuildSupplierAttentionProjectionAlreadyLocked
     overdue_at = projection&.overdue_at || occurrence_overdue_at(occurrence)
     warning_at = projection&.warning_starts_at
     due_boundary = occurrence.date_only? ? (overdue_at - 1.day) : occurrence.calculated_at
+    attention_at = warning_at || due_boundary || commitment.opened_at
+    # Persist before the warning/due boundary so read-time visibility can reveal the
+    # finding without waiting for catch-up. Overdue labeling uses overdue_at on read.
+    severity = overdue_at.present? && @at >= overdue_at ? "overdue" : "attention"
 
-    if overdue_at && @at >= overdue_at
-      return FindingDraft.new(
-        detector_key: "actionable_commitment_overdue",
-        action_group: "dispose_or_satisfy_commitment",
-        severity: "overdue",
-        source_kind: "supplier_commitment",
-        source_id: commitment.id,
-        required_action: "Resolve the overdue commitment",
-        reason: "Actionable commitment is overdue",
-        consequence_summary: "Supplier deadline has elapsed while the commitment remains open",
-        primary_path: "commitments",
-        attention_at: warning_at || due_boundary || commitment.opened_at,
-        overdue_at:,
-        source_fingerprint: fingerprint("commitment", commitment.id, "overdue", overdue_at)
+    FindingDraft.new(
+      detector_key: "actionable_commitment_due_soon",
+      action_group: "dispose_or_satisfy_commitment",
+      severity:,
+      source_kind: "supplier_commitment",
+      source_id: commitment.id,
+      required_action: severity == "overdue" ? "Resolve the overdue commitment" : "Act on the due commitment",
+      reason: severity == "overdue" ?
+        "Actionable commitment is overdue" :
+        "Actionable commitment is due soon",
+      consequence_summary: severity == "overdue" ?
+        "Supplier deadline has elapsed while the commitment remains open" :
+        "Deadline warning or due window applies to this open commitment",
+      primary_path: "commitments",
+      attention_at:,
+      overdue_at:,
+      source_fingerprint: fingerprint(
+        "commitment", commitment.id, "due_soon", attention_at, overdue_at
       )
-    end
-
-    attention_at = warning_at || due_boundary
-    if attention_at && @at >= attention_at
-      return FindingDraft.new(
-        detector_key: "actionable_commitment_due_soon",
-        action_group: "dispose_or_satisfy_commitment",
-        severity: "attention",
-        source_kind: "supplier_commitment",
-        source_id: commitment.id,
-        required_action: "Act on the due commitment",
-        reason: "Actionable commitment is due soon",
-        consequence_summary: "Deadline warning or due window has started for this open commitment",
-        primary_path: "commitments",
-        attention_at:,
-        overdue_at:,
-        source_fingerprint: fingerprint("commitment", commitment.id, "due_soon", attention_at, overdue_at)
-      )
-    end
-
-    nil
+    )
   end
 
   def occurrence_overdue_at(occurrence)
@@ -217,8 +205,9 @@ class RebuildSupplierAttentionProjectionAlreadyLocked
 
     definitions.filter_map do |definition|
       next if tranched.include?(definition.id)
+      next if deposit_intentionally_unmaterialized?(definition, version)
 
-      incomplete = deposit_incomplete?(definition)
+      incomplete = deposit_incomplete_message(definition, version)
       next unless incomplete
 
       FindingDraft.new(
@@ -238,7 +227,23 @@ class RebuildSupplierAttentionProjectionAlreadyLocked
     end
   end
 
-  def deposit_incomplete?(definition)
+  # Mirrors ReconcileSupplierDepositSuccessorAlreadyLocked#skip_open?: an unchanged
+  # successor deposit whose predecessor commitment is already terminal is intentionally
+  # left without a new tranche.
+  def deposit_intentionally_unmaterialized?(definition, version)
+    predecessor_version = version.copied_from
+    return false if predecessor_version.nil?
+
+    ReconcileSupplierDepositSuccessorAlreadyLocked.new(
+      agency: @agency,
+      actor: AgencyUser.new,
+      arrangement: @arrangement,
+      version:,
+      predecessor_version:
+    ).skip_open?(definition)
+  end
+
+  def deposit_incomplete_message(definition, version)
     SupplierDepositAmountEvaluator.call(
       definition:,
       arrangement: @arrangement,
@@ -278,34 +283,34 @@ class RebuildSupplierAttentionProjectionAlreadyLocked
   end
 
   def unresolved_reservation_findings(version)
-    reservations = @arrangement.supplier_reservations.order(:id)
-    results = []
-    reservations.each do |reservation|
-      UnresolvedReservationCommitmentTriggers.call(
+    @arrangement.supplier_reservations.order(:id).filter_map do |reservation|
+      rows = UnresolvedReservationCommitmentTriggers.call(
         agency: @agency, reservation:
-      ).each do |row|
-        results << FindingDraft.new(
-          detector_key: "unresolved_reservation_response_scope",
-          action_group: "resolve_reservation_response",
-          severity: "attention",
-          source_kind: "supplier_reservation",
-          source_id: reservation.id,
-          required_action: "Resolve reservation confirmation trigger",
-          reason: "Confirmed reservation scope still lacks its confirmation-triggered commitment",
-          consequence_summary: "Confirmation evidence exists without the expected commitment opening",
-          primary_path: "commitments",
-          attention_at: row.confirmation.recorded_at,
-          overdue_at: nil,
-          source_fingerprint: fingerprint(
-            "reservation_trigger",
-            reservation.id,
-            row.confirmation.id,
-            row.trigger.id
-          )
-        )
+      )
+      next if rows.empty?
+
+      trigger_keys = rows.map { |row| [ row.confirmation.id, row.trigger.id ] }.sort
+      reason = if rows.size == 1
+        "Confirmed reservation scope still lacks its confirmation-triggered commitment"
+      else
+        "#{rows.size} confirmed reservation scopes still lack confirmation-triggered commitments"
       end
+
+      FindingDraft.new(
+        detector_key: "unresolved_reservation_response_scope",
+        action_group: "resolve_reservation_response",
+        severity: "attention",
+        source_kind: "supplier_reservation",
+        source_id: reservation.id,
+        required_action: "Resolve reservation confirmation trigger",
+        reason:,
+        consequence_summary: "Confirmation evidence exists without the expected commitment opening",
+        primary_path: "commitments",
+        attention_at: rows.map { |row| row.confirmation.recorded_at }.min,
+        overdue_at: nil,
+        source_fingerprint: fingerprint("reservation_unresolved", reservation.id, *trigger_keys.flatten)
+      )
     end
-    results.uniq { |draft| [ draft.source_kind, draft.source_id, draft.source_fingerprint ] }
   end
 
   def capacity_findings(version)
