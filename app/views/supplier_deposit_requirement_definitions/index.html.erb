@@ -1,0 +1,102 @@
+<% content_for :title, "Deposit requirements · #{@supplier_arrangement.name} · DepartureDesk" %>
+<% manageable = Current.agency_user.permitted?(:manage_departures) && @supplier_arrangement_version.draft? %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning · Version <%= @supplier_arrangement_version.version_number %></p>
+    <h1 class="dd-page-title">Deposit requirements</h1>
+    <p class="dd-page-description">Exact-version Deposit Requirement definitions. Deposits are planning facts, not Payments.</p>
+  </div>
+  <div class="dd-page-actions">
+    <% if manageable %>
+      <%= link_to "Add deposit requirement",
+        new_departure_arrangement_version_deposit_path(
+          @departure, @supplier_arrangement, @supplier_arrangement_version
+        ), class: "dd-button" %>
+    <% end %>
+    <%= link_to "Back to arrangement",
+      departure_arrangement_path(@departure, @supplier_arrangement),
+      class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @definitions.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Shape</th>
+            <th scope="col">Currency</th>
+            <th scope="col">Due rule</th>
+            <th scope="col">Description</th>
+            <% if manageable %><th scope="col">Actions</th><% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% @definitions.each do |definition| %>
+            <tr>
+              <td><%= definition.amount_shape.humanize %></td>
+              <td><%= definition.currency %></td>
+              <td><%= definition.rule_shape.humanize %></td>
+              <td><%= definition.description.presence || "—" %></td>
+              <% if manageable %>
+                <td>
+                  <div class="dd-inline-actions">
+                    <%= link_to "Edit",
+                      edit_departure_arrangement_version_deposit_path(
+                        @departure, @supplier_arrangement, @supplier_arrangement_version, definition
+                      ), class: "dd-row-action dd-row-action--edit" %>
+                    <%= button_to "Remove",
+                      departure_arrangement_version_deposit_path(
+                        @departure, @supplier_arrangement, @supplier_arrangement_version, definition
+                      ), method: :delete, class: "dd-row-action",
+                      form: { class: "dd-inline-form", data: { turbo_confirm: "Remove this deposit requirement?" } },
+                      params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+                  </div>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="dd-empty-state">No deposit requirement definitions yet.</p>
+    <% end %>
+  </div>
+</article>
+
+<% if @tranches.any? %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Materialized tranches</h2>
+    </header>
+    <div class="dd-panel-body">
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Amount</th>
+            <th scope="col">Current</th>
+            <th scope="col">Due</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @tranches.each do |tranche| %>
+            <tr>
+              <td><%= Money.new(tranche.initial_amount_minor_units, tranche.currency).format %></td>
+              <td><%= Money.new(tranche.current_amount_minor_units, tranche.currency).format %></td>
+              <td>
+                <% occ = tranche.governing_deadline_occurrence %>
+                <% if occ %>
+                  <%= occ.calculated_on || occ.calculated_at %>
+                <% else %>
+                  —
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </article>
+<% end %>

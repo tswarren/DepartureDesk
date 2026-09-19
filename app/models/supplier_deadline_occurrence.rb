@@ -13,7 +13,8 @@ class SupplierDeadlineOccurrence < ApplicationRecord
   belongs_to :departure
   belongs_to :supplier_arrangement
   belongs_to :supplier_arrangement_version
-  belongs_to :supplier_deadline_definition
+  belongs_to :supplier_deadline_definition, optional: true
+  belongs_to :supplier_deposit_requirement_definition, optional: true
   belongs_to :supplier_arrangement_activation, optional: true
   belongs_to :predecessor_occurrence, class_name: "SupplierDeadlineOccurrence", optional: true
   belongs_to :actor, class_name: "AgencyUser"

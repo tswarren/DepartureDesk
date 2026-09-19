@@ -1,0 +1,26 @@
+<% content_for :title, "New deposit requirement · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <h1 class="dd-page-title">New deposit requirement</h1>
+    <p class="dd-page-description">Planning fact only — not a Payment or Obligation.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @definition,
+      url: departure_arrangement_version_deposits_path(
+        @departure, @supplier_arrangement, @supplier_arrangement_version
+      ), class: "dd-form" do |form| %>
+      <%= render "form", form: form %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save deposit requirement", class: "dd-button" %>
+        <%= link_to "Cancel",
+          departure_arrangement_version_deposits_path(
+            @departure, @supplier_arrangement, @supplier_arrangement_version
+          ), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

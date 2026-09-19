@@ -1,6 +1,6 @@
 # M3E — Supplier operational control
 
-**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1 and M3E.2 shipped. Later M3E.3–M3E.7 remain unimplemented. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
+**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1, M3E.2, and M3E.3 shipped. Later M3E.4–M3E.7 remain unimplemented. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md)  
 **ADR:** [ADR 0013 — Supplier operational commitments, Deadlines, exposure, and Arrangement ending](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)  
 **Prerequisite:** Shipped M3D through M3D.9; [M3E.0](m3e0-m3d-closure-gate.md) M3D closure gate satisfied  
@@ -845,6 +845,8 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 - M3D.7 freeze extension for Deposit definition families.
 
 **Exit:** Supplier deposits are operationally actionable without creating accounting records or a shadow Payment ledger; Celebrity name-assignment timing works without Travelers.
+
+**Shipped:** M3E.3 (Deposit Requirement definitions and coverage/cost links; immutable tranches and append-only components; activation materialization with `deposit_requirement` openings and `deposit_due` Deadlines; external-handled attestation via disposition outcome `handled_externally`; Staff planning milestones including `names_assigned_to_supplier` with unelapsed earlier-of Deadline replacement; successor copy/reconciliation; M3D.7 freeze for deposit definition families).
 
 ### M3E.4 — Qualified exposure
 

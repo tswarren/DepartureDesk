@@ -3,7 +3,7 @@
 class SupplierCommitmentDisposition < ApplicationRecord
   include AppendOnlyRecord
 
-  OUTCOMES = %w[satisfied released waived cancelled superseded].freeze
+  OUTCOMES = %w[satisfied released waived cancelled superseded handled_externally].freeze
 
   belongs_to :agency
   belongs_to :departure
@@ -11,6 +11,8 @@ class SupplierCommitmentDisposition < ApplicationRecord
   belongs_to :supplier_arrangement_version
   belongs_to :supplier_commitment
   belongs_to :supplier_commitment_evidence_coverage, optional: true
+  belongs_to :supplier_deposit_external_attestation, optional: true
+  belongs_to :supplier_deposit_requirement_tranche, optional: true
   belongs_to :replacement_supplier_commitment, class_name: "SupplierCommitment", optional: true
   belongs_to :actor, class_name: "AgencyUser"
   belongs_to :agency_command_idempotency_key, optional: true

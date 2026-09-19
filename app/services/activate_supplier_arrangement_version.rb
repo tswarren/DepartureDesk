@@ -103,6 +103,11 @@ class ActivateSupplierArrangementVersion < AgencyCommand
         predecessor_version: predecessor, at: activated_at
       )
       commitments.concat(deadline_result[:commitments])
+      deposit_result = materialize_deposits!(
+        activation:, arrangement:, version:, departure:,
+        predecessor_version: predecessor, at: activated_at
+      )
+      commitments.concat(deposit_result[:commitments])
       create_confirmation_links!(
         activation: activation, confirmation: confirmation, identifier: identifier,
         capacity_events: capacity_events
@@ -115,7 +120,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       arrangement.update!(status: "active", governing_version: version)
       audit_activation!(
         arrangement, activation, capacity_events, commitments,
-        deadline_result[:occurrences],
+        deadline_result[:occurrences] + deposit_result[:occurrences],
         successor: activation_kind == "successor"
       )
       claim_idempotency!(key, payload, activation)
@@ -161,12 +166,15 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       supplier_cost_usage_assumptions supplier_cost_occupancy_profiles
       supplier_commitment_trigger_definitions
       supplier_deadline_definitions
+      supplier_deposit_requirement_definitions
     ].each { |association| version.public_send(association).order(:id).lock.load }
     [
       SupplierCostComponentBase,
       SupplierCostOccupancyProfilePosition,
       SupplierDeadlineDefinitionCoverageLink,
-      SupplierDeadlineCommitmentDefinitionLine
+      SupplierDeadlineCommitmentDefinitionLine,
+      SupplierDepositRequirementDefinitionCoverageLink,
+      SupplierDepositRequirementDefinitionCostLink
     ].each do |model|
       model.where(supplier_arrangement_version_id: version.id).order(:id).lock.load
     end
@@ -224,6 +232,12 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       agency: @agency, actor: @actor, arrangement: version.supplier_arrangement,
       version:, activation: nil, departure:, at:
     ).preview_elapsed
+    elapsed.concat(
+      MaterializeSupplierDepositRequirementDefinitionsAlreadyLocked.new(
+        agency: @agency, actor: @actor, arrangement: version.supplier_arrangement,
+        version:, activation: nil, departure:, at:
+      ).preview_elapsed
+    )
     return if elapsed.empty?
     return if @elapsed_deadlines_ack
 
@@ -246,6 +260,27 @@ class ActivateSupplierArrangementVersion < AgencyCommand
           "supplier_arrangement_activation_id" => activation.id,
           "supplier_deadline_occurrence_ids" => result[:occurrences].map(&:id),
           "supplier_commitment_ids" => result[:commitments].map(&:id)
+        }
+      )
+    end
+    result
+  end
+
+  def materialize_deposits!(activation:, arrangement:, version:, departure:,
+    predecessor_version:, at:)
+    result = MaterializeSupplierDepositRequirementDefinitionsAlreadyLocked.new(
+      agency: @agency, actor: @actor, arrangement:, version:, activation:, departure:,
+      predecessor_version:, at:
+    ).call
+    if result[:tranches].any?
+      audit!(
+        agency: @agency, actor: @actor, subject: arrangement,
+        action: "supplier_arrangement.deposits_materialized",
+        details: {
+          "supplier_arrangement_activation_id" => activation.id,
+          "supplier_deposit_requirement_tranche_ids" => result[:tranches].map(&:id),
+          "supplier_commitment_ids" => result[:commitments].map(&:id),
+          "supplier_deadline_occurrence_ids" => result[:occurrences].compact.map(&:id)
         }
       )
     end

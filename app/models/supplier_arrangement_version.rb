@@ -31,6 +31,11 @@ class SupplierArrangementVersion < ApplicationRecord
   has_many :supplier_deadline_commitment_definition_lines, dependent: :restrict_with_exception
   has_many :supplier_deadline_occurrences, dependent: :restrict_with_exception
   has_many :supplier_deadline_projections, dependent: :restrict_with_exception
+  has_many :supplier_deposit_requirement_definitions, dependent: :restrict_with_exception
+  has_many :supplier_deposit_requirement_definition_coverage_links, dependent: :restrict_with_exception
+  has_many :supplier_deposit_requirement_definition_cost_links, dependent: :restrict_with_exception
+  has_many :supplier_deposit_requirement_tranches, dependent: :restrict_with_exception
+  has_many :supplier_planning_milestone_occurrences, dependent: :restrict_with_exception
   has_one :supplier_arrangement_activation, dependent: :restrict_with_exception
   has_many :supplier_confirmations, dependent: :restrict_with_exception
   has_many :supplier_commitments, dependent: :restrict_with_exception

@@ -211,7 +211,17 @@ Rails.application.routes.draw do
           path: "deadlines",
           controller: "supplier_deadline_definitions",
           only: %i[index new create edit update destroy]
+        resources :deposits,
+          path: "deposits",
+          controller: "supplier_deposit_requirement_definitions",
+          only: %i[index new create edit update destroy]
       end
+      post "deposit_commitments/:commitment_id/attest",
+        to: "supplier_deposit_operations#attest",
+        as: :deposit_attest
+      post "planning_milestones",
+        to: "supplier_deposit_operations#record_milestone",
+        as: :planning_milestones
       resources :items, controller: "arrangement_items", only: %i[new create edit update destroy] do
         collection { patch :reorder }
         patch "capacity/pairs/bulk", to: "bulk_capacity_pairs#update", as: :bulk_capacity_pairs

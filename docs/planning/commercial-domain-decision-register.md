@@ -304,7 +304,9 @@ When responsibility for a partially paid Charge changes:
 10. When a contractual rule supplies only a cutoff date, the resolved deadline is the end of that local calendar day in the governing zone unless the Supplier terms explicitly define another cutoff.
 11. Deadline comparison must use the resolved instant while displaying the governing local date, time, and zone.
 
-**Ship note (M3E.2):** Supplier Deadline Definitions, immutable occurrences, activation materialization with elapsed acknowledgment, successor reconciliation, and due/overdue/warning projection catch-up are shipped for `one_shared` cardinality. Time alone still must not open commitments or invent domain events. Named `per_source` cardinality and milestone-anchored rules remain deferred.
+**Ship note (M3E.2):** Supplier Deadline Definitions, immutable occurrences, activation materialization with elapsed acknowledgment, successor reconciliation, and due/overdue/warning projection catch-up are shipped for `one_shared` cardinality. Time alone still must not open commitments or invent domain events. Named `per_source` cardinality remains deferred.
+
+**Ship note (M3E.3):** Deposit Requirement Definitions, immutable tranches, `deposit_requirement` openings, external-handled attestation, and Staff planning milestones (`names_assigned_to_supplier`) are shipped. Milestone-anchored earlier-of due rules are supported on deposit definitions; deposits remain planning facts distinct from Payments and Obligations.
 
 ## 12. Sensitive Traveler data and retention
 
