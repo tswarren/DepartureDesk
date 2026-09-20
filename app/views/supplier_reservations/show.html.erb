@@ -314,7 +314,8 @@ end.select { |row| row.present? } %>
               <div class="dd-field-group">
                 <%= check_box_tag "scope_ids[]", scope.id, include_scope,
                   id: "response_scope_ids_#{scope.id}",
-                  **dd_tag_field_options(@command_form, :scope_ids, id: "response_scope_ids_#{scope.id}") %>
+                  **dd_tag_field_options(@command_form, :scope_ids, id: "response_scope_ids_#{scope.id}",
+                    data: { action: "change->reservation-response-fields#update" }) %>
                 <%= label_tag "response_scope_ids_#{scope.id}", "Include this scope", class: "dd-label" %>
               </div>
               <div class="dd-field-group">
