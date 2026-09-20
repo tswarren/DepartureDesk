@@ -26,6 +26,7 @@ This scenario tests whether DepartureDesk can compose a group cruise from one ma
 - Release of cabins back to the Supplier.
 - Category changes and occupancy Assignments without double-counting capacity.
 - Supplier cutoffs, deposit dates, final-payment dates, name-list deadlines, and release deadlines.
+- Under shipped M3E, the Celebrity cumulative deposit and name-assignment planning milestone are **Arrangement-wide** (see [M3E Celebrity scenario gate](../planning/m3e-supplier-operational-control.md#celebrity-beyond-group-cruise)); assigning names for one cabin must not be treated as advancing only that cabin’s deposit.
 - Pending Supplier confirmation after Client Trip confirmation when policy permits it.
 
 ## Commercial questions exercised

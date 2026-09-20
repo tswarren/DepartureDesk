@@ -1,6 +1,6 @@
 # ADR 0013: Supplier operational commitments, Deadlines, exposure, and Arrangement ending
 
-- Status: Accepted. Implementing slice [M3E](../planning/m3e-supplier-operational-control.md). M3E.1–M3E.2 shipped; later M3E records remain unimplemented.
+- Status: Accepted. Implementing slice [M3E](../planning/m3e-supplier-operational-control.md). M3E.1–M3E.5 shipped; remaining work is M3E.5R, M3D remediations, then M3E.6a–M3E.7b. M3E is not yet fully shipped until M3E.7b.
 - Date: 2026-09-18
 - Amended: 2026-09-18; amended again 2026-09-18 (tranche, earlier-of, reconciliation matrix, cascade catalog, projection locators); Accepted 2026-09-18
 - Decision owners: DepartureDesk maintainers

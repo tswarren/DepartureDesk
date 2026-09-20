@@ -1,6 +1,6 @@
 # M3E — Supplier operational control
 
-**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1, M3E.2, M3E.3, M3E.4, and M3E.5 shipped. Later M3E.6–M3E.7 remain unimplemented. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
+**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1, M3E.2, M3E.3, M3E.4, and M3E.5 shipped. Remaining implementation is **M3E.5R** (integrity and recovery), **M3D remediations** (Reservation partial-response disclosure), then **M3E.6a–M3E.7b**. **M3E is not yet fully shipped** until M3E.7b. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md)  
 **ADR:** [ADR 0013 — Supplier operational commitments, Deadlines, exposure, and Arrangement ending](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)  
 **Prerequisite:** Shipped M3D through M3D.9; [M3E.0](m3e0-m3d-closure-gate.md) M3D closure gate satisfied  
@@ -94,7 +94,7 @@ There is no parallel implementation waiver.
 - scheduled time creating authoritative domain events (commitment openings, dispositions, deposit materializations, capacity events, Reservation responses, or confirmations);
 - post-ending reopen as an ordinary escape hatch;
 - force-ending an Arrangement; and
-- M3 milestone-wide acceptance, which remains M3F.
+- M3 milestone-wide acceptance, which remains M3F (including the [M3F supplier-planning task-flow backlog](m3-supplier-planning.md#m3f-supplier-planning-task-flow-backlog); M3E.7a owns defects in M3E’s own consequential forms only).
 
 ## Product boundary
 
@@ -749,6 +749,7 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 
 - Define the $50 initial per-cabin Deposit Requirement tranche and the final cumulative $500-target tranche under the accepted cabin basis via `resource_units` / explicit coverage.
 - Model final deposit as a **cumulative $500 target**. Activation materializes the tranche with March 11 Deadline; recording `names_assigned_to_supplier` before March 11 replaces the unelapsed Deadline without duplicating the commitment.
+- **Product limitation (Arrangement-wide):** the shipped cumulative deposit and `names_assigned_to_supplier` milestone are **Arrangement-wide**. Scenario proof must not pass by implying that assigning names for one cabin advances only that cabin’s deposit. Later per-cabin deposit or milestone work remains out of M3E and must not silently introduce Traveler or client-allocation records.
 - Materialize rooming-list and legal-name Deadlines with correct precision and time zone.
 - Recording the name-assignment milestone replaces the unelapsed March 11 Deadline without storing traveler data or opening a duplicate commitment.
 - Increasing the qualifying cabin quantity after external-handled attestation opens one incremental commitment.
@@ -794,6 +795,8 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 | Elapsed Deadline | Changed | Preserve elapsed history; never rewrite the calculated date/time |
 
 ## Implementation slices
+
+Ordinary M3E slices ship persistence, commands, authorization, UI, and proof together. The Accepted decision register records **bounded exceptions** for **M3E.6a** (preview without end command), **M3E.7a** (UI recovery over already-shipped forms), and the sequenced **M3D remediations** gate (see decision register item 91).
 
 
 ### M3E.0 — Authority and M3D closure gate
@@ -872,27 +875,61 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 
 **Exit:** Staff can identify and resolve the next Supplier-planning action without navigating record topology.
 
-### M3E.6 — Arrangement ending
+### M3E.5R — Integrity and recovery
+
+- Forward migration replacing the three single-column idempotency-key foreign keys on deposit attestations, planning milestones, and exposure qualifications with same-Agency composite foreign keys.
+- Preflight existing rows and fail visibly on mismatches before applying the composite keys.
+- Bounded retries for Deadline catch-up’s three transient PostgreSQL errors (deadlock, serialization failure, lock wait timeout): at most five attempts, then fail visibly; one converged projection; no time-created domain events.
+
+**Exit / merge gate:** Direct SQL cross-Agency foreign-key rejection and valid same-Agency insertion for all three tables; migration preflight proven; retry capped at five with permanent failures visible and one converged projection without domain events; current docs no longer claim shipped M3E.1–M3E.5 are unimplemented.
+
+### M3D remediations — Reservation partial-response disclosure
+
+Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D domain decisions.
+
+- Correct Reservation partial-response disclosure to consider only included, active scopes whose effective outcome is confirmed.
+- Use the same predicate for confirmation and capacity panels; update on inclusion and outcome changes.
+
+**Exit / merge gate:** Browser test covers all-declined, all-counterproposed, excluded default-confirmed, included confirmed, and mode switching; hidden controls are disabled and omitted from non-confirmed submissions.
+
+### M3E.6a — Ending authority and preview
 
 - Terminal lifecycle persistence and database guards.
-- Named blocker queries over authoritative state.
-- Digest-bound preview, **enumerated** safe cascades (may not satisfy/release/waive), required informational supersession, narrowed Deadline blockers.
-- Atomic end command under canonical locks.
+- Authoritative named blocker query over live governing state.
+- Closed ending reasons and the exact six-cascade eligibility catalog.
+- Read-only digest-bound preview with required informational-Deadline supersessions and clear resolution paths.
+- **No end command** in this slice.
+
+**Exit / merge gate:** Blocker and candidate results match live governing state; historical facts alone do not block; digest binds exact candidates and expires; cross-Agency and Viewer paths fail closed; queries remain bounded.
+
+### M3E.6b — Atomic ending
+
+- `EndSupplierArrangement` with canonical already-locked cascade operations.
+- Required informational supersessions, projection rebuilds, durable result, and audit.
+- Ended read-only surfaces and prohibited-write guards.
 - Reject post-ending reopen and prohibited child writes.
-- Ended read-only surfaces and race proof.
 
-**Exit:** no Arrangement can end while unhandled live governing state remains, and the common clean ending remains a short workflow.
+**Exit / merge gate:** Preview conflict on changed state; selected late-cascade failure rolls back everything; no satisfaction, commitment release, waiver, fabricated response, or removal of guaranteed exposure; same-key replay works; ending races and post-end reopen/write rejection pass.
 
-### M3E.7 — Acceptance and hardening
+**Exit (M3E.6a + M3E.6b together):** no Arrangement can end while unhandled live governing state remains, and the common clean ending remains a short workflow.
 
-- Reusable scenario builders and composite scenario proof.
-- Full named race matrix and replay proof.
-- Query/index `EXPLAIN`, projection rebuild, catch-up retry, and drift proof.
-- Keyboard-only and responsive end-to-end workflows.
-- M0–M3D regression, Tailwind build, lint, security, and full CI.
-- Documentation updates that mark M3E shipped only after the gate passes.
+### M3E.7a — Operational UI recovery
 
-**Exit:** M3E is production-ready; M3F still owns the milestone-wide M3A–M3E acceptance gate.
+- Repair M3E commitment, evidence, deposit, milestone, Deadline, and exposure forms: canonical field anatomy, linked error summaries, preserved values and idempotency keys on 422, and a recoverable exposure-qualification form.
+- Contain dense tables with responsive presentation.
+- **Boundary:** M3E.7a owns defects in M3E’s own consequential forms and screens. Cross-slice setup friction (including the [M3F supplier-planning task-flow backlog](m3-supplier-planning.md#m3f-supplier-planning-task-flow-backlog)) remains M3F.
+
+**Exit / merge gate:** Focused invalid-path request and keyboard tests for consequential actions; Viewer controls absent; no page-level overflow at 375 / 768 / 1280 / 1400 px; Tailwind build green.
+
+### M3E.7b — Scenario and release gate
+
+- Celebrity, Hilton, transfer, excursion, and vineyard builders; full named race/replay matrix; catch-up / rebuild / drift equivalence; query and `EXPLAIN` proof; regression, accessibility, responsive, security, lint, and CI.
+- Reconcile root README, roadmap, current-state architecture, docs index, interface contract, terminology, and audit-subject catalog.
+- **Mark M3E Shipped only after this PR’s gate passes.**
+
+**Exit / merge gate:** Every Accepted M3E exit criterion has linked evidence; docs agree on shipped M3E.1–M3E.7 and unshipped later commercial work; full CI green.
+
+**Exit (M3E as milestone):** M3E is production-ready; M3F still owns the milestone-wide M3A–M3E acceptance gate.
 
 ## Required proof matrix
 
@@ -969,7 +1006,7 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 
 ## Documentation when this slice ships
 
-Only after M3E.7 passes:
+Only after M3E.7b passes:
 
 - mark ADR 0013 implemented and this plan Shipped;
 - update the M3 parent slice table and boundaries;

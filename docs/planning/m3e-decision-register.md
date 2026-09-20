@@ -3,7 +3,7 @@
 **Status:** Accepted 2026-09-18  
 **Decision date:** 2026-09-18  
 **Amended:** 2026-09-18 (opening-source shapes, `released`, time-automation retention, planning milestones, inactivation open-state rule). Amended again 2026-09-18 (earlier-of activation materialization, deposit tranche identity, successor reconciliation matrix, closed ending cascades, projection source locators, cumulative staged deposit). Accepted and promoted 2026-09-18.  
-**Implementation gate:** [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19). M3D.9 is shipped; final M3D correctness QC is green at pinned base `344ab86`. ADR 0013 and the M3E plan are Accepted. M3E.1–M3E.5 are shipped; production work continues with later M3E PRs from that base.
+**Implementation gate:** [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19). M3D.9 is shipped; final M3D correctness QC is green at pinned base `344ab86`. ADR 0013 and the M3E plan are Accepted. M3E.1–M3E.5 are shipped; remaining implementation is M3E.5R, M3D remediations, then M3E.6a–M3E.7b. M3E is not yet fully shipped until M3E.7b.
 
 ## Ship notes
 
@@ -76,7 +76,7 @@ M3E does **not** introduce Supplier Obligations, Supplier Payments, Client deman
     - quantity multiplied by rate;
     - percentage of selected Supplier cost sources;
     - target amount less prior materialized Deposit Requirements (**staged balance / cumulative target**).
-24. Celebrity staged deposits are **cumulative**: an initial $50 tranche plus a final **$500 target** leaves $450 remaining after the initial $50 is handled externally—not an additional flat $500 on top of $50.
+24. Celebrity staged deposits are **cumulative**: an initial $50 tranche plus a final **$500 target** leaves $450 remaining after the initial $50 is handled externally—not an additional flat $500 on top of $50. The shipped cumulative deposit and `names_assigned_to_supplier` milestone are **Arrangement-wide**; scenario proof must not imply that assigning names for one cabin advances only that cabin’s deposit. Later per-cabin deposit or milestone work is out of M3E and must not silently introduce Traveler or client-allocation records.
 25. “Per cabin” and similar quantity language map through **explicit cost or coverage sources**, ordinarily `resource_units`. M3E does not add a new capacity measurement basis.
 26. A percentage definition explicitly selects aggregate-base or per-source calculation and rounding. Each materialization snapshots all components and the chosen rounding scope.
 27. Materialization creates an immutable **deposit requirement tranche** (implementation name may be `SupplierDepositRequirementTranche` or equivalent; the topology is required) plus exactly one commitment that references that tranche (`opening_kind = deposit_requirement`), and links an actionable Deadline—only through an **explicit** materialization command (typically activation or Staff), not elapsed time alone. Uniqueness is one commitment per tranche.
@@ -224,12 +224,19 @@ M3E does **not** introduce Supplier Obligations, Supplier Payments, Client deman
     4. **M3E.3** — Deposit definitions, **tranches**, materializations, adjustments, attestations, planning milestones that replace earlier-of Deadlines, deposit successor reconciliation matrix;
     5. **M3E.4** — qualified exposure projections (constrained projection source locators);
     6. **M3E.5** — Needs-attention detector catalog and Departure rollups;
-    7. **M3E.6** — Arrangement-ending preview and the enumerated cascade catalog;
-    8. **M3E.7** — scenario, concurrency, accessibility, and performance hardening.
-91. Each slice ships its persistence, commands, authorization, UI, and proof together. Schema-only and UI-only phase splits are rejected.
+    7. **M3E.5R** — integrity and recovery (same-Agency composite idempotency FKs; Deadline catch-up retries);
+    8. **M3D remediations** — Reservation partial-response disclosure (sequenced before ending; does not reopen M3D domain);
+    9. **M3E.6a** — Arrangement-ending authority, blockers, and digest-bound preview (no end command);
+    10. **M3E.6b** — atomic `EndSupplierArrangement` and ended read-only surfaces;
+    11. **M3E.7a** — operational UI recovery for M3E consequential forms;
+    12. **M3E.7b** — scenario, concurrency, accessibility, performance, and release-gate documentation.
+91. Each slice ships its persistence, commands, authorization, UI, and proof together. Schema-only and UI-only phase splits are rejected, with these **bounded exceptions** named in the Accepted M3E plan:
+    - **M3E.6a** ships ending authority, blocker queries, and digest-bound preview only—no `EndSupplierArrangement` command (that command ships in **M3E.6b**).
+    - **M3E.7a** is an operational UI recovery slice over already-shipped M3E consequential forms and screens—it does not introduce new domain persistence.
+    - **M3D remediations** (Reservation partial-response disclosure) is a sequenced pre-ending gate that does not reopen M3D domain decisions and is not an M3E vertical domain slice.
 92. Durable contracts belong in ADR 0013. Slice scope, sequencing, UI, tests, and exit criteria belong in the Accepted M3E plan. ADR 0012 remains M3D historical authority and receives a **dated supersession note** for opening and inactivation wording—not a silent rewrite of its decision body.
 93. Reusable executable scenario builders provide slice and composite proof:
-    - Celebrity cruise: $50 initial + **cumulative $500 target** final deposit; activation materializes final tranche with March 11 Deadline; `names_assigned_to_supplier` replaces unelapsed Deadline; rooming list and legal-names Deadlines;
+    - Celebrity cruise: $50 initial + **cumulative $500 target** final deposit (**Arrangement-wide** cumulative deposit and `names_assigned_to_supplier` milestone; not per-cabin advancement); activation materializes final tranche with March 11 Deadline; `names_assigned_to_supplier` replaces unelapsed Deadline; rooming list and legal-names Deadlines;
     - Hilton: percentage deposit, guaranteed-room exposure, option-date future-effective capacity release recorded in advance, and recalculation;
     - transfers: per-segment final-count and schedule Deadlines;
     - excursion: minimum, cutoff, and contingent-to-guaranteed exposure via explicit qualifying command—not elapsed time alone;
@@ -271,4 +278,4 @@ Second amendment wave (same day) after further acceptance review:
 
 ## Next artifact
 
-ADR 0013 and the [M3E plan](m3e-supplier-operational-control.md) are Accepted and aligned with this register. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied. Production M3E.1+ may begin from the pinned implementation base; M3E remains not shipped until M3E.7.
+ADR 0013 and the [M3E plan](m3e-supplier-operational-control.md) are Accepted and aligned with this register. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied. Production M3E.1+ began from the pinned implementation base; M3E is not yet fully shipped until M3E.7b.
