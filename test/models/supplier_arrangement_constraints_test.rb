@@ -347,8 +347,9 @@ class SupplierArrangementConstraintsTest < ActiveSupport::TestCase
     assert_equal ArrangementItemDefinition::CATEGORIES, checked_item_categories
 
     AuditEvent::ACTIONS.grep(/\Asupplier_arrangement\./).then do |actions|
-      assert_equal 73, actions.size
+      assert_equal 74, actions.size
       assert_includes actions, "supplier_arrangement.activated"
+      assert_includes actions, "supplier_arrangement.ended"
       assert_includes actions, "supplier_arrangement.successor_created"
       assert_includes actions, "supplier_arrangement.successor_activated"
       assert_includes actions, "supplier_arrangement.identifier_superseded"

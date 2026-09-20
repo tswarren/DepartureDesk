@@ -1,6 +1,6 @@
 # ADR 0013: Supplier operational commitments, Deadlines, exposure, and Arrangement ending
 
-- Status: Accepted. Implementing slice [M3E](../planning/m3e-supplier-operational-control.md). M3E.1–M3E.5 shipped; remaining work is M3E.5R, M3D remediations, then M3E.6a–M3E.7b. M3E is not yet fully shipped until M3E.7b.
+- Status: Accepted. Implemented by shipped [M3E](../planning/m3e-supplier-operational-control.md). M3E.1–M3E.7b (including M3E.5R and M3D remediations) are shipped. Arrangement ending is shipped. M3E is fully shipped and production-ready.
 - Date: 2026-09-18
 - Amended: 2026-09-18; amended again 2026-09-18 (tranche, earlier-of, reconciliation matrix, cascade catalog, projection locators); Accepted 2026-09-18
 - Decision owners: DepartureDesk maintainers
@@ -395,4 +395,4 @@ Rejected because implementation topology is not a Staff workflow and would add c
 
 This ADR authorizes only the records and behavior named by an Accepted M3E slice. It does not authorize Client demand, Client Charges, Travelers, Supplier Obligations, Supplier Payments, fulfillment, Cancellation Cases, Communications, file upload, remittance, general-ledger exports, currency conversion, or an Agency-wide operations dashboard.
 
-ADR 0013 becomes Accepted only with the companion M3E contract and the parent / ADR 0012 / terminology supersession notes named above. It becomes implemented only after every M3E exit criterion passes and documentation marks the slice Shipped.
+ADR 0013 became Accepted with the companion M3E contract and the parent / ADR 0012 / terminology supersession notes named above. It is implemented: every M3E exit criterion has passed and documentation marks the slice Shipped.

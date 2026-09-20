@@ -3,7 +3,7 @@
 **Status:** Accepted 2026-09-18  
 **Decision date:** 2026-09-18  
 **Amended:** 2026-09-18 (opening-source shapes, `released`, time-automation retention, planning milestones, inactivation open-state rule). Amended again 2026-09-18 (earlier-of activation materialization, deposit tranche identity, successor reconciliation matrix, closed ending cascades, projection source locators, cumulative staged deposit). Accepted and promoted 2026-09-18.  
-**Implementation gate:** [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19). M3D.9 is shipped; final M3D correctness QC is green at pinned base `344ab86`. ADR 0013 and the M3E plan are Accepted. M3E.1–M3E.5, M3E.5R, M3D remediations, M3E.6a, and M3E.6b are shipped; remaining implementation is M3E.7a–M3E.7b. M3E is not yet fully shipped until M3E.7b.
+**Implementation gate:** [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19). M3D.9 is shipped; final M3D correctness QC is green at pinned base `344ab86`. ADR 0013 and the M3E plan are Accepted. M3E.1–M3E.7b (including M3E.5R and M3D remediations) are shipped. Arrangement ending is shipped. M3E is fully shipped and production-ready. No remaining M3E implementation work. M3F still owns milestone-wide M3A–M3E acceptance and remains unimplemented until an accepted slice plan names that work.
 
 ## Ship notes
 
@@ -12,6 +12,12 @@
 - **M3E.3 shipped:** Deposit Requirement definitions with closed amount shapes and embedded due rules (including `planning_milestone` arms); immutable tranches and append-only components; activation materialization with `deposit_requirement` openings and `deposit_due` Deadlines; external-handled attestation (`handled_externally`, never labeled paid); Staff planning milestones (`names_assigned_to_supplier`) that replace unelapsed earlier-of Deadlines without duplicate commitments; successor copy/reconciliation; M3D.7 freeze for deposit definition families.
 - **M3E.4 shipped:** Qualified exposure components and band×currency summaries; required-deposit measure; constrained projection `source_kind` locators; synchronous Arrangement rebuild; contingent→guaranteed qualification; idempotent repair.
 - **M3E.5 shipped:** Closed Needs-attention detector catalog; Agency `attention_warning_lead_days` with Deadline definition override; `attention_at`/`overdue_at` read-time visibility; action-grouped Arrangement findings; Departure supplier-planning rollup; Deadline catch-up rebuilds attention without time-created domain events.
+- **M3E.5R shipped:** Integrity and recovery (same-Agency composite idempotency FKs; Deadline catch-up retries).
+- **M3D remediations shipped:** Reservation partial-response disclosure (sequenced before ending; does not reopen M3D domain).
+- **M3E.6a shipped:** Arrangement-ending authority, blockers, and digest-bound preview.
+- **M3E.6b shipped:** Atomic `EndSupplierArrangement` and ended read-only surfaces.
+- **M3E.7a shipped:** Operational UI recovery for M3E consequential forms.
+- **M3E.7b shipped:** Composite Celebrity/Hilton/transfer/excursion/vineyard scenario builders (full Celebrity group-cruise composition), commitment-list `EXPLAIN` at scale, M3E keyboard/viewport system coverage, linked release-gate evidence index, and interface-contract reconciliation. M3E is fully shipped. See [m3e7b-release-gate-evidence.md](m3e7b-release-gate-evidence.md).
 
 ## Scope boundary
 
@@ -278,4 +284,4 @@ Second amendment wave (same day) after further acceptance review:
 
 ## Next artifact
 
-ADR 0013 and the [M3E plan](m3e-supplier-operational-control.md) are Accepted and aligned with this register. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied. Production M3E.1+ began from the pinned implementation base; M3E is not yet fully shipped until M3E.7b.
+ADR 0013 and the [M3E plan](m3e-supplier-operational-control.md) are Accepted and aligned with this register. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied. Production M3E.1+ began from the pinned implementation base. M3E.1–M3E.7b are shipped; M3E is fully shipped and production-ready. M3F still owns milestone-wide M3A–M3E acceptance and remains unimplemented until an accepted slice plan names that work.

@@ -1,6 +1,6 @@
 # M3E — Supplier operational control
 
-**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1–M3E.5, M3E.5R, M3D remediations, M3E.6a, and M3E.6b shipped. Remaining implementation is **M3E.7a–M3E.7b**. **M3E is not yet fully shipped** until M3E.7b. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).
+**Status:** Shipped. Accepted 2026-09-18. M3E.0 satisfied; M3E.1–M3E.7b (including M3E.5R and M3D remediations) are shipped. Arrangement ending is shipped. M3E is fully shipped and production-ready. No remaining M3E implementation work. M3F still owns milestone-wide M3A–M3E acceptance and remains unimplemented until an accepted slice plan names that work. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md)  
 **ADR:** [ADR 0013 — Supplier operational commitments, Deadlines, exposure, and Arrangement ending](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)  
 **Prerequisite:** Shipped M3D through M3D.9; [M3E.0](m3e0-m3d-closure-gate.md) M3D closure gate satisfied  
@@ -935,9 +935,13 @@ Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D do
 
 - Celebrity, Hilton, transfer, excursion, and vineyard builders; full named race/replay matrix; catch-up / rebuild / drift equivalence; query and `EXPLAIN` proof; regression, accessibility, responsive, security, lint, and CI.
 - Reconcile root README, roadmap, current-state architecture, docs index, interface contract, terminology, and audit-subject catalog.
-- **Mark M3E Shipped only after this PR’s gate passes.**
+- Mark M3E Shipped after this gate passes.
 
-**Exit / merge gate:** Every Accepted M3E exit criterion has linked evidence; docs agree on shipped M3E.1–M3E.7 and unshipped later commercial work; full CI green.
+**Exit / merge gate:** Every Accepted M3E exit criterion has linked evidence; docs agree on shipped M3E.1–M3E.7b and unshipped later commercial work; full CI green.
+
+**Evidence:** [M3E.7b release-gate evidence](m3e7b-release-gate-evidence.md) maps each named scenario, race/replay/catch-up row, query/`EXPLAIN` check, and documentation deliverable to tests and CI.
+
+**Shipped:** M3E.7b (composite Celebrity/Hilton/transfer/excursion/vineyard builders; named race/replay matrix evidence; commitment-list `EXPLAIN` at scale; M3E keyboard/viewport system coverage; documentation marks M3E Shipped).
 
 **Exit (M3E as milestone):** M3E is production-ready; M3F still owns the milestone-wide M3A–M3E acceptance gate.
 

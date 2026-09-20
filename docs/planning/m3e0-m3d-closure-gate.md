@@ -45,4 +45,4 @@ Confirmed present and linked on the pinned base:
 
 ## Exit
 
-M3E.0 is satisfied. Production M3E implementation may begin with M3E.1 from the pinned base under the Accepted M3E plan. **M3E is not yet fully shipped** until M3E.7b completes.
+M3E.0 is satisfied. Production M3E implementation began with M3E.1 from the pinned base under the Accepted M3E plan. M3E.1–M3E.7b are now shipped; M3E is fully shipped and production-ready.
