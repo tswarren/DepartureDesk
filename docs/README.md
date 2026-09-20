@@ -45,7 +45,7 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m2a-departure-core.md`](planning/m2a-departure-core.md) | Shipped M2A slice. |
 | [`planning/m2b-departed-lifecycle.md`](planning/m2b-departed-lifecycle.md) | Shipped M2B slice. |
 | [`planning/m2c-acceptance-and-hardening.md`](planning/m2c-acceptance-and-hardening.md) | Shipped M2C proof and hardening slice. |
-| [`planning/m3-supplier-planning.md`](planning/m3-supplier-planning.md) | Accepted M3 parent. M3A–M3F shipped; **M3 complete.** M4 is next and unimplemented. |
+| [`planning/m3-supplier-planning.md`](planning/m3-supplier-planning.md) | Accepted M3 parent. M3A–M3F shipped; **M3 complete.** |
 | [`planning/m3a-draft-arrangement-structure.md`](planning/m3a-draft-arrangement-structure.md) | Shipped M3A draft Arrangement structure slice. |
 | [`planning/m3b-supplier-capacity.md`](planning/m3b-supplier-capacity.md) | Shipped M3B Supplier capacity slice. Draft configuration and the capacity engine are shipped; Arrangement activation and Staff event UI ship with M3D. |
 | [`planning/m3c-cost-terms-and-forecasts.md`](planning/m3c-cost-terms-and-forecasts.md) | Shipped M3C Supplier cost terms and forecasts slice. Draft cost sources, definitions, components, assumptions, and derived forecasts are shipped; Arrangement activation and effective contracted terms ship with M3D. |
@@ -62,7 +62,10 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m3f4-milestone-closure.md`](planning/m3f4-milestone-closure.md) | M3F.4 parent exit criteria 1–15 evidence map; marks M3 complete. |
 | [`planning/m3e-decision-register.md`](planning/m3e-decision-register.md) | Accepted M3E decision register. |
 | [`adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md`](adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md) | Accepted ADR 0013; implemented by shipped M3E for commitments, Deadlines, deposits, exposure, Needs attention, and Arrangement ending. |
-| [`planning/drafts/README.md`](planning/drafts/README.md) | Draft staging area. M3E promoted 2026-09-18. |
+| [`planning/m4-offers-and-pricing.md`](planning/m4-offers-and-pricing.md) | Accepted M4 parent. Not implementation authority. M4A–M4E unimplemented. |
+| [`planning/m40-task-flow-and-contract.md`](planning/m40-task-flow-and-contract.md) | Accepted M4.0 task-flow and contract gate. Documentation only; no M4 domain records. |
+| [`adr/0014-client-offers-publication-and-supply-compatibility.md`](adr/0014-client-offers-publication-and-supply-compatibility.md) | Accepted ADR 0014; M4 identity, publication, source compatibility, and M5 Charge-posting handoff. Not implementation authority. |
+| [`planning/drafts/README.md`](planning/drafts/README.md) | Draft staging area. M3E promoted 2026-09-18. M4 parent, ADR 0014, and M4.0 promoted 2026-09-20. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |
