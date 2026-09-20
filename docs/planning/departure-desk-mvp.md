@@ -19,6 +19,7 @@ DepartureDesk explains the departure. It calculates deterministic results from r
 | Example Departures | Celebrity Beyond Eastern Caribbean Cruise and Vineyard Tour, used to test generality across Departure types rather than define a literal feature list |
 | v0.5 organization | The v0.4 addendum was folded into governing sections; resolved and deferred items moved out of the open register; Appendix B became a non-governing decision index. |
 | v0.6 amendment | Refines the M1 directory boundary: Client is responsibility rather than universal Payer identity; Household and standalone Traveler persistence are deferred; contact purposes/snapshots move to their consuming contexts; merge receives an M8 disposition. |
+| 2026-09-20 occupancy amendment | Names the bundled-Package single-occupancy price-variant exception in Section 5. Service/resource occupancy pricing remains the general rule. The Vineyard 100% supplement remains illustrative under the M3F fixture ledger. |
 
 ## **Document map**
 
@@ -302,7 +303,9 @@ A Departure is one dated occurrence and the primary operational record. Travel P
 
 A Package is a client-facing collection of services. Packages may define included services, choices, price, eligibility, sales capacity, payment schedule, and client terms. A Departure may also sell or record services without a Package.
 
-**Locked for MVP.** Occupancy-based pricing (first/second/additional/single, double/single, and similar positions) is calculated at the resource or Client Trip Service level only. A Package-level occupancy selection (for example, the Vineyard Tour's double/single choice) is an input that seeds expected resource demand before actual assignments exist; it is not an independent second pricing mechanism. Actual room, cabin, or seat assignments remain their own records and may diverge from the package-level estimate. Occupancy-position pricing has no hardcoded ceiling; the cruise and hotel examples are illustrative rather than limiting.
+**Locked for MVP.** Occupancy-based pricing (first/second/additional/single, double/single, and similar positions) is calculated at the resource or Client Trip Service level. A Package-level occupancy selection (for example, the Vineyard Tour's double/single choice) is an input that seeds expected resource demand before actual assignments exist. Actual room, cabin, or seat assignments remain their own records and may diverge from the package-level estimate. Occupancy-position pricing has no hardcoded ceiling; the cruise and hotel examples are illustrative rather than limiting.
+
+**Named exception (2026-09-20).** A bundled Package may define one single-occupancy price variant derived from the base per-person Package price. That selected amount is Package revenue. It must not also apply as a lodging or service occupancy charge for the same supplement. Service- and resource-level occupancy pricing remains the general rule. The M3F fixture ledger labels the Vineyard 100% supplement **illustrative**, not a confirmed contract rate.
 
 ## **Client Trip**
 
@@ -890,7 +893,7 @@ This index preserves the provenance of settled scoping decisions without duplica
 | :---- | :---- |
 | Client identity model | Client is its own record referencing exactly one Client Person or Client Organization; not a role flag (Section 4). |
 | Office enforcement | Reporting and default-assignment metadata only; no access restriction in MVP (Section 3). |
-| Occupancy pricing level | Resource/service level only; Package-level occupancy seeds expected demand (Section 5). |
+| Occupancy pricing level | Resource/service level is the general rule; Package occupancy seeds expected demand. A bundled Package may define one single-occupancy price variant as Package revenue without a duplicate lodging/service occupancy charge (Section 5). |
 | Supplier cost structure | Composable typed line-item components rather than a fixed formula per supplier type (Section 6). |
 | Age-based pricing scope | Flat categorical rules in scope; occupancy-composition-based pricing deferred (Section 4, 13). |
 | Capacity date-scoping | Always scoped to a Service Occurrence with a date range; static capacity is a single spanning occurrence (Section 6). |
