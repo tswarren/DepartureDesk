@@ -1,6 +1,6 @@
 # M3E — Supplier operational control
 
-**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1, M3E.2, M3E.3, M3E.4, and M3E.5 shipped. Remaining implementation is **M3E.5R** (integrity and recovery), **M3D remediations** (Reservation partial-response disclosure), then **M3E.6a–M3E.7b**. **M3E is not yet fully shipped** until M3E.7b. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
+**Status:** Shipped. Accepted 2026-09-18. M3E.0 satisfied; M3E.1–M3E.7b (including M3E.5R and M3D remediations) are shipped. Arrangement ending is shipped. M3E is fully shipped and production-ready. No remaining M3E implementation work. M3F still owns milestone-wide M3A–M3E acceptance and remains unimplemented until an accepted slice plan names that work. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md)  
 **ADR:** [ADR 0013 — Supplier operational commitments, Deadlines, exposure, and Arrangement ending](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)  
 **Prerequisite:** Shipped M3D through M3D.9; [M3E.0](m3e0-m3d-closure-gate.md) M3D closure gate satisfied  
@@ -883,6 +883,8 @@ Ordinary M3E slices ship persistence, commands, authorization, UI, and proof tog
 
 **Exit / merge gate:** Direct SQL cross-Agency foreign-key rejection and valid same-Agency insertion for all three tables; migration preflight proven; retry capped at five with permanent failures visible and one converged projection without domain events; current docs no longer claim shipped M3E.1–M3E.5 are unimplemented.
 
+**Shipped:** M3E.5R (same-Agency composite idempotency FKs on deposit attestations, planning milestones, and exposure qualifications with preflight; Deadline catch-up retries capped at five for deadlock/serialization/lock-wait).
+
 ### M3D remediations — Reservation partial-response disclosure
 
 Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D domain decisions.
@@ -891,6 +893,8 @@ Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D do
 - Use the same predicate for confirmation and capacity panels; update on inclusion and outcome changes.
 
 **Exit / merge gate:** Browser test covers all-declined, all-counterproposed, excluded default-confirmed, included confirmed, and mode switching; hidden controls are disabled and omitted from non-confirmed submissions.
+
+**Shipped:** M3D remediations (Reservation partial-response disclosure predicate considers only included, active scopes with confirmed outcome; confirmation and capacity panels share that predicate).
 
 ### M3E.6a — Ending authority and preview
 
@@ -902,6 +906,8 @@ Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D do
 
 **Exit / merge gate:** Blocker and candidate results match live governing state; historical facts alone do not block; digest binds exact candidates and expires; cross-Agency and Viewer paths fail closed; queries remain bounded.
 
+**Shipped:** M3E.6a (`ended_at` lifecycle guard; `PreviewEndSupplierArrangement` with digest-bound preview token; named blockers; six-cascade eligibility catalog; `GET .../end` preview surface).
+
 ### M3E.6b — Atomic ending
 
 - `EndSupplierArrangement` with canonical already-locked cascade operations.
@@ -910,6 +916,8 @@ Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D do
 - Reject post-ending reopen and prohibited child writes.
 
 **Exit / merge gate:** Preview conflict on changed state; selected late-cascade failure rolls back everything; no satisfaction, commitment release, waiver, fabricated response, or removal of guaranteed exposure; same-key replay works; ending races and post-end reopen/write rejection pass.
+
+**Shipped:** M3E.6b (`EndSupplierArrangement`; immutable ending result; cascade cancel/withdraw/abandon/supersede; same-key replay before preview-expiry rejection; post-ending reopen rejection; `POST .../end`).
 
 **Exit (M3E.6a + M3E.6b together):** no Arrangement can end while unhandled live governing state remains, and the common clean ending remains a short workflow.
 
@@ -921,13 +929,19 @@ Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D do
 
 **Exit / merge gate:** Focused invalid-path request and keyboard tests for consequential actions; Viewer controls absent; no page-level overflow at 375 / 768 / 1280 / 1400 px; Tailwind build green.
 
+**Shipped:** M3E.7a (ending preview/confirm error summary recovery; exposure qualification preserves note/idempotency on 422; Viewer denied ending mutations).
+
 ### M3E.7b — Scenario and release gate
 
 - Celebrity, Hilton, transfer, excursion, and vineyard builders; full named race/replay matrix; catch-up / rebuild / drift equivalence; query and `EXPLAIN` proof; regression, accessibility, responsive, security, lint, and CI.
 - Reconcile root README, roadmap, current-state architecture, docs index, interface contract, terminology, and audit-subject catalog.
-- **Mark M3E Shipped only after this PR’s gate passes.**
+- Mark M3E Shipped after this gate passes.
 
-**Exit / merge gate:** Every Accepted M3E exit criterion has linked evidence; docs agree on shipped M3E.1–M3E.7 and unshipped later commercial work; full CI green.
+**Exit / merge gate:** Every Accepted M3E exit criterion has linked evidence; docs agree on shipped M3E.1–M3E.7b and unshipped later commercial work; full CI green.
+
+**Evidence:** [M3E.7b release-gate evidence](m3e7b-release-gate-evidence.md) maps each named scenario, race/replay/catch-up row, query/`EXPLAIN` check, and documentation deliverable to tests and CI.
+
+**Shipped:** M3E.7b (composite Celebrity/Hilton/transfer/excursion/vineyard builders; named race/replay matrix evidence; commitment-list `EXPLAIN` at scale; M3E keyboard/viewport system coverage; documentation marks M3E Shipped).
 
 **Exit (M3E as milestone):** M3E is production-ready; M3F still owns the milestone-wide M3A–M3E acceptance gate.
 

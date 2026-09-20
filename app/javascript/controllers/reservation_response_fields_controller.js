@@ -1,6 +1,8 @@
 import { Controller } from "@hotwired/stimulus"
 
 // Progressive Reservation response: bulk outcome vs partial; conditional sections.
+// Confirmation and capacity panels open only when at least one *included, active*
+// scope has effective outcome confirmed (not merely a default on an excluded row).
 export default class extends Controller {
   static targets = [
     "mode",
@@ -22,15 +24,27 @@ export default class extends Controller {
     const partial = mode === "partial"
     if (this.hasPartialPanelTarget) {
       this.partialPanelTarget.hidden = !partial
-      this.toggleInputs(this.partialPanelTarget, partial)
+      if (!partial) {
+        this.toggleInputs(this.partialPanelTarget, false)
+      } else {
+        this.partialScopeRows().forEach((row) => {
+          const included = this.scopeIncluded(row)
+          row.querySelectorAll("input, select, textarea").forEach((input) => {
+            if (input.matches("input[type='checkbox'][name='scope_ids[]']")) {
+              input.disabled = false
+              return
+            }
+            input.disabled = !included
+          })
+        })
+      }
     }
     if (this.hasBulkOutcomeTarget) {
       this.bulkOutcomeTarget.hidden = partial
       this.toggleInputs(this.bulkOutcomeTarget, !partial)
     }
 
-    const outcome = this.currentOutcome()
-    const confirms = outcome === "confirmed" || this.anyPartialConfirmed()
+    const confirms = this.hasConfirmedCoverage()
     if (this.hasConfirmationPanelTarget) {
       this.confirmationPanelTarget.hidden = !confirms
       this.toggleInputs(this.confirmationPanelTarget, confirms)
@@ -40,13 +54,13 @@ export default class extends Controller {
       this.toggleInputs(this.capacityPanelTarget, confirms)
     }
 
-    this.scopeOutcomeTargets.forEach((row) => {
+    this.activeScopeRows().forEach((row) => {
       const kind = row.querySelector("[data-outcome-kind]")?.value || ""
       row.querySelectorAll("[data-outcome-for]").forEach((group) => {
         const allowed = group.dataset.outcomeFor.split(" ")
         const visible = allowed.includes(kind)
         group.hidden = !visible
-        this.toggleInputs(group, visible)
+        this.toggleInputs(group, visible && this.scopeActiveForOutcome(row))
       })
     })
   }
@@ -59,15 +73,54 @@ export default class extends Controller {
     this.capacityListTarget.insertAdjacentHTML("beforeend", html)
   }
 
+  hasConfirmedCoverage() {
+    const mode = this.hasModeTarget ? this.modeTarget.value : "all"
+    if (mode === "partial") {
+      return this.anyIncludedPartialConfirmed()
+    }
+    return this.currentOutcome() === "confirmed"
+  }
+
   currentOutcome() {
     if (this.hasModeTarget && this.modeTarget.value === "partial") return null
     return this.element.querySelector("[data-bulk-outcome]")?.value || "confirmed"
   }
 
-  anyPartialConfirmed() {
-    return this.scopeOutcomeTargets.some((row) => {
+  anyIncludedPartialConfirmed() {
+    return this.partialScopeRows().some((row) => {
+      if (!this.scopeIncluded(row)) return false
       return row.querySelector("[data-outcome-kind]")?.value === "confirmed"
     })
+  }
+
+  partialScopeRows() {
+    if (!this.hasPartialPanelTarget) return []
+    return Array.from(
+      this.partialPanelTarget.querySelectorAll("[data-reservation-response-fields-target='scopeOutcome']")
+    )
+  }
+
+  activeScopeRows() {
+    const mode = this.hasModeTarget ? this.modeTarget.value : "all"
+    if (mode === "partial") {
+      return this.partialScopeRows().filter((row) => this.scopeIncluded(row))
+    }
+    if (!this.hasBulkOutcomeTarget) return this.scopeOutcomeTargets
+    return Array.from(
+      this.bulkOutcomeTarget.querySelectorAll("[data-reservation-response-fields-target='scopeOutcome']")
+    )
+  }
+
+  scopeIncluded(row) {
+    const checkbox = row.querySelector("input[type='checkbox'][name='scope_ids[]']")
+    if (!checkbox) return true
+    return checkbox.checked
+  }
+
+  scopeActiveForOutcome(row) {
+    const mode = this.hasModeTarget ? this.modeTarget.value : "all"
+    if (mode !== "partial") return true
+    return this.scopeIncluded(row)
   }
 
   toggleInputs(container, enabled) {

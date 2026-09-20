@@ -29,6 +29,8 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
     supplier_arrangement_activation_capacity_entries
     supplier_arrangement_activation_cost_selections
     supplier_arrangement_activations
+    supplier_arrangement_ending_previews
+    supplier_arrangement_endings
     supplier_arrangement_versions
     supplier_arrangements
     supplier_attention_findings

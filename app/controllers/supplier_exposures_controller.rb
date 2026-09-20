@@ -46,9 +46,21 @@ class SupplierExposuresController < ApplicationController
       notice: "Contingent exposure qualified as guaranteed."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
+    raise if error.code == :unauthorized
 
-    redirect_to departure_arrangement_exposure_path(@departure, @supplier_arrangement),
-      alert: error.message
+    flash.now[:alert] = error.message
+    @qualify_cost_source_id = params[:cost_source_id]
+    @qualify_note = params[:note]
+    @qualify_idempotency_key = params[:idempotency_key]
+    show
+    render :show, status: :unprocessable_entity
+  rescue ActionController::ParameterMissing => error
+    flash.now[:alert] = "Enter a qualification note."
+    @qualify_cost_source_id = params[:cost_source_id]
+    @qualify_note = params[:note]
+    @qualify_idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
+    show
+    render :show, status: :unprocessable_entity
   end
 
   private

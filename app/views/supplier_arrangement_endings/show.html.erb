@@ -1,0 +1,127 @@
+<% content_for :title, "End Arrangement · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title">End arrangement</h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <p>Review blockers and permitted cascades, then confirm ending. Cascades may not satisfy, release, or waive commitments.</p>
+
+    <% if flash.now[:alert].present? || flash[:alert].present? %>
+      <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+        <p class="dd-alert-title">Please fix the following:</p>
+        <ul class="dd-error-list">
+          <li><%= flash.now[:alert].presence || flash[:alert] %></li>
+        </ul>
+      </div>
+    <% end %>
+
+    <% if @payload["blockers"].present? %>
+      <section class="dd-stack" aria-labelledby="ending-blockers-heading">
+        <h2 id="ending-blockers-heading" class="dd-section-title">Blockers</h2>
+        <ul>
+          <% @payload["blockers"].each do |blocker| %>
+            <li>
+              <strong><%= blocker.fetch("message") %></strong>
+              <p class="dd-help"><%= blocker.fetch("resolution_path") %></p>
+            </li>
+          <% end %>
+        </ul>
+      </section>
+    <% else %>
+      <p role="status">No live governing blockers for the current cascade selection.</p>
+    <% end %>
+
+    <%= form_with url: end_departure_arrangement_path(@departure, @supplier_arrangement), method: :get, class: "dd-form" do %>
+      <section class="dd-stack dd-table-scroll" aria-labelledby="ending-cascades-heading">
+        <h2 id="ending-cascades-heading" class="dd-section-title">Cascades</h2>
+        <% Array(@payload["cascades"]).each do |cascade| %>
+          <div class="dd-field-group">
+            <% if cascade["required"] %>
+              <p>
+                <span class="dd-label">Required</span>
+                <%= cascade.fetch("label") %>
+                <%= hidden_field_tag "selected_cascade_keys[]", cascade.fetch("key") %>
+              </p>
+            <% elsif cascade["selectable"] %>
+              <%= check_box_tag "selected_cascade_keys[]", cascade.fetch("key"), cascade["selected"],
+                id: "cascade_#{cascade.fetch("key").parameterize}" %>
+              <%= label_tag "cascade_#{cascade.fetch("key").parameterize}", cascade.fetch("label"), class: "dd-label" %>
+            <% else %>
+              <p class="dd-help"><%= cascade.fetch("label") %> (unavailable)</p>
+            <% end %>
+          </div>
+        <% end %>
+        <% if Array(@payload["cascades"]).empty? %>
+          <p class="dd-help">No cascade candidates for the current governing state.</p>
+        <% end %>
+      </section>
+
+      <section class="dd-stack" aria-labelledby="ending-reason-heading">
+        <h2 id="ending-reason-heading" class="dd-section-title">Ending reason</h2>
+        <div class="dd-field-group">
+          <%= label_tag :ending_reason, "Reason", class: "dd-label" %>
+          <%= select_tag :ending_reason,
+            options_for_select(
+              Array(@payload["reason_choices"]).map { |reason| [ reason.humanize, reason ] },
+              params[:ending_reason] || @preview&.ending_reason
+            ),
+            include_blank: "Choose reason",
+            class: "dd-field",
+            required: true %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag :ending_reason_label, "Other label", class: "dd-label" %>
+          <%= text_field_tag :ending_reason_label, params[:ending_reason_label] || @preview&.ending_reason_label,
+            class: "dd-field", maxlength: 160 %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag :ending_reason_note, "Other note", class: "dd-label" %>
+          <%= text_area_tag :ending_reason_note, params[:ending_reason_note] || @preview&.ending_reason_note,
+            class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag :replacement_arrangement_id, "Replacement Arrangement ID", class: "dd-label" %>
+          <%= text_field_tag :replacement_arrangement_id,
+            params[:replacement_arrangement_id] || @preview&.replacement_arrangement_id,
+            class: "dd-field" %>
+        </div>
+      </section>
+
+      <div class="dd-form-actions">
+        <%= submit_tag "Refresh preview", class: "dd-button dd-button--secondary" %>
+      </div>
+    <% end %>
+
+    <% if @preview && @raw_token && @payload["blockers"].blank? %>
+      <%= form_with url: end_departure_arrangement_path(@departure, @supplier_arrangement), method: :post, class: "dd-form" do %>
+        <%= hidden_field_tag :preview_token, @raw_token %>
+        <%= hidden_field_tag :idempotency_key, params[:idempotency_key].presence || SecureRandom.uuid %>
+        <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+        <%= hidden_field_tag :version_lock_version, @supplier_arrangement.governing_version.lock_version %>
+        <%= hidden_field_tag :ending_reason, @preview.ending_reason %>
+        <%= hidden_field_tag :ending_reason_label, @preview.ending_reason_label %>
+        <%= hidden_field_tag :ending_reason_note, @preview.ending_reason_note %>
+        <%= hidden_field_tag :replacement_arrangement_id, @preview.replacement_arrangement_id %>
+        <% Array(@preview.selected_cascade_keys).each do |key| %>
+          <%= hidden_field_tag "selected_cascade_keys[]", key %>
+        <% end %>
+        <div class="dd-form-actions">
+          <%= submit_tag "Confirm end arrangement", class: "dd-button dd-button--danger" %>
+          <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement),
+            class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="dd-form-actions">
+        <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement),
+          class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

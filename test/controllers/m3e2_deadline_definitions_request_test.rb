@@ -44,6 +44,7 @@ class M3e2DeadlineDefinitionsRequestTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_match(/Choose a valid deadline commitment authority/, response.body)
+    assert_select "#form-error-summary"
     assert_select "input[name='supplier_deadline_definition[fixed_date]'][value=?]", "2027-03-11"
     assert_select "textarea[name='supplier_deadline_definition[commitment_lines][][description]']",
       text: "Review retained cabins and release any unretained block by the option date"

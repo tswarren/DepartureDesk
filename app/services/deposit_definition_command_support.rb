@@ -100,7 +100,7 @@ module DepositDefinitionCommandSupport
     else
       raise AgencyCommand::Error.new("Choose a supported deposit amount shape.", code: :invalid)
     end
-  rescue ArgumentError, TypeError, BigDecimal::ConversionError
+  rescue ArgumentError, TypeError
     raise AgencyCommand::Error.new("Enter valid deposit amount fields.", code: :invalid)
   end
 
