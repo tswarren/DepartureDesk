@@ -18,15 +18,45 @@
       <label class="dd-label" for="scenario_nights">Billable nights</label>
       <%= number_field_tag "scenario[nights]", scenario&.nights || 7, min: 1, id: "scenario_nights", class: "dd-input" %>
     </div>
-    <div class="dd-field-group">
-      <label class="dd-label" for="scenario_occupancy_keys">Occupancy positions</label>
-      <%= text_field_tag "scenario[occupancy_keys]",
-        Array(scenario&.occupancy_positions).map(&:key).compact.join(","),
-        id: "scenario_occupancy_keys",
-        class: "dd-input",
-        placeholder: "first,second" %>
-      <p class="dd-field-hint">Comma-separated keys such as first, second, additional, or single.</p>
+    <% occupancy_rows = Array(scenario&.occupancy_positions).presence || [
+      EvaluateClientPrice::OccupancyPosition.new(key: "first", rate_category: nil),
+      EvaluateClientPrice::OccupancyPosition.new(key: "second", rate_category: nil)
+    ] %>
+    <div data-controller="price-occupancy-fields" data-price-occupancy-fields-next-index-value="<%= occupancy_rows.size %>">
+      <fieldset>
+        <legend>Occupancy pattern</legend>
+        <p class="dd-field-hint">Occupancy keys describe one resource, not every cabin. Add a Client rate category when the price uses one.</p>
+        <div data-price-occupancy-fields-target="list">
+          <% occupancy_rows.each_with_index do |position, index| %>
+            <%= render "service_offers/price_occupancy_row", position: position, index: index %>
+          <% end %>
+        </div>
+        <template data-price-occupancy-fields-target="template">
+          <%= render "service_offers/price_occupancy_row", position: nil, index: "__INDEX__" %>
+        </template>
+        <button type="button" class="dd-button dd-button--quiet" data-action="price-occupancy-fields#add" data-price-occupancy-fields-target="addButton">
+          Add occupancy position
+        </button>
+      </fieldset>
     </div>
+    <% alternative_groups = @service_offer_version.source_bindings.select(&:alternative?).group_by(&:alternative_group_key) %>
+    <% if alternative_groups.any? %>
+      <% alternative_groups.each do |key, members| %>
+        <fieldset>
+          <legend><%= members.first.alternative_group_label.presence || "Alternative source" %></legend>
+          <p class="dd-field-hint">Choose exactly one source for this scenario. The selection is not saved.</p>
+          <% members.each do |binding| %>
+            <label class="dd-choice">
+              <%= radio_button_tag "scenario[alternative_selections][#{key}]",
+                binding.id,
+                Array(scenario&.selected_binding_ids).map(&:to_s).include?(binding.id.to_s),
+                id: "scenario_binding_#{binding.id}" %>
+              <span><%= binding.arrangement_item_definition&.name || binding.id %></span>
+            </label>
+          <% end %>
+        </fieldset>
+      <% end %>
+    <% end %>
     <div class="dd-field-group">
       <label class="dd-label" for="scenario_enrollment_denominator">Enrollment denominator (optional)</label>
       <%= number_field_tag "scenario[enrollment_denominator]", scenario&.enrollment_denominator, min: 1, id: "scenario_enrollment_denominator", class: "dd-input" %>

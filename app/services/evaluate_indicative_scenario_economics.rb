@@ -34,6 +34,8 @@ class EvaluateIndicativeScenarioEconomics
       definition: version.price_definition,
       scenario: @scenario
     ).call
+    occupancy_blocker = occupancy_unknown_reason
+    return unknown(occupancy_blocker, price: price) if occupancy_blocker
     return unknown("Client revenue is incomplete.", price: price) unless price.complete
     if price.currency.present? && offer.departure.operating_currency.present? &&
         price.currency != offer.departure.operating_currency
@@ -43,6 +45,9 @@ class EvaluateIndicativeScenarioEconomics
     attributed = attribute_sources(version)
     return attributed if attributed.is_a?(Result)
     return unknown("No attributable Supplier cost source.", price: price) if attributed.empty?
+    if attributed.any? { |source| selected_stage_category_scoped?(source) }
+      return unknown("Supplier participant-category costs cannot be priced from this scenario.", price: price)
+    end
 
     usage, occupancy = ephemeral_usage
     source_results = attributed.group_by { |source|
@@ -121,7 +126,9 @@ class EvaluateIndicativeScenarioEconomics
 
   def attribute_sources(version)
     bindings = selected_bindings(version)
-    return unknown("Choose an alternative source for this scenario.") if bindings == :missing_alternative
+    return unknown("Choose exactly one alternative source for this scenario.") if bindings == :missing_alternative
+    return unknown("An alternative group can select only one source.") if bindings == :ambiguous_alternative
+    return unknown("A selected source is not part of this service offer.") if bindings == :unknown_selection
     return unknown("No attributable Supplier cost source.") if bindings.empty?
 
     sources = []
@@ -150,12 +157,14 @@ class EvaluateIndicativeScenarioEconomics
     bindings = version.source_bindings.to_a
     required = bindings.select(&:required?)
     grouped = bindings.select(&:alternative?).group_by(&:alternative_group_key)
-    selected_ids = @scenario.selected_binding_ids.map(&:to_s)
+    selected_ids = @scenario.selected_binding_ids.map(&:to_s).uniq
+    offer_ids = bindings.map { |binding| binding.id.to_s }
+    return :unknown_selection if selected_ids.any? { |id| offer_ids.exclude?(id) }
 
     chosen = grouped.flat_map do |_key, members|
       picked = members.select { |binding| selected_ids.include?(binding.id.to_s) }
-      return :missing_alternative if picked.empty? && selected_ids.empty? && grouped.any?
       return :missing_alternative if picked.empty?
+      return :ambiguous_alternative if picked.size > 1
 
       picked
     end
@@ -206,6 +215,35 @@ class EvaluateIndicativeScenarioEconomics
     }
   end
 
+  def occupancy_unknown_reason
+    return if @scenario.occupancy_positions.empty?
+
+    begin
+      count = Integer(@scenario.resource_unit_count)
+      return "Enter a valid resource count." if count <= 0
+    rescue ArgumentError, TypeError
+      return "Enter a valid resource count."
+    end
+    return "Occupancy positions describe one resource, not every cabin." if @scenario.expanded_occupancy_pattern?
+    return "Persons must equal occupancy positions times the resource count." if @scenario.persons_disagree_with_occupancy?
+
+    nil
+  end
+
+  def selected_forecast_definition(source)
+    definitions = source.supplier_cost_definitions
+    contracted = definitions.find { |definition| definition.contracted? && definition.forecast_ready? }
+    estimate = definitions.find { |definition| definition.estimate? && definition.forecast_ready? }
+    contracted || estimate
+  end
+
+  def selected_stage_category_scoped?(source)
+    definition = selected_forecast_definition(source)
+    return false if definition.nil?
+
+    definition.supplier_cost_components.any? { |component| component.participant_category_id.present? }
+  end
+
   def ephemeral_usage
     usage = EvaluateSupplierCostForecast::EphemeralUsage.new(
       id: SecureRandom.uuid,
@@ -218,7 +256,7 @@ class EvaluateIndicativeScenarioEconomics
     profiles = if positions.any?
       [ EvaluateSupplierCostForecast::PreviewProfile.new(
         id: profile_id,
-        resource_unit_count: @scenario.resource_units.presence || 1
+        resource_unit_count: Integer(@scenario.resource_unit_count)
       ) ]
     else
       []

@@ -1,27 +1,37 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["pattern", "advanced", "zero"]
+  static targets = ["list", "template", "row", "addButton"]
+  static values = { nextIndex: Number }
 
   connect() {
     this.update()
   }
 
+  add(event) {
+    event.preventDefault()
+    const index = this.nextIndexValue
+    const html = this.templateTarget.innerHTML.replaceAll("__INDEX__", String(index))
+    this.listTarget.insertAdjacentHTML("beforeend", html)
+    this.nextIndexValue = index + 1
+    this.update()
+    const added = this.rowTargets[this.rowTargets.length - 1]
+    added?.querySelector("input, select, textarea, button")?.focus()
+  }
+
+  remove(event) {
+    event.preventDefault()
+    const row = event.currentTarget.closest("[data-price-component-fields-target='row']")
+    if (!row || this.rowTargets.length <= 1) return
+    row.remove()
+    this.update()
+  }
+
   update() {
-    const mode = this.element.querySelector("[name='price[mode]']")?.value || "calculated"
-    const advanced = this.hasAdvancedTarget && !this.advancedTarget.hidden
-    if (this.hasPatternTarget) {
-      this.toggleInputs(this.patternTarget, mode === "calculated")
-      this.patternTarget.hidden = mode !== "calculated"
-    }
-    if (this.hasZeroTarget) {
-      this.zeroTarget.hidden = mode !== "zero_price"
-      this.toggleInputs(this.zeroTarget, mode === "zero_price")
-    }
     this.element.querySelectorAll("[data-price-kind]").forEach((group) => {
       const row = group.closest("[data-price-component]")
       const kind = row?.querySelector("[data-price-kind-select]")?.value
-      const visible = mode === "calculated" && kind && group.dataset.priceKind.split(" ").includes(kind)
+      const visible = kind && group.dataset.priceKind.split(" ").includes(kind)
       group.hidden = !visible
       this.toggleInputs(group, visible)
     })

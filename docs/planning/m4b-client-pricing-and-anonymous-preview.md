@@ -81,7 +81,7 @@ Database checks and owner constraints enforce Agency/Departure/version integrity
 
 One Client-price language, owner-agnostic. Input is a price-definition graph (Active Record or in-memory DTO) plus an anonymous scenario: resource count, occupancy profiles with ordered positions and optional Client rate category, billable nights, selected service quantity, optional selected alternative-binding / option IDs, optional enrollment denominator. No names, household, payer, Traveler, Hold or Allocation.
 
-Require a positive, internally consistent quantity only if a selected component needs it. Occupancy positions must fit their resource unit count. Do not ask for nights for a flat fare or a rate category for a category-free fare.
+Require a positive, internally consistent quantity only if a selected component needs it. The occupancy list is **one resource’s pattern**; `resource_units` defaults to 1. Selector-scoped `persons`, `person_nights`, `occupancy_positions`, and `occupancy_position_nights` use `matching_positions.size × resource_units`. When both `persons` and an occupancy list are supplied, persons must equal that expanded count or the price is incomplete. More than one `first` or `single` key means the list is expanded across cabins and is incomplete. Do not ask for nights for a flat fare or a rate category for a category-free fare.
 
 Output: complete/incomplete with field-level blockers; evaluated component lines with source definition IDs, quantities, rounding, included/additive treatment, signed Client revenue effects, and the final amount/currency. Calculate in memory from one coherent read snapshot; do not save hypothetical demand, amounts, occupancy, totals, or margin. A preview labels its observation time.
 
@@ -106,13 +106,11 @@ M4B adds a **pure** entry point that accepts ephemeral scenario quantities, reus
 
 **Attribution (not Arrangement-wide totals):**
 
-- Collect candidate `SupplierCostSource` rows from the offer version’s **selected** bindings (required all apply; each alternative group uses only the scenario’s selected member).
+- Collect candidate `SupplierCostSource` rows from the offer version’s **selected** bindings (required all apply; each alternative group uses **exactly one** selected member on this offer; IDs outside the version are unknown).
 - Match a source when its Item, and Occurrence/Resource when the binding pins them, equal the bound identities. Item-only bindings do not pull Occurrence- or Resource-scoped sources that the offer did not pin.
 - Deduplicate by cost-source identity when several bindings reach the same source.
 - If no source matches, more than one equally specific source matches the same pin, or a required binding has no attributable source while others do in a way that leaves the set unprovable → margin **unknown**. Do **not** fall back to `EvaluateSupplierCostForecast` for the whole Arrangement.
-- Evaluate only the attributed, deduplicated sources with the scenario quantities.
-
-Stage: contracted if forecast-ready, else estimate if forecast-ready; never add stages; missing attributed source → margin **unknown**. Cross-Agency/Departure and inconsistent-currency sources cannot contribute a numeric margin.
+Evaluate only the attributed, deduplicated sources with the same occupancy pattern × `resource_units` as Client price. Stage: contracted if forecast-ready, else estimate if forecast-ready; never add stages; missing attributed source → margin **unknown**. If any component on that **selected** stage has a Supplier `participant_category_id`, margin is **unknown** (no mapping from Client rate categories). An unused estimate must not force unknown. Cross-Agency/Departure and inconsistent-currency sources cannot contribute a numeric margin.
 
 When complete and unambiguous:
 

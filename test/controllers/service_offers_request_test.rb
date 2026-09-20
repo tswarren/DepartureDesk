@@ -197,6 +197,48 @@ class ServiceOffersRequestTest < ActionDispatch::IntegrationTest
     assert_match "Client price saved.", response.body
     assert_match "$125.00", response.body
     assert_select "dt", text: "Scenario margin", count: 0
+    assert_select "button", text: "Add component"
+    assert_select "template[data-price-component-fields-target=template]"
+    assert_select "button", text: "Add occupancy position"
+  end
+
+  test "staff preview charges mixed client rate categories against matching persons" do
+    offer = CreateServiceOfferWithExplicitBasis.new(
+      agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { client_title: "Mixed category", fulfillment_basis: "on_request" }
+    ).call.record
+    CreateServiceOfferPriceDefinition.new(
+      agency: @agency, actor: @staff, offer: offer, idempotency_key: SecureRandom.uuid,
+      version_lock_version: offer.editable_draft_version.lock_version,
+      attributes: {
+        components: [
+          {
+            label: "Adult", client_role: "base_price", calculation_kind: "unit_rate",
+            amount: "100.00", quantity_basis: "persons", client_rate_category_key: "adult"
+          },
+          {
+            label: "Child", client_role: "base_price", calculation_kind: "unit_rate",
+            amount: "50.00", quantity_basis: "persons", client_rate_category_key: "child"
+          }
+        ]
+      }
+    ).call
+
+    sign_in_as @staff
+    post preview_departure_service_offer_price_path(@departure, offer), params: {
+      version_lock_version: offer.editable_draft_version.lock_version,
+      scenario: {
+        persons: 2,
+        resource_units: 1,
+        occupancy_positions: {
+          "0" => { client_rate_category_key: "adult" },
+          "1" => { client_rate_category_key: "child" }
+        }
+      }
+    }
+    assert_response :success
+    assert_match "$150.00", response.body
+    assert_no_match "$300.00", response.body
   end
 
   test "viewer cannot open price routes" do

@@ -1,0 +1,17 @@
+<% index_token = index %>
+<% position = local_assigns[:position] %>
+<div class="dd-field-group" data-price-occupancy-fields-target="row">
+  <label class="dd-label" for="scenario_occupancy_positions_<%= index_token %>_key">Occupancy position</label>
+  <%= text_field_tag "scenario[occupancy_positions][#{index_token}][key]",
+    position&.key,
+    id: "scenario_occupancy_positions_#{index_token}_key",
+    class: "dd-input",
+    placeholder: "first" %>
+  <label class="dd-label" for="scenario_occupancy_positions_<%= index_token %>_rate_category">Client rate category (optional)</label>
+  <%= text_field_tag "scenario[occupancy_positions][#{index_token}][client_rate_category_key]",
+    position&.rate_category,
+    id: "scenario_occupancy_positions_#{index_token}_rate_category",
+    class: "dd-input",
+    placeholder: "adult" %>
+  <button type="button" class="dd-button dd-button--quiet" data-action="price-occupancy-fields#remove">Remove position</button>
+</div>

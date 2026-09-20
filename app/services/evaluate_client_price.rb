@@ -19,7 +19,13 @@ class EvaluateClientPrice
   ) do
     def self.build(attrs = {})
       hash = attrs.to_h.with_indifferent_access
-      positions = Array(hash[:occupancy_positions]).map do |position|
+      positions_raw = hash[:occupancy_positions]
+      position_list = if positions_raw.is_a?(Hash)
+        positions_raw.sort_by { |key, _| key.to_i }.map(&:last)
+      else
+        Array(positions_raw)
+      end
+      positions = position_list.map do |position|
         next position if position.is_a?(OccupancyPosition)
 
         row = position.to_h.with_indifferent_access
@@ -46,6 +52,33 @@ class EvaluateClientPrice
       Integer(value)
     rescue ArgumentError, TypeError
       value
+    end
+
+    def resource_unit_count
+      return 1 if resource_units.nil? || resource_units == ""
+
+      Integer(resource_units)
+    rescue ArgumentError, TypeError
+      resource_units
+    end
+
+    def expanded_occupancy_pattern?
+      return false if occupancy_positions.empty?
+
+      occupancy_positions.count { |position| position.key == "first" } > 1 ||
+        occupancy_positions.count { |position| position.key == "single" } > 1
+    end
+
+    def expanded_occupant_count
+      occupancy_positions.size * Integer(resource_unit_count)
+    end
+
+    def persons_disagree_with_occupancy?
+      return false if occupancy_positions.empty? || persons.nil? || persons == ""
+
+      Integer(persons) != expanded_occupant_count
+    rescue ArgumentError, TypeError
+      true
     end
   end
 
@@ -305,11 +338,37 @@ class EvaluateClientPrice
   end
 
   def matching_positions(component)
-    @scenario.occupancy_positions.select do |position|
+    positions = @scenario.occupancy_positions
+    return positions if component.nil?
+
+    positions.select do |position|
       occupancy_ok = component[:occupancy_position_key].blank? || position.key == component[:occupancy_position_key]
       category_ok = component[:client_rate_category_key].blank? || position.rate_category == component[:client_rate_category_key]
       occupancy_ok && category_ok
     end
+  end
+
+  def selector?(component)
+    occupancy_selector?(component) || category_selector?(component)
+  end
+
+  def matching_quantity(component)
+    positions = matching_positions(component)
+    if positions.empty?
+      raise MissingInput.new(:missing_occupancy_positions, "Enter occupancy positions.", field: :occupancy_positions)
+    end
+
+    positions.size * resource_unit_count
+  end
+
+  def resource_unit_count
+    count = @scenario.resource_unit_count
+    integer = Integer(count)
+    raise MissingInput.new(:invalid_resource_units, "Enter a valid resource count.", field: :resource_units) if integer <= 0
+
+    integer
+  rescue ArgumentError, TypeError
+    raise MissingInput.new(:invalid_resource_units, "Enter a valid resource count.", field: :resource_units)
   end
 
   def quantity_for(basis, component: nil)
@@ -317,21 +376,21 @@ class EvaluateClientPrice
     when "service_instances"
       required_quantity(@scenario.service_instances || 1, :service_instances, "Enter the selected service quantity.")
     when "persons"
-      required_quantity(@scenario.persons, :persons, "Enter the number of persons.")
+      if component && selector?(component)
+        matching_quantity(component)
+      else
+        required_quantity(@scenario.persons, :persons, "Enter the number of persons.")
+      end
     when "resource_units"
       required_quantity(@scenario.resource_units, :resource_units, "Enter the resource count.")
     when "nights"
       required_quantity(@scenario.nights, :nights, "Enter billable nights.")
     when "person_nights"
-      quantity_for("persons") * quantity_for("nights")
+      quantity_for("persons", component: component) * quantity_for("nights")
     when "resource_nights"
       quantity_for("resource_units") * quantity_for("nights")
     when "occupancy_positions"
-      positions = component ? matching_positions(component) : @scenario.occupancy_positions
-      if positions.empty?
-        raise MissingInput.new(:missing_occupancy_positions, "Enter occupancy positions.", field: :occupancy_positions)
-      end
-      positions.size
+      matching_quantity(component)
     when "occupancy_position_nights"
       quantity_for("occupancy_positions", component: component) * quantity_for("nights")
     else
@@ -350,15 +409,22 @@ class EvaluateClientPrice
 
   def validate_occupancy_fit!
     return if @scenario.occupancy_positions.empty?
-    resource_units = @scenario.resource_units
-    return if resource_units.blank?
 
-    firsts = @scenario.occupancy_positions.count { |position| position.key == "first" }
-    if firsts > Integer(resource_units)
-      raise MissingInput.new(:occupancy_overflow, "Occupancy positions must fit the resource count.", field: :occupancy_positions)
+    resource_unit_count
+    if @scenario.expanded_occupancy_pattern?
+      raise MissingInput.new(
+        :expanded_occupancy_pattern,
+        "Occupancy positions describe one resource, not every cabin.",
+        field: :occupancy_positions
+      )
     end
-  rescue ArgumentError, TypeError
-    raise MissingInput.new(:invalid_resource_units, "Enter a valid resource count.", field: :resource_units)
+    if @scenario.persons_disagree_with_occupancy?
+      raise MissingInput.new(
+        :persons_occupancy_mismatch,
+        "Persons must equal occupancy positions times the resource count.",
+        field: :persons
+      )
+    end
   end
 
   def overlapping_bases?(graph)

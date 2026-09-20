@@ -137,13 +137,33 @@ class ServiceOfferPricesController < ApplicationController
   def scenario_params
     raw = params.fetch(:scenario, {}).permit(
       :persons, :resource_units, :nights, :service_instances, :occupancy_keys,
-      :enrollment_denominator, occupancy_positions: [ :key, :rate_category ]
+      :enrollment_denominator,
+      occupancy_positions: [ :key, :rate_category, :client_rate_category_key ],
+      selected_binding_ids: []
     )
-    positions = Array(raw[:occupancy_positions]).presence
+    positions_raw = raw[:occupancy_positions]
+    position_list = if positions_raw.respond_to?(:to_unsafe_h) && !positions_raw.is_a?(Array)
+      positions_raw.to_unsafe_h.sort_by { |key, _| key.to_i }.map(&:last)
+    elsif positions_raw.is_a?(Hash)
+      positions_raw.sort_by { |key, _| key.to_i }.map(&:last)
+    else
+      Array(positions_raw)
+    end
+    positions = position_list.filter_map do |row|
+      position = row.to_h.with_indifferent_access
+      next if position[:key].blank? && position[:rate_category].blank? && position[:client_rate_category_key].blank?
+
+      position
+    end
     if positions.blank? && raw[:occupancy_keys].present?
       positions = raw[:occupancy_keys].to_s.split(",").map { |key| { key: key.strip } }
     end
-    raw.to_h.merge(occupancy_positions: positions || [])
+    selected_ids = Array(raw[:selected_binding_ids]).compact_blank
+    selections = params.dig(:scenario, :alternative_selections)
+    if selected_ids.empty? && selections.present?
+      selected_ids = selections.to_unsafe_h.values.compact_blank
+    end
+    raw.to_h.merge(occupancy_positions: positions, selected_binding_ids: selected_ids)
   end
 
   def boolean_flag(value)

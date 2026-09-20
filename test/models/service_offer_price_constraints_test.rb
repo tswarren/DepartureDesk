@@ -87,6 +87,44 @@ class ServiceOfferPriceConstraintsTest < ActiveSupport::TestCase
     assert_match(/zero-price/i, error.message)
   end
 
+  test "direct SQL rejects later position or included treatment on a linked component" do
+    fare = insert_component(@definition, label: "Fare", calculation_kind: "fixed", amount_minor_units: 10_000, quantity_basis: "service_instances")
+    tax = insert_component(
+      @definition, label: "Tax", client_role: "tax_fee", calculation_kind: "percentage",
+      amount_minor_units: nil, rate: 0.1, percentage_treatment: "additive", quantity_basis: nil, position: 2
+    )
+    later = insert_component(
+      @definition, label: "Later", client_role: "named_surcharge", calculation_kind: "percentage",
+      amount_minor_units: nil, rate: 0.05, percentage_treatment: "additive", quantity_basis: nil, position: 3
+    )
+    insert_base(tax, fare)
+    insert_base(later, tax)
+
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      ServiceOfferPriceComponent.transaction(requires_new: true) do
+        ActiveRecord::Base.connection.execute(
+          ActiveRecord::Base.sanitize_sql_array([
+            "UPDATE service_offer_price_components SET position = 4 WHERE id = ?",
+            fare.id
+          ])
+        )
+      end
+    end
+    assert_match(/earlier component/i, error.message)
+
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      ServiceOfferPriceComponent.transaction(requires_new: true) do
+        ActiveRecord::Base.connection.execute(
+          ActiveRecord::Base.sanitize_sql_array([
+            "UPDATE service_offer_price_components SET percentage_treatment = 'included' WHERE id = ?",
+            tax.id
+          ])
+        )
+      end
+    end
+    assert_match(/included-tax/i, error.message)
+  end
+
   private
 
   def create_definition

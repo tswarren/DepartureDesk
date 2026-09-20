@@ -243,5 +243,113 @@ class EvaluateClientPriceTest < ActiveSupport::TestCase
       scenario: { resource_units: 1, occupancy_positions: [ { key: "first" }, { key: "first" } ] }
     ).call
     assert_not overflow.complete
+    assert_match(/one resource/i, overflow.blockers.first[:message])
+  end
+
+  test "mixed client rate categories charge matching persons not the full headcount" do
+    definition = {
+      currency: "USD",
+      components: [
+        {
+          id: "adult", label: "Adult", client_role: "base_price", calculation_kind: "unit_rate",
+          amount_minor_units: 10_000, quantity_basis: "persons",
+          client_rate_category_key: "adult", position: 1
+        },
+        {
+          id: "child", label: "Child", client_role: "base_price", calculation_kind: "unit_rate",
+          amount_minor_units: 5_000, quantity_basis: "persons",
+          client_rate_category_key: "child", position: 2
+        }
+      ]
+    }
+    result = EvaluateClientPrice.new(
+      definition: definition,
+      scenario: {
+        persons: 2, resource_units: 1,
+        occupancy_positions: [ { rate_category: "adult" }, { rate_category: "child" } ]
+      }
+    ).call
+
+    assert result.complete
+    assert_equal 15_000, result.amount_minor_units
+    assert_equal 1, result.lines.find { |line| line.component_id == "adult" }.quantity
+    assert_equal 1, result.lines.find { |line| line.component_id == "child" }.quantity
+  end
+
+  test "occupancy-keyed per-person rates count matching positions not leftover demand" do
+    result = EvaluateClientPrice.new(
+      definition: {
+        currency: "USD",
+        components: [
+          {
+            id: "first", label: "First", client_role: "base_price", calculation_kind: "unit_rate",
+            amount_minor_units: 10_000, quantity_basis: "persons",
+            occupancy_position_key: "first", position: 1
+          },
+          {
+            id: "additional", label: "Additional", client_role: "base_price", calculation_kind: "unit_rate",
+            amount_minor_units: 5_000, quantity_basis: "persons",
+            occupancy_position_key: "additional", position: 2
+          }
+        ]
+      },
+      scenario: {
+        persons: 2, resource_units: 1,
+        occupancy_positions: [ { key: "first" }, { key: "additional" } ]
+      }
+    ).call
+
+    assert result.complete
+    assert_equal 15_000, result.amount_minor_units
+  end
+
+  test "one resource pattern times resource units prices two cabins as four occupancy fares" do
+    definition = {
+      currency: "USD",
+      components: [
+        {
+          id: "first", label: "First", client_role: "base_price", calculation_kind: "unit_rate",
+          amount_minor_units: 21_000, quantity_basis: "occupancy_positions",
+          occupancy_position_key: "first", position: 1
+        },
+        {
+          id: "second", label: "Second", client_role: "base_price", calculation_kind: "unit_rate",
+          amount_minor_units: 21_000, quantity_basis: "occupancy_positions",
+          occupancy_position_key: "second", position: 2
+        }
+      ]
+    }
+
+    two_cabins = EvaluateClientPrice.new(
+      definition: definition,
+      scenario: {
+        persons: 4, resource_units: 2,
+        occupancy_positions: [ { key: "first" }, { key: "second" } ]
+      }
+    ).call
+    assert two_cabins.complete
+    assert_equal 84_000, two_cabins.amount_minor_units
+    assert_equal 2, two_cabins.lines.find { |line| line.component_id == "first" }.quantity
+    assert_equal 2, two_cabins.lines.find { |line| line.component_id == "second" }.quantity
+
+    mismatch = EvaluateClientPrice.new(
+      definition: definition,
+      scenario: {
+        persons: 2, resource_units: 2,
+        occupancy_positions: [ { key: "first" }, { key: "second" } ]
+      }
+    ).call
+    assert_not mismatch.complete
+    assert_equal :persons, mismatch.blockers.first[:field]
+
+    expanded = EvaluateClientPrice.new(
+      definition: definition,
+      scenario: {
+        persons: 4, resource_units: 2,
+        occupancy_positions: [ { key: "first" }, { key: "second" }, { key: "first" }, { key: "second" } ]
+      }
+    ).call
+    assert_not expanded.complete
+    assert_match(/one resource/i, expanded.blockers.first[:message])
   end
 end

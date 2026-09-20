@@ -1,0 +1,97 @@
+<% index_token = index %>
+<% show_base = local_assigns.fetch(:show_base, index.to_s != "0") %>
+<% record = component if component.is_a?(ServiceOfferPriceComponent) %>
+<% values = component.respond_to?(:to_h) && record.nil? ? component.to_h.with_indifferent_access : {} %>
+<% amount_value = if record&.amount_minor_units
+  Money.new(record.amount_minor_units, currency).amount.to_s("F")
+else
+  values[:amount]
+end %>
+<% percentage_value = if record&.rate
+  record.rate * 100
+else
+  values[:percentage]
+end %>
+<% base_position_value = if record
+  record.service_offer_price_component_bases.first&.then { |base|
+    Array(siblings).index { |row| row.respond_to?(:id) && row.id == base.base_component_id }&.succ
+  }
+else
+  values.dig(:bases, 0, :base_position) || values.dig(:bases, "0", :base_position)
+end %>
+<fieldset data-price-component data-price-component-fields-target="row">
+  <legend>Component</legend>
+  <div class="dd-field-group">
+    <label class="dd-label" for="price_components_<%= index_token %>_label">Label</label>
+    <%= text_field_tag "price[components][#{index_token}][label]", record&.label || values[:label], id: "price_components_#{index_token}_label", class: "dd-input" %>
+  </div>
+  <div class="dd-field-group">
+    <label class="dd-label" for="price_components_<%= index_token %>_client_role">Client role</label>
+    <%= select_tag "price[components][#{index_token}][client_role]",
+      options_for_select(price_client_role_options, record&.client_role || values[:client_role] || "base_price"),
+      id: "price_components_#{index_token}_client_role",
+      class: "dd-select" %>
+  </div>
+  <div class="dd-field-group">
+    <label class="dd-label" for="price_components_<%= index_token %>_calculation_kind">Calculation</label>
+    <%= select_tag "price[components][#{index_token}][calculation_kind]",
+      options_for_select(ServiceOfferPriceComponent::CALCULATION_KINDS.map { |value| [ value.humanize, value ] }, record&.calculation_kind || values[:calculation_kind] || "unit_rate"),
+      id: "price_components_#{index_token}_calculation_kind",
+      class: "dd-select",
+      data: { price_kind_select: true, action: "price-component-fields#update" } %>
+  </div>
+  <div class="dd-field-group" data-price-kind="fixed unit_rate">
+    <label class="dd-label" for="price_components_<%= index_token %>_amount">Amount (<%= currency %>)</label>
+    <%= text_field_tag "price[components][#{index_token}][amount]",
+      amount_value,
+      id: "price_components_#{index_token}_amount",
+      inputmode: "decimal",
+      class: "dd-input" %>
+  </div>
+  <div class="dd-field-group" data-price-kind="unit_rate">
+    <label class="dd-label" for="price_components_<%= index_token %>_quantity_basis">Quantity basis</label>
+    <%= select_tag "price[components][#{index_token}][quantity_basis]",
+      options_for_select(price_quantity_basis_options, record&.quantity_basis || values[:quantity_basis]),
+      include_blank: true,
+      id: "price_components_#{index_token}_quantity_basis",
+      class: "dd-select" %>
+  </div>
+  <div class="dd-field-group" data-price-kind="percentage">
+    <label class="dd-label" for="price_components_<%= index_token %>_percentage">Percentage</label>
+    <%= number_field_tag "price[components][#{index_token}][percentage]",
+      percentage_value,
+      min: 0, step: "0.00000001",
+      id: "price_components_#{index_token}_percentage",
+      class: "dd-input" %>
+  </div>
+  <div class="dd-field-group" data-price-kind="percentage">
+    <label class="dd-label" for="price_components_<%= index_token %>_percentage_treatment">Percentage treatment</label>
+    <%= select_tag "price[components][#{index_token}][percentage_treatment]",
+      options_for_select(ServiceOfferPriceComponent::PERCENTAGE_TREATMENTS.map { |value| [ value.humanize, value ] }, record&.percentage_treatment || values[:percentage_treatment]),
+      include_blank: true,
+      id: "price_components_#{index_token}_percentage_treatment",
+      class: "dd-select" %>
+  </div>
+  <div class="dd-field-group">
+    <label class="dd-label" for="price_components_<%= index_token %>_rate_category">Client rate category (optional)</label>
+    <%= text_field_tag "price[components][#{index_token}][client_rate_category_key]", record&.client_rate_category_key || values[:client_rate_category_key], id: "price_components_#{index_token}_rate_category", class: "dd-input" %>
+  </div>
+  <div class="dd-field-group">
+    <label class="dd-label" for="price_components_<%= index_token %>_occupancy">Occupancy position (optional)</label>
+    <%= text_field_tag "price[components][#{index_token}][occupancy_position_key]", record&.occupancy_position_key || values[:occupancy_position_key], id: "price_components_#{index_token}_occupancy", class: "dd-input" %>
+  </div>
+  <% if show_base %>
+    <div class="dd-field-group" data-price-kind="percentage">
+      <label class="dd-label" for="price_components_<%= index_token %>_base">Earlier base position</label>
+      <%= number_field_tag "price[components][#{index_token}][bases][0][base_position]",
+        base_position_value,
+        min: 1,
+        id: "price_components_#{index_token}_base",
+        class: "dd-input" %>
+      <%= hidden_field_tag "price[components][#{index_token}][bases][0][direction]", "add" %>
+    </div>
+  <% end %>
+  <div class="dd-form-actions">
+    <button type="button" class="dd-button dd-button--quiet" data-action="price-component-fields#remove">Remove component</button>
+  </div>
+</fieldset>
