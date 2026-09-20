@@ -939,7 +939,9 @@ Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D do
 
 **Exit / merge gate:** Every Accepted M3E exit criterion has linked evidence; docs agree on shipped M3E.1–M3E.7b and unshipped later commercial work; full CI green.
 
-**Shipped:** M3E.7b (scenario and release gate; documentation marks M3E Shipped).
+**Evidence:** [M3E.7b release-gate evidence](m3e7b-release-gate-evidence.md) maps each named scenario, race/replay/catch-up row, query/`EXPLAIN` check, and documentation deliverable to tests and CI.
+
+**Shipped:** M3E.7b (composite scenario builders; evidence index; documentation marks M3E Shipped).
 
 **Exit (M3E as milestone):** M3E is production-ready; M3F still owns the milestone-wide M3A–M3E acceptance gate.
 
