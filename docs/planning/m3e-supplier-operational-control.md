@@ -1,6 +1,6 @@
 # M3E — Supplier operational control
 
-**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1, M3E.2, M3E.3, M3E.4, and M3E.5 shipped. Remaining implementation is **M3E.5R** (integrity and recovery), **M3D remediations** (Reservation partial-response disclosure), then **M3E.6a–M3E.7b**. Whole-milestone M3E remains **not shipped until M3E.7b**. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
+**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1, M3E.2, M3E.3, M3E.4, and M3E.5 shipped. Remaining implementation is **M3E.5R** (integrity and recovery), **M3D remediations** (Reservation partial-response disclosure), then **M3E.6a–M3E.7b**. **M3E is not yet fully shipped** until M3E.7b. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md)  
 **ADR:** [ADR 0013 — Supplier operational commitments, Deadlines, exposure, and Arrangement ending](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)  
 **Prerequisite:** Shipped M3D through M3D.9; [M3E.0](m3e0-m3d-closure-gate.md) M3D closure gate satisfied  
@@ -795,6 +795,8 @@ Forms preserve submitted business values, selected sources, and notes. Validatio
 | Elapsed Deadline | Changed | Preserve elapsed history; never rewrite the calculated date/time |
 
 ## Implementation slices
+
+Ordinary M3E slices ship persistence, commands, authorization, UI, and proof together. The Accepted decision register records **bounded exceptions** for **M3E.6a** (preview without end command), **M3E.7a** (UI recovery over already-shipped forms), and the sequenced **M3D remediations** gate (see decision register item 91).
 
 
 ### M3E.0 — Authority and M3D closure gate

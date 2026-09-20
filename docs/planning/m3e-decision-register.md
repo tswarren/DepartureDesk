@@ -3,7 +3,7 @@
 **Status:** Accepted 2026-09-18  
 **Decision date:** 2026-09-18  
 **Amended:** 2026-09-18 (opening-source shapes, `released`, time-automation retention, planning milestones, inactivation open-state rule). Amended again 2026-09-18 (earlier-of activation materialization, deposit tranche identity, successor reconciliation matrix, closed ending cascades, projection source locators, cumulative staged deposit). Accepted and promoted 2026-09-18.  
-**Implementation gate:** [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19). M3D.9 is shipped; final M3D correctness QC is green at pinned base `344ab86`. ADR 0013 and the M3E plan are Accepted. M3E.1–M3E.5 are shipped; remaining implementation is M3E.5R, M3D remediations, then M3E.6a–M3E.7b. Whole-milestone M3E remains not shipped until M3E.7b.
+**Implementation gate:** [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19). M3D.9 is shipped; final M3D correctness QC is green at pinned base `344ab86`. ADR 0013 and the M3E plan are Accepted. M3E.1–M3E.5 are shipped; remaining implementation is M3E.5R, M3D remediations, then M3E.6a–M3E.7b. M3E is not yet fully shipped until M3E.7b.
 
 ## Ship notes
 
@@ -230,7 +230,10 @@ M3E does **not** introduce Supplier Obligations, Supplier Payments, Client deman
     10. **M3E.6b** — atomic `EndSupplierArrangement` and ended read-only surfaces;
     11. **M3E.7a** — operational UI recovery for M3E consequential forms;
     12. **M3E.7b** — scenario, concurrency, accessibility, performance, and release-gate documentation.
-91. Each slice ships its persistence, commands, authorization, UI, and proof together. Schema-only and UI-only phase splits are rejected.
+91. Each slice ships its persistence, commands, authorization, UI, and proof together. Schema-only and UI-only phase splits are rejected, with these **bounded exceptions** named in the Accepted M3E plan:
+    - **M3E.6a** ships ending authority, blocker queries, and digest-bound preview only—no `EndSupplierArrangement` command (that command ships in **M3E.6b**).
+    - **M3E.7a** is an operational UI recovery slice over already-shipped M3E consequential forms and screens—it does not introduce new domain persistence.
+    - **M3D remediations** (Reservation partial-response disclosure) is a sequenced pre-ending gate that does not reopen M3D domain decisions and is not an M3E vertical domain slice.
 92. Durable contracts belong in ADR 0013. Slice scope, sequencing, UI, tests, and exit criteria belong in the Accepted M3E plan. ADR 0012 remains M3D historical authority and receives a **dated supersession note** for opening and inactivation wording—not a silent rewrite of its decision body.
 93. Reusable executable scenario builders provide slice and composite proof:
     - Celebrity cruise: $50 initial + **cumulative $500 target** final deposit (**Arrangement-wide** cumulative deposit and `names_assigned_to_supplier` milestone; not per-cabin advancement); activation materializes final tranche with March 11 Deadline; `names_assigned_to_supplier` replaces unelapsed Deadline; rooming list and legal-names Deadlines;
@@ -275,4 +278,4 @@ Second amendment wave (same day) after further acceptance review:
 
 ## Next artifact
 
-ADR 0013 and the [M3E plan](m3e-supplier-operational-control.md) are Accepted and aligned with this register. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied. Production M3E.1+ began from the pinned implementation base; M3E remains not shipped until M3E.7b.
+ADR 0013 and the [M3E plan](m3e-supplier-operational-control.md) are Accepted and aligned with this register. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied. Production M3E.1+ began from the pinned implementation base; M3E is not yet fully shipped until M3E.7b.
