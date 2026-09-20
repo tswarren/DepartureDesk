@@ -310,6 +310,9 @@ Rails.application.routes.draw do
         post :discard
       end
       resources :source_bindings, controller: "service_offer_source_bindings", only: %i[new create destroy]
+      resource :price, controller: "service_offer_prices", only: %i[create update destroy] do
+        post :preview
+      end
     end
   end
   get "departures/:id/return-to-draft", to: "departure_return_to_drafts#edit", as: :edit_departure_return_to_draft

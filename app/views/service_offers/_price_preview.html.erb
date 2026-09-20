@@ -1,0 +1,113 @@
+<% preview = @price_preview %>
+<% economics = @indicative_economics %>
+
+<%= form_with url: preview_departure_service_offer_price_path(@departure, @service_offer), method: :post, class: "dd-form" do %>
+  <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+  <fieldset>
+    <legend>Anonymous example</legend>
+    <p class="dd-field-hint">Enter quantities only when the price uses them. Invalid preview leaves the draft intact.</p>
+    <div class="dd-field-group">
+      <label class="dd-label" for="scenario_persons">Persons</label>
+      <%= number_field_tag "scenario[persons]", scenario&.persons || 2, min: 1, id: "scenario_persons", class: "dd-input" %>
+    </div>
+    <div class="dd-field-group">
+      <label class="dd-label" for="scenario_resource_units">Resources</label>
+      <%= number_field_tag "scenario[resource_units]", scenario&.resource_units || 1, min: 1, id: "scenario_resource_units", class: "dd-input" %>
+    </div>
+    <div class="dd-field-group">
+      <label class="dd-label" for="scenario_nights">Billable nights</label>
+      <%= number_field_tag "scenario[nights]", scenario&.nights || 7, min: 1, id: "scenario_nights", class: "dd-input" %>
+    </div>
+    <div class="dd-field-group">
+      <label class="dd-label" for="scenario_occupancy_keys">Occupancy positions</label>
+      <%= text_field_tag "scenario[occupancy_keys]",
+        Array(scenario&.occupancy_positions).map(&:key).compact.join(","),
+        id: "scenario_occupancy_keys",
+        class: "dd-input",
+        placeholder: "first,second" %>
+      <p class="dd-field-hint">Comma-separated keys such as first, second, additional, or single.</p>
+    </div>
+    <div class="dd-field-group">
+      <label class="dd-label" for="scenario_enrollment_denominator">Enrollment denominator (optional)</label>
+      <%= number_field_tag "scenario[enrollment_denominator]", scenario&.enrollment_denominator, min: 1, id: "scenario_enrollment_denominator", class: "dd-input" %>
+    </div>
+    <div class="dd-field-group">
+      <label class="dd-choice">
+        <%= check_box_tag :include_economics, "1", economics.present? %>
+        <span>Include attributed Supplier cost in this preview (Staff only)</span>
+      </label>
+    </div>
+    <div class="dd-form-actions">
+      <%= submit_tag "Preview amount", class: "dd-button dd-button--quiet" %>
+    </div>
+  </fieldset>
+<% end %>
+
+<% if preview %>
+  <% if preview.complete %>
+    <p>Client amount: <strong><%= format_offer_money(preview.amount_minor_units, preview.currency || currency) %></strong></p>
+    <% if preview.lines.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Line</th>
+            <th scope="col">Quantity</th>
+            <th scope="col">Effect</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% preview.lines.each do |line| %>
+            <tr>
+              <td>
+                <%= line.label %>
+                <span class="dd-field-hint">
+                  <%= line.client_role.humanize %>
+                  <% if line.included %> · included allocation<% end %>
+                </span>
+              </td>
+              <td><%= line.quantity || "—" %></td>
+              <td><%= format_offer_money(line.signed_revenue_effect_minor_units, preview.currency || currency) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  <% else %>
+    <p>Preview is incomplete.</p>
+    <ul class="dd-list">
+      <% preview.blockers.each do |blocker| %>
+        <li><%= blocker[:message] || blocker["message"] %></li>
+      <% end %>
+    </ul>
+  <% end %>
+<% end %>
+
+<% if economics %>
+  <div class="dd-panel-body">
+    <h3 class="dd-panel-title">Scenario economics</h3>
+    <% if economics.status == :known %>
+      <p><%= economics.label.humanize %></p>
+      <dl class="dd-definition-list">
+        <div>
+          <dt>Client revenue</dt>
+          <dd><%= format_offer_money(economics.client_revenue_minor_units, economics.currency) %></dd>
+        </div>
+        <div>
+          <dt>Forecast Supplier cost</dt>
+          <dd><%= format_offer_money(economics.forecast_supplier_cost_minor_units, economics.currency) %></dd>
+        </div>
+        <div>
+          <dt>Expected commission</dt>
+          <dd><%= format_offer_money(economics.expected_commission_minor_units, economics.currency) %></dd>
+        </div>
+        <div>
+          <dt>Scenario margin</dt>
+          <dd><%= format_offer_money(economics.indicative_margin_minor_units, economics.currency) %></dd>
+        </div>
+      </dl>
+    <% else %>
+      <p>Scenario margin is unknown. <%= economics.reason %></p>
+    <% end %>
+    <p class="dd-field-hint">Expected commission is forecast, not cash. This is not guaranteed inventory.</p>
+  </div>
+<% end %>

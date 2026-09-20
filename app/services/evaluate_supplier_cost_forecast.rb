@@ -39,7 +39,25 @@ class EvaluateSupplierCostForecast
     @version = version
   end
 
+  EphemeralUsage = Data.define(:id, :expected_persons, :expected_resource_units, :expected_billable_nights)
+  EphemeralPosition = Data.define(:id, :occupancy_position, :participant_category_id)
   DefinitionReviewBundle = Data.define(:forecast, :occupancy_preview)
+
+  def call_attributed_sources(sources:, usage:, profiles: [], positions_by_profile: {})
+    with_readonly_preload do
+      apply_ephemeral_usage!(sources, usage, profiles, positions_by_profile)
+      Array(sources).filter_map do |source|
+        loaded = @sources.find { |row| row.id == record_id(source) }
+        next unless loaded
+
+        arrangement = @arrangements.find { |row| row.id == loaded.supplier_arrangement_id }
+        version = @versions_by_arrangement[loaded.supplier_arrangement_id]
+        next unless arrangement && version
+
+        evaluate_source(arrangement, version, loaded)
+      end
+    end
+  end
 
   def call(isolated: true)
     if isolated
@@ -173,6 +191,17 @@ class EvaluateSupplierCostForecast
         illustrated.expected_net_cost_after_commission_minor_units -
           combined.expected_net_cost_after_commission_minor_units
     }.reject { |_key, value| value.zero? }
+  end
+
+  def apply_ephemeral_usage!(sources, usage, profiles, positions_by_profile)
+    Array(sources).each do |source|
+      loaded = @sources.find { |row| row.id == record_id(source) }
+      @assumptions_by_context[context_key(loaded)] = usage if loaded
+    end
+    @profiles_by_assumption[usage.id] = Array(profiles)
+    Array(positions_by_profile).each do |profile_id, rows|
+      @positions_by_profile[profile_id] = Array(rows)
+    end
   end
 
   def preload!

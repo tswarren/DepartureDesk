@@ -2,7 +2,7 @@
 
 **Status:** Draft for review, 2026-09-20. Proposed slice contract; not implementation authority until accepted.
 
-**Prerequisites:** Accepted [M4 parent](../m4-offers-and-pricing.md), [ADR 0014](../../adr/0014-client-offers-publication-and-supply-compatibility.md), and [M4.0](../m40-task-flow-and-contract.md) (Accepted 2026-09-20; not implementation authority for later slices). MVP bundled Package occupancy amendment and roadmap M5 due-Charge amendment are already in those documents. **Shipped** [M4A](../m4a-service-definitions-and-sources.md). [M4B](DepartureDesk-M4B-client-pricing-and-anonymous-preview-draft.md) remains a planning draft. Verify accepted contracts and merge SHAs before coding M4C. Coding slices reconfirm required CI on the branch tip.
+**Prerequisites:** Accepted [M4 parent](../m4-offers-and-pricing.md), [ADR 0014](../../adr/0014-client-offers-publication-and-supply-compatibility.md), and [M4.0](../m40-task-flow-and-contract.md) (Accepted 2026-09-20; not implementation authority for later slices). MVP bundled Package occupancy amendment and roadmap M5 due-Charge amendment are already in those documents. **Shipped** [M4A](../m4a-service-definitions-and-sources.md) and [M4B](../m4b-client-pricing-and-anonymous-preview.md). Verify accepted contracts and merge SHAs before coding M4C. Coding slices reconfirm required CI on the branch tip.
 
 **Authority:** Parent, ADR 0014, and M4.0 as above. Lock order inherits M4A. The M3F fixture ledger labels confirmed, illustrative, and shape-only scenario facts. Later: [M4D](DepartureDesk-M4D-publication-and-live-feasibility-draft.md) · [M4E](DepartureDesk-M4E-acceptance-and-hardening-draft.md).
 

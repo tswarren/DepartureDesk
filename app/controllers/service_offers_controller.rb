@@ -24,6 +24,7 @@ class ServiceOffersController < ApplicationController
     @compatibility = EvaluateServiceOfferSourceCompatibility.new(
       agency: Current.agency, actor: Current.agency_user, offer: @service_offer, version: @service_offer_version
     ).call if @service_offer_version.definition&.m3_backed?
+    assign_default_price_preview
   end
 
   def new
@@ -95,6 +96,7 @@ class ServiceOffersController < ApplicationController
   end
 
   def edit
+    assign_default_price_preview
   end
 
   def update
@@ -167,6 +169,23 @@ class ServiceOffersController < ApplicationController
       @service_offer.versions.order(version_number: :desc).first ||
       raise(ActiveRecord::RecordNotFound)
     @service_offer_definition = @service_offer_version.definition
+    @price_definition = @service_offer_version.association(:price_definition).scope
+      .includes(service_offer_price_components: :service_offer_price_component_bases)
+      .first
+  end
+
+  def assign_default_price_preview
+    @price_scenario ||= EvaluateClientPrice::Scenario.build(
+      persons: 2,
+      resource_units: 1,
+      nights: 7,
+      service_instances: 1,
+      occupancy_positions: [ { key: "first" }, { key: "second" } ]
+    )
+    @price_preview = EvaluateClientPrice.new(
+      definition: @price_definition,
+      scenario: @price_scenario
+    ).call if @price_definition
   end
 
   def from_source_params

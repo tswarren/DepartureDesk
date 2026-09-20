@@ -1,6 +1,6 @@
 # M4 — Offers and pricing
 
-**Status:** Accepted 2026-09-20. Not implementation authority for later slices. [M4A](m4a-service-definitions-and-sources.md) is accepted and shipped. Each of M4B–M4E needs its own accepted slice before domain code.
+**Status:** Accepted 2026-09-20. Not implementation authority for later slices. [M4A](m4a-service-definitions-and-sources.md) and [M4B](m4b-client-pricing-and-anonymous-preview.md) are accepted and shipped. Each of M4C–M4E needs its own accepted slice before domain code.
 
 **Architecture:** [ADR 0014](../adr/0014-client-offers-publication-and-supply-compatibility.md)  
 **Task-flow gate:** [M4.0](m40-task-flow-and-contract.md)  

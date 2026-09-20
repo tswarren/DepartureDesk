@@ -1,0 +1,127 @@
+<% components = definition&.service_offer_price_components&.sort_by(&:position) || [] %>
+<% url = departure_service_offer_price_path(@departure, @service_offer) %>
+<% method = definition ? :patch : :post %>
+
+<%= form_with url: url, method: method, class: "dd-form" do %>
+  <%= render "shared/form_errors", object: @service_offer %>
+  <% if method == :post %>
+    <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+  <% end %>
+  <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+  <%= hidden_field_tag "price[mode]", "calculated" %>
+  <div class="dd-field-group">
+    <label class="dd-label" for="price_pattern">Ordinary pattern</label>
+    <%= select_tag "price[pattern]",
+      options_for_select(price_pattern_options, params.dig(:price, :pattern) || suggested_price_pattern(@service_offer_version)),
+      id: "price_pattern",
+      class: "dd-select" %>
+    <p class="dd-field-hint">Quantity basis is prefilled from the bound source. Client amounts are never copied from Supplier cost.</p>
+  </div>
+  <div class="dd-field-group">
+    <label class="dd-label" for="price_amount">Amount (<%= currency %>)</label>
+    <%= text_field_tag "price[amount]",
+      params.dig(:price, :amount) || (components.one? && components.first.amount_minor_units ? Money.new(components.first.amount_minor_units, currency).amount.to_s("F") : nil),
+      id: "price_amount",
+      inputmode: "decimal",
+      autocomplete: "off",
+      class: "dd-input" %>
+  </div>
+  <div class="dd-form-actions">
+    <%= submit_tag definition ? "Replace ordinary price" : "Save Client price", class: "dd-button" %>
+  </div>
+<% end %>
+
+<details class="dd-disclosure">
+  <summary class="dd-disclosure-summary">Advanced price details</summary>
+  <div class="dd-disclosure-body">
+    <p>Named discount, surcharge, several rate categories, occupancy selectors, or a percentage with an explicit earlier-component base. There is no generic formula editor.</p>
+    <%= form_with url: url, method: method, class: "dd-form", data: { controller: "price-component-fields", action: "change->price-component-fields#update" } do %>
+      <% if method == :post %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+      <% end %>
+      <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+      <%= hidden_field_tag "price[mode]", "calculated" %>
+      <% 4.times do |index| %>
+        <% component = components[index] %>
+        <fieldset data-price-component>
+          <legend>Component <%= index + 1 %></legend>
+          <div class="dd-field-group">
+            <label class="dd-label" for="price_components_<%= index %>_label">Label</label>
+            <%= text_field_tag "price[components][#{index}][label]", component&.label, id: "price_components_#{index}_label", class: "dd-input" %>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="price_components_<%= index %>_client_role">Client role</label>
+            <%= select_tag "price[components][#{index}][client_role]",
+              options_for_select(price_client_role_options, component&.client_role || "base_price"),
+              id: "price_components_#{index}_client_role",
+              class: "dd-select" %>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="price_components_<%= index %>_calculation_kind">Calculation</label>
+            <%= select_tag "price[components][#{index}][calculation_kind]",
+              options_for_select(ServiceOfferPriceComponent::CALCULATION_KINDS.map { |value| [ value.humanize, value ] }, component&.calculation_kind || "unit_rate"),
+              id: "price_components_#{index}_calculation_kind",
+              class: "dd-select",
+              data: { price_kind_select: true, action: "price-component-fields#update" } %>
+          </div>
+          <div class="dd-field-group" data-price-kind="fixed unit_rate">
+            <label class="dd-label" for="price_components_<%= index %>_amount">Amount (<%= currency %>)</label>
+            <%= text_field_tag "price[components][#{index}][amount]",
+              component&.amount_minor_units && Money.new(component.amount_minor_units, currency).amount.to_s("F"),
+              id: "price_components_#{index}_amount",
+              inputmode: "decimal",
+              class: "dd-input" %>
+          </div>
+          <div class="dd-field-group" data-price-kind="unit_rate">
+            <label class="dd-label" for="price_components_<%= index %>_quantity_basis">Quantity basis</label>
+            <%= select_tag "price[components][#{index}][quantity_basis]",
+              options_for_select(price_quantity_basis_options, component&.quantity_basis),
+              include_blank: true,
+              id: "price_components_#{index}_quantity_basis",
+              class: "dd-select" %>
+          </div>
+          <div class="dd-field-group" data-price-kind="percentage">
+            <label class="dd-label" for="price_components_<%= index %>_percentage">Percentage</label>
+            <%= number_field_tag "price[components][#{index}][percentage]",
+              component&.rate && (component.rate * 100),
+              min: 0, step: "0.00000001",
+              id: "price_components_#{index}_percentage",
+              class: "dd-input" %>
+          </div>
+          <div class="dd-field-group" data-price-kind="percentage">
+            <label class="dd-label" for="price_components_<%= index %>_percentage_treatment">Percentage treatment</label>
+            <%= select_tag "price[components][#{index}][percentage_treatment]",
+              options_for_select(ServiceOfferPriceComponent::PERCENTAGE_TREATMENTS.map { |value| [ value.humanize, value ] }, component&.percentage_treatment),
+              include_blank: true,
+              id: "price_components_#{index}_percentage_treatment",
+              class: "dd-select" %>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="price_components_<%= index %>_rate_category">Client rate category (optional)</label>
+            <%= text_field_tag "price[components][#{index}][client_rate_category_key]", component&.client_rate_category_key, id: "price_components_#{index}_rate_category", class: "dd-input" %>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="price_components_<%= index %>_occupancy">Occupancy position (optional)</label>
+            <%= text_field_tag "price[components][#{index}][occupancy_position_key]", component&.occupancy_position_key, id: "price_components_#{index}_occupancy", class: "dd-input" %>
+          </div>
+          <% if index.positive? %>
+            <div class="dd-field-group" data-price-kind="percentage">
+              <label class="dd-label" for="price_components_<%= index %>_base">Earlier base position</label>
+              <%= number_field_tag "price[components][#{index}][bases][0][base_position]",
+                component&.service_offer_price_component_bases&.first&.then { |base|
+                  components.index { |row| row.id == base.base_component_id }&.succ
+                },
+                min: 1, max: index,
+                id: "price_components_#{index}_base",
+                class: "dd-input" %>
+              <%= hidden_field_tag "price[components][#{index}][bases][0][direction]", "add" %>
+            </div>
+          <% end %>
+        </fieldset>
+      <% end %>
+      <div class="dd-form-actions">
+        <%= submit_tag definition ? "Replace advanced price" : "Save advanced Client price", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</details>

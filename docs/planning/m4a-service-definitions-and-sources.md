@@ -6,7 +6,7 @@
 
 **Implementation base:** Documentation pin [`ea6d63e`](https://github.com/tswarren/DepartureDesk/commit/ea6d63e875d917415da061e7b1a64b382c5f91a1) (M3 complete). Production M4A starts from that SHA or a later `main` descendant. Coding slices reconfirm required CI on the branch tip.
 
-**Later slices:** [M4B](drafts/DepartureDesk-M4B-client-pricing-and-anonymous-preview-draft.md) · [M4C](drafts/DepartureDesk-M4C-packages-choices-and-client-terms-draft.md) · [M4D](drafts/DepartureDesk-M4D-publication-and-live-feasibility-draft.md) · [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md)
+**Later slices:** [M4B](m4b-client-pricing-and-anonymous-preview.md) (shipped) · [M4C](drafts/DepartureDesk-M4C-packages-choices-and-client-terms-draft.md) · [M4D](drafts/DepartureDesk-M4D-publication-and-live-feasibility-draft.md) · [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md)
 
 ## Goal
 

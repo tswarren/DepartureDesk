@@ -33,6 +33,11 @@ class ServiceOffersSystemTest < ApplicationSystemTestCase
     assert_no_selector :link, exact_text: "Publish"
     assert_no_selector :button, exact_text: "Publish"
     assert_no_text "indicative margin"
+    assert_text "Client price"
+    fill_in "Amount (USD)", with: "125.00"
+    click_button "Save Client price"
+    assert_text "Client price saved."
+    assert_text "$125.00"
 
     click_link "Edit draft"
     assert_text "Reselect the current governing activated source for each binding. Keep this Client text."

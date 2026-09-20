@@ -12,7 +12,10 @@ class ServiceOfferVersion < ApplicationRecord
   belongs_to :service_offer
 
   has_one :definition, class_name: "ServiceOfferDefinition", dependent: :restrict_with_exception
+  has_one :price_definition, class_name: "ServiceOfferPriceDefinition", dependent: :restrict_with_exception
   has_many :source_bindings, class_name: "ServiceOfferSourceBinding", dependent: :restrict_with_exception
+  has_many :price_components, class_name: "ServiceOfferPriceComponent", dependent: :restrict_with_exception
+  has_many :price_component_bases, class_name: "ServiceOfferPriceComponentBase", dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 

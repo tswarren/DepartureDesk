@@ -368,6 +368,34 @@ module ApplicationHelper
     }.fetch(basis.to_s, basis.to_s.humanize)
   end
 
+  def price_pattern_options
+    PriceCommandSupport::SIMPLE_PATTERNS.map { |key, config| [ config[:label], key ] }
+  end
+
+  def suggested_price_pattern(version)
+    binding = version&.source_bindings&.order(:position)&.first
+    return "per_person" unless binding
+    return "occupancy_positions" if binding.supplier_resource_id.present?
+    return "per_night" if binding.service_occurrence_id.present?
+
+    "per_person"
+  end
+
+  def format_offer_money(minor_units, currency)
+    return "—" if minor_units.nil? || currency.blank?
+
+    Money.new(minor_units, currency).format
+  end
+
+  def price_quantity_basis_options
+    ServiceOfferPriceComponent::QUANTITY_BASES.map { |value| [ value.humanize, value ] }
+  end
+
+  def price_client_role_options
+    ServiceOfferPriceComponent::CLIENT_ROLES.map { |value| [ value.humanize, value ] }
+  end
+
+
   def offer_source_candidate_label(candidate)
     parts = [
       candidate.arrangement.name,

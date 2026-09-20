@@ -61,6 +61,9 @@ class ServiceOfferDefinitionMutationConcurrencyTest < ActiveSupport::TestCase
     connection.execute("SET session_replication_role = replica")
     agency_id = @agency.id
     ServiceOfferSourceBinding.where(agency_id: agency_id).delete_all
+    ServiceOfferPriceComponentBase.where(agency_id: agency_id).delete_all
+    ServiceOfferPriceComponent.where(agency_id: agency_id).delete_all
+    ServiceOfferPriceDefinition.where(agency_id: agency_id).delete_all
     ServiceOfferDefinition.where(agency_id: agency_id).delete_all
     ServiceOfferVersion.where(agency_id: agency_id).delete_all
     ServiceOffer.where(agency_id: agency_id).delete_all
