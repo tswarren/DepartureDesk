@@ -2488,6 +2488,36 @@ CREATE TABLE public.supplier_arrangement_activations (
 
 
 --
+-- Name: supplier_arrangement_ending_previews; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangement_ending_previews (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_arrangement_ending_pr_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_arrangement_ending_supplier_arrangement_versi_not_null NOT NULL,
+    arrangement_lock_version integer CONSTRAINT supplier_arrangement_ending_p_arrangement_lock_version_not_null NOT NULL,
+    version_lock_version integer CONSTRAINT supplier_arrangement_ending_previ_version_lock_version_not_null NOT NULL,
+    actor_id uuid NOT NULL,
+    payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+    digest_sha256 character varying(64) NOT NULL,
+    token_digest character varying(64) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    ending_reason character varying(80),
+    ending_reason_label character varying(160),
+    ending_reason_note text,
+    replacement_arrangement_id uuid,
+    selected_cascade_keys jsonb DEFAULT '[]'::jsonb CONSTRAINT supplier_arrangement_ending_prev_selected_cascade_keys_not_null NOT NULL,
+    required_acknowledgments jsonb DEFAULT '[]'::jsonb CONSTRAINT supplier_arrangement_ending_p_required_acknowledgments_not_null NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT ending_previews_digest_shape CHECK (((char_length((digest_sha256)::text) = 64) AND ((digest_sha256)::text ~ '^[0-9a-f]+$'::text))),
+    CONSTRAINT ending_previews_token_digest_shape CHECK (((char_length((token_digest)::text) = 64) AND ((token_digest)::text ~ '^[0-9a-f]+$'::text)))
+);
+
+
+--
 -- Name: supplier_arrangement_versions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2533,8 +2563,10 @@ CREATE TABLE public.supplier_arrangements (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     governing_version_id uuid,
+    ended_at timestamp with time zone,
     CONSTRAINT supplier_arrangements_abandoned_at_pair CHECK ((((status)::text = 'abandoned'::text) = (abandoned_at IS NOT NULL))),
     CONSTRAINT supplier_arrangements_active_governing_version CHECK ((((status)::text <> 'active'::text) OR (governing_version_id IS NOT NULL))),
+    CONSTRAINT supplier_arrangements_ended_at_pair CHECK ((((status)::text = 'ended'::text) = (ended_at IS NOT NULL))),
     CONSTRAINT supplier_arrangements_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_arrangements_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
     CONSTRAINT supplier_arrangements_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('ended'::character varying)::text, ('abandoned'::character varying)::text])))
@@ -4485,6 +4517,14 @@ ALTER TABLE ONLY public.supplier_arrangement_activation_cost_selections
 
 ALTER TABLE ONLY public.supplier_arrangement_activations
     ADD CONSTRAINT supplier_arrangement_activations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_arrangement_ending_previews supplier_arrangement_ending_previews_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_ending_previews
+    ADD CONSTRAINT supplier_arrangement_ending_previews_pkey PRIMARY KEY (id);
 
 
 --
@@ -6845,6 +6885,27 @@ CREATE UNIQUE INDEX index_deposit_tranches_on_lineage_owner ON public.supplier_d
 --
 
 CREATE UNIQUE INDEX index_deposit_tranches_on_materialization_key ON public.supplier_deposit_requirement_tranches USING btree (supplier_arrangement_version_id, materialization_key);
+
+
+--
+-- Name: index_ending_previews_on_arrangement_expires; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_ending_previews_on_arrangement_expires ON public.supplier_arrangement_ending_previews USING btree (supplier_arrangement_id, expires_at);
+
+
+--
+-- Name: index_ending_previews_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ending_previews_on_id_agency ON public.supplier_arrangement_ending_previews USING btree (id, agency_id);
+
+
+--
+-- Name: index_ending_previews_on_token_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ending_previews_on_token_digest ON public.supplier_arrangement_ending_previews USING btree (token_digest);
 
 
 --
@@ -10965,6 +11026,46 @@ ALTER TABLE ONLY public.supplier_deposit_requirement_tranches
 
 
 --
+-- Name: supplier_arrangement_ending_previews ending_previews_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_ending_previews
+    ADD CONSTRAINT ending_previews_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_ending_previews ending_previews_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_ending_previews
+    ADD CONSTRAINT ending_previews_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_ending_previews ending_previews_departure_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_ending_previews
+    ADD CONSTRAINT ending_previews_departure_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_ending_previews ending_previews_replacement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_ending_previews
+    ADD CONSTRAINT ending_previews_replacement_fk FOREIGN KEY (replacement_arrangement_id) REFERENCES public.supplier_arrangements(id);
+
+
+--
+-- Name: supplier_arrangement_ending_previews ending_previews_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_ending_previews
+    ADD CONSTRAINT ending_previews_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_exposure_components exposure_components_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -11466,6 +11567,14 @@ ALTER TABLE ONLY public.supplier_arrangement_activation_capacity_entries
 
 ALTER TABLE ONLY public.client_organization_email_addresses
     ADD CONSTRAINT fk_rails_b2180601e2 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_arrangement_ending_previews fk_rails_c58aabc11e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_ending_previews
+    ADD CONSTRAINT fk_rails_c58aabc11e FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -12531,6 +12640,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260920020000'),
 ('20260920010000'),
 ('20260919210000'),
 ('20260919200000'),

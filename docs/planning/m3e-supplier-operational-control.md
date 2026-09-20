@@ -1,6 +1,6 @@
 # M3E — Supplier operational control
 
-**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1, M3E.2, M3E.3, M3E.4, M3E.5, M3E.5R, and M3D remediations shipped. Remaining implementation is **M3E.6a–M3E.7b**. **M3E is not yet fully shipped** until M3E.7b. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).  
+**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1–M3E.5, M3E.5R, M3D remediations, and M3E.6a shipped. Remaining implementation is **M3E.6b–M3E.7b**. **M3E is not yet fully shipped** until M3E.7b. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md)  
 **ADR:** [ADR 0013 — Supplier operational commitments, Deadlines, exposure, and Arrangement ending](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)  
 **Prerequisite:** Shipped M3D through M3D.9; [M3E.0](m3e0-m3d-closure-gate.md) M3D closure gate satisfied  
@@ -905,6 +905,8 @@ Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D do
 - **No end command** in this slice.
 
 **Exit / merge gate:** Blocker and candidate results match live governing state; historical facts alone do not block; digest binds exact candidates and expires; cross-Agency and Viewer paths fail closed; queries remain bounded.
+
+**Shipped:** M3E.6a (`ended_at` lifecycle guard; `PreviewEndSupplierArrangement` with digest-bound preview token; named blockers; six-cascade eligibility catalog; `GET .../end` preview surface).
 
 ### M3E.6b — Atomic ending
 

@@ -41,6 +41,8 @@ class SupplierArrangement < ApplicationRecord
   has_many :supplier_exposure_summaries, dependent: :restrict_with_exception
   has_many :supplier_exposure_source_qualifications, dependent: :restrict_with_exception
   has_many :supplier_attention_findings, dependent: :restrict_with_exception
+  has_many :ending_previews, class_name: "SupplierArrangementEndingPreview",
+    dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 
@@ -50,6 +52,7 @@ class SupplierArrangement < ApplicationRecord
 
   validates :name, presence: true, length: { maximum: NAME_LIMIT }
   validate :abandoned_time_matches_status
+  validate :ended_time_matches_status
   validate :contact_belongs_to_contractor
   validate :active_has_governing_version
 
@@ -60,6 +63,14 @@ class SupplierArrangement < ApplicationRecord
       errors.add(:abandoned_at, "can't be blank") if abandoned_at.blank?
     elsif abandoned_at.present?
       errors.add(:abandoned_at, "must be blank unless abandoned")
+    end
+  end
+
+  def ended_time_matches_status
+    if ended?
+      errors.add(:ended_at, "can't be blank") if ended_at.blank?
+    elsif ended_at.present?
+      errors.add(:ended_at, "must be blank unless ended")
     end
   end
 

@@ -1,0 +1,103 @@
+<% content_for :title, "End Arrangement · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier planning</p>
+    <h1 class="dd-page-title">End arrangement</h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <p>Review blockers and permitted cascades. This screen is a digest-bound preview only; ending is not executed here.</p>
+
+    <% if @payload["blockers"].present? %>
+      <section class="dd-stack" aria-labelledby="ending-blockers-heading">
+        <h2 id="ending-blockers-heading" class="dd-section-title">Blockers</h2>
+        <ul>
+          <% @payload["blockers"].each do |blocker| %>
+            <li>
+              <strong><%= blocker.fetch("message") %></strong>
+              <p class="dd-help"><%= blocker.fetch("resolution_path") %></p>
+            </li>
+          <% end %>
+        </ul>
+      </section>
+    <% else %>
+      <p role="status">No live governing blockers for the current cascade selection.</p>
+    <% end %>
+
+    <%= form_with url: end_departure_arrangement_path(@departure, @supplier_arrangement), method: :get, class: "dd-form" do %>
+      <section class="dd-stack" aria-labelledby="ending-cascades-heading">
+        <h2 id="ending-cascades-heading" class="dd-section-title">Cascades</h2>
+        <% Array(@payload["cascades"]).each do |cascade| %>
+          <div class="dd-field-group">
+            <% if cascade["required"] %>
+              <p>
+                <span class="dd-label">Required</span>
+                <%= cascade.fetch("label") %>
+                <%= hidden_field_tag "selected_cascade_keys[]", cascade.fetch("key") %>
+              </p>
+            <% elsif cascade["selectable"] %>
+              <%= check_box_tag "selected_cascade_keys[]", cascade.fetch("key"), cascade["selected"],
+                id: "cascade_#{cascade.fetch("key").parameterize}" %>
+              <%= label_tag "cascade_#{cascade.fetch("key").parameterize}", cascade.fetch("label"), class: "dd-label" %>
+            <% else %>
+              <p class="dd-help"><%= cascade.fetch("label") %> (unavailable)</p>
+            <% end %>
+          </div>
+        <% end %>
+        <% if Array(@payload["cascades"]).empty? %>
+          <p class="dd-help">No cascade candidates for the current governing state.</p>
+        <% end %>
+      </section>
+
+      <section class="dd-stack" aria-labelledby="ending-reason-heading">
+        <h2 id="ending-reason-heading" class="dd-section-title">Ending reason</h2>
+        <div class="dd-field-group">
+          <%= label_tag :ending_reason, "Reason", class: "dd-label" %>
+          <%= select_tag :ending_reason,
+            options_for_select(
+              Array(@payload["reason_choices"]).map { |reason| [ reason.humanize, reason ] },
+              params[:ending_reason] || @preview&.ending_reason
+            ),
+            include_blank: "Choose reason",
+            class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag :ending_reason_label, "Other label", class: "dd-label" %>
+          <%= text_field_tag :ending_reason_label, params[:ending_reason_label] || @preview&.ending_reason_label,
+            class: "dd-field", maxlength: 160 %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag :ending_reason_note, "Other note", class: "dd-label" %>
+          <%= text_area_tag :ending_reason_note, params[:ending_reason_note] || @preview&.ending_reason_note,
+            class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag :replacement_arrangement_id, "Replacement Arrangement ID", class: "dd-label" %>
+          <%= text_field_tag :replacement_arrangement_id,
+            params[:replacement_arrangement_id] || @preview&.replacement_arrangement_id,
+            class: "dd-field" %>
+          <p class="dd-help">Required only when reason is replaced.</p>
+        </div>
+      </section>
+
+      <div class="dd-form-actions">
+        <%= submit_tag "Refresh preview", class: "dd-button dd-button--secondary" %>
+        <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement),
+          class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+
+    <% if @preview && @raw_token %>
+      <section class="dd-stack" aria-labelledby="ending-digest-heading">
+        <h2 id="ending-digest-heading" class="dd-section-title">Preview digest</h2>
+        <p class="dd-help">Expires <%= l(@preview.expires_at, format: :long) %>. Ending submit (later) must present this token with the exact selected cascades.</p>
+        <p><code><%= @raw_token %></code></p>
+        <p class="dd-help">Digest <%= @preview.digest_sha256 %></p>
+      </section>
+    <% end %>
+  </div>
+</article>

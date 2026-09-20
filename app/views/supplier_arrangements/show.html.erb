@@ -39,6 +39,9 @@
     <% if can_abandon %>
       <%= link_to successor_draft ? "Abandon successor" : "Abandon", abandon_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--danger" %>
     <% end %>
+    <% if manage && @supplier_arrangement.active? && @supplier_arrangement_version.activated? %>
+      <%= link_to "End arrangement", end_departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--danger" %>
+    <% end %>
     <%= link_to "Back to departure", departure_path(@departure), class: "dd-button dd-button--quiet" %>
   </div>
 </header>
