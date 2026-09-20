@@ -29,9 +29,10 @@ class ServiceOffersSystemTest < ApplicationSystemTestCase
 
     assert_text "Service offer draft saved."
     assert_selector "h1.dd-page-title", exact_text: "System cabin"
-    assert_text "This draft is unpublished."
-    assert_no_text "Publish"
-    assert_no_text "margin"
+    assert_text "There is no Publish action in this slice."
+    assert_no_selector :link, exact_text: "Publish"
+    assert_no_selector :button, exact_text: "Publish"
+    assert_no_text "indicative margin"
 
     click_link "Discard draft"
     assert_selector "h1.dd-page-title", exact_text: "Discard draft"
