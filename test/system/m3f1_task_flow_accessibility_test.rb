@@ -129,9 +129,13 @@ class M3f1TaskFlowAccessibilityTest < ApplicationSystemTestCase
       all("summary", text: "Edit occupancy profile")[1].click
       assert_equal 1, open_exclusive_details_count
       open_summary = page.evaluate_script(<<~JS)
-        const open = Array.from(document.querySelectorAll("[data-controller='exclusive-details'] details"))
-          .find((details) => details.open)
-        return open ? open.querySelector("summary").textContent.trim() : null
+        (function() {
+          var open = Array.prototype.find.call(
+            document.querySelectorAll("[data-controller='exclusive-details'] details"),
+            function(details) { return details.open }
+          )
+          return open ? open.querySelector("summary").textContent.trim() : null
+        })()
       JS
       assert_equal "Edit occupancy profile", open_summary
     end
@@ -141,8 +145,10 @@ class M3f1TaskFlowAccessibilityTest < ApplicationSystemTestCase
 
   def open_exclusive_details_count
     page.evaluate_script(<<~JS)
-      Array.from(document.querySelectorAll("[data-controller='exclusive-details'] details"))
-        .filter((details) => details.open).length
+      Array.prototype.filter.call(
+        document.querySelectorAll("[data-controller='exclusive-details'] details"),
+        function(details) { return details.open }
+      ).length
     JS
   end
 end

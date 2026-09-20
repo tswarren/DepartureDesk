@@ -12,7 +12,7 @@ M3 is complete when every parent exit criterion maps to shipped evidence. This i
 | --- | --- | --- |
 | 1 | M3A–M3F accepted, implemented, merged, documented shipped | Slice plans shipped; this M3F contract + M3F.1–.4 implementation |
 | 2 | Departure remains operational root; no Travel Program | `m3f3_hardening_gate_test` asserts no `travel_programs` table; AGENTS/architecture |
-| 3 | Draft planning, activation rules, return-to-draft latch, immutable versions | `m3f2_integrated_scenario_journeys_test` — `ActivateDeparture` audit/reference, Arrangement activation with elapsed ack, return-to-draft latch, successor draft |
+| 3 | Draft planning, activation rules, return-to-draft latch, immutable versions | `m3f2_integrated_scenario_journeys_test` — `ActivateDeparture` audit/reference, Arrangement activation with elapsed ack, return-to-draft latch, successor **activation** with predecessor superseded + `predecessor_activation_id` |
 | 4 | Distinct Arrangement / Item / Occurrence / Resource / Pool / Reservation / confirmation / terms / commitment / deposit / Deadline meanings | Separate Celebrity / Hilton / transfer Arrangements in M3F.2; Vineyard Reservation + Pool + ending |
 | 5 | Contracting Supplier and Service Provider provenance | Shipped M3A/M3D; M3F.2 uses distinct contracting Suppliers per Arrangement |
 | 6 | Capacity explicit, event-backed, rebuildable, race-safe, commitment-independent | Hilton/Vineyard capacity consequences + withdraw-before-ending; M3E.7b race baseline |

@@ -158,6 +158,9 @@ class M3f2IntegratedScenarioJourneysTest < ActiveSupport::TestCase
     assert_equal 45_000, final.current_amount_minor_units, "ledger=#{LEDGER_CONFIRMED}"
     assert_equal CELEBRITY_INITIAL_DEPOSIT_ON, initial.governing_deadline_occurrence.calculated_on,
       "ledger=#{LEDGER_CONFIRMED} Smith agreement initial deposit due date"
+    final_deadline = final.governing_deadline_occurrence
+    assert_equal Date.new(2027, 3, 11), final_deadline.calculated_on,
+      "ledger=#{LEDGER_CONFIRMED} March 11 cumulative fallback before milestone"
 
     rooming = SupplierDeadlineOccurrence.find_by!(
       supplier_arrangement_version: cruise[:version], deadline_type: "rooming_list_due"
@@ -278,6 +281,14 @@ class M3f2IntegratedScenarioJourneysTest < ActiveSupport::TestCase
       ).count,
       "Name-assignment replaces Deadline without duplicate deposit commitment"
     assert_not_includes SupplierPlanningMilestoneOccurrence.column_names, "cabin_id"
+    assert_equal 1, SupplierPlanningMilestoneOccurrence.where(
+      supplier_arrangement: cruise[:arrangement]
+    ).count
+    replacement = final.reload.governing_deadline_occurrence
+    assert_not_equal final_deadline.id, replacement.id
+    assert_equal Date.new(2027, 2, 20), replacement.calculated_on,
+      "March 11 fallback must be replaced by the February 20 milestone date"
+    assert final_deadline.reload.superseded_at.present?
 
     findings_before = SupplierAttentionFinding.where(supplier_arrangement: cruise[:arrangement]).count
     RebuildSupplierAttentionProjectionAlreadyLocked.new(
@@ -294,14 +305,43 @@ class M3f2IntegratedScenarioJourneysTest < ActiveSupport::TestCase
       supplier_arrangement: cruise[:arrangement], qualification_band: "forecast"
     )
 
+    predecessor = cruise[:version]
+    predecessor_activation = predecessor.supplier_arrangement_activation
     successor = CreateSupplierArrangementSuccessor.new(
       agency: @agency, actor: @actor, arrangement: cruise[:arrangement],
       arrangement_lock_version: cruise[:arrangement].reload.lock_version,
-      version_lock_version: cruise[:version].reload.lock_version,
+      version_lock_version: predecessor.reload.lock_version,
       idempotency_key: SecureRandom.uuid
     ).call.record
     assert_equal "draft", successor.status
-    assert_equal cruise[:version].id, successor.copied_from_id
+    assert_equal predecessor.id, successor.copied_from_id
+
+    # Successor activation must be after predecessor.activated_at (set under travel_to).
+    travel_to(predecessor.activated_at + 1.hour) do
+      ActivateSupplierArrangementVersion.new(
+        agency: @agency, actor: @actor, arrangement: cruise[:arrangement].reload,
+        version: successor.reload,
+        arrangement_lock_version: cruise[:arrangement].lock_version,
+        version_lock_version: successor.lock_version,
+        idempotency_key: SecureRandom.uuid,
+        evidence_attributes: {
+          evidence_kind: "supplier_confirmation", evidence_on: Date.current,
+          channel: "portal", reference_note: "Successor evidence",
+          confirmed_without_identifier_reason: "Later"
+        },
+        cost_source_coverage_acknowledged: true,
+        provisional_costs_acknowledged: true,
+        commitment_trigger_coverage_acknowledged: true,
+        elapsed_deadlines_acknowledged: true
+      ).call
+    end
+
+    assert_equal "superseded", predecessor.reload.status
+    assert_equal "activated", successor.reload.status
+    assert_equal successor.id, cruise[:arrangement].reload.governing_version_id
+    assert_equal predecessor.id, successor.copied_from_id
+    assert_equal predecessor_activation.id,
+      successor.supplier_arrangement_activation.predecessor_activation_id
 
     m3f_end_arrangement!(transfer)
     assert transfer[:arrangement].ended?
