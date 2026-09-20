@@ -1,0 +1,43 @@
+<% content_for :title, "Service offers · #{@departure.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title">Service offers</h1>
+    <p class="dd-page-description"><%= @departure.name %></p>
+  </div>
+  <% if @departure.draft? || @departure.active? %>
+    <div class="dd-page-actions">
+      <%= link_to "Add service from Supplier planning", from_source_departure_service_offers_path(@departure), class: "dd-button" %>
+      <%= link_to "Add explicit-basis service", new_departure_service_offer_path(@departure), class: "dd-button dd-button--quiet" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <% if @search.records.any? %>
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th scope="col">Service</th>
+          <th scope="col">Basis</th>
+          <th scope="col">Version</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @search.records.each do |offer| %>
+          <% version = offer.versions.find(&:draft?) || offer.versions.max_by(&:version_number) %>
+          <tr class="<%= "is-inactive" if version&.abandoned? %>">
+            <td><%= link_to offer.name, departure_service_offer_path(@departure, offer) %></td>
+            <td><%= version&.definition ? fulfillment_basis_label(version.definition.fulfillment_basis) : "—" %></td>
+            <td><%= version ? service_offer_status_badge(version.status) : "—" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <div class="dd-panel-body">
+      <p class="<%= empty_state_classes.join(" ") %>">No unpublished service offers yet.</p>
+    </div>
+  <% end %>
+</article>

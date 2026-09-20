@@ -25,6 +25,7 @@ class CapacityPoolDefinition < ApplicationRecord
   belongs_to :supplier_resource
   belongs_to :capacity_pair_definition
   belongs_to :capacity_pool
+  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id,
     :supplier_arrangement_version_id, :arrangement_item_id,

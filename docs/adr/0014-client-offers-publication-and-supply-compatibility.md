@@ -1,6 +1,6 @@
 # ADR 0014: Client offers, publication, and Supplier-source compatibility
 
-- Status: Accepted. Not implementation authority. Implementing slices are [M4A](../planning/m4-offers-and-pricing.md#proposed-slice-sequence)–M4E after those plans are accepted.
+- Status: Accepted. [M4A](../planning/m4a-service-definitions-and-sources.md) implements unpublished drafts and source compatibility. Not implementation authority for M4B–M4E until those plans are accepted.
 - Date: 2026-09-20
 - Decision owners: DepartureDesk maintainers
 - Parent: [M4 — Offers and pricing](../planning/m4-offers-and-pricing.md)

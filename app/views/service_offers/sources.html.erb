@@ -1,0 +1,37 @@
+<% content_for :title, "Planning sources · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title">Planning sources</h1>
+    <p class="dd-page-description"><%= @departure.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: sources_departure_service_offers_path(@departure), method: :get, class: "dd-form" do %>
+      <div class="dd-field-group">
+        <%= label_tag :q, "Search this Departure", class: "dd-label" %>
+        <%= search_field_tag :q, @query, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Search sources", class: "dd-button" %>
+      </div>
+    <% end %>
+    <% if @search.records.any? %>
+      <ul class="dd-list">
+        <% @search.records.each do |candidate| %>
+          <li>
+            <%= offer_source_candidate_label(candidate) %>
+            <% if candidate.tentative %>
+              <span class="dd-field-hint">Tentative draft</span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="<%= empty_state_classes.join(" ") %>">No matching sources.</p>
+    <% end %>
+  </div>
+</article>

@@ -1,0 +1,157 @@
+<% content_for :title, "#{@service_offer.name} · DepartureDesk" %>
+<% draft = @service_offer_version.draft? %>
+<% definition = @service_offer_definition %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title"><%= @service_offer.name %></h1>
+    <p class="dd-page-description"><%= @departure.name %></p>
+  </div>
+  <% if draft %>
+    <div class="dd-page-actions">
+      <%= link_to "Edit draft", edit_departure_service_offer_path(@departure, @service_offer), class: "dd-button" %>
+      <%= link_to "Discard draft", discard_departure_service_offer_path(@departure, @service_offer), class: "dd-button dd-button--quiet" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Version</dt>
+        <dd><%= @service_offer_version.version_number %> · <%= service_offer_status_badge(@service_offer_version.status) %></dd>
+      </div>
+      <div>
+        <dt>Client-facing title</dt>
+        <dd><%= definition&.client_title || "—" %></dd>
+      </div>
+      <div>
+        <dt>Client-facing description</dt>
+        <dd><%= definition&.client_description.presence || "—" %></dd>
+      </div>
+      <div>
+        <dt>Fulfillment basis</dt>
+        <dd><%= definition ? fulfillment_basis_label(definition.fulfillment_basis) : "—" %></dd>
+      </div>
+      <div>
+        <dt>Operating currency</dt>
+        <dd><%= @departure.operating_currency.presence || "—" %></dd>
+      </div>
+    </dl>
+    <p class="dd-field-hint">This draft is unpublished. There is no Publish action in this slice.</p>
+  </div>
+</article>
+
+<% if definition&.m3_backed? %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Bound sources</h2>
+        <p>Supplier facts are read from the exact planning version. Client text is independent.</p>
+      </div>
+    </header>
+    <% bindings = @service_offer_version.source_bindings.includes(
+      :supplier_arrangement, :arrangement_item_definition, :service_occurrence_definition,
+      :supplier_resource_definition, :capacity_pool, :capacity_pool_definition
+    ).order(:position) %>
+    <% if bindings.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Source</th>
+            <th scope="col">Planning version</th>
+            <th scope="col">Membership</th>
+            <% if draft %>
+              <th scope="col">Actions</th>
+            <% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% bindings.each do |binding| %>
+            <tr>
+              <td>
+                <%= binding.arrangement_item_definition.name %>
+                <% if binding.service_occurrence_definition %>
+                  <span class="dd-field-hint"><%= binding.service_occurrence_definition.name %> · <%= binding.service_occurrence_definition.starts_on %>–<%= binding.service_occurrence_definition.ends_on %></span>
+                <% end %>
+                <% if binding.supplier_resource_definition %>
+                  <span class="dd-field-hint"><%= binding.supplier_resource_definition.name %></span>
+                <% end %>
+                <% if binding.capacity_pool %>
+                  <span class="dd-field-hint">Pool <%= binding.capacity_pool.inventory_mode.humanize %></span>
+                <% end %>
+              </td>
+              <td>
+                <%= binding.supplier_arrangement.name %>
+                · v<%= binding.supplier_arrangement_version.version_number %>
+                · <%= binding.supplier_arrangement_version.status.titleize %>
+                <% if binding.supplier_arrangement_version.draft? %>
+                  <span class="dd-field-hint">Tentative draft. Publication will require a current activated version.</span>
+                <% end %>
+              </td>
+              <td>
+                <%= binding.membership_kind.titleize %>
+                <% if binding.alternative? %>
+                  <span class="dd-field-hint"><%= binding.alternative_group_label %></span>
+                <% end %>
+              </td>
+              <% if draft %>
+                <td>
+                  <%= button_to "Remove",
+                    departure_service_offer_source_binding_path(@departure, @service_offer, binding),
+                    method: :delete,
+                    params: { version_lock_version: @service_offer_version.lock_version },
+                    class: "dd-button dd-button--quiet" %>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <div class="dd-panel-body">
+        <p class="<%= empty_state_classes.join(" ") %>">No sources bound.</p>
+      </div>
+    <% end %>
+    <% if draft && (@departure.draft? || @departure.active?) %>
+      <div class="dd-panel-body">
+        <details class="dd-disclosure">
+          <summary class="dd-disclosure-summary">Advanced: add another source</summary>
+          <div class="dd-disclosure-body">
+            <p>Required sources all apply. Alternative groups are choose-one fulfillment topology, not a Client choice.</p>
+            <%= link_to "Add source", new_departure_service_offer_source_binding_path(@departure, @service_offer), class: "dd-button dd-button--quiet" %>
+          </div>
+        </details>
+      </div>
+    <% end %>
+  </article>
+
+  <% if @compatibility %>
+    <article class="dd-panel">
+      <header class="dd-panel-header">
+        <div>
+          <h2 class="dd-panel-title">Source compatibility</h2>
+          <p>Activated predecessor versus current activated successor for bound fulfillment facts only.</p>
+        </div>
+      </header>
+      <div class="dd-panel-body">
+        <p>Result: <%= @compatibility.result.titleize %></p>
+        <% @compatibility.binding_outcomes.each do |outcome| %>
+          <% if outcome.reasons.any? %>
+            <ul class="dd-list">
+              <% outcome.reasons.each do |reason| %>
+                <li><%= reason %></li>
+              <% end %>
+            </ul>
+          <% end %>
+        <% end %>
+        <p class="dd-field-hint">Cost graph not compared. Numeric Pool quantity is a live annotation, not an evaluator result.</p>
+        <% @compatibility.annotations.fetch("pool_projections", []).each do |row| %>
+          <p class="dd-field-hint">Current Pool projection: <%= row["current_supplier_capacity"] || "none" %></p>
+        <% end %>
+      </div>
+    </article>
+  <% end %>
+<% end %>

@@ -37,6 +37,7 @@ class SupplierArrangement < ApplicationRecord
   has_many :supplier_commitments, dependent: :restrict_with_exception
   has_many :supplier_commitment_evidence_coverages, dependent: :restrict_with_exception
   has_many :supplier_reservations, dependent: :restrict_with_exception
+  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
   has_many :supplier_exposure_components, dependent: :restrict_with_exception
   has_many :supplier_exposure_summaries, dependent: :restrict_with_exception
   has_many :supplier_exposure_source_qualifications, dependent: :restrict_with_exception

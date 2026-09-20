@@ -33,6 +33,13 @@ class DeparturesController < ApplicationController
       actor: Current.agency_user,
       departure: @departure
     )
+    if Current.agency_user.permitted?(:manage_departures)
+      @client_offers = ListDepartureServiceOffers.call(
+        agency: Current.agency,
+        actor: Current.agency_user,
+        departure: @departure
+      )
+    end
     @attention_findings = Current.agency.supplier_attention_findings
       .where(departure_id: @departure.id)
       .visible_at

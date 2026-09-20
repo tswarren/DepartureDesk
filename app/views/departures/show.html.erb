@@ -90,6 +90,7 @@
       <%= link_to "View all", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
       <% if manage && (@departure.draft? || @departure.active?) %>
         <%= link_to "Add arrangement", new_departure_arrangement_path(@departure), class: "dd-button" %>
+        <%= link_to "Add service from Supplier planning", from_source_departure_service_offers_path(@departure), class: "dd-button" %>
       <% end %>
     </div>
   </header>
@@ -142,3 +143,51 @@
     </div>
   <% end %>
 </article>
+
+<% if manage && @client_offers %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <div>
+        <h2 class="dd-panel-title">Client offers (draft)</h2>
+        <p>Unpublished Service Offer drafts for this Departure. They are not selectable and have no published price.</p>
+      </div>
+      <div class="dd-inline-actions">
+        <%= link_to "View all", departure_service_offers_path(@departure), class: "dd-button dd-button--quiet" %>
+        <% if @departure.draft? || @departure.active? %>
+          <%= link_to "Add service from Supplier planning", from_source_departure_service_offers_path(@departure), class: "dd-button" %>
+          <%= link_to "Add explicit-basis service", new_departure_service_offer_path(@departure), class: "dd-button dd-button--quiet" %>
+        <% end %>
+      </div>
+    </header>
+    <% if @client_offers.records.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Service</th>
+            <th scope="col">Basis</th>
+            <th scope="col">Version</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @client_offers.records.each do |offer| %>
+            <% version = offer.versions.find(&:draft?) || offer.versions.max_by(&:version_number) %>
+            <tr class="<%= "is-inactive" if version&.abandoned? %>">
+              <td><%= link_to offer.name, departure_service_offer_path(@departure, offer) %></td>
+              <td><%= version&.definition ? fulfillment_basis_label(version.definition.fulfillment_basis) : "—" %></td>
+              <td><%= version ? service_offer_status_badge(version.status) : "—" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @client_offers.truncated %>
+        <div class="dd-panel-body">
+          <p>Showing the first 50 service offers. Open the list to review the rest.</p>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="dd-panel-body">
+        <p class="<%= empty_state_classes.join(" ") %>">No unpublished service offers yet.</p>
+      </div>
+    <% end %>
+  </article>
+<% end %>

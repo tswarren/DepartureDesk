@@ -42,6 +42,8 @@ class SoleEditableDraftAccessTest < ActionDispatch::IntegrationTest
     end
 
     assert_equal [
+      "app/services/create_service_offer_from_source.rb:version_number: 1,",
+      "app/services/create_service_offer_with_explicit_basis.rb:version_number: 1,",
       "app/services/create_supplier_arrangement.rb:version_number: 1,"
     ], references
   end

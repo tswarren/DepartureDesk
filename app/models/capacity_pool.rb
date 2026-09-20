@@ -14,6 +14,7 @@ class CapacityPool < ApplicationRecord
   has_many :capacity_events, dependent: :restrict_with_exception
   has_one :capacity_projection, dependent: :restrict_with_exception
   has_many :capacity_reconciliations, dependent: :restrict_with_exception
+  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
 
   enum :inventory_mode, INVENTORY_MODES.index_by(&:itself), validate: true
   enum :measurement_basis, MEASUREMENT_BASES.index_by(&:itself), validate: true

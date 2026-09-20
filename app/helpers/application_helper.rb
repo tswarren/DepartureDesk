@@ -349,6 +349,50 @@ module ApplicationHelper
     status_badge(status.to_s.titleize, modifier:)
   end
 
+  def service_offer_status_badge(status)
+    modifier = case status.to_s
+    when "draft" then "warning"
+    when "abandoned" then "neutral"
+    else "info"
+    end
+
+    status_badge(status.to_s.titleize, modifier:)
+  end
+
+  def fulfillment_basis_label(basis)
+    {
+      "m3_backed" => "Supplier planning",
+      "on_request" => "On request",
+      "agency_fulfilled" => "Agency fulfilled",
+      "externally_fulfilled" => "Externally fulfilled"
+    }.fetch(basis.to_s, basis.to_s.humanize)
+  end
+
+  def offer_source_candidate_label(candidate)
+    parts = [
+      candidate.arrangement.name,
+      candidate.item_definition.name
+    ]
+    parts << candidate.occurrence_definition.name if candidate.occurrence_definition
+    parts << candidate.resource_definition.name if candidate.resource_definition
+    parts << candidate.pool_definition.label if candidate.pool_definition
+    parts << supplier_option_label(candidate.effective_provider)
+    parts << (candidate.tentative ? "Tentative draft" : "Governing activated")
+    parts.join(" · ")
+  end
+
+  def offer_source_key(candidate)
+    [
+      candidate.arrangement.id,
+      candidate.version.id,
+      candidate.item.id,
+      candidate.occurrence&.id,
+      candidate.resource&.id,
+      candidate.pool&.id,
+      candidate.tentative ? "1" : "0"
+    ].join(":")
+  end
+
   def supplier_option_label(supplier)
     label = supplier.display_name_for_directory
     label = "#{label} (Inactive)" if supplier.inactive?

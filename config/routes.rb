@@ -299,6 +299,18 @@ Rails.application.routes.draw do
       end
       get "cost-forecast", to: "supplier_cost_forecasts#show", as: :cost_forecast
     end
+    resources :service_offers, only: %i[index show new create edit update] do
+      collection do
+        get :from_source, action: :new_from_source
+        post :from_source, action: :create_from_source
+        get :sources
+      end
+      member do
+        get :discard, action: :edit_discard
+        post :discard
+      end
+      resources :source_bindings, controller: "service_offer_source_bindings", only: %i[new create destroy]
+    end
   end
   get "departures/:id/return-to-draft", to: "departure_return_to_drafts#edit", as: :edit_departure_return_to_draft
   post "departures/:id/return-to-draft", to: "departure_return_to_drafts#create", as: :departure_return_to_draft
