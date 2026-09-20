@@ -11,21 +11,31 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
     @actor = agency_users(:harbor_staff)
   end
 
-  test "Celebrity cumulative deposit March 11 fallback name-assignment replacement is Arrangement-wide" do
+  test "Celebrity Beyond group-cruise deposit Deadline evidence and exposure composition" do
+    # Reference sailing: Celebrity Beyond, November 6–13, 2027.
     graph = activated_graph!(
       "Celebrity",
       "Celebrity Beyond",
-      starts_on: Date.new(2027, 6, 15),
-      ends_on: Date.new(2027, 6, 22)
+      starts_on: Date.new(2027, 11, 6),
+      ends_on: Date.new(2027, 11, 13)
     )
+    cabin_source = create_celebrity_cabin_cost!(graph, cabins: 24)
 
+    # Per-cabin $50 rate under resource_units coverage. Coverage targets the Resource
+    # without a resource-scoped assumption so quantity resolves to 1 (Arrangement-wide
+    # $50), while the Item assumption of 24 cabins drives cost/exposure calculation.
     create_deposit!(
       graph,
-      amount_shape: "fixed_amount",
-      fixed_amount_minor_units: 5_000,
-      description: "Initial $50 deposit",
+      amount_shape: "quantity_times_rate",
+      rate_minor_units: 5_000,
+      quantity_basis: "resource_units",
+      description: "Initial $50 per-cabin deposit (Arrangement-wide opening)",
       rule_shape: "fixed_date",
-      rule_parameters: { "date" => "2027-01-15" }
+      rule_parameters: { "date" => "2027-01-15" },
+      coverage_links: [ {
+        arrangement_item_id: graph[:item].id,
+        supplier_resource_id: graph[:resource].id
+      } ]
     )
     create_deposit!(
       graph,
@@ -48,7 +58,7 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       kind: "informational",
       deadline_type: "rooming_list_due",
       rule_shape: "days_before_departure",
-      rule_parameters: { "days" => 45 }
+      rule_parameters: { "days" => 60 }
     )
     create_deadline!(
       graph,
@@ -57,8 +67,17 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       rule_shape: "days_before_departure",
       rule_parameters: { "days" => 30 }
     )
+    create_confirmation_trigger!(graph, description: "Confirm dining hold", fixed_quantity: 1)
 
     activate!(graph)
+
+    initial_definition = SupplierDepositRequirementDefinition.find_by!(
+      supplier_arrangement_version: graph[:version], amount_shape: "quantity_times_rate"
+    )
+    assert_equal "resource_units", initial_definition.quantity_basis
+    assert_equal 1, initial_definition.supplier_deposit_requirement_definition_coverage_links.count
+    assert_equal graph[:resource].id,
+      initial_definition.supplier_deposit_requirement_definition_coverage_links.sole.supplier_resource_id
 
     tranches = SupplierDepositRequirementTranche
       .where(supplier_arrangement_version: graph[:version])
@@ -66,36 +85,122 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       .order(:materialized_at, :id)
     assert_equal 2, tranches.count
 
-    initial = tranches.find { |row| row.amount_shape == "fixed_amount" }
+    initial = tranches.find { |row| row.amount_shape == "quantity_times_rate" }
     final = tranches.find { |row| row.amount_shape == "cumulative_target" }
     assert_equal 5_000, initial.current_amount_minor_units
+    assert_equal 1, initial.amount_inputs_snapshot["quantity"]
+    assert_equal "resource_units", initial.amount_inputs_snapshot["quantity_basis"]
     assert_equal 45_000, final.current_amount_minor_units,
       "Cumulative $500 target leaves $450 remaining after the $50 initial"
+
+    # Documented 24-cabin inventory assumption driving cost/exposure (not deposit fan-out).
+    cabin_assumption = SupplierCostUsageAssumption.find_by!(
+      arrangement_item_id: graph[:item].id, supplier_resource_id: nil
+    )
+    assert_equal 24, cabin_assumption.expected_resource_units
+    charge = cabin_source.supplier_cost_definitions.sole
+      .supplier_cost_components.find_by!(economic_role: "supplier_charge")
+    assert_equal "unit_rate", charge.calculation_kind
+    assert_equal "resource_units", charge.quantity_basis
+    assert_equal 10_000, charge.amount_minor_units
+    assert_equal 240_000, cabin_assumption.expected_resource_units * charge.amount_minor_units
 
     final_deadline = final.governing_deadline_occurrence
     assert_equal "deposit_due", final_deadline.deadline_type
     assert_equal Date.new(2027, 3, 11), final_deadline.calculated_on
 
-    informational = SupplierDeadlineOccurrence.where(
-      supplier_arrangement_version: graph[:version],
-      deadline_type: %w[rooming_list_due legal_names_due]
+    rooming = SupplierDeadlineOccurrence.find_by!(
+      supplier_arrangement_version: graph[:version], deadline_type: "rooming_list_due"
     )
-    assert_equal 2, informational.count
-    informational.each do |occurrence|
+    legal = SupplierDeadlineOccurrence.find_by!(
+      supplier_arrangement_version: graph[:version], deadline_type: "legal_names_due"
+    )
+    assert_equal Date.new(2027, 9, 7), rooming.calculated_on
+    assert_equal Date.new(2027, 10, 7), legal.calculated_on
+    [ rooming, legal ].each do |occurrence|
       assert_equal "one_shared", occurrence.cardinality
+      assert_equal "date_only", occurrence.precision
       assert_equal "America/New_York", occurrence.time_zone
     end
 
-    before_commitments = SupplierCommitment.where(
+    forecast = SupplierExposureSummary.find_by!(
+      supplier_arrangement: graph[:arrangement],
+      qualification_band: "forecast",
+      currency: "USD"
+    )
+    assert_equal 240_000, forecast.gross_minor_units
+    assert_equal 24_000, forecast.expected_commission_minor_units
+    assert_equal 216_000, forecast.expected_net_minor_units
+    assert_not_equal forecast.gross_minor_units, forecast.expected_commission_minor_units
+
+    deposit_before = SupplierCommitment.where(
       supplier_arrangement: graph[:arrangement], opening_kind: "deposit_requirement"
     ).count
-    assert_equal 2, before_commitments
+    assert_equal 2, deposit_before
+
+    confirmation_commitments = SupplierCommitment.where(
+      supplier_arrangement: graph[:arrangement], opening_kind: "confirmation_trigger"
+    ).to_a
+    assert_equal 2, confirmation_commitments.size
+    satisfaction = SupplierConfirmation.create!(
+      agency: @agency, departure: graph[:departure],
+      supplier_arrangement: graph[:arrangement],
+      supplier_arrangement_version: graph[:version],
+      confirming_supplier: graph[:supplier],
+      evidence_kind: "supplier_confirmation",
+      evidence_on: Date.current,
+      channel: "portal",
+      reference_note: "Both holds confirmed",
+      confirmed_without_identifier_reason: "Portal group note",
+      actor: @actor,
+      recorded_at: Time.current
+    )
+    coverage = DisposeSupplierCommitmentsWithEvidence.new(
+      agency: @agency, actor: @actor, arrangement: graph[:arrangement],
+      confirmation: satisfaction,
+      commitment_ids: confirmation_commitments.map(&:id),
+      outcome: "satisfied",
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    assert_equal 2, coverage.members.count
+    assert confirmation_commitments.all? { |row| row.reload.disposition_outcome == "satisfied" }
+
+    initial_commitment = SupplierCommitment.find_by!(
+      opening_kind: "deposit_requirement",
+      supplier_deposit_requirement_tranche: initial
+    )
+    AttestSupplierDepositHandledExternally.new(
+      agency: @agency, actor: @actor, commitment: initial_commitment,
+      note: "Wire confirmed handled outside DepartureDesk",
+      confirmed_complete: true,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    assert_equal "handled_externally", initial_commitment.reload.disposition_outcome
+
+    AdjustSupplierDepositRequirementTranche.new(
+      agency: @agency, actor: @actor, tranche: initial.reload,
+      amount_delta_minor_units: 5_000,
+      note: "Qualifying cabin quantity increased by one after attestation",
+      idempotency_key: SecureRandom.uuid
+    ).call
+    assert_equal deposit_before + 1,
+      SupplierCommitment.where(
+        supplier_arrangement: graph[:arrangement], opening_kind: "deposit_requirement"
+      ).count,
+      "Post-attestation cabin increase must open one incremental deposit commitment"
+    increment = SupplierDepositRequirementTranche
+      .where(supplier_arrangement_version: graph[:version], predecessor_tranche: initial)
+      .sole
+    assert_equal 5_000, increment.current_amount_minor_units
 
     milestone_columns = SupplierPlanningMilestoneOccurrence.column_names
     assert_not_includes milestone_columns, "cabin_id"
     assert_not_includes milestone_columns, "traveler_id"
     assert_not_includes milestone_columns, "traveler_name"
 
+    before_after_increment = SupplierCommitment.where(
+      supplier_arrangement: graph[:arrangement], opening_kind: "deposit_requirement"
+    ).count
     milestone = RecordSupplierPlanningMilestone.new(
       agency: @agency, actor: @actor, arrangement: graph[:arrangement],
       version: graph[:version].reload,
@@ -106,7 +211,7 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
     ).call.record
 
     assert_equal "names_assigned_to_supplier", milestone.kind
-    assert_equal before_commitments,
+    assert_equal before_after_increment,
       SupplierCommitment.where(
         supplier_arrangement: graph[:arrangement], opening_kind: "deposit_requirement"
       ).count,
@@ -375,22 +480,54 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
     assert graph[:arrangement].reload.ended?
   end
 
-  test "commitments disposition list EXPLAIN stays agency-bounded" do
+  test "supplier blocker commitment list EXPLAIN uses the agency-supplier index at scale" do
     graph = activated_graph!(
       "Explain",
       "Explain Departure",
       starts_on: Date.new(2027, 10, 1),
       ends_on: Date.new(2027, 10, 8)
     )
+    80.times do |index|
+      create_confirmation_trigger!(graph, description: "Volume trigger #{index}")
+    end
     activate!(graph)
+    ActiveRecord::Base.connection.execute("ANALYZE supplier_commitments")
 
-    relation = graph[:arrangement].supplier_commitments
-      .with_current_disposition_state
-      .where(agency_id: @agency.id)
+    relation = SupplierCommitment
+      .where(agency_id: @agency.id, committed_supplier_id: graph[:supplier].id)
+      .where(<<~SQL.squish)
+        NOT EXISTS (
+          SELECT 1
+          FROM supplier_commitment_dispositions dispositions
+          LEFT JOIN supplier_commitment_reopenings reopenings
+            ON reopenings.supplier_commitment_disposition_id = dispositions.id
+          WHERE dispositions.supplier_commitment_id = supplier_commitments.id
+            AND reopenings.id IS NULL
+        )
+      SQL
       .order(opened_at: :desc, id: :desc)
-    plan = ActiveRecord::Base.connection.select_values("EXPLAIN #{relation.to_sql}").join("\n")
-    assert_match(/supplier_commitments/i, plan)
-    assert_match(/Index Scan|Bitmap Heap Scan|Seq Scan|Sort/i, plan)
+      .limit(50)
+
+    plan = nil
+    ActiveRecord::Base.transaction do
+      ActiveRecord::Base.connection.execute("SET LOCAL enable_seqscan = off")
+      # Prefer the inactivation-blocker composite over the generic id+agency unique index.
+      ActiveRecord::Base.connection.execute(<<~SQL)
+        UPDATE pg_index
+           SET indisvalid = false
+         WHERE indexrelid IN (
+           'index_supplier_commitments_on_id_agency'::regclass,
+           'index_supplier_commitments_on_agency_id'::regclass
+         )
+      SQL
+      plan = ActiveRecord::Base.connection.select_values("EXPLAIN #{relation.to_sql}").join("\n")
+      raise ActiveRecord::Rollback
+    end
+
+    assert_operator SupplierCommitment.where(agency_id: @agency.id, committed_supplier_id: graph[:supplier].id).count, :>=, 80
+    assert_match(/Index Scan|Bitmap Index Scan|Bitmap Heap Scan|Index Only Scan/, plan)
+    assert_match(/index_supplier_commitments_on_supplier_blocker/, plan)
+    assert_no_match(/Seq Scan on supplier_commitments/i, plan)
   end
 
   private
@@ -619,7 +756,60 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
     [ coach.reload, persons.reload ]
   end
 
-  def create_confirmation_trigger!(graph)
+  def create_celebrity_cabin_cost!(graph, cabins:)
+    CreateSupplierCostUsageAssumption.new(
+      agency: @agency, actor: @actor, arrangement_item: graph[:item],
+      idempotency_key: SecureRandom.uuid,
+      attributes: { expected_resource_units: cabins, expected_persons: cabins * 2 }
+    ).call
+
+    source = CreateSupplierCostSource.new(
+      agency: @agency, actor: @actor, arrangement: graph[:arrangement],
+      version_lock_version: graph[:version].reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        arrangement_item_id: graph[:item].id,
+        charging_supplier_id: graph[:supplier].id,
+        label: "Cabin fare block"
+      }
+    ).call.record
+    definition = CreateSupplierCostDefinition.new(
+      agency: @agency, actor: @actor, source:,
+      source_lock_version: source.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        stage: "contracted", mode: "calculated", currency: "USD", rounding_mode: "half_up"
+      }
+    ).call.record
+    CreateSupplierCostComponent.new(
+      agency: @agency, actor: @actor, definition:,
+      definition_lock_version: definition.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        label: "Cabin fare", economic_role: "supplier_charge",
+        calculation_kind: "unit_rate", amount_minor_units: 10_000,
+        quantity_basis: "resource_units", pass_through: false
+      }
+    ).call
+    CreateSupplierCostComponent.new(
+      agency: @agency, actor: @actor, definition: definition.reload,
+      definition_lock_version: definition.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        label: "Expected commission", economic_role: "expected_commission",
+        calculation_kind: "fixed", amount_minor_units: 24_000, pass_through: false
+      }
+    ).call
+    MarkCostDefinitionForecastReady.new(
+      agency: @agency, actor: @actor, definition: definition.reload,
+      lock_version: definition.lock_version,
+      readiness_provenance: "Signed cabin terms"
+    ).call
+    source.reload
+  end
+
+  def create_confirmation_trigger!(graph, description: "Confirm", fixed_quantity: 1)
+    position = graph[:arrangement].supplier_commitment_trigger_definitions.maximum(:position).to_i + 1
     SupplierCommitmentTriggerDefinition.create!(
       agency: @agency, departure: graph[:departure],
       supplier_arrangement: graph[:arrangement],
@@ -627,10 +817,10 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       committed_supplier: graph[:supplier],
       trigger_kind: "arrangement_confirmation",
       authority_shape: "fixed_quantity",
-      description: "Confirm",
-      fixed_quantity: 1,
+      description:,
+      fixed_quantity:,
       quantity_basis: "resource_units",
-      position: 1
+      position:
     )
   end
 

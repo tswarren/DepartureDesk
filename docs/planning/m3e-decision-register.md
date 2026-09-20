@@ -17,7 +17,7 @@
 - **M3E.6a shipped:** Arrangement-ending authority, blockers, and digest-bound preview.
 - **M3E.6b shipped:** Atomic `EndSupplierArrangement` and ended read-only surfaces.
 - **M3E.7a shipped:** Operational UI recovery for M3E consequential forms.
-- **M3E.7b shipped:** Composite Celebrity/Hilton/transfer/excursion/vineyard scenario builders, linked release-gate evidence index, interface-contract reconciliation, and CI. M3E is fully shipped. See [m3e7b-release-gate-evidence.md](m3e7b-release-gate-evidence.md).
+- **M3E.7b shipped:** Composite Celebrity/Hilton/transfer/excursion/vineyard scenario builders (full Celebrity group-cruise composition), commitment-list `EXPLAIN` at scale, M3E keyboard/viewport system coverage, linked release-gate evidence index, and interface-contract reconciliation. M3E is fully shipped. See [m3e7b-release-gate-evidence.md](m3e7b-release-gate-evidence.md).
 
 ## Scope boundary
 
