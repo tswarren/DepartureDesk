@@ -37,12 +37,12 @@ class AddServiceOfferSourceBinding < AgencyCommand
       lock_suppliers_in_uuid_order!(arrangement.contracting_supplier_id, provider&.id)
       departure = lock_departure_for!(@offer.departure_id)
       raise Error.new("That supplier arrangement was not found.", code: :not_found) if arrangement.departure_id != departure.id
+      ensure_departure_accepts_source_expansion!(departure)
       arrangement = lock_arrangement_for!(arrangement)
       planning_version = arrangement.versions.lock.find(planning_version.id)
       offer = lock_offer_for!(@offer)
       version = lock_editable_offer_draft!(offer)
       ensure_offer_draft_editable!(departure, offer, version)
-      ensure_current_lock_version!(version, @version_lock_version)
       definition = version.definition
       unless definition&.m3_backed?
         raise Error.new("Bindings can only be added to an M3-backed service offer.", code: :invalid)
@@ -72,6 +72,7 @@ class AddServiceOfferSourceBinding < AgencyCommand
         payload: payload,
         result_class: ServiceOfferSourceBinding
       ) do
+        ensure_current_lock_version!(version, @version_lock_version)
         position = version.source_bindings.maximum(:position).to_i + 1
         binding = version.source_bindings.create!(
           binding_attributes_from_pin(

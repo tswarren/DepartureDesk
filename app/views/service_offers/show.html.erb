@@ -115,7 +115,7 @@
         <p class="<%= empty_state_classes.join(" ") %>">No sources bound.</p>
       </div>
     <% end %>
-    <% if draft %>
+    <% if draft && (@departure.draft? || @departure.active?) %>
       <div class="dd-panel-body">
         <details class="dd-disclosure">
           <summary class="dd-disclosure-summary">Advanced: add another source</summary>

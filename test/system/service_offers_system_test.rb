@@ -34,6 +34,10 @@ class ServiceOffersSystemTest < ApplicationSystemTestCase
     assert_no_selector :button, exact_text: "Publish"
     assert_no_text "indicative margin"
 
+    click_link "Edit draft"
+    assert_text "Reselect the current governing activated source for each binding. Keep this Client text."
+    click_link "Cancel"
+
     click_link "Discard draft"
     assert_selector "h1.dd-page-title", exact_text: "Discard draft"
     fill_in "Reason", with: "Changed the sales plan"

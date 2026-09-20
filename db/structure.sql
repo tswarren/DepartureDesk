@@ -847,9 +847,12 @@ BEGIN
     version_id := OLD.service_offer_version_id;
   END IF;
 
+  -- Serialize against discard: wait for a concurrent version lock, then
+  -- re-check status so a child edit cannot commit after draft → abandoned.
   SELECT status INTO version_status
   FROM public.service_offer_versions
-  WHERE id = version_id;
+  WHERE id = version_id
+  FOR SHARE;
 
   IF version_status IS DISTINCT FROM 'draft' THEN
     RAISE EXCEPTION 'exact-version definitions are immutable after leaving draft';
@@ -2615,7 +2618,7 @@ CREATE TABLE public.service_offer_definitions (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT service_offer_definitions_client_description CHECK (((client_description IS NULL) OR ((btrim((client_description)::text) <> ''::text) AND (char_length((client_description)::text) <= 2000)))),
     CONSTRAINT service_offer_definitions_client_title CHECK (((btrim((client_title)::text) <> ''::text) AND (char_length((client_title)::text) <= 160))),
-    CONSTRAINT service_offer_definitions_fulfillment_basis CHECK (((fulfillment_basis)::text = ANY ((ARRAY['m3_backed'::character varying, 'on_request'::character varying, 'agency_fulfilled'::character varying, 'externally_fulfilled'::character varying])::text[])))
+    CONSTRAINT service_offer_definitions_fulfillment_basis CHECK (((fulfillment_basis)::text = ANY (ARRAY[('m3_backed'::character varying)::text, ('on_request'::character varying)::text, ('agency_fulfilled'::character varying)::text, ('externally_fulfilled'::character varying)::text])))
 );
 
 
@@ -2656,16 +2659,16 @@ CREATE TABLE public.service_offer_source_bindings (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT service_offer_source_bindings_alternative_group CHECK (((((membership_kind)::text = 'required'::text) AND (alternative_group_key IS NULL) AND (alternative_group_label IS NULL)) OR (((membership_kind)::text = 'alternative'::text) AND (alternative_group_key IS NOT NULL) AND (alternative_group_label IS NOT NULL)))),
-    CONSTRAINT service_offer_source_bindings_description_provenance CHECK (((client_description_provenance)::text = ANY ((ARRAY['source_description'::character varying, 'staff_entered'::character varying, 'none'::character varying])::text[]))),
+    CONSTRAINT service_offer_source_bindings_description_provenance CHECK (((client_description_provenance)::text = ANY (ARRAY[('source_description'::character varying)::text, ('staff_entered'::character varying)::text, ('none'::character varying)::text]))),
     CONSTRAINT service_offer_source_bindings_group_key CHECK (((alternative_group_key IS NULL) OR ((btrim((alternative_group_key)::text) <> ''::text) AND (char_length((alternative_group_key)::text) <= 80)))),
     CONSTRAINT service_offer_source_bindings_group_label CHECK (((alternative_group_label IS NULL) OR ((btrim((alternative_group_label)::text) <> ''::text) AND (char_length((alternative_group_label)::text) <= 160)))),
-    CONSTRAINT service_offer_source_bindings_membership_kind CHECK (((membership_kind)::text = ANY ((ARRAY['required'::character varying, 'alternative'::character varying])::text[]))),
+    CONSTRAINT service_offer_source_bindings_membership_kind CHECK (((membership_kind)::text = ANY (ARRAY[('required'::character varying)::text, ('alternative'::character varying)::text]))),
     CONSTRAINT service_offer_source_bindings_occurrence_definition_pair CHECK (((service_occurrence_id IS NULL) = (service_occurrence_definition_id IS NULL))),
     CONSTRAINT service_offer_source_bindings_pool_definition_pair CHECK (((capacity_pool_id IS NULL) = (capacity_pool_definition_id IS NULL))),
     CONSTRAINT service_offer_source_bindings_pool_requires_occurrence_resource CHECK (((capacity_pool_id IS NULL) OR ((service_occurrence_id IS NOT NULL) AND (supplier_resource_id IS NOT NULL)))),
     CONSTRAINT service_offer_source_bindings_position CHECK (("position" > 0)),
     CONSTRAINT service_offer_source_bindings_resource_definition_pair CHECK (((supplier_resource_id IS NULL) = (supplier_resource_definition_id IS NULL))),
-    CONSTRAINT service_offer_source_bindings_title_provenance CHECK (((client_title_provenance)::text = ANY ((ARRAY['source_name'::character varying, 'staff_entered'::character varying])::text[])))
+    CONSTRAINT service_offer_source_bindings_title_provenance CHECK (((client_title_provenance)::text = ANY (ARRAY[('source_name'::character varying)::text, ('staff_entered'::character varying)::text])))
 );
 
 
@@ -2689,7 +2692,7 @@ CREATE TABLE public.service_offer_versions (
     CONSTRAINT service_offer_versions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT service_offer_versions_number_positive CHECK ((version_number > 0)),
     CONSTRAINT service_offer_versions_reason CHECK (((abandoned_reason IS NULL) OR ((btrim((abandoned_reason)::text) <> ''::text) AND (char_length((abandoned_reason)::text) <= 500)))),
-    CONSTRAINT service_offer_versions_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'abandoned'::character varying, 'published'::character varying, 'superseded'::character varying, 'retired'::character varying])::text[])))
+    CONSTRAINT service_offer_versions_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('abandoned'::character varying)::text, ('published'::character varying)::text, ('superseded'::character varying)::text, ('retired'::character varying)::text])))
 );
 
 
@@ -2853,7 +2856,7 @@ CREATE TABLE public.supplier_arrangement_endings (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT arrangement_endings_other_proof CHECK ((((ending_reason)::text = 'other'::text) = ((ending_reason_label IS NOT NULL) AND (ending_reason_note IS NOT NULL)))),
-    CONSTRAINT arrangement_endings_reason_catalog CHECK (((ending_reason)::text = ANY ((ARRAY['planning_concluded'::character varying, 'agreement_expired'::character varying, 'not_proceeding_no_live_commitment'::character varying, 'replaced'::character varying, 'duplicate_or_entered_in_error'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT arrangement_endings_reason_catalog CHECK (((ending_reason)::text = ANY (ARRAY[('planning_concluded'::character varying)::text, ('agreement_expired'::character varying)::text, ('not_proceeding_no_live_commitment'::character varying)::text, ('replaced'::character varying)::text, ('duplicate_or_entered_in_error'::character varying)::text, ('other'::character varying)::text]))),
     CONSTRAINT arrangement_endings_replaced_proof CHECK ((((ending_reason)::text = 'replaced'::text) = (replacement_arrangement_id IS NOT NULL)))
 );
 
@@ -13467,6 +13470,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260920150000'),
 ('20260920140000'),
 ('20260920030000'),
 ('20260920020000'),

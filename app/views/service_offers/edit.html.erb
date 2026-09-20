@@ -33,8 +33,14 @@
       <% if definition&.m3_backed? %>
         <div class="dd-field-group">
           <label class="dd-choice">
+            <%= form.check_box :reselect_current_sources %>
+            <span>Reselect the current governing activated source for each binding. Keep this Client text.</span>
+          </label>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-choice">
             <%= form.check_box :refresh_bindings %>
-            <span>Refresh bound definition IDs from the same source identities. Keep this Client text.</span>
+            <span>Refresh bound definition IDs on the currently pinned version. Keep this Client text.</span>
           </label>
         </div>
       <% end %>

@@ -78,6 +78,158 @@ class ServiceOfferCommandsTest < ActiveSupport::TestCase
     assert_equal :unauthorized, error.code
   end
 
+  test "two successive definition edits from the same starting version conflict" do
+    offer = CreateServiceOfferWithExplicitBasis.new(
+      agency: @agency, actor: @actor, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { client_title: "Original title", fulfillment_basis: "on_request" }
+    ).call.record
+    version = offer.editable_draft_version
+    starting_offer_lock = offer.lock_version
+    starting_version_lock = version.lock_version
+
+    UpdateServiceOfferDraft.new(
+      agency: @agency, actor: @actor, offer: offer,
+      attributes: { client_title: "First edit" },
+      offer_lock_version: starting_offer_lock,
+      version_lock_version: starting_version_lock
+    ).call
+    assert_equal "First edit", version.definition.reload.client_title
+    assert_operator version.reload.lock_version, :>, starting_version_lock
+
+    error = assert_raises(AgencyCommand::Error) do
+      UpdateServiceOfferDraft.new(
+        agency: @agency, actor: @actor, offer: offer,
+        attributes: { client_title: "Second edit" },
+        offer_lock_version: starting_offer_lock,
+        version_lock_version: starting_version_lock
+      ).call
+    end
+    assert_equal :conflict, error.code
+    assert_equal "First edit", version.definition.reload.client_title
+  end
+
+  test "reselect moves a pin to the current governing activated source and keeps Client text" do
+    activated = build_activated_unestablished_capacity_graph(
+      agency: @agency, departure: @departure, contractor: @contractor, provider: @contractor,
+      actor: @actor, prefix: "Reselect"
+    )
+    offer = CreateServiceOfferFromSource.new(
+      agency: @agency, actor: @actor, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        supplier_arrangement_id: activated[:arrangement].id,
+        arrangement_item_id: activated[:item].id,
+        client_title: "Keep this title",
+        client_description: "Keep this description"
+      }
+    ).call.record
+    assert_equal activated[:version].id,
+      offer.editable_draft_version.source_bindings.sole.supplier_arrangement_version_id
+
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: activated[:arrangement],
+      arrangement_lock_version: activated[:arrangement].reload.lock_version,
+      version_lock_version: activated[:version].reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    now = Time.current
+    activated[:version].reload.update!(status: "superseded", superseded_at: now)
+    successor.update!(status: "activated", activated_at: now)
+    activated[:arrangement].reload.update!(governing_version: successor)
+
+    UpdateServiceOfferDraft.new(
+      agency: @agency, actor: @actor, offer: offer,
+      attributes: {
+        client_title: "Keep this title",
+        client_description: "Keep this description",
+        reselect_current_sources: true
+      },
+      offer_lock_version: offer.lock_version,
+      version_lock_version: offer.editable_draft_version.lock_version
+    ).call
+
+    binding = offer.editable_draft_version.reload.source_bindings.sole
+    definition = offer.editable_draft_version.definition.reload
+    assert_equal successor.id, binding.supplier_arrangement_version_id
+    assert_equal successor.arrangement_item_definitions.find_by!(arrangement_item_id: activated[:item].id).id,
+      binding.arrangement_item_definition_id
+    assert_equal "Keep this title", definition.client_title
+    assert_equal "Keep this description", definition.client_description
+  end
+
+  test "departed departure cannot add a source binding" do
+    offer = CreateServiceOfferFromSource.new(
+      agency: @agency, actor: @actor, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: source_attrs.merge(client_title: "Primary")
+    ).call.record
+    extra = create_capacity_graph(
+      agency: @agency, departure: @departure, contractor: @contractor, provider: @contractor, prefix: "Late"
+    )
+    @departure.update!(
+      status: "departed",
+      departure_reference: "D-#{SecureRandom.random_number(900000) + 100000}",
+      first_activated_at: 1.week.ago,
+      departed_at: Time.current
+    )
+    error = assert_raises(AgencyCommand::Error) do
+      AddServiceOfferSourceBinding.new(
+        agency: @agency, actor: @actor, offer: offer,
+        version_lock_version: offer.editable_draft_version.lock_version,
+        idempotency_key: SecureRandom.uuid,
+        attributes: {
+          supplier_arrangement_id: extra[:arrangement].id,
+          supplier_arrangement_version_id: extra[:version].id,
+          arrangement_item_id: extra[:item].id,
+          membership_kind: "required"
+        }
+      ).call
+    end
+    assert_equal :invalid_state, error.code
+    assert_equal 1, offer.editable_draft_version.reload.source_bindings.count
+  end
+
+  test "binding add replays the same key even when the submitted version lock is stale" do
+    offer = CreateServiceOfferFromSource.new(
+      agency: @agency, actor: @actor, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: source_attrs.merge(client_title: "Primary")
+    ).call.record
+    extra = create_capacity_graph(
+      agency: @agency, departure: @departure, contractor: @contractor, provider: @contractor, prefix: "ReplayBind"
+    )
+    key = SecureRandom.uuid
+    starting_lock = offer.editable_draft_version.lock_version
+    attrs = {
+      supplier_arrangement_id: extra[:arrangement].id,
+      supplier_arrangement_version_id: extra[:version].id,
+      arrangement_item_id: extra[:item].id,
+      membership_kind: "required"
+    }
+    first = AddServiceOfferSourceBinding.new(
+      agency: @agency, actor: @actor, offer: offer,
+      version_lock_version: starting_lock,
+      idempotency_key: key,
+      attributes: attrs
+    ).call
+    replay = AddServiceOfferSourceBinding.new(
+      agency: @agency, actor: @actor, offer: offer,
+      version_lock_version: starting_lock,
+      idempotency_key: key,
+      attributes: attrs
+    ).call
+    assert_equal :replayed, replay.status
+    assert_equal first.record.id, replay.record.id
+    assert_equal 2, offer.editable_draft_version.reload.source_bindings.count
+
+    error = assert_raises(AgencyCommand::Error) do
+      AddServiceOfferSourceBinding.new(
+        agency: @agency, actor: @actor, offer: offer,
+        version_lock_version: starting_lock,
+        idempotency_key: key,
+        attributes: attrs.merge(membership_kind: "alternative", alternative_group_key: "g1", alternative_group_label: "Group")
+      ).call
+    end
+    assert_equal :conflict, error.code
+  end
+
   test "stale version is a recoverable conflict" do
     offer = CreateServiceOfferWithExplicitBasis.new(
       agency: @agency, actor: @actor, departure: @departure, idempotency_key: SecureRandom.uuid,

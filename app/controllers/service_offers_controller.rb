@@ -183,7 +183,9 @@ class ServiceOffersController < ApplicationController
   end
 
   def update_params
-    params.fetch(:service_offer, {}).permit(:name, :client_title, :client_description, :refresh_bindings)
+    params.fetch(:service_offer, {}).permit(
+      :name, :client_title, :client_description, :refresh_bindings, :reselect_current_sources
+    )
   end
 
   def decode_source_key(attrs)

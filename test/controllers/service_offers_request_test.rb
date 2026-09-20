@@ -127,6 +127,7 @@ class ServiceOffersRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "input[name='service_offer[lock_version]']"
     assert_select "input[name=version_lock_version]", count: 1
+    assert_select "input[name='service_offer[reselect_current_sources]']", count: 0
 
     patch departure_service_offer_path(@departure, offer), params: {
       version_lock_version: offer.editable_draft_version.lock_version,
@@ -148,6 +149,24 @@ class ServiceOffersRequestTest < ActionDispatch::IntegrationTest
     }
     assert_redirected_to departure_path(@departure)
     assert_equal "abandoned", offer.versions.first.reload.status
+  end
+
+  test "staff can reselect the current activated source from the ordinary edit form" do
+    offer = CreateServiceOfferFromSource.new(
+      agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        supplier_arrangement_id: @graph[:arrangement].id,
+        arrangement_item_id: @graph[:item].id,
+        client_title: "Cabin to reselect",
+        client_description: "Keep this description"
+      }
+    ).call.record
+    sign_in_as @staff
+
+    get edit_departure_service_offer_path(@departure, offer)
+    assert_response :success
+    assert_select "input[name='service_offer[reselect_current_sources]']"
+    assert_select "input[name='service_offer[refresh_bindings]']"
   end
 
   private

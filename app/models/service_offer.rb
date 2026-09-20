@@ -11,7 +11,8 @@ class ServiceOffer < ApplicationRecord
   has_many :source_bindings, class_name: "ServiceOfferSourceBinding", dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :departure_id
-  attr_accessor :client_title, :client_description, :fulfillment_basis, :refresh_bindings
+  attr_accessor :client_title, :client_description, :fulfillment_basis, :refresh_bindings,
+    :reselect_current_sources
 
   normalizes :name, with: ->(value) { value.to_s.strip }
 
