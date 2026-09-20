@@ -3,6 +3,9 @@
 class RefreshDeadlineProjectionJob < ApplicationJob
   queue_as :deadlines
 
+  retry_on ActiveRecord::Deadlocked, ActiveRecord::SerializationFailure, ActiveRecord::LockWaitTimeout,
+    attempts: 5, wait: :polynomially_longer
+
   def perform(agency_id:, supplier_deadline_occurrence_id:)
     agency = Agency.find_by(id: agency_id)
     return if agency.nil? || !agency.active?

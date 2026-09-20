@@ -883,6 +883,8 @@ Ordinary M3E slices ship persistence, commands, authorization, UI, and proof tog
 
 **Exit / merge gate:** Direct SQL cross-Agency foreign-key rejection and valid same-Agency insertion for all three tables; migration preflight proven; retry capped at five with permanent failures visible and one converged projection without domain events; current docs no longer claim shipped M3E.1–M3E.5 are unimplemented.
 
+**Shipped:** M3E.5R (same-Agency composite idempotency FKs on deposit attestations, planning milestones, and exposure qualifications with preflight; Deadline catch-up retries capped at five for deadlock/serialization/lock-wait).
+
 ### M3D remediations — Reservation partial-response disclosure
 
 Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D domain decisions.
