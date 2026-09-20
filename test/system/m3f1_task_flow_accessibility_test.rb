@@ -123,15 +123,11 @@ class M3f1TaskFlowAccessibilityTest < ApplicationSystemTestCase
       edit_summaries = all("summary", text: "Edit occupancy profile")
       assert_operator edit_summaries.size, :>=, 2
       edit_summaries[0].click
-      assert_equal 1, page.evaluate_script(<<~JS)
-        Array.from(document.querySelectorAll("[data-controller='exclusive-details'] details"))
-          .filter((details) => details.open).length
-      JS
-      edit_summaries[1].click
-      assert_equal 1, page.evaluate_script(<<~JS)
-        Array.from(document.querySelectorAll("[data-controller='exclusive-details'] details"))
-          .filter((details) => details.open).length
-      JS
+      assert_equal 1, open_exclusive_details_count
+
+      # Re-query after DOM/open-state changes; middle click must close the first editor.
+      all("summary", text: "Edit occupancy profile")[1].click
+      assert_equal 1, open_exclusive_details_count
       open_summary = page.evaluate_script(<<~JS)
         const open = Array.from(document.querySelectorAll("[data-controller='exclusive-details'] details"))
           .find((details) => details.open)
@@ -139,5 +135,14 @@ class M3f1TaskFlowAccessibilityTest < ApplicationSystemTestCase
       JS
       assert_equal "Edit occupancy profile", open_summary
     end
+  end
+
+  private
+
+  def open_exclusive_details_count
+    page.evaluate_script(<<~JS)
+      Array.from(document.querySelectorAll("[data-controller='exclusive-details'] details"))
+        .filter((details) => details.open).length
+    JS
   end
 end
