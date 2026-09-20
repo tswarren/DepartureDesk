@@ -71,6 +71,75 @@ export default class extends Controller {
     const index = this.capacityListTarget.querySelectorAll("[data-capacity-row]").length
     const html = this.capacityTemplateTarget.innerHTML.replaceAll("__INDEX__", String(index))
     this.capacityListTarget.insertAdjacentHTML("beforeend", html)
+    const rows = this.capacityRows()
+    const newRow = rows[rows.length - 1]
+    this.focusCapacityRow(newRow)
+  }
+
+  removeCapacity(event) {
+    event.preventDefault()
+    if (!this.hasCapacityListTarget) return
+    const row = event.currentTarget.closest("[data-capacity-row]")
+    if (!row) return
+
+    const rows = this.capacityRows()
+    const index = rows.indexOf(row)
+    if (rows.length <= 1) {
+      this.clearCapacityRow(row)
+      this.focusCapacityRow(row)
+      return
+    }
+
+    row.remove()
+    this.reindexCapacityRows()
+    const remaining = this.capacityRows()
+    const focusIndex = Math.min(index, remaining.length - 1)
+    this.focusCapacityRow(remaining[focusIndex])
+  }
+
+  capacityRows() {
+    if (!this.hasCapacityListTarget) return []
+    return Array.from(this.capacityListTarget.querySelectorAll("[data-capacity-row]"))
+  }
+
+  focusCapacityRow(row) {
+    if (!row) return
+    const focusable = row.querySelector("select, input:not([type='hidden']), button")
+    focusable?.focus()
+  }
+
+  clearCapacityRow(row) {
+    row.querySelectorAll("select").forEach((select) => {
+      select.selectedIndex = 0
+    })
+    row.querySelectorAll("input:not([type='hidden'])").forEach((input) => {
+      input.value = ""
+    })
+  }
+
+  reindexCapacityRows() {
+    this.capacityRows().forEach((row, index) => {
+      row.querySelectorAll("label, select, input, button").forEach((element) => {
+        if (element.name) {
+          element.name = element.name.replace(
+            /capacity_consequences\[\d+]/,
+            `capacity_consequences[${index}]`
+          )
+        }
+        if (element.id) {
+          element.id = element.id.replace(
+            /capacity_consequences_\d+_/,
+            `capacity_consequences_${index}_`
+          )
+        }
+        if (element.htmlFor) {
+          element.htmlFor = element.htmlFor.replace(
+            /capacity_consequences_\d+_/,
+            `capacity_consequences_${index}_`
+          )
+        }
+      })
+    })
   }
 
   hasConfirmedCoverage() {

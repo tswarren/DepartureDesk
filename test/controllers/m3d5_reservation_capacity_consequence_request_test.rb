@@ -47,6 +47,8 @@ class M3d5ReservationCapacityConsequenceRequestTest < ActionDispatch::Integratio
     assert_select "select[name='capacity_consequences[0][event_type]'] option[value='withdrawn']"
     assert_select "select[name='capacity_consequences[0][event_type]'] option[value='hold']", count: 0
     assert_select "select[name='capacity_consequences[0][event_type]'] option[value='reinstated']", count: 0
+    assert_select "button[data-action='reservation-response-fields#removeCapacity']", minimum: 1
+    assert_select "button[data-action='reservation-response-fields#addCapacity']", text: "Add capacity consequence"
 
     assert_difference -> { SupplierReservationEvent.where(event_kind: "response").count }, 1 do
       post respond_departure_arrangement_reservation_path(@departure, @arrangement, @reservation), params: {
