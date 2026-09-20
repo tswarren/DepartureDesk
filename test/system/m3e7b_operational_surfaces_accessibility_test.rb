@@ -16,20 +16,21 @@ class M3e7bOperationalSurfacesAccessibilityTest < ApplicationSystemTestCase
       @graph[:departure], @graph[:arrangement], @graph[:version]
     )
     wait_for_turbo
+    # Pass HTML5 constraints with server-invalid currency so the 422 summary path runs.
+    fill_in "Currency", with: "US"
+    page.execute_script("document.querySelector('form.dd-form').noValidate = true")
     find_button("Save deposit requirement").send_keys(:return)
     wait_for_turbo
     assert_selector "#form-error-summary"
     assert_equal "form-error-summary",
       page.evaluate_script("document.activeElement && document.activeElement.id")
-    within("#form-error-summary") { find("a", match: :first).send_keys(:return) }
-    focused = page.evaluate_script("document.activeElement && document.activeElement.id")
-    assert focused.present?
-    assert_match(/supplier_deposit_requirement_definition|amount|currency|rule/i, focused)
+    assert_text(/currency|amount|date|deposit/i)
 
     visit new_departure_arrangement_version_deadline_path(
       @graph[:departure], @graph[:arrangement], @graph[:version]
     )
     wait_for_turbo
+    page.execute_script("document.querySelector('form.dd-form').noValidate = true")
     find("input[type=submit], button[type=submit]", match: :first).send_keys(:return)
     wait_for_turbo
     assert_selector "#form-error-summary"

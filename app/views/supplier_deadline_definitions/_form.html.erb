@@ -3,15 +3,7 @@
 <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
 <%= hidden_field_tag :idempotency_key, @idempotency_key if @idempotency_key %>
 
-<% if @definition.errors.any? %>
-  <div class="dd-form-errors" role="alert">
-    <ul>
-      <% @definition.errors.full_messages.each do |message| %>
-        <li><%= message %></li>
-      <% end %>
-    </ul>
-  </div>
-<% end %>
+<%= render "shared/form_errors", object: @definition %>
 
 <div class="dd-field-group">
   <%= form.label :deadline_type, "Deadline type", class: "dd-label" %>
