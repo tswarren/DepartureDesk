@@ -10,7 +10,7 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <p>Review blockers and permitted cascades. This screen is a digest-bound preview only; ending is not executed here.</p>
+    <p>Review blockers and permitted cascades, then confirm ending. Cascades may not satisfy, release, or waive commitments.</p>
 
     <% if @payload["blockers"].present? %>
       <section class="dd-stack" aria-labelledby="ending-blockers-heading">
@@ -63,7 +63,8 @@
               params[:ending_reason] || @preview&.ending_reason
             ),
             include_blank: "Choose reason",
-            class: "dd-field" %>
+            class: "dd-field",
+            required: true %>
         </div>
         <div class="dd-field-group">
           <%= label_tag :ending_reason_label, "Other label", class: "dd-label" %>
@@ -80,24 +81,38 @@
           <%= text_field_tag :replacement_arrangement_id,
             params[:replacement_arrangement_id] || @preview&.replacement_arrangement_id,
             class: "dd-field" %>
-          <p class="dd-help">Required only when reason is replaced.</p>
         </div>
       </section>
 
       <div class="dd-form-actions">
         <%= submit_tag "Refresh preview", class: "dd-button dd-button--secondary" %>
-        <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement),
-          class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
 
-    <% if @preview && @raw_token %>
-      <section class="dd-stack" aria-labelledby="ending-digest-heading">
-        <h2 id="ending-digest-heading" class="dd-section-title">Preview digest</h2>
-        <p class="dd-help">Expires <%= l(@preview.expires_at, format: :long) %>. Ending submit (later) must present this token with the exact selected cascades.</p>
-        <p><code><%= @raw_token %></code></p>
-        <p class="dd-help">Digest <%= @preview.digest_sha256 %></p>
-      </section>
+    <% if @preview && @raw_token && @payload["blockers"].blank? %>
+      <%= form_with url: end_departure_arrangement_path(@departure, @supplier_arrangement), method: :post, class: "dd-form" do %>
+        <%= hidden_field_tag :preview_token, @raw_token %>
+        <%= hidden_field_tag :idempotency_key, params[:idempotency_key].presence || SecureRandom.uuid %>
+        <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+        <%= hidden_field_tag :version_lock_version, @supplier_arrangement.governing_version.lock_version %>
+        <%= hidden_field_tag :ending_reason, @preview.ending_reason %>
+        <%= hidden_field_tag :ending_reason_label, @preview.ending_reason_label %>
+        <%= hidden_field_tag :ending_reason_note, @preview.ending_reason_note %>
+        <%= hidden_field_tag :replacement_arrangement_id, @preview.replacement_arrangement_id %>
+        <% Array(@preview.selected_cascade_keys).each do |key| %>
+          <%= hidden_field_tag "selected_cascade_keys[]", key %>
+        <% end %>
+        <div class="dd-form-actions">
+          <%= submit_tag "Confirm end arrangement", class: "dd-button dd-button--danger" %>
+          <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement),
+            class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="dd-form-actions">
+        <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @supplier_arrangement),
+          class: "dd-button dd-button--quiet" %>
+      </div>
     <% end %>
   </div>
 </article>

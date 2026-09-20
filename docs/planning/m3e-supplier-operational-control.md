@@ -1,6 +1,6 @@
 # M3E — Supplier operational control
 
-**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1–M3E.5, M3E.5R, M3D remediations, and M3E.6a shipped. Remaining implementation is **M3E.6b–M3E.7b**. **M3E is not yet fully shipped** until M3E.7b. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).
+**Status:** Accepted 2026-09-18. M3E.0 satisfied; M3E.1–M3E.5, M3E.5R, M3D remediations, M3E.6a, and M3E.6b shipped. Remaining implementation is **M3E.7a–M3E.7b**. **M3E is not yet fully shipped** until M3E.7b. [M3E.0](m3e0-m3d-closure-gate.md) is satisfied (2026-09-19): final M3D correctness QC is green at pinned base `344ab86`. Production M3E code began with M3E.1 from that verified base (or a descendant on `main`).
 **Parent:** [M3 — Supplier planning](m3-supplier-planning.md)  
 **ADR:** [ADR 0013 — Supplier operational commitments, Deadlines, exposure, and Arrangement ending](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)  
 **Prerequisite:** Shipped M3D through M3D.9; [M3E.0](m3e0-m3d-closure-gate.md) M3D closure gate satisfied  
@@ -916,6 +916,8 @@ Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D do
 - Reject post-ending reopen and prohibited child writes.
 
 **Exit / merge gate:** Preview conflict on changed state; selected late-cascade failure rolls back everything; no satisfaction, commitment release, waiver, fabricated response, or removal of guaranteed exposure; same-key replay works; ending races and post-end reopen/write rejection pass.
+
+**Shipped:** M3E.6b (`EndSupplierArrangement`; immutable ending result; cascade cancel/withdraw/abandon/supersede; same-key replay before preview-expiry rejection; post-ending reopen rejection; `POST .../end`).
 
 **Exit (M3E.6a + M3E.6b together):** no Arrangement can end while unhandled live governing state remains, and the common clean ending remains a short workflow.
 

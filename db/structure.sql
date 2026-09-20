@@ -2518,6 +2518,35 @@ CREATE TABLE public.supplier_arrangement_ending_previews (
 
 
 --
+-- Name: supplier_arrangement_endings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangement_endings (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_arrangement_endin_supplier_arrangement_versi_not_null1 NOT NULL,
+    supplier_arrangement_ending_preview_id uuid CONSTRAINT supplier_arrangement_ending_supplier_arrangement_endin_not_null NOT NULL,
+    ending_reason character varying(80) NOT NULL,
+    ending_reason_label character varying(160),
+    ending_reason_note text,
+    replacement_arrangement_id uuid,
+    selected_cascade_keys jsonb DEFAULT '[]'::jsonb NOT NULL,
+    cascade_manifest jsonb DEFAULT '{}'::jsonb NOT NULL,
+    preview_digest_sha256 character varying(64) NOT NULL,
+    actor_id uuid NOT NULL,
+    ended_at timestamp with time zone NOT NULL,
+    agency_command_idempotency_key_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT arrangement_endings_other_proof CHECK ((((ending_reason)::text = 'other'::text) = ((ending_reason_label IS NOT NULL) AND (ending_reason_note IS NOT NULL)))),
+    CONSTRAINT arrangement_endings_reason_catalog CHECK (((ending_reason)::text = ANY ((ARRAY['planning_concluded'::character varying, 'agreement_expired'::character varying, 'not_proceeding_no_live_commitment'::character varying, 'replaced'::character varying, 'duplicate_or_entered_in_error'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT arrangement_endings_replaced_proof CHECK ((((ending_reason)::text = 'replaced'::text) = (replacement_arrangement_id IS NOT NULL)))
+);
+
+
+--
 -- Name: supplier_arrangement_versions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4528,6 +4557,14 @@ ALTER TABLE ONLY public.supplier_arrangement_ending_previews
 
 
 --
+-- Name: supplier_arrangement_endings supplier_arrangement_endings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_endings
+    ADD CONSTRAINT supplier_arrangement_endings_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_arrangement_versions supplier_arrangement_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5240,6 +5277,20 @@ CREATE UNIQUE INDEX index_arrangement_activations_on_version ON public.supplier_
 --
 
 CREATE UNIQUE INDEX index_arrangement_activations_on_version_owner ON public.supplier_arrangement_activations USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_arrangement_endings_on_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_arrangement_endings_on_arrangement ON public.supplier_arrangement_endings USING btree (supplier_arrangement_id);
+
+
+--
+-- Name: index_arrangement_endings_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_arrangement_endings_on_id_agency ON public.supplier_arrangement_endings USING btree (id, agency_id);
 
 
 --
@@ -8848,6 +8899,13 @@ CREATE TRIGGER reference_sequences_reject_identity_change BEFORE UPDATE ON publi
 
 
 --
+-- Name: supplier_arrangement_endings reject_arrangement_ending_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER reject_arrangement_ending_mutation BEFORE DELETE OR UPDATE ON public.supplier_arrangement_endings FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
 -- Name: service_occurrence_definitions service_occurrence_definitions_reject_invalid_zone; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -9703,6 +9761,62 @@ ALTER TABLE ONLY public.supplier_arrangement_activations
 
 ALTER TABLE ONLY public.supplier_arrangement_activations
     ADD CONSTRAINT arrangement_activations_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_endings arrangement_endings_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_endings
+    ADD CONSTRAINT arrangement_endings_actor_fk FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_endings arrangement_endings_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_endings
+    ADD CONSTRAINT arrangement_endings_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_endings arrangement_endings_departure_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_endings
+    ADD CONSTRAINT arrangement_endings_departure_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_endings arrangement_endings_idempotency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_endings
+    ADD CONSTRAINT arrangement_endings_idempotency_fk FOREIGN KEY (agency_command_idempotency_key_id, agency_id) REFERENCES public.agency_command_idempotency_keys(id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_endings arrangement_endings_preview_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_endings
+    ADD CONSTRAINT arrangement_endings_preview_fk FOREIGN KEY (supplier_arrangement_ending_preview_id, agency_id) REFERENCES public.supplier_arrangement_ending_previews(id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_endings arrangement_endings_replacement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_endings
+    ADD CONSTRAINT arrangement_endings_replacement_fk FOREIGN KEY (replacement_arrangement_id) REFERENCES public.supplier_arrangements(id);
+
+
+--
+-- Name: supplier_arrangement_endings arrangement_endings_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_endings
+    ADD CONSTRAINT arrangement_endings_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -11418,6 +11532,14 @@ ALTER TABLE ONLY public.capacity_reconciliation_resolutions
 
 
 --
+-- Name: supplier_arrangement_endings fk_rails_6ef6f35ba7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_endings
+    ADD CONSTRAINT fk_rails_6ef6f35ba7 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_commitment_trigger_definitions fk_rails_77637659d8; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12640,6 +12762,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260920030000'),
 ('20260920020000'),
 ('20260920010000'),
 ('20260919210000'),

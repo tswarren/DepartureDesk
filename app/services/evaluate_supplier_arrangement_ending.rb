@@ -30,10 +30,11 @@ class EvaluateSupplierArrangementEnding
     :source_versions, :reason_choices
   )
 
-  def initialize(agency:, arrangement:, at: Time.current)
+  def initialize(agency:, arrangement:, at: Time.current, selected_cascade_keys: nil)
     @agency = agency
     @arrangement = arrangement
     @at = at
+    @selected_cascade_keys = selected_cascade_keys
   end
 
   def call
@@ -59,7 +60,12 @@ class EvaluateSupplierArrangementEnding
     cascades.concat(actionable_deadline_with_commitment_candidates(arrangement, open_commitments))
     cascades.concat(informational_deadline_supersession_candidates(arrangement, version))
 
-    selected_keys = cascades.select(&:required).map(&:key)
+    required = cascades.select(&:required).map(&:key)
+    selected_keys = if @selected_cascade_keys.nil?
+      required
+    else
+      (Array(@selected_cascade_keys).map(&:to_s) | required).uniq
+    end
     blockers = build_blockers(
       arrangement:, version:, open_commitments:, cascades:, selected_keys:
     )

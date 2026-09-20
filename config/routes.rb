@@ -198,6 +198,7 @@ Rails.application.routes.draw do
         get :abandon, action: :edit_abandon
         post :abandon
         get :end, to: "supplier_arrangement_endings#show"
+        post :end, to: "supplier_arrangement_endings#create"
       end
       get "capacity-pools/:pool_id", to: "effective_capacity_pools#show", as: :capacity_pool
       post "capacity-pools/:pool_id/events", to: "capacity_events#create", as: :capacity_pool_events

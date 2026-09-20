@@ -24,7 +24,8 @@ class PreviewEndSupplierArrangement < AgencyCommand
     ensure_arrangement_actor!
 
     evaluation = EvaluateSupplierArrangementEnding.new(
-      agency: @agency, arrangement: @arrangement
+      agency: @agency, arrangement: @arrangement,
+      selected_cascade_keys: @selected_cascade_keys.presence
     ).call
 
     selected = resolve_selected_keys(evaluation)
@@ -147,6 +148,16 @@ class PreviewEndSupplierArrangement < AgencyCommand
 
   def digest_for(evaluation:, selected_keys:, ending_reason:, ending_reason_label:,
     ending_reason_note:, replacement_arrangement_id:, required_acknowledgments:)
+    PreviewEndSupplierArrangement.digest_for(
+      evaluation:, selected_keys:, ending_reason:, ending_reason_label:,
+      ending_reason_note:, replacement_arrangement_id:, required_acknowledgments:
+    )
+  end
+end
+
+class << PreviewEndSupplierArrangement
+  def digest_for(evaluation:, selected_keys:, ending_reason:, ending_reason_label:,
+    ending_reason_note:, replacement_arrangement_id:, required_acknowledgments:)
     canonical = {
       arrangement_id: evaluation.arrangement.id,
       version_id: evaluation.version.id,
@@ -160,17 +171,17 @@ class PreviewEndSupplierArrangement < AgencyCommand
       ending_reason_label:,
       ending_reason_note:,
       replacement_arrangement_id:,
-      required_acknowledgments: required_acknowledgments.sort
+      required_acknowledgments: Array(required_acknowledgments).map(&:to_s).sort
     }
-    Digest::SHA256.hexdigest(JSON.generate(deep_sort(canonical)))
+    Digest::SHA256.hexdigest(JSON.generate(deep_sort_digest(canonical)))
   end
 
-  def deep_sort(value)
+  def deep_sort_digest(value)
     case value
     when Hash
-      value.keys.sort_by(&:to_s).to_h { |key| [ key.to_s, deep_sort(value[key]) ] }
+      value.keys.sort_by(&:to_s).to_h { |key| [ key.to_s, deep_sort_digest(value[key]) ] }
     when Array
-      value.map { |entry| deep_sort(entry) }
+      value.map { |entry| deep_sort_digest(entry) }
     else
       value
     end
