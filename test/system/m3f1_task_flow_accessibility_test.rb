@@ -117,38 +117,23 @@ class M3f1TaskFlowAccessibilityTest < ApplicationSystemTestCase
 
       assert_text "Single"
       assert_text "Double"
-      assert_selector "[data-controller='exclusive-details']"
+      assert_selector "details[name^='occupancy-profile-']", minimum: 2
       assert_no_page_overflow
 
-      edit_summaries = all("summary", text: "Edit occupancy profile")
-      assert_operator edit_summaries.size, :>=, 2
-      edit_summaries[0].click
-      assert_equal 1, open_exclusive_details_count
+      group_name = first("details[name^='occupancy-profile-']")["name"]
+      open_selector = %(details[name="#{group_name}"][open])
 
-      # Re-query after DOM/open-state changes; middle click must close the first editor.
-      all("summary", text: "Edit occupancy profile")[1].click
-      assert_equal 1, open_exclusive_details_count
-      open_summary = page.evaluate_script(<<~JS)
-        (function() {
-          var open = Array.prototype.find.call(
-            document.querySelectorAll("[data-controller='exclusive-details'] details"),
-            function(details) { return details.open }
-          )
-          return open ? open.querySelector("summary").textContent.trim() : null
-        })()
-      JS
-      assert_equal "Edit occupancy profile", open_summary
+      first_edit = all("summary", text: "Edit occupancy profile")[0]
+      scroll_to(first_edit, align: :center)
+      first_edit.click
+      assert_selector open_selector, count: 1
+
+      # Re-query after DOM/open-state changes; opening another must close the first.
+      second_edit = all("summary", text: "Edit occupancy profile")[1]
+      scroll_to(second_edit, align: :center)
+      second_edit.click
+      assert_selector open_selector, count: 1
+      assert_equal "Edit occupancy profile", find(open_selector).find("summary").text.strip
     end
-  end
-
-  private
-
-  def open_exclusive_details_count
-    page.evaluate_script(<<~JS)
-      Array.prototype.filter.call(
-        document.querySelectorAll("[data-controller='exclusive-details'] details"),
-        function(details) { return details.open }
-      ).length
-    JS
   end
 end
