@@ -11,6 +11,7 @@ class ServiceOccurrenceDefinition < ApplicationRecord
   belongs_to :arrangement_item
   belongs_to :service_occurrence
   belongs_to :service_provider, class_name: "Supplier", optional: true
+  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id,
     :supplier_arrangement_version_id, :arrangement_item_id, :service_occurrence_id

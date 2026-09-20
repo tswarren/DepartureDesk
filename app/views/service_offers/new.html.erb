@@ -1,0 +1,50 @@
+<% content_for :title, "New explicit-basis service · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title">Add explicit-basis service</h1>
+    <p class="dd-page-description"><%= @departure.name %>. This does not create an Arrangement, Pool, or count.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @service_offer, url: departure_service_offers_path(@departure), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <div class="dd-field-group">
+        <%= form.label :fulfillment_basis, "Fulfillment basis", class: "dd-label" %>
+        <%= form.select :fulfillment_basis,
+          [
+            ["On request", "on_request"],
+            ["Agency fulfilled", "agency_fulfilled"],
+            ["Externally fulfilled", "externally_fulfilled"]
+          ],
+          { include_blank: "Choose a basis" },
+          required: true,
+          **dd_field_options(form, :fulfillment_basis) %>
+        <%= dd_field_error(form, :fulfillment_basis) %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :client_title, "Client-facing title", class: "dd-label" %>
+        <%= form.text_field :client_title, maxlength: ServiceOfferDefinition::TITLE_LIMIT, required: true, **dd_field_options(form, :client_title) %>
+        <%= dd_field_error(form, :client_title) %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :name, "Staff display name", class: "dd-label" %>
+        <%= form.text_field :name, maxlength: ServiceOffer::NAME_LIMIT, **dd_field_options(form, :name) %>
+        <%= dd_field_error(form, :name) %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :client_description, "Client-facing description", class: "dd-label" %>
+        <%= form.text_area :client_description, maxlength: ServiceOfferDefinition::DESCRIPTION_LIMIT, **dd_field_options(form, :client_description) %>
+        <%= dd_field_error(form, :client_description) %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Save draft", class: "dd-button" %>
+        <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

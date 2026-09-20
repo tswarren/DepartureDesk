@@ -151,10 +151,15 @@ class AuditEvent < ApplicationRecord
     supplier_reservation.revised
     supplier_reservation.scopes_cancelled
     supplier_reservation.existing_confirmed_recorded
+    service_offer.created
+    service_offer.updated
+    service_offer.source_binding_added
+    service_offer.source_binding_removed
+    service_offer.discarded
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure SupplierArrangement SupplierReservation].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure SupplierArrangement SupplierReservation ServiceOffer].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true

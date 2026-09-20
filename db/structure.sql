@@ -685,6 +685,99 @@ $$;
 
 
 --
+-- Name: reject_invalid_service_offer_source_binding_ancestry(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_invalid_service_offer_source_binding_ancestry() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  version_arrangement_id uuid;
+  item_arrangement_id uuid;
+  occ_item_id uuid;
+  res_item_id uuid;
+  pool_item_id uuid;
+  pool_occ_id uuid;
+  pool_res_id uuid;
+BEGIN
+  SELECT supplier_arrangement_id INTO version_arrangement_id
+  FROM public.supplier_arrangement_versions
+  WHERE id = NEW.supplier_arrangement_version_id;
+
+  IF version_arrangement_id IS DISTINCT FROM NEW.supplier_arrangement_id THEN
+    RAISE EXCEPTION 'source binding arrangement version is not in the bound arrangement';
+  END IF;
+
+  SELECT supplier_arrangement_id INTO item_arrangement_id
+  FROM public.arrangement_items
+  WHERE id = NEW.arrangement_item_id;
+
+  IF item_arrangement_id IS DISTINCT FROM NEW.supplier_arrangement_id THEN
+    RAISE EXCEPTION 'source binding item is not in the bound arrangement';
+  END IF;
+
+  IF NEW.service_occurrence_id IS NOT NULL THEN
+    SELECT arrangement_item_id INTO occ_item_id
+    FROM public.service_occurrences
+    WHERE id = NEW.service_occurrence_id;
+
+    IF occ_item_id IS DISTINCT FROM NEW.arrangement_item_id THEN
+      RAISE EXCEPTION 'source binding occurrence is not in the bound item';
+    END IF;
+  END IF;
+
+  IF NEW.supplier_resource_id IS NOT NULL THEN
+    SELECT arrangement_item_id INTO res_item_id
+    FROM public.supplier_resources
+    WHERE id = NEW.supplier_resource_id;
+
+    IF res_item_id IS DISTINCT FROM NEW.arrangement_item_id THEN
+      RAISE EXCEPTION 'source binding resource is not in the bound item';
+    END IF;
+  END IF;
+
+  IF NEW.capacity_pool_id IS NOT NULL THEN
+    IF NEW.service_occurrence_id IS NULL OR NEW.supplier_resource_id IS NULL THEN
+      RAISE EXCEPTION 'source binding pool requires occurrence and resource';
+    END IF;
+
+    SELECT arrangement_item_id, service_occurrence_id, supplier_resource_id
+    INTO pool_item_id, pool_occ_id, pool_res_id
+    FROM public.capacity_pools
+    WHERE id = NEW.capacity_pool_id;
+
+    IF pool_item_id IS DISTINCT FROM NEW.arrangement_item_id
+      OR pool_occ_id IS DISTINCT FROM NEW.service_occurrence_id
+      OR pool_res_id IS DISTINCT FROM NEW.supplier_resource_id THEN
+      RAISE EXCEPTION 'source binding pool is not in the bound occurrence and resource';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_invalid_service_offer_version_lifecycle(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_invalid_service_offer_version_lifecycle() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
+    IF NOT (OLD.status = 'draft' AND NEW.status = 'abandoned') THEN
+      RAISE EXCEPTION 'service offer version status transition from % to % is not permitted',
+        OLD.status, NEW.status;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_m3d_immutable_mutation(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -724,6 +817,39 @@ BEGIN
     FROM public.supplier_arrangement_versions
     WHERE id = version_id;
   END IF;
+
+  IF version_status IS DISTINCT FROM 'draft' THEN
+    RAISE EXCEPTION 'exact-version definitions are immutable after leaving draft';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_non_draft_service_offer_version_definition_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  version_id uuid;
+  version_status text;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    version_id := NEW.service_offer_version_id;
+  ELSE
+    version_id := OLD.service_offer_version_id;
+  END IF;
+
+  SELECT status INTO version_status
+  FROM public.service_offer_versions
+  WHERE id = version_id;
 
   IF version_status IS DISTINCT FROM 'draft' THEN
     RAISE EXCEPTION 'exact-version definitions are immutable after leaving draft';
@@ -949,6 +1075,80 @@ BEGIN
     OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
     OR NEW.arrangement_item_id IS DISTINCT FROM OLD.arrangement_item_id THEN
     RAISE EXCEPTION 'service occurrence owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_service_offer_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_service_offer_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.service_offer_id IS DISTINCT FROM OLD.service_offer_id
+    OR NEW.service_offer_version_id IS DISTINCT FROM OLD.service_offer_version_id THEN
+    RAISE EXCEPTION 'service offer definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_service_offer_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_service_offer_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id THEN
+    RAISE EXCEPTION 'service offer owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_service_offer_source_binding_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_service_offer_source_binding_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.service_offer_id IS DISTINCT FROM OLD.service_offer_id
+    OR NEW.service_offer_version_id IS DISTINCT FROM OLD.service_offer_version_id THEN
+    RAISE EXCEPTION 'service offer source binding owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_service_offer_version_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_service_offer_version_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.service_offer_id IS DISTINCT FROM OLD.service_offer_id
+    OR NEW.version_number IS DISTINCT FROM OLD.version_number THEN
+    RAISE EXCEPTION 'service offer version owner is immutable';
   END IF;
   RETURN NEW;
 END;
@@ -2395,6 +2595,118 @@ CREATE TABLE public.service_occurrences (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT service_occurrences_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT service_occurrences_status CHECK (((status)::text = ANY (ARRAY[('planned'::character varying)::text, ('cancelled'::character varying)::text])))
+);
+
+
+--
+-- Name: service_offer_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid NOT NULL,
+    service_offer_version_id uuid NOT NULL,
+    client_title character varying(160) NOT NULL,
+    client_description character varying(2000),
+    fulfillment_basis character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_definitions_client_description CHECK (((client_description IS NULL) OR ((btrim((client_description)::text) <> ''::text) AND (char_length((client_description)::text) <= 2000)))),
+    CONSTRAINT service_offer_definitions_client_title CHECK (((btrim((client_title)::text) <> ''::text) AND (char_length((client_title)::text) <= 160))),
+    CONSTRAINT service_offer_definitions_fulfillment_basis CHECK (((fulfillment_basis)::text = ANY ((ARRAY['m3_backed'::character varying, 'on_request'::character varying, 'agency_fulfilled'::character varying, 'externally_fulfilled'::character varying])::text[])))
+);
+
+
+--
+-- Name: service_offer_source_bindings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_source_bindings (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid NOT NULL,
+    service_offer_version_id uuid NOT NULL,
+    membership_kind character varying DEFAULT 'required'::character varying NOT NULL,
+    alternative_group_key character varying(80),
+    alternative_group_label character varying(160),
+    "position" integer NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    arrangement_item_id uuid NOT NULL,
+    service_occurrence_id uuid,
+    supplier_resource_id uuid,
+    capacity_pool_id uuid,
+    supplier_arrangement_version_id uuid CONSTRAINT service_offer_source_bindin_supplier_arrangement_versi_not_null NOT NULL,
+    arrangement_item_definition_id uuid CONSTRAINT service_offer_source_bindin_arrangement_item_definitio_not_null NOT NULL,
+    service_occurrence_definition_id uuid,
+    supplier_resource_definition_id uuid,
+    capacity_pool_definition_id uuid,
+    depend_on_item_name boolean DEFAULT false NOT NULL,
+    depend_on_item_description boolean DEFAULT false CONSTRAINT service_offer_source_bindin_depend_on_item_description_not_null NOT NULL,
+    depend_on_occurrence_name boolean DEFAULT false CONSTRAINT service_offer_source_binding_depend_on_occurrence_name_not_null NOT NULL,
+    depend_on_occurrence_description boolean DEFAULT false CONSTRAINT service_offer_source_bindin_depend_on_occurrence_descr_not_null NOT NULL,
+    depend_on_resource_name boolean DEFAULT false NOT NULL,
+    depend_on_resource_description boolean DEFAULT false CONSTRAINT service_offer_source_bindin_depend_on_resource_descrip_not_null NOT NULL,
+    depend_on_pool_label boolean DEFAULT false NOT NULL,
+    depend_on_pool_unit_label boolean DEFAULT false CONSTRAINT service_offer_source_binding_depend_on_pool_unit_label_not_null NOT NULL,
+    client_title_provenance character varying DEFAULT 'source_name'::character varying NOT NULL,
+    client_description_provenance character varying DEFAULT 'none'::character varying CONSTRAINT service_offer_source_bindin_client_description_provena_not_null NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_source_bindings_alternative_group CHECK (((((membership_kind)::text = 'required'::text) AND (alternative_group_key IS NULL) AND (alternative_group_label IS NULL)) OR (((membership_kind)::text = 'alternative'::text) AND (alternative_group_key IS NOT NULL) AND (alternative_group_label IS NOT NULL)))),
+    CONSTRAINT service_offer_source_bindings_description_provenance CHECK (((client_description_provenance)::text = ANY ((ARRAY['source_description'::character varying, 'staff_entered'::character varying, 'none'::character varying])::text[]))),
+    CONSTRAINT service_offer_source_bindings_group_key CHECK (((alternative_group_key IS NULL) OR ((btrim((alternative_group_key)::text) <> ''::text) AND (char_length((alternative_group_key)::text) <= 80)))),
+    CONSTRAINT service_offer_source_bindings_group_label CHECK (((alternative_group_label IS NULL) OR ((btrim((alternative_group_label)::text) <> ''::text) AND (char_length((alternative_group_label)::text) <= 160)))),
+    CONSTRAINT service_offer_source_bindings_membership_kind CHECK (((membership_kind)::text = ANY ((ARRAY['required'::character varying, 'alternative'::character varying])::text[]))),
+    CONSTRAINT service_offer_source_bindings_occurrence_definition_pair CHECK (((service_occurrence_id IS NULL) = (service_occurrence_definition_id IS NULL))),
+    CONSTRAINT service_offer_source_bindings_pool_definition_pair CHECK (((capacity_pool_id IS NULL) = (capacity_pool_definition_id IS NULL))),
+    CONSTRAINT service_offer_source_bindings_pool_requires_occurrence_resource CHECK (((capacity_pool_id IS NULL) OR ((service_occurrence_id IS NOT NULL) AND (supplier_resource_id IS NOT NULL)))),
+    CONSTRAINT service_offer_source_bindings_position CHECK (("position" > 0)),
+    CONSTRAINT service_offer_source_bindings_resource_definition_pair CHECK (((supplier_resource_id IS NULL) = (supplier_resource_definition_id IS NULL))),
+    CONSTRAINT service_offer_source_bindings_title_provenance CHECK (((client_title_provenance)::text = ANY ((ARRAY['source_name'::character varying, 'staff_entered'::character varying])::text[])))
+);
+
+
+--
+-- Name: service_offer_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_versions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid NOT NULL,
+    version_number integer NOT NULL,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    abandoned_at timestamp with time zone,
+    abandoned_reason character varying(500),
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_versions_abandoned_pair CHECK (((((status)::text = 'abandoned'::text) AND (abandoned_at IS NOT NULL) AND (abandoned_reason IS NOT NULL)) OR (((status)::text <> 'abandoned'::text) AND (abandoned_at IS NULL) AND (abandoned_reason IS NULL)))),
+    CONSTRAINT service_offer_versions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT service_offer_versions_number_positive CHECK ((version_number > 0)),
+    CONSTRAINT service_offer_versions_reason CHECK (((abandoned_reason IS NULL) OR ((btrim((abandoned_reason)::text) <> ''::text) AND (char_length((abandoned_reason)::text) <= 500)))),
+    CONSTRAINT service_offer_versions_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'abandoned'::character varying, 'published'::character varying, 'superseded'::character varying, 'retired'::character varying])::text[])))
+);
+
+
+--
+-- Name: service_offers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    name character varying(160) NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offers_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT service_offers_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160)))
 );
 
 
@@ -4514,6 +4826,38 @@ ALTER TABLE ONLY public.service_occurrence_definitions
 
 ALTER TABLE ONLY public.service_occurrences
     ADD CONSTRAINT service_occurrences_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_definitions service_offer_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_definitions
+    ADD CONSTRAINT service_offer_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_versions service_offer_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_versions
+    ADD CONSTRAINT service_offer_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offers service_offers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offers
+    ADD CONSTRAINT service_offers_pkey PRIMARY KEY (id);
 
 
 --
@@ -7037,6 +7381,13 @@ CREATE UNIQUE INDEX index_item_definitions_on_exact_version_owner ON public.arra
 
 
 --
+-- Name: index_item_defs_on_offer_binding_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_item_defs_on_offer_binding_owner ON public.arrangement_item_definitions USING btree (id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: index_item_setup_results_on_idempotency_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7048,6 +7399,13 @@ CREATE UNIQUE INDEX index_item_setup_results_on_idempotency_key ON public.arrang
 --
 
 CREATE UNIQUE INDEX index_occurrence_definitions_on_exact_version_owner ON public.service_occurrence_definitions USING btree (service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_occurrence_defs_on_offer_binding_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_occurrence_defs_on_offer_binding_owner ON public.service_occurrence_definitions USING btree (id, service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -7097,6 +7455,13 @@ CREATE UNIQUE INDEX index_pln_ms_on_id_agency ON public.supplier_planning_milest
 --
 
 CREATE UNIQUE INDEX index_pln_ms_on_id_departure_agency ON public.supplier_planning_milestone_occurrences USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_pool_defs_on_offer_binding_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_pool_defs_on_offer_binding_owner ON public.capacity_pool_definitions USING btree (id, capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -7240,6 +7605,13 @@ CREATE UNIQUE INDEX index_resource_definitions_on_exact_version_owner ON public.
 
 
 --
+-- Name: index_resource_defs_on_offer_binding_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_resource_defs_on_offer_binding_owner ON public.supplier_resource_definitions USING btree (id, supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: index_service_occurrence_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7300,6 +7672,139 @@ CREATE UNIQUE INDEX index_service_occurrences_on_id_departure_agency ON public.s
 --
 
 CREATE UNIQUE INDEX index_service_occurrences_on_item_owner ON public.service_occurrences USING btree (id, arrangement_item_id, agency_id);
+
+
+--
+-- Name: index_service_offer_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_definitions_on_agency_id ON public.service_offer_definitions USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_definitions_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_definitions_on_full_owner ON public.service_offer_definitions USING btree (id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_offer_definitions_on_id_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_definitions_on_id_and_agency ON public.service_offer_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_service_offer_definitions_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_definitions_on_id_departure_agency ON public.service_offer_definitions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_offer_definitions_one_per_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_definitions_one_per_version ON public.service_offer_definitions USING btree (service_offer_version_id);
+
+
+--
+-- Name: index_service_offer_source_bindings_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_source_bindings_on_agency_id ON public.service_offer_source_bindings USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_source_bindings_on_id_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_source_bindings_on_id_and_agency ON public.service_offer_source_bindings USING btree (id, agency_id);
+
+
+--
+-- Name: index_service_offer_source_bindings_on_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_source_bindings_on_position ON public.service_offer_source_bindings USING btree (service_offer_version_id, "position");
+
+
+--
+-- Name: index_service_offer_source_bindings_on_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_source_bindings_on_version ON public.service_offer_source_bindings USING btree (service_offer_version_id, id);
+
+
+--
+-- Name: index_service_offer_versions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_versions_on_agency_id ON public.service_offer_versions USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_versions_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_versions_on_full_owner ON public.service_offer_versions USING btree (id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_offer_versions_on_id_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_versions_on_id_and_agency ON public.service_offer_versions USING btree (id, agency_id);
+
+
+--
+-- Name: index_service_offer_versions_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_versions_on_id_departure_agency ON public.service_offer_versions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_offer_versions_on_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_versions_on_number ON public.service_offer_versions USING btree (service_offer_id, version_number);
+
+
+--
+-- Name: index_service_offer_versions_one_draft; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_versions_one_draft ON public.service_offer_versions USING btree (service_offer_id) WHERE ((status)::text = 'draft'::text);
+
+
+--
+-- Name: index_service_offers_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offers_on_agency_id ON public.service_offers USING btree (agency_id);
+
+
+--
+-- Name: index_service_offers_on_departure_list; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offers_on_departure_list ON public.service_offers USING btree (agency_id, departure_id, name, id);
+
+
+--
+-- Name: index_service_offers_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offers_on_id_and_agency_id ON public.service_offers USING btree (id, agency_id);
+
+
+--
+-- Name: index_service_offers_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offers_on_id_departure_agency ON public.service_offers USING btree (id, departure_id, agency_id);
 
 
 --
@@ -8931,6 +9436,62 @@ CREATE TRIGGER service_occurrence_definitions_reject_owner_change BEFORE UPDATE 
 --
 
 CREATE TRIGGER service_occurrences_reject_owner_change BEFORE UPDATE ON public.service_occurrences FOR EACH ROW EXECUTE FUNCTION public.reject_service_occurrence_owner_change();
+
+
+--
+-- Name: service_offer_definitions service_offer_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_definitions service_offer_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_definitions_reject_owner_change BEFORE UPDATE ON public.service_offer_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_definition_owner_change();
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_reject_ancestry; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_source_bindings_reject_ancestry BEFORE INSERT OR UPDATE ON public.service_offer_source_bindings FOR EACH ROW EXECUTE FUNCTION public.reject_invalid_service_offer_source_binding_ancestry();
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_source_bindings_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_source_bindings FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_source_bindings_reject_owner_change BEFORE UPDATE ON public.service_offer_source_bindings FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_source_binding_owner_change();
+
+
+--
+-- Name: service_offer_versions service_offer_versions_reject_invalid_lifecycle; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_versions_reject_invalid_lifecycle BEFORE UPDATE ON public.service_offer_versions FOR EACH ROW EXECUTE FUNCTION public.reject_invalid_service_offer_version_lifecycle();
+
+
+--
+-- Name: service_offer_versions service_offer_versions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_versions_reject_owner_change BEFORE UPDATE ON public.service_offer_versions FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_version_owner_change();
+
+
+--
+-- Name: service_offers service_offers_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offers_reject_owner_change BEFORE UPDATE ON public.service_offers FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_owner_change();
 
 
 --
@@ -11540,6 +12101,14 @@ ALTER TABLE ONLY public.supplier_arrangement_endings
 
 
 --
+-- Name: service_offers fk_rails_709ec2c35a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offers
+    ADD CONSTRAINT fk_rails_709ec2c35a FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_commitment_trigger_definitions fk_rails_77637659d8; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -11553,6 +12122,14 @@ ALTER TABLE ONLY public.supplier_commitment_trigger_definitions
 
 ALTER TABLE ONLY public.client_organization_websites
     ADD CONSTRAINT fk_rails_7b1ea3ba3f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: service_offer_definitions fk_rails_7de5c104e1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_definitions
+    ADD CONSTRAINT fk_rails_7de5c104e1 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -11609,6 +12186,14 @@ ALTER TABLE ONLY public.supplier_contacts
 
 ALTER TABLE ONLY public.supplier_issued_identifiers
     ADD CONSTRAINT fk_rails_941feb8180 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: service_offer_versions fk_rails_94f540592f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_versions
+    ADD CONSTRAINT fk_rails_94f540592f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -11673,6 +12258,14 @@ ALTER TABLE ONLY public.supplier_cost_component_bases
 
 ALTER TABLE ONLY public.supplier_contact_phone_numbers
     ADD CONSTRAINT fk_rails_a8cbb23af8 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: service_offer_source_bindings fk_rails_acef93e6ae; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT fk_rails_acef93e6ae FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -12129,6 +12722,118 @@ ALTER TABLE ONLY public.service_occurrence_definitions
 
 ALTER TABLE ONLY public.service_occurrences
     ADD CONSTRAINT service_occurrences_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_definitions service_offer_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_definitions
+    ADD CONSTRAINT service_offer_definitions_version_fk FOREIGN KEY (service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_versions(id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_arrangement_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_arrangement_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_item_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_item_definition_fk FOREIGN KEY (arrangement_item_definition_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_item_definitions(id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_occurrence_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_occurrence_definition_fk FOREIGN KEY (service_occurrence_definition_id, service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrence_definitions(id, service_occurrence_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_occurrence_fk FOREIGN KEY (service_occurrence_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrences(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_pool_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_pool_definition_fk FOREIGN KEY (capacity_pool_definition_id, capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pool_definitions(id, capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_pool_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_pool_fk FOREIGN KEY (capacity_pool_id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pools(id, service_occurrence_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_resource_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_resource_definition_fk FOREIGN KEY (supplier_resource_definition_id, supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_resource_definitions(id, supplier_resource_id, arrangement_item_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_resource_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_resource_fk FOREIGN KEY (supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_resources(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_source_bindings service_offer_source_bindings_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_source_bindings
+    ADD CONSTRAINT service_offer_source_bindings_version_fk FOREIGN KEY (service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_versions(id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_versions service_offer_versions_offer_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_versions
+    ADD CONSTRAINT service_offer_versions_offer_fk FOREIGN KEY (service_offer_id, departure_id, agency_id) REFERENCES public.service_offers(id, departure_id, agency_id);
+
+
+--
+-- Name: service_offers service_offers_departure_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offers
+    ADD CONSTRAINT service_offers_departure_agency_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
 
 
 --
@@ -12762,6 +13467,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260920140000'),
 ('20260920030000'),
 ('20260920020000'),
 ('20260920010000'),

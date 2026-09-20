@@ -22,6 +22,7 @@ class ArrangementItemDefinition < ApplicationRecord
   belongs_to :supplier_arrangement_version
   belongs_to :arrangement_item
   belongs_to :default_service_provider, class_name: "Supplier", optional: true
+  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
 
   enum :capacity_management, CAPACITY_MANAGEMENT.index_by(&:itself), validate: { allow_nil: true }
 

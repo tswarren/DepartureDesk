@@ -53,6 +53,10 @@ class Agency < ApplicationRecord
   has_many :supplier_reservation_event_scope_outcomes, dependent: :restrict_with_exception
   has_many :supplier_reservation_projections, dependent: :restrict_with_exception
   has_many :supplier_attention_findings, dependent: :restrict_with_exception
+  has_many :service_offers, dependent: :restrict_with_exception
+  has_many :service_offer_versions, dependent: :restrict_with_exception
+  has_many :service_offer_definitions, dependent: :restrict_with_exception
+  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

@@ -10,6 +10,7 @@ class SupplierResourceDefinition < ApplicationRecord
   belongs_to :supplier_arrangement_version
   belongs_to :arrangement_item
   belongs_to :supplier_resource
+  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id,
     :supplier_arrangement_version_id, :arrangement_item_id, :supplier_resource_id

@@ -16,6 +16,7 @@ class ServiceOccurrence < ApplicationRecord
   has_many :capacity_reconciliation_resolutions, dependent: :restrict_with_exception
   has_many :supplier_cost_sources, dependent: :restrict_with_exception
   has_many :supplier_cost_usage_assumptions, dependent: :restrict_with_exception
+  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "planned"
 

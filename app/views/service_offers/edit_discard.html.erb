@@ -1,0 +1,28 @@
+<% content_for :title, "Discard service offer · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title">Discard draft</h1>
+    <p class="dd-page-description"><%= @service_offer.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <p>Discarding version <%= @service_offer_version.version_number %> records it as abandoned history. The version number is never reused. Definitions and bindings freeze.</p>
+    <%= form_with url: discard_departure_service_offer_path(@departure, @service_offer), method: :post, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: @service_offer_version %>
+      <%= hidden_field_tag :offer_lock_version, @service_offer.lock_version %>
+      <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+      <div class="dd-field-group">
+        <%= label_tag :reason, "Reason", class: "dd-label" %>
+        <%= text_area_tag :reason, @discard_reason, maxlength: ServiceOfferVersion::ABANDONED_REASON_LIMIT, required: true, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Discard draft", class: "dd-button dd-button--danger" %>
+        <%= link_to "Cancel", departure_service_offer_path(@departure, @service_offer), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

@@ -18,6 +18,7 @@ class ArrangementItem < ApplicationRecord
   has_many :supplier_cost_usage_assumptions, dependent: :restrict_with_exception
   has_many :supplier_cost_occupancy_profiles, dependent: :restrict_with_exception
   has_many :supplier_cost_occupancy_profile_positions, dependent: :restrict_with_exception
+  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id
 end

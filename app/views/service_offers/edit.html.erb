@@ -1,0 +1,47 @@
+<% content_for :title, "Edit service offer · DepartureDesk" %>
+<% definition = @service_offer_definition %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title">Edit service offer</h1>
+    <p class="dd-page-description"><%= @service_offer.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @service_offer, url: departure_service_offer_path(@departure, @service_offer), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+      <div class="dd-field-group">
+        <%= form.label :name, "Staff display name", class: "dd-label" %>
+        <%= form.text_field :name, maxlength: ServiceOffer::NAME_LIMIT, required: true, **dd_field_options(form, :name) %>
+        <%= dd_field_error(form, :name) %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :client_title, "Client-facing title", class: "dd-label" %>
+        <%= form.text_field :client_title, value: definition&.client_title, maxlength: ServiceOfferDefinition::TITLE_LIMIT, required: true, **dd_field_options(form, :client_title) %>
+        <%= dd_field_error(form, :client_title) %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :client_description, "Client-facing description", class: "dd-label" %>
+        <%= form.text_area :client_description, value: definition&.client_description, maxlength: ServiceOfferDefinition::DESCRIPTION_LIMIT, **dd_field_options(form, :client_description) %>
+        <%= dd_field_error(form, :client_description) %>
+      </div>
+      <% if definition&.m3_backed? %>
+        <div class="dd-field-group">
+          <label class="dd-choice">
+            <%= form.check_box :refresh_bindings %>
+            <span>Refresh bound definition IDs from the same source identities. Keep this Client text.</span>
+          </label>
+        </div>
+      <% end %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save draft", class: "dd-button" %>
+        <%= link_to "Cancel", departure_service_offer_path(@departure, @service_offer), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

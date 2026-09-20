@@ -30,6 +30,10 @@ class Departure < ApplicationRecord
   has_many :supplier_deadline_occurrences, dependent: :restrict_with_exception
   has_many :supplier_commitments, dependent: :restrict_with_exception
   has_many :supplier_issued_identifiers, dependent: :restrict_with_exception
+  has_many :service_offers, dependent: :restrict_with_exception
+  has_many :service_offer_versions, dependent: :restrict_with_exception
+  has_many :service_offer_definitions, dependent: :restrict_with_exception
+  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 

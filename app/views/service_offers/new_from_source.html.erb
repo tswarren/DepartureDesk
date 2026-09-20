@@ -1,0 +1,98 @@
+<% content_for :title, "Add service from Supplier planning · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title">Add service from Supplier planning</h1>
+    <p class="dd-page-description"><%= @departure.name %>. Dates, provider, category, currency, and capacity are read from the selected source. Publication will require a current activated version.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: from_source_departure_service_offers_path(@departure), method: :get, class: "dd-form" do %>
+      <div class="dd-field-group">
+        <%= label_tag :q, "Search this Departure", class: "dd-label" %>
+        <%= search_field_tag :q, @query, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Search sources", class: "dd-button" %>
+      </div>
+    <% end %>
+
+    <%= form_with model: @service_offer, url: from_source_departure_service_offers_path(@departure), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <%= hidden_field_tag :q, @query %>
+
+      <fieldset class="dd-field-group">
+        <legend class="dd-label">Source</legend>
+        <% if @search.records.any? %>
+          <% @search.records.each do |candidate| %>
+            <% selected = @selected == candidate %>
+            <label class="dd-choice">
+              <%= radio_button_tag "service_offer[source_key]",
+                offer_source_key(candidate),
+                selected,
+                class: "dd-radio",
+                required: true %>
+              <span>
+                <%= offer_source_candidate_label(candidate) %>
+                <% if candidate.tentative %>
+                  <span class="dd-field-hint">Tentative draft. M4D publication still needs an activated pin.</span>
+                <% end %>
+                <% if candidate.occurrence_definition %>
+                  <span class="dd-field-hint"><%= candidate.occurrence_definition.starts_on %>–<%= candidate.occurrence_definition.ends_on %> · <%= candidate.occurrence_definition.time_zone %></span>
+                <% end %>
+                <% if candidate.pool %>
+                  <span class="dd-field-hint">Pool mode <%= candidate.pool.inventory_mode.humanize %></span>
+                <% end %>
+              </span>
+            </label>
+          <% end %>
+        <% else %>
+          <p class="<%= empty_state_classes.join(" ") %>">No matching Items, Occurrences, or Resources on this Departure.</p>
+        <% end %>
+      </fieldset>
+
+      <div class="dd-field-group">
+        <%= form.label :client_title, "Client-facing title", class: "dd-label" %>
+        <%= form.text_field :client_title, value: @service_offer.client_title.presence || @service_offer.name, maxlength: ServiceOfferDefinition::TITLE_LIMIT, required: true, **dd_field_options(form, :client_title) %>
+        <%= dd_field_error(form, :client_title) %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :name, "Staff display name", class: "dd-label" %>
+        <%= form.text_field :name, maxlength: ServiceOffer::NAME_LIMIT, **dd_field_options(form, :name) %>
+        <p class="dd-field-hint">Defaults to the Client title. This is not a generated reference.</p>
+        <%= dd_field_error(form, :name) %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :client_description, "Client-facing description", class: "dd-label" %>
+        <%= form.text_area :client_description, maxlength: ServiceOfferDefinition::DESCRIPTION_LIMIT, **dd_field_options(form, :client_description) %>
+        <%= dd_field_error(form, :client_description) %>
+      </div>
+
+      <% if @selected %>
+        <dl class="dd-definition-list">
+          <div>
+            <dt>Operating currency</dt>
+            <dd><%= @departure.operating_currency.presence || "—" %></dd>
+          </div>
+          <div>
+            <dt>Category</dt>
+            <dd><%= @selected.item_definition.category.humanize %></dd>
+          </div>
+          <div>
+            <dt>Effective provider</dt>
+            <dd><%= supplier_option_label(@selected.effective_provider) %></dd>
+          </div>
+        </dl>
+      <% end %>
+
+      <div class="dd-form-actions">
+        <%= form.submit "Save draft", class: "dd-button", disabled: @search.records.empty? %>
+        <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

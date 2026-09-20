@@ -1,0 +1,70 @@
+<% content_for :title, "Add source · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title">Add source</h1>
+    <p class="dd-page-description"><%= @service_offer.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: new_departure_service_offer_source_binding_path(@departure, @service_offer), method: :get, class: "dd-form" do %>
+      <div class="dd-field-group">
+        <%= label_tag :q, "Search this Departure", class: "dd-label" %>
+        <%= search_field_tag :q, @query, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Search sources", class: "dd-button" %>
+      </div>
+    <% end %>
+
+    <%= form_with url: departure_service_offer_source_bindings_path(@departure, @service_offer), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: @service_offer %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+      <%= hidden_field_tag :q, @query %>
+      <fieldset class="dd-field-group">
+        <legend class="dd-label">Source</legend>
+        <% if @search.records.any? %>
+          <% @search.records.each do |candidate| %>
+            <label class="dd-choice">
+              <%= radio_button_tag "service_offer_source_binding[source_key]",
+                offer_source_key(candidate),
+                false,
+                class: "dd-radio",
+                required: true %>
+              <span>
+                <%= offer_source_candidate_label(candidate) %>
+                <% if candidate.tentative %>
+                  <span class="dd-field-hint">Tentative draft</span>
+                <% end %>
+              </span>
+            </label>
+          <% end %>
+        <% else %>
+          <p class="<%= empty_state_classes.join(" ") %>">No matching sources.</p>
+        <% end %>
+      </fieldset>
+      <div class="dd-field-group">
+        <%= label_tag "service_offer_source_binding_membership_kind", "Membership", class: "dd-label" %>
+        <%= select_tag "service_offer_source_binding[membership_kind]",
+          options_for_select([ [ "Required", "required" ], [ "Alternative", "alternative" ] ], "required"),
+          class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= label_tag "service_offer_source_binding_alternative_group_key", "Alternative group key", class: "dd-label" %>
+        <%= text_field_tag "service_offer_source_binding[alternative_group_key]", nil, maxlength: ServiceOfferSourceBinding::GROUP_KEY_LIMIT, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= label_tag "service_offer_source_binding_alternative_group_label", "Alternative group label", class: "dd-label" %>
+        <%= text_field_tag "service_offer_source_binding[alternative_group_label]", nil, maxlength: ServiceOfferSourceBinding::GROUP_LABEL_LIMIT, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Add source", class: "dd-button", disabled: @search.records.empty? %>
+        <%= link_to "Cancel", departure_service_offer_path(@departure, @service_offer), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>
