@@ -20,7 +20,9 @@ class EvaluateSupplierCostOccupancyPreview
     @resource_definition = resource_definition
   end
 
-  def call
+  # Pass +precomputed+ from EvaluateSupplierCostForecast#call_for_definition_review
+  # to avoid a second cost-graph preload on the review path.
+  def call(precomputed: nil)
     context_label = exact_context_label
     unless @source.arrangement_item_id
       return empty_result(
@@ -51,7 +53,7 @@ class EvaluateSupplierCostOccupancyPreview
       )
     end
 
-    preview = EvaluateSupplierCostForecast.new(
+    preview = precomputed || EvaluateSupplierCostForecast.new(
       agency: @agency,
       departure: @departure,
       arrangement: @arrangement,

@@ -190,6 +190,8 @@ class M3CSupplierCostsRequestTest < ActionDispatch::IntegrationTest
     sign_in_as @admin
     get departure_arrangement_item_costs_workspace_path(@departure, @arrangement, item)
     assert_response :success
+    assert_select "[data-controller='exclusive-details']", count: 1
+    assert_select "details[name^='occupancy-profile-']", minimum: 1
     assert_select "summary", text: "Edit occupancy profile", count: 1
     assert_select "button[type=submit]", text: "Remove occupancy profile", count: 1
     assert_select "form[action=?]", departure_arrangement_item_cost_assumption_occupancy_profile_path(

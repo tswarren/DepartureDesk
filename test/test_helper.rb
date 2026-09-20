@@ -7,6 +7,7 @@ require_relative "test_helpers/m2_departure_scenario"
 require_relative "support/capacity_graph_helper"
 require_relative "support/capacity_activated_graph_helper"
 require_relative "support/m3c_cost_scenario_helper"
+require_relative "support/m3f_scenario_helper"
 
 module ActiveSupport
   class TestCase

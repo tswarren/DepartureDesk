@@ -587,6 +587,13 @@ end.select { |row| row.present? } %>
                         **dd_tag_field_options(@command_form, :"capacity_consequences_#{index}_supplier_reservation_scope_id",
                           id: "capacity_consequences_#{index}_supplier_reservation_scope_id") %>
                     </div>
+                    <div class="dd-page-actions">
+                      <button type="button" class="dd-button dd-button--quiet"
+                        data-action="reservation-response-fields#removeCapacity"
+                        aria-label="Remove capacity consequence <%= index + 1 %>">
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 <% end %>
               </div>
@@ -626,6 +633,13 @@ end.select { |row| row.present? } %>
                         <option value="<%= scope.id %>"><%= scope.label.presence || scope.target_kind.humanize %></option>
                       <% end %>
                     </select>
+                  </div>
+                  <div class="dd-page-actions">
+                    <button type="button" class="dd-button dd-button--quiet"
+                      data-action="reservation-response-fields#removeCapacity"
+                      aria-label="Remove capacity consequence __INDEX_DISPLAY__">
+                      Remove
+                    </button>
                   </div>
                 </div>
               </template>

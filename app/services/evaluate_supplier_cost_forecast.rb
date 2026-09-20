@@ -39,12 +39,26 @@ class EvaluateSupplierCostForecast
     @version = version
   end
 
+  DefinitionReviewBundle = Data.define(:forecast, :occupancy_preview)
+
   def call(isolated: true)
     if isolated
       with_readonly_preload { calculate }
     else
       preload!
       calculate
+    end
+  end
+
+  # Cost-definition review needs forecast + occupancy illustration. One preload
+  # serves both so the review path does not double-load the cost graph.
+  def call_for_definition_review(source:, assumption:)
+    with_readonly_preload do
+      occupancy = assumption && build_occupancy_preview(source: source, assumption: assumption)
+      DefinitionReviewBundle.new(
+        forecast: calculate,
+        occupancy_preview: occupancy
+      )
     end
   end
 

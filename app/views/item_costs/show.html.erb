@@ -118,6 +118,8 @@
             persons: <%= assumption.expected_persons.nil? ? "unknown" : assumption.expected_persons %>;
             nights: <%= assumption.expected_billable_nights.nil? ? "unknown" : assumption.expected_billable_nights %>
           </p>
+          <% occupancy_editor_group = "occupancy-profile-#{assumption.id}" %>
+          <div data-controller="exclusive-details" data-exclusive-details-group-value="<%= occupancy_editor_group %>">
           <% assumption.supplier_cost_occupancy_profiles.sort_by(&:position).each do |profile| %>
             <% profile_positions = profile.supplier_cost_occupancy_profile_positions.sort_by(&:occupancy_position) %>
             <div id="profile-<%= profile.id %>" class="dd-stack">
@@ -129,7 +131,7 @@
                     }.join(", ") %>
               </p>
               <% if editable && @categories.any? %>
-                <details>
+                <details name="<%= occupancy_editor_group %>">
                   <summary>Edit occupancy profile</summary>
                   <%= form_with url: departure_arrangement_item_cost_assumption_occupancy_profile_path(
                         @departure, @supplier_arrangement, @arrangement_item, assumption, profile
@@ -172,7 +174,7 @@
             </div>
           <% end %>
           <% if editable && @categories.any? %>
-            <details>
+            <details name="<%= occupancy_editor_group %>">
               <summary>Add occupancy profile</summary>
               <%= form_with url: departure_arrangement_item_cost_assumption_occupancy_profiles_path(@departure, @supplier_arrangement, @arrangement_item, assumption), method: :post, class: "dd-form" do |form| %>
                 <%= form.hidden_field :idempotency_key, value: SecureRandom.uuid %>
@@ -196,6 +198,7 @@
               <% end %>
             </details>
           <% end %>
+          </div>
           <% if editable %>
             <div class="dd-inline-actions">
               <%= button_to "Remove assumption", departure_arrangement_item_cost_assumption_path(@departure, @supplier_arrangement, @arrangement_item, assumption),

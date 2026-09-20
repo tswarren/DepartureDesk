@@ -15,10 +15,11 @@ class SupplierCostDefinitionReviewsController < ApplicationController
         service_occurrence_id: @supplier_cost_source.service_occurrence_id,
         supplier_resource_id: @supplier_cost_source.supplier_resource_id
       )
-    forecast = EvaluateSupplierCostForecast.new(
+    review_bundle = EvaluateSupplierCostForecast.new(
       agency: Current.agency, departure: @departure, arrangement: @supplier_arrangement,
       probe_definition: @supplier_cost_definition
-    ).call
+    ).call_for_definition_review(source: @supplier_cost_source, assumption: @assumption)
+    forecast = review_bundle.forecast
     @review = forecast.arrangements.first.sources.find do |source|
       source.source_id == @supplier_cost_source.id
     end
@@ -45,12 +46,12 @@ class SupplierCostDefinitionReviewsController < ApplicationController
     end
     @review_blockers.uniq!
     @editable = cost_source_ordinary_editable?(@supplier_cost_source)
-    assign_occupancy_preview
+    assign_occupancy_preview(precomputed: review_bundle.occupancy_preview)
   end
 
   private
 
-  def assign_occupancy_preview
+  def assign_occupancy_preview(precomputed:)
     occurrence_definition = if @supplier_cost_source.service_occurrence_id && @arrangement_item
       @supplier_arrangement_version.service_occurrence_definitions.find_by(
         arrangement_item_id: @arrangement_item.id,
@@ -73,7 +74,7 @@ class SupplierCostDefinitionReviewsController < ApplicationController
       item_definition: @arrangement_item_definition,
       occurrence_definition: occurrence_definition,
       resource_definition: resource_definition
-    ).call
+    ).call(precomputed: precomputed)
     @planning_quantities_path = if @arrangement_item && @assumption
       departure_arrangement_item_costs_workspace_path(
         @departure, @supplier_arrangement, @arrangement_item, anchor: "assumption-#{@assumption.id}"
