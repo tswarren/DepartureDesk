@@ -54,11 +54,10 @@ class EvaluateSupplierCostForecast
   # serves both so the review path does not double-load the cost graph.
   def call_for_definition_review(source:, assumption:)
     with_readonly_preload do
+      occupancy = assumption && build_occupancy_preview(source: source, assumption: assumption)
       DefinitionReviewBundle.new(
         forecast: calculate,
-        occupancy_preview: if assumption
-          build_occupancy_preview(source: source, assumption: assumption)
-        end
+        occupancy_preview: occupancy
       )
     end
   end

@@ -69,8 +69,11 @@ export default class extends Controller {
     event.preventDefault()
     if (!this.hasCapacityTemplateTarget || !this.hasCapacityListTarget) return
     const index = this.capacityListTarget.querySelectorAll("[data-capacity-row]").length
-    const html = this.capacityTemplateTarget.innerHTML.replaceAll("__INDEX__", String(index))
+    const html = this.capacityTemplateTarget.innerHTML
+      .replaceAll("__INDEX__", String(index))
+      .replaceAll("__INDEX_DISPLAY__", String(index + 1))
     this.capacityListTarget.insertAdjacentHTML("beforeend", html)
+    this.reindexCapacityRows()
     const rows = this.capacityRows()
     const newRow = rows[rows.length - 1]
     this.focusCapacityRow(newRow)
@@ -137,6 +140,10 @@ export default class extends Controller {
             /capacity_consequences_\d+_/,
             `capacity_consequences_${index}_`
           )
+        }
+        const ariaLabel = element.getAttribute("aria-label")
+        if (ariaLabel && ariaLabel.startsWith("Remove capacity consequence")) {
+          element.setAttribute("aria-label", `Remove capacity consequence ${index + 1}`)
         }
       })
     })

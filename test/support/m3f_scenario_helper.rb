@@ -16,14 +16,19 @@ module M3fScenarioHelper
     supplier = create_capacity_supplier(@agency, "#{prefix} Supplier")
     departure = create_capacity_departure(@agency, name: departure_name, status: "draft")
     departure.update!(
-      status: "active",
-      departure_reference: "D-#{SecureRandom.random_number(900_000) + 100_000}",
-      first_activated_at: Time.current,
       starts_on:,
       ends_on:,
       time_zone: "America/New_York",
       operating_currency: "USD"
     )
+    ActivateDeparture.new(
+      agency: @agency, actor:, departure:, lock_version: departure.lock_version
+    ).call
+    departure.reload
+    assert_equal "active", departure.status
+    assert departure.departure_reference.present?
+    assert_not_nil departure.first_activated_at
+
     graph = create_capacity_graph(
       agency: @agency, departure:,
       contractor: supplier, provider: supplier,
@@ -35,26 +40,32 @@ module M3fScenarioHelper
   end
 
   def m3f_create_ready_cost!(graph)
-    SupplierCostSource.create!(
-      agency: @agency, departure: graph[:departure],
-      supplier_arrangement: graph[:arrangement],
-      supplier_arrangement_version: graph[:version],
-      arrangement_item: graph[:item],
-      charging_supplier: graph[:supplier],
-      label: "#{graph[:arrangement].name} zero cost", position: 1
-    ).tap do |source|
-      SupplierCostDefinition.create!(
-        agency: @agency, departure: graph[:departure],
-        supplier_arrangement: graph[:arrangement],
-        supplier_arrangement_version: graph[:version],
-        supplier_cost_source: source,
-        stage: "contracted", status: "forecast_ready", mode: "zero_cost",
-        zero_cost_reason: "Included", currency: "USD",
-        forecast_ready_by: graph[:actor] || @actor, forecast_ready_at: Time.current,
-        readiness_fingerprint: "sha256:#{SecureRandom.hex(8)}",
-        readiness_provenance: "Signed"
-      )
-    end
+    actor = graph[:actor] || @actor
+    source = CreateSupplierCostSource.new(
+      agency: @agency, actor:, arrangement: graph[:arrangement],
+      version_lock_version: graph[:version].reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        arrangement_item_id: graph[:item].id,
+        charging_supplier_id: graph[:supplier].id,
+        label: "#{graph[:arrangement].name} zero cost"
+      }
+    ).call.record
+    definition = CreateSupplierCostDefinition.new(
+      agency: @agency, actor:, source:,
+      source_lock_version: source.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        stage: "contracted", mode: "zero_cost", zero_cost_reason: "Included",
+        currency: "USD"
+      }
+    ).call.record
+    MarkCostDefinitionForecastReady.new(
+      agency: @agency, actor:, definition: definition.reload,
+      lock_version: definition.lock_version,
+      readiness_provenance: "M3F.2 command-driven readiness"
+    ).call
+    source.reload
   end
 
   def m3f_create_confirmation_trigger!(graph, description: "Confirm", fixed_quantity: 1)
@@ -73,7 +84,7 @@ module M3fScenarioHelper
     )
   end
 
-  def m3f_activate!(graph)
+  def m3f_activate!(graph, elapsed_deadlines_acknowledged: false)
     actor = graph[:actor] || @actor
     ActivateSupplierArrangementVersion.new(
       agency: @agency, actor:, arrangement: graph[:arrangement],
@@ -89,8 +100,126 @@ module M3fScenarioHelper
       cost_source_coverage_acknowledged: true,
       provisional_costs_acknowledged: true,
       commitment_trigger_coverage_acknowledged: true,
-      elapsed_deadlines_acknowledged: false
+      elapsed_deadlines_acknowledged:
     ).call
+  end
+
+  # Second Arrangement on an already-activated Departure (distinct contracting Supplier).
+  def m3f_secondary_arrangement_graph!(departure:, supplier_name:, prefix:,
+    capacity_management: "unmanaged", starts_on: nil, ends_on: nil, actor: nil)
+    actor ||= @actor
+    supplier = create_capacity_supplier(@agency, supplier_name)
+    graph = create_capacity_graph(
+      agency: @agency, departure:,
+      contractor: supplier, provider: supplier,
+      prefix:, capacity_management:
+    ).merge(supplier:, departure:, actor:)
+    if starts_on
+      graph[:occurrence_definition].update!(starts_on:, ends_on: ends_on || starts_on)
+    end
+    m3f_create_ready_cost!(graph)
+    graph[:trigger] = m3f_create_confirmation_trigger!(graph)
+    graph
+  end
+
+  def m3f_add_numeric_pool!(graph, quantity:, measurement_basis: "resource_units", label: "Guaranteed rooms")
+    graph[:item_definition].update!(capacity_management: "managed")
+    pair = classify_capacity_graph_pair(graph)
+    pool = CapacityPool.create!(
+      agency: @agency, departure: graph[:departure],
+      supplier_arrangement: graph[:arrangement],
+      arrangement_item: graph[:item],
+      service_occurrence: graph[:occurrence],
+      supplier_resource: graph[:resource],
+      supplying_supplier: graph[:supplier],
+      inventory_mode: "block", measurement_basis:,
+      effective_time_zone: "America/New_York"
+    )
+    CapacityPoolDefinition.create!(
+      agency: @agency, departure: graph[:departure],
+      supplier_arrangement: graph[:arrangement],
+      supplier_arrangement_version: graph[:version],
+      arrangement_item: graph[:item],
+      service_occurrence: graph[:occurrence],
+      supplier_resource: graph[:resource],
+      capacity_pair_definition: pair, capacity_pool: pool,
+      label:, normalized_label: label.downcase,
+      unit_label: measurement_basis == "traveler_positions" ? "seats" : "rooms",
+      proposed_opening_quantity: quantity,
+      evidence_kind: "contract", evidence_on: Date.current,
+      evidence_reference_note: "#{label} block", override: false, position: 1
+    )
+    pool
+  end
+
+  def m3f_record_confirmed_response!(graph, reservation:, scope:, capacity_consequences: [])
+    actor = graph[:actor] || @actor
+    RecordSupplierReservationResponse.new(
+      agency: @agency, actor:, reservation: reservation.reload,
+      attributes: {
+        channel: "portal",
+        reference_note: "Confirmed",
+        outcomes: { scope.id => { outcome_kind: "confirmed" } },
+        evidence: {
+          evidence_kind: "supplier_confirmation",
+          evidence_on: Date.current,
+          channel: "portal",
+          reference_note: "Confirmed",
+          confirmed_without_identifier_reason: "Portal"
+        },
+        capacity_consequences:
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call
+  end
+
+  def m3f_end_arrangement!(graph)
+    actor = graph[:actor] || @actor
+    CapacityPool.where(supplier_arrangement_id: graph[:arrangement].id).find_each do |pool|
+      projection = CapacityProjection.find_by(
+        agency_id: @agency.id, capacity_pool_id: pool.id, supplier_arrangement_id: graph[:arrangement].id
+      )
+      next if projection.nil? || projection.current_supplier_capacity.to_i <= 0
+
+      WithdrawCapacity.new(
+        agency: @agency, actor:, pool:,
+        quantity: projection.current_supplier_capacity,
+        projection_lock_version: projection.lock_version,
+        idempotency_key: SecureRandom.uuid,
+        effective_on: Date.current,
+        attributes: {
+          evidence_kind: "contract",
+          evidence_on: Date.current,
+          evidence_reference_note: "M3F.2 withdraw before ending"
+        }
+      ).call
+    end
+
+    preview = PreviewEndSupplierArrangement.new(
+      agency: @agency, actor:, arrangement: graph[:arrangement].reload,
+      selected_cascade_keys: [],
+      ending_reason: "planning_concluded"
+    ).call
+    payload = preview.record.payload
+    selected = Array(payload["selected_cascade_keys"])
+    if payload.fetch("blockers").any?
+      selected = payload.fetch("cascades").map { |row| row["key"] }
+      preview = PreviewEndSupplierArrangement.new(
+        agency: @agency, actor:, arrangement: graph[:arrangement],
+        selected_cascade_keys: selected,
+        ending_reason: "planning_concluded"
+      ).call
+      payload = preview.record.payload
+    end
+    assert payload.fetch("blockers").empty?, payload.fetch("blockers").inspect
+    EndSupplierArrangement.new(
+      agency: @agency, actor:, arrangement: graph[:arrangement],
+      preview_token: preview.raw_token,
+      idempotency_key: SecureRandom.uuid,
+      selected_cascade_keys: Array(payload["selected_cascade_keys"]),
+      ending_reason: "planning_concluded"
+    ).call
+    graph[:arrangement].reload
   end
 
   def m3f_deposit_attrs(**overrides)
@@ -144,6 +273,7 @@ module M3fScenarioHelper
   # Confirmed M3C O1 per-person components (USD minor units).
   def m3f_create_celebrity_o1_cost!(graph)
     actor = graph[:actor] || @actor
+    graph[:version].reload
     category = CreateSupplierCostParticipantCategory.new(
       agency: @agency, actor:, arrangement_item: graph[:item],
       version_lock_version: graph[:version].lock_version, idempotency_key: SecureRandom.uuid,

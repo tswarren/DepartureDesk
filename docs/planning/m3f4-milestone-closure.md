@@ -12,19 +12,19 @@ M3 is complete when every parent exit criterion maps to shipped evidence. This i
 | --- | --- | --- |
 | 1 | M3A–M3F accepted, implemented, merged, documented shipped | Slice plans shipped; this M3F contract + M3F.1–.4 implementation |
 | 2 | Departure remains operational root; no Travel Program | `m3f3_hardening_gate_test` asserts no `travel_programs` table; AGENTS/architecture |
-| 3 | Draft planning, activation rules, return-to-draft latch, immutable versions | `m3f2_integrated_scenario_journeys_test` draft block + activation latch |
-| 4 | Distinct Arrangement / Item / Occurrence / Resource / Pool / Reservation / confirmation / terms / commitment / deposit / Deadline meanings | M3A–M3E shipped + M3F.2 composition |
-| 5 | Contracting Supplier and Service Provider provenance | Shipped M3A/M3D; M3F.2 uses contracting Supplier graph |
-| 6 | Capacity explicit, event-backed, rebuildable, race-safe, commitment-independent | M3B/M3D + Vineyard 30-seat Pool in M3F.2; M3E.7b race baseline |
+| 3 | Draft planning, activation rules, return-to-draft latch, immutable versions | `m3f2_integrated_scenario_journeys_test` — `ActivateDeparture` audit/reference, Arrangement activation with elapsed ack, return-to-draft latch, successor draft |
+| 4 | Distinct Arrangement / Item / Occurrence / Resource / Pool / Reservation / confirmation / terms / commitment / deposit / Deadline meanings | Separate Celebrity / Hilton / transfer Arrangements in M3F.2; Vineyard Reservation + Pool + ending |
+| 5 | Contracting Supplier and Service Provider provenance | Shipped M3A/M3D; M3F.2 uses distinct contracting Suppliers per Arrangement |
+| 6 | Capacity explicit, event-backed, rebuildable, race-safe, commitment-independent | Hilton/Vineyard capacity consequences + withdraw-before-ending; M3E.7b race baseline |
 | 7 | No Client Holds, Allocations, occupancy, or fulfillment | `m3f_assert_no_client_commercial_tables!` |
 | 8 | Forecast one supported stage; explainable | M3C + M3F.2 O1/excursion/Vineyard forecasts |
-| 9 | Commitments and deposits without payable or payment | M3F.2 Celebrity deposits; no `payments` table |
-| 10 | Deadline workflow without automatic reminders | M3E.2 + M3F.2 informational Deadlines |
-| 11 | Exposure always qualified; no fabricated Agency cash at risk | M3E.4 + M3F.2/M3F.3 forecast bands |
+| 9 | Commitments and deposits without payable or payment | M3F.2 Celebrity deposits + dispositions; no `payments` table |
+| 10 | Deadline workflow without automatic reminders | M3E.2 + M3F.2 informational Deadlines + elapsed acknowledgment |
+| 11 | Exposure always qualified; no fabricated Agency cash at risk | M3E.4 + M3F.2/M3F.3 forecast bands / rebuild |
 | 12 | Inactivation blockers and forced Administrator path | Shipped M3E.1 |
-| 13 | Celebrity + Vineyard without subclasses or guessed facts | Fixture ledger + M3F.2 ledger-labeled assertions |
-| 14 | Tenancy, auth, audit, idempotency, concurrency, performance, a11y, regression | M3F.1 viewports; M3F.3 hardening; M3E.7b baseline; CI |
-| 15 | Documentation marks M3 complete and M4 next / unimplemented | This closure + README, roadmap, AGENTS, architecture, terminology updates |
+| 13 | Celebrity + Vineyard without subclasses or guessed facts | Fixture ledger (agreement deposit 2026-09-20; 60/30 rooming/legal); M3F.2 ledger-labeled assertions |
+| 14 | Tenancy, auth, audit, idempotency, concurrency, performance, a11y, regression | M3F.1 aria/reindex + viewports; M3F.3 hardening; M3E.7b baseline; **CI green required on merge tip** |
+| 15 | Documentation marks M3 complete and M4 next / unimplemented | This closure + index updates; merge only with green CI |
 
 ## Documentation reconciled on close
 
@@ -37,6 +37,6 @@ M3 is complete when every parent exit criterion maps to shipped evidence. This i
 - [`AGENTS.md`](../../AGENTS.md)
 - [`docs/ui/interface-contract.md`](../ui/interface-contract.md) (no ahead-of-code claims)
 
-## Next
+## Finding note (PR #109 review)
 
-M4 may treat M3 Supplier planning as the source foundation. Packages, Client prices/choices, Holds/Allocations, Obligations/Payments, Travel Program, remittance, and FX remain unimplemented until an accepted M4 slice plan names that work.
+M3F.2 was expanded after review to include independently governed Hilton and transfer Arrangements, agreement deposit timing with elapsed acknowledgment, dispositions/milestone replacement, capacity consequences, Needs-attention rebuild, successor draft, and Vineyard Reservation/ending. Merge remains gated on green CI.

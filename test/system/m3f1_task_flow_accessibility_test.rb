@@ -47,14 +47,30 @@ class M3f1TaskFlowAccessibilityTest < ApplicationSystemTestCase
       assert_no_page_overflow
 
       find_button("Add capacity consequence").send_keys(:return)
-      assert_selector "[data-capacity-row]", count: 2
-      focused_id = page.evaluate_script("document.activeElement && document.activeElement.id")
-      assert_match(/capacity_consequences_1_/, focused_id.to_s)
+      find_button("Add capacity consequence").send_keys(:return)
+      assert_selector "[data-capacity-row]", count: 3
+      labels = all("[data-capacity-row] button[data-action='reservation-response-fields#removeCapacity']")
+        .map { |button| button["aria-label"] }
+      assert_equal [
+        "Remove capacity consequence 1",
+        "Remove capacity consequence 2",
+        "Remove capacity consequence 3"
+      ], labels
 
-      within(all("[data-capacity-row]").last) do
-        find_button("Remove").send_keys(:return)
-      end
+      # Remove the middle row; remaining aria-labels must renumber.
+      within(all("[data-capacity-row]")[1]) { find_button("Remove").send_keys(:return) }
+      assert_selector "[data-capacity-row]", count: 2
+      labels = all("[data-capacity-row] button[data-action='reservation-response-fields#removeCapacity']")
+        .map { |button| button["aria-label"] }
+      assert_equal [
+        "Remove capacity consequence 1",
+        "Remove capacity consequence 2"
+      ], labels
+
+      within(all("[data-capacity-row]").first) { find_button("Remove").send_keys(:return) }
       assert_selector "[data-capacity-row]", count: 1
+      assert_equal "Remove capacity consequence 1",
+        find("[data-capacity-row] button[data-action='reservation-response-fields#removeCapacity']")["aria-label"]
       focused_id = page.evaluate_script("document.activeElement && document.activeElement.id")
       assert_match(/capacity_consequences_0_/, focused_id.to_s)
     end

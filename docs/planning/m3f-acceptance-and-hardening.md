@@ -103,6 +103,8 @@ Authoritative narrative: [`docs/scenarios/celebrity-beyond-2027.md`](../scenario
 | --- | --- |
 | Celebrity sailing dates Nov 6–13, 2027; composition of mandatory cruise + optional hotel/transfers/excursion/dining shapes | Celebrity scenario |
 | Celebrity Arrangement-wide deposit: $50 per cabin + cumulative $500; planning milestone `names_assigned_to_supplier` Arrangement-wide | M3E / Celebrity scenario amendment |
+| Celebrity initial deposit due date **2026-09-20** (Smith Family Reunion agreement) | Confirmed agreement fact; activation after that date requires elapsed-Deadline acknowledgment |
+| Celebrity rooming-list 60 days before sailing (2027-09-07) and legal-names 30 days before sailing (2027-10-07) | Confirmed M3E.7b / scenario authority |
 | Vineyard operating dates June 5–7, 2027; 30-seat motorcoach; included lunch Jun 6–7; tasting Jun 6; Standard vs Deluxe dinner as separate Items | Vineyard scenario |
 | Celebrity O1 per-person components (USD): first/second fare $1,624.00; additional $406.00; NCCF $320.00; first/second discount −$150.00; additional discount −$37.50; taxes/fees/port $137.00 | [M3C scenario gate](m3c-cost-terms-and-forecasts.md#celebrity-beyond-cruise) |
 | Optional excursion: $50.00 `unit_rate`, `minimum_quantity_shortfall` of five people (3 planned → shortfall $100.00) | [M3C scenario gate](m3c-cost-terms-and-forecasts.md#optional-excursion) |
