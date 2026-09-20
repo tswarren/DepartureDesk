@@ -19,7 +19,7 @@ class M3e7bOperationalSurfacesAccessibilityTest < ApplicationSystemTestCase
     # Pass HTML5 constraints with server-invalid currency so the 422 summary path runs.
     fill_in "Currency", with: "US"
     page.execute_script("document.querySelector('form.dd-form').noValidate = true")
-    find_button("Save deposit requirement").send_keys(:return)
+    find_button("Save deposit requirement").click
     wait_for_turbo
     assert_selector "#form-error-summary"
     assert_equal "form-error-summary",
@@ -30,12 +30,20 @@ class M3e7bOperationalSurfacesAccessibilityTest < ApplicationSystemTestCase
       @graph[:departure], @graph[:arrangement], @graph[:version]
     )
     wait_for_turbo
+    select "Option or release date", from: "Deadline type"
+    select "Actionable", from: "Kind"
+    select "Fixed date", from: "Rule"
+    find("input[name='supplier_deadline_definition[fixed_date]']").set("2027-03-11")
+    # Actionable line without authority is a known server-side 422 (m3e2 request coverage).
+    find("textarea[name='supplier_deadline_definition[commitment_lines][][description]']")
+      .set("Review retained cabins")
     page.execute_script("document.querySelector('form.dd-form').noValidate = true")
-    find("input[type=submit], button[type=submit]", match: :first).send_keys(:return)
+    find("form.dd-form input[type=submit]").click
     wait_for_turbo
     assert_selector "#form-error-summary"
     assert_equal "form-error-summary",
       page.evaluate_script("document.activeElement && document.activeElement.id")
+    assert_text(/authority|deadline|commitment/i)
   end
 
   test "exposure and ending surfaces retain context without overflow at required viewports" do
