@@ -20,6 +20,15 @@
   </div>
 </section>
 
+<% if flash.now[:alert].present? %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1">
+    <p class="dd-alert-title">Please fix the following:</p>
+    <ul class="dd-error-list">
+      <li><%= flash.now[:alert] %></li>
+    </ul>
+  </div>
+<% end %>
+
 <article class="dd-panel">
   <header class="dd-panel-header">
     <div>
@@ -154,10 +163,15 @@
                   <%= form_with url: qualify_departure_arrangement_exposure_path(@departure, @supplier_arrangement),
                     method: :post, class: "dd-form dd-inline-form" do %>
                     <%= hidden_field_tag :cost_source_id, component.source_id %>
-                    <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
-                    <label class="dd-label">
+                    <%= hidden_field_tag :idempotency_key,
+                      (@qualify_cost_source_id.to_s == component.source_id.to_s && @qualify_idempotency_key.presence) ||
+                        SecureRandom.uuid %>
+                    <label class="dd-label" for="exposure_qualify_note_<%= component.source_id %>">
                       Note
-                      <%= text_field_tag :note, nil, required: true, class: "dd-input" %>
+                      <%= text_field_tag :note,
+                        (@qualify_cost_source_id.to_s == component.source_id.to_s ? @qualify_note : nil),
+                        required: true, class: "dd-input",
+                        id: "exposure_qualify_note_#{component.source_id}" %>
                     </label>
                     <%= submit_tag "Qualify as guaranteed", class: "dd-button dd-button--quiet" %>
                   <% end %>

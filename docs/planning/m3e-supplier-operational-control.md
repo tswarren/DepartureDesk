@@ -929,6 +929,8 @@ Sequenced here as a merge gate before Arrangement ending. Does not reopen M3D do
 
 **Exit / merge gate:** Focused invalid-path request and keyboard tests for consequential actions; Viewer controls absent; no page-level overflow at 375 / 768 / 1280 / 1400 px; Tailwind build green.
 
+**Shipped:** M3E.7a (ending preview/confirm error summary recovery; exposure qualification preserves note/idempotency on 422; Viewer denied ending mutations).
+
 ### M3E.7b — Scenario and release gate
 
 - Celebrity, Hilton, transfer, excursion, and vineyard builders; full named race/replay matrix; catch-up / rebuild / drift equivalence; query and `EXPLAIN` proof; regression, accessibility, responsive, security, lint, and CI.

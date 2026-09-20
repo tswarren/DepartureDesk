@@ -54,7 +54,18 @@ class SupplierArrangementEndingsController < ApplicationController
     end
 
     flash.now[:alert] = error.message
-    load_preview_from_params
+    begin
+      load_preview_from_params
+    rescue AgencyCommand::Error
+      @preview = nil
+      @raw_token = nil
+      @evaluation = nil
+      @payload = {
+        "blockers" => [],
+        "cascades" => [],
+        "reason_choices" => EvaluateSupplierArrangementEnding::ENDING_REASONS
+      }
+    end
     render :show, status: :unprocessable_entity
   end
 
