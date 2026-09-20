@@ -78,7 +78,7 @@ class M3e7bOperationalSurfacesAccessibilityTest < ApplicationSystemTestCase
     wait_for_turbo
     assert_text "End arrangement"
 
-    select "Other", from: "Reason" if page.has_select?("Reason", wait: 1)
+    select "Other", from: "Reason"
     find_button("Refresh preview").send_keys(:return)
     wait_for_turbo
     assert_selector "#form-error-summary"
