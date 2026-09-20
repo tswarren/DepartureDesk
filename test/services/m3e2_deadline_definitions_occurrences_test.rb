@@ -172,11 +172,13 @@ class M3e2DeadlineDefinitionsOccurrencesTest < ActiveSupport::TestCase
   end
 
   test "elapsed deadline activation requires explicit acknowledgment" do
+    # date_only elapsed? uses end-of-day in the definition time zone (America/New_York).
+    # Date.current - 1 can still be unelapsed for several hours after UTC midnight.
     create_deadline!(
       kind: "informational",
       deadline_type: "legal_names_due",
       rule_shape: "fixed_date",
-      rule_parameters: { "date" => (Date.current - 1).iso8601 },
+      rule_parameters: { "date" => (Date.current - 2).iso8601 },
       precision: "date_only"
     )
     error = assert_raises(AgencyCommand::Error) do
