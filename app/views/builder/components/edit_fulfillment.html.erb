@@ -1,0 +1,45 @@
+<% content_for :title, "Decide how provided · DepartureDesk" %>
+<% definition = @version.definition %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= @departure.name %></p>
+    <h1 class="dd-page-title">Decide how <%= definition&.client_title || @service_offer.name %> is provided</h1>
+    <p class="dd-page-description">Choose one option. You can connect Supplier support after choosing Supplier-supported.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: fulfillment_departure_builder_component_path(@departure, @service_offer), method: :post, class: "dd-form" do %>
+      <%= hidden_field_tag :version_lock_version, @version.lock_version %>
+      <fieldset class="dd-field-group">
+        <legend class="dd-label">How is this provided?</legend>
+        <label class="dd-inline-field">
+          <input type="radio" name="fulfillment_basis" value="m3_backed">
+          Supplier-supported — connect an existing Supplier planning source
+        </label>
+        <label class="dd-inline-field">
+          <input type="radio" name="fulfillment_basis" value="on_request">
+          On request — confirm availability when Clients ask
+        </label>
+        <label class="dd-inline-field">
+          <input type="radio" name="fulfillment_basis" value="agency_fulfilled">
+          Agency fulfilled — your Agency delivers this
+        </label>
+        <label class="dd-inline-field">
+          <input type="radio" name="fulfillment_basis" value="externally_fulfilled">
+          External fulfillment — another party delivers outside Supplier planning
+        </label>
+        <label class="dd-inline-field">
+          <input type="radio" name="fulfillment_basis" value="decide_later" checked>
+          Decide later — keep as outline
+        </label>
+      </fieldset>
+      <div class="dd-form-actions">
+        <%= submit_tag "Save decision", class: "dd-button" %>
+        <%= link_to "Back to workspace", departure_builder_path(@departure, work_on: "supplier"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

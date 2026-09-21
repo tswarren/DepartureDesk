@@ -5,12 +5,14 @@
   <%= form.text_field :name, maxlength: Departure::NAME_LIMIT, class: "dd-field", required: true %>
 </div>
 
-<% timing_mode = if form.object.starts_on.present? || form.object.ends_on.present?
-  "exact"
-elsif form.object.target_timing_text.present?
-  "target"
-else
-  "unknown"
+<% timing_mode = params.dig(:departure, :timing_mode).presence || begin
+  if form.object.starts_on.present? || form.object.ends_on.present?
+    "exact"
+  elsif form.object.target_timing_text.present?
+    "target"
+  else
+    "unknown"
+  end
 end %>
 
 <div class="dd-field-group" data-controller="departure-timing">
@@ -37,19 +39,18 @@ end %>
     <div class="dd-field-group" data-departure-timing-target="targetFields" <%= "hidden" unless timing_mode == "target" %>>
       <%= form.label :target_timing_text, "Target timing", class: "dd-label" %>
       <%= form.text_field :target_timing_text, maxlength: Departure::TARGET_TIMING_LIMIT, class: "dd-field",
-            data: { departure_timing_target: "targetInput" },
             placeholder: "e.g. Late June 2027, or spring shoulder season" %>
-      <p class="dd-help">Descriptive only. Exact dates still govern activation and lifecycle.</p>
+      <p class="dd-help">This helps describe the trip; exact dates can be added later.</p>
     </div>
 
     <div data-departure-timing-target="exactFields" <%= "hidden" unless timing_mode == "exact" %>>
       <div class="dd-field-group">
         <%= form.label :starts_on, "Start date", class: "dd-label" %>
-        <%= form.date_field :starts_on, class: "dd-field", data: { departure_timing_target: "startsOn" } %>
+        <%= form.date_field :starts_on, class: "dd-field" %>
       </div>
       <div class="dd-field-group">
         <%= form.label :ends_on, "End date", class: "dd-label" %>
-        <%= form.date_field :ends_on, class: "dd-field", data: { departure_timing_target: "endsOn" } %>
+        <%= form.date_field :ends_on, class: "dd-field" %>
       </div>
     </div>
   </fieldset>

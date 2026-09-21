@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["mode", "targetFields", "exactFields", "targetInput", "startsOn", "endsOn"]
+  static targets = ["mode", "targetFields", "exactFields"]
 
   connect() {
     this.update()
@@ -9,16 +9,8 @@ export default class extends Controller {
 
   update() {
     const mode = this.selectedMode()
-    this.targetFieldsTarget.hidden = mode !== "target"
-    this.exactFieldsTarget.hidden = mode !== "exact"
-
-    if (mode !== "target" && this.hasTargetInputTarget) {
-      this.targetInputTarget.value = ""
-    }
-    if (mode !== "exact") {
-      if (this.hasStartsOnTarget) this.startsOnTarget.value = ""
-      if (this.hasEndsOnTarget) this.endsOnTarget.value = ""
-    }
+    if (this.hasTargetFieldsTarget) this.targetFieldsTarget.hidden = mode !== "target"
+    if (this.hasExactFieldsTarget) this.exactFieldsTarget.hidden = mode !== "exact"
   }
 
   selectedMode() {

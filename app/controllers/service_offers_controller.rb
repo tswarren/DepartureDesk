@@ -5,8 +5,8 @@ class ServiceOffersController < ApplicationController
 
   before_action :require_unpublished_offer_access!
   before_action :set_departure
-  before_action :set_service_offer, only: %i[show edit update edit_discard discard publish pause_sales resume_sales retire successor resolve_fulfillment setup_cruise_cabins setup_hotel_rooms]
-  before_action :set_service_offer_version, only: %i[show edit update edit_discard discard publish pause_sales resume_sales retire successor resolve_fulfillment setup_cruise_cabins setup_hotel_rooms]
+  before_action :set_service_offer, only: %i[show edit update edit_discard discard publish pause_sales resume_sales retire successor resolve_fulfillment]
+  before_action :set_service_offer_version, only: %i[show edit update edit_discard discard publish pause_sales resume_sales retire successor resolve_fulfillment]
 
   def index
     @search = ListDepartureServiceOffers.call(
@@ -196,36 +196,12 @@ class ServiceOffersController < ApplicationController
       version_lock_version: params[:version_lock_version],
       offer_lock_version: params[:offer_lock_version]
     ).call
-    redirect_to departure_path(@departure), notice: "Fulfillment decided."
+    redirect_to departure_builder_path(@departure), notice: "Fulfillment decided."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
     flash[:alert] = error.message
-    redirect_to departure_path(@departure)
-  end
-
-  def setup_cruise_cabins
-    SetupCruiseCabinChoices.new(
-      agency: Current.agency,
-      actor: Current.agency_user,
-      offer: @service_offer,
-      version_lock_version: params[:version_lock_version]
-    ).call
-    redirect_to departure_service_offer_path(@departure, @service_offer), notice: "Cruise cabin categories added."
-  rescue AgencyCommand::Error => error
-    recover_offer(error, :show)
-  end
-
-  def setup_hotel_rooms
-    SetupHotelRoomChoices.new(
-      agency: Current.agency,
-      actor: Current.agency_user,
-      offer: @service_offer,
-      version_lock_version: params[:version_lock_version]
-    ).call
-    redirect_to departure_service_offer_path(@departure, @service_offer), notice: "Hotel room categories added."
-  rescue AgencyCommand::Error => error
-    recover_offer(error, :show)
+    redirect_to departure_builder_path(@departure)
   end
 
   def sources

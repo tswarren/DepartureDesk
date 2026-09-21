@@ -52,14 +52,14 @@ class EvaluateDepartureBuilderReadiness
     if editable_packages.empty? && unowned_offers.empty?
       findings << finding(
         "Itinerary and Package", :no_components, :incomplete,
-        "Add the first component.",
-        :departure, { id: @departure.id }
+        "Add anything Clients will see, choose, or pay for distinctly.",
+        :new_departure_builder_component, { departure_id: @departure.id }
       )
     elsif editable_packages.empty? && unowned_offers.any?
       findings << finding(
         "Itinerary and Package", :no_package, :incomplete,
         "Create a main package for components travelers buy together.",
-        :departure, { id: @departure.id }
+        :new_departure_builder_component, { departure_id: @departure.id }
       )
     end
 
@@ -71,7 +71,7 @@ class EvaluateDepartureBuilderReadiness
         findings << finding(
           "Itinerary and Package", :empty_package, :incomplete,
           "Add a component to #{package.name}.",
-          :departure_package, { departure_id: @departure.id, id: package.id },
+          :new_departure_builder_component, { departure_id: @departure.id, package_id: package.id },
           package_id: package.id
         )
       end
@@ -86,8 +86,8 @@ class EvaluateDepartureBuilderReadiness
 
       findings << finding(
         "Supplier support", :undecided_fulfillment, :incomplete,
-        "Decide how #{definition.client_title} is provided.",
-        :departure_service_offer, { departure_id: @departure.id, id: offer.id },
+        "#{definition.client_title} is still an outline and makes no Supplier or capacity claim.",
+        :fulfillment_departure_builder_component, { departure_id: @departure.id, id: offer.id },
         service_offer_id: offer.id,
         package_id: version.owning_package_version&.package_id
       )

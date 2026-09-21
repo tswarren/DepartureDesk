@@ -14,7 +14,7 @@ The M4 package was Accepted and promoted on 2026-09-20:
 - [M4 parent](../m4-offers-and-pricing.md)
 - [M4.0](../m40-task-flow-and-contract.md)
 
-[M4A](../m4a-service-definitions-and-sources.md) was Accepted and shipped on 2026-09-20. [M4B](../m4b-client-pricing-and-anonymous-preview.md) was Accepted and shipped on 2026-09-20. [M4C](../m4c-packages-choices-and-client-terms.md) was Accepted and shipped on 2026-09-20. [M4D](../m4d-publication-and-live-feasibility.md) was Accepted and shipped on 2026-09-21. [M4D.0](../m4d0-narrow-group-departure-builder.md) was Accepted and shipped on 2026-09-21. Remaining drafts:
+[M4A](../m4a-service-definitions-and-sources.md) was Accepted and shipped on 2026-09-20. [M4B](../m4b-client-pricing-and-anonymous-preview.md) was Accepted and shipped on 2026-09-20. [M4C](../m4c-packages-choices-and-client-terms.md) was Accepted and shipped on 2026-09-20. [M4D](../m4d-publication-and-live-feasibility.md) was Accepted and shipped on 2026-09-21. [M4D.0](../m4d0-narrow-group-departure-builder.md) and [M4D.0R](../m4d0r-builder-interface-remediation.md) were shipped on 2026-09-21. Remaining drafts:
 
 - [M4E](DepartureDesk-M4E-acceptance-and-hardening-draft.md)
 - [M4D.0 streamlined discovery backlog](DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (not implementation authority)

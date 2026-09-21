@@ -147,6 +147,24 @@ Rails.application.routes.draw do
     end
     resource :responsibility, only: %i[edit update], controller: "departure_responsibilities"
     resource :activation, only: :show, controller: "departure_activations"
+    resource :builder, only: %i[show], controller: "departure_builders"
+    namespace :builder do
+      resources :components, only: %i[new create] do
+        member do
+          get :fulfillment, action: :edit_fulfillment
+          post :fulfillment, action: :update_fulfillment
+          get :sources, action: :edit_sources
+          post :sources, action: :create_source_binding
+          get :cruise_setup, action: :edit_cruise_setup
+          post :cruise_setup, action: :update_cruise_setup
+          get :hotel_setup, action: :edit_hotel_setup
+          post :hotel_setup, action: :update_hotel_setup
+        end
+      end
+      resources :packages, only: [] do
+        resource :inclusions_reorder, only: %i[show update], controller: "inclusion_reorders"
+      end
+    end
     resources :service_offer_outlines, only: %i[create], controller: "service_offer_outlines"
     resource :initial_package_outline, only: %i[create], controller: "initial_package_outlines"
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
@@ -316,8 +334,6 @@ Rails.application.routes.draw do
         post :retire
         post :successor
         post :resolve_fulfillment
-        post :setup_cruise_cabins
-        post :setup_hotel_rooms
       end
       resources :source_bindings, controller: "service_offer_source_bindings", only: %i[new create destroy]
       resource :price, controller: "service_offer_prices", only: %i[create update destroy] do

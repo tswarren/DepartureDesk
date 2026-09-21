@@ -1,6 +1,6 @@
 # M4D.0 — Narrow group departure builder
 
-**Status:** Shipped 2026-09-21 (M4D.0b–0e). Implementation authority for M4D.0 tables, commands, derived readiness/scenario services, and Staff builder UI only. Not authority for M4E or deferred discovery items in the streamlined draft. Do not implement M4E until its accepted plan names that work.
+**Status:** Shipped 2026-09-21 on [PR #122](https://github.com/tswarren/DepartureDesk/pull/122) with [M4D.0R](m4d0r-builder-interface-remediation.md) presentation. Implementation authority for M4D.0 tables, commands, derived readiness/scenario services remains this document; UI hierarchy and disclosure are governed by M4D.0R. Not authority for M4E or deferred discovery items in the streamlined draft. Do not implement M4E until its accepted plan names that work.
 
 **Placement:** Between shipped [M4D](m4d-publication-and-live-feasibility.md) and draft [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md). M4A–M4D remain shipped. This phase amends the draft-creation journey so Staff can reach a publishable outline without rewriting M4 identities, price arithmetic, choice templates, Client terms, publication, Sales enabled, or live feasibility.
 
@@ -8,7 +8,7 @@
 
 **Discovery backlog:** [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) remains discovery-only and is not implementation authority. Deferred items there need their own accepted slice before code.
 
-**Amendments:** Dated 2026-09-21 amendments land in [M2A](m2a-departure-core.md), [M4A](m4a-service-definitions-and-sources.md), [M4C](m4c-packages-choices-and-client-terms.md), [M4D](m4d-publication-and-live-feasibility.md), [ADR 0014](../adr/0014-client-offers-publication-and-supply-compatibility.md), [terminology](../terminology.md), and the [interface contract](../ui/interface-contract.md).
+**Amendments:** Dated 2026-09-21 amendments land in [M2A](m2a-departure-core.md), [M4A](m4a-service-definitions-and-sources.md), [M4C](m4c-packages-choices-and-client-terms.md), [M4D](m4d-publication-and-live-feasibility.md), [ADR 0014](../adr/0014-client-offers-publication-and-supply-compatibility.md), [terminology](../terminology.md), and the [interface contract](../ui/interface-contract.md). Dated 2026-09-21 [M4D.0R](m4d0r-builder-interface-remediation.md) governs Staff presentation remediation on PR #122.
 
 ## Goal
 
@@ -496,6 +496,10 @@ Deferral means no migrations, empty tables, feature flags, placeholder enums, or
 
 ## Exit
 
-M4D.0 is complete when Staff can save a named group-departure concept, outline and order the usual primary Package without premature Supplier/pricing decisions, return to one workspace with a trustworthy next action, and understand common Client totals and pending facts. It reuses shipped Service Offer, Package, pricing, choice, terms, Supplier-planning, and M4D publication authority. It creates no second publication path, proposal distribution, sales action, Client demand, or money record, and it must not allow `undecided` fulfillment to publish.
+M4D.0 domain and [M4D.0R](m4d0r-builder-interface-remediation.md) Staff presentation are shipped together on PR #122. The builder is a calm task workspace with the accepted screen hierarchy, recommendation contract, identity-preserving Supplier bind, and system proof. It reuses shipped Service Offer, Package, pricing, choice, terms, Supplier-planning, and M4D publication authority. It creates no second publication path, proposal distribution, sales action, Client demand, or money record, and it must not allow `undecided` fulfillment to publish.
 
 The next planning action after this builder ships is to accept and run [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md) against the M4A–M4D.0 Staff journey that actually shipped—not against speculative proposal or M5 workflows. Discovery items still parked only in the [streamlined draft](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) need their own accepted slice before code.
+
+## Dated amendment — M4D.0R (2026-09-21)
+
+Staff interaction and presentation for the narrow builder are governed by [M4D.0R](m4d0r-builder-interface-remediation.md). Domain columns, commands, audits, and publication reject-`undecided` in this document remain authoritative. M4D.0R does not add a second outline model, `primary_package_id`, or proposal distribution.

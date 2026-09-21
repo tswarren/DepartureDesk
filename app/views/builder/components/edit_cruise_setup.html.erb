@@ -1,0 +1,40 @@
+<% content_for :title, "Cruise cabin setup · DepartureDesk" %>
+<% content_for :body do %>
+<% end %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= @service_offer.name %></p>
+    <h1 class="dd-page-title">Cruise cabin setup</h1>
+    <p class="dd-page-description">Enter the cabin categories you actually offer. Opening this screen does not write data.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: cruise_setup_departure_builder_component_path(@departure, @service_offer), method: :post, class: "dd-form" do %>
+      <%= hidden_field_tag :version_lock_version, @version.lock_version %>
+      <p class="dd-help">Examples for guidance only: Inside, Ocean view, Balcony. Persist only names you submit.</p>
+      <% Array(@option_names).each_with_index do |name, index| %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="option_name_<%= index %>">Category <%= index + 1 %></label>
+          <input id="option_name_<%= index %>" name="option_names[]" class="dd-field" maxlength="160" value="<%= name %>">
+        </div>
+      <% end %>
+      <div class="dd-field-group">
+        <label class="dd-label" for="option_name_extra">Add another category</label>
+        <input id="option_name_extra" name="option_names[]" class="dd-field" maxlength="160">
+      </div>
+      <% if @require_replace_confirm || @version.choice_groups.exists? %>
+        <label class="dd-inline-field">
+          <input type="checkbox" name="confirm_replace" value="1" <%= "checked" if params[:confirm_replace] == "1" %>>
+          Replace existing choice groups with these categories
+        </label>
+      <% end %>
+      <div class="dd-form-actions">
+        <%= submit_tag "Save categories", class: "dd-button" %>
+        <%= link_to "Cancel", departure_builder_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

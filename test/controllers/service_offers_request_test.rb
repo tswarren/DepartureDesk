@@ -92,11 +92,17 @@ class ServiceOffersRequestTest < ActionDispatch::IntegrationTest
 
   test "staff see client-offer CTAs on the departure" do
     sign_in_as @staff
+    CreateInitialPackageWithOutlineServiceOffer.new(
+      agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { package_name: "Main", component_name: "Coach", placement: "included" }
+    ).call
     get departure_path(@departure)
+    assert_redirected_to departure_builder_path(@departure)
+    follow_redirect!
     assert_response :success
-    assert_select "h2.dd-panel-title", text: "Client offers (draft)"
-    assert_select "a", text: "Add service from Supplier planning"
-    assert_select "a", text: "Add explicit-basis service"
+    assert_select "a", text: "Client offers"
+    assert_select "a", text: "Packages"
+    assert_select "a", text: "Supplier planning"
   end
 
   test "cross-agency offer routes are not found" do

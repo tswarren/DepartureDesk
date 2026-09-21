@@ -68,7 +68,8 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m4b-client-pricing-and-anonymous-preview.md`](planning/m4b-client-pricing-and-anonymous-preview.md) | Accepted and shipped M4B unpublished Client prices, anonymous calculator, and optional indicative scenario economics. |
 | [`planning/m4c-packages-choices-and-client-terms.md`](planning/m4c-packages-choices-and-client-terms.md) | Accepted and shipped M4C unpublished Package drafts, package-only version ownership, choice templates, Client terms, and Package-owned prices. Publication is not shipped. |
 | [`planning/m4d-publication-and-live-feasibility.md`](planning/m4d-publication-and-live-feasibility.md) | Shipped M4D publication, freeze, Sales enabled, live feasibility, and M3 disclosure previews. |
-| [`planning/m4d0-narrow-group-departure-builder.md`](planning/m4d0-narrow-group-departure-builder.md) | Shipped M4D.0 narrow group departure builder. M4E remains unimplemented. |
+| [`planning/m4d0-narrow-group-departure-builder.md`](planning/m4d0-narrow-group-departure-builder.md) | M4D.0 shipped with M4D.0R presentation. M4E remains unimplemented. |
+| [`planning/m4d0r-builder-interface-remediation.md`](planning/m4d0r-builder-interface-remediation.md) | Shipped M4D.0R Staff builder presentation remediation. |
 | [`adr/0014-client-offers-publication-and-supply-compatibility.md`](adr/0014-client-offers-publication-and-supply-compatibility.md) | Accepted ADR 0014; M4 identity, publication, source compatibility, and M5 Charge-posting handoff. M4A–M4D are shipped; M4D.0 Accepted. Not implementation authority for M4E. |
 | [`planning/drafts/README.md`](planning/drafts/README.md) | Draft staging area. M3E promoted 2026-09-18. M4 parent, ADR 0014, and M4.0 promoted 2026-09-20. M4A–M4D promoted/shipped 2026-09-20/21. M4D.0 shipped 2026-09-21. |
 | [`operations/`](operations/) | Executable operational and production guidance. |

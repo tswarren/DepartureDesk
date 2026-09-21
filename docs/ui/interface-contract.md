@@ -136,14 +136,18 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - If no Office is current, the UI remains usable and does not invent one.
 
 
-## Group departure builder (M4D.0 shipped)
+## Group departure builder (M4D.0 domain; M4D.0R presentation)
 
-Authority: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Shipped.
+Domain: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Presentation: [M4D.0R](../planning/m4d0r-builder-interface-remediation.md) (shipped).
 
-- Compact **Create group departure** on existing Departure new/create: name, optional target/exact timing, responsible Office; advanced disclosure for description, timezone, currency, and responsible Staff.
-- **Build this departure** on Departure show: recommended next action, request/session working-outcome choice, Package summary, itinerary cards (included/optional/unassigned), links into shipped Service Offer / Package / Supplier / price surfaces.
-- Keyboard itinerary reorder mode for Package inclusions; full-page fallback; no drag-only path.
-- Staff-only internal Client preview labeled not shared with Clients.
+- **Create group departure** uses two save intents: **Save and add components** (first-component screen) and **Save for later** (empty builder workspace). Timing mode toggles do not clear exploratory input until validated submit.
+- For `manage_departures`, the **builder is the primary working body** (dedicated builder route). Compact identity header only; full administrative definition, Supplier Arrangement tables, and Service Offer tables are secondary links—not peer panels on the default body.
+- Vertical order: recommended next action (action-labeled button), preparation-outcome choice (request/session only), Package summary, itinerary cards, collapsed four-group checklist, secondary operational links.
+- Each component card exposes **one** contextual action plus a Remaining setup disclosure. Do not show all fulfillment choices and both Cruise/Hotel helpers as peer buttons.
+- Supplier-supported path binds the **existing** outline Service Offer; it must not create a second offer from the collection from-source flow.
+- Cruise/Hotel helpers persist only Staff-submitted categories; opening a helper writes nothing.
+- Keyboard itinerary reorder in focused mode with full-page fallback; no drag-only path.
+- Staff-only internal Client preview labeled not shared with Clients; pending facts never display as zero.
 - Permission: `manage_departures` for all builder mutations and unpublished reads. Viewer behavior for unpublished drafts is unchanged; published Client facts remain Viewer-readable under M4D.
 
 ## Forms and validation

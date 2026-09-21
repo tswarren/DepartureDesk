@@ -76,11 +76,15 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
     sign_in_as @admin
     future = eligible_active("Future Show", starts_on: Date.new(2099, 1, 1), ends_on: Date.new(2099, 1, 8))
     get departure_path(future)
+    assert_redirected_to departure_builder_path(future)
+    follow_redirect!
     assert_response :success
     assert_select "a", text: "Mark departed", count: 0
 
     past = eligible_active("Past Show")
     get departure_path(past)
+    assert_redirected_to departure_builder_path(past)
+    follow_redirect!
     assert_select "a", text: "Mark departed"
   end
 

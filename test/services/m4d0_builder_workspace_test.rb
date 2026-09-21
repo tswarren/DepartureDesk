@@ -15,6 +15,20 @@ class M4d0BuilderWorkspaceTest < ActiveSupport::TestCase
       agency: @agency, departure: @departure, readiness: readiness
     ).call
     assert_equal :no_components, recommendation.finding.code
+    assert_equal "Add the first component", recommendation.button_label
+  end
+
+  test "recommendation skips publication blockers during early outline" do
+    CreateServiceOfferOutline.new(
+      agency: @agency, actor: @actor, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { name: "Coach" }
+    ).call
+    readiness = EvaluateDepartureBuilderReadiness.new(agency: @agency, departure: @departure).call
+    recommendation = RecommendDepartureBuilderAction.new(
+      agency: @agency, departure: @departure, readiness: readiness
+    ).call
+    refute_equal :departure_not_active, recommendation.finding.code
+    refute_equal "Ready to publish", recommendation.finding.group
   end
 
   test "mixed outline journey builds package cards and blocks undecided publish" do
@@ -43,7 +57,8 @@ class M4d0BuilderWorkspaceTest < ActiveSupport::TestCase
     hotel = package.editable_draft_version.inclusions.joins(:service_offer).find { |row| row.service_offer.name == "Hotel" }
     SetupHotelRoomChoices.new(
       agency: @agency, actor: @actor, offer: hotel.service_offer,
-      version_lock_version: hotel.service_offer_version.lock_version
+      version_lock_version: hotel.service_offer_version.lock_version,
+      option_names: %w[Standard Deluxe]
     ).call
     assert_equal "Room category", hotel.service_offer_version.reload.choice_groups.sole.name
 
