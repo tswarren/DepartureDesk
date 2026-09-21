@@ -42,9 +42,8 @@ class ServiceOffersRequestTest < ActionDispatch::IntegrationTest
     get departure_service_offer_path(@departure, offer)
     assert_response :success
     assert_match "Travel insurance", response.body
-    assert_match "There is no Publish action in this slice.", response.body
-    assert_select "a", text: "Publish", count: 0
-    assert_select "input[type=submit][value=Publish]", count: 0
+    assert_match "Publish freezes this standalone version", response.body
+    assert_select "input[type=submit][value=Publish]", count: 1
     assert_select "input[name='service_offer[lock_version]']", count: 0
   end
 

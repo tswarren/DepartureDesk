@@ -159,6 +159,11 @@ class AuditEvent < ApplicationRecord
     service_offer.price_created
     service_offer.price_updated
     service_offer.price_removed
+    service_offer.published
+    service_offer.successor_created
+    service_offer.sales_paused
+    service_offer.sales_resumed
+    service_offer.retired
     package.created
     package.updated
     package.abandoned
@@ -172,6 +177,11 @@ class AuditEvent < ApplicationRecord
     package.price_updated
     package.price_removed
     package.terms_updated
+    package.published
+    package.successor_created
+    package.sales_paused
+    package.sales_resumed
+    package.retired
     service_offer.choice_updated
     service_offer.terms_updated
   ].freeze

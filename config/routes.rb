@@ -308,6 +308,11 @@ Rails.application.routes.draw do
       member do
         get :discard, action: :edit_discard
         post :discard
+        post :publish
+        post :pause_sales
+        post :resume_sales
+        post :retire
+        post :successor
       end
       resources :source_bindings, controller: "service_offer_source_bindings", only: %i[new create destroy]
       resource :price, controller: "service_offer_prices", only: %i[create update destroy] do
@@ -323,6 +328,11 @@ Rails.application.routes.draw do
         post :adopt
         post :include_published
         post :preview
+        post :publish
+        post :pause_sales
+        post :resume_sales
+        post :retire
+        post :successor
       end
       resource :price, controller: "package_prices", only: %i[create update destroy]
       resource :terms, controller: "package_terms", only: %i[update]

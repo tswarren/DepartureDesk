@@ -4,12 +4,14 @@ class ServiceOfferVersion < ApplicationRecord
   STATUSES = %w[draft abandoned published superseded retired].freeze
   ABANDONED_REASON_LIMIT = 500
   ALLOWED_LIFECYCLE_TRANSITIONS = {
-    "draft" => %w[abandoned]
+    "draft" => %w[abandoned published],
+    "published" => %w[superseded retired]
   }.freeze
 
   belongs_to :agency
   belongs_to :departure
   belongs_to :service_offer
+  belongs_to :copied_from_version, class_name: "ServiceOfferVersion", optional: true
 
   has_one :definition, class_name: "ServiceOfferDefinition", dependent: :restrict_with_exception
   has_one :price_definition, class_name: "ServiceOfferPriceDefinition", dependent: :restrict_with_exception
@@ -23,10 +25,12 @@ class ServiceOfferVersion < ApplicationRecord
   has_one :payment_schedule, class_name: "ServiceOfferClientPaymentSchedule", dependent: :restrict_with_exception
   has_one :cancellation_policy, class_name: "ServiceOfferClientCancellationPolicy", dependent: :restrict_with_exception
   has_many :stated_conditions, class_name: "ServiceOfferClientStatedCondition", dependent: :restrict_with_exception
+  has_one :sales_state, class_name: "ServiceOfferVersionSalesState", dependent: :restrict_with_exception
+  has_one :publication_manifest, class_name: "ServiceOfferPublicationManifest", dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 
-  attr_readonly :agency_id, :departure_id, :service_offer_id, :version_number
+  attr_readonly :agency_id, :departure_id, :service_offer_id, :version_number, :copied_from_version_id
 
   normalizes :abandoned_reason, with: ->(value) { value.to_s.strip.presence }
 

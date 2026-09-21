@@ -165,6 +165,9 @@ class SuppliersController < ApplicationController
       .distinct
       .order(:supplier_arrangement_id, :id)
       .to_a
+    @offer_path_consequences = ListPublishedOfferPathConsequences.new(
+      agency: Current.agency, supplier: @supplier
+    ).call
   end
 
   def supplier_owned_contact_points

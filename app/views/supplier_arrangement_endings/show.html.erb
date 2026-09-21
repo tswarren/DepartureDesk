@@ -37,6 +37,26 @@
       <p role="status">No live governing blockers for the current cascade selection.</p>
     <% end %>
 
+    <% consequences = Array(@payload["offer_path_consequences"]).presence || Array(@evaluation&.offer_path_consequences) %>
+    <% if consequences.any? %>
+      <section class="dd-stack" aria-labelledby="ending-offer-paths-heading">
+        <h2 id="ending-offer-paths-heading" class="dd-section-title">Published offer paths</h2>
+        <p class="dd-help">Ending does not block on Client offers. These published paths may lose selectable supply.</p>
+        <ul>
+          <% consequences.each do |row| %>
+            <% message = row.is_a?(Hash) ? row.fetch("message") : row.message %>
+            <% alt = row.is_a?(Hash) ? row["alternative_remains"] : row.alternative_remains %>
+            <li>
+              <%= message %>
+              <% if alt %>
+                <span class="dd-help">An alternative binding remains.</span>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+
     <%= form_with url: end_departure_arrangement_path(@departure, @supplier_arrangement), method: :get, class: "dd-form" do %>
       <section class="dd-stack dd-table-scroll" aria-labelledby="ending-cascades-heading">
         <h2 id="ending-cascades-heading" class="dd-section-title">Cascades</h2>

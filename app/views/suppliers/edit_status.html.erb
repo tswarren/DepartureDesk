@@ -78,9 +78,35 @@
               <% end %>
             </ul>
           <% end %>
+
+          <% if @offer_path_consequences&.any? %>
+            <h3 class="dd-panel-title">Published offer paths</h3>
+            <p class="dd-field-hint">Inactivation does not block on Client offers. These published paths may lose selectable supply.</p>
+            <ul>
+              <% @offer_path_consequences.each do |row| %>
+                <li>
+                  <%= row.message %>
+                  <% if row.alternative_remains %>
+                    <span class="dd-field-hint">An alternative binding remains.</span>
+                  <% end %>
+                </li>
+              <% end %>
+            </ul>
+          <% end %>
         </section>
       <% else %>
         <p>Inactivating this Supplier leaves its categories assigned. There are no active locations, contacts, destinations, or current Supplier planning dependencies to inactivate.</p>
+        <% if @offer_path_consequences&.any? %>
+          <section class="dd-callout">
+            <h2 class="dd-panel-title">Published offer paths</h2>
+            <p class="dd-field-hint">These published paths may lose selectable supply. Offers are not inactivation blockers.</p>
+            <ul>
+              <% @offer_path_consequences.each do |row| %>
+                <li><%= row.message %></li>
+              <% end %>
+            </ul>
+          </section>
+        <% end %>
       <% end %>
     <% else %>
       <p>Reactivating this Supplier does not reactivate locations, contacts, destinations, or preferred states. Categories remain assigned.</p>
