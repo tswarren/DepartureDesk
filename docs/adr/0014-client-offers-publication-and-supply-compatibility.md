@@ -1,6 +1,6 @@
 # ADR 0014: Client offers, publication, and Supplier-source compatibility
 
-- Status: Accepted. [M4A](../planning/m4a-service-definitions-and-sources.md) implements unpublished drafts and source compatibility. [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md) implements unpublished Client prices and anonymous preview. Not implementation authority for M4C–M4E until those plans are accepted.
+- Status: Accepted. [M4A](../planning/m4a-service-definitions-and-sources.md) and [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md) are shipped. Not implementation authority for M4C–M4E until those plans are accepted.
 - Date: 2026-09-20
 - Decision owners: DepartureDesk maintainers
 - Parent: [M4 — Offers and pricing](../planning/m4-offers-and-pricing.md)

@@ -66,8 +66,8 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m40-task-flow-and-contract.md`](planning/m40-task-flow-and-contract.md) | Accepted M4.0 task-flow and contract gate. Documentation only; no M4 domain records of its own. |
 | [`planning/m4a-service-definitions-and-sources.md`](planning/m4a-service-definitions-and-sources.md) | Accepted and shipped M4A unpublished Service Offer drafts, exact M3 source bindings, and narrow compatibility evaluator. |
 | [`planning/m4b-client-pricing-and-anonymous-preview.md`](planning/m4b-client-pricing-and-anonymous-preview.md) | Accepted and shipped M4B unpublished Client prices, anonymous calculator, and optional indicative scenario economics. |
-| [`adr/0014-client-offers-publication-and-supply-compatibility.md`](adr/0014-client-offers-publication-and-supply-compatibility.md) | Accepted ADR 0014; M4 identity, publication, source compatibility, and M5 Charge-posting handoff. M4A and M4B are implementing slices. Not implementation authority for M4C–M4E. |
-| [`planning/drafts/README.md`](planning/drafts/README.md) | Draft staging area. M3E promoted 2026-09-18. M4 parent, ADR 0014, and M4.0 promoted 2026-09-20. M4A promoted 2026-09-20. |
+| [`adr/0014-client-offers-publication-and-supply-compatibility.md`](adr/0014-client-offers-publication-and-supply-compatibility.md) | Accepted ADR 0014; M4 identity, publication, source compatibility, and M5 Charge-posting handoff. M4A and M4B are shipped. Not implementation authority for M4C–M4E. |
+| [`planning/drafts/README.md`](planning/drafts/README.md) | Draft staging area. M3E promoted 2026-09-18. M4 parent, ADR 0014, and M4.0 promoted 2026-09-20. M4A and M4B promoted 2026-09-20. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |
