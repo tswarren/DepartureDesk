@@ -275,18 +275,39 @@ class EndSupplierArrangement < AgencyCommand
     )
     return if projection.nil? || projection.current_supplier_capacity <= 0
 
+    pool = arrangement.capacity_pools.find(pool_id)
+    definition = pool.definitions.order(:position).last
+    local_on = Time.current.in_time_zone(pool.effective_time_zone).to_date
+
     # Ending cascade records a withdrawn event through the public command while holding
-    # Arrangement lock; nested command re-locks in compatible order.
+    # Arrangement lock; nested command re-locks in compatible order. Reuse the Pool
+    # definition's existing contract evidence; do not invent a new Supplier confirmation.
     WithdrawCapacity.new(
       agency: @agency,
       actor: @actor,
-      pool: arrangement.capacity_pools.find(pool_id),
+      pool: pool,
       quantity: projection.current_supplier_capacity,
       projection_lock_version: projection.lock_version,
       idempotency_key: SecureRandom.uuid,
-      attributes: { note: "Arrangement ending withdrawal" },
-      effective_on: Date.current
+      attributes: ending_capacity_withdraw_attributes(definition),
+      effective_on: local_on
     ).call
+  end
+
+  def ending_capacity_withdraw_attributes(definition)
+    attrs = { note: "Arrangement ending withdrawal" }
+    return attrs if definition.nil?
+
+    if definition.override?
+      attrs.merge(override: true, override_reason: definition.override_reason)
+    else
+      attrs.merge(
+        evidence_kind: definition.evidence_kind,
+        evidence_on: definition.evidence_on,
+        evidence_reference_note: definition.evidence_reference_note,
+        evidence_external_reference: definition.evidence_external_reference
+      )
+    end
   end
 
   def abandon_successor_already_locked!(arrangement, version_id)

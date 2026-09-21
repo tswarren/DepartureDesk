@@ -32,6 +32,22 @@ module DepartureCommandSupport
     @agency.departures.lock.find(@departure.id)
   end
 
+  def reject_currency_change_with_monetary_definitions!(departure, currency, verb: "changed")
+    return if departure.operating_currency == currency
+    cost_exists = SupplierCostDefinition.where(agency_id: @agency.id, departure_id: departure.id).exists?
+    price_exists = ServiceOfferPriceDefinition.joins(:service_offer_version).where(
+      agency_id: @agency.id,
+      departure_id: departure.id,
+      service_offer_versions: { status: "draft" }
+    ).exists?
+    return unless cost_exists || price_exists
+
+    raise AgencyCommand::Error.new(
+      "Operating currency cannot be #{verb} after Supplier cost or Client price definitions exist.",
+      code: :invalid_state
+    )
+  end
+
   def ensure_current_lock_version!(record)
     if @lock_version.nil? || record.lock_version != @lock_version.to_i
       raise AgencyCommand::Error.new(STALE_MESSAGE, code: :conflict)

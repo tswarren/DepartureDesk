@@ -57,6 +57,10 @@ class Agency < ApplicationRecord
   has_many :service_offer_versions, dependent: :restrict_with_exception
   has_many :service_offer_definitions, dependent: :restrict_with_exception
   has_many :service_offer_source_bindings, dependent: :restrict_with_exception
+  has_many :service_offer_price_definitions, dependent: :restrict_with_exception
+  has_many :service_offer_price_components, dependent: :restrict_with_exception
+  has_many :service_offer_price_component_bases, class_name: "ServiceOfferPriceComponentBase",
+    dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

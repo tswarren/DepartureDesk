@@ -45,6 +45,18 @@ module OfferCommandSupport
     raise AgencyCommand::Error.new("A departed departure cannot add service offer sources.", code: :invalid_state)
   end
 
+  def ensure_departure_accepts_price_expansion!(departure)
+    return if departure.draft? || departure.active?
+
+    raise AgencyCommand::Error.new("A departed departure cannot change a service offer price.", code: :invalid_state)
+  end
+
+  def ensure_departure_accepts_price_removal!(departure)
+    return if departure.draft? || departure.active? || departure.departed?
+
+    raise AgencyCommand::Error.new("That departure cannot be edited.", code: :invalid_state)
+  end
+
   def ensure_offer_draft_editable!(departure, offer, version)
     unless version.draft? && offer.editable_draft_version&.id == version.id
       raise AgencyCommand::Error.new("That service offer cannot be edited.", code: :invalid_state)

@@ -21,7 +21,7 @@ class UpdateDeparture < AgencyCommand
       departure = lock_departure!
       ensure_current_lock_version!(departure)
       reject_departed_operating_changes!(departure, attrs)
-      reject_currency_change_with_cost_definitions!(departure, attrs[:operating_currency])
+      reject_currency_change_with_monetary_definitions!(departure, attrs[:operating_currency], verb: "changed")
       ensure_non_draft_completeness!(departure, attrs)
       return Result.new(status: :noop, record: departure) if unchanged?(departure, attrs)
 
@@ -65,16 +65,6 @@ class UpdateDeparture < AgencyCommand
     return if forbidden.empty?
 
     raise Error.new("That field cannot be changed after the departure has departed.", code: :invalid_state)
-  end
-
-  def reject_currency_change_with_cost_definitions!(departure, currency)
-    return if departure.operating_currency == currency
-    return unless SupplierCostDefinition.where(agency_id: @agency.id, departure_id: departure.id).exists?
-
-    raise Error.new(
-      "Operating currency cannot be changed after Supplier cost definitions exist.",
-      code: :invalid_state
-    )
   end
 
   def unchanged?(departure, attrs)

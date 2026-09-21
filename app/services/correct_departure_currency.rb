@@ -24,12 +24,7 @@ class CorrectDepartureCurrency < AgencyCommand
       currency = normalize_currency(@operating_currency)
       raise Error.new("Enter a supported operating currency.", code: :invalid) if currency.blank?
       return Result.new(status: :noop, record: departure) if departure.operating_currency == currency
-      if SupplierCostDefinition.where(agency_id: @agency.id, departure_id: departure.id).exists?
-        raise Error.new(
-          "Operating currency cannot be corrected after Supplier cost definitions exist.",
-          code: :invalid_state
-        )
-      end
+      reject_currency_change_with_monetary_definitions!(departure, currency, verb: "corrected")
 
       prior_currency = departure.operating_currency
       departure.update!(operating_currency: currency)

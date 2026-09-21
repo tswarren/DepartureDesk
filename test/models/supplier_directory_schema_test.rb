@@ -1,6 +1,8 @@
 require "test_helper"
+require_relative "../support/temporary_database_helper"
 
 class SupplierDirectorySchemaTest < ActiveSupport::TestCase
+  include TemporaryDatabaseHelper
   self.use_transactional_tests = false
 
   test "structure.sql loads cleanly with supplier tables and no extra gist exclusions" do
@@ -195,27 +197,6 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
   end
 
   private
-
-  def with_temporary_database(label)
-    database = "departure_desk_#{label}_#{Process.pid}"
-    original = ActiveRecord::Base.connection_db_config
-    admin = ActiveRecord::Base.connection
-
-    admin.execute("DROP DATABASE IF EXISTS #{admin.quote_table_name(database)}")
-    admin.execute("CREATE DATABASE #{admin.quote_table_name(database)}")
-
-    config = original.configuration_hash.merge(database:)
-    ActiveRecord::Base.establish_connection(config)
-
-    yield
-  ensure
-    ActiveRecord::Base.establish_connection(original)
-    ActiveRecord::Base.connection.execute("DROP DATABASE IF EXISTS #{ActiveRecord::Base.connection.quote_table_name(database)}") if database
-  end
-
-  def migrate_to!(version)
-    ActiveRecord::Base.connection_pool.migration_context.migrate(version)
-  end
 
   def quote(value)
     ActiveRecord::Base.connection.quote(value)

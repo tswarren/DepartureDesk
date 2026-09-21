@@ -1,0 +1,80 @@
+<% components = definition&.service_offer_price_components&.sort_by(&:position) || [] %>
+<% url = departure_service_offer_price_path(@departure, @service_offer) %>
+<% method = definition ? :patch : :post %>
+
+<%= form_with url: url, method: method, class: "dd-form" do %>
+  <%= render "shared/form_errors", object: @service_offer %>
+  <% if method == :post %>
+    <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+  <% end %>
+  <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+  <%= hidden_field_tag "price[mode]", "calculated" %>
+  <div class="dd-field-group">
+    <label class="dd-label" for="price_pattern">Ordinary pattern</label>
+    <%= select_tag "price[pattern]",
+      options_for_select(price_pattern_options, params.dig(:price, :pattern) || suggested_price_pattern(@service_offer_version)),
+      id: "price_pattern",
+      class: "dd-select" %>
+    <p class="dd-field-hint">Quantity basis is prefilled from the bound source. Client amounts are never copied from Supplier cost.</p>
+  </div>
+  <div class="dd-field-group">
+    <label class="dd-label" for="price_amount">Amount (<%= currency %>)</label>
+    <%= text_field_tag "price[amount]",
+      params.dig(:price, :amount) || (components.one? && components.first.amount_minor_units ? Money.new(components.first.amount_minor_units, currency).amount.to_s("F") : nil),
+      id: "price_amount",
+      inputmode: "decimal",
+      autocomplete: "off",
+      class: "dd-input" %>
+  </div>
+  <div class="dd-form-actions">
+    <%= submit_tag definition ? "Replace ordinary price" : "Save Client price", class: "dd-button" %>
+  </div>
+<% end %>
+
+<details class="dd-disclosure">
+  <summary class="dd-disclosure-summary">Advanced price details</summary>
+  <div class="dd-disclosure-body">
+    <p>Named discount, surcharge, several rate categories, occupancy selectors, or a percentage with an explicit earlier-component base. There is no generic formula editor.</p>
+    <% submitted = params.dig(:price, :components) %>
+    <% rows = if submitted.present?
+      submitted.is_a?(Hash) ? submitted.sort_by { |key, _| key.to_i }.map(&:last) : Array(submitted)
+    else
+      components.presence || [ nil ]
+    end %>
+    <%= form_with url: url, method: method, class: "dd-form", data: {
+      controller: "price-component-fields",
+      action: "change->price-component-fields#update",
+      price_component_fields_next_index_value: rows.size
+    } do %>
+      <% if method == :post %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+      <% end %>
+      <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+      <%= hidden_field_tag "price[mode]", "calculated" %>
+      <div data-price-component-fields-target="list">
+        <% rows.each_with_index do |row, index| %>
+          <%= render "service_offers/price_component_row",
+            component: row,
+            index: index,
+            currency: currency,
+            siblings: components,
+            show_base: index.positive? %>
+        <% end %>
+      </div>
+      <template data-price-component-fields-target="template">
+        <%= render "service_offers/price_component_row",
+          component: nil,
+          index: "__INDEX__",
+          currency: currency,
+          siblings: components,
+          show_base: true %>
+      </template>
+      <div class="dd-form-actions">
+        <button type="button" class="dd-button dd-button--quiet" data-action="price-component-fields#add" data-price-component-fields-target="addButton">
+          Add component
+        </button>
+        <%= submit_tag definition ? "Replace advanced price" : "Save advanced Client price", class: "dd-button" %>
+      </div>
+    <% end %>
+  </div>
+</details>

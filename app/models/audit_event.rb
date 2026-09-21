@@ -156,6 +156,9 @@ class AuditEvent < ApplicationRecord
     service_offer.source_binding_added
     service_offer.source_binding_removed
     service_offer.discarded
+    service_offer.price_created
+    service_offer.price_updated
+    service_offer.price_removed
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze

@@ -1,0 +1,90 @@
+<% draft = @service_offer_version.draft? %>
+<% departed = @departure.departed? %>
+<% currency = @departure.operating_currency %>
+<% definition = @price_definition %>
+<% can_mutate_price = draft && !departed && (@departure.draft? || @departure.active?) %>
+<% can_remove_price = draft && definition %>
+<% scenario = @price_scenario %>
+
+<article class="dd-panel" id="client-price">
+  <header class="dd-panel-header">
+    <div>
+      <h2 class="dd-panel-title">Client price</h2>
+      <p>Anonymous quantities only. This is not a publication decision and does not post money.</p>
+    </div>
+  </header>
+  <div class="dd-panel-body">
+    <% if currency.blank? %>
+      <p>Set the departure operating currency before pricing.</p>
+    <% else %>
+      <p class="dd-field-hint">Operating currency <%= currency %> (read-only).</p>
+
+      <% if definition %>
+        <dl class="dd-definition-list">
+          <div>
+            <dt>Mode</dt>
+            <dd><%= definition.mode.humanize %></dd>
+          </div>
+          <% if definition.zero_price? %>
+            <div>
+              <dt>Zero-price reason</dt>
+              <dd><%= definition.zero_price_reason %></dd>
+            </div>
+          <% end %>
+        </dl>
+        <% if definition.service_offer_price_components.any? %>
+          <table class="dd-table">
+            <thead>
+              <tr>
+                <th scope="col">Component</th>
+                <th scope="col">Role</th>
+                <th scope="col">Calculation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% definition.service_offer_price_components.sort_by(&:position).each do |component| %>
+                <tr>
+                  <td><%= component.label %></td>
+                  <td><%= component.client_role.humanize %></td>
+                  <td>
+                    <%= component.calculation_kind.humanize %>
+                    <% if component.amount_minor_units %>
+                      · <%= format_offer_money(component.amount_minor_units, currency) %>
+                    <% end %>
+                    <% if component.quantity_basis %>
+                      · <%= component.quantity_basis.humanize.downcase %>
+                    <% end %>
+                    <% if component.rate %>
+                      · <%= (component.rate * 100).to_s("F") %>%
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        <% end %>
+      <% else %>
+        <p class="<%= empty_state_classes.join(" ") %>">No Client price yet.</p>
+      <% end %>
+
+      <%= render "service_offers/price_preview", currency: currency, scenario: scenario, definition: definition %>
+
+      <% if can_mutate_price %>
+        <%= render "service_offers/price_form",
+          currency: currency,
+          definition: definition,
+          scenario: scenario %>
+      <% elsif departed && definition %>
+        <p class="dd-field-hint">After departure, amounts cannot change. Remove this never-published price if currency correction requires it.</p>
+      <% end %>
+
+      <% if can_remove_price %>
+        <%= button_to "Remove price",
+          departure_service_offer_price_path(@departure, @service_offer),
+          method: :delete,
+          params: { version_lock_version: @service_offer_version.lock_version },
+          class: "dd-button dd-button--quiet" %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

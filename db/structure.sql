@@ -1121,6 +1121,67 @@ $$;
 
 
 --
+-- Name: reject_service_offer_price_component_base_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_service_offer_price_component_base_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.service_offer_id IS DISTINCT FROM OLD.service_offer_id
+    OR NEW.service_offer_version_id IS DISTINCT FROM OLD.service_offer_version_id
+    OR NEW.service_offer_price_definition_id IS DISTINCT FROM OLD.service_offer_price_definition_id
+    OR NEW.service_offer_price_component_id IS DISTINCT FROM OLD.service_offer_price_component_id
+    OR NEW.base_component_id IS DISTINCT FROM OLD.base_component_id THEN
+    RAISE EXCEPTION 'service offer price component base owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_service_offer_price_component_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_service_offer_price_component_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.service_offer_id IS DISTINCT FROM OLD.service_offer_id
+    OR NEW.service_offer_version_id IS DISTINCT FROM OLD.service_offer_version_id
+    OR NEW.service_offer_price_definition_id IS DISTINCT FROM OLD.service_offer_price_definition_id THEN
+    RAISE EXCEPTION 'service offer price component owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_service_offer_price_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_service_offer_price_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.service_offer_id IS DISTINCT FROM OLD.service_offer_id
+    OR NEW.service_offer_version_id IS DISTINCT FROM OLD.service_offer_version_id THEN
+    RAISE EXCEPTION 'service offer price definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_service_offer_source_binding_owner_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1634,6 +1695,133 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'supplier identifier supersession target is missing, already superseded, or ownership differs';
   END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: validate_service_offer_price_component(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.validate_service_offer_price_component() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE definition_mode text;
+BEGIN
+  SELECT mode INTO definition_mode
+    FROM service_offer_price_definitions
+   WHERE id = NEW.service_offer_price_definition_id;
+  IF definition_mode <> 'calculated' THEN
+    RAISE EXCEPTION 'zero-price definitions cannot contain components';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: validate_service_offer_price_component_base(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.validate_service_offer_price_component_base() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  rec RECORD;
+  owner_position integer;
+  owner_kind text;
+  base_position integer;
+  base_treatment text;
+BEGIN
+  -- Lock both referenced components in UUID order so a concurrent position or
+  -- treatment change cannot validate against this transaction's old snapshot.
+  FOR rec IN
+    SELECT id, position, calculation_kind, percentage_treatment
+      FROM service_offer_price_components
+     WHERE id IN (NEW.service_offer_price_component_id, NEW.base_component_id)
+       AND service_offer_price_definition_id = NEW.service_offer_price_definition_id
+     ORDER BY id
+       FOR SHARE
+  LOOP
+    IF rec.id = NEW.service_offer_price_component_id THEN
+      owner_position := rec.position;
+      owner_kind := rec.calculation_kind;
+    END IF;
+    IF rec.id = NEW.base_component_id THEN
+      base_position := rec.position;
+      base_treatment := rec.percentage_treatment;
+    END IF;
+  END LOOP;
+
+  IF owner_position IS NULL OR base_position IS NULL OR base_position >= owner_position THEN
+    RAISE EXCEPTION 'price component base must be an earlier component in the same definition';
+  END IF;
+  IF owner_kind <> 'percentage' THEN
+    RAISE EXCEPTION 'only percentage price components accept bases';
+  END IF;
+  IF base_treatment = 'included' THEN
+    RAISE EXCEPTION 'an included-tax allocation cannot be a later percentage base';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: validate_service_offer_price_component_link_invariants(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.validate_service_offer_price_component_link_invariants() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  link RECORD;
+  owner_position integer;
+  owner_kind text;
+  base_position integer;
+  base_treatment text;
+BEGIN
+  IF TG_OP = 'UPDATE'
+     AND NEW.position IS NOT DISTINCT FROM OLD.position
+     AND NEW.percentage_treatment IS NOT DISTINCT FROM OLD.percentage_treatment
+     AND NEW.calculation_kind IS NOT DISTINCT FROM OLD.calculation_kind THEN
+    RETURN NEW;
+  END IF;
+
+  FOR link IN
+    SELECT *
+      FROM service_offer_price_component_bases
+     WHERE service_offer_price_component_id = NEW.id
+        OR base_component_id = NEW.id
+  LOOP
+    SELECT position, calculation_kind INTO owner_position, owner_kind
+      FROM service_offer_price_components
+     WHERE id = link.service_offer_price_component_id;
+    SELECT position, percentage_treatment INTO base_position, base_treatment
+      FROM service_offer_price_components
+     WHERE id = link.base_component_id;
+
+    IF NEW.id = link.service_offer_price_component_id THEN
+      owner_position := NEW.position;
+      owner_kind := NEW.calculation_kind;
+    END IF;
+    IF NEW.id = link.base_component_id THEN
+      base_position := NEW.position;
+      base_treatment := NEW.percentage_treatment;
+    END IF;
+
+    IF owner_position IS NULL OR base_position IS NULL OR base_position >= owner_position THEN
+      RAISE EXCEPTION 'price component base must be an earlier component in the same definition';
+    END IF;
+    IF owner_kind <> 'percentage' THEN
+      RAISE EXCEPTION 'only percentage price components accept bases';
+    END IF;
+    IF base_treatment = 'included' THEN
+      RAISE EXCEPTION 'an included-tax allocation cannot be a later percentage base';
+    END IF;
+  END LOOP;
 
   RETURN NEW;
 END;
@@ -2618,7 +2806,92 @@ CREATE TABLE public.service_offer_definitions (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT service_offer_definitions_client_description CHECK (((client_description IS NULL) OR ((btrim((client_description)::text) <> ''::text) AND (char_length((client_description)::text) <= 2000)))),
     CONSTRAINT service_offer_definitions_client_title CHECK (((btrim((client_title)::text) <> ''::text) AND (char_length((client_title)::text) <= 160))),
-    CONSTRAINT service_offer_definitions_fulfillment_basis CHECK (((fulfillment_basis)::text = ANY (ARRAY[('m3_backed'::character varying)::text, ('on_request'::character varying)::text, ('agency_fulfilled'::character varying)::text, ('externally_fulfilled'::character varying)::text])))
+    CONSTRAINT service_offer_definitions_fulfillment_basis CHECK (((fulfillment_basis)::text = ANY ((ARRAY['m3_backed'::character varying, 'on_request'::character varying, 'agency_fulfilled'::character varying, 'externally_fulfilled'::character varying])::text[])))
+);
+
+
+--
+-- Name: service_offer_price_component_bases; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_price_component_bases (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid NOT NULL,
+    service_offer_version_id uuid CONSTRAINT service_offer_price_componen_service_offer_version_id_not_null1 NOT NULL,
+    service_offer_price_definition_id uuid CONSTRAINT service_offer_price_compon_service_offer_price_defini_not_null1 NOT NULL,
+    service_offer_price_component_id uuid CONSTRAINT service_offer_price_compone_service_offer_price_compon_not_null NOT NULL,
+    base_component_id uuid NOT NULL,
+    direction character varying NOT NULL,
+    "position" integer NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_price_component_bases_direction CHECK (((direction)::text = ANY ((ARRAY['add'::character varying, 'subtract'::character varying])::text[]))),
+    CONSTRAINT service_offer_price_component_bases_not_self CHECK ((service_offer_price_component_id <> base_component_id)),
+    CONSTRAINT service_offer_price_component_bases_position_positive CHECK (("position" > 0))
+);
+
+
+--
+-- Name: service_offer_price_components; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_price_components (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid NOT NULL,
+    service_offer_version_id uuid CONSTRAINT service_offer_price_component_service_offer_version_id_not_null NOT NULL,
+    service_offer_price_definition_id uuid CONSTRAINT service_offer_price_compone_service_offer_price_defini_not_null NOT NULL,
+    label character varying(160) NOT NULL,
+    client_role character varying NOT NULL,
+    calculation_kind character varying NOT NULL,
+    amount_minor_units bigint,
+    rate numeric(20,10),
+    quantity_basis character varying,
+    percentage_treatment character varying,
+    client_rate_category_key character varying(80),
+    occupancy_position_key character varying(40),
+    "position" integer NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_price_components_amount_nonnegative CHECK (((amount_minor_units IS NULL) OR (amount_minor_units >= 0))),
+    CONSTRAINT service_offer_price_components_calculation_kind CHECK (((calculation_kind)::text = ANY ((ARRAY['fixed'::character varying, 'unit_rate'::character varying, 'percentage'::character varying])::text[]))),
+    CONSTRAINT service_offer_price_components_client_role CHECK (((client_role)::text = ANY ((ARRAY['base_price'::character varying, 'named_discount'::character varying, 'named_surcharge'::character varying, 'tax_fee'::character varying])::text[]))),
+    CONSTRAINT service_offer_price_components_included_role CHECK ((((percentage_treatment)::text IS DISTINCT FROM 'included'::text) OR ((client_role)::text = 'tax_fee'::text))),
+    CONSTRAINT service_offer_price_components_kind_shape CHECK (((((calculation_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND ((quantity_basis)::text = 'service_instances'::text) AND (rate IS NULL) AND (percentage_treatment IS NULL)) OR (((calculation_kind)::text = 'unit_rate'::text) AND (amount_minor_units IS NOT NULL) AND ((quantity_basis)::text = ANY ((ARRAY['persons'::character varying, 'resource_units'::character varying, 'nights'::character varying, 'person_nights'::character varying, 'resource_nights'::character varying, 'occupancy_positions'::character varying, 'occupancy_position_nights'::character varying])::text[])) AND (rate IS NULL) AND (percentage_treatment IS NULL)) OR (((calculation_kind)::text = 'percentage'::text) AND (rate IS NOT NULL) AND ((percentage_treatment)::text = ANY ((ARRAY['additive'::character varying, 'included'::character varying])::text[])) AND (amount_minor_units IS NULL) AND (quantity_basis IS NULL)))),
+    CONSTRAINT service_offer_price_components_label CHECK (((btrim((label)::text) <> ''::text) AND (char_length((label)::text) <= 160))),
+    CONSTRAINT service_offer_price_components_occupancy_position CHECK (((occupancy_position_key IS NULL) OR ((btrim((occupancy_position_key)::text) <> ''::text) AND (char_length((occupancy_position_key)::text) <= 40)))),
+    CONSTRAINT service_offer_price_components_percentage_treatment CHECK (((percentage_treatment IS NULL) OR ((percentage_treatment)::text = ANY ((ARRAY['additive'::character varying, 'included'::character varying])::text[])))),
+    CONSTRAINT service_offer_price_components_position_positive CHECK (("position" > 0)),
+    CONSTRAINT service_offer_price_components_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY ((ARRAY['service_instances'::character varying, 'persons'::character varying, 'resource_units'::character varying, 'nights'::character varying, 'person_nights'::character varying, 'resource_nights'::character varying, 'occupancy_positions'::character varying, 'occupancy_position_nights'::character varying])::text[])))),
+    CONSTRAINT service_offer_price_components_rate_category CHECK (((client_rate_category_key IS NULL) OR ((btrim((client_rate_category_key)::text) <> ''::text) AND (char_length((client_rate_category_key)::text) <= 80)))),
+    CONSTRAINT service_offer_price_components_rate_nonnegative CHECK (((rate IS NULL) OR (rate >= (0)::numeric)))
+);
+
+
+--
+-- Name: service_offer_price_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_price_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid NOT NULL,
+    service_offer_version_id uuid CONSTRAINT service_offer_price_definitio_service_offer_version_id_not_null NOT NULL,
+    currency character varying(3) NOT NULL,
+    mode character varying DEFAULT 'calculated'::character varying NOT NULL,
+    rounding_mode character varying DEFAULT 'half_up'::character varying NOT NULL,
+    zero_price_reason character varying(500),
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_price_definitions_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT service_offer_price_definitions_mode CHECK (((mode)::text = ANY ((ARRAY['calculated'::character varying, 'zero_price'::character varying])::text[]))),
+    CONSTRAINT service_offer_price_definitions_rounding_mode CHECK (((rounding_mode)::text = 'half_up'::text)),
+    CONSTRAINT service_offer_price_definitions_zero_reason CHECK (((zero_price_reason IS NULL) OR ((btrim((zero_price_reason)::text) <> ''::text) AND (char_length((zero_price_reason)::text) <= 500)))),
+    CONSTRAINT service_offer_price_definitions_zero_reason_pair CHECK ((((mode)::text = 'zero_price'::text) = (zero_price_reason IS NOT NULL)))
 );
 
 
@@ -2659,16 +2932,16 @@ CREATE TABLE public.service_offer_source_bindings (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT service_offer_source_bindings_alternative_group CHECK (((((membership_kind)::text = 'required'::text) AND (alternative_group_key IS NULL) AND (alternative_group_label IS NULL)) OR (((membership_kind)::text = 'alternative'::text) AND (alternative_group_key IS NOT NULL) AND (alternative_group_label IS NOT NULL)))),
-    CONSTRAINT service_offer_source_bindings_description_provenance CHECK (((client_description_provenance)::text = ANY (ARRAY[('source_description'::character varying)::text, ('staff_entered'::character varying)::text, ('none'::character varying)::text]))),
+    CONSTRAINT service_offer_source_bindings_description_provenance CHECK (((client_description_provenance)::text = ANY ((ARRAY['source_description'::character varying, 'staff_entered'::character varying, 'none'::character varying])::text[]))),
     CONSTRAINT service_offer_source_bindings_group_key CHECK (((alternative_group_key IS NULL) OR ((btrim((alternative_group_key)::text) <> ''::text) AND (char_length((alternative_group_key)::text) <= 80)))),
     CONSTRAINT service_offer_source_bindings_group_label CHECK (((alternative_group_label IS NULL) OR ((btrim((alternative_group_label)::text) <> ''::text) AND (char_length((alternative_group_label)::text) <= 160)))),
-    CONSTRAINT service_offer_source_bindings_membership_kind CHECK (((membership_kind)::text = ANY (ARRAY[('required'::character varying)::text, ('alternative'::character varying)::text]))),
+    CONSTRAINT service_offer_source_bindings_membership_kind CHECK (((membership_kind)::text = ANY ((ARRAY['required'::character varying, 'alternative'::character varying])::text[]))),
     CONSTRAINT service_offer_source_bindings_occurrence_definition_pair CHECK (((service_occurrence_id IS NULL) = (service_occurrence_definition_id IS NULL))),
     CONSTRAINT service_offer_source_bindings_pool_definition_pair CHECK (((capacity_pool_id IS NULL) = (capacity_pool_definition_id IS NULL))),
     CONSTRAINT service_offer_source_bindings_pool_requires_occurrence_resource CHECK (((capacity_pool_id IS NULL) OR ((service_occurrence_id IS NOT NULL) AND (supplier_resource_id IS NOT NULL)))),
     CONSTRAINT service_offer_source_bindings_position CHECK (("position" > 0)),
     CONSTRAINT service_offer_source_bindings_resource_definition_pair CHECK (((supplier_resource_id IS NULL) = (supplier_resource_definition_id IS NULL))),
-    CONSTRAINT service_offer_source_bindings_title_provenance CHECK (((client_title_provenance)::text = ANY (ARRAY[('source_name'::character varying)::text, ('staff_entered'::character varying)::text])))
+    CONSTRAINT service_offer_source_bindings_title_provenance CHECK (((client_title_provenance)::text = ANY ((ARRAY['source_name'::character varying, 'staff_entered'::character varying])::text[])))
 );
 
 
@@ -2692,7 +2965,7 @@ CREATE TABLE public.service_offer_versions (
     CONSTRAINT service_offer_versions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT service_offer_versions_number_positive CHECK ((version_number > 0)),
     CONSTRAINT service_offer_versions_reason CHECK (((abandoned_reason IS NULL) OR ((btrim((abandoned_reason)::text) <> ''::text) AND (char_length((abandoned_reason)::text) <= 500)))),
-    CONSTRAINT service_offer_versions_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('abandoned'::character varying)::text, ('published'::character varying)::text, ('superseded'::character varying)::text, ('retired'::character varying)::text])))
+    CONSTRAINT service_offer_versions_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'abandoned'::character varying, 'published'::character varying, 'superseded'::character varying, 'retired'::character varying])::text[])))
 );
 
 
@@ -2856,7 +3129,7 @@ CREATE TABLE public.supplier_arrangement_endings (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT arrangement_endings_other_proof CHECK ((((ending_reason)::text = 'other'::text) = ((ending_reason_label IS NOT NULL) AND (ending_reason_note IS NOT NULL)))),
-    CONSTRAINT arrangement_endings_reason_catalog CHECK (((ending_reason)::text = ANY (ARRAY[('planning_concluded'::character varying)::text, ('agreement_expired'::character varying)::text, ('not_proceeding_no_live_commitment'::character varying)::text, ('replaced'::character varying)::text, ('duplicate_or_entered_in_error'::character varying)::text, ('other'::character varying)::text]))),
+    CONSTRAINT arrangement_endings_reason_catalog CHECK (((ending_reason)::text = ANY ((ARRAY['planning_concluded'::character varying, 'agreement_expired'::character varying, 'not_proceeding_no_live_commitment'::character varying, 'replaced'::character varying, 'duplicate_or_entered_in_error'::character varying, 'other'::character varying])::text[]))),
     CONSTRAINT arrangement_endings_replaced_proof CHECK ((((ending_reason)::text = 'replaced'::text) = (replacement_arrangement_id IS NOT NULL)))
 );
 
@@ -4837,6 +5110,30 @@ ALTER TABLE ONLY public.service_occurrences
 
 ALTER TABLE ONLY public.service_offer_definitions
     ADD CONSTRAINT service_offer_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_price_component_bases service_offer_price_component_bases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_component_bases
+    ADD CONSTRAINT service_offer_price_component_bases_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_price_components service_offer_price_components_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_components
+    ADD CONSTRAINT service_offer_price_components_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_price_definitions service_offer_price_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_definitions
+    ADD CONSTRAINT service_offer_price_definitions_pkey PRIMARY KEY (id);
 
 
 --
@@ -7713,6 +8010,118 @@ CREATE UNIQUE INDEX index_service_offer_definitions_one_per_version ON public.se
 
 
 --
+-- Name: index_service_offer_price_component_bases_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_price_component_bases_on_agency_id ON public.service_offer_price_component_bases USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_price_component_bases_on_base; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_price_component_bases_on_base ON public.service_offer_price_component_bases USING btree (base_component_id);
+
+
+--
+-- Name: index_service_offer_price_component_bases_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_component_bases_on_id_agency ON public.service_offer_price_component_bases USING btree (id, agency_id);
+
+
+--
+-- Name: index_service_offer_price_component_bases_on_pair; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_component_bases_on_pair ON public.service_offer_price_component_bases USING btree (service_offer_price_component_id, base_component_id);
+
+
+--
+-- Name: index_service_offer_price_component_bases_on_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_component_bases_on_position ON public.service_offer_price_component_bases USING btree (service_offer_price_component_id, "position");
+
+
+--
+-- Name: index_service_offer_price_components_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_price_components_on_agency_id ON public.service_offer_price_components USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_price_components_on_definition_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_components_on_definition_position ON public.service_offer_price_components USING btree (service_offer_price_definition_id, "position");
+
+
+--
+-- Name: index_service_offer_price_components_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_components_on_full_owner ON public.service_offer_price_components USING btree (id, service_offer_price_definition_id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_offer_price_components_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_components_on_id_agency ON public.service_offer_price_components USING btree (id, agency_id);
+
+
+--
+-- Name: index_service_offer_price_components_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_components_on_id_departure_agency ON public.service_offer_price_components USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_offer_price_components_one_base_selector; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_components_one_base_selector ON public.service_offer_price_components USING btree (service_offer_price_definition_id, client_rate_category_key, occupancy_position_key) NULLS NOT DISTINCT WHERE ((client_role)::text = 'base_price'::text);
+
+
+--
+-- Name: index_service_offer_price_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_price_definitions_on_agency_id ON public.service_offer_price_definitions USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_price_definitions_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_definitions_on_full_owner ON public.service_offer_price_definitions USING btree (id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_offer_price_definitions_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_definitions_on_id_agency ON public.service_offer_price_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_service_offer_price_definitions_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_definitions_on_id_departure_agency ON public.service_offer_price_definitions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_offer_price_definitions_one_per_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_price_definitions_one_per_version ON public.service_offer_price_definitions USING btree (service_offer_version_id);
+
+
+--
 -- Name: index_service_offer_source_bindings_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9453,6 +9862,69 @@ CREATE TRIGGER service_offer_definitions_reject_non_draft_mutation BEFORE INSERT
 --
 
 CREATE TRIGGER service_offer_definitions_reject_owner_change BEFORE UPDATE ON public.service_offer_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_definition_owner_change();
+
+
+--
+-- Name: service_offer_price_component_bases service_offer_price_component_bases_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_price_component_bases_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_price_component_bases FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_price_component_bases service_offer_price_component_bases_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_price_component_bases_reject_owner_change BEFORE UPDATE ON public.service_offer_price_component_bases FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_price_component_base_owner_change();
+
+
+--
+-- Name: service_offer_price_component_bases service_offer_price_component_bases_validate; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_price_component_bases_validate BEFORE INSERT OR UPDATE ON public.service_offer_price_component_bases FOR EACH ROW EXECUTE FUNCTION public.validate_service_offer_price_component_base();
+
+
+--
+-- Name: service_offer_price_components service_offer_price_components_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_price_components_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_price_components FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_price_components service_offer_price_components_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_price_components_reject_owner_change BEFORE UPDATE ON public.service_offer_price_components FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_price_component_owner_change();
+
+
+--
+-- Name: service_offer_price_components service_offer_price_components_validate; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_price_components_validate BEFORE INSERT OR UPDATE ON public.service_offer_price_components FOR EACH ROW EXECUTE FUNCTION public.validate_service_offer_price_component();
+
+
+--
+-- Name: service_offer_price_components service_offer_price_components_validate_links; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_price_components_validate_links BEFORE UPDATE ON public.service_offer_price_components FOR EACH ROW EXECUTE FUNCTION public.validate_service_offer_price_component_link_invariants();
+
+
+--
+-- Name: service_offer_price_definitions service_offer_price_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_price_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_price_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_price_definitions service_offer_price_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_price_definitions_reject_owner_change BEFORE UPDATE ON public.service_offer_price_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_price_definition_owner_change();
 
 
 --
@@ -12096,6 +12568,14 @@ ALTER TABLE ONLY public.capacity_reconciliation_resolutions
 
 
 --
+-- Name: service_offer_price_component_bases fk_rails_6b255e244f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_component_bases
+    ADD CONSTRAINT fk_rails_6b255e244f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_arrangement_endings fk_rails_6ef6f35ba7; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12280,6 +12760,14 @@ ALTER TABLE ONLY public.supplier_arrangement_activation_capacity_entries
 
 
 --
+-- Name: service_offer_price_definitions fk_rails_b1c5e0f936; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_definitions
+    ADD CONSTRAINT fk_rails_b1c5e0f936 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: client_organization_email_addresses fk_rails_b2180601e2; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12349,6 +12837,14 @@ ALTER TABLE ONLY public.supplier_reservation_revisions
 
 ALTER TABLE ONLY public.departures
     ADD CONSTRAINT fk_rails_d0941bcf52 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: service_offer_price_components fk_rails_d28a705c19; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_components
+    ADD CONSTRAINT fk_rails_d28a705c19 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -12733,6 +13229,54 @@ ALTER TABLE ONLY public.service_occurrences
 
 ALTER TABLE ONLY public.service_offer_definitions
     ADD CONSTRAINT service_offer_definitions_version_fk FOREIGN KEY (service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_versions(id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_price_component_bases service_offer_price_component_bases_base_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_component_bases
+    ADD CONSTRAINT service_offer_price_component_bases_base_fk FOREIGN KEY (base_component_id, service_offer_price_definition_id, service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_price_components(id, service_offer_price_definition_id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_price_component_bases service_offer_price_component_bases_component_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_component_bases
+    ADD CONSTRAINT service_offer_price_component_bases_component_fk FOREIGN KEY (service_offer_price_component_id, service_offer_price_definition_id, service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_price_components(id, service_offer_price_definition_id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_price_component_bases service_offer_price_component_bases_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_component_bases
+    ADD CONSTRAINT service_offer_price_component_bases_definition_fk FOREIGN KEY (service_offer_price_definition_id, service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_price_definitions(id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_price_components service_offer_price_components_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_components
+    ADD CONSTRAINT service_offer_price_components_definition_fk FOREIGN KEY (service_offer_price_definition_id, service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_price_definitions(id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_price_definitions service_offer_price_definitions_departure_currency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_definitions
+    ADD CONSTRAINT service_offer_price_definitions_departure_currency_fk FOREIGN KEY (departure_id, agency_id, currency) REFERENCES public.departures(id, agency_id, operating_currency);
+
+
+--
+-- Name: service_offer_price_definitions service_offer_price_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_definitions
+    ADD CONSTRAINT service_offer_price_definitions_version_fk FOREIGN KEY (service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_versions(id, service_offer_id, departure_id, agency_id);
 
 
 --
@@ -13470,6 +14014,9 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260920210000'),
+('20260920200000'),
+('20260920160000'),
 ('20260920150000'),
 ('20260920140000'),
 ('20260920030000'),
