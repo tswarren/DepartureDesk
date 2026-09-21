@@ -12,6 +12,7 @@ class ServiceOffer < ApplicationRecord
   has_many :price_definitions, class_name: "ServiceOfferPriceDefinition", dependent: :restrict_with_exception
   has_many :price_components, class_name: "ServiceOfferPriceComponent", dependent: :restrict_with_exception
   has_many :price_component_bases, class_name: "ServiceOfferPriceComponentBase", dependent: :restrict_with_exception
+  has_many :package_inclusions, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :departure_id
   attr_accessor :client_title, :client_description, :fulfillment_basis, :refresh_bindings,

@@ -1,0 +1,40 @@
+<% content_for :title, "Packages · #{@departure.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title">Packages</h1>
+    <p class="dd-page-description"><%= @departure.name %></p>
+  </div>
+  <% if @departure.draft? || @departure.active? %>
+    <div class="dd-page-actions">
+      <%= link_to "Make Package", new_departure_package_path(@departure), class: "dd-button" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <% if @search.records.any? %>
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th scope="col">Package</th>
+          <th scope="col">Version</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @search.records.each do |package| %>
+          <% version = package.versions.find(&:draft?) || package.versions.max_by(&:version_number) %>
+          <tr class="<%= "is-inactive" if version&.abandoned? %>">
+            <td><%= link_to package.name, departure_package_path(@departure, package) %></td>
+            <td><%= version ? service_offer_status_badge(version.status) : "—" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <div class="dd-panel-body">
+      <p class="<%= empty_state_classes.join(" ") %>">No unpublished packages yet.</p>
+    </div>
+  <% end %>
+</article>

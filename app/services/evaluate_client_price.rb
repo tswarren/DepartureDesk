@@ -107,6 +107,9 @@ class EvaluateClientPrice
     return complete_unpriced_bundled_component if @definition.nil? && @bundled_completeness
     return incomplete("A Client price is required.", field: :price) if @definition.nil?
 
+    cap = service_offer_cap_incomplete
+    return cap if cap
+
     graph = normalize_graph(@definition)
     return evaluate_zero_price(graph) if graph[:mode] == "zero_price"
     return incomplete("A calculated price needs at least one component.", field: :components) if graph[:components].empty?
@@ -143,22 +146,39 @@ class EvaluateClientPrice
     )
   end
 
+  def service_offer_cap_incomplete
+    version = @definition.service_offer_version if @definition.respond_to?(:service_offer_version)
+    return if version.nil? || version.sales_cap_quantity.blank?
+
+    quantity = case version.sales_cap_basis
+    when "persons" then @scenario.persons
+    when "resource_units" then @scenario.resource_units
+    end
+    return if quantity.nil? || quantity <= version.sales_cap_quantity
+
+    incomplete("This example exceeds the service sales cap.", field: :sales_cap)
+  end
+
   def evaluate_bundled_package
     package = @bundled_package
     persons = required_quantity(@scenario.persons, :persons, "Enter the number of persons.")
     currency = package.currency
     base = Integer(package.base_price_minor_units)
-    supplement_rate = BigDecimal(package.single_occupancy_supplement_rate.to_s)
     lines = []
     amount = case persons
     when 2
       lines << package_line("Double occupancy", 2 * base, currency, quantity: 2)
       2 * base
     when 1
-      supplement = round_minor_units(BigDecimal(base.to_s) * supplement_rate)
       lines << package_line("Single occupancy base", base, currency, quantity: 1)
-      lines << package_line("Single occupancy supplement", supplement, currency, quantity: 1, rate: supplement_rate)
-      base + supplement
+      if package.single_occupancy_supplement_rate.nil?
+        base
+      else
+        supplement_rate = BigDecimal(package.single_occupancy_supplement_rate.to_s)
+        supplement = round_minor_units(BigDecimal(base.to_s) * supplement_rate)
+        lines << package_line("Single occupancy supplement", supplement, currency, quantity: 1, rate: supplement_rate)
+        base + supplement
+      end
     else
       return incomplete("Bundled occupancy preview supports one or two travelers.", field: :persons)
     end
@@ -183,16 +203,33 @@ class EvaluateClientPrice
     currency = results.filter_map(&:currency).uniq
     return incomplete("Service-sum prices must share one currency.", field: :currency) if currency.size > 1
 
-    Array(@service_sum.adjustments).each do |adjustment|
+    adjustment_lines = []
+    Array(@service_sum.adjustments).each_with_index do |adjustment, index|
       signed = adjustment.direction.to_s == "subtract" ? -adjustment.amount_minor_units.to_i : adjustment.amount_minor_units.to_i
       amount += signed
+      adjustment_lines << ComponentLine.new(
+        definition_id: nil,
+        component_id: nil,
+        label: adjustment.label,
+        position: 10_000 + index,
+        client_role: adjustment.direction.to_s == "subtract" ? "named_discount" : "named_surcharge",
+        calculation_kind: "fixed",
+        quantity: 1,
+        rate: nil,
+        rounding_mode: "half_up",
+        rounding_boundary: "currency_minor_unit",
+        percentage_treatment: nil,
+        included: false,
+        signed_revenue_effect_minor_units: signed,
+        formula: { amount_minor_units: adjustment.amount_minor_units, evaluated_quantity: 1 }
+      )
     end
 
     Result.new(
       complete: true,
       amount_minor_units: amount,
       currency: currency.first,
-      lines: results.flat_map(&:lines),
+      lines: results.flat_map(&:lines) + adjustment_lines,
       blockers: [],
       observed_at: @observed_at,
       kind: :service_sum

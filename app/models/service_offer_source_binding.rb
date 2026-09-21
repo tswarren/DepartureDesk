@@ -4,7 +4,7 @@ class ServiceOfferSourceBinding < ApplicationRecord
   include DraftVersionDefinition
   guards_draft_version :service_offer_version
 
-  MEMBERSHIP_KINDS = %w[required alternative].freeze
+  MEMBERSHIP_KINDS = %w[required alternative choice_gated].freeze
   TITLE_PROVENANCES = %w[source_name staff_entered].freeze
   DESCRIPTION_PROVENANCES = %w[source_description staff_entered none].freeze
   GROUP_KEY_LIMIT = 80
@@ -54,8 +54,8 @@ class ServiceOfferSourceBinding < ApplicationRecord
       errors.add(:alternative_group_key, "can't be blank") if alternative_group_key.blank?
       errors.add(:alternative_group_label, "can't be blank") if alternative_group_label.blank?
     else
-      errors.add(:alternative_group_key, "must be blank for a required binding") if alternative_group_key.present?
-      errors.add(:alternative_group_label, "must be blank for a required binding") if alternative_group_label.present?
+      errors.add(:alternative_group_key, "must be blank unless this is an alternative binding") if alternative_group_key.present?
+      errors.add(:alternative_group_label, "must be blank unless this is an alternative binding") if alternative_group_label.present?
     end
   end
 

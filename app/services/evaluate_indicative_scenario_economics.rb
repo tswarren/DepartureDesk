@@ -13,13 +13,15 @@ class EvaluateIndicativeScenarioEconomics
     "single" => 1
   }.freeze
 
-  def initialize(agency:, actor:, offer:, version: nil, scenario: {}, price: nil)
+  def initialize(agency:, actor:, offer:, version: nil, scenario: {}, price: nil, package_preview: false, attributed_sources: nil)
     @agency = agency
     @actor = actor
     @offer = offer
     @version = version
     @scenario = scenario.is_a?(EvaluateClientPrice::Scenario) ? scenario : EvaluateClientPrice::Scenario.build(scenario)
     @price = price
+    @package_preview = package_preview
+    @attributed_sources = attributed_sources
   end
 
   def call
@@ -107,6 +109,10 @@ class EvaluateIndicativeScenarioEconomics
     )
   end
 
+  def sources_for_binding(binding)
+    matching_sources(binding)
+  end
+
   private
 
   def ensure_actor!
@@ -125,10 +131,12 @@ class EvaluateIndicativeScenarioEconomics
   end
 
   def attribute_sources(version)
+    return @attributed_sources if @attributed_sources
     bindings = selected_bindings(version)
     return unknown("Choose exactly one alternative source for this scenario.") if bindings == :missing_alternative
     return unknown("An alternative group can select only one source.") if bindings == :ambiguous_alternative
     return unknown("A selected source is not part of this service offer.") if bindings == :unknown_selection
+    return unknown("Every choice-gated source must be reachable from an option.") if bindings == :unreachable_choice
     return unknown("No attributable Supplier cost source.") if bindings.empty?
 
     sources = []
@@ -154,22 +162,17 @@ class EvaluateIndicativeScenarioEconomics
   end
 
   def selected_bindings(version)
-    bindings = version.source_bindings.to_a
-    required = bindings.select(&:required?)
-    grouped = bindings.select(&:alternative?).group_by(&:alternative_group_key)
-    selected_ids = @scenario.selected_binding_ids.map(&:to_s).uniq
-    offer_ids = bindings.map { |binding| binding.id.to_s }
-    return :unknown_selection if selected_ids.any? { |id| offer_ids.exclude?(id) }
+    collected = CollectSelectedOfferBindings.new(
+      version: version,
+      scenario: @scenario,
+      package_preview: @package_preview == true
+    ).call
+    return :missing_alternative if collected.status == :missing_alternative
+    return :ambiguous_alternative if collected.status == :ambiguous_alternative
+    return :unknown_selection if collected.status == :unknown_selection
+    return :unreachable_choice if collected.status == :unreachable_choice
 
-    chosen = grouped.flat_map do |_key, members|
-      picked = members.select { |binding| selected_ids.include?(binding.id.to_s) }
-      return :missing_alternative if picked.empty?
-      return :ambiguous_alternative if picked.size > 1
-
-      picked
-    end
-
-    required + chosen
+    collected.bindings
   end
 
   def matching_sources(binding)

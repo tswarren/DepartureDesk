@@ -159,10 +159,25 @@ class AuditEvent < ApplicationRecord
     service_offer.price_created
     service_offer.price_updated
     service_offer.price_removed
+    package.created
+    package.updated
+    package.abandoned
+    package.service_included
+    package.service_adopted
+    package.published_reusable_included
+    package.inclusions_reordered
+    package.inclusion_removed
+    package.service_detached
+    package.price_created
+    package.price_updated
+    package.price_removed
+    package.terms_updated
+    service_offer.choice_updated
+    service_offer.terms_updated
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure SupplierArrangement SupplierReservation ServiceOffer].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure SupplierArrangement SupplierReservation ServiceOffer Package].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true
