@@ -78,6 +78,32 @@ class M3e6bAtomicEndingTest < ActiveSupport::TestCase
     assert_match(/ended/i, error.message)
   end
 
+  test "ending withdraws remaining Pool capacity using existing definition evidence" do
+    graph = build_activated_established_capacity_graph(
+      contractor: @supplier, provider: @supplier, prefix: "Ending Pool", quantity: 5
+    )
+    arrangement = graph[:arrangement]
+    selected = [ "withdraw_future_capacity:#{graph[:pool].id}" ]
+    preview = PreviewEndSupplierArrangement.new(
+      agency: @agency, actor: @actor, arrangement:,
+      selected_cascade_keys: selected,
+      ending_reason: "planning_concluded"
+    ).call
+    assert preview.record.payload.fetch("blockers").empty?, preview.record.payload.fetch("blockers").inspect
+
+    EndSupplierArrangement.new(
+      agency: @agency, actor: @actor, arrangement:,
+      preview_token: preview.raw_token,
+      idempotency_key: SecureRandom.uuid,
+      selected_cascade_keys: selected,
+      ending_reason: "planning_concluded"
+    ).call
+
+    assert arrangement.reload.ended?
+    assert_equal 0, graph[:projection].reload.current_supplier_capacity
+    assert graph[:pool].capacity_events.exists?(event_type: "withdrawn")
+  end
+
   test "same-key replay succeeds after preview expiry" do
     open_ids = SupplierCommitment.where(supplier_arrangement: @arrangement).select(&:open_state?).map(&:id)
     selected = open_ids.map { |id| "cancel_open_commitment:#{id}" }

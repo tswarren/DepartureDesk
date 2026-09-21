@@ -186,7 +186,7 @@ module M3fScenarioHelper
         quantity: projection.current_supplier_capacity,
         projection_lock_version: projection.lock_version,
         idempotency_key: SecureRandom.uuid,
-        effective_on: Date.current,
+        effective_on: Time.current.in_time_zone(pool.effective_time_zone).to_date,
         attributes: {
           evidence_kind: "contract",
           evidence_on: Date.current,
