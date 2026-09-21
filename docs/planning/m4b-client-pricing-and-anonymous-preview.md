@@ -73,7 +73,7 @@ A decimal multiplier with only explicit links to **earlier rounded revenue compo
 
 A definition with no usable base, missing required rate/quantity, overlapping generic/specific bases, undefined or included-tax percentage base, or inconsistent currency is incomplete, never zero. An explicit zero Client price needs named `zero_price` mode and reason rather than an empty component list. A bundled package-only service with **no** own price is **complete**. Service-sum still requires each selected priced component.
 
-Database checks and owner constraints enforce Agency/Departure/version integrity, amounts, rates, types, kind-specific nulls, order and base-link ancestry; Rails validates the same shapes and returns field errors. Price edits use the M4A draft optimistic lock, M4A lock order, and bounded audit action. Until M4D, M4B has **draft** price definitions only.
+Database checks and owner constraints enforce Agency/Departure/version integrity, amounts, rates, types, kind-specific nulls, order and base-link ancestry; percentage-base validation locks both referenced component rows in UUID order so a concurrent position or treatment change cannot commit a forward or included-tax link. Rails validates the same shapes and returns field errors. Price edits use the M4A draft optimistic lock, M4A lock order, and bounded audit action. Until M4D, M4B has **draft** price definitions only.
 
 **Departure currency correction:** Extend `UpdateDeparture` and `CorrectDepartureCurrency` when the first M4 price row is introduced. A retained draft price is a currency-bearing fact: ordinary correction cannot change operating currency while that row exists; removing an eligible never-published draft is an explicit prior action. Never convert or relabel an amount.
 
