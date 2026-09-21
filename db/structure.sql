@@ -174,6 +174,55 @@ CREATE FUNCTION public.enforce_commitment_disposition_coverage_purpose() RETURNS
 
 
 --
+-- Name: enforce_service_offer_version_package_ownership(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.enforce_service_offer_version_package_ownership() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  package_agency_id uuid;
+  package_departure_id uuid;
+  package_status text;
+  offer_status text;
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+  IF NEW.owning_package_version_id IS NOT DISTINCT FROM OLD.owning_package_version_id THEN
+    RETURN NEW;
+  END IF;
+
+  IF OLD.owning_package_version_id IS NOT NULL
+     AND NEW.owning_package_version_id IS NOT NULL
+     AND NEW.owning_package_version_id IS DISTINCT FROM OLD.owning_package_version_id THEN
+    RAISE EXCEPTION 'package ownership cannot be reassigned to a different package version';
+  END IF;
+END IF;
+
+IF NEW.owning_package_version_id IS NOT NULL THEN
+  SELECT agency_id, departure_id, status
+    INTO package_agency_id, package_departure_id, package_status
+    FROM public.package_versions
+   WHERE id = NEW.owning_package_version_id;
+
+  IF package_agency_id IS DISTINCT FROM NEW.agency_id
+     OR package_departure_id IS DISTINCT FROM NEW.departure_id THEN
+    RAISE EXCEPTION 'package-owned service version must share agency and departure';
+  END IF;
+
+  IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND OLD.owning_package_version_id IS NULL) THEN
+    offer_status := NEW.status;
+    IF offer_status IS DISTINCT FROM 'draft' OR package_status IS DISTINCT FROM 'draft' THEN
+      RAISE EXCEPTION 'package ownership can be set only while both versions are draft';
+    END IF;
+  END IF;
+END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_agency_user_agency_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -665,6 +714,25 @@ $$;
 
 
 --
+-- Name: reject_invalid_package_version_lifecycle(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_invalid_package_version_lifecycle() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
+    IF NOT (OLD.status = 'draft' AND NEW.status = 'abandoned') THEN
+      RAISE EXCEPTION 'package version status transition from % to % is not permitted',
+        OLD.status, NEW.status;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_invalid_service_occurrence_definition_zone(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -831,6 +899,40 @@ $$;
 
 
 --
+-- Name: reject_non_draft_package_version_definition_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_non_draft_package_version_definition_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  version_id uuid;
+  version_status text;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    version_id := NEW.package_version_id;
+  ELSE
+    version_id := OLD.package_version_id;
+  END IF;
+
+  SELECT status INTO version_status
+    FROM public.package_versions
+   WHERE id = version_id
+   FOR SHARE;
+
+  IF version_status IS DISTINCT FROM 'draft' THEN
+    RAISE EXCEPTION 'exact-version definitions are immutable after leaving draft';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_non_draft_service_offer_version_definition_mutation(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -952,6 +1054,63 @@ CREATE FUNCTION public.reject_office_identity_change() RETURNS trigger
 BEGIN
   IF NEW.agency_id IS DISTINCT FROM OLD.agency_id OR NEW.code IS DISTINCT FROM OLD.code THEN
     RAISE EXCEPTION 'office identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_package_inclusion_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_package_inclusion_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.package_id IS DISTINCT FROM OLD.package_id
+    OR NEW.package_version_id IS DISTINCT FROM OLD.package_version_id
+    OR NEW.service_offer_id IS DISTINCT FROM OLD.service_offer_id
+    OR NEW.service_offer_version_id IS DISTINCT FROM OLD.service_offer_version_id THEN
+    RAISE EXCEPTION 'package inclusion owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_package_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_package_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id THEN
+    RAISE EXCEPTION 'package owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_package_version_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_package_version_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.package_id IS DISTINCT FROM OLD.package_id
+    OR NEW.version_number IS DISTINCT FROM OLD.version_number THEN
+    RAISE EXCEPTION 'package version owner is immutable';
   END IF;
   RETURN NEW;
 END;
@@ -1697,6 +1856,96 @@ BEGIN
   END IF;
 
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: validate_package_inclusion_origin(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.validate_package_inclusion_origin() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  offer_status text;
+  owner_id uuid;
+BEGIN
+  SELECT status, owning_package_version_id
+    INTO offer_status, owner_id
+    FROM public.service_offer_versions
+   WHERE id = NEW.service_offer_version_id;
+
+  IF NEW.origin = 'published_reusable' THEN
+    IF offer_status IS DISTINCT FROM 'published' THEN
+      RAISE EXCEPTION 'published reusable inclusion requires a published service offer version';
+    END IF;
+    IF owner_id IS NOT NULL THEN
+      RAISE EXCEPTION 'published reusable inclusion cannot own the service offer version';
+    END IF;
+  ELSE
+    IF TG_OP = 'INSERT' AND offer_status IS DISTINCT FROM 'draft' THEN
+      RAISE EXCEPTION 'inline or adopted inclusion requires a draft service offer version';
+    END IF;
+    IF owner_id IS DISTINCT FROM NEW.package_version_id THEN
+      RAISE EXCEPTION 'inline or adopted inclusion must match package ownership';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: validate_package_ownership_inclusion_match(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.validate_package_ownership_inclusion_match() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  owner_id uuid;
+  version_id uuid;
+  matching integer;
+BEGIN
+  IF TG_TABLE_NAME = 'service_offer_versions' THEN
+    owner_id := NEW.owning_package_version_id;
+    version_id := NEW.id;
+    IF owner_id IS NULL THEN
+      RETURN NEW;
+    END IF;
+  ELSIF TG_OP = 'DELETE' THEN
+    owner_id := OLD.package_version_id;
+    version_id := OLD.service_offer_version_id;
+  ELSE
+    owner_id := NEW.package_version_id;
+    version_id := NEW.service_offer_version_id;
+  END IF;
+
+  SELECT COUNT(*) INTO matching
+    FROM public.service_offer_versions
+   WHERE id = version_id
+     AND owning_package_version_id IS NOT NULL;
+
+  IF matching = 0 THEN
+    RETURN COALESCE(NEW, OLD);
+  END IF;
+
+  SELECT COUNT(*) INTO matching
+    FROM public.package_inclusions
+   WHERE package_version_id = (
+           SELECT owning_package_version_id
+             FROM public.service_offer_versions
+            WHERE id = version_id
+         )
+     AND service_offer_version_id = version_id;
+
+  IF matching = 0 THEN
+    RAISE EXCEPTION 'package-owned service version requires a matching inclusion';
+  END IF;
+
+  RETURN COALESCE(NEW, OLD);
 END;
 $$;
 
@@ -2713,6 +2962,283 @@ CREATE TABLE public.offices (
 
 
 --
+-- Name: package_client_cancellation_policies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_client_cancellation_policies (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    package_version_id uuid CONSTRAINT package_client_cancellation_policie_package_version_id_not_null NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: package_client_cancellation_tiers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_client_cancellation_tiers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    package_version_id uuid NOT NULL,
+    package_client_cancellation_policy_id uuid CONSTRAINT package_client_cancellation_package_client_cancellatio_not_null NOT NULL,
+    "position" integer NOT NULL,
+    threshold_kind character varying NOT NULL,
+    threshold_on date,
+    days_before integer,
+    consequence_kind character varying NOT NULL,
+    amount_minor_units bigint,
+    percent_rate numeric(20,10),
+    percent_base character varying,
+    summary character varying(2000),
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT package_client_cancellation_tiers_consequence_kind CHECK (((consequence_kind)::text = ANY ((ARRAY['fixed'::character varying, 'percent'::character varying, 'manual_review'::character varying])::text[]))),
+    CONSTRAINT package_client_cancellation_tiers_consequence_shape CHECK (((((consequence_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL) AND (summary IS NULL)) OR (((consequence_kind)::text = 'percent'::text) AND (percent_rate IS NOT NULL) AND ((percent_base)::text = 'selected_client_price'::text) AND (amount_minor_units IS NULL) AND (summary IS NULL)) OR (((consequence_kind)::text = 'manual_review'::text) AND (summary IS NOT NULL) AND (btrim((summary)::text) <> ''::text) AND (amount_minor_units IS NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL)))),
+    CONSTRAINT package_client_cancellation_tiers_threshold_kind CHECK (((threshold_kind)::text = ANY ((ARRAY['on_or_before_date'::character varying, 'days_before_departure'::character varying])::text[]))),
+    CONSTRAINT package_client_cancellation_tiers_threshold_shape CHECK (((((threshold_kind)::text = 'on_or_before_date'::text) AND (threshold_on IS NOT NULL) AND (days_before IS NULL)) OR (((threshold_kind)::text = 'days_before_departure'::text) AND (days_before IS NOT NULL) AND (days_before >= 0) AND (threshold_on IS NULL))))
+);
+
+
+--
+-- Name: package_client_payment_schedule_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_client_payment_schedule_lines (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    package_version_id uuid CONSTRAINT package_client_payment_schedule_lin_package_version_id_not_null NOT NULL,
+    package_client_payment_schedule_id uuid CONSTRAINT package_client_payment_sche_package_client_payment_sch_not_null NOT NULL,
+    "position" integer NOT NULL,
+    due_kind character varying NOT NULL,
+    due_on date,
+    milestone_name character varying(160),
+    amount_kind character varying NOT NULL,
+    amount_minor_units bigint,
+    percent_rate numeric(20,10),
+    percent_base character varying,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT package_client_payment_schedule_lines_amount_kind CHECK (((amount_kind)::text = ANY ((ARRAY['fixed'::character varying, 'percent'::character varying])::text[]))),
+    CONSTRAINT package_client_payment_schedule_lines_amount_shape CHECK (((((amount_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL)) OR (((amount_kind)::text = 'percent'::text) AND (percent_rate IS NOT NULL) AND ((percent_base)::text = 'selected_client_price'::text) AND (amount_minor_units IS NULL)))),
+    CONSTRAINT package_client_payment_schedule_lines_due_kind CHECK (((due_kind)::text = ANY ((ARRAY['fixed_on'::character varying, 'named_relative_milestone'::character varying])::text[]))),
+    CONSTRAINT package_client_payment_schedule_lines_due_shape CHECK (((((due_kind)::text = 'fixed_on'::text) AND (due_on IS NOT NULL) AND (milestone_name IS NULL)) OR (((due_kind)::text = 'named_relative_milestone'::text) AND (milestone_name IS NOT NULL) AND (due_on IS NULL))))
+);
+
+
+--
+-- Name: package_client_payment_schedules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_client_payment_schedules (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    package_version_id uuid NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: package_client_stated_conditions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_client_stated_conditions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    package_version_id uuid NOT NULL,
+    "position" integer NOT NULL,
+    condition_kind character varying NOT NULL,
+    body character varying(2000) NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT package_client_stated_conditions_body CHECK ((btrim((body)::text) <> ''::text)),
+    CONSTRAINT package_client_stated_conditions_kind CHECK (((condition_kind)::text = ANY ((ARRAY['eligibility'::character varying, 'acknowledgment'::character varying])::text[])))
+);
+
+
+--
+-- Name: package_client_term_resolutions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_client_term_resolutions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    package_version_id uuid NOT NULL,
+    kind character varying NOT NULL,
+    service_offer_version_id uuid CONSTRAINT package_client_term_resolutio_service_offer_version_id_not_null NOT NULL,
+    governing_side character varying NOT NULL,
+    reason character varying(500) NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT package_client_term_resolutions_kind CHECK (((kind)::text = ANY ((ARRAY['payment'::character varying, 'cancellation'::character varying, 'stated_condition'::character varying])::text[]))),
+    CONSTRAINT package_client_term_resolutions_reason CHECK ((btrim((reason)::text) <> ''::text)),
+    CONSTRAINT package_client_term_resolutions_side CHECK (((governing_side)::text = ANY ((ARRAY['package'::character varying, 'service'::character varying])::text[])))
+);
+
+
+--
+-- Name: package_inclusions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_inclusions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    package_version_id uuid NOT NULL,
+    service_offer_id uuid NOT NULL,
+    service_offer_version_id uuid NOT NULL,
+    placement character varying DEFAULT 'included'::character varying NOT NULL,
+    origin character varying NOT NULL,
+    "position" integer NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT package_inclusions_origin CHECK (((origin)::text = ANY ((ARRAY['inline_create'::character varying, 'adopted_draft'::character varying, 'published_reusable'::character varying])::text[]))),
+    CONSTRAINT package_inclusions_placement CHECK (((placement)::text = ANY ((ARRAY['included'::character varying, 'optional'::character varying])::text[]))),
+    CONSTRAINT package_inclusions_position CHECK (("position" > 0))
+);
+
+
+--
+-- Name: package_price_component_bases; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_price_component_bases (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    package_version_id uuid NOT NULL,
+    package_price_definition_id uuid CONSTRAINT package_price_component_bas_package_price_definition_i_not_null NOT NULL,
+    package_price_component_id uuid CONSTRAINT package_price_component_bas_package_price_component_id_not_null NOT NULL,
+    base_component_id uuid NOT NULL,
+    direction character varying NOT NULL,
+    "position" integer NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT package_price_component_bases_direction CHECK (((direction)::text = ANY ((ARRAY['add'::character varying, 'subtract'::character varying])::text[]))),
+    CONSTRAINT package_price_component_bases_position CHECK (("position" > 0))
+);
+
+
+--
+-- Name: package_price_components; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_price_components (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    package_version_id uuid NOT NULL,
+    package_price_definition_id uuid NOT NULL,
+    label character varying(160) NOT NULL,
+    client_role character varying NOT NULL,
+    calculation_kind character varying NOT NULL,
+    amount_minor_units bigint,
+    rate numeric(20,10),
+    quantity_basis character varying,
+    percentage_treatment character varying,
+    "position" integer NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT package_price_components_amount CHECK (((amount_minor_units IS NULL) OR (amount_minor_units >= 0))),
+    CONSTRAINT package_price_components_kind CHECK (((calculation_kind)::text = ANY ((ARRAY['fixed'::character varying, 'unit_rate'::character varying, 'percentage'::character varying])::text[]))),
+    CONSTRAINT package_price_components_position CHECK (("position" > 0)),
+    CONSTRAINT package_price_components_rate CHECK (((rate IS NULL) OR (rate >= (0)::numeric))),
+    CONSTRAINT package_price_components_role CHECK (((client_role)::text = ANY ((ARRAY['base_price'::character varying, 'named_discount'::character varying, 'named_surcharge'::character varying, 'tax_fee'::character varying])::text[])))
+);
+
+
+--
+-- Name: package_price_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_price_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    package_version_id uuid NOT NULL,
+    currency character varying(3) NOT NULL,
+    mode character varying NOT NULL,
+    rounding_mode character varying DEFAULT 'half_up'::character varying NOT NULL,
+    single_occupancy_supplement_rate numeric(20,10),
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT package_price_definitions_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT package_price_definitions_mode CHECK (((mode)::text = ANY ((ARRAY['bundled'::character varying, 'service_sum'::character varying])::text[]))),
+    CONSTRAINT package_price_definitions_rounding CHECK (((rounding_mode)::text = 'half_up'::text)),
+    CONSTRAINT package_price_definitions_supplement_mode CHECK ((((mode)::text = 'bundled'::text) OR (single_occupancy_supplement_rate IS NULL))),
+    CONSTRAINT package_price_definitions_supplement_nonnegative CHECK (((single_occupancy_supplement_rate IS NULL) OR (single_occupancy_supplement_rate >= (0)::numeric)))
+);
+
+
+--
+-- Name: package_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.package_versions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    version_number integer NOT NULL,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    abandoned_at timestamp with time zone,
+    abandoned_reason character varying(500),
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    sales_starts_on date,
+    sales_ends_on date,
+    sales_cap_quantity integer,
+    sales_cap_basis character varying,
+    CONSTRAINT package_versions_abandoned_pair CHECK (((((status)::text = 'abandoned'::text) AND (abandoned_at IS NOT NULL) AND (abandoned_reason IS NOT NULL)) OR (((status)::text <> 'abandoned'::text) AND (abandoned_at IS NULL) AND (abandoned_reason IS NULL)))),
+    CONSTRAINT package_versions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT package_versions_number_positive CHECK ((version_number > 0)),
+    CONSTRAINT package_versions_reason CHECK (((abandoned_reason IS NULL) OR ((btrim((abandoned_reason)::text) <> ''::text) AND (char_length((abandoned_reason)::text) <= 500)))),
+    CONSTRAINT package_versions_sales_cap_basis CHECK (((sales_cap_basis IS NULL) OR ((sales_cap_basis)::text = ANY ((ARRAY['package_bookings'::character varying, 'persons'::character varying, 'resource_units'::character varying])::text[])))),
+    CONSTRAINT package_versions_sales_cap_pair CHECK (((sales_cap_quantity IS NULL) = (sales_cap_basis IS NULL))),
+    CONSTRAINT package_versions_sales_cap_quantity CHECK (((sales_cap_quantity IS NULL) OR (sales_cap_quantity > 0))),
+    CONSTRAINT package_versions_sales_window_order CHECK (((sales_starts_on IS NULL) OR (sales_starts_on <= sales_ends_on))),
+    CONSTRAINT package_versions_sales_window_pair CHECK (((sales_starts_on IS NULL) = (sales_ends_on IS NULL))),
+    CONSTRAINT package_versions_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'abandoned'::character varying, 'published'::character varying, 'superseded'::character varying, 'retired'::character varying])::text[])))
+);
+
+
+--
+-- Name: packages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.packages (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    name character varying(160) NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT packages_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT packages_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160)))
+);
+
+
+--
 -- Name: reference_sequences; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2786,6 +3312,177 @@ CREATE TABLE public.service_occurrences (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT service_occurrences_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT service_occurrences_status CHECK (((status)::text = ANY (ARRAY[('planned'::character varying)::text, ('cancelled'::character varying)::text])))
+);
+
+
+--
+-- Name: service_offer_choice_groups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_choice_groups (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid NOT NULL,
+    service_offer_version_id uuid NOT NULL,
+    name character varying(160) NOT NULL,
+    min_selections integer DEFAULT 0 NOT NULL,
+    max_selections integer DEFAULT 1 NOT NULL,
+    "position" integer NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_choice_groups_bounds CHECK (((min_selections >= 0) AND (max_selections >= min_selections))),
+    CONSTRAINT service_offer_choice_groups_position CHECK (("position" > 0))
+);
+
+
+--
+-- Name: service_offer_choice_option_source_activations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_choice_option_source_activations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid CONSTRAINT service_offer_choice_option_source_activatio_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT service_offer_choice_option_source_activa_departure_id_not_null NOT NULL,
+    service_offer_id uuid CONSTRAINT service_offer_choice_option_source_ac_service_offer_id_not_null NOT NULL,
+    service_offer_version_id uuid CONSTRAINT service_offer_choice_option_s_service_offer_version_id_not_null NOT NULL,
+    service_offer_choice_option_id uuid CONSTRAINT service_offer_choice_option_service_offer_choice_optio_not_null NOT NULL,
+    activation_kind character varying CONSTRAINT service_offer_choice_option_source_act_activation_kind_not_null NOT NULL,
+    service_offer_source_binding_id uuid,
+    alternative_group_key character varying(80),
+    created_at timestamp(6) with time zone CONSTRAINT service_offer_choice_option_source_activati_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT service_offer_choice_option_source_activati_updated_at_not_null NOT NULL,
+    CONSTRAINT service_offer_choice_activations_kind CHECK (((activation_kind)::text = ANY ((ARRAY['binding'::character varying, 'alternative_group'::character varying, 'none'::character varying])::text[]))),
+    CONSTRAINT service_offer_choice_activations_shape CHECK (((((activation_kind)::text = 'binding'::text) AND (service_offer_source_binding_id IS NOT NULL) AND (alternative_group_key IS NULL)) OR (((activation_kind)::text = 'alternative_group'::text) AND (alternative_group_key IS NOT NULL) AND (service_offer_source_binding_id IS NULL)) OR (((activation_kind)::text = 'none'::text) AND (service_offer_source_binding_id IS NULL) AND (alternative_group_key IS NULL))))
+);
+
+
+--
+-- Name: service_offer_choice_options; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_choice_options (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid NOT NULL,
+    service_offer_version_id uuid NOT NULL,
+    service_offer_choice_group_id uuid CONSTRAINT service_offer_choice_option_service_offer_choice_group_not_null NOT NULL,
+    name character varying(160) NOT NULL,
+    client_description character varying(2000),
+    price_effect_minor_units bigint,
+    "position" integer NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_choice_options_position CHECK (("position" > 0)),
+    CONSTRAINT service_offer_choice_options_price_effect CHECK (((price_effect_minor_units IS NULL) OR (price_effect_minor_units >= 0)))
+);
+
+
+--
+-- Name: service_offer_client_cancellation_policies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_client_cancellation_policies (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid CONSTRAINT service_offer_client_cancellation_policie_departure_id_not_null NOT NULL,
+    service_offer_id uuid CONSTRAINT service_offer_client_cancellation_pol_service_offer_id_not_null NOT NULL,
+    service_offer_version_id uuid CONSTRAINT service_offer_client_cancella_service_offer_version_id_not_null NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: service_offer_client_cancellation_tiers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_client_cancellation_tiers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid CONSTRAINT service_offer_client_cancellation_tie_service_offer_id_not_null NOT NULL,
+    service_offer_version_id uuid CONSTRAINT service_offer_client_cancell_service_offer_version_id_not_null1 NOT NULL,
+    service_offer_client_cancellation_policy_id uuid CONSTRAINT service_offer_client_cancel_service_offer_client_cance_not_null NOT NULL,
+    "position" integer NOT NULL,
+    threshold_kind character varying NOT NULL,
+    threshold_on date,
+    days_before integer,
+    consequence_kind character varying CONSTRAINT service_offer_client_cancellation_tie_consequence_kind_not_null NOT NULL,
+    amount_minor_units bigint,
+    percent_rate numeric(20,10),
+    percent_base character varying,
+    summary character varying(2000),
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_client_cancellation_tiers_consequence_kind CHECK (((consequence_kind)::text = ANY ((ARRAY['fixed'::character varying, 'percent'::character varying, 'manual_review'::character varying])::text[]))),
+    CONSTRAINT service_offer_client_cancellation_tiers_consequence_shape CHECK (((((consequence_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL) AND (summary IS NULL)) OR (((consequence_kind)::text = 'percent'::text) AND (percent_rate IS NOT NULL) AND ((percent_base)::text = 'selected_client_price'::text) AND (amount_minor_units IS NULL) AND (summary IS NULL)) OR (((consequence_kind)::text = 'manual_review'::text) AND (summary IS NOT NULL) AND (btrim((summary)::text) <> ''::text) AND (amount_minor_units IS NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL)))),
+    CONSTRAINT service_offer_client_cancellation_tiers_threshold_kind CHECK (((threshold_kind)::text = ANY ((ARRAY['on_or_before_date'::character varying, 'days_before_departure'::character varying])::text[]))),
+    CONSTRAINT service_offer_client_cancellation_tiers_threshold_shape CHECK (((((threshold_kind)::text = 'on_or_before_date'::text) AND (threshold_on IS NOT NULL) AND (days_before IS NULL)) OR (((threshold_kind)::text = 'days_before_departure'::text) AND (days_before IS NOT NULL) AND (days_before >= 0) AND (threshold_on IS NULL))))
+);
+
+
+--
+-- Name: service_offer_client_payment_schedule_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_client_payment_schedule_lines (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid CONSTRAINT service_offer_client_payment_schedule_lin_departure_id_not_null NOT NULL,
+    service_offer_id uuid CONSTRAINT service_offer_client_payment_schedul_service_offer_id_not_null1 NOT NULL,
+    service_offer_version_id uuid CONSTRAINT service_offer_client_payment_service_offer_version_id_not_null1 NOT NULL,
+    service_offer_client_payment_schedule_id uuid CONSTRAINT service_offer_client_paymen_service_offer_client_payme_not_null NOT NULL,
+    "position" integer NOT NULL,
+    due_kind character varying NOT NULL,
+    due_on date,
+    milestone_name character varying(160),
+    amount_kind character varying CONSTRAINT service_offer_client_payment_schedule_line_amount_kind_not_null NOT NULL,
+    amount_minor_units bigint,
+    percent_rate numeric(20,10),
+    percent_base character varying,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_client_payment_schedule_lines_amount_kind CHECK (((amount_kind)::text = ANY ((ARRAY['fixed'::character varying, 'percent'::character varying])::text[]))),
+    CONSTRAINT service_offer_client_payment_schedule_lines_amount_shape CHECK (((((amount_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL)) OR (((amount_kind)::text = 'percent'::text) AND (percent_rate IS NOT NULL) AND ((percent_base)::text = 'selected_client_price'::text) AND (amount_minor_units IS NULL)))),
+    CONSTRAINT service_offer_client_payment_schedule_lines_due_kind CHECK (((due_kind)::text = ANY ((ARRAY['fixed_on'::character varying, 'named_relative_milestone'::character varying])::text[]))),
+    CONSTRAINT service_offer_client_payment_schedule_lines_due_shape CHECK (((((due_kind)::text = 'fixed_on'::text) AND (due_on IS NOT NULL) AND (milestone_name IS NULL)) OR (((due_kind)::text = 'named_relative_milestone'::text) AND (milestone_name IS NOT NULL) AND (due_on IS NULL))))
+);
+
+
+--
+-- Name: service_offer_client_payment_schedules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_client_payment_schedules (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid CONSTRAINT service_offer_client_payment_schedule_service_offer_id_not_null NOT NULL,
+    service_offer_version_id uuid CONSTRAINT service_offer_client_payment__service_offer_version_id_not_null NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: service_offer_client_stated_conditions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_offer_client_stated_conditions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    service_offer_id uuid CONSTRAINT service_offer_client_stated_condition_service_offer_id_not_null NOT NULL,
+    service_offer_version_id uuid CONSTRAINT service_offer_client_stated_c_service_offer_version_id_not_null NOT NULL,
+    "position" integer NOT NULL,
+    condition_kind character varying NOT NULL,
+    body character varying(2000) NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT service_offer_client_stated_conditions_body CHECK ((btrim((body)::text) <> ''::text)),
+    CONSTRAINT service_offer_client_stated_conditions_kind CHECK (((condition_kind)::text = ANY ((ARRAY['eligibility'::character varying, 'acknowledgment'::character varying])::text[])))
 );
 
 
@@ -2931,11 +3628,11 @@ CREATE TABLE public.service_offer_source_bindings (
     client_description_provenance character varying DEFAULT 'none'::character varying CONSTRAINT service_offer_source_bindin_client_description_provena_not_null NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT service_offer_source_bindings_alternative_group CHECK (((((membership_kind)::text = 'required'::text) AND (alternative_group_key IS NULL) AND (alternative_group_label IS NULL)) OR (((membership_kind)::text = 'alternative'::text) AND (alternative_group_key IS NOT NULL) AND (alternative_group_label IS NOT NULL)))),
+    CONSTRAINT service_offer_source_bindings_alternative_group CHECK (((((membership_kind)::text = ANY ((ARRAY['required'::character varying, 'choice_gated'::character varying])::text[])) AND (alternative_group_key IS NULL) AND (alternative_group_label IS NULL)) OR (((membership_kind)::text = 'alternative'::text) AND (alternative_group_key IS NOT NULL) AND (alternative_group_label IS NOT NULL)))),
     CONSTRAINT service_offer_source_bindings_description_provenance CHECK (((client_description_provenance)::text = ANY ((ARRAY['source_description'::character varying, 'staff_entered'::character varying, 'none'::character varying])::text[]))),
     CONSTRAINT service_offer_source_bindings_group_key CHECK (((alternative_group_key IS NULL) OR ((btrim((alternative_group_key)::text) <> ''::text) AND (char_length((alternative_group_key)::text) <= 80)))),
     CONSTRAINT service_offer_source_bindings_group_label CHECK (((alternative_group_label IS NULL) OR ((btrim((alternative_group_label)::text) <> ''::text) AND (char_length((alternative_group_label)::text) <= 160)))),
-    CONSTRAINT service_offer_source_bindings_membership_kind CHECK (((membership_kind)::text = ANY ((ARRAY['required'::character varying, 'alternative'::character varying])::text[]))),
+    CONSTRAINT service_offer_source_bindings_membership_kind CHECK (((membership_kind)::text = ANY ((ARRAY['required'::character varying, 'alternative'::character varying, 'choice_gated'::character varying])::text[]))),
     CONSTRAINT service_offer_source_bindings_occurrence_definition_pair CHECK (((service_occurrence_id IS NULL) = (service_occurrence_definition_id IS NULL))),
     CONSTRAINT service_offer_source_bindings_pool_definition_pair CHECK (((capacity_pool_id IS NULL) = (capacity_pool_definition_id IS NULL))),
     CONSTRAINT service_offer_source_bindings_pool_requires_occurrence_resource CHECK (((capacity_pool_id IS NULL) OR ((service_occurrence_id IS NOT NULL) AND (supplier_resource_id IS NOT NULL)))),
@@ -2961,10 +3658,16 @@ CREATE TABLE public.service_offer_versions (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    owning_package_version_id uuid,
+    sales_cap_quantity integer,
+    sales_cap_basis character varying,
     CONSTRAINT service_offer_versions_abandoned_pair CHECK (((((status)::text = 'abandoned'::text) AND (abandoned_at IS NOT NULL) AND (abandoned_reason IS NOT NULL)) OR (((status)::text <> 'abandoned'::text) AND (abandoned_at IS NULL) AND (abandoned_reason IS NULL)))),
     CONSTRAINT service_offer_versions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT service_offer_versions_number_positive CHECK ((version_number > 0)),
     CONSTRAINT service_offer_versions_reason CHECK (((abandoned_reason IS NULL) OR ((btrim((abandoned_reason)::text) <> ''::text) AND (char_length((abandoned_reason)::text) <= 500)))),
+    CONSTRAINT service_offer_versions_sales_cap_basis CHECK (((sales_cap_basis IS NULL) OR ((sales_cap_basis)::text = ANY ((ARRAY['persons'::character varying, 'resource_units'::character varying])::text[])))),
+    CONSTRAINT service_offer_versions_sales_cap_pair CHECK (((sales_cap_quantity IS NULL) = (sales_cap_basis IS NULL))),
+    CONSTRAINT service_offer_versions_sales_cap_quantity CHECK (((sales_cap_quantity IS NULL) OR (sales_cap_quantity > 0))),
     CONSTRAINT service_offer_versions_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'abandoned'::character varying, 'published'::character varying, 'superseded'::character varying, 'retired'::character varying])::text[])))
 );
 
@@ -5073,6 +5776,102 @@ ALTER TABLE ONLY public.offices
 
 
 --
+-- Name: package_client_cancellation_policies package_client_cancellation_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_cancellation_policies
+    ADD CONSTRAINT package_client_cancellation_policies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: package_client_cancellation_tiers package_client_cancellation_tiers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_cancellation_tiers
+    ADD CONSTRAINT package_client_cancellation_tiers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: package_client_payment_schedule_lines package_client_payment_schedule_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_payment_schedule_lines
+    ADD CONSTRAINT package_client_payment_schedule_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: package_client_payment_schedules package_client_payment_schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_payment_schedules
+    ADD CONSTRAINT package_client_payment_schedules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: package_client_stated_conditions package_client_stated_conditions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_stated_conditions
+    ADD CONSTRAINT package_client_stated_conditions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: package_client_term_resolutions package_client_term_resolutions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_term_resolutions
+    ADD CONSTRAINT package_client_term_resolutions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: package_inclusions package_inclusions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_inclusions
+    ADD CONSTRAINT package_inclusions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: package_price_component_bases package_price_component_bases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_component_bases
+    ADD CONSTRAINT package_price_component_bases_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: package_price_components package_price_components_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_components
+    ADD CONSTRAINT package_price_components_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: package_price_definitions package_price_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_definitions
+    ADD CONSTRAINT package_price_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: package_versions package_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_versions
+    ADD CONSTRAINT package_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: packages packages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.packages
+    ADD CONSTRAINT packages_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: reference_sequences reference_sequences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5102,6 +5901,70 @@ ALTER TABLE ONLY public.service_occurrence_definitions
 
 ALTER TABLE ONLY public.service_occurrences
     ADD CONSTRAINT service_occurrences_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_choice_groups service_offer_choice_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_choice_groups
+    ADD CONSTRAINT service_offer_choice_groups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_choice_option_source_activations service_offer_choice_option_source_activations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_choice_option_source_activations
+    ADD CONSTRAINT service_offer_choice_option_source_activations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_choice_options service_offer_choice_options_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_choice_options
+    ADD CONSTRAINT service_offer_choice_options_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_client_cancellation_policies service_offer_client_cancellation_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_cancellation_policies
+    ADD CONSTRAINT service_offer_client_cancellation_policies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_client_cancellation_tiers service_offer_client_cancellation_tiers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_cancellation_tiers
+    ADD CONSTRAINT service_offer_client_cancellation_tiers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_client_payment_schedule_lines service_offer_client_payment_schedule_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_payment_schedule_lines
+    ADD CONSTRAINT service_offer_client_payment_schedule_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_client_payment_schedules service_offer_client_payment_schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_payment_schedules
+    ADD CONSTRAINT service_offer_client_payment_schedules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_offer_client_stated_conditions service_offer_client_stated_conditions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_stated_conditions
+    ADD CONSTRAINT service_offer_client_stated_conditions_pkey PRIMARY KEY (id);
 
 
 --
@@ -5770,10 +6633,115 @@ CREATE INDEX idx_on_agency_id_751f094529 ON public.supplier_confirmation_reserva
 
 
 --
+-- Name: idx_on_agency_id_7f92233e62; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_agency_id_7f92233e62 ON public.service_offer_choice_option_source_activations USING btree (agency_id);
+
+
+--
 -- Name: idx_on_agency_id_be0266867f; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_on_agency_id_be0266867f ON public.supplier_arrangement_activation_capacity_entries USING btree (agency_id);
+
+
+--
+-- Name: idx_package_can_full_own; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_package_can_full_own ON public.package_client_cancellation_policies USING btree (id, package_version_id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: idx_package_can_one_ver; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_package_can_one_ver ON public.package_client_cancellation_policies USING btree (package_version_id);
+
+
+--
+-- Name: idx_package_cancel_tiers_pos; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_package_cancel_tiers_pos ON public.package_client_cancellation_tiers USING btree (package_client_cancellation_policy_id, "position");
+
+
+--
+-- Name: idx_package_pay_full_own; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_package_pay_full_own ON public.package_client_payment_schedules USING btree (id, package_version_id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: idx_package_pay_lines_pos; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_package_pay_lines_pos ON public.package_client_payment_schedule_lines USING btree (package_client_payment_schedule_id, "position");
+
+
+--
+-- Name: idx_package_pay_one_ver; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_package_pay_one_ver ON public.package_client_payment_schedules USING btree (package_version_id);
+
+
+--
+-- Name: idx_package_stated_pos; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_package_stated_pos ON public.package_client_stated_conditions USING btree (package_version_id, "position");
+
+
+--
+-- Name: idx_service_offer_can_full_own; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_service_offer_can_full_own ON public.service_offer_client_cancellation_policies USING btree (id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: idx_service_offer_can_one_ver; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_service_offer_can_one_ver ON public.service_offer_client_cancellation_policies USING btree (service_offer_version_id);
+
+
+--
+-- Name: idx_service_offer_cancel_tiers_pos; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_service_offer_cancel_tiers_pos ON public.service_offer_client_cancellation_tiers USING btree (service_offer_client_cancellation_policy_id, "position");
+
+
+--
+-- Name: idx_service_offer_pay_full_own; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_service_offer_pay_full_own ON public.service_offer_client_payment_schedules USING btree (id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: idx_service_offer_pay_lines_pos; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_service_offer_pay_lines_pos ON public.service_offer_client_payment_schedule_lines USING btree (service_offer_client_payment_schedule_id, "position");
+
+
+--
+-- Name: idx_service_offer_pay_one_ver; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_service_offer_pay_one_ver ON public.service_offer_client_payment_schedules USING btree (service_offer_version_id);
+
+
+--
+-- Name: idx_service_offer_stated_pos; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_service_offer_stated_pos ON public.service_offer_client_stated_conditions USING btree (service_offer_version_id, "position");
 
 
 --
@@ -7730,6 +8698,223 @@ CREATE UNIQUE INDEX index_offices_on_id_and_agency_id ON public.offices USING bt
 
 
 --
+-- Name: index_package_client_cancellation_policies_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_client_cancellation_policies_on_agency_id ON public.package_client_cancellation_policies USING btree (agency_id);
+
+
+--
+-- Name: index_package_client_cancellation_tiers_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_client_cancellation_tiers_on_agency_id ON public.package_client_cancellation_tiers USING btree (agency_id);
+
+
+--
+-- Name: index_package_client_payment_schedule_lines_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_client_payment_schedule_lines_on_agency_id ON public.package_client_payment_schedule_lines USING btree (agency_id);
+
+
+--
+-- Name: index_package_client_payment_schedules_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_client_payment_schedules_on_agency_id ON public.package_client_payment_schedules USING btree (agency_id);
+
+
+--
+-- Name: index_package_client_stated_conditions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_client_stated_conditions_on_agency_id ON public.package_client_stated_conditions USING btree (agency_id);
+
+
+--
+-- Name: index_package_client_term_resolutions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_client_term_resolutions_on_agency_id ON public.package_client_term_resolutions USING btree (agency_id);
+
+
+--
+-- Name: index_package_client_term_resolutions_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_client_term_resolutions_unique ON public.package_client_term_resolutions USING btree (package_version_id, kind, service_offer_version_id);
+
+
+--
+-- Name: index_package_inclusions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_inclusions_on_agency_id ON public.package_inclusions USING btree (agency_id);
+
+
+--
+-- Name: index_package_inclusions_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_inclusions_on_full_owner ON public.package_inclusions USING btree (id, package_version_id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: index_package_inclusions_on_id_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_inclusions_on_id_and_agency ON public.package_inclusions USING btree (id, agency_id);
+
+
+--
+-- Name: index_package_inclusions_on_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_inclusions_on_position ON public.package_inclusions USING btree (package_version_id, "position");
+
+
+--
+-- Name: index_package_inclusions_on_version_offer; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_inclusions_on_version_offer ON public.package_inclusions USING btree (package_version_id, service_offer_version_id);
+
+
+--
+-- Name: index_package_inclusions_one_draft_service; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_inclusions_one_draft_service ON public.package_inclusions USING btree (service_offer_version_id) WHERE ((origin)::text = ANY ((ARRAY['inline_create'::character varying, 'adopted_draft'::character varying])::text[]));
+
+
+--
+-- Name: index_package_price_component_bases_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_price_component_bases_on_agency_id ON public.package_price_component_bases USING btree (agency_id);
+
+
+--
+-- Name: index_package_price_component_bases_on_pair; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_price_component_bases_on_pair ON public.package_price_component_bases USING btree (package_price_component_id, base_component_id);
+
+
+--
+-- Name: index_package_price_components_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_price_components_on_agency_id ON public.package_price_components USING btree (agency_id);
+
+
+--
+-- Name: index_package_price_components_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_price_components_on_full_owner ON public.package_price_components USING btree (id, package_price_definition_id, package_version_id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: index_package_price_components_on_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_price_components_on_position ON public.package_price_components USING btree (package_price_definition_id, "position");
+
+
+--
+-- Name: index_package_price_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_price_definitions_on_agency_id ON public.package_price_definitions USING btree (agency_id);
+
+
+--
+-- Name: index_package_price_definitions_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_price_definitions_on_full_owner ON public.package_price_definitions USING btree (id, package_version_id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: index_package_price_definitions_one_per_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_price_definitions_one_per_version ON public.package_price_definitions USING btree (package_version_id);
+
+
+--
+-- Name: index_package_versions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_package_versions_on_agency_id ON public.package_versions USING btree (agency_id);
+
+
+--
+-- Name: index_package_versions_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_versions_on_full_owner ON public.package_versions USING btree (id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: index_package_versions_on_id_and_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_versions_on_id_and_agency ON public.package_versions USING btree (id, agency_id);
+
+
+--
+-- Name: index_package_versions_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_versions_on_id_departure_agency ON public.package_versions USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_package_versions_on_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_versions_on_number ON public.package_versions USING btree (package_id, version_number);
+
+
+--
+-- Name: index_package_versions_one_draft; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_package_versions_one_draft ON public.package_versions USING btree (package_id) WHERE ((status)::text = 'draft'::text);
+
+
+--
+-- Name: index_packages_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_packages_on_agency_id ON public.packages USING btree (agency_id);
+
+
+--
+-- Name: index_packages_on_departure_list; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_packages_on_departure_list ON public.packages USING btree (agency_id, departure_id, name, id);
+
+
+--
+-- Name: index_packages_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_packages_on_id_and_agency_id ON public.packages USING btree (id, agency_id);
+
+
+--
+-- Name: index_packages_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_packages_on_id_departure_agency ON public.packages USING btree (id, departure_id, agency_id);
+
+
+--
 -- Name: index_planning_milestones_on_full_owner; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7975,6 +9160,90 @@ CREATE UNIQUE INDEX index_service_occurrences_on_item_owner ON public.service_oc
 
 
 --
+-- Name: index_service_offer_choice_activations_one_per_option; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_choice_activations_one_per_option ON public.service_offer_choice_option_source_activations USING btree (service_offer_choice_option_id);
+
+
+--
+-- Name: index_service_offer_choice_groups_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_choice_groups_on_agency_id ON public.service_offer_choice_groups USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_choice_groups_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_choice_groups_on_full_owner ON public.service_offer_choice_groups USING btree (id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_offer_choice_groups_on_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_choice_groups_on_position ON public.service_offer_choice_groups USING btree (service_offer_version_id, "position");
+
+
+--
+-- Name: index_service_offer_choice_options_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_choice_options_on_agency_id ON public.service_offer_choice_options USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_choice_options_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_choice_options_on_full_owner ON public.service_offer_choice_options USING btree (id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: index_service_offer_choice_options_on_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_choice_options_on_position ON public.service_offer_choice_options USING btree (service_offer_choice_group_id, "position");
+
+
+--
+-- Name: index_service_offer_client_cancellation_policies_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_client_cancellation_policies_on_agency_id ON public.service_offer_client_cancellation_policies USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_client_cancellation_tiers_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_client_cancellation_tiers_on_agency_id ON public.service_offer_client_cancellation_tiers USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_client_payment_schedule_lines_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_client_payment_schedule_lines_on_agency_id ON public.service_offer_client_payment_schedule_lines USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_client_payment_schedules_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_client_payment_schedules_on_agency_id ON public.service_offer_client_payment_schedules USING btree (agency_id);
+
+
+--
+-- Name: index_service_offer_client_stated_conditions_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_client_stated_conditions_on_agency_id ON public.service_offer_client_stated_conditions USING btree (agency_id);
+
+
+--
 -- Name: index_service_offer_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8129,6 +9398,13 @@ CREATE INDEX index_service_offer_source_bindings_on_agency_id ON public.service_
 
 
 --
+-- Name: index_service_offer_source_bindings_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offer_source_bindings_on_full_owner ON public.service_offer_source_bindings USING btree (id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
 -- Name: index_service_offer_source_bindings_on_id_and_agency; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8182,6 +9458,13 @@ CREATE UNIQUE INDEX index_service_offer_versions_on_id_departure_agency ON publi
 --
 
 CREATE UNIQUE INDEX index_service_offer_versions_on_number ON public.service_offer_versions USING btree (service_offer_id, version_number);
+
+
+--
+-- Name: index_service_offer_versions_on_owning_package_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_service_offer_versions_on_owning_package_version ON public.service_offer_versions USING btree (owning_package_version_id);
 
 
 --
@@ -9809,6 +11092,118 @@ CREATE TRIGGER offices_reject_identity_change BEFORE UPDATE ON public.offices FO
 
 
 --
+-- Name: package_client_cancellation_policies package_client_cancellation_policies_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_client_cancellation_policies_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.package_client_cancellation_policies FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_package_version_definition_mutation();
+
+
+--
+-- Name: package_client_cancellation_tiers package_client_cancellation_tiers_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_client_cancellation_tiers_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.package_client_cancellation_tiers FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_package_version_definition_mutation();
+
+
+--
+-- Name: package_client_payment_schedule_lines package_client_payment_schedule_lines_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_client_payment_schedule_lines_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.package_client_payment_schedule_lines FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_package_version_definition_mutation();
+
+
+--
+-- Name: package_client_payment_schedules package_client_payment_schedules_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_client_payment_schedules_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.package_client_payment_schedules FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_package_version_definition_mutation();
+
+
+--
+-- Name: package_client_stated_conditions package_client_stated_conditions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_client_stated_conditions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.package_client_stated_conditions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_package_version_definition_mutation();
+
+
+--
+-- Name: package_client_term_resolutions package_client_term_resolutions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_client_term_resolutions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.package_client_term_resolutions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_package_version_definition_mutation();
+
+
+--
+-- Name: package_inclusions package_inclusions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_inclusions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.package_inclusions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_package_version_definition_mutation();
+
+
+--
+-- Name: package_inclusions package_inclusions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_inclusions_reject_owner_change BEFORE UPDATE ON public.package_inclusions FOR EACH ROW EXECUTE FUNCTION public.reject_package_inclusion_owner_change();
+
+
+--
+-- Name: package_inclusions package_inclusions_validate_origin; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_inclusions_validate_origin BEFORE INSERT OR UPDATE ON public.package_inclusions FOR EACH ROW EXECUTE FUNCTION public.validate_package_inclusion_origin();
+
+
+--
+-- Name: package_inclusions package_inclusions_validate_ownership_match; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER package_inclusions_validate_ownership_match AFTER INSERT OR DELETE OR UPDATE ON public.package_inclusions DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.validate_package_ownership_inclusion_match();
+
+
+--
+-- Name: package_price_component_bases package_price_component_bases_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_price_component_bases_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.package_price_component_bases FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_package_version_definition_mutation();
+
+
+--
+-- Name: package_price_components package_price_components_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_price_components_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.package_price_components FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_package_version_definition_mutation();
+
+
+--
+-- Name: package_price_definitions package_price_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_price_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.package_price_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_package_version_definition_mutation();
+
+
+--
+-- Name: package_versions package_versions_reject_invalid_lifecycle; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_versions_reject_invalid_lifecycle BEFORE UPDATE ON public.package_versions FOR EACH ROW EXECUTE FUNCTION public.reject_invalid_package_version_lifecycle();
+
+
+--
+-- Name: package_versions package_versions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER package_versions_reject_owner_change BEFORE UPDATE ON public.package_versions FOR EACH ROW EXECUTE FUNCTION public.reject_package_version_owner_change();
+
+
+--
+-- Name: packages packages_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER packages_reject_owner_change BEFORE UPDATE ON public.packages FOR EACH ROW EXECUTE FUNCTION public.reject_package_owner_change();
+
+
+--
 -- Name: reference_sequences reference_sequences_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -9848,6 +11243,62 @@ CREATE TRIGGER service_occurrence_definitions_reject_owner_change BEFORE UPDATE 
 --
 
 CREATE TRIGGER service_occurrences_reject_owner_change BEFORE UPDATE ON public.service_occurrences FOR EACH ROW EXECUTE FUNCTION public.reject_service_occurrence_owner_change();
+
+
+--
+-- Name: service_offer_choice_groups service_offer_choice_groups_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_choice_groups_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_choice_groups FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_choice_option_source_activations service_offer_choice_option_source_activations_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_choice_option_source_activations_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_choice_option_source_activations FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_choice_options service_offer_choice_options_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_choice_options_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_choice_options FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_client_cancellation_policies service_offer_client_cancellation_policies_reject_non_draft_mut; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_client_cancellation_policies_reject_non_draft_mut BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_client_cancellation_policies FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_client_cancellation_tiers service_offer_client_cancellation_tiers_reject_non_draft_mutati; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_client_cancellation_tiers_reject_non_draft_mutati BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_client_cancellation_tiers FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_client_payment_schedule_lines service_offer_client_payment_schedule_lines_reject_non_draft_mu; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_client_payment_schedule_lines_reject_non_draft_mu BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_client_payment_schedule_lines FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_client_payment_schedules service_offer_client_payment_schedules_reject_non_draft_mutatio; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_client_payment_schedules_reject_non_draft_mutatio BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_client_payment_schedules FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
+
+
+--
+-- Name: service_offer_client_stated_conditions service_offer_client_stated_conditions_reject_non_draft_mutatio; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_client_stated_conditions_reject_non_draft_mutatio BEFORE INSERT OR DELETE OR UPDATE ON public.service_offer_client_stated_conditions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_service_offer_version_definition_mutation();
 
 
 --
@@ -9949,6 +11400,13 @@ CREATE TRIGGER service_offer_source_bindings_reject_owner_change BEFORE UPDATE O
 
 
 --
+-- Name: service_offer_versions service_offer_versions_enforce_package_ownership; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offer_versions_enforce_package_ownership BEFORE INSERT OR UPDATE ON public.service_offer_versions FOR EACH ROW EXECUTE FUNCTION public.enforce_service_offer_version_package_ownership();
+
+
+--
 -- Name: service_offer_versions service_offer_versions_reject_invalid_lifecycle; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -9960,6 +11418,13 @@ CREATE TRIGGER service_offer_versions_reject_invalid_lifecycle BEFORE UPDATE ON 
 --
 
 CREATE TRIGGER service_offer_versions_reject_owner_change BEFORE UPDATE ON public.service_offer_versions FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_version_owner_change();
+
+
+--
+-- Name: service_offer_versions service_offer_versions_validate_ownership_match; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER service_offer_versions_validate_ownership_match AFTER INSERT OR UPDATE OF owning_package_version_id ON public.service_offer_versions DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.validate_package_ownership_inclusion_match();
 
 
 --
@@ -12328,6 +13793,14 @@ ALTER TABLE ONLY public.supplier_exposure_summaries
 
 
 --
+-- Name: package_client_payment_schedule_lines fk_rails_02d62cf438; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_payment_schedule_lines
+    ADD CONSTRAINT fk_rails_02d62cf438 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_arrangements fk_rails_089363381e; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12344,11 +13817,35 @@ ALTER TABLE ONLY public.supplier_confirmation_activation_links
 
 
 --
+-- Name: service_offer_client_cancellation_tiers fk_rails_08f6c83f52; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_cancellation_tiers
+    ADD CONSTRAINT fk_rails_08f6c83f52 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: service_offer_choice_options fk_rails_0b74be4c14; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_choice_options
+    ADD CONSTRAINT fk_rails_0b74be4c14 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_reservation_scopes fk_rails_0f150b102b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.supplier_reservation_scopes
     ADD CONSTRAINT fk_rails_0f150b102b FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: packages fk_rails_13d90f8633; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.packages
+    ADD CONSTRAINT fk_rails_13d90f8633 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -12528,6 +14025,14 @@ ALTER TABLE ONLY public.agency_command_idempotency_keys
 
 
 --
+-- Name: package_client_cancellation_tiers fk_rails_3d099151e1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_cancellation_tiers
+    ADD CONSTRAINT fk_rails_3d099151e1 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: client_organizations fk_rails_4e204305ef; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12544,6 +14049,22 @@ ALTER TABLE ONLY public.reference_sequences
 
 
 --
+-- Name: package_versions fk_rails_50f0db7fa1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_versions
+    ADD CONSTRAINT fk_rails_50f0db7fa1 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: package_price_definitions fk_rails_568ae973ef; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_definitions
+    ADD CONSTRAINT fk_rails_568ae973ef FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_arrangement_activations fk_rails_5bedb1c962; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12557,6 +14078,14 @@ ALTER TABLE ONLY public.supplier_arrangement_activations
 
 ALTER TABLE ONLY public.supplier_confirmation_reservation_scope_links
     ADD CONSTRAINT fk_rails_62fbdad473 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: service_offer_choice_option_source_activations fk_rails_66b65bb196; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_choice_option_source_activations
+    ADD CONSTRAINT fk_rails_66b65bb196 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -12640,11 +14169,35 @@ ALTER TABLE ONLY public.audit_events
 
 
 --
+-- Name: service_offer_client_payment_schedules fk_rails_88acd134a3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_payment_schedules
+    ADD CONSTRAINT fk_rails_88acd134a3 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: service_offer_client_cancellation_policies fk_rails_891882b58c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_cancellation_policies
+    ADD CONSTRAINT fk_rails_891882b58c FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_cost_usage_assumptions fk_rails_89364bac36; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.supplier_cost_usage_assumptions
     ADD CONSTRAINT fk_rails_89364bac36 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: service_offer_choice_groups fk_rails_8b98b852a1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_choice_groups
+    ADD CONSTRAINT fk_rails_8b98b852a1 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -12720,6 +14273,14 @@ ALTER TABLE ONLY public.suppliers
 
 
 --
+-- Name: package_price_component_bases fk_rails_a122ed1a8e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_component_bases
+    ADD CONSTRAINT fk_rails_a122ed1a8e FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_reservations fk_rails_a1b8a7498f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12741,6 +14302,14 @@ ALTER TABLE ONLY public.supplier_cost_component_bases
 
 ALTER TABLE ONLY public.supplier_contact_phone_numbers
     ADD CONSTRAINT fk_rails_a8cbb23af8 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: package_client_cancellation_policies fk_rails_a9753b6f28; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_cancellation_policies
+    ADD CONSTRAINT fk_rails_a9753b6f28 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -12773,6 +14342,14 @@ ALTER TABLE ONLY public.service_offer_price_definitions
 
 ALTER TABLE ONLY public.client_organization_email_addresses
     ADD CONSTRAINT fk_rails_b2180601e2 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: package_inclusions fk_rails_bfc8a22f4e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_inclusions
+    ADD CONSTRAINT fk_rails_bfc8a22f4e FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -12848,6 +14425,14 @@ ALTER TABLE ONLY public.service_offer_price_components
 
 
 --
+-- Name: service_offer_client_payment_schedule_lines fk_rails_d2dcc858b0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_payment_schedule_lines
+    ADD CONSTRAINT fk_rails_d2dcc858b0 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: client_person_email_addresses fk_rails_d40f0804a1; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12888,11 +14473,27 @@ ALTER TABLE ONLY public.supplier_contact_email_addresses
 
 
 --
+-- Name: package_client_term_resolutions fk_rails_dcd2b50605; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_term_resolutions
+    ADD CONSTRAINT fk_rails_dcd2b50605 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: arrangement_items fk_rails_de3260558a; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.arrangement_items
     ADD CONSTRAINT fk_rails_de3260558a FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: service_offer_client_stated_conditions fk_rails_e0cab1b7f9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_stated_conditions
+    ADD CONSTRAINT fk_rails_e0cab1b7f9 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -12936,6 +14537,22 @@ ALTER TABLE ONLY public.supplier_cost_participant_categories
 
 
 --
+-- Name: package_client_stated_conditions fk_rails_ee71fe5f1b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_stated_conditions
+    ADD CONSTRAINT fk_rails_ee71fe5f1b FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: package_price_components fk_rails_ef75249e8a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_components
+    ADD CONSTRAINT fk_rails_ef75249e8a FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: capacity_pool_definitions fk_rails_f2e9dce76c; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12957,6 +14574,14 @@ ALTER TABLE ONLY public.client_person_phone_numbers
 
 ALTER TABLE ONLY public.supplier_resources
     ADD CONSTRAINT fk_rails_f4555dab68 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: package_client_payment_schedules fk_rails_fb53bb5e7d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_payment_schedules
+    ADD CONSTRAINT fk_rails_fb53bb5e7d FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -13013,6 +14638,134 @@ ALTER TABLE ONLY public.arrangement_item_setup_results
 
 ALTER TABLE ONLY public.service_occurrence_definitions
     ADD CONSTRAINT occurrence_definitions_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrence_definitions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: package_client_cancellation_policies package_client_cancellation_policies_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_cancellation_policies
+    ADD CONSTRAINT package_client_cancellation_policies_version_fk FOREIGN KEY (package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_versions(id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_client_cancellation_tiers package_client_cancellation_tiers_policy_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_cancellation_tiers
+    ADD CONSTRAINT package_client_cancellation_tiers_policy_fk FOREIGN KEY (package_client_cancellation_policy_id, package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_client_cancellation_policies(id, package_version_id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_client_payment_schedule_lines package_client_payment_schedule_lines_schedule_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_payment_schedule_lines
+    ADD CONSTRAINT package_client_payment_schedule_lines_schedule_fk FOREIGN KEY (package_client_payment_schedule_id, package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_client_payment_schedules(id, package_version_id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_client_payment_schedules package_client_payment_schedules_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_payment_schedules
+    ADD CONSTRAINT package_client_payment_schedules_version_fk FOREIGN KEY (package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_versions(id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_client_stated_conditions package_client_stated_conditions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_stated_conditions
+    ADD CONSTRAINT package_client_stated_conditions_version_fk FOREIGN KEY (package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_versions(id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_client_term_resolutions package_client_term_resolutions_offer_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_term_resolutions
+    ADD CONSTRAINT package_client_term_resolutions_offer_version_fk FOREIGN KEY (service_offer_version_id, departure_id, agency_id) REFERENCES public.service_offer_versions(id, departure_id, agency_id);
+
+
+--
+-- Name: package_client_term_resolutions package_client_term_resolutions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_client_term_resolutions
+    ADD CONSTRAINT package_client_term_resolutions_version_fk FOREIGN KEY (package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_versions(id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_inclusions package_inclusions_package_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_inclusions
+    ADD CONSTRAINT package_inclusions_package_version_fk FOREIGN KEY (package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_versions(id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_inclusions package_inclusions_service_offer_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_inclusions
+    ADD CONSTRAINT package_inclusions_service_offer_version_fk FOREIGN KEY (service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_versions(id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: package_price_component_bases package_price_component_bases_base_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_component_bases
+    ADD CONSTRAINT package_price_component_bases_base_fk FOREIGN KEY (base_component_id, package_price_definition_id, package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_price_components(id, package_price_definition_id, package_version_id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_price_component_bases package_price_component_bases_component_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_component_bases
+    ADD CONSTRAINT package_price_component_bases_component_fk FOREIGN KEY (package_price_component_id, package_price_definition_id, package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_price_components(id, package_price_definition_id, package_version_id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_price_components package_price_components_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_components
+    ADD CONSTRAINT package_price_components_definition_fk FOREIGN KEY (package_price_definition_id, package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_price_definitions(id, package_version_id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_price_definitions package_price_definitions_departure_currency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_definitions
+    ADD CONSTRAINT package_price_definitions_departure_currency_fk FOREIGN KEY (departure_id, agency_id, currency) REFERENCES public.departures(id, agency_id, operating_currency);
+
+
+--
+-- Name: package_price_definitions package_price_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_price_definitions
+    ADD CONSTRAINT package_price_definitions_version_fk FOREIGN KEY (package_version_id, package_id, departure_id, agency_id) REFERENCES public.package_versions(id, package_id, departure_id, agency_id);
+
+
+--
+-- Name: package_versions package_versions_package_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.package_versions
+    ADD CONSTRAINT package_versions_package_fk FOREIGN KEY (package_id, departure_id, agency_id) REFERENCES public.packages(id, departure_id, agency_id);
+
+
+--
+-- Name: packages packages_departure_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.packages
+    ADD CONSTRAINT packages_departure_agency_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
 
 
 --
@@ -13224,6 +14977,78 @@ ALTER TABLE ONLY public.service_occurrences
 
 
 --
+-- Name: service_offer_choice_option_source_activations service_offer_choice_activations_binding_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_choice_option_source_activations
+    ADD CONSTRAINT service_offer_choice_activations_binding_fk FOREIGN KEY (service_offer_source_binding_id, service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_source_bindings(id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_choice_option_source_activations service_offer_choice_activations_option_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_choice_option_source_activations
+    ADD CONSTRAINT service_offer_choice_activations_option_fk FOREIGN KEY (service_offer_choice_option_id, service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_choice_options(id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_choice_groups service_offer_choice_groups_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_choice_groups
+    ADD CONSTRAINT service_offer_choice_groups_version_fk FOREIGN KEY (service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_versions(id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_choice_options service_offer_choice_options_group_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_choice_options
+    ADD CONSTRAINT service_offer_choice_options_group_fk FOREIGN KEY (service_offer_choice_group_id, service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_choice_groups(id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_client_cancellation_policies service_offer_client_cancellation_policies_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_cancellation_policies
+    ADD CONSTRAINT service_offer_client_cancellation_policies_version_fk FOREIGN KEY (service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_versions(id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_client_cancellation_tiers service_offer_client_cancellation_tiers_policy_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_cancellation_tiers
+    ADD CONSTRAINT service_offer_client_cancellation_tiers_policy_fk FOREIGN KEY (service_offer_client_cancellation_policy_id, service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_client_cancellation_policies(id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_client_payment_schedule_lines service_offer_client_payment_schedule_lines_schedule_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_payment_schedule_lines
+    ADD CONSTRAINT service_offer_client_payment_schedule_lines_schedule_fk FOREIGN KEY (service_offer_client_payment_schedule_id, service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_client_payment_schedules(id, service_offer_version_id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_client_payment_schedules service_offer_client_payment_schedules_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_payment_schedules
+    ADD CONSTRAINT service_offer_client_payment_schedules_version_fk FOREIGN KEY (service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_versions(id, service_offer_id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_client_stated_conditions service_offer_client_stated_conditions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_client_stated_conditions
+    ADD CONSTRAINT service_offer_client_stated_conditions_version_fk FOREIGN KEY (service_offer_version_id, service_offer_id, departure_id, agency_id) REFERENCES public.service_offer_versions(id, service_offer_id, departure_id, agency_id);
+
+
+--
 -- Name: service_offer_definitions service_offer_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13373,6 +15198,14 @@ ALTER TABLE ONLY public.service_offer_source_bindings
 
 ALTER TABLE ONLY public.service_offer_versions
     ADD CONSTRAINT service_offer_versions_offer_fk FOREIGN KEY (service_offer_id, departure_id, agency_id) REFERENCES public.service_offers(id, departure_id, agency_id);
+
+
+--
+-- Name: service_offer_versions service_offer_versions_owning_package_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_versions
+    ADD CONSTRAINT service_offer_versions_owning_package_version_fk FOREIGN KEY (owning_package_version_id, departure_id, agency_id) REFERENCES public.package_versions(id, departure_id, agency_id);
 
 
 --
@@ -14014,6 +15847,8 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260920230000'),
+('20260920220000'),
 ('20260920210000'),
 ('20260920200000'),
 ('20260920160000'),

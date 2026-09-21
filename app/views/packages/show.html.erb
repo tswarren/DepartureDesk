@@ -1,0 +1,397 @@
+<% content_for :title, "#{@package.name} · DepartureDesk" %>
+<% draft = @package_version&.draft? %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title"><%= @package.name %></h1>
+    <p class="dd-page-description"><%= @departure.name %></p>
+  </div>
+  <% if draft %>
+    <div class="dd-page-actions">
+      <%= link_to "Edit draft", edit_departure_package_path(@departure, @package), class: "dd-button" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= render "shared/form_errors", object: @package %>
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Version</dt>
+        <dd><%= @package_version&.version_number %> · <%= @package_version ? service_offer_status_badge(@package_version.status) : "—" %></dd>
+      </div>
+      <div>
+        <dt>Price mode</dt>
+        <dd><%= @package_version&.price_definition&.mode&.humanize || "Not priced" %></dd>
+      </div>
+    </dl>
+    <p class="dd-field-hint">This draft is unpublished. There is no Publish action in this slice. Included unpublished services belong to this package.</p>
+  </div>
+</article>
+
+<% if draft %>
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Included services</h2>
+    </header>
+    <% inclusions = @package_version.inclusions.includes(:service_offer, :service_offer_version).order(:position) %>
+    <% if inclusions.any? %>
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Service</th>
+            <th scope="col">Origin</th>
+            <th scope="col">Placement</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% inclusions.each do |inclusion| %>
+            <tr>
+              <td>
+                <%= link_to inclusion.service_offer.name, departure_service_offer_path(@departure, inclusion.service_offer) %>
+                <% if inclusion.service_offer_version.owning_package_version_id == @package_version.id %>
+                  <span class="dd-field-hint">This version belongs to the package.</span>
+                <% end %>
+              </td>
+              <td><%= inclusion.origin.humanize %></td>
+              <td><%= inclusion.placement.humanize %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <div class="dd-panel-body">
+        <p class="<%= empty_state_classes.join(" ") %>">No services included yet.</p>
+      </div>
+    <% end %>
+    <div class="dd-panel-body">
+      <h3 class="dd-panel-title">Add service here</h3>
+      <%= form_with url: inline_departure_package_path(@departure, @package), class: "dd-form" do %>
+        <%= hidden_field_tag :version_lock_version, @package_version.lock_version %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <div class="dd-field-group">
+          <%= label_tag "inline_client_title", "Client title", class: "dd-label" %>
+          <%= text_field_tag "inline[client_title]", nil, maxlength: 160, required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag "inline_fulfillment_basis", "Fulfillment", class: "dd-label" %>
+          <%= select_tag "inline[fulfillment_basis]",
+                options_for_select([ [ "On request", "on_request" ], [ "Agency fulfilled", "agency_fulfilled" ], [ "Externally fulfilled", "externally_fulfilled" ] ]),
+                class: "dd-field" %>
+        </div>
+        <%= submit_tag "Add service here", class: "dd-button" %>
+      <% end %>
+
+      <h3 class="dd-panel-title">Include this draft as package-only</h3>
+      <% if @adoptable_drafts&.any? %>
+        <% @adoptable_drafts.each do |offer| %>
+          <%= form_with url: adopt_departure_package_path(@departure, @package), class: "dd-form" do %>
+            <%= hidden_field_tag :version_lock_version, @package_version.lock_version %>
+            <%= hidden_field_tag :offer_version_lock_version, offer.editable_draft_version.lock_version %>
+            <%= hidden_field_tag :service_offer_id, offer.id %>
+            <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+            <p>This version will belong to the package: <%= offer.name %></p>
+            <%= submit_tag "Adopt #{offer.name}", class: "dd-button dd-button--quiet" %>
+          <% end %>
+        <% end %>
+      <% else %>
+        <p class="dd-field-hint">No unshared editable drafts to adopt.</p>
+      <% end %>
+
+      <h3 class="dd-panel-title">Include a published reusable version</h3>
+      <p class="dd-field-hint">No published reusable versions are listed until publication ships.</p>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header"><h2 class="dd-panel-title">Package price</h2></header>
+    <div class="dd-panel-body">
+      <% price = @package_version.price_definition %>
+      <% base_component = price&.package_price_components&.find(&:base_price?) %>
+      <% adjustment = price&.package_price_components&.find { |row| row.named_discount? || row.named_surcharge? } %>
+      <%= form_with url: departure_package_price_path(@departure, @package),
+            method: (price ? :patch : :post),
+            class: "dd-form" do %>
+        <%= hidden_field_tag :version_lock_version, @package_version.lock_version %>
+        <% unless price %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <% end %>
+        <div class="dd-field-group">
+          <%= label_tag "price_mode", "Mode", class: "dd-label" %>
+          <%= select_tag "price[mode]",
+                options_for_select([ [ "Bundled price", "bundled" ], [ "Sum service prices", "service_sum" ] ], price&.mode || "bundled"),
+                class: "dd-field",
+                id: "price_mode" %>
+        </div>
+        <div class="dd-field-group" data-price-mode="bundled">
+          <%= label_tag "price_amount", "Per-person amount (bundled)", class: "dd-label" %>
+          <%= text_field_tag "price[components][][amount]",
+                base_component && Money.new(base_component.amount_minor_units, price.currency).format(symbol: false, thousands_separator: false),
+                class: "dd-field",
+                id: "price_amount" %>
+          <%= hidden_field_tag "price[components][][label]", "Package per person" %>
+          <%= hidden_field_tag "price[components][][client_role]", "base_price" %>
+          <%= hidden_field_tag "price[components][][calculation_kind]", "unit_rate" %>
+          <%= hidden_field_tag "price[components][][quantity_basis]", "persons" %>
+        </div>
+        <div class="dd-field-group" data-price-mode="bundled">
+          <%= label_tag "price_single_occupancy_supplement_rate", "Optional single supplement rate", class: "dd-label" %>
+          <%= text_field_tag "price[single_occupancy_supplement_rate]", price&.single_occupancy_supplement_rate, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group" data-price-mode="service_sum" hidden>
+          <%= label_tag "price_adjustment_label", "Named adjustment label", class: "dd-label" %>
+          <%= text_field_tag "price[service_sum_components][][label]", adjustment&.label, class: "dd-field", id: "price_adjustment_label" %>
+        </div>
+        <div class="dd-field-group" data-price-mode="service_sum" hidden>
+          <%= label_tag "price_adjustment_role", "Adjustment kind", class: "dd-label" %>
+          <%= select_tag "price[service_sum_components][][client_role]",
+                options_for_select([ [ "Named discount", "named_discount" ], [ "Named surcharge", "named_surcharge" ] ], adjustment&.client_role || "named_discount"),
+                class: "dd-field",
+                id: "price_adjustment_role" %>
+        </div>
+        <div class="dd-field-group" data-price-mode="service_sum" hidden>
+          <%= label_tag "price_adjustment_amount", "Adjustment amount (minor units)", class: "dd-label" %>
+          <%= number_field_tag "price[service_sum_components][][amount_minor_units]", adjustment&.amount_minor_units, class: "dd-field", id: "price_adjustment_amount" %>
+          <%= hidden_field_tag "price[service_sum_components][][calculation_kind]", "fixed" %>
+          <%= hidden_field_tag "price[service_sum_components][][quantity_basis]", "service_instances" %>
+        </div>
+        <%= submit_tag(price ? "Update package price" : "Save package price", class: "dd-button") %>
+      <% end %>
+      <% if price %>
+        <%= button_to "Remove package price",
+              departure_package_price_path(@departure, @package),
+              method: :delete,
+              params: { version_lock_version: @package_version.lock_version },
+              class: "dd-button dd-button--quiet" %>
+      <% end %>
+      <script>
+        (function () {
+          var mode = document.getElementById("price_mode");
+          if (!mode) return;
+          function sync() {
+            var bundled = mode.value === "bundled";
+            document.querySelectorAll("[data-price-mode='bundled']").forEach(function (el) { el.hidden = !bundled; });
+            document.querySelectorAll("[data-price-mode='service_sum']").forEach(function (el) { el.hidden = bundled; });
+          }
+          mode.addEventListener("change", sync);
+          sync();
+          var form = mode.closest("form");
+          if (!form) return;
+          form.addEventListener("submit", function () {
+            if (mode.value === "service_sum") {
+              document.querySelectorAll("[data-price-mode='bundled'] input, [data-price-mode='bundled'] select").forEach(function (el) { el.disabled = true; });
+              var label = document.getElementById("price_adjustment_label");
+              var role = document.getElementById("price_adjustment_role");
+              var amount = document.getElementById("price_adjustment_amount");
+              if (label && label.value && amount && amount.value) {
+                var container = document.createElement("div");
+                [["label", label.value], ["client_role", role.value], ["calculation_kind", "fixed"], ["quantity_basis", "service_instances"], ["amount_minor_units", amount.value]].forEach(function (pair) {
+                  var input = document.createElement("input");
+                  input.type = "hidden";
+                  input.name = "price[components][][" + pair[0] + "]";
+                  input.value = pair[1];
+                  container.appendChild(input);
+                });
+                form.appendChild(container);
+              }
+            } else {
+              document.querySelectorAll("[data-price-mode='service_sum'] input, [data-price-mode='service_sum'] select").forEach(function (el) { el.disabled = true; });
+            }
+          });
+        })();
+      </script>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header"><h2 class="dd-panel-title">Anonymous review</h2></header>
+    <div class="dd-panel-body">
+      <%= form_with url: preview_departure_package_path(@departure, @package), method: :post, class: "dd-form" do %>
+        <div class="dd-field-group">
+          <%= label_tag :persons, "Persons", class: "dd-label" %>
+          <%= number_field_tag :persons, @preview_persons || params[:persons] || 2, min: 1, class: "dd-field" %>
+        </div>
+        <% optional_inclusions = (@review_inclusions || []).select(&:optional?) %>
+        <% if optional_inclusions.any? %>
+          <fieldset class="dd-field-group">
+            <legend class="dd-label">Optional services</legend>
+            <% optional_inclusions.each do |inclusion| %>
+              <label class="dd-checkbox">
+                <%= check_box_tag "selected_inclusion_ids[]", inclusion.id, Array(@selected_inclusion_ids).include?(inclusion.id.to_s) %>
+                <%= inclusion.service_offer.name %>
+              </label>
+            <% end %>
+          </fieldset>
+        <% end %>
+        <% (@review_inclusions || []).each do |inclusion| %>
+          <% next if inclusion.optional? && Array(@selected_inclusion_ids).exclude?(inclusion.id.to_s) && Array(@selected_inclusion_ids).any? %>
+          <% groups = inclusion.service_offer_version.choice_groups.sort_by(&:position) %>
+          <% groups.each do |group| %>
+            <fieldset class="dd-field-group">
+              <legend class="dd-label"><%= inclusion.service_offer.name %>: <%= group.name %></legend>
+              <% options = group.service_offer_choice_options.sort_by(&:position) %>
+              <% selected_in_group = options.find { |option| Array(@selected_option_ids).include?(option.id.to_s) }&.id %>
+              <% if group.min_selections == 1 && group.max_selections == 1 %>
+                <%= select_tag "selected_option_ids[]",
+                      options_from_collection_for_select(options, :id, :name, selected_in_group),
+                      include_blank: "Choose…",
+                      class: "dd-field",
+                      id: "choice_group_#{group.id}" %>
+              <% else %>
+                <% options.each do |option| %>
+                  <label class="dd-checkbox">
+                    <%= check_box_tag "selected_option_ids[]", option.id, Array(@selected_option_ids).include?(option.id.to_s), id: "selected_option_#{option.id}" %>
+                    <%= option.name %>
+                    <% if option.price_effect_minor_units.present? %>
+                      <span class="dd-field-hint">+<%= option.price_effect_minor_units %> minor units</span>
+                    <% end %>
+                  </label>
+                <% end %>
+              <% end %>
+            </fieldset>
+          <% end %>
+        <% end %>
+        <%= submit_tag "Review example", class: "dd-button" %>
+      <% end %>
+      <% if @price_result %>
+        <% if @price_result.complete %>
+          <p>Client total: <%= @price_result.amount_minor_units %> <%= @price_result.currency %></p>
+          <ul>
+            <% @price_result.lines.each do |line| %>
+              <li><%= line.label %>: <%= line.signed_revenue_effect_minor_units %></li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p><%= @price_result.blockers.first&.dig(:message) %></p>
+        <% end %>
+      <% end %>
+      <% if @economics %>
+        <% if @economics.status == :known %>
+          <p>Indicative margin: <%= @economics.indicative_margin_minor_units %> <%= @economics.currency %></p>
+        <% else %>
+          <p class="dd-field-hint"><%= @economics.reason %></p>
+        <% end %>
+      <% end %>
+      <% if @package_version.payment_schedule || @package_version.cancellation_policy || @package_version.stated_conditions.any? %>
+        <h3 class="dd-panel-title">Recorded terms</h3>
+        <% @package_version.payment_schedule&.lines&.order(:position)&.each do |line| %>
+          <p class="dd-field-hint">Payment <%= line.due_kind.humanize %><%= " · #{line.milestone_name}" if line.named_relative_milestone? %><%= " · #{line.due_on}" if line.fixed_on? %>. Relative dates stay conditional; no Charge is posted.</p>
+        <% end %>
+        <% @package_version.cancellation_policy&.tiers&.order(:position)&.each do |tier| %>
+          <p class="dd-field-hint">
+            Cancellation <%= tier.threshold_kind.humanize %>:
+            <% if tier.manual_review? %>
+              Staff review — <%= tier.summary %>. This is not treated as zero.
+            <% else %>
+              <%= tier.consequence_kind.humanize %> of the selected Client price.
+            <% end %>
+          </p>
+        <% end %>
+        <% @package_version.stated_conditions.order(:position).each do |condition| %>
+          <p class="dd-field-hint"><%= condition.condition_kind.humanize %>: <%= condition.body %></p>
+        <% end %>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header"><h2 class="dd-panel-title">Terms, window, and caps</h2></header>
+    <div class="dd-panel-body">
+      <%= form_with url: departure_package_terms_path(@departure, @package), method: :patch, class: "dd-form" do %>
+        <%= hidden_field_tag :version_lock_version, @package_version.lock_version %>
+        <div class="dd-field-group">
+          <%= label_tag "terms_sales_starts_on", "Sales starts on", class: "dd-label" %>
+          <%= date_field_tag "terms[sales_starts_on]", @package_version.sales_starts_on, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag "terms_sales_ends_on", "Sales ends on", class: "dd-label" %>
+          <%= date_field_tag "terms[sales_ends_on]", @package_version.sales_ends_on, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag "terms_sales_cap_quantity", "Sales cap quantity", class: "dd-label" %>
+          <%= number_field_tag "terms[sales_cap_quantity]", @package_version.sales_cap_quantity, min: 1, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag "terms_sales_cap_basis", "Sales cap basis", class: "dd-label" %>
+          <%= select_tag "terms[sales_cap_basis]", options_for_select([ [ "", "" ], [ "Package bookings", "package_bookings" ], [ "Persons", "persons" ], [ "Resource units", "resource_units" ] ], @package_version.sales_cap_basis), class: "dd-field" %>
+        </div>
+        <details class="dd-disclosure">
+          <summary class="dd-disclosure-summary">Advanced: payment, cancellation, and stated conditions</summary>
+          <div class="dd-disclosure-body">
+            <p class="dd-field-hint">Recorded terms are disclosed on review. They do not invoice or schedule jobs. Manual review is text, not zero.</p>
+            <div class="dd-field-group">
+              <%= label_tag "terms_payment_due_kind", "Payment due", class: "dd-label" %>
+              <%= select_tag "terms[payment_lines][][due_kind]",
+                    options_for_select([ [ "", "" ], [ "Fixed date", "fixed_on" ], [ "Named milestone", "named_relative_milestone" ] ]),
+                    class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_payment_due_on", "Due on", class: "dd-label" %>
+              <%= date_field_tag "terms[payment_lines][][due_on]", nil, class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_payment_milestone", "Milestone name", class: "dd-label" %>
+              <%= text_field_tag "terms[payment_lines][][milestone_name]", nil, class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_payment_amount_kind", "Payment amount", class: "dd-label" %>
+              <%= select_tag "terms[payment_lines][][amount_kind]",
+                    options_for_select([ [ "", "" ], [ "Fixed", "fixed" ], [ "Percent of selected Client price", "percent" ] ]),
+                    class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_payment_amount", "Amount (minor units)", class: "dd-label" %>
+              <%= number_field_tag "terms[payment_lines][][amount_minor_units]", nil, class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_payment_percent", "Percent rate", class: "dd-label" %>
+              <%= text_field_tag "terms[payment_lines][][percent_rate]", nil, class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_cancel_kind", "Cancellation threshold", class: "dd-label" %>
+              <%= select_tag "terms[cancellation_tiers][][threshold_kind]",
+                    options_for_select([ [ "", "" ], [ "On or before date", "on_or_before_date" ], [ "Days before departure", "days_before_departure" ] ]),
+                    class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_cancel_days", "Days before", class: "dd-label" %>
+              <%= number_field_tag "terms[cancellation_tiers][][days_before]", nil, min: 0, class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_cancel_consequence", "Consequence", class: "dd-label" %>
+              <%= select_tag "terms[cancellation_tiers][][consequence_kind]",
+                    options_for_select([ [ "", "" ], [ "Fixed", "fixed" ], [ "Percent of selected Client price", "percent" ], [ "Manual review", "manual_review" ] ]),
+                    class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_cancel_summary", "Manual review summary", class: "dd-label" %>
+              <%= text_field_tag "terms[cancellation_tiers][][summary]", nil, class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_condition_kind", "Stated condition", class: "dd-label" %>
+              <%= select_tag "terms[stated_conditions][][condition_kind]",
+                    options_for_select([ [ "Eligibility", "eligibility" ], [ "Acknowledgment", "acknowledgment" ] ]),
+                    class: "dd-field" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "terms_condition_body", "Condition text", class: "dd-label" %>
+              <%= text_area_tag "terms[stated_conditions][][body]", nil, class: "dd-field", rows: 3 %>
+            </div>
+          </div>
+        </details>
+        <%= submit_tag "Save terms", class: "dd-button" %>
+      <% end %>
+      <%= form_with url: abandon_departure_package_path(@departure, @package), class: "dd-form" do %>
+        <%= hidden_field_tag :package_lock_version, @package.lock_version %>
+        <%= hidden_field_tag :version_lock_version, @package_version.lock_version %>
+        <div class="dd-field-group">
+          <%= label_tag :reason, "Abandon reason", class: "dd-label" %>
+          <%= text_field_tag :reason, nil, required: true, class: "dd-field" %>
+        </div>
+        <%= submit_tag "Abandon package draft", class: "dd-button dd-button--quiet" %>
+      <% end %>
+    </div>
+  </article>
+<% end %>

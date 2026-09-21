@@ -16,6 +16,13 @@ class ServiceOfferVersion < ApplicationRecord
   has_many :source_bindings, class_name: "ServiceOfferSourceBinding", dependent: :restrict_with_exception
   has_many :price_components, class_name: "ServiceOfferPriceComponent", dependent: :restrict_with_exception
   has_many :price_component_bases, class_name: "ServiceOfferPriceComponentBase", dependent: :restrict_with_exception
+  belongs_to :owning_package_version, class_name: "PackageVersion", optional: true
+  has_many :package_inclusions, dependent: :restrict_with_exception
+  has_many :choice_groups, class_name: "ServiceOfferChoiceGroup", dependent: :restrict_with_exception
+  has_many :choice_options, class_name: "ServiceOfferChoiceOption", dependent: :restrict_with_exception
+  has_one :payment_schedule, class_name: "ServiceOfferClientPaymentSchedule", dependent: :restrict_with_exception
+  has_one :cancellation_policy, class_name: "ServiceOfferClientCancellationPolicy", dependent: :restrict_with_exception
+  has_many :stated_conditions, class_name: "ServiceOfferClientStatedCondition", dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 

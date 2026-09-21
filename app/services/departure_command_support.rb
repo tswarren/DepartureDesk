@@ -39,6 +39,10 @@ module DepartureCommandSupport
       agency_id: @agency.id,
       departure_id: departure.id,
       service_offer_versions: { status: "draft" }
+    ).exists? || PackagePriceDefinition.joins(:package_version).where(
+      agency_id: @agency.id,
+      departure_id: departure.id,
+      package_versions: { status: "draft" }
     ).exists?
     return unless cost_exists || price_exists
 

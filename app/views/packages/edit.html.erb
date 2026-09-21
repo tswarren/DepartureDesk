@@ -1,0 +1,26 @@
+<% content_for :title, "Edit #{@package.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client offers (draft)</p>
+    <h1 class="dd-page-title">Edit package</h1>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @package, url: departure_package_path(@departure, @package), class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: @package %>
+      <%= hidden_field_tag :package_lock_version, @package.lock_version %>
+      <%= hidden_field_tag :version_lock_version, @package_version.lock_version %>
+      <div class="dd-field-group">
+        <%= form.label :name, "Package name", class: "dd-label" %>
+        <%= form.text_field :name, maxlength: Package::NAME_LIMIT, required: true, **dd_field_options(form, :name) %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Save", class: "dd-button" %>
+        <%= link_to "Cancel", departure_package_path(@departure, @package), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

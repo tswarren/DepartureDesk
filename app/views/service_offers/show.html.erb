@@ -157,3 +157,51 @@
     </article>
   <% end %>
 <% end %>
+
+<% if draft %>
+  <article class="dd-panel">
+    <header class="dd-panel-header"><h2 class="dd-panel-title">Client choices</h2></header>
+    <div class="dd-panel-body">
+      <%= form_with url: departure_service_offer_choices_path(@departure, @service_offer), method: :patch, class: "dd-form" do %>
+        <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+        <div class="dd-field-group">
+          <%= label_tag "choices_groups_0_name", "Group name", class: "dd-label" %>
+          <%= text_field_tag "choices[groups][][name]", nil, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag "choices_groups_0_min", "Min selections", class: "dd-label" %>
+          <%= number_field_tag "choices[groups][][min_selections]", 1, min: 0, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag "choices_groups_0_max", "Max selections", class: "dd-label" %>
+          <%= number_field_tag "choices[groups][][max_selections]", 1, min: 0, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag "choices_option_name", "Option name", class: "dd-label" %>
+          <%= text_field_tag "choices[groups][][options][][name]", nil, class: "dd-field" %>
+        </div>
+        <%= hidden_field_tag "choices[groups][][options][][activation][activation_kind]", "none" %>
+        <%= submit_tag "Save choices", class: "dd-button" %>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header"><h2 class="dd-panel-title">Standalone terms and caps</h2></header>
+    <div class="dd-panel-body">
+      <%= form_with url: departure_service_offer_terms_path(@departure, @service_offer), method: :patch, class: "dd-form" do %>
+        <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+        <div class="dd-field-group">
+          <%= label_tag "terms_sales_cap_quantity", "Sales cap quantity", class: "dd-label" %>
+          <%= number_field_tag "terms[sales_cap_quantity]", @service_offer_version.sales_cap_quantity, min: 1, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag "terms_sales_cap_basis", "Sales cap basis", class: "dd-label" %>
+          <%= select_tag "terms[sales_cap_basis]", options_for_select([ [ "", "" ], [ "Persons", "persons" ], [ "Resource units", "resource_units" ] ], @service_offer_version.sales_cap_basis), class: "dd-field" %>
+        </div>
+        <p class="dd-field-hint">Preview checks this example quantity against the cap only. Caps are not Pool traveler positions.</p>
+        <%= submit_tag "Save service terms", class: "dd-button" %>
+      <% end %>
+    </div>
+  </article>
+<% end %>

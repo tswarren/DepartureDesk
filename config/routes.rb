@@ -313,6 +313,19 @@ Rails.application.routes.draw do
       resource :price, controller: "service_offer_prices", only: %i[create update destroy] do
         post :preview
       end
+      resource :choices, controller: "service_offer_choices", only: %i[update]
+      resource :terms, controller: "service_offer_terms", only: %i[update]
+    end
+    resources :packages, only: %i[index show new create edit update] do
+      member do
+        post :abandon
+        post :inline
+        post :adopt
+        post :include_published
+        post :preview
+      end
+      resource :price, controller: "package_prices", only: %i[create update destroy]
+      resource :terms, controller: "package_terms", only: %i[update]
     end
   end
   get "departures/:id/return-to-draft", to: "departure_return_to_drafts#edit", as: :edit_departure_return_to_draft

@@ -27,7 +27,7 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     assert_not File.exist?(Rails.root.join("app/models/travel_program.rb"))
     assert_nil Rails.application.routes.named_routes.get("travel_programs")
     assert_not ActiveRecord::Base.connection.data_source_exists?("travel_programs")
-    assert_not ActiveRecord::Base.connection.data_source_exists?("packages")
+    assert ActiveRecord::Base.connection.data_source_exists?("packages")
     assert_not ActiveRecord::Base.connection.data_source_exists?("client_trips")
   end
 

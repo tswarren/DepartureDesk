@@ -153,6 +153,7 @@
       </div>
       <div class="dd-inline-actions">
         <%= link_to "View all", departure_service_offers_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Packages", departure_packages_path(@departure), class: "dd-button dd-button--quiet" %>
         <% if @departure.draft? || @departure.active? %>
           <%= link_to "Add service from Supplier planning", from_source_departure_service_offers_path(@departure), class: "dd-button" %>
           <%= link_to "Add explicit-basis service", new_departure_service_offer_path(@departure), class: "dd-button dd-button--quiet" %>

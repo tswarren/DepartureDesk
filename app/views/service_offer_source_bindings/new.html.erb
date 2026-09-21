@@ -50,7 +50,7 @@
       <div class="dd-field-group">
         <%= label_tag "service_offer_source_binding_membership_kind", "Membership", class: "dd-label" %>
         <%= select_tag "service_offer_source_binding[membership_kind]",
-          options_for_select([ [ "Required", "required" ], [ "Alternative", "alternative" ] ], "required"),
+          options_for_select([ [ "Required", "required" ], [ "Alternative", "alternative" ], [ "Choice-gated", "choice_gated" ] ], "required"),
           class: "dd-field" %>
       </div>
       <div class="dd-field-group">

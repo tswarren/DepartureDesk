@@ -38,6 +38,9 @@ class Departure < ApplicationRecord
   has_many :service_offer_price_components, dependent: :restrict_with_exception
   has_many :service_offer_price_component_bases, class_name: "ServiceOfferPriceComponentBase",
     dependent: :restrict_with_exception
+  has_many :packages, dependent: :restrict_with_exception
+  has_many :package_versions, dependent: :restrict_with_exception
+  has_many :package_inclusions, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 
