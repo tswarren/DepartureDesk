@@ -136,9 +136,9 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - If no Office is current, the UI remains usable and does not invent one.
 
 
-## Group departure builder (M4D.0 accepted; not shipped)
+## Group departure builder (M4D.0 shipped)
 
-Authority: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Implement with M4D.0b–0e.
+Authority: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Shipped.
 
 - Compact **Create group departure** on existing Departure new/create: name, optional target/exact timing, responsible Office; advanced disclosure for description, timezone, currency, and responsible Staff.
 - **Build this departure** on Departure show: recommended next action, request/session working-outcome choice, Package summary, itinerary cards (included/optional/unassigned), links into shipped Service Offer / Package / Supplier / price surfaces.

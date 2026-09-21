@@ -44,8 +44,8 @@ class AddServiceOfferSourceBinding < AgencyCommand
       version = lock_editable_offer_draft!(offer)
       ensure_offer_draft_editable!(departure, offer, version)
       definition = version.definition
-      unless definition&.m3_backed?
-        raise Error.new("Bindings can only be added to an M3-backed service offer.", code: :invalid)
+      unless definition&.m3_backed? || definition&.undecided?
+        raise Error.new("Bindings can only be added to an M3-backed or undecided service offer.", code: :invalid)
       end
       pin = resolve_source_pin!(arrangement:, version: planning_version, attributes: @attributes)
       membership = @attributes[:membership_kind].presence || "required"
@@ -73,6 +73,23 @@ class AddServiceOfferSourceBinding < AgencyCommand
         result_class: ServiceOfferSourceBinding
       ) do
         ensure_current_lock_version!(version, @version_lock_version)
+        if definition.undecided?
+          from_basis = definition.fulfillment_basis
+          definition.update!(fulfillment_basis: "m3_backed")
+          audit!(
+            agency: @agency,
+            action: "service_offer.fulfillment_basis_resolved",
+            subject: offer,
+            actor: @actor,
+            details: {
+              "service_offer_id" => offer.id,
+              "service_offer_version_id" => version.id,
+              "from_fulfillment_basis" => from_basis,
+              "to_fulfillment_basis" => "m3_backed",
+              "via" => "source_binding"
+            }
+          )
+        end
         position = version.source_bindings.maximum(:position).to_i + 1
         binding = version.source_bindings.create!(
           binding_attributes_from_pin(

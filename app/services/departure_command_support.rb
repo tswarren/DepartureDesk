@@ -104,6 +104,18 @@ module DepartureCommandSupport
     description
   end
 
+  def normalize_target_timing_text(value)
+    text = value.to_s.strip.presence
+    if text && text.length > Departure::TARGET_TIMING_LIMIT
+      raise AgencyCommand::Error.new(
+        "Target timing must be #{Departure::TARGET_TIMING_LIMIT} characters or fewer.",
+        code: :invalid
+      )
+    end
+
+    text
+  end
+
   def normalize_time_zone(value)
     zone = value.to_s.strip.presence
     return if zone.blank?

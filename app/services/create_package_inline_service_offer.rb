@@ -58,8 +58,8 @@ class CreatePackageInlineServiceOffer < AgencyCommand
 
       unless from_source?
         basis = @attributes[:fulfillment_basis].to_s
-        unless ServiceOfferDefinition::FULFILLMENT_BASES.include?(basis) && basis != "m3_backed"
-          raise Error.new("Choose on request, Agency fulfilled, or externally fulfilled.", code: :invalid)
+        unless OUTLINE_FULFILLMENT_BASES.include?(basis)
+          raise Error.new("Choose on request, Agency fulfilled, externally fulfilled, or decide later.", code: :invalid)
         end
       end
 
@@ -129,7 +129,8 @@ class CreatePackageInlineServiceOffer < AgencyCommand
         placement: placement,
         fulfillment_basis: basis,
         name: normalize_offer_name(@attributes[:name].presence || client_title),
-        client_title: client_title
+        client_title: client_title,
+        client_timing_text: normalize_client_timing_text(@attributes[:client_timing_text])
       }
     end
   end
@@ -199,6 +200,7 @@ class CreatePackageInlineServiceOffer < AgencyCommand
         service_offer: offer,
         client_title: client_title,
         client_description: normalize_client_description(@attributes[:client_description]),
+        client_timing_text: normalize_client_timing_text(@attributes[:client_timing_text]),
         fulfillment_basis: basis
       )
     end

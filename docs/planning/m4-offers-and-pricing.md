@@ -1,6 +1,6 @@
 # M4 — Offers and pricing
 
-**Status:** Accepted 2026-09-20. Not implementation authority for later slices. [M4A](m4a-service-definitions-and-sources.md), [M4B](m4b-client-pricing-and-anonymous-preview.md), and [M4C](m4c-packages-choices-and-client-terms.md) are accepted and shipped. [M4D](m4d-publication-and-live-feasibility.md) is shipped. [M4D.0](m4d0-narrow-group-departure-builder.md) is Accepted (not shipped). [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md) still needs its own accepted slice before domain code.
+**Status:** Accepted 2026-09-20. Not implementation authority for later slices. [M4A](m4a-service-definitions-and-sources.md), [M4B](m4b-client-pricing-and-anonymous-preview.md), and [M4C](m4c-packages-choices-and-client-terms.md) are accepted and shipped. [M4D](m4d-publication-and-live-feasibility.md) is shipped. [M4D.0](m4d0-narrow-group-departure-builder.md) is shipped. [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md) still needs its own accepted slice before domain code.
 
 **Architecture:** [ADR 0014](../adr/0014-client-offers-publication-and-supply-compatibility.md)  
 **Task-flow gate:** [M4.0](m40-task-flow-and-contract.md)  

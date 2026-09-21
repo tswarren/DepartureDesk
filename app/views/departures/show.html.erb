@@ -52,6 +52,12 @@
         <dt>Dates</dt>
         <dd><%= @departure.schedule_label %></dd>
       </div>
+      <% if @departure.target_timing_text.present? %>
+        <div>
+          <dt>Target timing</dt>
+          <dd><%= @departure.target_timing_text %></dd>
+        </div>
+      <% end %>
       <div>
         <dt>Time zone</dt>
         <dd><%= @departure.time_zone.presence || "—" %></dd>
@@ -79,6 +85,15 @@
     </dl>
   </div>
 </article>
+
+<% if manage && @builder %>
+  <%= render "builder",
+        builder: @builder,
+        recommendation: @builder_recommendation,
+        readiness: @builder_readiness,
+        common_scenarios: @common_scenarios,
+        departure: @departure %>
+<% end %>
 
 <article class="dd-panel">
   <header class="dd-panel-header">

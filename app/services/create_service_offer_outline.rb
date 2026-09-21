@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateServiceOfferWithExplicitBasis < AgencyCommand
+class CreateServiceOfferOutline < AgencyCommand
   include OfferCommandSupport
 
   def initialize(agency:, actor:, departure:, attributes:, idempotency_key: nil)
@@ -13,13 +13,6 @@ class CreateServiceOfferWithExplicitBasis < AgencyCommand
 
   def call
     ensure_offer_actor!
-    basis = @attributes[:fulfillment_basis].to_s
-    unless EXPLICIT_FULFILLMENT_BASES.include?(basis)
-      raise Error.new("Choose on request, Agency fulfilled, or externally fulfilled.", code: :invalid)
-    end
-    if @attributes[:supplier_arrangement_id].present? || @attributes[:capacity_pool_id].present?
-      raise Error.new("An explicit fulfillment basis cannot pin an Arrangement or Pool.", code: :invalid)
-    end
 
     ActiveRecord::Base.transaction do
       lock_authorized_offer_agency!
@@ -31,7 +24,8 @@ class CreateServiceOfferWithExplicitBasis < AgencyCommand
         name: normalize_offer_name(@attributes[:name].presence || client_title),
         client_title: client_title,
         client_description: normalize_client_description(@attributes[:client_description]),
-        fulfillment_basis: basis
+        client_timing_text: normalize_client_timing_text(@attributes[:client_timing_text]),
+        fulfillment_basis: "undecided"
       }
 
       idempotent_create!(
@@ -56,7 +50,8 @@ class CreateServiceOfferWithExplicitBasis < AgencyCommand
           service_offer: offer,
           client_title: payload[:client_title],
           client_description: payload[:client_description],
-          fulfillment_basis: basis
+          client_timing_text: payload[:client_timing_text],
+          fulfillment_basis: "undecided"
         )
         audit!(
           agency: @agency,
@@ -67,7 +62,8 @@ class CreateServiceOfferWithExplicitBasis < AgencyCommand
             "service_offer_id" => offer.id,
             "service_offer_version_id" => version.id,
             "departure_id" => departure.id,
-            "fulfillment_basis" => basis
+            "fulfillment_basis" => "undecided",
+            "origin" => "outline"
           }
         )
         offer

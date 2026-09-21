@@ -1,6 +1,6 @@
 # M4D.0 — Narrow group departure builder
 
-**Status:** Accepted 2026-09-21 (M4D.0a). Implementation authority for M4D.0 tables, commands, derived readiness/scenario services, and Staff builder UI only. **Not shipped.** Not authority for M4E or deferred discovery items in the streamlined draft. Do not implement M4D.0b–0e until coding from this accepted plan; do not implement M4E until its accepted plan names that work.
+**Status:** Shipped 2026-09-21 (M4D.0b–0e). Implementation authority for M4D.0 tables, commands, derived readiness/scenario services, and Staff builder UI only. Not authority for M4E or deferred discovery items in the streamlined draft. Do not implement M4E until its accepted plan names that work.
 
 **Placement:** Between shipped [M4D](m4d-publication-and-live-feasibility.md) and draft [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md). M4A–M4D remain shipped. This phase amends the draft-creation journey so Staff can reach a publishable outline without rewriting M4 identities, price arithmetic, choice templates, Client terms, publication, Sales enabled, or live feasibility.
 

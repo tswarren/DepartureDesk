@@ -31,26 +31,45 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_equal 1, AuditEvent.where(agency: @agency, action: "departure.created", subject_id: departure.id).count
   end
 
-  test "create allows a draft without an office and does not invent one" do
+  test "create falls back to the actor default office when current office is absent" do
     departure = CreateDeparture.new(
       agency: @agency,
       actor: @admin,
-      attributes: { name: "Zero Office" },
+      attributes: { name: "Default Office" },
       current_office: nil
     ).call.record
 
-    assert_nil departure.responsible_office_id
+    assert_equal @admin.default_office_id, departure.responsible_office_id
     assert_equal @admin.id, departure.responsible_agency_user_id
     assert_equal @agency.default_timezone, departure.time_zone
   end
 
-  test "explicit blanks override copied defaults" do
+  test "explicit blank office is rejected even when a current office is proposed" do
+    error = assert_raises(AgencyCommand::Error) do
+      CreateDeparture.new(
+        agency: @agency,
+        actor: @admin,
+        attributes: {
+          name: "Blank Office",
+          responsible_office_id: "",
+          responsible_agency_user_id: "",
+          time_zone: "",
+          operating_currency: ""
+        },
+        current_office: @office
+      ).call
+    end
+    assert_equal :invalid, error.code
+    assert_match(/office/i, error.message)
+  end
+
+  test "explicit blanks for optional fields override copied timezone and currency" do
     departure = CreateDeparture.new(
       agency: @agency,
       actor: @admin,
       attributes: {
         name: "Blank Overrides",
-        responsible_office_id: "",
+        responsible_office_id: @office.id,
         responsible_agency_user_id: "",
         time_zone: "",
         operating_currency: ""
@@ -58,7 +77,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
       current_office: @office
     ).call.record
 
-    assert_nil departure.responsible_office_id
+    assert_equal @office.id, departure.responsible_office_id
     assert_nil departure.responsible_agency_user_id
     assert_nil departure.time_zone
     assert_nil departure.operating_currency
@@ -405,6 +424,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     {
       name: departure.name,
       description: departure.description,
+      target_timing_text: departure.target_timing_text,
       starts_on: departure.starts_on,
       ends_on: departure.ends_on,
       time_zone: departure.time_zone,

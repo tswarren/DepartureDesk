@@ -3,6 +3,7 @@ class Departure < ApplicationRecord
   REFERENCE_FORMAT = /\AD-[0-9]{6}\z/
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
+  TARGET_TIMING_LIMIT = 160
 
   belongs_to :agency
   belongs_to :responsible_office, class_name: "Office", optional: true
@@ -48,11 +49,12 @@ class Departure < ApplicationRecord
   attr_accessor :reason
 
   normalizes :name, with: ->(value) { value.to_s.strip }
-  normalizes :description, :time_zone, with: ->(value) { value.to_s.strip.presence }
+  normalizes :description, :time_zone, :target_timing_text, with: ->(value) { value.to_s.strip.presence }
   normalizes :operating_currency, with: ->(value) { value.to_s.strip.upcase.presence }
 
   validates :name, presence: true, length: { maximum: NAME_LIMIT }
   validates :description, length: { maximum: DESCRIPTION_LIMIT }, allow_nil: true
+  validates :target_timing_text, length: { maximum: TARGET_TIMING_LIMIT }, allow_nil: true
   validates :departure_reference, format: { with: REFERENCE_FORMAT }, allow_nil: true
   validates :operating_currency, format: { with: Agency::CURRENCY_FORMAT }, allow_nil: true
   validate :dates_are_paired_and_ordered
@@ -69,9 +71,12 @@ class Departure < ApplicationRecord
   end
 
   def schedule_label
-    return "Dates not set" if starts_on.blank? || ends_on.blank?
+    if starts_on.present? && ends_on.present?
+      return "#{starts_on.to_fs(:long)} – #{ends_on.to_fs(:long)}"
+    end
+    return target_timing_text if target_timing_text.present?
 
-    "#{starts_on.to_fs(:long)} – #{ends_on.to_fs(:long)}"
+    "Dates not set"
   end
 
   def activation_blockers

@@ -5,6 +5,10 @@ module OfferCommandSupport
 
   include ArrangementCommandSupport
 
+  EXPLICIT_FULFILLMENT_BASES = %w[on_request agency_fulfilled externally_fulfilled].freeze
+  OUTLINE_FULFILLMENT_BASES = (EXPLICIT_FULFILLMENT_BASES + %w[undecided]).freeze
+  RESOLVABLE_FULFILLMENT_BASES = EXPLICIT_FULFILLMENT_BASES
+
   private
 
   def ensure_offer_actor!
@@ -96,6 +100,18 @@ module OfferCommandSupport
     end
 
     description
+  end
+
+  def normalize_client_timing_text(value)
+    text = value.to_s.strip.presence
+    if text && text.length > ServiceOfferDefinition::CLIENT_TIMING_LIMIT
+      raise AgencyCommand::Error.new(
+        "Client timing must be #{ServiceOfferDefinition::CLIENT_TIMING_LIMIT} characters or fewer.",
+        code: :invalid
+      )
+    end
+
+    text
   end
 
   def boolean_flag(value)

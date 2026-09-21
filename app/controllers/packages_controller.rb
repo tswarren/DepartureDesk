@@ -79,7 +79,12 @@ class PackagesController < ApplicationController
       idempotency_key: params[:idempotency_key],
       attributes: inline_params
     ).call
-    redirect_to departure_package_path(@departure, @package), notice: "Service added to this package."
+    destination = if params[:return_to] == "builder"
+      departure_path(@departure, work_on: params[:work_on].presence || "supplier", package_id: @package.id)
+    else
+      departure_package_path(@departure, @package)
+    end
+    redirect_to destination, notice: "Service added to this package."
   rescue AgencyCommand::Error => error
     recover(error, :show)
   end
@@ -198,7 +203,7 @@ class PackagesController < ApplicationController
 
   def inline_params
     params.fetch(:inline, {}).permit(
-      :name, :client_title, :client_description, :fulfillment_basis, :placement,
+      :name, :client_title, :client_description, :client_timing_text, :fulfillment_basis, :placement,
       :supplier_arrangement_id, :supplier_arrangement_version_id, :arrangement_item_id,
       :service_occurrence_id, :supplier_resource_id, :capacity_pool_id
     )

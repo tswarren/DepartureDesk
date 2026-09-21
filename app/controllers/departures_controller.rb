@@ -39,6 +39,20 @@ class DeparturesController < ApplicationController
         actor: Current.agency_user,
         departure: @departure
       )
+      @builder = DepartureBuilderWorkspace.new(
+        agency: Current.agency,
+        departure: @departure,
+        package_id: params[:package_id],
+        work_on: params[:work_on]
+      )
+      @builder_readiness = @builder.readiness
+      @builder_recommendation = @builder.recommendation
+      if @builder.selected_package
+        @common_scenarios = DeriveCommonPackageScenarios.new(
+          agency: Current.agency,
+          package: @builder.selected_package
+        ).call
+      end
     end
     @attention_findings = Current.agency.supplier_attention_findings
       .where(departure_id: @departure.id)
@@ -62,7 +76,7 @@ class DeparturesController < ApplicationController
     result = CreateDeparture.new(
       agency: Current.agency,
       actor: Current.agency_user,
-      attributes: departure_params,
+      attributes: departure_attributes_for_command,
       current_office: Current.office
     ).call
     redirect_to departure_path(result.record), notice: "Departure saved."
@@ -80,7 +94,7 @@ class DeparturesController < ApplicationController
       agency: Current.agency,
       actor: Current.agency_user,
       departure: @departure,
-      attributes: departure_params,
+      attributes: departure_attributes_for_command,
       lock_version: departure_params[:lock_version]
     ).call
     redirect_to departure_path(@departure), notice: "Departure updated."
@@ -100,5 +114,23 @@ class DeparturesController < ApplicationController
   rescue AgencyCommand::Error => error
     @activation_blockers = @departure.activation_blockers
     rescue_departure_error(error, "departure_activations/show")
+  end
+
+  private
+
+  def departure_attributes_for_command
+    attrs = departure_params.except(:lock_version, :reason, :timing_mode).to_h
+    case departure_params[:timing_mode]
+    when "unknown"
+      attrs["target_timing_text"] = nil
+      attrs["starts_on"] = nil
+      attrs["ends_on"] = nil
+    when "target"
+      attrs["starts_on"] = nil
+      attrs["ends_on"] = nil
+    when "exact"
+      attrs["target_timing_text"] = nil
+    end
+    attrs
   end
 end

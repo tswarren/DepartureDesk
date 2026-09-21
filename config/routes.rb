@@ -147,6 +147,8 @@ Rails.application.routes.draw do
     end
     resource :responsibility, only: %i[edit update], controller: "departure_responsibilities"
     resource :activation, only: :show, controller: "departure_activations"
+    resources :service_offer_outlines, only: %i[create], controller: "service_offer_outlines"
+    resource :initial_package_outline, only: %i[create], controller: "initial_package_outlines"
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
       collection do
         get :search
@@ -313,6 +315,9 @@ Rails.application.routes.draw do
         post :resume_sales
         post :retire
         post :successor
+        post :resolve_fulfillment
+        post :setup_cruise_cabins
+        post :setup_hotel_rooms
       end
       resources :source_bindings, controller: "service_offer_source_bindings", only: %i[new create destroy]
       resource :price, controller: "service_offer_prices", only: %i[create update destroy] do
@@ -333,6 +338,9 @@ Rails.application.routes.draw do
         post :resume_sales
         post :retire
         post :successor
+      end
+      resources :inclusions, only: [], controller: "package_inclusions" do
+        collection { patch :reorder }
       end
       resource :price, controller: "package_prices", only: %i[create update destroy]
       resource :terms, controller: "package_terms", only: %i[update]
