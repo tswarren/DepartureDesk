@@ -53,23 +53,52 @@ class PackageCommandsTest < ActiveSupport::TestCase
     assert offer_version.definition.m3_backed?
   end
 
-  test "inline create replays without a stray service draft" do
+  test "inline create replays the original request without a stray service draft" do
     package = create_package
     key = SecureRandom.uuid
     attrs = source_attrs.merge(client_title: "Coach")
+    original_lock = package.editable_draft_version.lock_version
     first = CreatePackageInlineServiceOffer.new(
       agency: @agency, actor: @actor, package: package,
-      version_lock_version: package.editable_draft_version.lock_version,
+      version_lock_version: original_lock,
       idempotency_key: key, attributes: attrs
     ).call
     second = CreatePackageInlineServiceOffer.new(
       agency: @agency, actor: @actor, package: package.reload,
-      version_lock_version: package.editable_draft_version.lock_version,
+      version_lock_version: original_lock,
       idempotency_key: key, attributes: attrs
     ).call
     assert_equal :replayed, second.status
+    assert_equal first.record.id, second.record.id
     assert_equal 1, package.reload.editable_draft_version.inclusions.count
-    assert_equal 1, first.record.editable_draft_version.inclusions.count
+    assert_equal 1, @departure.service_offers.where("name ILIKE ?", "%Coach%").count
+  end
+
+  test "adopt replays the original request after ownership is set" do
+    package = create_package
+    offer = CreateServiceOfferWithExplicitBasis.new(
+      agency: @agency, actor: @actor, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { client_title: "Replay dinner", fulfillment_basis: "on_request" }
+    ).call.record
+    key = SecureRandom.uuid
+    package_lock = package.editable_draft_version.lock_version
+    offer_lock = offer.editable_draft_version.lock_version
+    first = AdoptServiceOfferDraftAsPackageOnly.new(
+      agency: @agency, actor: @actor, package: package, offer: offer,
+      version_lock_version: package_lock,
+      offer_version_lock_version: offer_lock,
+      idempotency_key: key
+    ).call
+    second = AdoptServiceOfferDraftAsPackageOnly.new(
+      agency: @agency, actor: @actor, package: package.reload, offer: offer.reload,
+      version_lock_version: package_lock,
+      offer_version_lock_version: offer_lock,
+      idempotency_key: key
+    ).call
+    assert_equal :replayed, second.status
+    assert_equal first.record.id, second.record.id
+    assert_equal 1, package.reload.editable_draft_version.inclusions.count
+    assert_equal package.editable_draft_version.id, offer.reload.editable_draft_version.owning_package_version_id
   end
 
   test "adopt draft sets owner and rejects abandoned versions" do

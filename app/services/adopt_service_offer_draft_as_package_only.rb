@@ -29,17 +29,6 @@ class AdoptServiceOfferDraftAsPackageOnly < AgencyCommand
       locked_offer = lock_service_offers_in_uuid_order!(offer_row).first
       offer_version = lock_editable_offer_draft!(locked_offer)
       ensure_package_draft_editable!(departure, package, version)
-      ensure_current_lock_version!(version, @version_lock_version)
-      ensure_current_lock_version!(offer_version, @offer_version_lock_version)
-      unless offer_version.draft?
-        raise Error.new("Only an editable draft can be adopted as package-only.", code: :invalid_state)
-      end
-      if offer_version.owning_package_version_id.present?
-        raise Error.new("That service offer version already belongs to a package.", code: :invalid_state)
-      end
-      if PackageInclusion.where(service_offer_version_id: offer_version.id).exists?
-        raise Error.new("That service offer draft is already included in a package.", code: :invalid_state)
-      end
 
       placement = @placement.to_s.presence || "included"
       unless PackageInclusion::PLACEMENTS.include?(placement)
@@ -58,6 +47,18 @@ class AdoptServiceOfferDraftAsPackageOnly < AgencyCommand
         },
         result_class: Package
       ) do
+        ensure_current_lock_version!(version, @version_lock_version)
+        ensure_current_lock_version!(offer_version, @offer_version_lock_version)
+        unless offer_version.draft?
+          raise Error.new("Only an editable draft can be adopted as package-only.", code: :invalid_state)
+        end
+        if offer_version.owning_package_version_id.present?
+          raise Error.new("That service offer version already belongs to a package.", code: :invalid_state)
+        end
+        if PackageInclusion.where(service_offer_version_id: offer_version.id).exists?
+          raise Error.new("That service offer draft is already included in a package.", code: :invalid_state)
+        end
+
         offer_version.update!(owning_package_version: version)
         version.inclusions.create!(
           agency: @agency,

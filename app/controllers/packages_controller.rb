@@ -151,15 +151,26 @@ class PackagesController < ApplicationController
       selected_option_ids: Array(params[:selected_option_ids]),
       selected_binding_ids: Array(params[:selected_binding_ids])
     )
+    @selected_inclusion_ids = Array(params[:selected_inclusion_ids]).map(&:to_s)
+    @selected_option_ids = Array(params[:selected_option_ids]).map(&:to_s)
+    @preview_persons = params[:persons].presence || 2
+    @review_inclusions = if @package_version
+      @package_version.inclusions.includes(
+        :service_offer,
+        service_offer_version: { choice_groups: :service_offer_choice_options }
+      ).order(:position).to_a
+    else
+      []
+    end
     @price_result = EvaluatePackagePrice.new(
       package: @package, version: @package_version, scenario: scenario,
-      selected_inclusion_ids: Array(params[:selected_inclusion_ids])
+      selected_inclusion_ids: @selected_inclusion_ids
     ).call if @package_version&.price_definition
     @economics = if @price_result && Current.agency_user.permitted?(:manage_departures)
       EvaluatePackageIndicativeEconomics.new(
         agency: Current.agency, actor: Current.agency_user, package: @package,
         version: @package_version, scenario: scenario,
-        selected_inclusion_ids: Array(params[:selected_inclusion_ids])
+        selected_inclusion_ids: @selected_inclusion_ids
       ).call
     end
     @adoptable_drafts = @departure.service_offers.includes(:versions).select { |offer|

@@ -1,10 +1,16 @@
 # frozen_string_literal: true
 
 class EvaluatePackagePrice
-  def initialize(package:, version: nil, scenario: {}, selected_inclusion_ids: [], selected_option_ids: [])
+  def initialize(package:, version: nil, scenario: {}, selected_inclusion_ids: [], selected_option_ids: nil)
     @package = package
     @version = version || package.editable_draft_version
-    @scenario = scenario.is_a?(EvaluateClientPrice::Scenario) ? scenario : EvaluateClientPrice::Scenario.build(scenario.merge(selected_option_ids: selected_option_ids))
+    scenario_attrs = scenario.is_a?(EvaluateClientPrice::Scenario) ? nil : scenario.to_h
+    if scenario_attrs
+      option_ids = selected_option_ids.nil? ? scenario_attrs[:selected_option_ids] || scenario_attrs["selected_option_ids"] : selected_option_ids
+      @scenario = EvaluateClientPrice::Scenario.build(scenario_attrs.merge(selected_option_ids: option_ids))
+    else
+      @scenario = scenario
+    end
     @selected_inclusion_ids = Array(selected_inclusion_ids).map(&:to_s)
   end
 
@@ -17,11 +23,21 @@ class EvaluatePackagePrice
     cap_blocker = cap_incomplete
     return cap_blocker if cap_blocker
 
-    if definition.bundled?
+    selection = ValidatePackagePreviewSelections.new(
+      package_version: @version,
+      scenario: @scenario,
+      selected_inclusion_ids: @selected_inclusion_ids
+    ).call
+    return incomplete(selection.message, field: selection.field) unless selection.ok
+
+    base = if definition.bundled?
       evaluate_bundled(definition)
     else
       evaluate_service_sum(definition)
     end
+    return base unless base.complete
+
+    apply_option_effects(base, selection.selected_options)
   end
 
   private
@@ -65,6 +81,44 @@ class EvaluatePackagePrice
       service_sum: EvaluateClientPrice::ServiceSum.new(service_results: results, adjustments: adjustments),
       scenario: @scenario
     ).call
+  end
+
+  def apply_option_effects(result, options)
+    effect_lines = []
+    amount = result.amount_minor_units.to_i
+    options.sort_by { |option| [ option.position, option.id ] }.each_with_index do |option, index|
+      next if option.price_effect_minor_units.nil?
+
+      signed = option.price_effect_minor_units.to_i
+      amount += signed
+      effect_lines << EvaluateClientPrice::ComponentLine.new(
+        definition_id: nil,
+        component_id: option.id,
+        label: option.name,
+        position: 20_000 + index,
+        client_role: "named_surcharge",
+        calculation_kind: "fixed",
+        quantity: 1,
+        rate: nil,
+        rounding_mode: "half_up",
+        rounding_boundary: "currency_minor_unit",
+        percentage_treatment: nil,
+        included: false,
+        signed_revenue_effect_minor_units: signed,
+        formula: { amount_minor_units: signed, evaluated_quantity: 1 }
+      )
+    end
+    return result if effect_lines.empty?
+
+    EvaluateClientPrice::Result.new(
+      complete: true,
+      amount_minor_units: amount,
+      currency: result.currency,
+      lines: result.lines + effect_lines,
+      blockers: [],
+      observed_at: result.observed_at,
+      kind: result.kind
+    )
   end
 
   def selected_inclusions

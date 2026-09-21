@@ -21,6 +21,20 @@ class PackagePricesController < ApplicationController
     redirect_to departure_package_path(@departure, @package)
   end
 
+  def update
+    UpdatePackagePriceDefinition.new(
+      agency: Current.agency, actor: Current.agency_user, package: @package,
+      attributes: price_params,
+      version_lock_version: params[:version_lock_version]
+    ).call
+    redirect_to departure_package_path(@departure, @package), notice: "Package price updated."
+  rescue AgencyCommand::Error => error
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    flash[:alert] = error.message
+    redirect_to departure_package_path(@departure, @package)
+  end
+
   def destroy
     RemovePackagePriceDefinition.new(
       agency: Current.agency, actor: Current.agency_user, package: @package,

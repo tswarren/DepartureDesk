@@ -324,7 +324,7 @@ Rails.application.routes.draw do
         post :include_published
         post :preview
       end
-      resource :price, controller: "package_prices", only: %i[create destroy]
+      resource :price, controller: "package_prices", only: %i[create update destroy]
       resource :terms, controller: "package_terms", only: %i[update]
     end
   end

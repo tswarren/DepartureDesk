@@ -34,7 +34,7 @@ class CollectSelectedOfferBindings
     end
 
     selected_gated = gated.select { |binding|
-      activated_binding_ids.include?(binding.id.to_s) || selected_ids.include?(binding.id.to_s)
+      activated_binding_ids.include?(binding.id.to_s)
     }
 
     remaining_groups = grouped

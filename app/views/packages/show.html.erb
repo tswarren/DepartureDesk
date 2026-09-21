@@ -108,27 +108,100 @@
   <article class="dd-panel">
     <header class="dd-panel-header"><h2 class="dd-panel-title">Package price</h2></header>
     <div class="dd-panel-body">
-      <%= form_with url: departure_package_price_path(@departure, @package), class: "dd-form" do %>
+      <% price = @package_version.price_definition %>
+      <% base_component = price&.package_price_components&.find(&:base_price?) %>
+      <% adjustment = price&.package_price_components&.find { |row| row.named_discount? || row.named_surcharge? } %>
+      <%= form_with url: departure_package_price_path(@departure, @package),
+            method: (price ? :patch : :post),
+            class: "dd-form" do %>
         <%= hidden_field_tag :version_lock_version, @package_version.lock_version %>
-        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <% unless price %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <% end %>
         <div class="dd-field-group">
           <%= label_tag "price_mode", "Mode", class: "dd-label" %>
-          <%= select_tag "price[mode]", options_for_select([ [ "Bundled price", "bundled" ], [ "Sum service prices", "service_sum" ] ], @package_version.price_definition&.mode), class: "dd-field" %>
+          <%= select_tag "price[mode]",
+                options_for_select([ [ "Bundled price", "bundled" ], [ "Sum service prices", "service_sum" ] ], price&.mode || "bundled"),
+                class: "dd-field",
+                id: "price_mode" %>
         </div>
-        <div class="dd-field-group">
+        <div class="dd-field-group" data-price-mode="bundled">
           <%= label_tag "price_amount", "Per-person amount (bundled)", class: "dd-label" %>
-          <%= text_field_tag "price[components][][amount]", nil, class: "dd-field" %>
+          <%= text_field_tag "price[components][][amount]",
+                base_component && Money.new(base_component.amount_minor_units, price.currency).format(symbol: false, thousands_separator: false),
+                class: "dd-field",
+                id: "price_amount" %>
           <%= hidden_field_tag "price[components][][label]", "Package per person" %>
           <%= hidden_field_tag "price[components][][client_role]", "base_price" %>
           <%= hidden_field_tag "price[components][][calculation_kind]", "unit_rate" %>
           <%= hidden_field_tag "price[components][][quantity_basis]", "persons" %>
         </div>
-        <div class="dd-field-group">
+        <div class="dd-field-group" data-price-mode="bundled">
           <%= label_tag "price_single_occupancy_supplement_rate", "Optional single supplement rate", class: "dd-label" %>
-          <%= text_field_tag "price[single_occupancy_supplement_rate]", @package_version.price_definition&.single_occupancy_supplement_rate, class: "dd-field" %>
+          <%= text_field_tag "price[single_occupancy_supplement_rate]", price&.single_occupancy_supplement_rate, class: "dd-field" %>
         </div>
-        <%= submit_tag "Save package price", class: "dd-button" %>
+        <div class="dd-field-group" data-price-mode="service_sum" hidden>
+          <%= label_tag "price_adjustment_label", "Named adjustment label", class: "dd-label" %>
+          <%= text_field_tag "price[service_sum_components][][label]", adjustment&.label, class: "dd-field", id: "price_adjustment_label" %>
+        </div>
+        <div class="dd-field-group" data-price-mode="service_sum" hidden>
+          <%= label_tag "price_adjustment_role", "Adjustment kind", class: "dd-label" %>
+          <%= select_tag "price[service_sum_components][][client_role]",
+                options_for_select([ [ "Named discount", "named_discount" ], [ "Named surcharge", "named_surcharge" ] ], adjustment&.client_role || "named_discount"),
+                class: "dd-field",
+                id: "price_adjustment_role" %>
+        </div>
+        <div class="dd-field-group" data-price-mode="service_sum" hidden>
+          <%= label_tag "price_adjustment_amount", "Adjustment amount (minor units)", class: "dd-label" %>
+          <%= number_field_tag "price[service_sum_components][][amount_minor_units]", adjustment&.amount_minor_units, class: "dd-field", id: "price_adjustment_amount" %>
+          <%= hidden_field_tag "price[service_sum_components][][calculation_kind]", "fixed" %>
+          <%= hidden_field_tag "price[service_sum_components][][quantity_basis]", "service_instances" %>
+        </div>
+        <%= submit_tag(price ? "Update package price" : "Save package price", class: "dd-button") %>
       <% end %>
+      <% if price %>
+        <%= button_to "Remove package price",
+              departure_package_price_path(@departure, @package),
+              method: :delete,
+              params: { version_lock_version: @package_version.lock_version },
+              class: "dd-button dd-button--quiet" %>
+      <% end %>
+      <script>
+        (function () {
+          var mode = document.getElementById("price_mode");
+          if (!mode) return;
+          function sync() {
+            var bundled = mode.value === "bundled";
+            document.querySelectorAll("[data-price-mode='bundled']").forEach(function (el) { el.hidden = !bundled; });
+            document.querySelectorAll("[data-price-mode='service_sum']").forEach(function (el) { el.hidden = bundled; });
+          }
+          mode.addEventListener("change", sync);
+          sync();
+          var form = mode.closest("form");
+          if (!form) return;
+          form.addEventListener("submit", function () {
+            if (mode.value === "service_sum") {
+              document.querySelectorAll("[data-price-mode='bundled'] input, [data-price-mode='bundled'] select").forEach(function (el) { el.disabled = true; });
+              var label = document.getElementById("price_adjustment_label");
+              var role = document.getElementById("price_adjustment_role");
+              var amount = document.getElementById("price_adjustment_amount");
+              if (label && label.value && amount && amount.value) {
+                var container = document.createElement("div");
+                [["label", label.value], ["client_role", role.value], ["calculation_kind", "fixed"], ["quantity_basis", "service_instances"], ["amount_minor_units", amount.value]].forEach(function (pair) {
+                  var input = document.createElement("input");
+                  input.type = "hidden";
+                  input.name = "price[components][][" + pair[0] + "]";
+                  input.value = pair[1];
+                  container.appendChild(input);
+                });
+                form.appendChild(container);
+              }
+            } else {
+              document.querySelectorAll("[data-price-mode='service_sum'] input, [data-price-mode='service_sum'] select").forEach(function (el) { el.disabled = true; });
+            }
+          });
+        })();
+      </script>
     </div>
   </article>
 
@@ -138,8 +211,48 @@
       <%= form_with url: preview_departure_package_path(@departure, @package), method: :post, class: "dd-form" do %>
         <div class="dd-field-group">
           <%= label_tag :persons, "Persons", class: "dd-label" %>
-          <%= number_field_tag :persons, params[:persons] || 2, min: 1, class: "dd-field" %>
+          <%= number_field_tag :persons, @preview_persons || params[:persons] || 2, min: 1, class: "dd-field" %>
         </div>
+        <% optional_inclusions = (@review_inclusions || []).select(&:optional?) %>
+        <% if optional_inclusions.any? %>
+          <fieldset class="dd-field-group">
+            <legend class="dd-label">Optional services</legend>
+            <% optional_inclusions.each do |inclusion| %>
+              <label class="dd-checkbox">
+                <%= check_box_tag "selected_inclusion_ids[]", inclusion.id, Array(@selected_inclusion_ids).include?(inclusion.id.to_s) %>
+                <%= inclusion.service_offer.name %>
+              </label>
+            <% end %>
+          </fieldset>
+        <% end %>
+        <% (@review_inclusions || []).each do |inclusion| %>
+          <% next if inclusion.optional? && Array(@selected_inclusion_ids).exclude?(inclusion.id.to_s) && Array(@selected_inclusion_ids).any? %>
+          <% groups = inclusion.service_offer_version.choice_groups.sort_by(&:position) %>
+          <% groups.each do |group| %>
+            <fieldset class="dd-field-group">
+              <legend class="dd-label"><%= inclusion.service_offer.name %>: <%= group.name %></legend>
+              <% options = group.service_offer_choice_options.sort_by(&:position) %>
+              <% selected_in_group = options.find { |option| Array(@selected_option_ids).include?(option.id.to_s) }&.id %>
+              <% if group.min_selections == 1 && group.max_selections == 1 %>
+                <%= select_tag "selected_option_ids[]",
+                      options_from_collection_for_select(options, :id, :name, selected_in_group),
+                      include_blank: "Choose…",
+                      class: "dd-field",
+                      id: "choice_group_#{group.id}" %>
+              <% else %>
+                <% options.each do |option| %>
+                  <label class="dd-checkbox">
+                    <%= check_box_tag "selected_option_ids[]", option.id, Array(@selected_option_ids).include?(option.id.to_s), id: "selected_option_#{option.id}" %>
+                    <%= option.name %>
+                    <% if option.price_effect_minor_units.present? %>
+                      <span class="dd-field-hint">+<%= option.price_effect_minor_units %> minor units</span>
+                    <% end %>
+                  </label>
+                <% end %>
+              <% end %>
+            </fieldset>
+          <% end %>
+        <% end %>
         <%= submit_tag "Review example", class: "dd-button" %>
       <% end %>
       <% if @price_result %>

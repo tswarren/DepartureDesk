@@ -25,10 +25,12 @@ class EvaluatePackageIndicativeEconomics
         scenario: @scenario,
         package_preview: true
       ).call
-      next if collected.status != :ok
+      if collected.status != :ok
+        return unknown(collected.reason.presence || "A selected service source set is incomplete.", price: price)
+      end
 
       matcher = source_matcher
-      next if matcher.nil?
+      return unknown("No attributable Supplier cost source.", price: price) if matcher.nil?
 
       collected.bindings.each do |binding|
         sources.concat(matcher.sources_for_binding(binding))

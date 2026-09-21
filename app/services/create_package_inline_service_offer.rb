@@ -55,7 +55,6 @@ class CreatePackageInlineServiceOffer < AgencyCommand
       version = lock_editable_package_draft!(package)
       ensure_package_draft_editable!(departure, package, version)
       ensure_departure_accepts_new_offer!(departure)
-      ensure_current_lock_version!(version, @version_lock_version)
 
       unless from_source?
         basis = @attributes[:fulfillment_basis].to_s
@@ -73,6 +72,7 @@ class CreatePackageInlineServiceOffer < AgencyCommand
         payload: payload.merge(package_id: package.id, package_version_id: version.id),
         result_class: Package
       ) do
+        ensure_current_lock_version!(version, @version_lock_version)
         offer = create_owned_offer!(departure, version, pin, placement)
         bump_version!(version)
         audit!(
