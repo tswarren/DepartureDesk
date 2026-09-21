@@ -6,7 +6,7 @@
 
 **Implementation base:** Documentation pin [`ea6d63e`](https://github.com/tswarren/DepartureDesk/commit/ea6d63e875d917415da061e7b1a64b382c5f91a1) (M3 complete). Production M4B started from shipped [M4A](m4a-service-definitions-and-sources.md) merge [`36f324d`](https://github.com/tswarren/DepartureDesk/commit/36f324db4370fdc74eb137640d8a190648fec262). Required CI is green on this slice tip [`af87db8`](https://github.com/tswarren/DepartureDesk/commit/af87db8e9822e9143ae5e69ddbdda69eb0fc4b0a). Later slices start from the M4B `main` merge or a later descendant.
 
-**Authority:** Parent and ADR 0014 as above. [ADR 0001](../adr/0001-money-and-currency.md) governs money; [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) governs the separate Supplier cost forecast. Lock order inherits [M4A](m4a-service-definitions-and-sources.md). Later: [M4C](m4c-packages-choices-and-client-terms.md) (shipped) · [M4D](drafts/DepartureDesk-M4D-publication-and-live-feasibility-draft.md) · [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md).
+**Authority:** Parent and ADR 0014 as above. [ADR 0001](../adr/0001-money-and-currency.md) governs money; [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) governs the separate Supplier cost forecast. Lock order inherits [M4A](m4a-service-definitions-and-sources.md). Later: [M4C](m4c-packages-choices-and-client-terms.md) (shipped) · [M4D](m4d-publication-and-live-feasibility.md) (Accepted; not shipped) · [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md).
 
 ## Goal and slice boundary
 

@@ -14,9 +14,8 @@ The M4 package was Accepted and promoted on 2026-09-20:
 - [M4 parent](../m4-offers-and-pricing.md)
 - [M4.0](../m40-task-flow-and-contract.md)
 
-[M4A](../m4a-service-definitions-and-sources.md) was Accepted and shipped on 2026-09-20. [M4B](../m4b-client-pricing-and-anonymous-preview.md) was Accepted and shipped on 2026-09-20. [M4C](../m4c-packages-choices-and-client-terms.md) was Accepted and shipped on 2026-09-20. Remaining M4 slice drafts:
+[M4A](../m4a-service-definitions-and-sources.md) was Accepted and shipped on 2026-09-20. [M4B](../m4b-client-pricing-and-anonymous-preview.md) was Accepted and shipped on 2026-09-20. [M4C](../m4c-packages-choices-and-client-terms.md) was Accepted and shipped on 2026-09-20. [M4D](../m4d-publication-and-live-feasibility.md) was Accepted on 2026-09-20 (not shipped). Remaining M4 slice draft:
 
-- [M4D](DepartureDesk-M4D-publication-and-live-feasibility-draft.md)
 - [M4E](DepartureDesk-M4E-acceptance-and-hardening-draft.md)
 
 Place new draft slice plans or amendments here until they are Accepted and moved into the canonical `docs/planning/` or `docs/adr/` trees.

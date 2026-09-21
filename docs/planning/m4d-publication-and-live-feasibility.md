@@ -1,0 +1,123 @@
+# M4D — Publication and live feasibility
+
+**Status:** Accepted 2026-09-20. Implementation authority for M4D tables, commands, freeze, live feasibility, M3 disclosure previews, and Staff Publish UI only. **Not shipped.**
+
+**Parent authority:** [M4 — Offers and pricing](m4-offers-and-pricing.md) (Accepted 2026-09-20; not implementation authority for later slices), [ADR 0014](../adr/0014-client-offers-publication-and-supply-compatibility.md) (Accepted; not implementation authority for M4E), and [M4.0](m40-task-flow-and-contract.md) (Accepted; documentation/task-flow gate only). MVP occupancy exception and roadmap M5 due-Charge amendment are already in those documents.
+
+**Implementation base:** Shipped [M4C](m4c-packages-choices-and-client-terms.md) [PR #119](https://github.com/tswarren/DepartureDesk/pull/119) merge [`166befb`](https://github.com/tswarren/DepartureDesk/commit/166befb2aa2b7fb116d23de9e3f52bb6ac42b025). Production M4D starts from that SHA or a later CI-green `main` descendant. Verify merged M4C choice, pricing, and retry behavior at the branch tip before coding. Coding slices reconfirm required CI on the branch tip.
+
+**Authority:** Parent, ADR 0014, and M4.0 as above. Shipped M3: [ADR 0008](../adr/0008-supplier-arrangement-version-topology.md), [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md), [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md), and [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md). Later: [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md).
+
+## Goal and boundary
+
+Staff can publish a complete standalone Service Offer version or publish one Package version with its new package-only Service Offer versions **in one action and transaction**. Publication pins exact **activated** M3 definitions used at publish time and a compact immutable manifest. The published version is immutable, while Staff can pause/resume or finally retire its sales authority. A live, read-only scenario preview explains **Selectable now**, **On request**, or **Unavailable** by required/alternative path, without creating Client demand or reserving supply.
+
+M4D owns successor drafts, publication and published-graph freeze, lifecycle actions, derived review, M3 ending/inactivation preview consequences, and live feasibility. M4E owns integrated acceptance/hardening. M5 owns transactional Hold/Allocation, Client Trip Service selection, confirmation, and posting Charges currently due. M4D creates none of those records and does not add a public storefront.
+
+No ADR 0004 namespace. No Administrator publication override. Never reuse `override_supplier_planning_terms`.
+
+## Contract clarifications
+
+### 1. Publication readiness versus anonymous example
+
+Publication readiness is **structural** and separate from the current anonymous preview selections. A Package or Service Offer is publishable when at least one valid, priced, eligible combination exists in the graph. Staff need not have selected that combination in the current preview. A preview of a *particular* combination still requires its explicit choices and alternative members.
+
+Optional paths with unusable sources **may** publish when they are disclosed and never represented as selectable. Temporary numeric Pool shortage and unknown Supplier cost are **not** publication blockers. Whole-graph pin checks establish that every M3-backed binding that remains part of a publishable path has an exact activated pin; per-path live eligibility is computed later for the selected scenario.
+
+### 2. Exact successor rule
+
+The publication manifest always retains the exact M3 definition IDs used at publication. Live selection may use a later activated Arrangement successor only after `EvaluateServiceOfferSourceCompatibility` proves the bound facts **equivalent**. A **material** or **unknown** successor blocks that affected path until a reviewed offer successor is published. Do not require every live selection to use the manifest’s original Arrangement version number, and do not silently rewrite the manifest. M5 records both original provenance and the compatible current source.
+
+At publication time, every M3-backed binding in the proposed published graph must pin an **activated** exact Arrangement version and the applicable Item/Occurrence/Resource/Pair/Pool definitions. No successor draft, absent child, wrong-version definition, missing lineage, or stale unreviewed source.
+
+### 3. Included-price rule for choice options
+
+On `service_offer_choice_options.price_effect_minor_units`:
+
+| Stored value | Meaning |
+| --- | --- |
+| `NULL` | Incomplete / surcharge not entered. Never treat as free. |
+| `0` | Explicitly included with no extra charge. |
+| Nonzero | Stated surcharge or discount (signed minor units). |
+
+A required publishable combination with any `NULL` option effect is not ready. Use the same selected-set validation for standalone offer prices, Package prices, indicative economics, and live feasibility. Merged M4C currently skips `NULL` effects in `EvaluatePackagePrice`; M4D implementation must close that gap so unknown is never silently zero.
+
+## Staff journey: one final review and action
+
+1. Open the M4C combined draft review. See Client amount and component explanation, included services, selected anonymous choices and source alternatives, terms, sales dates/limits, current source status, and **Sales enabled** intent. Optional indicative margin is Staff/Administrator (`manage_departures`) only; missing cost is unknown rather than zero. An M3-backed draft still using an editable Arrangement version links to its source and cannot publish until an **activated** exact version is explicitly selected and checked.
+2. Show **publication readiness** separately from the current scenario state. A structurally ready offer can be published through a temporary numeric Pool shortage. On-request and external supply remain visibly unconfirmed. Field-level errors link to price, choice, term, source or date editor; returning to review retains entered data and recomputes against current facts.
+3. Staff press **Publish** once. A Package command publishes its version and every unpublished Service Offer version it owns (`service_offer_versions.owning_package_version_id`) in one action and transaction. Reusable included service versions (`owning_package_version_id` null) must already be published and eligible. A standalone Service Offer publishes independently. On success, present the exact Package/Service Offer versions, manifest time, Sales enabled state and a **time-labeled advisory** preview. No separate package-only service publish step is shown. Do not persist `independently_sellable`.
+4. Later Staff can turn **Sales enabled** off/on with audited pause/resume, or retire an exact published version through a secondary final action. Pause/resume never changes Client terms or source pins. A new version starts as an independent copied draft; publishing it supersedes the current version for **new independent selection** without rewriting older Package pins or historical records.
+
+**Viewer:** Unpublished drafts remain `manage_departures` only. After publication, `view_departures` may read published Client-facing price, terms, Sales enabled, and computed eligibility. Never margin or Supplier cost. Shipped M3 cost-forecast Viewer access is unchanged.
+
+## Publication checks and atomic result
+
+| Check | Required outcome |
+| --- | --- |
+| Ownership and lifecycle | Session-derived active Agency, authorized actor with `manage_departures`, same-Agency and same-Departure graph, **active Departure**. An unauthorized ID returns not found. Departed/draft Departure cannot publish. Office is not authorization. |
+| M3 authority | Every M3-backed binding included in the proposed published graph pins an **activated** Arrangement version and the applicable exact Item/Occurrence/Resource/Pair/Pool definitions (clarification 2). Explicit non-M3 fulfillment has no invented Arrangement pin. |
+| Client graph | Exactly one supported price method, operating currency and explicit rounding, valid choice min/max and at least one structurally valid **priced** combination (clarifications 1 and 3), option-to-source mapping, resolved actual term conflicts, valid date window/zone and supported limit bases. No duplicated bundled single supplement at Package and lodging service for the same commercial reason. |
+| Per-path readiness | Required source paths and at least one member of each alternative group must be structurally eligible. A cancelled Occurrence, ended Arrangement or inactive bound Supplier makes its path ineligible; a viable alternative permits a different path. Optional unusable paths may publish when disclosed and never represented as selectable. Temporary numeric exhaustion and unknown Supplier cost are **not** publication failures. |
+| Result | One transaction issues immutable published Package and package-only service versions, exact inclusion pins, one manifest per published root/version with bounded links, lifecycle/current pointers, and audit success. Failure writes no partial manifest, published child, pointer change or success audit. |
+
+A bundle need not fabricate individual service prices. Manual-review cancellation text is valid if explicitly marked; it is not a numeric zero. A temporary shortage only changes live feasibility. For a definition with choices, publication needs at least one correctly priced, structurally eligible choice combination; unavailable alternatives may remain disclosed as options, but an M3-backed option still needs an exact activated pin.
+
+**Joint-publish idempotency:** `AgencyCommandIdempotencyKey` currently stores a single `result_record_id`. Joint Package publication needs one durable association for the Package version **and** every unpublished owned service version. Same key/payload returns the identical versions; same key/different payload conflicts. Use a command name distinct from M4C's inline-create and adopt keys.
+
+## Manifest, version lifecycle and immutability
+
+The publication manifest is a **domain record**, not `AuditEvent.details`. It references the exact Package/Service Offer version, included service versions, M3 Arrangement version and bound definition IDs, selected price definition and scoped term-resolution IDs/fingerprints, Agency/Departure, actor and timestamp. It records source and definition fingerprints needed to explain the decision but does not duplicate full component formulas, hypothetical scenario values, Pool quantities or live projection. Add uniqueness per exact published version and same-owner constraints. For a joint Package publication, connect its result to the new service manifests and exact version pins in the same transaction.
+
+Complete the M4A–M4C version lifecycle with at most one current independently selectable published version per stable identity and at most one editable successor draft. Numbers are positive and never reused, including abandoned drafts. New Package or Service Offer versions are independent copies of their predecessor; a published Package continues to pin its exact older Service Offer version while that pin remains eligible. Publishing a standalone service successor does **not** silently replace the Package pin; retiring the pinned version requires Package review/successor for new selection. Support history and discarded successors without mutating the published predecessor.
+
+**Freeze:** Copy the M3D.7 style (`reject_non_draft_arrangement_version_definition_mutation` in `db/structure.sql`), not a new freeze philosophy. Freeze **all** published version-owned definitions, price components and bases, choice groups/options, Package inclusions, fulfillment bindings, Client terms/resolutions, date window, cap and manifest against INSERT/UPDATE/DELETE in Rails **and** PostgreSQL, including direct SQL, a race with publication, and later superseded/retired retained versions. Only separate operational lifecycle rows/current pointers may change through commands. Keep pause/resume state outside frozen definitions. A copied successor draft remains editable. Database constraints reject cross-Agency/Departure and cross-version pins. Extend `AuditEvent::SUBJECT_TYPES`/`ACTIONS` in this change for publish, successor, pause/resume and retire actions actually emitted; audit details stay bounded.
+
+## Sales enabled and computed selection state
+
+**Sales enabled** records Staff intent on the exact published version. Publish defaults to enabled in the ordinary path, with one clear control to disable it before or after publication. Pause is reversible; resume first rechecks immutable graph/source structural eligibility and current lifecycle, then enables sales even if a temporary capacity shortage still makes the scenario unavailable. Retirement is final for that exact version and cannot be resumed. Every change is authorized, idempotent as appropriate, audited with actor/time/reason, and leaves published Client terms untouched. No Administrator publication override is introduced.
+
+The live result is computed for one anonymous scenario and **explicitly selected** Client choices and Supplier alternative members; it includes a reason for every affected path and a read-snapshot/observation time. Return a **reasoned result for the selected path**, plus disclosed reasons for unused alternatives. One bad unused dinner or alternative source must not make a viable selected path unavailable. Conversely, an invalid required source or unknown numeric Pool projection must not become **Selectable now**. A nonnumeric Pool maps to unconfirmed supply, without inventing a count.
+
+| Label | When shown |
+| --- | --- |
+| **Unavailable** | Retired/paused/noncurrent independent version; departed Departure; outside local sales window; structurally invalid or unreviewed material/unknown bound-source successor; ended Arrangement, cancelled required Occurrence, inactive required Supplier; missing required choice; numeric Pool shortage or unknown numeric projection; hypothetical scenario quantity above an applicable explicit cap. Show exact reason and affected binding. |
+| **On request** | Sales enabled and structurally/currently eligible, but the chosen fulfillment path uses an explicitly on-request/Agency/external basis or a Pool where `numeric_inventory?` is false (`on_request` / `externally_managed`). No numeric availability promise. An unavailable required path still takes precedence. |
+| **Selectable now** | Sales enabled, within local dates, valid selected choices, compatible active source, all required numeric Pool and configured rule checks satisfied for the scenario, with no unconfirmed path. This is **advisory**, never a Hold or confirmation guarantee. |
+
+One invalid **required** binding makes that path unavailable. An alternative group uses exactly one explicitly selected viable member; an invalid **unused** member does not make another selected member unavailable. If an alternative is viable but Staff has not selected one for the scenario, request that input rather than silently choosing. All applicable numeric Pool constraints and optional Package/service caps stack; do not substitute a commercial cap for Pool supply. Do not equate Pool `traveler_positions` with cap `persons`. M4C validated a scenario only against configured commercial caps. **M4D** adds time-labeled live numeric Supplier supply (`CapacityProjection#current_supplier_capacity` / `CapacityPool#numeric_inventory?`) on the selected choice and fulfillment path. Before M5 demand records exist, a cap is a configured maximum checked against hypothetical quantity, **not a calculated remaining balance after sales**. Never convert persons to rooms or infer inventory from unmanaged Items. Correctness comes from M5's later transactional recheck under its accepted lock order. Use the M4C selected-set rule: required sources apply once; unselected options do not apply; a selected option that activates an alternative group still needs exactly one member. A missing required scenario quantity is unknown/unavailable for that example; it cannot pass a cap by omission. Shortage affects the live result, not publication readiness.
+
+Live preview reads `CapacityProjection#current_supplier_capacity` and `CapacityPool#numeric_inventory?` plus the eligible M3 graph, without writing capacity events, offer-review projections, M3 cost assumptions or scenario demand. It may refresh optional indicative margin after a cost-only change using M4B's pure cost entry point; unknown cost stays unknown. Label stale/coherent read boundaries and avoid reporting a projection from a different source snapshot as guaranteed. An activated **equivalent** Supplier successor can govern future selection after narrow verification while the manifest retains the original exact publication pin (clarification 2). A **material or unknown** bound change blocks the affected path until reviewed offer successor publication; unbound Supplier changes do not force mass republication.
+
+## Arrangement ending and Supplier inactivation
+
+Extend [EvaluateSupplierArrangementEnding](../../app/services/evaluate_supplier_arrangement_ending.rb) and [ChangeSupplierStatus](../../app/services/change_supplier_status.rb) previews to **disclose** published Service Offer/Package paths affected by an Arrangement ending or Supplier inactivation, including whether another alternative remains viable.
+
+An affected published offer is **not** a new blocker of the M3 action. Preserve independently authoritative existing commitment/capacity/Reservation blockers. The M3 action does not rewrite, pause, or retire an offer. On completion the computed preview changes for affected paths. Do not extend the closed M3E.5 Supplier Needs-attention detector catalog. Derive review from manifest and current M3 facts. A consequential Staff acknowledgment/review decision may be stored as a bounded domain record, not as a persisted projection or a blanket waiver of a hard material change.
+
+Ending/inactivation previews and final commands must use compatible source snapshots and disclose path consequences under concurrency, re-evaluating under the commands’ existing lock order so the final disclosure refers to the source state acted on. Showing an offer consequence does not replace M3 blockers. Source reactivation or capacity recovery may improve a computed path without changing original provenance or rewriting the offer.
+
+## Lock order, races and proof
+
+**Inherit M4A's shipped M3E order.** Do not introduce a second path. Whenever an M4 command locks any M3 row: Agency, actor, affected Suppliers in UUID order, Departure, Arrangement/version and child definitions, cost/capacity records as applicable, then Package/Service Offer roots and exact versions. Idempotency slot after its owning aggregate except existing create-slot exceptions, then inserts/audit. Nested services receive already-held records and may not reacquire an earlier lock. M4-only edits that do not lock M3 rows use Agency → Departure → offer/version as in M4A.
+
+At minimum run genuine multi-connection races for: two publications of the same version; Package publication versus modification/abandonment of an included draft; publication versus included service retirement; publication versus Arrangement successor activation, Arrangement ending, Supplier inactivation and `MarkDepartureDeparted`; successor creation/publish versus another successor; pause/resume versus retirement and new selection preview; new capacity event/projection versus advisory preview; same-key simultaneous replay and different-payload conflict. A publication snapshot must be serializable with the source activation/lifecycle change that would invalidate it. If a preview races, it may be stale but never writes demand or falsely claims a reservation.
+
+Prove under Rails and direct SQL: all published graph children and manifest immutable under the M3D.7-style trigger; wrong tenant/Departure/version inclusion rejected; draft successor editable; package-only joint result atomic across failures; generated version numbers not reused; no success audit on failure; cost-only/unbound Supplier successor preserves eligibility; changed bound source blocks just affected path; viable alternative remains selectable; numeric shortage allows publication and labels Unavailable; on-request never displays a fake count; local sales-window boundaries, stacked caps, Viewer-safe published branches with no margin, idempotency and source races behave as specified. Exercise keyboard recovery, 375/768/1280/1400 layouts, M3 regressions and full required CI on the PR tip.
+
+Celebrity proves exact O1 provenance and live cabin shortage without inventing Client fares. Vineyard proves one package-only publication, exactly one dinner Item per selected option, the illustrative single supplement without a duplicate lodging charge, and unknown coach margin without an enrollment assumption.
+
+## Delivery order and exit
+
+Keep **one accepted M4D contract**. Split implementation PRs under that contract only if the foundation and publish commands become too large to review together. No Publish UI before the database freeze and atomic publish command are proved.
+
+| Stage | Work and acceptance point |
+| --- | --- |
+| **1. Contract and handoff** | This accepted plan; version transitions, manifest contents, multi-result idempotency association, and the three clarifications above. Update parent and documentation indexes. Recheck M4C’s merged choice, pricing, and retry behavior against these inputs. |
+| **2. Durable publication foundation** | Minimum publication manifests and operational lifecycle state; exact same-tenant/version FKs; one current independently selectable published version per identity; successor draft copying with monotonic version numbers. Freeze published and retained superseded/retired definition graphs in PostgreSQL, including inclusions, prices, choices, terms, bindings, and caps. Keep pause/resume state outside frozen definitions. Extend audit catalogs only for actions actually emitted. Prove direct-write and race constraints before exposing Publish. |
+| **3. Publication commands** | Standalone `PublishServiceOfferVersion` and one `PublishPackageVersion` that publishes the Package and all owned unpublished service versions atomically. Reusable inclusions must pin an already published version. Lock and revalidate the active Departure, activated source graph, version locks, selected-set structure, currency, price, terms, and source eligibility immediately before commit. Persist one durable association between a Package publication key and *all* resulting versions; replay the unchanged original request successfully. No partial published child, pointer, manifest, or success audit on failure. |
+| **4. Operational state and live read** | Audited Sales enabled pause/resume and final retirement. One read-only evaluator returning **Selectable now**, **On request**, or **Unavailable**, with reasons, affected bindings, and observation time. Apply the validated choice path, source compatibility (clarification 2), lifecycle, local window, configured Package/service caps, and current numeric Pool projections. |
+| **5. M3 consequence disclosure** | Bounded, read-only offer-path consequences on Arrangement ending and Supplier inactivation previews. Preserve existing M3 blockers and command authority. Ending or inactivation does not pause, retire, or rewrite offers. |
+| **6. Staff and Viewer flow** | One combined Publish action and field-linked recovery on Package and standalone review pages. Keep Sales enabled intent visibly separate from computed availability. Viewers see only published Client facts and eligibility; Staff alone see indicative margin and Supplier cost. No public storefront or independent publish action for package-only services. Celebrity/Vineyard proofs and full required CI on the PR tip. Hand M4E a finding log and measured Staff friction against M4.0 **rules**. |
+
+**Exit:** Staff can publish an exact standalone Service Offer or a Package with its new package-only services once, see truthful time-labeled feasibility, pause/resume/retire without rewriting terms, and create an independent successor after a material source change. Viewers can read published facts without drafts or margin. M5 receives stable exact version/choice/price/term/source provenance and must still recheck transactionally. M4D creates no Client Trip, Hold, Allocation or posted money. M4D ends with immutable published offers and advisory availability.

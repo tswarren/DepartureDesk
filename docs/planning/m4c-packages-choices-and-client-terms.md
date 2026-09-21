@@ -6,7 +6,7 @@
 
 **Implementation base:** Shipped [M4B](m4b-client-pricing-and-anonymous-preview.md) [PR #118](https://github.com/tswarren/DepartureDesk/pull/118) merge [`49025c8`](https://github.com/tswarren/DepartureDesk/commit/49025c8). Production M4C starts from that SHA or a later `main` descendant. Do not pin `af87db8`. Coding slices reconfirm required CI on the branch tip.
 
-**Authority:** Parent, ADR 0014, and M4.0 as above. [ADR 0001](../adr/0001-money-and-currency.md) governs money. Lock order inherits [M4A](m4a-service-definitions-and-sources.md). Later: [M4D](drafts/DepartureDesk-M4D-publication-and-live-feasibility-draft.md) · [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md).
+**Authority:** Parent, ADR 0014, and M4.0 as above. [ADR 0001](../adr/0001-money-and-currency.md) governs money. Lock order inherits [M4A](m4a-service-definitions-and-sources.md). Later: [M4D](m4d-publication-and-live-feasibility.md) (Accepted; not shipped) · [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md).
 
 ## Goal and slice boundary
 
