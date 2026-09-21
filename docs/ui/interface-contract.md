@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, shipped M2B departed/correction surfaces, shipped M2C proof of Departures search, isolation, keyboard, drawer, and viewport behavior, shipped M3A tentative Supplier planning structure, shipped M3B draft Item-card Supplier capacity configuration, shipped M3C Arrangement/Item cost workspaces plus derived forecast views, shipped [M3D.0](../planning/m3d0-planning-workspace-compression.md) guided workspace compression over those M3A–M3C surfaces, shipped [M3D](../planning/m3d-activation-reservations-confirmations.md) activation, Reservation, confirmation, and effective-capacity surfaces, shipped [M3D.8](../planning/m3d8-activation-reservation-product-quality.md) product-quality remediation for those M3D surfaces, shipped [M3E](../planning/m3e-supplier-operational-control.md) operational commitments, Deadlines, deposits/milestones, exposure, Needs attention, and Arrangement ending (through M3E.7b, including M3E.5R and M3D remediations), shipped [M3F](../planning/m3f-acceptance-and-hardening.md) acceptance/hardening including exclusive occupancy-profile editors, capacity-consequence remove/focus, and cost-review single-preload, and shipped [M4A](../planning/m4a-service-definitions-and-sources.md) unpublished Service Offer drafts in the Departure workspace, and shipped [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md) unpublished Client prices and anonymous preview. **M3 is complete.**
+**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, shipped M2B departed/correction surfaces, shipped M2C proof of Departures search, isolation, keyboard, drawer, and viewport behavior, shipped M3A tentative Supplier planning structure, shipped M3B draft Item-card Supplier capacity configuration, shipped M3C Arrangement/Item cost workspaces plus derived forecast views, shipped [M3D.0](../planning/m3d0-planning-workspace-compression.md) guided workspace compression over those M3A–M3C surfaces, shipped [M3D](../planning/m3d-activation-reservations-confirmations.md) activation, Reservation, confirmation, and effective-capacity surfaces, shipped [M3D.8](../planning/m3d8-activation-reservation-product-quality.md) product-quality remediation for those M3D surfaces, shipped [M3E](../planning/m3e-supplier-operational-control.md) operational commitments, Deadlines, deposits/milestones, exposure, Needs attention, and Arrangement ending (through M3E.7b, including M3E.5R and M3D remediations), shipped [M3F](../planning/m3f-acceptance-and-hardening.md) acceptance/hardening including exclusive occupancy-profile editors, capacity-consequence remove/focus, and cost-review single-preload, and shipped [M4A](../planning/m4a-service-definitions-and-sources.md) unpublished Service Offer drafts in the Departure workspace, and shipped [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md) unpublished Client prices and anonymous preview, shipped [M4C](../planning/m4c-packages-choices-and-client-terms.md) unpublished Package drafts, shipped [M4D](../planning/m4d-publication-and-live-feasibility.md) Publish/Sales/live feasibility, and accepted [M4D.0](../planning/m4d0-narrow-group-departure-builder.md) builder surfaces (not yet shipped in code). **M3 is complete.**
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -134,6 +134,17 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Inactive Offices remain visible and cannot be selected as current/default context.
 - Office state never implies which AgencyUsers may read or mutate records.
 - If no Office is current, the UI remains usable and does not invent one.
+
+
+## Group departure builder (M4D.0 accepted; not shipped)
+
+Authority: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Implement with M4D.0b–0e.
+
+- Compact **Create group departure** on existing Departure new/create: name, optional target/exact timing, responsible Office; advanced disclosure for description, timezone, currency, and responsible Staff.
+- **Build this departure** on Departure show: recommended next action, request/session working-outcome choice, Package summary, itinerary cards (included/optional/unassigned), links into shipped Service Offer / Package / Supplier / price surfaces.
+- Keyboard itinerary reorder mode for Package inclusions; full-page fallback; no drag-only path.
+- Staff-only internal Client preview labeled not shared with Clients.
+- Permission: `manage_departures` for all builder mutations and unpublished reads. Viewer behavior for unpublished drafts is unchanged; published Client facts remain Viewer-readable under M4D.
 
 ## Forms and validation
 

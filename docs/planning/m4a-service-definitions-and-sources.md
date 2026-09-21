@@ -6,7 +6,7 @@
 
 **Implementation base:** Documentation pin [`ea6d63e`](https://github.com/tswarren/DepartureDesk/commit/ea6d63e875d917415da061e7b1a64b382c5f91a1) (M3 complete). Production M4A starts from that SHA or a later `main` descendant. Coding slices reconfirm required CI on the branch tip.
 
-**Later slices:** [M4B](m4b-client-pricing-and-anonymous-preview.md) (shipped) · [M4C](m4c-packages-choices-and-client-terms.md) (shipped) · [M4D](m4d-publication-and-live-feasibility.md) (shipped) · [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md)
+**Later slices:** [M4B](m4b-client-pricing-and-anonymous-preview.md) (shipped) · [M4C](m4c-packages-choices-and-client-terms.md) (shipped) · [M4D](m4d-publication-and-live-feasibility.md) (shipped) · [M4D.0](m4d0-narrow-group-departure-builder.md) (Accepted; not shipped) · [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md)
 
 ## Goal
 
@@ -141,3 +141,12 @@ Do not compare only the prior and immediately next version if more than one acti
 - Direct SQL and application tests reject wrong tenant, Departure, Arrangement, Item ancestry, version or definition; unauthorized IDs are not found. Pool without Occurrence or Resource is rejected. Two concurrent creates with the same idempotency key yield one draft; conflicting edits preserve the last committed graph and return a recoverable conflict. Audit records have bounded details. Create-from-source versus Arrangement activation races follow the shipped lock order without deadlock. Actor recheck applies on offer-only update.
 - Staff paths obey `manage_departures`; Viewer has no unpublished offer UI and no cost/margin leak. Keyboard flow and 375/768/1280/1400 layouts keep one-source setup understandable. Compare required entries, context switches, and invalid-review recovery against the accepted M4.0 friction rules. Full required CI passes at the PR tip.
 - M4A ships **only drafts and source compatibility**. Its final handoff identifies the exact draft schema (`service_offers`, `service_offer_versions` with `abandoned` lifecycle, `service_offer_definitions`, `service_offer_source_bindings`) and the narrow `equivalent`/`material`/`unknown` evaluator contract that M4B uses for pricing and M4D uses for activated-only, atomic publication. No Package, published version, sellability flag, sale eligibility, Hold, Allocation or posted money is created.
+
+## Dated amendment — M4D.0a (2026-09-21)
+
+Authority: [M4D.0 — Narrow group departure builder](m4d0-narrow-group-departure-builder.md).
+
+- Extend `fulfillment_basis` with draft-only **`undecided`** (also retained on abandoned history). It has no Supplier binding and makes no supply or capacity claim. Published/selectable fulfillment remains `m3_backed`, `on_request`, `agency_fulfilled`, and `externally_fulfilled`.
+- Add nullable `service_offer_definitions.client_timing_text` (`string`, max 160, blank→null). Version-owned descriptive Client prose; draft-mutable; frozen with the published definition graph. Never parse into dates or use for capacity, compatibility, deadlines, or lifecycle.
+- Add `CreateServiceOfferOutline` (unowned draft with `undecided`) and `ResolveServiceOfferFulfillmentBasis` (explicit audited resolution to a real basis). Existing create-from-source and explicit-basis paths remain.
+- Exact M3 binding rules and published authority are unchanged. Shipped M4D publication readiness must reject `undecided` (see M4D amendment).

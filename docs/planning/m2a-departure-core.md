@@ -355,3 +355,12 @@ M2A is complete only when:
 * The slice is merged to `main`
 
 This slice authorizes M2A only. It does not authorize M2B, M2C, M3, or Travel Program.
+
+## Dated amendment — M4D.0a (2026-09-21)
+
+Authority: [M4D.0 — Narrow group departure builder](m4d0-narrow-group-departure-builder.md).
+
+- `CreateDeparture` for **new** group-departure concepts requires a non-blank **name** and an active **responsible Office** in the command. Do not add global database `NOT NULL` on existing draft or returned-to-draft rows.
+- Add nullable `departures.target_timing_text` (`string`, max 160, blank→null). It is descriptive only and must never drive activation, lifecycle, sales windows, Supplier matching, deadlines, or money calculations.
+- Exact `starts_on` / `ends_on` remain optional on drafts when paired, and remain the only operational timing authority.
+- Existing activation completeness (Office and responsible AgencyUser required to activate) is unchanged.

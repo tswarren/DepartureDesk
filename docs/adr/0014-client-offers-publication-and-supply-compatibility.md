@@ -1,6 +1,6 @@
 # ADR 0014: Client offers, publication, and Supplier-source compatibility
 
-- Status: Accepted. [M4A](../planning/m4a-service-definitions-and-sources.md), [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md), and [M4C](../planning/m4c-packages-choices-and-client-terms.md) are shipped. [M4D](../planning/m4d-publication-and-live-feasibility.md) is shipped. Not implementation authority for M4E until that plan is accepted.
+- Status: Accepted. [M4A](../planning/m4a-service-definitions-and-sources.md), [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md), and [M4C](../planning/m4c-packages-choices-and-client-terms.md) are shipped. [M4D](../planning/m4d-publication-and-live-feasibility.md) is shipped. [M4D.0](../planning/m4d0-narrow-group-departure-builder.md) is Accepted (not shipped). Not implementation authority for M4E until that plan is accepted.
 - Date: 2026-09-20
 - Decision owners: DepartureDesk maintainers
 - Parent: [M4 — Offers and pricing](../planning/m4-offers-and-pricing.md)
@@ -116,3 +116,8 @@ Gates 1–4 are satisfied by the 2026-09-20 Accept package. Gate 5 remains requi
 | 5 | Make one accepted slice authoritative for each migration and command. Include same-Agency and same-Departure database enforcement, Rails/PostgreSQL published-graph freeze, durable idempotency, lock-order and race proof, audit catalog extension, lifecycle interaction, money rounding, and keyboard/responsive Staff journey proof. | Open. An accepted M4A–M4E slice is required before the work it names. |
 
 This ADR does not claim M4 is shipped.
+
+## Clarification — M4D.0a (2026-09-21)
+
+[M4D.0](../planning/m4d0-narrow-group-departure-builder.md) may persist draft-only **`undecided`** fulfillment on unpublished Service Offer definition versions (and retained abandoned history). That value is not a published or selectable fulfillment basis and must be rejected by publication readiness. Client timing text on a Service Offer definition is version-owned descriptive prose with no operational authority over dates, capacity, compatibility, deadlines, or money. This clarification does not authorize a second commercial aggregate, proposal distribution, or M5 records.
+

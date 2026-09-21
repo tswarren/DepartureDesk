@@ -1,6 +1,6 @@
 # M4C — Packages, Client choices, and terms
 
-**Status:** Accepted 2026-09-20. **Accepted and shipped.** Implementation authority for M4C tables, commands, calculator adapter, and Staff draft UI only. Publication is not shipped.
+**Status:** Accepted 2026-09-20. **Accepted and shipped.** Implementation authority for M4C tables, commands, calculator adapter, and Staff draft UI only. Publication is shipped by [M4D](m4d-publication-and-live-feasibility.md).
 
 **Parent authority:** [M4 — Offers and pricing](m4-offers-and-pricing.md) (Accepted 2026-09-20; not implementation authority for later slices), [ADR 0014](../adr/0014-client-offers-publication-and-supply-compatibility.md) (Accepted; not implementation authority), and [M4.0](m40-task-flow-and-contract.md) (Accepted; documentation/task-flow gate only). MVP occupancy exception and roadmap M5 Charge-posting amendment are already in those documents.
 
@@ -157,3 +157,12 @@ M4C does not change Supplier inactivation, Arrangement ending, or M3 Needs-atten
 Tests prove: cross-Agency/Departure/wrong-version links fail under Rails and direct SQL; deferred circular ownership/inclusion; owner cannot be silently reassigned; concurrent inline create/adopt/retry yields exactly one Package and service draft; stale edits never half-update; option min/max, same-version activations, unreachable `choice_gated` rejected; bundled `2P` not `4P` from an unscoped one-person `P`; occupancy/rate-category Package components rejected on the `P` graph; optional `s`; fixed service-sum adjustments once per Package booking as their own lines; terms inheritance and actual conflict resolution; DST/local-date boundaries and cap bases (`persons` ≠ `traveler_positions`) without Pool projection checks; Viewer has no draft Package UI; keyboard field recovery and 375/768/1280/1400 layouts. Compare required entries against M4.0 friction **rules**. Full required repository CI passes at PR tip.
 
 **Exit:** A complete **draft** Package and a standalone choice-bearing service can be assembled and anonymously reviewed along the four-step path, including adopting an unshared unpublished service as package-only. One future M4D publication action covers the Package plus owned unpublished service versions. M4C creates no published offer, live sale eligibility, Client demand, or posted money.
+
+## Dated amendment — M4D.0a (2026-09-21)
+
+Authority: [M4D.0 — Narrow group departure builder](m4d0-narrow-group-departure-builder.md).
+
+- An editable unowned Service Offer draft may present as **Not yet assigned to a Package**. That label is UI presentation only; do not add an `independently_sellable` or commercial-scope column.
+- Add `CreateInitialPackageWithOutlineServiceOffer` (atomic Package + owned outline Service Offer + inclusion; durable idempotency).
+- Extend `CreatePackageInlineServiceOffer` to accept `undecided` fulfillment and optional `client_timing_text`.
+- Expose shipped `ReorderPackageInclusions` through a Staff route (`PATCH .../packages/:id/inclusions/reorder`). Audit action `package.inclusions_reordered` already exists.
