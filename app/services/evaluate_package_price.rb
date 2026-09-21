@@ -86,8 +86,12 @@ class EvaluatePackagePrice
   def apply_option_effects(result, options)
     effect_lines = []
     amount = result.amount_minor_units.to_i
+    blockers = result.blockers.dup
     options.sort_by { |option| [ option.position, option.id ] }.each_with_index do |option, index|
-      next if option.price_effect_minor_units.nil?
+      if option.price_effect_minor_units.nil?
+        blockers << "Choice option #{option.name} needs an included price (0) or surcharge."
+        next
+      end
 
       signed = option.price_effect_minor_units.to_i
       amount += signed
@@ -108,14 +112,13 @@ class EvaluatePackagePrice
         formula: { amount_minor_units: signed, evaluated_quantity: 1 }
       )
     end
-    return result if effect_lines.empty?
 
     EvaluateClientPrice::Result.new(
-      complete: true,
-      amount_minor_units: amount,
+      complete: blockers.empty? && result.complete,
+      amount_minor_units: blockers.empty? ? amount : nil,
       currency: result.currency,
       lines: result.lines + effect_lines,
-      blockers: [],
+      blockers: blockers,
       observed_at: result.observed_at,
       kind: result.kind
     )

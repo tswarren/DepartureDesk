@@ -1,6 +1,6 @@
 # M4D — Publication and live feasibility
 
-**Status:** Accepted 2026-09-20. Implementation authority for M4D tables, commands, freeze, live feasibility, M3 disclosure previews, and Staff Publish UI only. **Not shipped.**
+**Status:** Shipped 2026-09-21. Implementation authority for M4D tables, commands, freeze, live feasibility, M3 disclosure previews, and Staff Publish UI only.
 
 **Parent authority:** [M4 — Offers and pricing](m4-offers-and-pricing.md) (Accepted 2026-09-20; not implementation authority for later slices), [ADR 0014](../adr/0014-client-offers-publication-and-supply-compatibility.md) (Accepted; not implementation authority for M4E), and [M4.0](m40-task-flow-and-contract.md) (Accepted; documentation/task-flow gate only). MVP occupancy exception and roadmap M5 due-Charge amendment are already in those documents.
 

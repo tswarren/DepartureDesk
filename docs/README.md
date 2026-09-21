@@ -62,13 +62,13 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m3f4-milestone-closure.md`](planning/m3f4-milestone-closure.md) | M3F.4 parent exit criteria 1–15 evidence map; marks M3 complete. |
 | [`planning/m3e-decision-register.md`](planning/m3e-decision-register.md) | Accepted M3E decision register. |
 | [`adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md`](adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md) | Accepted ADR 0013; implemented by shipped M3E for commitments, Deadlines, deposits, exposure, Needs attention, and Arrangement ending. |
-| [`planning/m4-offers-and-pricing.md`](planning/m4-offers-and-pricing.md) | Accepted M4 parent. Not implementation authority for later slices. M4A–M4C shipped; M4D Accepted (not shipped); M4E unimplemented. |
+| [`planning/m4-offers-and-pricing.md`](planning/m4-offers-and-pricing.md) | Accepted M4 parent. Not implementation authority for later slices. M4A–M4D shipped; M4E unimplemented. |
 | [`planning/m40-task-flow-and-contract.md`](planning/m40-task-flow-and-contract.md) | Accepted M4.0 task-flow and contract gate. Documentation only; no M4 domain records of its own. |
 | [`planning/m4a-service-definitions-and-sources.md`](planning/m4a-service-definitions-and-sources.md) | Accepted and shipped M4A unpublished Service Offer drafts, exact M3 source bindings, and narrow compatibility evaluator. |
 | [`planning/m4b-client-pricing-and-anonymous-preview.md`](planning/m4b-client-pricing-and-anonymous-preview.md) | Accepted and shipped M4B unpublished Client prices, anonymous calculator, and optional indicative scenario economics. |
 | [`planning/m4c-packages-choices-and-client-terms.md`](planning/m4c-packages-choices-and-client-terms.md) | Accepted and shipped M4C unpublished Package drafts, package-only version ownership, choice templates, Client terms, and Package-owned prices. Publication is not shipped. |
-| [`planning/m4d-publication-and-live-feasibility.md`](planning/m4d-publication-and-live-feasibility.md) | Accepted M4D publication, freeze, Sales enabled, live feasibility, and M3 disclosure previews. Not shipped. |
-| [`adr/0014-client-offers-publication-and-supply-compatibility.md`](adr/0014-client-offers-publication-and-supply-compatibility.md) | Accepted ADR 0014; M4 identity, publication, source compatibility, and M5 Charge-posting handoff. M4A–M4C are shipped; M4D is Accepted. Not implementation authority for M4E. |
+| [`planning/m4d-publication-and-live-feasibility.md`](planning/m4d-publication-and-live-feasibility.md) | Shipped M4D publication, freeze, Sales enabled, live feasibility, and M3 disclosure previews. |
+| [`adr/0014-client-offers-publication-and-supply-compatibility.md`](adr/0014-client-offers-publication-and-supply-compatibility.md) | Accepted ADR 0014; M4 identity, publication, source compatibility, and M5 Charge-posting handoff. M4A–M4D are shipped. Not implementation authority for M4E. |
 | [`planning/drafts/README.md`](planning/drafts/README.md) | Draft staging area. M3E promoted 2026-09-18. M4 parent, ADR 0014, and M4.0 promoted 2026-09-20. M4A–M4D promoted 2026-09-20. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |

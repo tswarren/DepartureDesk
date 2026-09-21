@@ -4,13 +4,15 @@ class PackageVersion < ApplicationRecord
   STATUSES = %w[draft abandoned published superseded retired].freeze
   ABANDONED_REASON_LIMIT = 500
   ALLOWED_LIFECYCLE_TRANSITIONS = {
-    "draft" => %w[abandoned]
+    "draft" => %w[abandoned published],
+    "published" => %w[superseded retired]
   }.freeze
   SALES_CAP_BASES = %w[package_bookings persons resource_units].freeze
 
   belongs_to :agency
   belongs_to :departure
   belongs_to :package
+  belongs_to :copied_from_version, class_name: "PackageVersion", optional: true
 
   has_many :inclusions, class_name: "PackageInclusion", dependent: :restrict_with_exception
   has_many :owned_service_offer_versions, class_name: "ServiceOfferVersion",
@@ -21,10 +23,12 @@ class PackageVersion < ApplicationRecord
   has_one :cancellation_policy, class_name: "PackageClientCancellationPolicy", dependent: :restrict_with_exception
   has_many :stated_conditions, class_name: "PackageClientStatedCondition", dependent: :restrict_with_exception
   has_many :term_resolutions, class_name: "PackageClientTermResolution", dependent: :restrict_with_exception
+  has_one :sales_state, class_name: "PackageVersionSalesState", dependent: :restrict_with_exception
+  has_one :publication_manifest, class_name: "PackagePublicationManifest", dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 
-  attr_readonly :agency_id, :departure_id, :package_id, :version_number
+  attr_readonly :agency_id, :departure_id, :package_id, :version_number, :copied_from_version_id
 
   normalizes :abandoned_reason, with: ->(value) { value.to_s.strip.presence }
 

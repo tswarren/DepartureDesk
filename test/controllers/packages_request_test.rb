@@ -23,8 +23,8 @@ class PackagesRequestTest < ActionDispatch::IntegrationTest
 
     get departure_package_path(@departure, package)
     assert_response :success
-    assert_match "There is no Publish action in this slice.", response.body
-    assert_select "a", text: "Publish", count: 0
+    assert_match "Publish freezes this version", response.body
+    assert_select "input[type=submit][value=Publish]", count: 1
     assert_match "No published reusable versions", response.body
 
     sign_in_as @viewer

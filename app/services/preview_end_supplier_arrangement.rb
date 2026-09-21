@@ -139,6 +139,17 @@ class PreviewEndSupplierArrangement < AgencyCommand
       "required_informational_supersessions" => evaluation.required_informational_supersessions,
       "source_versions" => evaluation.source_versions,
       "reason_choices" => evaluation.reason_choices,
+      "offer_path_consequences" => evaluation.offer_path_consequences.map { |row|
+        {
+          "kind" => row.kind,
+          "offer_type" => row.offer_type,
+          "offer_id" => row.offer_id,
+          "offer_name" => row.offer_name,
+          "version_id" => row.version_id,
+          "message" => row.message,
+          "alternative_remains" => row.alternative_remains
+        }
+      },
       "selected_cascade_keys" => selected,
       "ending_reason" => @ending_reason,
       "replacement_arrangement_id" => @replacement_arrangement_id,

@@ -5,8 +5,8 @@ class ServiceOffersController < ApplicationController
 
   before_action :require_unpublished_offer_access!
   before_action :set_departure
-  before_action :set_service_offer, only: %i[show edit update edit_discard discard]
-  before_action :set_editable_draft, only: %i[show edit update edit_discard discard]
+  before_action :set_service_offer, only: %i[show edit update edit_discard discard publish pause_sales resume_sales retire successor]
+  before_action :set_service_offer_version, only: %i[show edit update edit_discard discard publish pause_sales resume_sales retire successor]
 
   def index
     @search = ListDepartureServiceOffers.call(
@@ -23,8 +23,9 @@ class ServiceOffersController < ApplicationController
   def show
     @compatibility = EvaluateServiceOfferSourceCompatibility.new(
       agency: Current.agency, actor: Current.agency_user, offer: @service_offer, version: @service_offer_version
-    ).call if @service_offer_version.definition&.m3_backed?
+    ).call if @service_offer_version.definition&.m3_backed? && Current.agency_user.permitted?(:manage_departures)
     assign_default_price_preview
+    assign_live_feasibility
   end
 
   def new
@@ -140,6 +141,52 @@ class ServiceOffersController < ApplicationController
     render :edit_discard, status: :unprocessable_entity
   end
 
+  def publish
+    PublishServiceOfferVersion.new(
+      agency: Current.agency, actor: Current.agency_user, offer: @service_offer,
+      version_lock_version: params[:version_lock_version],
+      sales_enabled: params[:sales_enabled] != "0",
+      idempotency_key: params[:idempotency_key].presence || SecureRandom.uuid
+    ).call
+    redirect_to departure_service_offer_path(@departure, @service_offer), notice: "Service offer published."
+  rescue AgencyCommand::Error => error
+    recover_offer(error, :show)
+  end
+
+  def pause_sales
+    PauseServiceOfferSales.new(agency: Current.agency, actor: Current.agency_user, offer: @service_offer).call
+    redirect_to departure_service_offer_path(@departure, @service_offer), notice: "Sales paused."
+  rescue AgencyCommand::Error => error
+    recover_offer(error, :show)
+  end
+
+  def resume_sales
+    ResumeServiceOfferSales.new(agency: Current.agency, actor: Current.agency_user, offer: @service_offer).call
+    redirect_to departure_service_offer_path(@departure, @service_offer), notice: "Sales resumed."
+  rescue AgencyCommand::Error => error
+    recover_offer(error, :show)
+  end
+
+  def retire
+    RetireServiceOfferVersion.new(
+      agency: Current.agency, actor: Current.agency_user, offer: @service_offer, reason: params[:reason]
+    ).call
+    redirect_to departure_service_offers_path(@departure), notice: "Service offer version retired."
+  rescue AgencyCommand::Error => error
+    recover_offer(error, :show)
+  end
+
+  def successor
+    CreateServiceOfferSuccessorDraft.new(
+      agency: Current.agency, actor: Current.agency_user, offer: @service_offer,
+      version_lock_version: params[:version_lock_version],
+      idempotency_key: params[:idempotency_key].presence || SecureRandom.uuid
+    ).call
+    redirect_to departure_service_offer_path(@departure, @service_offer), notice: "Successor draft created."
+  rescue AgencyCommand::Error => error
+    recover_offer(error, :show)
+  end
+
   def sources
     @query = params[:q]
     @search = SearchDepartureOfferSources.call(
@@ -157,21 +204,58 @@ class ServiceOffersController < ApplicationController
   private
 
   def require_unpublished_offer_access!
-    raise ActiveRecord::RecordNotFound unless Current.agency_user&.permitted?(:manage_departures)
+    raise ActiveRecord::RecordNotFound unless Current.agency_user&.permitted?(:manage_departures) ||
+      (action_name == "show" && Current.agency_user&.permitted?(:view_departures))
   end
 
   def set_service_offer
     @service_offer = @departure.service_offers.find(params[:id])
   end
 
-  def set_editable_draft
-    @service_offer_version = @service_offer.editable_draft_version ||
-      @service_offer.versions.order(version_number: :desc).first ||
-      raise(ActiveRecord::RecordNotFound)
+  def set_service_offer_version
+    manage = Current.agency_user.permitted?(:manage_departures)
+    @service_offer_version = if manage
+      @service_offer.editable_draft_version ||
+        @service_offer.current_published_version ||
+        @service_offer.versions.order(version_number: :desc).first
+    else
+      @service_offer.current_published_version
+    end
+    raise ActiveRecord::RecordNotFound if @service_offer_version.nil?
+    if !manage && !@service_offer_version.published?
+      raise ActiveRecord::RecordNotFound
+    end
     @service_offer_definition = @service_offer_version.definition
     @price_definition = @service_offer_version.association(:price_definition).scope
       .includes(service_offer_price_components: :service_offer_price_component_bases)
       .first
+  end
+
+  def set_editable_draft
+    set_service_offer_version
+  end
+
+  def recover_offer(error, template)
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    @service_offer.errors.add(:base, error.message)
+    flash.now[:alert] = error.message
+    @compatibility = EvaluateServiceOfferSourceCompatibility.new(
+      agency: Current.agency, actor: Current.agency_user, offer: @service_offer, version: @service_offer_version
+    ).call if @service_offer_version.definition&.m3_backed?
+    assign_default_price_preview
+    assign_live_feasibility
+    render template, status: :unprocessable_entity
+  end
+
+  def assign_live_feasibility
+    return unless @service_offer_version&.published?
+
+    @live_feasibility = EvaluateOfferLiveFeasibility.new(
+      agency: Current.agency,
+      version: @service_offer_version,
+      scenario: { persons: params[:persons].presence || 2 }
+    ).call
   end
 
   def assign_default_price_preview

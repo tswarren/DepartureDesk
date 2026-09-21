@@ -1,14 +1,17 @@
 <% content_for :title, "#{@service_offer.name} · DepartureDesk" %>
 <% draft = @service_offer_version.draft? %>
+<% published = @service_offer_version.published? %>
 <% definition = @service_offer_definition %>
+<% can_manage = Current.agency_user.permitted?(:manage_departures) %>
+<% package_owned = @service_offer_version.owning_package_version_id.present? %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
-    <p class="dd-eyebrow">Client offers (draft)</p>
+    <p class="dd-eyebrow"><%= published ? "Client offers" : "Client offers (draft)" %></p>
     <h1 class="dd-page-title"><%= @service_offer.name %></h1>
     <p class="dd-page-description"><%= @departure.name %></p>
   </div>
-  <% if draft %>
+  <% if draft && can_manage %>
     <div class="dd-page-actions">
       <%= link_to "Edit draft", edit_departure_service_offer_path(@departure, @service_offer), class: "dd-button" %>
       <%= link_to "Discard draft", discard_departure_service_offer_path(@departure, @service_offer), class: "dd-button dd-button--quiet" %>
@@ -39,8 +42,59 @@
         <dt>Operating currency</dt>
         <dd><%= @departure.operating_currency.presence || "—" %></dd>
       </div>
+      <% if published %>
+        <div>
+          <dt>Sales enabled</dt>
+          <dd><%= @service_offer_version.sales_state&.sales_enabled ? "Yes" : "No" %></dd>
+        </div>
+        <% if @live_feasibility %>
+          <div>
+            <dt>Live feasibility</dt>
+            <dd><%= offer_live_feasibility_label(@live_feasibility.label) %></dd>
+          </div>
+        <% end %>
+      <% end %>
     </dl>
-    <p class="dd-field-hint">This draft is unpublished. There is no Publish action in this slice.</p>
+    <% if draft && can_manage && !package_owned %>
+      <p class="dd-field-hint">Publish freezes this standalone version. Package-owned drafts publish with their package.</p>
+      <%= form_with url: publish_departure_service_offer_path(@departure, @service_offer), class: "dd-form" do %>
+        <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <div class="dd-field-group">
+          <label class="dd-checkbox">
+            <%= check_box_tag :sales_enabled, "1", true %>
+            Sales enabled after publish
+          </label>
+        </div>
+        <%= submit_tag "Publish", class: "dd-button" %>
+      <% end %>
+    <% elsif draft && package_owned %>
+      <p class="dd-field-hint">This version belongs to a package and publishes with that package.</p>
+    <% elsif published && can_manage %>
+      <div class="dd-form-actions">
+        <% if @service_offer_version.sales_state&.sales_enabled %>
+          <%= button_to "Pause sales", pause_sales_departure_service_offer_path(@departure, @service_offer), method: :post, class: "dd-button dd-button--quiet" %>
+        <% else %>
+          <%= button_to "Resume sales", resume_sales_departure_service_offer_path(@departure, @service_offer), method: :post, class: "dd-button" %>
+        <% end %>
+        <%= form_with url: successor_departure_service_offer_path(@departure, @service_offer), class: "dd-form" do %>
+          <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <%= submit_tag "Create successor draft", class: "dd-button dd-button--quiet" %>
+        <% end %>
+        <%= form_with url: retire_departure_service_offer_path(@departure, @service_offer), class: "dd-form" do %>
+          <%= text_field_tag :reason, nil, placeholder: "Retire reason", required: true, class: "dd-field" %>
+          <%= submit_tag "Retire version", class: "dd-button dd-button--quiet" %>
+        <% end %>
+      </div>
+    <% end %>
+    <% if @live_feasibility&.reasons&.any? %>
+      <ul>
+        <% @live_feasibility.reasons.each do |reason| %>
+          <li><%= reason.message %></li>
+        <% end %>
+      </ul>
+    <% end %>
   </div>
 </article>
 

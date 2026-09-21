@@ -352,11 +352,20 @@ module ApplicationHelper
   def service_offer_status_badge(status)
     modifier = case status.to_s
     when "draft" then "warning"
-    when "abandoned" then "neutral"
+    when "published" then "success"
+    when "abandoned", "retired", "superseded" then "neutral"
     else "info"
     end
 
     status_badge(status.to_s.titleize, modifier:)
+  end
+
+  def offer_live_feasibility_label(label)
+    {
+      "selectable_now" => "Selectable now",
+      "on_request" => "On request",
+      "unavailable" => "Unavailable"
+    }.fetch(label.to_s, label.to_s.humanize)
   end
 
   def fulfillment_basis_label(basis)

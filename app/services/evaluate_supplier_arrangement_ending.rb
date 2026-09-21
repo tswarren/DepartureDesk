@@ -27,7 +27,7 @@ class EvaluateSupplierArrangementEnding
   )
   Evaluation = Data.define(
     :arrangement, :version, :blockers, :cascades, :required_informational_supersessions,
-    :source_versions, :reason_choices
+    :source_versions, :reason_choices, :offer_path_consequences
   )
 
   def initialize(agency:, arrangement:, at: Time.current, selected_cascade_keys: nil)
@@ -83,7 +83,10 @@ class EvaluateSupplierArrangementEnding
         "version_lock_version" => version.lock_version,
         "governing_version_id" => version.id
       },
-      reason_choices: ENDING_REASONS
+      reason_choices: ENDING_REASONS,
+      offer_path_consequences: ListPublishedOfferPathConsequences.new(
+        agency: @agency, arrangement: arrangement
+      ).call
     )
   end
 

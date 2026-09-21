@@ -9,6 +9,7 @@ class Package < ApplicationRecord
   has_many :versions, class_name: "PackageVersion", dependent: :restrict_with_exception
   has_many :inclusions, class_name: "PackageInclusion", dependent: :restrict_with_exception
   has_many :price_definitions, class_name: "PackagePriceDefinition", dependent: :restrict_with_exception
+  belongs_to :current_published_version, class_name: "PackageVersion", optional: true
 
   attr_readonly :agency_id, :departure_id
 
