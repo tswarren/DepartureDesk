@@ -27,7 +27,8 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     )
     assert_response :success
     assert_select "#cruise-supplier-rate-terms"
-    assert_select "label", text: "First/second traveler fare"
+    assert_select "th", text: "Base Fare"
+    assert_select "th", text: "First/Second"
     assert_no_match(/\bquantity_basis\b|\bSupplierCost\b/, response.body)
 
     post departure_arrangement_cruise_cabin_category_supplier_rates_path(
@@ -36,14 +37,15 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
       version_lock_version: @version.lock_version,
       idempotency_key: SecureRandom.uuid,
       stage: "estimate",
-      terms: {
-        first_second_fare: "1624.00",
-        additional_fare: "406.00",
-        single_supplement: "1624.00",
-        nccf: "320.00",
-        first_second_discount: "150.00",
-        additional_discount: "37.50",
-        taxes_fees: "137.00"
+      profiles: %w[first_second additional every_traveler single_supplement],
+      cells: {
+        "base_fare:first_second" => "1624.00",
+        "base_fare:additional" => "406.00",
+        "base_fare:single_supplement" => "1624.00",
+        "nccf:every_traveler" => "320.00",
+        "discount:first_second" => "150.00",
+        "discount:additional" => "37.50",
+        "taxes_fees:every_traveler" => "137.00"
       },
       commission: { method: "not_provided" }
     }

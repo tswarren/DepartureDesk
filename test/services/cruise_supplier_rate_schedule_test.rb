@@ -77,8 +77,8 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
         commission: {
           method: "percentage",
           percentage: "10",
-          add_bases: %w[first_second_fare additional_fare single_supplement],
-          subtract_bases: []
+          add_cells: %w[base_fare:first_second base_fare:additional base_fare:single_supplement],
+          subtract_cells: []
         }
       )
     ).call
@@ -95,8 +95,8 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
         commission: {
           method: "percentage",
           percentage: "10",
-          add_bases: %w[first_second_fare additional_fare],
-          subtract_bases: %w[first_second_discount]
+          add_cells: %w[base_fare:first_second base_fare:additional],
+          subtract_cells: %w[discount:first_second]
         }
       )
     ).call
@@ -109,8 +109,8 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
         commission: {
           method: "percentage",
           percentage: "10",
-          add_bases: %w[first_second_fare additional_fare],
-          subtract_bases: []
+          add_cells: %w[base_fare:first_second base_fare:additional],
+          subtract_cells: []
         }
       )
     ).call
@@ -133,8 +133,8 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
         commission: {
           method: "percentage",
           percentage: "10",
-          add_bases: %w[first_second_fare],
-          subtract_bases: []
+          add_cells: %w[base_fare:first_second],
+          subtract_cells: []
         }
       )
     ).call
@@ -142,9 +142,112 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
     definition = DetectCruiseSupplierRateShape.new(
       agency: @agency, arrangement: @arrangement, resource: @resource
     ).call.definition
-    commission = definition.supplier_cost_components.find_by!(label: "Expected commission")
+    commission = definition.supplier_cost_components.find_by!(economic_role: "expected_commission")
     assert_equal "percentage", commission.calculation_kind
     assert_equal 1, commission.supplier_cost_component_bases.count
+  end
+
+  test "matrix labels reopen as matrix not legacy" do
+    create_smith_rates!
+    shape = DetectCruiseSupplierRateShape.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource
+    ).call
+    assert shape.compatible?
+    assert shape.matrix?
+    refute shape.legacy?
+    assert_equal "Base Fare", shape.definition.supplier_cost_components.find_by!(
+      quantity_basis: "occupancy_positions", occupancy_position_from: 1
+    ).label
+  end
+
+  test "shared percentage stays one component after save" do
+    create_smith_rates!
+    UpdateCruiseSupplierRateSchedule.new(
+      **update_args.merge(
+        commission: {
+          method: "percentage",
+          percentage: "10",
+          add_cells: %w[base_fare:first_second base_fare:additional],
+          subtract_cells: %w[discount:first_second]
+        }
+      )
+    ).call
+    definition = current_definition
+    commissions = definition.supplier_cost_components.where(economic_role: "expected_commission")
+    assert_equal 1, commissions.count
+    assert_equal "percentage", commissions.first.calculation_kind
+  end
+
+  test "zero unit rate amount may become forecast ready with a positive sibling" do
+    create_smith_rates!
+    definition = current_definition
+    zero = definition.supplier_cost_components.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: @arrangement,
+      supplier_arrangement_version: @version,
+      supplier_cost_definition: definition,
+      label: "Base Fare",
+      economic_role: "supplier_charge",
+      calculation_kind: "unit_rate",
+      amount_minor_units: 0,
+      quantity_basis: "resource_units",
+      position: 50,
+      pass_through: false
+    )
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      resource: @resource,
+      expected_cabins: { double: 1 },
+      version_lock_version: @version.reload.lock_version
+    ).call
+    MarkCruiseSupplierRateScheduleForecastReady.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      resource: @resource,
+      definition_lock_version: current_definition.lock_version,
+      readiness_provenance: "Includes contractual zero",
+      confirm_omissions: true
+    ).call
+    assert current_definition.reload.forecast_ready?
+    assert_equal 0, zero.reload.amount_minor_units
+  end
+
+  test "legacy fixed form projects and converts with confirmation" do
+    create_smith_rates!
+    definition = current_definition
+    # Simulate shipped 2A.2 labels still on disk.
+    definition.supplier_cost_components.where(economic_role: %w[supplier_charge supplier_credit]).find_each do |component|
+      legacy_label = CruiseSupplierRateSupport::LEGACY_LABEL_TO_CELL.find do |_label, pair|
+        row_key, profile_key = pair
+        component.label == CruiseSupplierRateSupport.static_row_label(row_key) &&
+          CruiseSupplierRateSupport.profile_key_for_component(component) == profile_key
+      end&.first
+      component.update_columns(label: legacy_label) if legacy_label
+    end
+
+    shape = DetectCruiseSupplierRateShape.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource
+    ).call
+    assert shape.legacy?
+    refute shape.matrix?
+
+    error = assert_raises(AgencyCommand::Error) do
+      UpdateCruiseSupplierRateSchedule.new(**update_args.merge(convert_legacy: false)).call
+    end
+    assert_match(/confirm conversion/i, error.message)
+
+    preserved_id = definition.supplier_cost_components.order(:position).first.id
+    UpdateCruiseSupplierRateSchedule.new(**update_args.merge(convert_legacy: true)).call
+    shape = DetectCruiseSupplierRateShape.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource
+    ).call
+    assert shape.matrix?
+    refute shape.legacy?
+    assert_equal "Base Fare", shape.definition.supplier_cost_components.find(preserved_id).label
   end
 
   test "occupancy plan clears forecast readiness" do

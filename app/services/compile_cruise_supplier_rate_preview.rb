@@ -41,7 +41,7 @@ class CompileCruiseSupplierRatePreview
         definition: nil, source: nil,
         currency: @arrangement.departure.operating_currency,
         stage: nil, status: nil, commission_method: "not_provided",
-        pending_fields: CruiseSupplierRateSupport::CANONICAL_TERM_KEYS.map(&:to_s) + [ "commission" ],
+        pending_fields: %w[matrix commission],
         illustrations: empty_illustrations(shape.resource_definition),
         forecast_mix_total_minor_units: nil,
         reasons: []
@@ -77,17 +77,15 @@ class CompileCruiseSupplierRatePreview
   private
 
   def pending_fields(definition)
-    present = definition.supplier_cost_components.map(&:label).to_set
     fields = []
-    CruiseSupplierRateSupport::CANONICAL_SPECS.each do |key, spec|
-      fields << key.to_s unless present.include?(spec.fetch(:label))
-    end
-    fields << "commission" unless present.include?(CruiseSupplierRateSupport::COMMISSION_LABEL)
+    charge_credit = definition.supplier_cost_components.reject { |c| c.economic_role == "expected_commission" }
+    fields << "matrix" if charge_credit.empty?
+    fields << "commission" unless definition.supplier_cost_components.any? { |c| c.economic_role == "expected_commission" }
     fields
   end
 
   def commission_display_states(definition, commission_method)
-    has_commission = definition.supplier_cost_components.any? { |c| c.label == COMMISSION_LABEL }
+    has_commission = definition.supplier_cost_components.any? { |c| c.economic_role == "expected_commission" }
     if definition.forecast_ready? && !has_commission
       [ "none", "shown" ]
     elsif !has_commission || commission_method == "not_provided"
