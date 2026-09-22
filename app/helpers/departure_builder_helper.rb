@@ -27,13 +27,13 @@ module DepartureBuilderHelper
 
   def builder_contextual_path(action)
     case action.path
-    in [:fulfillment, :departure_builder_component, departure, offer]
+    in [ :fulfillment, :departure_builder_component, departure, offer ]
       fulfillment_departure_builder_component_path(departure, offer)
-    in [:departure_service_offer, departure, offer]
+    in [ :departure_service_offer, departure, offer ]
       departure_service_offer_path(departure, offer)
-    in [:edit_departure_service_offer, departure, offer]
+    in [ :edit_departure_service_offer, departure, offer ]
       edit_departure_service_offer_path(departure, offer)
-    in [:departure_packages, departure]
+    in [ :departure_packages, departure ]
       departure_packages_path(departure)
     else
       departure_builder_path(@departure)
