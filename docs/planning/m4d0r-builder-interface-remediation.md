@@ -1,10 +1,11 @@
 # M4D.0R — Builder interface remediation
 
-**Status:** Shipped 2026-09-21 on [PR #122](https://github.com/tswarren/DepartureDesk/pull/122). Implementation authority for Staff builder **interaction and presentation** remediation. Domain tables, commands, and publication reject-`undecided` remain governed by [M4D.0](m4d0-narrow-group-departure-builder.md). Not authority for M4E or streamlined discovery backlog.
+**Status:** Shipped 2026-09-21 on [PR #122](https://github.com/tswarren/DepartureDesk/pull/122). **Interim** Staff builder interaction and presentation on the M4D.0 domain base. Domain tables, commands, and publication reject-`undecided` remain governed by [M4D.0](m4d0-narrow-group-departure-builder.md). **Future** composition presentation is governed by Accepted [M4D.1](m4d1-departure-composition-workspace.md). Not authority for M4E or streamlined discovery backlog.
 
 **Related authority and discovery:**
 
 - [M4D.0 — Narrow group departure builder](m4d0-narrow-group-departure-builder.md)
+- [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md) (Accepted; future presentation)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery only)
 - [M4 task flow and contract](m40-task-flow-and-contract.md)
 - [Interface contract](../ui/interface-contract.md)
@@ -750,3 +751,7 @@ This remediation does not add:
 The interface remediation is complete when an average travel agent can safely record a concept, outline the usual Client Package, and return to a workspace that presents the end result and one useful next action—without first learning DepartureDesk's internal commercial graph.
 
 The domain records may remain sophisticated. The default workflow must not feel sophisticated merely because those records exist.
+
+## Dated amendment — M4D.1 (2026-09-21)
+
+M4D.0R remains the **interim** shipped Staff builder UI on the M4D.0 domain base. **Future** Staff composition presentation is governed by Accepted [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md). Do not implement M4D.1 until that plan’s accepted sub-slice names the work. Demote or redirect `/departures/:id/builder` only when M4D.1 Slice 1 exits.

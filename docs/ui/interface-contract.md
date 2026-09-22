@@ -136,12 +136,12 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - If no Office is current, the UI remains usable and does not invent one.
 
 
-## Group departure builder (M4D.0 domain; M4D.0R presentation)
+## Group departure builder (M4D.0 domain; interim M4D.0R presentation)
 
-Domain: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Presentation: [M4D.0R](../planning/m4d0r-builder-interface-remediation.md) (shipped).
+Domain: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Presentation: [M4D.0R](../planning/m4d0r-builder-interface-remediation.md) (**interim** shipped UI). Future composition presentation: Accepted [M4D.1](../planning/m4d1-departure-composition-workspace.md) (not yet shipped).
 
 - **Create group departure** uses two save intents: **Save and add components** (first-component screen) and **Save for later** (empty builder workspace). Timing mode toggles do not clear exploratory input until validated submit.
-- For `manage_departures`, the **builder is the primary working body** (dedicated builder route). Compact identity header only; full administrative definition, Supplier Arrangement tables, and Service Offer tables are secondary links—not peer panels on the default body.
+- For `manage_departures`, the **builder is the primary working body** (dedicated builder route) until M4D.1 Slice 1 exits. Compact identity header only; full administrative definition, Supplier Arrangement tables, and Service Offer tables are secondary links—not peer panels on the default body.
 - Vertical order: recommended next action (action-labeled button), preparation-outcome choice (request/session only), Package summary, itinerary cards, collapsed four-group checklist, secondary operational links.
 - Each component card exposes **one** contextual action plus a Remaining setup disclosure. Do not show all fulfillment choices and both Cruise/Hotel helpers as peer buttons.
 - Supplier-supported path binds the **existing** outline Service Offer; it must not create a second offer from the collection from-source flow.
@@ -149,6 +149,16 @@ Domain: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Presentatio
 - Keyboard itinerary reorder in focused mode with full-page fallback; no drag-only path.
 - Staff-only internal Client preview labeled not shared with Clients; pending facts never display as zero.
 - Permission: `manage_departures` for all builder mutations and unpublished reads. Viewer behavior for unpublished drafts is unchanged; published Client facts remain Viewer-readable under M4D.
+
+## Departure Composition Workspace (M4D.1 Accepted; not yet shipped)
+
+Authority: [M4D.1](../planning/m4d1-departure-composition-workspace.md). Do not treat this section as shipped UI.
+
+- Five persistent Departure areas: Overview, Services, Suppliers, Package & Client terms, Review. Freely navigable; not completion gates; not a linear wizard.
+- Service Map rows are draft `ServiceOffer` identities. No second outline/component aggregate.
+- Typed Supplier adapters and Client-term compilation are forthcoming sub-slices; until then, retain explicit links into current Supplier planning and advanced editors.
+- Demote or redirect the interim `/departures/:id/builder` surface only when M4D.1 Slice 1 exits.
+- Area status and recommendations remain derived; pending remains distinct from zero.
 
 ## Forms and validation
 

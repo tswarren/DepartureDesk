@@ -1,6 +1,6 @@
 # ADR 0014: Client offers, publication, and Supplier-source compatibility
 
-- Status: Accepted. [M4A](../planning/m4a-service-definitions-and-sources.md), [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md), and [M4C](../planning/m4c-packages-choices-and-client-terms.md) are shipped. [M4D](../planning/m4d-publication-and-live-feasibility.md) is shipped. [M4D.0](../planning/m4d0-narrow-group-departure-builder.md) is shipped. Not implementation authority for M4E until that plan is accepted.
+- Status: Accepted. [M4A](../planning/m4a-service-definitions-and-sources.md), [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md), and [M4C](../planning/m4c-packages-choices-and-client-terms.md) are shipped. [M4D](../planning/m4d-publication-and-live-feasibility.md) is shipped. [M4D.0](../planning/m4d0-narrow-group-departure-builder.md) and interim [M4D.0R](../planning/m4d0r-builder-interface-remediation.md) are shipped. [M4D.1](../planning/m4d1-departure-composition-workspace.md) is Accepted (not shipped). Not implementation authority for M4E until that plan is accepted. Later M4D.1 sub-slices may require ADR amendment for draft choice-rate linkage or Client price provenance; this ADR is not that authority until amended with the implementing slice.
 - Date: 2026-09-20
 - Decision owners: DepartureDesk maintainers
 - Parent: [M4 — Offers and pricing](../planning/m4-offers-and-pricing.md)
@@ -120,4 +120,8 @@ This ADR does not claim M4 is shipped.
 ## Clarification — M4D.0a (2026-09-21)
 
 [M4D.0](../planning/m4d0-narrow-group-departure-builder.md) may persist draft-only **`undecided`** fulfillment on unpublished Service Offer definition versions (and retained abandoned history). That value is not a published or selectable fulfillment basis and must be rejected by publication readiness. Client timing text on a Service Offer definition is version-owned descriptive prose with no operational authority over dates, capacity, compatibility, deadlines, or money. This clarification does not authorize a second commercial aggregate, proposal distribution, or M5 records.
+
+## Clarification — M4D.1 (2026-09-21)
+
+[M4D.1](../planning/m4d1-departure-composition-workspace.md) is Accepted as future Staff composition presentation. It may later add draft choice→`client_rate_category_key` linkage and Client price provenance fingerprinting in named sub-slices. Those changes require ADR amendment with the implementing slice; this note alone does not authorize schema or command work.
 
