@@ -4,7 +4,9 @@
 
 **Slice 1:** [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) is **Shipped 2026-09-22**. It provides the five-area Composition shell, Service Map, readiness mapping, and `/builder` compatibility redirect.
 
-**Slice 2A.1:** [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) is **Shipped 2026-09-22**. It is the sole shipped authority for typed Cruise Stop points A–B. Later slices remain unauthorized until named.
+**Slice 2A.1:** [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) is **Shipped 2026-09-22**. It is the sole shipped authority for typed Cruise Stop points A–B.
+
+**Slice 2A.2:** [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) is **Accepted 2026-09-22**. It is the sole implementation authority for typed Cruise Stop point C (not yet shipped). Later slices remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -25,6 +27,7 @@
 - [M4D.0R — Builder interface remediation](m4d0r-builder-interface-remediation.md) (historical interim UI; primary chrome superseded by Slice 1 Composition)
 - [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) (shipped)
 - [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (shipped; sole A–B authority)
+- [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) (Accepted; sole C authority; not yet shipped)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery backlog only)
 - [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) · [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) · [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) · [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
 - [M3B](m3b-supplier-capacity.md) · [M3C](m3c-cost-terms-and-forecasts.md) · [M3D](m3d-activation-reservations-confirmations.md) · [M3D.7](m3d7-activated-definition-immutability.md) · [M3E](m3e-supplier-operational-control.md)
@@ -484,6 +487,8 @@ The adapter may suggest Single/Double/Triple preview configurations from maximum
 
 ### 12.3 Stop point C — One category’s Supplier rates saved
 
+**Accepted Slice 2A.2** is sole authority: [M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md).
+
 The common Cruise rate form accepts:
 
 - first/second fare;
@@ -493,8 +498,10 @@ The common Cruise rate form accepts:
 - first/second discount;
 - additional-person discount;
 - taxes, fees, and port charges;
-- expected commission and explicit commission bases;
+- expected commission method: not provided, dollar amount (per traveler or per cabin), or percentage with explicit selection of canonical bases;
 - stage and forecast-readiness evidence.
+
+Suggested Single/Double/Triple configurations from maximum occupancy are **ephemeral per-cabin illustrations** only. They are not persistence, support authority, or a price. Persisted occupancy profiles represent **confirmed forecast quantities** after explicit Staff confirmation, and only for configurations the entered category facts support (for example Single and Double when maximum occupancy is 2; Triple only when Triple is supported). Never create a fixed always-three profile set, and never auto-create profiles without Staff confirmation.
 
 The orchestration writes generic:
 
@@ -502,12 +509,12 @@ The orchestration writes generic:
 - cost definition;
 - ordered cost components and base links;
 - usage assumption;
-- occupancy profiles **only after explicit Staff confirmation**, and **only for configurations the entered category facts support** (for example Single and Double when maximum occupancy is 2; Triple only when Triple is supported). Suggestion from maximum occupancy is not persistence. Never create a fixed always-three profile set, and never auto-create profiles without Staff confirmation;
+- occupancy profiles only after that explicit confirmation;
 - participant/position rows required by M3C.
 
 Every field maps to a named M3 calculation primitive. Unsupported contract language routes to the advanced cost editor; it is never flattened into a guessed fixed amount.
 
-The section preview shows known gross Supplier totals, expected commission, and net Supplier cost for each **supported** occupancy configuration. Missing commission leaves net pending while preserving gross totals.
+The section preview shows known gross Supplier totals, expected commission, and net Supplier cost for each **supported** occupancy configuration. While working, missing commission leaves commission and net pending while preserving gross totals. When forecast-ready with commission omitted, commission is none and net equals gross.
 
 ### 12.4 Stop point D — Deposits and deadlines saved
 
@@ -926,9 +933,15 @@ Each named durable stop point uses a dedicated command or a thin orchestration o
 
 Typed composite commands may extract reusable generic `*_already_locked!` helpers from shipped commands. Public M3 commands retain their existing behavior. The typed command owns authorization, canonical locks, idempotency, one transaction, optimistic checks, version bump, and audit at its public boundary. It must not chain public multi-transaction commands for one section save.
 
-**Later Cruise stop-point boundaries** (names locked when the implementing slice is Accepted; former proposed `Save…` vocabulary superseded for A–B):
+**Accepted Slice 2A.2 command set** (sole authority: [Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md)):
 
-- Supplier rate schedule (Stop C / Slice 2A.2)
+- `CreateCruiseSupplierRateSchedule` / `UpdateCruiseSupplierRateSchedule`
+- `SetCruiseSupplierOccupancyPlan`
+- `MarkCruiseSupplierRateScheduleForecastReady`
+- Read adapters: `CompileCruiseSupplierRatePreview`, `DetectCruiseSupplierRateShape`
+
+**Later Cruise stop-point boundaries** (names locked when the implementing slice is Accepted; former proposed `Save…` vocabulary superseded for A–C):
+
 - Supplier deadlines / deposits (Stop D / Slice 2B)
 - `ConnectCruiseServiceOffer` (Stop E / Slice 2C)
 - Client term schedule and Supplier-to-Client copy (Stops F–G / Slice 2D)
@@ -1023,11 +1036,15 @@ Shipped Stop points A–B:
 
 #### Slice 2A.2 — Supplier rates and occupancy totals
 
-Ship Stop point C (requires its own Accepted plan after 2A.1 ships or is otherwise authorized):
+**Accepted 2026-09-22.** Sole implementation authority: [M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md). Not yet shipped.
 
-- Cruise Supplier rate compiler;
-- occupancy profiles and Supplier total preview;
-- advanced-editor escape for unsupported terms.
+Accepted Stop point C:
+
+- typed Cruise Supplier rate schedule (`CreateCruiseSupplierRateSchedule` / `UpdateCruiseSupplierRateSchedule`);
+- dollar or percentage expected commission with constrained shapes;
+- occupancy plan (`SetCruiseSupplierOccupancyPlan`) with ephemeral illustrations vs confirmed profiles;
+- forecast readiness and preview compiler;
+- category-scoped rate-shape detector and advanced-editor escape.
 
 **Exit:** Accepted Supplier terms for one cabin category can be entered and resumed without exposing graph vocabulary or creating Client records.
 
