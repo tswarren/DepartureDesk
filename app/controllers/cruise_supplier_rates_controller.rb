@@ -9,10 +9,57 @@ class CruiseSupplierRatesController < ApplicationController
   before_action :set_supplier_arrangement
   before_action :require_compatible_cruise_shape!
   before_action :set_cabin_category
-  before_action :require_editable_draft!, only: %i[create update occupancy_plan forecast_readiness]
-  before_action :assign_rate_workspace
+  before_action :require_editable_draft!, only: %i[create update occupancy_plan forecast_readiness preview]
+  before_action :assign_rate_shape_for_preview, only: :preview
+  before_action :assign_rate_workspace, except: %i[preview]
 
   def show
+  end
+
+  def preview
+    result = PreviewCruiseSupplierRateMatrix.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      arrangement: @supplier_arrangement,
+      resource: @supplier_resource,
+      profiles: profile_params,
+      cells: cell_params,
+      custom_rows: custom_row_params,
+      commission: commission_params,
+      overlap_resolution: params[:overlap_resolution],
+      stage: params[:stage].presence || "estimate",
+      notes: params[:notes],
+      convert_legacy: params[:convert_legacy],
+      version_lock_version: params.require(:version_lock_version),
+      definition_lock_version: params[:definition_lock_version],
+      empty_schedule: @rate_shape.empty?,
+      illustration_occupants: illustration_occupant_params
+    ).call
+
+    unless result.ok?
+      return render json: { error: result.error, illustrations: [] }, status: :unprocessable_entity
+    end
+
+    preview = result.preview
+    currency = preview.currency || @departure.operating_currency
+    render json: {
+      currency: currency,
+      commission_method: preview.commission_method,
+      error: nil,
+      illustrations: preview.illustrations.map { |row|
+        {
+          key: row.key,
+          label: row.label,
+          gross: row.gross_minor_units && Money.new(row.gross_minor_units, currency).format,
+          commission_state: row.commission_state,
+          commission: row.commission_minor_units && Money.new(row.commission_minor_units, currency).format,
+          net_state: row.net_state,
+          net: row.net_state == "shown" && row.net_minor_units ?
+            Money.new(row.net_minor_units, currency).format : row.net_state,
+          complete: row.complete
+        }
+      }
+    }
   end
 
   def create
@@ -117,6 +164,15 @@ class CruiseSupplierRatesController < ApplicationController
 
   private
 
+  def assign_rate_shape_for_preview
+    @rate_shape = DetectCruiseSupplierRateShape.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      resource: @supplier_resource,
+      version: @cruise_shape.version
+    ).call
+  end
+
   def require_compatible_cruise_shape!
     @cruise_shape = DetectCruiseArrangementShape.new(
       agency: Current.agency, arrangement: @supplier_arrangement
@@ -131,8 +187,13 @@ class CruiseSupplierRatesController < ApplicationController
     version = @cruise_shape.version
     return if version&.draft?
 
-    redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
-      alert: "Create a successor draft before editing Supplier rates."
+    message = "Create a successor draft before editing Supplier rates."
+    if request.format.json? || request.headers["Accept"].to_s.include?("application/json")
+      render json: { error: message, illustrations: [] }, status: :unprocessable_entity
+    else
+      redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+        alert: message
+    end
   end
 
   def set_cabin_category
@@ -164,6 +225,10 @@ class CruiseSupplierRatesController < ApplicationController
       @departure, @supplier_arrangement, @item
     )
     @idempotency_key = SecureRandom.uuid
+    @operating_currency = @departure.operating_currency
+    @preview_path = preview_departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @supplier_arrangement, @supplier_resource
+    )
     assign_form_from_definition unless @form_cells
     assign_occupancy_from_assumption
   end
@@ -235,7 +300,9 @@ class CruiseSupplierRatesController < ApplicationController
       profile.is_a?(Hash) ? profile.stringify_keys : {
         "key" => profile.to_s,
         "family" => CruiseSupplierRateSupport.decode_profile_key(profile)[:family].to_s,
-        "category" => CruiseSupplierRateSupport.decode_profile_key(profile)[:category]
+        "category" => CruiseSupplierRateSupport.decode_profile_key(profile)[:category],
+        "occupancy_position_from" => CruiseSupplierRateSupport.decode_profile_key(profile)[:occupancy_position_from],
+        "occupancy_position_to" => CruiseSupplierRateSupport.decode_profile_key(profile)[:occupancy_position_to]
       }
     }
     @form_profile_keys = @form_profiles.map { |profile| profile["key"].to_s }
@@ -266,41 +333,65 @@ class CruiseSupplierRatesController < ApplicationController
 
   def profile_params
     raw = params[:profiles]
+    default_profiles = [
+      { family: "first_second", category: nil, key: "first_second" },
+      { family: "additional", category: nil, key: "additional" },
+      { family: "every_traveler", category: nil, key: "every_traveler" },
+      { family: "every_cabin", category: nil, key: "every_cabin" },
+      { family: "single_supplement", category: nil, key: "single_supplement" }
+    ]
+
+    normalize_profile_entry = lambda do |entry|
+      data = if entry.is_a?(ActionController::Parameters)
+        entry.to_unsafe_h.with_indifferent_access
+      elsif entry.is_a?(Hash)
+        entry.with_indifferent_access
+      else
+        decoded = CruiseSupplierRateSupport.decode_profile_key(entry)
+        return nil unless CruiseSupplierRateSupport::PROFILE_FAMILIES.key?(decoded[:family])
+
+        return {
+          family: decoded[:family].to_s,
+          category: decoded[:category],
+          key: entry.to_s,
+          occupancy_position_from: decoded[:occupancy_position_from],
+          occupancy_position_to: decoded[:occupancy_position_to]
+        }
+      end
+
+      family = (data[:family].presence || CruiseSupplierRateSupport.decode_profile_key(data[:key])[:family]).to_s
+      return nil unless CruiseSupplierRateSupport::PROFILE_FAMILIES.key?(family.to_sym)
+
+      category = data[:category].to_s.strip.presence
+      from = data[:occupancy_position_from].presence
+      to = data.key?(:occupancy_position_to) ? data[:occupancy_position_to] : nil
+      decoded = CruiseSupplierRateSupport.decode_profile_key(data[:key]) if data[:key].present?
+      from ||= decoded&.dig(:occupancy_position_from)
+      to = decoded&.dig(:occupancy_position_to) if !data.key?(:occupancy_position_to) && decoded
+      key = data[:key].presence || CruiseSupplierRateSupport.encode_profile_key(
+        family,
+        category: category,
+        occupancy_position_from: from,
+        occupancy_position_to: to
+      )
+      {
+        family: family,
+        category: category,
+        key: key.to_s,
+        occupancy_position_from: from,
+        occupancy_position_to: to
+      }
+    end
+
     if raw.is_a?(ActionController::Parameters) || (raw.is_a?(Hash) && raw.keys.all? { |k| k.to_s.match?(/\A\d+\z/) })
       Array(raw.to_unsafe_h.sort_by { |k, _| k.to_i }.map(&:last)).filter_map do |entry|
         next if entry.blank?
 
-        data = entry.to_h.with_indifferent_access
-        family = (data[:family].presence || CruiseSupplierRateSupport.decode_profile_key(data[:key])[:family]).to_s
-        next unless CruiseSupplierRateSupport::PROFILE_FAMILIES.key?(family.to_sym)
-
-        category = data[:category].to_s.strip.presence
-        key = data[:key].presence || CruiseSupplierRateSupport.encode_profile_key(family, category: category)
-        { family: family, category: category, key: key.to_s }
+        normalize_profile_entry.call(entry)
       end
     else
-      keys = Array(raw).filter_map do |entry|
-        if entry.is_a?(Hash) || entry.is_a?(ActionController::Parameters)
-          data = entry.to_h.with_indifferent_access
-          family = (data[:family].presence || CruiseSupplierRateSupport.decode_profile_key(data[:key])[:family]).to_s
-          next unless CruiseSupplierRateSupport::PROFILE_FAMILIES.key?(family.to_sym)
-
-          category = data[:category].to_s.strip.presence
-          key = data[:key].presence || CruiseSupplierRateSupport.encode_profile_key(family, category: category)
-          { family: family, category: category, key: key.to_s }
-        else
-          decoded = CruiseSupplierRateSupport.decode_profile_key(entry)
-          next unless CruiseSupplierRateSupport::PROFILE_FAMILIES.key?(decoded[:family])
-
-          { family: decoded[:family].to_s, category: decoded[:category], key: entry.to_s }
-        end
-      end
-      keys.presence || [
-        { family: "first_second", category: nil, key: "first_second" },
-        { family: "additional", category: nil, key: "additional" },
-        { family: "every_traveler", category: nil, key: "every_traveler" },
-        { family: "single_supplement", category: nil, key: "single_supplement" }
-      ]
+      keys = Array(raw).filter_map { |entry| normalize_profile_entry.call(entry) }
+      keys.presence || default_profiles
     end
   end
 
@@ -316,7 +407,11 @@ class CruiseSupplierRatesController < ApplicationController
     entries.filter_map do |entry|
       next if entry.blank?
 
-      data = entry.to_h.with_indifferent_access
+      data = if entry.is_a?(ActionController::Parameters)
+        entry.to_unsafe_h.with_indifferent_access
+      else
+        entry.to_h.with_indifferent_access
+      end
       next if data[:label].blank?
 
       {
@@ -359,5 +454,17 @@ class CruiseSupplierRatesController < ApplicationController
 
   def occupancy_params
     params.fetch(:expected_cabins, {}).permit(:single, :double, :triple).to_h
+  end
+
+  def illustration_occupant_params
+    raw = params[:illustration_occupants]
+    return [] if raw.blank?
+
+    entries = if raw.is_a?(ActionController::Parameters) || raw.is_a?(Hash)
+      raw.to_unsafe_h.sort_by { |key, _| key.to_i }.map(&:last)
+    else
+      Array(raw)
+    end
+    entries.map { |label| label.to_s.strip.presence }.compact
   end
 end

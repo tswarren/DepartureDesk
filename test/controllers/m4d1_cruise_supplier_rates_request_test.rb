@@ -27,12 +27,31 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     )
     assert_response :success
     assert_select "#cruise-supplier-rate-terms"
-    assert_select "th", text: "Base Fare"
-    assert_select "th", text: "First/Second"
+    assert_select "button", text: "Add rate profile"
     assert_select "button", text: "Add component"
     assert_match(/Use the same commission rate for every profile/, response.body)
     assert_select ".dd-cruise-rate-narrow"
     assert_no_match(/\bquantity_basis\b|\bSupplierCost\b/, response.body)
+
+    post preview_departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: {
+      version_lock_version: @version.lock_version,
+      stage: "estimate",
+      profiles: {
+        "0" => { family: "first_second", key: "first_second" },
+        "1" => { family: "every_traveler", key: "every_traveler" }
+      },
+      cells: {
+        "base_fare:first_second" => "1624.00",
+        "nccf:every_traveler" => "320.00"
+      },
+      commission: { method: "not_provided" }
+    }, headers: { "Accept" => "application/json" }
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert body["illustrations"].is_a?(Array)
+    assert body["illustrations"].any?
 
     post departure_arrangement_cruise_cabin_category_supplier_rates_path(
       @departure, @arrangement, @resource

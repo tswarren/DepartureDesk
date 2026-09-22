@@ -13,11 +13,12 @@ class CompileCruiseSupplierRatePreview
     :forecast_mix_total_minor_units, :reasons
   )
 
-  def initialize(agency:, arrangement:, resource:, version: nil)
+  def initialize(agency:, arrangement:, resource:, version: nil, illustration_occupants: nil)
     @agency = agency
     @arrangement = arrangement
     @resource = resource
     @version = version
+    @illustration_occupants = Array(illustration_occupants).map { |label| label.to_s.strip.presence }.compact
   end
 
   def call
@@ -117,7 +118,9 @@ class CompileCruiseSupplierRatePreview
     adult = categories.find { |c| c.label.casecmp?(ADULT_CATEGORY_LABEL) }
     child = categories.find { |c| c.label.casecmp?("Child") || c.label.downcase.start_with?("child") }
 
-    scenarios = if adult && child
+    scenarios = if @illustration_occupants.any?
+      occupant_illustration_scenarios(resource_definition, categories, @illustration_occupants)
+    elsif adult && child
       family_illustration_scenarios(resource_definition, adult: adult, child: child)
     else
       standard_illustration_scenarios(resource_definition, categories)
@@ -206,6 +209,26 @@ class CompileCruiseSupplierRatePreview
       }
     end
     scenarios
+  end
+
+  def occupant_illustration_scenarios(resource_definition, categories, occupants)
+    max = [ resource_definition.maximum_occupancy.to_i, occupants.size ].min
+    max = 1 if max < 1
+    by_label = categories.index_by { |category| category.label.downcase }
+
+    (1..max).filter_map do |count|
+      labels = occupants.first(count)
+      category_ids = labels.map do |label|
+        by_label[label.downcase]&.id
+      end
+      next if category_ids.any?(&:nil?)
+
+      {
+        key: "occupants_#{count}",
+        label: labels.join(" + "),
+        category_ids: category_ids
+      }
+    end
   end
 
   def participant_categories_for(definition)

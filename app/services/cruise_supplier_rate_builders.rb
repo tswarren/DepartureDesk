@@ -129,14 +129,17 @@ module CruiseSupplierRateBuilders
     normalized = list.map do |entry|
       if entry.is_a?(Hash)
         data = entry.with_indifferent_access
-        family = (data[:family].presence || CruiseSupplierRateSupport.decode_profile_key(data[:key])[:family]).to_sym
+        decoded_key = CruiseSupplierRateSupport.decode_profile_key(data[:key]) if data[:key].present?
+        family = (data[:family].presence || decoded_key&.fetch(:family)).to_sym
         category = data[:category].to_s.strip.presence
-        key = data[:key].presence || CruiseSupplierRateSupport.encode_profile_key(family, category: category)
+        from = data[:occupancy_position_from].presence || decoded_key&.dig(:occupancy_position_from)
+        to = data.key?(:occupancy_position_to) ? data[:occupancy_position_to] : decoded_key&.dig(:occupancy_position_to)
       else
         decoded = CruiseSupplierRateSupport.decode_profile_key(entry)
         family = decoded[:family]
         category = decoded[:category]
-        key = CruiseSupplierRateSupport.encode_profile_key(family, category: category)
+        from = decoded[:occupancy_position_from]
+        to = decoded[:occupancy_position_to]
       end
 
       unless PROFILE_FAMILIES.key?(family)
@@ -155,7 +158,41 @@ module CruiseSupplierRateBuilders
         category = normalize_text(category, "Participant category", SupplierCostParticipantCategory::LABEL_LIMIT)
       end
 
-      { key: key.to_s, family: family, category: category }
+      if family_spec[:staff_supplied_positions]
+        from_i = from.to_i
+        raise AgencyCommand::Error.new("Enter a starting occupancy position.", code: :invalid) if from_i < 1
+
+        to_i = if to.nil? || to.to_s.strip.empty?
+          nil
+        else
+          value = to.to_i
+          raise AgencyCommand::Error.new(
+            "Ending occupancy position must be at or after the start.", code: :invalid
+          ) if value < from_i
+
+          value
+        end
+        key = CruiseSupplierRateSupport.encode_profile_key(
+          family, category: category, occupancy_position_from: from_i, occupancy_position_to: to_i
+        )
+        {
+          key: key.to_s,
+          family: family,
+          category: category,
+          occupancy_position_from: from_i,
+          occupancy_position_to: to_i
+        }
+      else
+        key = (entry.is_a?(Hash) && entry.with_indifferent_access[:key].presence) ||
+          CruiseSupplierRateSupport.encode_profile_key(family, category: category)
+        {
+          key: key.to_s,
+          family: family,
+          category: category,
+          occupancy_position_from: family_spec[:occupancy_position_from],
+          occupancy_position_to: family_spec[:occupancy_position_to]
+        }
+      end
     end
 
     keys = normalized.map { |profile| profile.fetch(:key) }
@@ -236,7 +273,10 @@ module CruiseSupplierRateBuilders
 
         profile[:category] = ADULT_CATEGORY_LABEL
         profile[:key] = CruiseSupplierRateSupport.encode_profile_key(
-          profile.fetch(:family), category: ADULT_CATEGORY_LABEL
+          profile.fetch(:family),
+          category: ADULT_CATEGORY_LABEL,
+          occupancy_position_from: profile[:occupancy_position_from],
+          occupancy_position_to: profile[:occupancy_position_to]
         )
       end
       keys = profiles.map { |profile| profile.fetch(:key) }
@@ -295,7 +335,7 @@ module CruiseSupplierRateBuilders
   end
 
   def default_smith_profiles
-    %i[first_second additional every_traveler single_supplement].map do |family|
+    %i[first_second additional every_traveler every_cabin single_supplement].map do |family|
       { key: family.to_s, family: family, category: nil }
     end
   end
@@ -485,8 +525,8 @@ module CruiseSupplierRateBuilders
       calculation_kind: "unit_rate",
       amount_minor_units: amount_minor_units,
       quantity_basis: family.fetch(:quantity_basis),
-      occupancy_position_from: family[:occupancy_position_from],
-      occupancy_position_to: family[:occupancy_position_to],
+      occupancy_position_from: profile[:occupancy_position_from] || family[:occupancy_position_from],
+      occupancy_position_to: profile.key?(:occupancy_position_to) ? profile[:occupancy_position_to] : family[:occupancy_position_to],
       percentage_treatment: nil,
       participant_category_id: profile[:category_id],
       pass_through: false,
@@ -500,12 +540,14 @@ module CruiseSupplierRateBuilders
     label = row_label_for_key(row_key, custom_rows)
     role = row_role_for_key(row_key, custom_rows)
     family = PROFILE_FAMILIES.fetch(profile.fetch(:family))
+    from = profile[:occupancy_position_from] || family[:occupancy_position_from]
+    to = profile.key?(:occupancy_position_to) ? profile[:occupancy_position_to] : family[:occupancy_position_to]
     exact = components.find do |component|
       component.label == label &&
         component.economic_role == role &&
         component.quantity_basis == family.fetch(:quantity_basis) &&
-        component.occupancy_position_from == family[:occupancy_position_from] &&
-        component.occupancy_position_to == family[:occupancy_position_to] &&
+        component.occupancy_position_from == from &&
+        component.occupancy_position_to == to &&
         component.participant_category_id == profile[:category_id] &&
         component.economic_role != "expected_commission"
     end
@@ -517,8 +559,8 @@ module CruiseSupplierRateBuilders
         component.label == label &&
           component.economic_role == role &&
           component.quantity_basis == family.fetch(:quantity_basis) &&
-          component.occupancy_position_from == family[:occupancy_position_from] &&
-          component.occupancy_position_to == family[:occupancy_position_to] &&
+          component.occupancy_position_from == from &&
+          component.occupancy_position_to == to &&
           component.participant_category_id.nil? &&
           component.economic_role != "expected_commission"
       end
@@ -740,9 +782,11 @@ module CruiseSupplierRateBuilders
 
       matching = keep_profiles.any? do |profile|
         family = PROFILE_FAMILIES.fetch(profile.fetch(:family))
+        from = profile[:occupancy_position_from] || family[:occupancy_position_from]
+        to = profile.key?(:occupancy_position_to) ? profile[:occupancy_position_to] : family[:occupancy_position_to]
         component.quantity_basis == family.fetch(:quantity_basis) &&
-          component.occupancy_position_from == family[:occupancy_position_from] &&
-          component.occupancy_position_to == family[:occupancy_position_to] &&
+          component.occupancy_position_from == from &&
+          component.occupancy_position_to == to &&
           component.participant_category_id == profile[:category_id]
       end
       destroy_component_and_dependent_bases!(definition, component) unless matching
@@ -759,21 +803,26 @@ module CruiseSupplierRateBuilders
     used_ids = []
     position = start_position
     amounts.each do |profile_key, amount|
+      decoded = CruiseSupplierRateSupport.decode_profile_key(profile_key)
       profile = profiles_by_key[profile_key.to_s] || {
         key: profile_key.to_s,
-        family: CruiseSupplierRateSupport.decode_profile_key(profile_key)[:family],
-        category: CruiseSupplierRateSupport.decode_profile_key(profile_key)[:category],
+        family: decoded[:family],
+        category: decoded[:category],
+        occupancy_position_from: decoded[:occupancy_position_from],
+        occupancy_position_to: decoded[:occupancy_position_to],
         category_id: nil
       }
       family = PROFILE_FAMILIES.fetch(profile.fetch(:family))
+      from = profile[:occupancy_position_from] || family[:occupancy_position_from]
+      to = profile.key?(:occupancy_position_to) ? profile[:occupancy_position_to] : family[:occupancy_position_to]
       attrs = {
         label: COMMISSION_LABEL,
         economic_role: "expected_commission",
         calculation_kind: "unit_rate",
         amount_minor_units: amount,
         quantity_basis: family.fetch(:quantity_basis),
-        occupancy_position_from: family[:occupancy_position_from],
-        occupancy_position_to: family[:occupancy_position_to],
+        occupancy_position_from: from,
+        occupancy_position_to: to,
         participant_category_id: profile[:category_id],
         pass_through: false,
         rate: nil,
@@ -784,8 +833,8 @@ module CruiseSupplierRateBuilders
       existing = commission_components.find do |c|
         c.calculation_kind == "unit_rate" &&
           c.quantity_basis == family.fetch(:quantity_basis) &&
-          c.occupancy_position_from == family[:occupancy_position_from] &&
-          c.occupancy_position_to == family[:occupancy_position_to] &&
+          c.occupancy_position_from == from &&
+          c.occupancy_position_to == to &&
           c.participant_category_id == profile[:category_id] &&
           !used_ids.include?(c.id)
       end

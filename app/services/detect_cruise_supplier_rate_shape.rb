@@ -185,11 +185,12 @@ class DetectCruiseSupplierRateShape
 
   def empty_projected_matrix
     {
-      profiles: %w[first_second additional every_traveler single_supplement],
+      profiles: %w[first_second additional every_traveler every_cabin single_supplement],
       profile_details: [
         { key: "first_second", family: "first_second", category: nil },
         { key: "additional", family: "additional", category: nil },
         { key: "every_traveler", family: "every_traveler", category: nil },
+        { key: "every_cabin", family: "every_cabin", category: nil },
         { key: "single_supplement", family: "single_supplement", category: nil }
       ],
       custom_rows: [],
@@ -224,7 +225,9 @@ class DetectCruiseSupplierRateShape
       profiles << {
         key: profile_key,
         family: decoded[:family].to_s,
-        category: decoded[:category]
+        category: decoded[:category],
+        occupancy_position_from: decoded[:occupancy_position_from],
+        occupancy_position_to: decoded[:occupancy_position_to]
       }
       cells[CruiseSupplierRateSupport.cell_key(row_key, profile_key)] = component.amount_minor_units
     end

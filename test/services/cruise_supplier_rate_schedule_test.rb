@@ -445,6 +445,86 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
     assert_includes labels, "Child"
   end
 
+  test "changing terms stage after save raises a clear invalid error" do
+    CreateCruiseSupplierRateSchedule.new(**create_args.merge(stage: "contracted")).call
+    @version.reload
+
+    error = assert_raises(AgencyCommand::Error) do
+      UpdateCruiseSupplierRateSchedule.new(**update_args.merge(stage: "estimate")).call
+    end
+    assert_equal :invalid, error.code
+    assert_match(/stage cannot be changed/i, error.message)
+    assert_equal "contracted", current_definition.stage
+  end
+
+  test "bounded positions family compiles to occupancy positions" do
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      resource: @resource,
+      profiles: [
+        { family: "bounded_positions", occupancy_position_from: 2, occupancy_position_to: 3, category: "Child" }
+      ],
+      cells: {
+        "base_fare:bounded_2_3__Child" => "250.00"
+      },
+      commission: { method: "not_provided" },
+      stage: "estimate",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    component = current_definition.supplier_cost_components.find_by!(label: "Base Fare")
+    assert_equal "occupancy_positions", component.quantity_basis
+    assert_equal 2, component.occupancy_position_from
+    assert_equal 3, component.occupancy_position_to
+    assert_equal "Child", component.participant_category.label
+  end
+
+  test "preview illustrations follow Staff-selected anonymous occupants" do
+    adult_first = CruiseSupplierRateSupport.encode_profile_key(:first_second, category: "Adult")
+    child_additional = CruiseSupplierRateSupport.encode_profile_key(:additional, category: "Child")
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      resource: @resource,
+      profiles: [
+        { family: "first_second", category: "Adult" },
+        { family: "additional", category: "Child" },
+        { family: "every_traveler" }
+      ],
+      cells: {
+        "#{CruiseSupplierRateSupport.cell_key(:base_fare, adult_first)}" => "1000.00",
+        "#{CruiseSupplierRateSupport.cell_key(:base_fare, child_additional)}" => "400.00",
+        "#{CruiseSupplierRateSupport.cell_key(:nccf, :every_traveler)}" => "100.00"
+      },
+      commission: { method: "not_provided" },
+      stage: "estimate",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    default_preview = CompileCruiseSupplierRatePreview.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource
+    ).call
+    assert_includes default_preview.illustrations.map(&:key), "two_adults_child"
+
+    custom = CompileCruiseSupplierRatePreview.new(
+      agency: @agency,
+      arrangement: @arrangement,
+      resource: @resource,
+      illustration_occupants: %w[Adult Child Adult]
+    ).call
+    assert_equal %w[occupants_1 occupants_2 occupants_3], custom.illustrations.map(&:key)
+    assert_equal "Adult + Child + Adult", custom.illustrations.last.label
+    refute_equal(
+      default_preview.illustrations.index_by(&:key).fetch("two_adults_child").gross_minor_units,
+      custom.illustrations.last.gross_minor_units
+    )
+  end
+
   private
 
   def sailing_arguments

@@ -2237,6 +2237,28 @@
     align-items: center;
   }
 
+  .dd-cruise-rate-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .dd-cruise-rate-cell .dd-input {
+    min-width: 5rem;
+  }
+
+  .dd-cruise-rate-add-profile,
+  .dd-cruise-rate-commission-panel {
+    border-top: 1px solid var(--dd-border, #d4d4d8);
+    padding-top: 0.75rem;
+  }
+
+  .dd-cruise-rate-profile-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
   @media (max-width: 767px) {
     .dd-cruise-rate-narrow {
       display: block;

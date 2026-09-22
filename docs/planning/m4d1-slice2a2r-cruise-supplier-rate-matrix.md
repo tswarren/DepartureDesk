@@ -1,6 +1,6 @@
 # M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix Remediation
 
-**Status:** Shipped 2026-09-22. Sole shipped authority for Cruise Supplier rate-matrix remediation (parent Stop point C). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. [Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) remains the historical fixed-form baseline. Slice 2B+, Client connection, and M4E remain unauthorized until named.
+**Status:** Shipped 2026-09-22. Sole shipped authority for Cruise Supplier rate-matrix **compilation** remediation (parent Stop point C). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. [Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) remains the historical fixed-form baseline. Interactive Staff chrome remediation is Accepted [Slice 2A.2R2](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) (not yet shipped). Slice 2B+, Client connection, and M4E remain unauthorized until named.
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially §§11–12, 19–20, and §21.
 
