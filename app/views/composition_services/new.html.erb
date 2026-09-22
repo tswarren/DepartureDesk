@@ -43,7 +43,15 @@
           placeholder="e.g. Day 2 afternoon">
       </div>
 
-      <% if first || @selected_package.nil? %>
+      <% if @selected_package.present? %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="placement">Placement</label>
+          <select id="placement" name="placement" class="dd-field">
+            <option value="included" <%= "selected" if params[:placement] != "optional" %>>Included</option>
+            <option value="optional" <%= "selected" if params[:placement] == "optional" %>>Optional</option>
+          </select>
+        </div>
+      <% elsif @departure.packages.none? %>
         <fieldset class="dd-field-group">
           <legend class="dd-label">Will most travelers buy these Services together as one main package?</legend>
           <label class="dd-inline-field">
@@ -73,6 +81,7 @@
           </div>
         </div>
       <% else %>
+        <p>Choose a Package from Services or Package & Client terms before adding an included Service, or save without a Package.</p>
         <div class="dd-field-group">
           <label class="dd-label" for="placement">Placement</label>
           <select id="placement" name="placement" class="dd-field">

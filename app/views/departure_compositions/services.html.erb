@@ -5,6 +5,7 @@
   <div class="dd-panel-body dd-stack">
     <div class="dd-inline-actions">
       <%= link_to "Add Service", new_departure_composition_service_path(@departure, composition_link_context), class: "dd-button" %>
+      <%= link_to "Client offers", departure_service_offers_path(@departure), class: "dd-button dd-button--quiet" %>
     </div>
 
     <% if @workspace.package_selection_required? || @workspace.package_selection_invalid? %>

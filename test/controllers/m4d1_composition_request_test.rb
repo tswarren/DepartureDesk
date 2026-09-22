@@ -286,6 +286,39 @@ class M4d1CompositionRequestTest < ActionDispatch::IntegrationTest
     assert_equal [ "Interior", "Ocean view" ], group.service_offer_choice_options.order(:position).map(&:name)
   end
 
+  test "second Service can create the first Package after an unassigned outline" do
+    sign_in_as @staff
+
+    post departure_composition_services_path(@departure), params: {
+      idempotency_key: SecureRandom.uuid,
+      package_decision: "no",
+      name: "Standalone coach",
+      client_timing_text: "Day 1",
+      return_intent: "workspace"
+    }
+    assert_redirected_to services_departure_composition_path(@departure)
+    assert_equal 1, @departure.service_offers.count
+    assert_equal 0, @departure.packages.count
+
+    assert_difference -> { @departure.packages.count }, 1 do
+      assert_difference -> { @departure.service_offers.count }, 1 do
+        post departure_composition_services_path(@departure), params: {
+          idempotency_key: SecureRandom.uuid,
+          package_decision: "yes",
+          name: "Included dinner",
+          client_timing_text: "Day 1 evening",
+          package_name: "Main trip",
+          placement: "included",
+          return_intent: "workspace"
+        }
+      end
+    end
+    package = @departure.packages.find_by!(name: "Main trip")
+    assert_redirected_to services_departure_composition_path(@departure, package_id: package.id)
+    assert_equal 1, package.editable_draft_version.inclusions.count
+    assert @departure.service_offers.find_by!(name: "Standalone coach").editable_draft_version.owning_package_version_id.nil?
+  end
+
   test "recommendation uses applicability mapping and preview aliases to proposal" do
     CreateInitialPackageWithOutlineServiceOffer.new(
       agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
@@ -295,6 +328,7 @@ class M4d1CompositionRequestTest < ActionDispatch::IntegrationTest
     readiness = EvaluateDepartureBuilderReadiness.new(agency: @agency, departure: @departure.reload).call
     undecided = readiness.findings.find { |finding| finding.code == :undecided_fulfillment }
     assert_equal "suppliers", undecided.affected_area
+    assert_equal %w[supplier], undecided.applicable_outcomes
     assert undecided.applicable_to?("supplier")
     refute undecided.applicable_to?("publication")
 
@@ -321,12 +355,35 @@ class M4d1CompositionRequestTest < ActionDispatch::IntegrationTest
     ).call
     refute_equal "Ready to publish", aliased.finding.group
 
+    ResolveServiceOfferFulfillmentBasis.new(
+      agency: @agency,
+      actor: @staff,
+      offer: @departure.service_offers.sole,
+      fulfillment_basis: "on_request",
+      version_lock_version: @departure.service_offers.sole.editable_draft_version.lock_version
+    ).call
+    ready_supplier = RecommendDepartureBuilderAction.new(
+      agency: @agency,
+      departure: @departure.reload,
+      readiness: EvaluateDepartureBuilderReadiness.new(agency: @agency, departure: @departure).call,
+      outcome: "supplier"
+    ).call
+    assert_nil ready_supplier
+
+    empty = create_capacity_departure(@agency, name: "Empty Publication Trip")
+    empty_readiness = EvaluateDepartureBuilderReadiness.new(agency: @agency, departure: empty).call
+    no_components = empty_readiness.findings.find { |finding| finding.code == :no_components }
+    assert no_components.applicable_to?("publication")
+    publication = RecommendDepartureBuilderAction.new(
+      agency: @agency, departure: empty, readiness: empty_readiness, outcome: "publication"
+    ).call
+    assert_equal :no_components, publication.finding.code
+
     summaries = SummarizeDepartureCompositionAreas.new(
-      agency: @agency, actor: @staff, departure: @departure, outcome: "supplier", readiness: readiness
+      agency: @agency, actor: @staff, departure: @departure, outcome: "supplier",
+      readiness: EvaluateDepartureBuilderReadiness.new(agency: @agency, departure: @departure).call
     ).call
     assert_equal %w[services suppliers package review], summaries.map(&:key)
-    suppliers = summaries.find { |summary| summary.key == "suppliers" }
-    assert_operator suppliers.finding_count, :>=, 1
   end
 
   test "empty overview chooser returns without persisting a choice" do

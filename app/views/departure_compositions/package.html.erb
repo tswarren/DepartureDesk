@@ -55,6 +55,7 @@
           </p>
           <nav class="dd-inline-actions" aria-label="Package editors">
             <%= link_to "Open Package", departure_package_path(@departure, @selected_package), class: "dd-button" %>
+            <%= link_to "Set Package price", departure_package_path(@departure, @selected_package), class: "dd-button dd-button--quiet" %>
             <%= link_to "Add Service", new_departure_composition_service_path(@departure, composition_link_context(package_id: @selected_package.id)), class: "dd-button dd-button--quiet" %>
             <% if version.inclusions.size >= 2 %>
               <%= link_to "Arrange itinerary",
@@ -63,6 +64,13 @@
             <% end %>
             <%= link_to "Client offers", departure_service_offers_path(@departure), class: "dd-button dd-button--quiet" %>
             <%= link_to "Packages", departure_packages_path(@departure), class: "dd-button dd-button--quiet" %>
+          </nav>
+          <nav aria-label="Preparation outcome" class="dd-inline-actions">
+            <% CompositionAccess::OUTCOMES.each do |outcome| %>
+              <%= link_to composition_outcome_label(outcome),
+                    package_departure_composition_path(@departure, composition_link_context(outcome: outcome)),
+                    class: "dd-button #{'dd-button--quiet' unless @outcome == outcome}" %>
+            <% end %>
           </nav>
         </section>
       <% end %>

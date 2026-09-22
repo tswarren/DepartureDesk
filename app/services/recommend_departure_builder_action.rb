@@ -26,9 +26,13 @@ class RecommendDepartureBuilderAction
   def call
     findings = (@readiness || EvaluateDepartureBuilderReadiness.new(agency: @agency, departure: @departure).call).findings
     ordered = prefer_outcome(findings)
+    return if ordered.empty?
+
     actionable = ordered.reject { |finding| finding.state.to_s == "waiting" }
     pool = actionable.presence || ordered
-    pool = pool.reject { |finding| early_publication_noise?(finding) } if early_outline?(findings)
+    if early_outline?(findings) && @outcome != "publication"
+      pool = pool.reject { |finding| early_publication_noise?(finding) }
+    end
     chosen = pool.min_by { |finding| STATE_RANK.fetch(finding.state.to_s, 9) }
     return if chosen.nil?
 
@@ -46,8 +50,7 @@ class RecommendDepartureBuilderAction
   def prefer_outcome(findings)
     return findings if @outcome.blank?
 
-    matching = findings.select { |finding| finding.applicable_to?(@outcome) }
-    matching.presence || findings
+    findings.select { |finding| finding.applicable_to?(@outcome) }
   end
 
   def early_outline?(findings)

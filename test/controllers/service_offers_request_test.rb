@@ -105,6 +105,7 @@ class ServiceOffersRequestTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Package & Client terms"
     assert_select "a", text: "Add Service"
     assert_select "a", text: "Add Arrangement"
+    assert_select "a", text: "Client offers"
   end
 
   test "cross-agency offer routes are not found" do

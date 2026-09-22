@@ -16,11 +16,17 @@ class EvaluateDepartureBuilderReadiness
       package_not_ready: "review"
     }.freeze
 
-    OUTCOMES_BY_AREA = {
-      "services" => %w[supplier pricing proposal],
-      "suppliers" => %w[supplier],
-      "package" => %w[pricing proposal],
-      "review" => %w[publication]
+    # Declared per finding code — not derived from affected_area alone.
+    OUTCOMES_BY_CODE = {
+      no_components: %w[supplier pricing proposal publication],
+      no_package: %w[supplier pricing proposal publication],
+      empty_package: %w[supplier pricing proposal],
+      undecided_fulfillment: %w[supplier],
+      package_price_missing: %w[pricing proposal],
+      component_price_pending: %w[pricing proposal],
+      departure_not_active: %w[publication],
+      standalone_not_ready: %w[publication],
+      package_not_ready: %w[publication]
     }.freeze
 
     def affected_area
@@ -28,7 +34,15 @@ class EvaluateDepartureBuilderReadiness
     end
 
     def applicable_outcomes
-      OUTCOMES_BY_AREA.fetch(affected_area, %w[supplier pricing proposal publication])
+      OUTCOMES_BY_CODE.fetch(code.to_sym) do
+        case affected_area
+        when "services" then %w[supplier pricing proposal]
+        when "suppliers" then %w[supplier]
+        when "package" then %w[pricing proposal]
+        when "review" then %w[publication]
+        else %w[supplier pricing proposal publication]
+        end
+      end
     end
 
     def applicable_to?(outcome)

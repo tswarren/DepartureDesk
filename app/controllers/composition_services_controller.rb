@@ -25,23 +25,7 @@ class CompositionServicesController < ApplicationController
     @outcome = composition_outcome
 
     package_id = @selected_package&.id
-    if first_component? && @package_decision == "yes"
-      result = CreateInitialPackageWithOutlineServiceOffer.new(
-        agency: Current.agency,
-        actor: Current.agency_user,
-        departure: @departure,
-        idempotency_key: @idempotency_key,
-        attributes: {
-          package_name: params[:package_name].presence || @departure.name,
-          component_name: @component[:name],
-          client_title: @component[:name],
-          client_timing_text: @component[:client_timing_text],
-          placement: params[:placement].presence || "included"
-        }
-      ).call
-      package = result.is_a?(AgencyCommand::Result) ? result.record : result
-      package_id = package&.id
-    elsif @selected_package.present? && !first_component?
+    if @selected_package.present?
       version = @selected_package.editable_draft_version
       raise ActiveRecord::RecordNotFound if version.nil?
 
@@ -59,6 +43,22 @@ class CompositionServicesController < ApplicationController
           fulfillment_basis: "undecided"
         }
       ).call
+    elsif create_main_package?
+      result = CreateInitialPackageWithOutlineServiceOffer.new(
+        agency: Current.agency,
+        actor: Current.agency_user,
+        departure: @departure,
+        idempotency_key: @idempotency_key,
+        attributes: {
+          package_name: params[:package_name].presence || @departure.name,
+          component_name: @component[:name],
+          client_title: @component[:name],
+          client_timing_text: @component[:client_timing_text],
+          placement: params[:placement].presence || "included"
+        }
+      ).call
+      package = result.is_a?(AgencyCommand::Result) ? result.record : result
+      package_id = package&.id
     else
       CreateServiceOfferOutline.new(
         agency: Current.agency,
@@ -91,6 +91,10 @@ class CompositionServicesController < ApplicationController
 
   def first_component?
     @departure.service_offers.none? && @departure.packages.none?
+  end
+
+  def create_main_package?
+    @package_decision == "yes" && @departure.packages.none?
   end
 
   def component_defaults

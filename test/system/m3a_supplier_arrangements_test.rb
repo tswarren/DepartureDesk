@@ -24,6 +24,7 @@ class M3ASupplierArrangementsTest < ApplicationSystemTestCase
 
     visit departure_path(@departure)
     assert_selector "h1.dd-page-title", exact_text: "System M3A Draft"
+    click_link "Suppliers"
     click_link "Supplier planning"
     click_link "Add arrangement"
 

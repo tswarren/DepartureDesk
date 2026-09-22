@@ -108,7 +108,9 @@ class DeparturesTest < ApplicationSystemTestCase
       click_link "Package & Client terms"
     end
     assert_text "Main trip"
-    click_link "Pricing review"
+    within "nav[aria-label='Preparation outcome']" do
+      click_link "Pricing review"
+    end
     assert_text "Pending"
     assert_no_text "$0.00"
   end
