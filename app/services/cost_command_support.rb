@@ -415,13 +415,21 @@ module CostCommandSupport
     components = definition.supplier_cost_components.includes(:supplier_cost_component_bases).order(:position).to_a
     if definition.calculated?
       raise AgencyCommand::Error.new("Add at least one cost component.", code: :invalid) if components.empty?
+      meaningful_positive = false
       components.each do |component|
         component.validate!
-        if %w[fixed unit_rate].include?(component.calculation_kind) && component.amount_minor_units.to_i <= 0
-          raise AgencyCommand::Error.new("Ready amounts must be greater than zero.", code: :invalid)
+        if %w[fixed unit_rate].include?(component.calculation_kind)
+          amount = component.amount_minor_units.to_i
+          if amount.negative?
+            raise AgencyCommand::Error.new("Ready amounts cannot be negative.", code: :invalid)
+          end
+          meaningful_positive = true if amount.positive?
         end
         if component.percentage? && component.rate.to_d <= 0
           raise AgencyCommand::Error.new("Ready rates must be greater than zero.", code: :invalid)
+        end
+        if component.percentage? && component.rate.to_d.positive?
+          meaningful_positive = true
         end
         if component.minimum_amount_shortfall? && component.minimum_minor_units.to_i <= 0
           raise AgencyCommand::Error.new("Ready minimum amounts must be greater than zero.", code: :invalid)
@@ -442,6 +450,12 @@ module CostCommandSupport
             )
           end
         end
+      end
+      unless meaningful_positive
+        raise AgencyCommand::Error.new(
+          "A calculated definition needs at least one positive monetary component. Use zero-cost mode for a genuinely zero-cost source.",
+          code: :invalid
+        )
       end
       validate_required_usage!(source, components)
       validate_ready_evaluation!(definition)

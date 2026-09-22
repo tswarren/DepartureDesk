@@ -62,13 +62,13 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
       @departure, @arrangement, @resource
     )
 
-    fill_in "First/second traveler fare", with: "1624.00"
-    fill_in "Additional traveler fare", with: "406.00"
-    fill_in "Single occupancy supplement", with: "1624.00"
-    fill_in "NCCF", with: "320.00"
-    fill_in "First/second traveler discount", with: "150.00"
-    fill_in "Additional traveler discount", with: "37.50"
-    fill_in "Taxes, fees, and port charges", with: "137.00"
+    fill_in "Base Fare · First/Second", with: "1624.00"
+    fill_in "Base Fare · Additional", with: "406.00"
+    fill_in "Base Fare · Single Supplement", with: "1624.00"
+    fill_in "NCCF · Every Traveler", with: "320.00"
+    fill_in "Discount · First/Second", with: "150.00"
+    fill_in "Discount · Additional", with: "37.50"
+    fill_in "Taxes & Fees · Every Traveler", with: "137.00"
     choose "Not provided yet"
     click_on "Save Supplier terms"
 

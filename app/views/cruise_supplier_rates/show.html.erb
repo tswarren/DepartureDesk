@@ -51,9 +51,18 @@
         </section>
       <% end %>
 
-      <section class="dd-stack" aria-labelledby="rate-terms-heading">
-        <h2 id="rate-terms-heading" class="dd-section-title">Supplier terms</h2>
+      <section class="dd-stack" aria-labelledby="rate-terms-heading"
+            data-controller="cruise-rate-matrix">
+        <h2 id="rate-terms-heading" class="dd-section-title">Supplier rate schedule</h2>
+        <% if @rate_shape.legacy? %>
+          <p role="status">
+            These terms were saved in the earlier fixed form. Saving converts them to the rate matrix.
+            Confirm conversion below. Forecast readiness will clear.
+          </p>
+        <% end %>
         <% if @editable %>
+          <% profiles = (@form_profiles || []).map(&:to_sym) %>
+          <% profiles = %i[first_second additional every_traveler single_supplement] if profiles.empty? %>
           <%= form_with url: departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
                 method: (@rate_shape.empty? ? :post : :patch),
                 class: "dd-stack",
@@ -63,6 +72,12 @@
             <% unless @rate_shape.empty? %>
               <%= hidden_field_tag :definition_lock_version, @rate_shape.definition.lock_version %>
             <% end %>
+            <% if @rate_shape.legacy? %>
+              <label>
+                <%= check_box_tag :convert_legacy, "1", true, id: "convert_legacy" %>
+                Convert this schedule to the Supplier rate matrix
+              </label>
+            <% end %>
 
             <div class="dd-field">
               <label class="dd-label" for="stage">Terms stage</label>
@@ -71,13 +86,60 @@
                     id: "stage", class: "dd-input" %>
             </div>
 
-            <% CruiseSupplierRateSupport::CANONICAL_SPECS.each do |key, spec| %>
-              <div class="dd-field">
-                <label class="dd-label" for="terms_<%= key %>"><%= spec.fetch(:label) %></label>
-                <%= text_field_tag "terms[#{key}]", @form_terms[key] || @form_terms[key.to_s],
-                      id: "terms_#{key}", class: "dd-input", inputmode: "decimal" %>
-              </div>
-            <% end %>
+            <fieldset class="dd-stack">
+              <legend class="dd-label">Rate profiles</legend>
+              <% CruiseSupplierRateSupport::PROFILE_FAMILIES.each do |key, spec| %>
+                <label>
+                  <%= check_box_tag "profiles[]", key, profiles.include?(key), id: "profile_#{key}" %>
+                  <%= spec.fetch(:label) %>
+                </label>
+              <% end %>
+            </fieldset>
+
+            <div class="dd-table-wrap" role="region" aria-label="Rate components">
+              <table class="dd-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Component</th>
+                    <% profiles.each do |profile_key| %>
+                      <th scope="col"><%= CruiseSupplierRateSupport::PROFILE_FAMILIES.fetch(profile_key).fetch(:label) %></th>
+                    <% end %>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% CruiseSupplierRateSupport::STATIC_ROWS.each do |row_key, row_spec| %>
+                    <tr>
+                      <th scope="row"><%= row_spec.fetch(:label) %></th>
+                      <% profiles.each do |profile_key| %>
+                        <% cell = CruiseSupplierRateSupport.cell_key(row_key, profile_key) %>
+                        <td>
+                          <label class="dd-visually-hidden" for="cell_<%= cell.tr(':', '_') %>">
+                            <%= row_spec.fetch(:label) %> · <%= CruiseSupplierRateSupport::PROFILE_FAMILIES.fetch(profile_key).fetch(:label) %>
+                          </label>
+                          <%= text_field_tag "cells[#{cell}]", @form_cells[cell] || @form_cells[cell.to_s],
+                                id: "cell_#{cell.tr(':', '_')}",
+                                class: "dd-input",
+                                inputmode: "decimal",
+                                data: {
+                                  cruise_rate_matrix_target: "cell",
+                                  row: row_key,
+                                  profile: profile_key,
+                                  role: row_spec.fetch(:economic_role)
+                                } %>
+                        </td>
+                      <% end %>
+                    </tr>
+                  <% end %>
+                  <tr>
+                    <th scope="row">Profile subtotal</th>
+                    <% profiles.each do |profile_key| %>
+                      <td data-cruise-rate-matrix-target="subtotal" data-profile="<%= profile_key %>">—</td>
+                    <% end %>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="dd-help">Blank means pending. Enter 0.00 when the Supplier has confirmed a zero amount.</p>
 
             <fieldset class="dd-stack">
               <legend class="dd-label">How is expected commission stated?</legend>
@@ -86,51 +148,54 @@
               <label><%= radio_button_tag "commission[method]", "dollar", method == "dollar" %> Dollar amount</label>
               <label><%= radio_button_tag "commission[method]", "percentage", method == "percentage" %> Percentage</label>
 
-              <div class="dd-field">
-                <label class="dd-label" for="commission_amount">Commission amount</label>
-                <%= text_field_tag "commission[amount]", @form_commission[:amount] || @form_commission["amount"],
-                      id: "commission_amount", class: "dd-input", inputmode: "decimal" %>
+              <div class="dd-stack">
+                <p class="dd-label">Dollar commission by profile</p>
+                <% amounts = (@form_commission[:amounts] || @form_commission["amounts"] || {}).with_indifferent_access %>
+                <% profiles.each do |profile_key| %>
+                  <div class="dd-field">
+                    <label class="dd-label" for="commission_amount_<%= profile_key %>">
+                      <%= CruiseSupplierRateSupport::PROFILE_FAMILIES.fetch(profile_key).fetch(:label) %>
+                    </label>
+                    <%= text_field_tag "commission[amounts][#{profile_key}]", amounts[profile_key],
+                          id: "commission_amount_#{profile_key}", class: "dd-input", inputmode: "decimal" %>
+                  </div>
+                <% end %>
               </div>
+
               <div class="dd-field">
-                <label class="dd-label" for="commission_applies_per">Applies per</label>
-                <%= select_tag "commission[applies_per]",
-                      options_for_select([ [ "Traveler", "traveler" ], [ "Cabin", "cabin" ] ],
-                        @form_commission[:applies_per] || @form_commission["applies_per"] || "traveler"),
-                      id: "commission_applies_per", class: "dd-input" %>
-              </div>
-              <div class="dd-field">
-                <label class="dd-label" for="commission_percentage">Commission percentage</label>
+                <label class="dd-label" for="commission_percentage">Shared commission percentage</label>
                 <%= text_field_tag "commission[percentage]", @form_commission[:percentage] || @form_commission["percentage"],
                       id: "commission_percentage", class: "dd-input", inputmode: "decimal" %>
               </div>
 
               <fieldset class="dd-stack">
-                <legend class="dd-label">Commission is calculated on</legend>
-                <% selected_add = Array(@form_commission[:add_bases] || @form_commission["add_bases"]).map(&:to_s) %>
-                <% CruiseSupplierRateSupport::CHARGE_BASE_KEYS.each do |key| %>
-                  <% label = CruiseSupplierRateSupport::CANONICAL_SPECS.fetch(key).fetch(:label) %>
-                  <% suggested = CruiseSupplierRateSupport::SUGGESTED_PERCENTAGE_BASE_KEYS.include?(key) %>
-                  <label>
-                    <%= check_box_tag "commission[add_bases][]", key,
-                          selected_add.include?(key.to_s) || (method != "percentage" && selected_add.empty? && suggested),
-                          id: "commission_add_#{key}" %>
-                    <%= label %>
-                  </label>
+                <legend class="dd-label">Commissionable cells (add)</legend>
+                <% selected_add = Array(@form_commission[:add_cells] || @form_commission["add_cells"]).map(&:to_s) %>
+                <% profiles.each do |profile_key| %>
+                  <% %i[base_fare nccf taxes_fees].each do |row_key| %>
+                    <% cell = CruiseSupplierRateSupport.cell_key(row_key, profile_key) %>
+                    <label>
+                      <%= check_box_tag "commission[add_cells][]", cell, selected_add.include?(cell),
+                            id: "commission_add_#{cell.tr(':', '_')}" %>
+                      <%= CruiseSupplierRateSupport.static_row_label(row_key) %> ·
+                      <%= CruiseSupplierRateSupport::PROFILE_FAMILIES.fetch(profile_key).fetch(:label) %>
+                    </label>
+                  <% end %>
                 <% end %>
               </fieldset>
               <fieldset class="dd-stack">
                 <legend class="dd-label">Subtract before calculating commission</legend>
-                <% selected_sub = Array(@form_commission[:subtract_bases] || @form_commission["subtract_bases"]).map(&:to_s) %>
-                <% CruiseSupplierRateSupport::DISCOUNT_BASE_KEYS.each do |key| %>
-                  <% label = CruiseSupplierRateSupport::CANONICAL_SPECS.fetch(key).fetch(:label) %>
+                <% selected_sub = Array(@form_commission[:subtract_cells] || @form_commission["subtract_cells"]).map(&:to_s) %>
+                <% profiles.each do |profile_key| %>
+                  <% cell = CruiseSupplierRateSupport.cell_key(:discount, profile_key) %>
                   <label>
-                    <%= check_box_tag "commission[subtract_bases][]", key, selected_sub.include?(key.to_s),
-                          id: "commission_sub_#{key}" %>
-                    <%= label %>
+                    <%= check_box_tag "commission[subtract_cells][]", cell, selected_sub.include?(cell),
+                          id: "commission_sub_#{cell.tr(':', '_')}" %>
+                    Discount · <%= CruiseSupplierRateSupport::PROFILE_FAMILIES.fetch(profile_key).fetch(:label) %>
                   </label>
                 <% end %>
               </fieldset>
-              <p class="dd-help">Review which charges commission applies to before saving. Saved selections are authoritative.</p>
+              <p class="dd-help">Shared percentage uses one commission component and one rounding boundary.</p>
             </fieldset>
 
             <div class="dd-field">

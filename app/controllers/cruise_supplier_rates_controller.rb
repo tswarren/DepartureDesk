@@ -21,7 +21,8 @@ class CruiseSupplierRatesController < ApplicationController
       actor: Current.agency_user,
       arrangement: @supplier_arrangement,
       resource: @supplier_resource,
-      terms: terms_params,
+      profiles: profile_params,
+      cells: cell_params,
       commission: commission_params,
       stage: params[:stage].presence || "estimate",
       notes: params[:notes],
@@ -46,10 +47,12 @@ class CruiseSupplierRatesController < ApplicationController
       actor: Current.agency_user,
       arrangement: @supplier_arrangement,
       resource: @supplier_resource,
-      terms: terms_params,
+      profiles: profile_params,
+      cells: cell_params,
       commission: commission_params,
       stage: params[:stage],
       notes: params[:notes],
+      convert_legacy: params[:convert_legacy],
       version_lock_version: params.require(:version_lock_version),
       definition_lock_version: params.require(:definition_lock_version),
       idempotency_key: params[:idempotency_key]
@@ -157,7 +160,7 @@ class CruiseSupplierRatesController < ApplicationController
       @departure, @supplier_arrangement, @item
     )
     @idempotency_key = SecureRandom.uuid
-    assign_form_from_definition unless @form_terms
+    assign_form_from_definition unless @form_cells
     assign_occupancy_from_assumption
   end
 
@@ -165,52 +168,43 @@ class CruiseSupplierRatesController < ApplicationController
     definition = @rate_shape.definition
     @form_stage = definition&.stage || "estimate"
     @form_notes = @rate_shape.source&.notes
-    @form_terms = {}
-    @form_commission = { method: "not_provided" }
-    return unless definition
-
-    by_label = definition.supplier_cost_components.index_by(&:label)
-    CruiseSupplierRateSupport::CANONICAL_SPECS.each do |key, spec|
-      component = by_label[spec.fetch(:label)]
-      next unless component
-
-      @form_terms[key] = format("%.2f", Money.new(component.amount_minor_units, definition.currency).to_f)
+    projected = @rate_shape.projected_matrix
+    @form_profiles = Array(projected[:profiles]).map(&:to_s)
+    @form_cells = {}
+    currency = definition&.currency || @departure.operating_currency
+    Array(projected[:cells]).each do |cell_key, amount_minor|
+      @form_cells[cell_key.to_s] = format("%.2f", Money.new(amount_minor, currency).to_f)
     end
-    commission = by_label[CruiseSupplierRateSupport::COMMISSION_LABEL]
-    return unless commission
+    @form_commission = commission_form_from_projected(projected[:commission], currency)
+  end
 
-    if commission.calculation_kind == "unit_rate"
-      @form_commission = {
-        method: "dollar",
-        amount: format("%.2f", Money.new(commission.amount_minor_units, definition.currency).to_f),
-        applies_per: commission.quantity_basis == "resource_units" ? "cabin" : "traveler"
+  def commission_form_from_projected(commission, currency)
+    commission = (commission || { method: "not_provided" }).with_indifferent_access
+    method = commission[:method].to_s
+    case method
+    when "dollar"
+      amounts = {}
+      (commission[:amounts] || {}).each do |profile_key, amount_minor|
+        amounts[profile_key.to_s] = format("%.2f", Money.new(amount_minor, currency).to_f)
+      end
+      { method: "dollar", amounts: amounts }
+    when "percentage"
+      {
+        method: "percentage",
+        percentage: format("%.4g", commission[:percentage].to_f.nonzero? || (commission[:rate].to_f * 100)),
+        add_cells: Array(commission[:add_cells]).map(&:to_s),
+        subtract_cells: Array(commission[:subtract_cells]).map(&:to_s)
       }
     else
-      add_bases = []
-      subtract_bases = []
-      commission.supplier_cost_component_bases.includes(:base_component).each do |link|
-        key = CruiseSupplierRateSupport.term_key_for_label(link.base_component.label)
-        next unless key
-
-        if link.direction == "subtract"
-          subtract_bases << key
-        else
-          add_bases << key
-        end
-      end
-      @form_commission = {
-        method: "percentage",
-        percentage: format("%.4g", (commission.rate * 100).to_f),
-        add_bases: add_bases,
-        subtract_bases: subtract_bases
-      }
+      { method: "not_provided" }
     end
   end
 
   def assign_form_from_params
     @form_stage = params[:stage].presence || "estimate"
     @form_notes = params[:notes]
-    @form_terms = terms_params
+    @form_profiles = profile_params.map(&:to_s)
+    @form_cells = cell_params
     @form_commission = commission_params
     @form_occupancy = occupancy_params
   end
@@ -233,16 +227,36 @@ class CruiseSupplierRatesController < ApplicationController
     end
   end
 
-  def terms_params
-    params.fetch(:terms, {}).permit(*CruiseSupplierRateSupport::CANONICAL_TERM_KEYS).to_h
+  def profile_params
+    keys = Array(params[:profiles]).map(&:to_sym).select { |k| CruiseSupplierRateSupport::PROFILE_FAMILIES.key?(k) }
+    keys.presence || %i[first_second additional every_traveler single_supplement]
+  end
+
+  def cell_params
+    allowed_keys = CruiseSupplierRateSupport::STATIC_ROWS.keys.product(
+      CruiseSupplierRateSupport::PROFILE_FAMILIES.keys
+    ).map { |row_key, profile_key| CruiseSupplierRateSupport.cell_key(row_key, profile_key) }
+    # Custom row keys from the form (R-B); ignore unknown shapes.
+    Array(params[:custom_rows]).each do |row|
+      row_key = row.is_a?(Hash) ? (row[:key] || row["key"]).to_s : nil
+      next if row_key.blank?
+
+      CruiseSupplierRateSupport::PROFILE_FAMILIES.each_key do |profile_key|
+        allowed_keys << CruiseSupplierRateSupport.cell_key(row_key, profile_key)
+      end
+    end
+    params.fetch(:cells, {}).permit(*allowed_keys.uniq).to_h
   end
 
   def commission_params
     raw = params.fetch(:commission, {}).permit(
-      :method, :amount, :applies_per, :percentage, add_bases: [], subtract_bases: []
+      :method, :amount, :applies_per, :percentage,
+      add_cells: [], subtract_cells: [], add_bases: [], subtract_bases: [],
+      amounts: {}
     ).to_h
-    raw["add_bases"] = Array(raw["add_bases"]).reject(&:blank?)
-    raw["subtract_bases"] = Array(raw["subtract_bases"]).reject(&:blank?)
+    raw["add_cells"] = Array(raw["add_cells"].presence || raw["add_bases"]).reject(&:blank?)
+    raw["subtract_cells"] = Array(raw["subtract_cells"].presence || raw["subtract_bases"]).reject(&:blank?)
+    raw["amounts"] = (raw["amounts"] || {}).to_h
     raw
   end
 

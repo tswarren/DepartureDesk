@@ -6,12 +6,15 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
 
   SetupResult = Data.define(:source, :definition)
 
-  def initialize(agency:, actor:, arrangement:, resource:, terms:, commission: nil,
+  def initialize(agency:, actor:, arrangement:, resource:,
+    profiles: nil, cells: nil, terms: nil, commission: nil,
     stage: "estimate", notes: nil, version_lock_version:, idempotency_key:)
     @agency = agency
     @actor = actor
     @arrangement = arrangement
     @resource = resource
+    @profiles = profiles
+    @cells = cells
     @terms = terms
     @commission = commission
     @stage = stage
@@ -43,8 +46,7 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
         ensure_eligible_charging_supplier!(arrangement, version, item, occurrence, charging_supplier)
 
         currency = departure.operating_currency
-        terms = normalize_rate_terms(@terms, currency)
-        commission = normalize_commission(@commission, currency)
+        matrix = build_matrix_from_inputs(currency)
         stage = @stage.to_s
         unless SupplierCostDefinition::STAGES.include?(stage)
           raise Error.new("Choose estimate or contracted.", code: :invalid)
@@ -56,10 +58,9 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
           service_occurrence_id: occurrence.id,
           supplier_resource_id: resource.id,
           stage: stage,
-          terms: terms,
-          commission: commission.transform_values { |value|
-            value.is_a?(BigDecimal) ? value.to_s("F") : value
-          },
+          profiles: matrix.fetch(:profiles).map(&:to_s),
+          cells: matrix.fetch(:cells),
+          commission: serialize_commission(matrix.fetch(:commission)),
           notes: @notes.to_s
         }
 
@@ -100,7 +101,7 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
               zero_cost_reason: nil
             }
           )
-          sync_canonical_components!(definition, terms: terms, commission: commission)
+          sync_matrix_components!(definition, matrix: matrix, converting_legacy: false)
           bump_version!(version)
           audit_cost!("supplier_arrangement.cost_setup_created", arrangement, version, {
             "supplier_cost_source_id" => source.id,
@@ -108,7 +109,8 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
             "charging_supplier_id" => charging_supplier.id,
             "stage" => definition.stage,
             "mode" => definition.mode,
-            "cruise_supplier_rate_schedule" => true
+            "cruise_supplier_rate_schedule" => true,
+            "cruise_supplier_rate_matrix" => true
           }.merge(source_context(source)))
           source
         end
@@ -119,6 +121,39 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
           status: result.status,
           record: SetupResult.new(source: source, definition: definition)
         )
+      end
+    end
+  end
+
+  private
+
+  def build_matrix_from_inputs(currency)
+    if @cells.present? || @profiles.present?
+      normalize_matrix_payload(
+        profiles: @profiles.presence || default_smith_profiles,
+        cells: @cells || {},
+        commission: @commission,
+        currency: currency
+      )
+    elsif @terms.present?
+      cells = smith_matrix_cells_from_legacy_terms(@terms, currency)
+      normalize_matrix_payload(
+        profiles: default_smith_profiles,
+        cells: cells,
+        commission: @commission,
+        currency: currency
+      )
+    else
+      raise Error.new("Enter Supplier rate terms.", code: :invalid)
+    end
+  end
+
+  def serialize_commission(commission)
+    commission.transform_values do |value|
+      case value
+      when BigDecimal then value.to_s("F")
+      when Hash then value.transform_keys(&:to_s).transform_values { |v| v.is_a?(BigDecimal) ? v.to_s("F") : v }
+      else value
       end
     end
   end

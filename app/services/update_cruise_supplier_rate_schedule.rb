@@ -4,16 +4,21 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
   include CostCommandSupport
   include CruiseSupplierRateBuilders
 
-  def initialize(agency:, actor:, arrangement:, resource:, terms:, commission: nil,
-    stage: nil, notes: nil, version_lock_version:, definition_lock_version:, idempotency_key: nil)
+  def initialize(agency:, actor:, arrangement:, resource:,
+    profiles: nil, cells: nil, terms: nil, commission: nil,
+    stage: nil, notes: nil, convert_legacy: false,
+    version_lock_version:, definition_lock_version:, idempotency_key: nil)
     @agency = agency
     @actor = actor
     @arrangement = arrangement
     @resource = resource
+    @profiles = profiles
+    @cells = cells
     @terms = terms
     @commission = commission
     @stage = stage
     @notes = notes
+    @convert_legacy = convert_legacy
     @version_lock_version = version_lock_version
     @definition_lock_version = definition_lock_version
     @idempotency_key = idempotency_key
@@ -57,9 +62,16 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
         ensure_current_lock_version!(version, @version_lock_version)
         ensure_current_lock_version!(definition, @definition_lock_version)
 
+        converting = shape.legacy? && !shape.matrix?
+        if converting && !(@convert_legacy == true || @convert_legacy.to_s == "true" || @convert_legacy.to_s == "1")
+          raise Error.new(
+            "Confirm conversion of the existing Supplier rate schedule to the rate matrix before saving.",
+            code: :invalid
+          )
+        end
+
         currency = definition.currency
-        terms = normalize_rate_terms(@terms, currency)
-        commission = normalize_commission(@commission, currency)
+        matrix = build_matrix_from_inputs(currency)
 
         if @stage.present?
           stage = @stage.to_s
@@ -75,17 +87,46 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
           )
         end
 
-        sync_canonical_components!(definition, terms: terms, commission: commission)
+        sync_matrix_components!(definition, matrix: matrix, converting_legacy: converting)
         bump_version!(version)
-        audit_cost!("supplier_arrangement.cost_definition_updated", arrangement, version, {
+        audit_details = {
           "supplier_cost_source_id" => source.id,
           "supplier_cost_definition_id" => definition.id,
           "cruise_supplier_rate_schedule" => true,
+          "cruise_supplier_rate_matrix" => true,
           "resource_id" => resource.id,
           "supplier_code" => resource_definition.supplier_code
-        }.merge(source_context(source)))
+        }
+        audit_details["legacy_matrix_conversion"] = true if converting
+        audit_cost!("supplier_arrangement.cost_definition_updated", arrangement, version,
+          audit_details.merge(source_context(source)))
         AgencyCommand::Result.new(status: :updated, record: definition.reload)
       end
+    end
+  end
+
+  private
+
+  def build_matrix_from_inputs(currency)
+    if @cells.present? || @profiles.present?
+      normalize_matrix_payload(
+        profiles: @profiles.presence || default_smith_profiles,
+        cells: @cells || {},
+        commission: @commission,
+        currency: currency,
+        convert_legacy: @convert_legacy
+      )
+    elsif @terms.present?
+      cells = smith_matrix_cells_from_legacy_terms(@terms, currency)
+      normalize_matrix_payload(
+        profiles: default_smith_profiles,
+        cells: cells,
+        commission: @commission,
+        currency: currency,
+        convert_legacy: @convert_legacy
+      )
+    else
+      raise Error.new("Enter Supplier rate terms.", code: :invalid)
     end
   end
 end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Builder helpers for Cruise Supplier rate schedule composites.
+# Builder helpers for Cruise Supplier rate matrix (Slice 2A.2R).
 # Requires CostCommandSupport and an @agency / @actor context.
 module CruiseSupplierRateBuilders
   include CruiseSupplierRateSupport
@@ -31,14 +31,47 @@ module CruiseSupplierRateBuilders
     )
   end
 
-  def normalize_rate_terms(terms, currency)
-    input = terms.to_h.with_indifferent_access
-    CANONICAL_TERM_KEYS.index_with do |key|
-      money_minor_or_nil(input[key], currency, CANONICAL_SPECS.fetch(key).fetch(:label).to_s, major_units: true)
+  # Normalized matrix: { profiles:, cells:, commission:, convert_legacy: }
+  # cells: { "base_fare:first_second" => amount_minor_or_nil, ... }
+  def normalize_matrix_payload(profiles:, cells:, commission:, currency:, convert_legacy: false)
+    profile_keys = Array(profiles).map(&:to_sym).uniq
+    profile_keys = default_smith_profiles if profile_keys.empty?
+    unknown_profiles = profile_keys - PROFILE_FAMILIES.keys
+    if unknown_profiles.any?
+      raise AgencyCommand::Error.new("Unsupported rate profile.", code: :invalid)
     end
+
+    input = cells.to_h.with_indifferent_access
+    normalized_cells = {}
+    input.each do |raw_key, raw_amount|
+      row_key, profile_key = CruiseSupplierRateSupport.parse_cell_key(raw_key)
+      unless STATIC_ROWS.key?(row_key) && PROFILE_FAMILIES.key?(profile_key)
+        raise AgencyCommand::Error.new("Unknown rate matrix cell.", code: :invalid)
+      end
+      unless profile_keys.include?(profile_key)
+        raise AgencyCommand::Error.new("Rate cell uses a profile that is not selected.", code: :invalid)
+      end
+      amount = money_minor_or_nil(
+        raw_amount, currency, CruiseSupplierRateSupport.static_row_label(row_key), major_units: true
+      )
+      next if amount.nil?
+
+      normalized_cells[CruiseSupplierRateSupport.cell_key(row_key, profile_key)] = amount
+    end
+
+    {
+      profiles: profile_keys,
+      cells: normalized_cells,
+      commission: normalize_matrix_commission(commission, currency, profile_keys, normalized_cells),
+      convert_legacy: convert_legacy == true || convert_legacy.to_s == "true" || convert_legacy.to_s == "1"
+    }
   end
 
-  def normalize_commission(commission, currency)
+  def default_smith_profiles
+    %i[first_second additional every_traveler single_supplement]
+  end
+
+  def normalize_matrix_commission(commission, currency, profile_keys, cells)
     input = (commission || {}).to_h.with_indifferent_access
     method = (input[:method].presence || "not_provided").to_s
     unless COMMISSION_METHODS.include?(method)
@@ -49,18 +82,35 @@ module CruiseSupplierRateBuilders
     when "not_provided"
       { method: method }
     when "dollar"
-      amount = money_minor_or_nil(
-        input.key?(:amount) ? input[:amount] : input[:amount_minor_units],
-        currency, "Commission amount", major_units: input.key?(:amount)
-      )
-      raise AgencyCommand::Error.new("Enter the commission amount.", code: :invalid) if amount.nil?
-      basis = input[:applies_per].presence || input[:quantity_basis].presence
-      basis = "persons" if basis.to_s == "traveler"
-      basis = "resource_units" if basis.to_s == "cabin"
-      unless DOLLAR_BASES.include?(basis.to_s)
-        raise AgencyCommand::Error.new("Choose whether dollar commission applies per traveler or per cabin.", code: :invalid)
+      amounts = {}
+      raw_amounts = (input[:amounts] || {}).to_h.with_indifferent_access
+      if raw_amounts.empty? && (input.key?(:amount) || input.key?(:amount_minor_units))
+        # Legacy single dollar → Every Traveler / Every Cabin from applies_per.
+        basis = input[:applies_per].presence || input[:quantity_basis].presence
+        basis = "persons" if basis.to_s == "traveler"
+        basis = "resource_units" if basis.to_s == "cabin"
+        profile_key = basis.to_s == "resource_units" ? :every_cabin : :every_traveler
+        amount = money_minor_or_nil(
+          input.key?(:amount) ? input[:amount] : input[:amount_minor_units],
+          currency, "Commission amount", major_units: input.key?(:amount)
+        )
+        raise AgencyCommand::Error.new("Enter the commission amount.", code: :invalid) if amount.nil?
+        amounts[profile_key] = amount
+        profile_keys = (profile_keys + [ profile_key ]).uniq
+      else
+        raw_amounts.each do |profile_key, raw|
+          key = profile_key.to_sym
+          unless PROFILE_FAMILIES.key?(key)
+            raise AgencyCommand::Error.new("Dollar commission uses an unsupported profile.", code: :invalid)
+          end
+          amount = money_minor_or_nil(raw, currency, "Commission amount", major_units: true)
+          next if amount.nil?
+
+          amounts[key] = amount
+        end
+        raise AgencyCommand::Error.new("Enter at least one dollar commission amount.", code: :invalid) if amounts.empty?
       end
-      { method: method, amount_minor_units: amount, quantity_basis: basis.to_s }
+      { method: method, amounts: amounts }
     when "percentage"
       rate = if input.key?(:percentage)
         percent = decimal_or_nil(input[:percentage], "Commission percentage")
@@ -71,11 +121,14 @@ module CruiseSupplierRateBuilders
           raise AgencyCommand::Error.new("Enter the commission percentage.", code: :invalid) if value.nil?
         end
       end
-      add_keys = Array(input[:add_bases] || input[:charge_bases]).map(&:to_sym)
-      subtract_keys = Array(input[:subtract_bases] || input[:discount_bases]).map(&:to_sym)
-      unknown = (add_keys + subtract_keys) - (CHARGE_BASE_KEYS + DISCOUNT_BASE_KEYS)
+      add_keys = Array(input[:add_bases] || input[:add_cells]).map(&:to_s)
+      subtract_keys = Array(input[:subtract_bases] || input[:subtract_cells]).map(&:to_s)
+      # Accept legacy term keys and map to matrix cell keys when cells present.
+      add_keys = expand_legacy_commission_bases(add_keys, cells, :charge)
+      subtract_keys = expand_legacy_commission_bases(subtract_keys, cells, :credit)
+      unknown = (add_keys + subtract_keys).reject { |key| cells.key?(key) }
       if unknown.any?
-        raise AgencyCommand::Error.new("Commission bases must be canonical rate components.", code: :invalid)
+        raise AgencyCommand::Error.new("Commission bases must match populated rate cells.", code: :invalid)
       end
       if add_keys.empty? && subtract_keys.empty?
         raise AgencyCommand::Error.new("Select at least one commission base.", code: :invalid)
@@ -83,22 +136,47 @@ module CruiseSupplierRateBuilders
       {
         method: method,
         rate: rate,
-        add_bases: add_keys & CHARGE_BASE_KEYS,
-        subtract_bases: subtract_keys & DISCOUNT_BASE_KEYS
+        shared: true,
+        add_cells: add_keys,
+        subtract_cells: subtract_keys
       }
     end
   end
 
-  def component_attributes_for_term(key, amount_minor_units)
-    spec = CANONICAL_SPECS.fetch(key)
+  def expand_legacy_commission_bases(keys, cells, role)
+    keys.flat_map do |key|
+      next [ key ] if cells.key?(key)
+
+      # Map old term keys (first_second_fare) onto matrix cells.
+      mapped = legacy_term_key_to_cell_keys(key.to_sym, role)
+      mapped.select { |cell| cells.key?(cell) }
+    end.uniq
+  end
+
+  def legacy_term_key_to_cell_keys(term_key, role)
+    mapping = {
+      first_second_fare: [ "base_fare:first_second" ],
+      additional_fare: [ "base_fare:additional" ],
+      single_supplement: [ "base_fare:single_supplement" ],
+      nccf: [ "nccf:every_traveler" ],
+      taxes_fees: [ "taxes_fees:every_traveler" ],
+      first_second_discount: [ "discount:first_second" ],
+      additional_discount: [ "discount:additional" ]
+    }
+    mapping.fetch(term_key, [])
+  end
+
+  def component_attributes_for_cell(row_key, profile_key, amount_minor_units)
+    row = STATIC_ROWS.fetch(row_key)
+    profile = PROFILE_FAMILIES.fetch(profile_key)
     {
-      label: spec.fetch(:label),
-      economic_role: spec.fetch(:economic_role),
+      label: row.fetch(:label),
+      economic_role: row.fetch(:economic_role),
       calculation_kind: "unit_rate",
       amount_minor_units: amount_minor_units,
-      quantity_basis: spec.fetch(:quantity_basis),
-      occupancy_position_from: spec[:occupancy_position_from],
-      occupancy_position_to: spec[:occupancy_position_to],
+      quantity_basis: profile.fetch(:quantity_basis),
+      occupancy_position_from: profile[:occupancy_position_from],
+      occupancy_position_to: profile[:occupancy_position_to],
       percentage_treatment: nil,
       participant_category_id: nil,
       pass_through: false,
@@ -108,26 +186,81 @@ module CruiseSupplierRateBuilders
     }
   end
 
-  def commission_component_attributes(commission)
-    case commission.fetch(:method)
-    when "dollar"
-      {
-        label: COMMISSION_LABEL,
-        economic_role: "expected_commission",
-        calculation_kind: "unit_rate",
-        amount_minor_units: commission.fetch(:amount_minor_units),
-        quantity_basis: commission.fetch(:quantity_basis),
-        pass_through: false,
-        rate: nil,
-        percentage_treatment: nil,
-        occupancy_position_from: nil,
-        occupancy_position_to: nil,
-        participant_category_id: nil,
-        minimum_minor_units: nil,
-        minimum_quantity: nil
-      }
-    when "percentage"
-      {
+  def find_component_for_cell(components, row_key, profile_key)
+    label = STATIC_ROWS.fetch(row_key).fetch(:label)
+    profile = PROFILE_FAMILIES.fetch(profile_key)
+    components.find do |component|
+      component.label == label &&
+        component.economic_role == STATIC_ROWS.fetch(row_key).fetch(:economic_role) &&
+        component.quantity_basis == profile.fetch(:quantity_basis) &&
+        component.occupancy_position_from == profile[:occupancy_position_from] &&
+        component.occupancy_position_to == profile[:occupancy_position_to] &&
+        component.participant_category_id.nil? &&
+        component.economic_role != "expected_commission"
+    end
+  end
+
+  def find_legacy_component_for_cell(components, row_key, profile_key)
+    LEGACY_LABEL_TO_CELL.each do |legacy_label, pair|
+      next unless pair == [ row_key, profile_key ]
+
+      return components.find { |c| c.label == legacy_label }
+    end
+    nil
+  end
+
+  def sync_matrix_components!(definition, matrix:, converting_legacy: false)
+    components = definition.supplier_cost_components.lock.to_a
+    cell_to_component = {}
+    position = 1
+    kept_ids = []
+
+    matrix.fetch(:cells).each do |cell_key, amount|
+      row_key, profile_key = CruiseSupplierRateSupport.parse_cell_key(cell_key)
+      attrs = component_attributes_for_cell(row_key, profile_key, amount)
+      existing = find_component_for_cell(components, row_key, profile_key)
+      if existing.nil? && converting_legacy
+        existing = find_legacy_component_for_cell(components, row_key, profile_key)
+      end
+
+      component = if existing
+        existing.update!(attrs.merge(position: position))
+        existing
+      else
+        build_supplier_cost_component_already_locked!(
+          definition: definition, attributes: attrs, position: position, base_links: []
+        )
+      end
+      cell_to_component[cell_key] = component
+      kept_ids << component.id
+      position += 1
+    end
+
+    # Remove charge/credit components that are no longer populated (matrix or legacy labels).
+    components.each do |component|
+      next if component.economic_role == "expected_commission"
+      next if kept_ids.include?(component.id)
+
+      destroy_component_and_dependent_bases!(definition, component)
+    end
+
+    sync_matrix_commission!(definition, matrix.fetch(:commission), cell_to_component, position)
+    renumber_components!(definition)
+    touch_definition_after_change!(definition)
+  end
+
+  def sync_matrix_commission!(definition, commission, cell_to_component, start_position)
+    components = definition.supplier_cost_components.reload.lock.to_a
+    commission_components = components.select { |c| c.economic_role == "expected_commission" }
+
+    if commission.fetch(:method) == "not_provided"
+      commission_components.each { |c| destroy_component_and_dependent_bases!(definition, c) }
+      return
+    end
+
+    if commission.fetch(:method) == "percentage"
+      # Shared percentage: exactly one component.
+      attrs = {
         label: COMMISSION_LABEL,
         economic_role: "expected_commission",
         calculation_kind: "percentage",
@@ -142,96 +275,101 @@ module CruiseSupplierRateBuilders
         minimum_minor_units: nil,
         minimum_quantity: nil
       }
+      primary = commission_components.first
+      (commission_components - [ primary ].compact).each do |extra|
+        destroy_component_and_dependent_bases!(definition, extra)
+      end
+      commission_component = if primary
+        primary.update!(attrs.merge(position: start_position))
+        primary
+      else
+        build_supplier_cost_component_already_locked!(
+          definition: definition, attributes: attrs, position: start_position, base_links: []
+        )
+      end
+      links = []
+      commission.fetch(:add_cells).each do |cell_key|
+        component = cell_to_component[cell_key]
+        raise AgencyCommand::Error.new(
+          "Select commission bases that are present on the rate schedule.", code: :invalid
+        ) unless component
+
+        links << { base_component_id: component.id, direction: "add", position: links.size + 1 }
+      end
+      commission.fetch(:subtract_cells).each do |cell_key|
+        component = cell_to_component[cell_key]
+        raise AgencyCommand::Error.new(
+          "Select commission bases that are present on the rate schedule.", code: :invalid
+        ) unless component
+
+        links << { base_component_id: component.id, direction: "subtract", position: links.size + 1 }
+      end
+      replace_base_links!(definition, commission_component, links)
+      return
     end
-  end
 
-  def sync_canonical_components!(definition, terms:, commission:)
-    components_by_label = definition.supplier_cost_components.lock.index_by(&:label)
-    ordered_keys = CANONICAL_TERM_KEYS.select { |key| terms[key].present? || terms[key] == 0 }
-    position = 1
-    label_to_component = {}
+    # Dollar: one component per profile amount.
+    # Destroy obsolete commission rows first so label uniqueness is not violated
+    # when switching traveler ↔ cabin (or profile) bases.
+    amounts = commission.fetch(:amounts)
+    keep_signatures = amounts.keys.map { |profile_key| PROFILE_FAMILIES.fetch(profile_key) }
+    commission_components.each do |component|
+      next unless component.calculation_kind == "unit_rate"
 
-    ordered_keys.each do |key|
-      attrs = component_attributes_for_term(key, terms[key])
-      label = attrs.fetch(:label)
-      existing = components_by_label[label]
+      matching = keep_signatures.any? do |profile|
+        component.quantity_basis == profile.fetch(:quantity_basis) &&
+          component.occupancy_position_from == profile[:occupancy_position_from] &&
+          component.occupancy_position_to == profile[:occupancy_position_to]
+      end
+      destroy_component_and_dependent_bases!(definition, component) unless matching
+    end
+    commission_components = definition.supplier_cost_components.reload.lock.select { |c|
+      c.economic_role == "expected_commission"
+    }
+
+    used_ids = []
+    position = start_position
+    amounts.each do |profile_key, amount|
+      profile = PROFILE_FAMILIES.fetch(profile_key)
+      attrs = {
+        label: COMMISSION_LABEL,
+        economic_role: "expected_commission",
+        calculation_kind: "unit_rate",
+        amount_minor_units: amount,
+        quantity_basis: profile.fetch(:quantity_basis),
+        occupancy_position_from: profile[:occupancy_position_from],
+        occupancy_position_to: profile[:occupancy_position_to],
+        participant_category_id: nil,
+        pass_through: false,
+        rate: nil,
+        percentage_treatment: nil,
+        minimum_minor_units: nil,
+        minimum_quantity: nil
+      }
+      existing = commission_components.find do |c|
+        c.calculation_kind == "unit_rate" &&
+          c.quantity_basis == profile.fetch(:quantity_basis) &&
+          c.occupancy_position_from == profile[:occupancy_position_from] &&
+          c.occupancy_position_to == profile[:occupancy_position_to] &&
+          !used_ids.include?(c.id)
+      end
       component = if existing
-        existing.update!(attrs)
+        existing.update!(attrs.merge(position: position))
+        replace_base_links!(definition, existing, [])
         existing
       else
         build_supplier_cost_component_already_locked!(
           definition: definition, attributes: attrs, position: position, base_links: []
         )
       end
-      component.update!(position: position) if component.position != position
-      label_to_component[label] = component
-      components_by_label.delete(label)
+      used_ids << component.id
       position += 1
     end
+    commission_components.each do |component|
+      next if used_ids.include?(component.id)
 
-    # Remove cleared canonical terms (and their dependent commission links later).
-    CANONICAL_TERM_KEYS.each do |key|
-      label = CANONICAL_SPECS.fetch(key).fetch(:label)
-      next if ordered_keys.include?(key)
-
-      existing = components_by_label.delete(label)
-      next unless existing
-
-      destroy_component_and_dependent_bases!(definition, existing)
+      destroy_component_and_dependent_bases!(definition, component)
     end
-
-    existing_commission = components_by_label.delete(COMMISSION_LABEL)
-    if commission.fetch(:method) == "not_provided"
-      destroy_component_and_dependent_bases!(definition, existing_commission) if existing_commission
-    else
-      attrs = commission_component_attributes(commission)
-      commission_component = if existing_commission
-        existing_commission.update!(attrs.merge(position: position))
-        existing_commission
-      else
-        build_supplier_cost_component_already_locked!(
-          definition: definition, attributes: attrs, position: position, base_links: []
-        )
-      end
-      commission_component.update!(position: position) if commission_component.position != position
-      if commission.fetch(:method) == "percentage"
-        links = percentage_base_links(commission, label_to_component)
-        replace_base_links!(definition, commission_component, links)
-      else
-        replace_base_links!(definition, commission_component, [])
-      end
-      label_to_component[COMMISSION_LABEL] = commission_component
-    end
-
-    # Never silently delete noncanonical leftovers — detector marks unsupported.
-    leftover_canonical = components_by_label.keys & CruiseSupplierRateSupport.canonical_labels
-    leftover_canonical.each do |label|
-      destroy_component_and_dependent_bases!(definition, components_by_label[label])
-    end
-
-    renumber_components!(definition)
-    touch_definition_after_change!(definition)
-  end
-
-  def percentage_base_links(commission, label_to_component)
-    links = []
-    commission.fetch(:add_bases).each do |key|
-      component = label_to_component[CANONICAL_SPECS.fetch(key).fetch(:label)]
-      raise AgencyCommand::Error.new(
-        "Select commission bases that are present on the rate schedule.", code: :invalid
-      ) unless component
-
-      links << { base_component_id: component.id, direction: "add", position: links.size + 1 }
-    end
-    commission.fetch(:subtract_bases).each do |key|
-      component = label_to_component[CANONICAL_SPECS.fetch(key).fetch(:label)]
-      raise AgencyCommand::Error.new(
-        "Select commission bases that are present on the rate schedule.", code: :invalid
-      ) unless component
-
-      links << { base_component_id: component.id, direction: "subtract", position: links.size + 1 }
-    end
-    links
   end
 
   def destroy_component_and_dependent_bases!(definition, component)
@@ -273,5 +411,27 @@ module CruiseSupplierRateBuilders
         category.save!
       end
     end
+  end
+
+  # Smith matrix helper used by tests and default create payloads.
+  # Returns major-unit strings keyed by matrix cell; normalize_matrix_payload converts once.
+  def smith_matrix_cells_from_legacy_terms(terms, _currency = nil)
+    input = terms.to_h.with_indifferent_access
+    mapping = {
+      first_second_fare: "base_fare:first_second",
+      additional_fare: "base_fare:additional",
+      single_supplement: "base_fare:single_supplement",
+      nccf: "nccf:every_traveler",
+      first_second_discount: "discount:first_second",
+      additional_discount: "discount:additional",
+      taxes_fees: "taxes_fees:every_traveler"
+    }
+    cells = {}
+    mapping.each do |term_key, cell_key|
+      next unless input.key?(term_key) || input.key?(term_key.to_s)
+
+      cells[cell_key] = input[term_key]
+    end
+    cells
   end
 end
