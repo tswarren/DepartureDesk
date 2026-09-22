@@ -37,6 +37,11 @@
         <p>Add the first component.</p>
         <p><%= link_to "Add the first component", new_departure_builder_component_path(@departure), class: "dd-button" %></p>
       </section>
+      <nav aria-label="Operational surfaces" class="dd-inline-actions">
+        <%= link_to "Supplier planning", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Client offers", departure_service_offers_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Packages", departure_packages_path(@departure), class: "dd-button dd-button--quiet" %>
+      </nav>
     </div>
   </article>
 <% else %>

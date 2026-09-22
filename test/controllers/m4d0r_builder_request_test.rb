@@ -36,6 +36,8 @@ class M4d0rBuilderRequestTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_match "Your departure concept is saved", response.body
     assert_select "a", text: "Add the first component"
+    assert_select "a", text: "Supplier planning"
+    assert_select "a", text: "Client offers"
     assert_select "form[action=?]", departure_builder_components_path(later), count: 0
 
     post departures_path, params: {
