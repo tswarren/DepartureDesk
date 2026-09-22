@@ -233,12 +233,19 @@ class CruiseSupplierRatesController < ApplicationController
   end
 
   def cell_params
-    raw = params.fetch(:cells, {}).permit!.to_h
-    raw.select do |key, _|
-      row_key, profile_key = CruiseSupplierRateSupport.parse_cell_key(key)
-      CruiseSupplierRateSupport::STATIC_ROWS.key?(row_key) &&
-        CruiseSupplierRateSupport::PROFILE_FAMILIES.key?(profile_key)
+    allowed_keys = CruiseSupplierRateSupport::STATIC_ROWS.keys.product(
+      CruiseSupplierRateSupport::PROFILE_FAMILIES.keys
+    ).map { |row_key, profile_key| CruiseSupplierRateSupport.cell_key(row_key, profile_key) }
+    # Custom row keys from the form (R-B); ignore unknown shapes.
+    Array(params[:custom_rows]).each do |row|
+      row_key = row.is_a?(Hash) ? (row[:key] || row["key"]).to_s : nil
+      next if row_key.blank?
+
+      CruiseSupplierRateSupport::PROFILE_FAMILIES.each_key do |profile_key|
+        allowed_keys << CruiseSupplierRateSupport.cell_key(row_key, profile_key)
+      end
     end
+    params.fetch(:cells, {}).permit(*allowed_keys.uniq).to_h
   end
 
   def commission_params
