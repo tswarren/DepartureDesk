@@ -14,6 +14,8 @@ class CreateDeparture < AgencyCommand
     ActiveRecord::Base.transaction do
       lock_authorized_agency!(:manage_departures)
       attrs = resolved_attributes
+      raise Error.new("Choose a responsible office.", code: :invalid) if attrs[:responsible_office_id].blank?
+
       office = resolve_office!(attrs[:responsible_office_id])
       user = resolve_agency_user!(attrs[:responsible_agency_user_id])
       locked_office = lock_office!(office)
@@ -24,6 +26,7 @@ class CreateDeparture < AgencyCommand
       departure = @agency.departures.create!(
         name: attrs[:name],
         description: attrs[:description],
+        target_timing_text: attrs[:target_timing_text],
         starts_on: attrs[:starts_on],
         ends_on: attrs[:ends_on],
         time_zone: attrs[:time_zone],
@@ -46,13 +49,21 @@ class CreateDeparture < AgencyCommand
   end
 
   def self.proposed_attributes(agency:, actor:, current_office: nil)
-    office = current_office if current_office&.active? && current_office.agency_id == agency.id
+    office = active_agency_office(agency, current_office) || active_agency_office(agency, actor&.default_office)
     {
       responsible_office_id: office&.id,
       responsible_agency_user_id: actor&.id,
       time_zone: agency.default_timezone,
       operating_currency: agency.default_currency
     }
+  end
+
+  def self.active_agency_office(agency, office)
+    return if office.blank?
+    return unless office.agency_id == agency.id
+    return unless office.active?
+
+    office
   end
 
   private
@@ -83,10 +94,16 @@ class CreateDeparture < AgencyCommand
     else
       [ nil, nil ]
     end
+    target_timing_text = if supplied?(:target_timing_text)
+      normalize_target_timing_text(raw_attribute(:target_timing_text))
+    else
+      nil
+    end
 
     {
       name: normalize_name(raw_attribute(:name)),
       description: supplied?(:description) ? normalize_description(raw_attribute(:description)) : nil,
+      target_timing_text:,
       starts_on:,
       ends_on:,
       time_zone:,
@@ -97,10 +114,8 @@ class CreateDeparture < AgencyCommand
   end
 
   def copy_office
-    return if @current_office.blank?
-
-    office = @agency.offices.find_by(id: @current_office.id)
-    office if office&.active?
+    self.class.active_agency_office(@agency, @current_office) ||
+      self.class.active_agency_office(@agency, @actor&.default_office)
   end
 
   def audit_details(departure)
@@ -108,6 +123,7 @@ class CreateDeparture < AgencyCommand
       "departure_id" => departure.id,
       "status" => departure.status,
       "name" => departure.name,
+      "target_timing_text" => departure.target_timing_text,
       "starts_on" => departure.starts_on&.iso8601,
       "ends_on" => departure.ends_on&.iso8601,
       "time_zone" => departure.time_zone,

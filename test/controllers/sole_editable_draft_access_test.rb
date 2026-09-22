@@ -42,10 +42,13 @@ class SoleEditableDraftAccessTest < ActionDispatch::IntegrationTest
     end
 
     assert_equal [
+      "app/services/create_initial_package_with_outline_service_offer.rb:version_number: 1,",
+      "app/services/create_initial_package_with_outline_service_offer.rb:version_number: 1,",
       "app/services/create_package_draft.rb:version_number: 1,",
       "app/services/create_package_inline_service_offer.rb:version_number: 1,",
       "app/services/create_package_inline_service_offer.rb:version_number: 1,",
       "app/services/create_service_offer_from_source.rb:version_number: 1,",
+      "app/services/create_service_offer_outline.rb:version_number: 1,",
       "app/services/create_service_offer_with_explicit_basis.rb:version_number: 1,",
       "app/services/create_supplier_arrangement.rb:version_number: 1,"
     ], references

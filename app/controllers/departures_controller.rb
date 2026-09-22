@@ -28,18 +28,16 @@ class DeparturesController < ApplicationController
   end
 
   def show
+    if Current.agency_user.permitted?(:manage_departures) && (@departure.draft? || @departure.active?)
+      redirect_to departure_builder_path(@departure, request.query_parameters.slice("work_on", "package_id"))
+      return
+    end
+
     @supplier_planning = ListDepartureArrangements.call(
       agency: Current.agency,
       actor: Current.agency_user,
       departure: @departure
     )
-    if Current.agency_user.permitted?(:manage_departures)
-      @client_offers = ListDepartureServiceOffers.call(
-        agency: Current.agency,
-        actor: Current.agency_user,
-        departure: @departure
-      )
-    end
     @attention_findings = Current.agency.supplier_attention_findings
       .where(departure_id: @departure.id)
       .visible_at
@@ -62,10 +60,14 @@ class DeparturesController < ApplicationController
     result = CreateDeparture.new(
       agency: Current.agency,
       actor: Current.agency_user,
-      attributes: departure_params,
+      attributes: departure_attributes_for_command,
       current_office: Current.office
     ).call
-    redirect_to departure_path(result.record), notice: "Departure saved."
+    if create_add_components?
+      redirect_to new_departure_builder_component_path(result.record), notice: "Departure concept saved."
+    else
+      redirect_to departure_builder_path(result.record), notice: "Your departure concept is saved."
+    end
   rescue AgencyCommand::Error => error
     @departure = departures_scope.new
     assign_submitted_departure_fields
@@ -80,7 +82,7 @@ class DeparturesController < ApplicationController
       agency: Current.agency,
       actor: Current.agency_user,
       departure: @departure,
-      attributes: departure_params,
+      attributes: departure_attributes_for_command,
       lock_version: departure_params[:lock_version]
     ).call
     redirect_to departure_path(@departure), notice: "Departure updated."
@@ -100,5 +102,28 @@ class DeparturesController < ApplicationController
   rescue AgencyCommand::Error => error
     @activation_blockers = @departure.activation_blockers
     rescue_departure_error(error, "departure_activations/show")
+  end
+
+  private
+
+  def departure_attributes_for_command
+    attrs = departure_params.except(:lock_version, :reason, :timing_mode).to_h
+    case departure_params[:timing_mode]
+    when "unknown"
+      attrs["target_timing_text"] = nil
+      attrs["starts_on"] = nil
+      attrs["ends_on"] = nil
+    when "target"
+      attrs["starts_on"] = nil
+      attrs["ends_on"] = nil
+    when "exact"
+      attrs["target_timing_text"] = nil
+    end
+    attrs
+  end
+
+  def create_add_components?
+    commit = params[:commit].to_s
+    commit.match?(/add components/i)
   end
 end

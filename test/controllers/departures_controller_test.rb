@@ -20,6 +20,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
 
     assert_difference -> { @agency.departures.count }, 1 do
       post departures_path, params: {
+        commit: "Save for later",
         departure: {
           name: "Harbor Week",
           description: "",
@@ -33,8 +34,28 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
       }
     end
     departure = @agency.departures.find_by!(name: "Harbor Week")
-    assert_redirected_to departure_path(departure)
+    assert_redirected_to departure_builder_path(departure)
     assert_equal "draft", departure.status
+
+    assert_difference -> { @agency.departures.count }, 1 do
+      post departures_path, params: {
+        commit: "Save and add components",
+        departure: {
+          name: "Harbor Components",
+          description: "",
+          timing_mode: "target",
+          target_timing_text: "Late June 2027",
+          time_zone: "America/New_York",
+          operating_currency: "USD",
+          responsible_office_id: @office.id,
+          responsible_agency_user_id: @admin.id
+        }
+      }
+    end
+    components_departure = @agency.departures.find_by!(name: "Harbor Components")
+    assert_redirected_to new_departure_builder_component_path(components_departure)
+    assert_equal "Late June 2027", components_departure.target_timing_text
+    assert_nil components_departure.starts_on
 
     post departures_path, params: { departure: { name: "", time_zone: "America/Chicago" } }
     assert_response :unprocessable_entity

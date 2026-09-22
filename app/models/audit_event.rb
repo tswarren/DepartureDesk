@@ -153,6 +153,7 @@ class AuditEvent < ApplicationRecord
     supplier_reservation.existing_confirmed_recorded
     service_offer.created
     service_offer.updated
+    service_offer.fulfillment_basis_resolved
     service_offer.source_binding_added
     service_offer.source_binding_removed
     service_offer.discarded

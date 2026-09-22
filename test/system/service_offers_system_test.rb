@@ -17,9 +17,8 @@ class ServiceOffersSystemTest < ApplicationSystemTestCase
 
     visit departure_path(@departure)
     assert_selector "h1.dd-page-title", exact_text: "System Offer Departure"
-    within(:xpath, "//article[.//h2[normalize-space()='Client offers (draft)']]") do
-      click_link "Add service from Supplier planning"
-    end
+    click_link "Client offers"
+    click_link "Add service from Supplier planning"
 
     assert_selector "h1.dd-page-title", exact_text: "Add service from Supplier planning"
     assert_text "Tentative draft"

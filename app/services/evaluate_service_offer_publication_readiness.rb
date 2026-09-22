@@ -27,6 +27,11 @@ class EvaluateServiceOfferPublicationReadiness
     definition = @version.definition
     if definition.nil?
       issues << Issue.new(field: :definition, message: "Add a Client service definition.")
+    elsif definition.undecided?
+      issues << Issue.new(
+        field: :fulfillment_basis,
+        message: "Resolve undecided fulfillment before publishing."
+      )
     elsif definition.m3_backed?
       issues.concat(m3_binding_issues)
     end

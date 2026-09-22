@@ -9,6 +9,7 @@ module OfferVersionGraphCopy
         agency:, departure:, service_offer: offer,
         client_title: from.definition.client_title,
         client_description: from.definition.client_description,
+        client_timing_text: from.definition.client_timing_text,
         fulfillment_basis: from.definition.fulfillment_basis
       )
     end

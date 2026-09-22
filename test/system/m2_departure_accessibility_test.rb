@@ -26,7 +26,8 @@ class M2DepartureAccessibilityTest < ApplicationSystemTestCase
     sign_in_from_browser(shell.directory.actor, password: M1DirectoryScenario::PASSWORD)
     visit new_departure_path
     wait_for_turbo
-    click_button "Save departure"
+    page.execute_script("document.querySelector('form.dd-form')?.setAttribute('novalidate','novalidate')")
+    click_button "Save for later"
     wait_for_turbo
     assert_selector "#form-error-summary"
     assert_selector "#form-error-summary:focus"
@@ -50,11 +51,8 @@ class M2DepartureAccessibilityTest < ApplicationSystemTestCase
 
     visit new_departure_path
     wait_for_turbo
-    find_field("Name").send_keys(:tab)
-    assert_equal "departure[description]", focused_name
-    assert_visible_focus
-    page.send_keys(:tab)
-    assert_equal "departure[starts_on]", focused_name
+    find_field("Departure name").send_keys(:tab)
+    assert_equal "departure[timing_mode]", focused_name
     assert_visible_focus
   end
 

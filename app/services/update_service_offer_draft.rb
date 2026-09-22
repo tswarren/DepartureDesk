@@ -36,9 +36,14 @@ class UpdateServiceOfferDraft < AgencyCommand
       else
         definition.client_description
       end
+      client_timing_text = if @attributes.key?(:client_timing_text)
+        normalize_client_timing_text(@attributes[:client_timing_text])
+      else
+        definition.client_timing_text
+      end
 
       offer.update!(name: name) if name != offer.name
-      definition.update!(client_title:, client_description:)
+      definition.update!(client_title:, client_description:, client_timing_text:)
 
       if boolean_flag(@attributes[:reselect_current_sources])
         reselect_bindings!(version, definition)

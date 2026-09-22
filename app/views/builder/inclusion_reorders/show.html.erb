@@ -1,0 +1,34 @@
+<% content_for :title, "Arrange itinerary · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= @package.name %></p>
+    <h1 class="dd-page-title">Arrange itinerary</h1>
+    <p class="dd-page-description">Move inclusions with the keyboard controls, then save the complete order.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_builder_package_inclusions_reorder_path(@departure, @package),
+          method: :patch,
+          class: "dd-form",
+          data: { controller: "inclusion-reorder" } do %>
+      <%= hidden_field_tag :version_lock_version, @version.lock_version %>
+      <ol data-inclusion-reorder-target="list" class="dd-stack">
+        <% @inclusions.each do |inclusion| %>
+          <li data-inclusion-reorder-target="row" class="dd-inline-actions">
+            <input type="hidden" name="inclusion_ids[]" value="<%= inclusion.id %>" data-inclusion-reorder-target="input">
+            <span><%= inclusion.service_offer.name %></span>
+            <button type="button" class="dd-button dd-button--quiet" data-action="inclusion-reorder#moveUp">Move up</button>
+            <button type="button" class="dd-button dd-button--quiet" data-action="inclusion-reorder#moveDown">Move down</button>
+          </li>
+        <% end %>
+      </ol>
+      <div class="dd-form-actions">
+        <%= submit_tag "Save order", class: "dd-button" %>
+        <%= link_to "Cancel", departure_builder_path(@departure, package_id: @package.id), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

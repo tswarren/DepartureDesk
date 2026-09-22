@@ -1,0 +1,239 @@
+<% content_for :title, "#{@departure.name} · Builder · DepartureDesk" %>
+<% recommendation = @builder_recommendation %>
+<% builder = @builder %>
+<% common_scenarios = @common_scenarios %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Group departure</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">
+      <%= departure_status_badge(@departure.status) %>
+      · <%= @departure.schedule_label %>
+      · <%= @departure.responsible_office ? office_choice_label(@departure.responsible_office) : "Office not set" %>
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Departure details", edit_departure_path(@departure), class: "dd-button dd-button--quiet" %>
+    <% if @departure.draft? %>
+      <%= link_to "Activate", departure_activation_path(@departure), class: "dd-button dd-button--quiet" %>
+    <% elsif @departure.active? %>
+      <%= link_to "Return to draft", edit_departure_return_to_draft_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% if @departure.eligible_to_depart?(at: Time.current) %>
+        <%= link_to "Mark departed", new_departure_departed_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% end %>
+    <% end %>
+    <%= link_to "Return to departures", departures_path, class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<% if builder.empty? %>
+  <article class="dd-panel" id="build-this-departure">
+    <div class="dd-panel-body dd-stack">
+      <p role="status"><strong>Your departure concept is saved.</strong></p>
+      <p>Add anything Clients will see, choose, or pay for distinctly.</p>
+      <section id="builder-next-action" aria-labelledby="builder-next-action-heading">
+        <h2 id="builder-next-action-heading" class="dd-section-title">Recommended next action</h2>
+        <p>Add the first component.</p>
+        <p><%= link_to "Add the first component", new_departure_builder_component_path(@departure), class: "dd-button" %></p>
+      </section>
+      <nav aria-label="Operational surfaces" class="dd-inline-actions">
+        <%= link_to "Supplier planning", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Client offers", departure_service_offers_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Packages", departure_packages_path(@departure), class: "dd-button dd-button--quiet" %>
+      </nav>
+    </div>
+  </article>
+<% else %>
+  <article class="dd-panel" id="build-this-departure">
+    <div class="dd-panel-body dd-stack">
+      <% if recommendation %>
+        <section id="builder-next-action" aria-labelledby="builder-next-action-heading">
+          <h2 id="builder-next-action-heading" class="dd-section-title">Recommended next action</h2>
+          <p><%= recommendation.label %></p>
+          <p><%= link_to recommendation.button_label, builder_recommendation_path(recommendation), class: "dd-button" %></p>
+        </section>
+      <% end %>
+
+      <nav aria-label="Preparation outcome" class="dd-inline-actions">
+        <span class="dd-label">What do you want to prepare next?</span>
+        <%= link_to "Supplier support", departure_builder_path(@departure, work_on: "supplier", package_id: builder.selected_package&.id),
+              class: "dd-button #{'dd-button--quiet' unless builder.work_on == 'supplier'}" %>
+        <%= link_to "Pricing", departure_builder_path(@departure, work_on: "pricing", package_id: builder.selected_package&.id),
+              class: "dd-button #{'dd-button--quiet' unless builder.work_on == 'pricing'}" %>
+        <%= link_to "Client preview", departure_builder_path(@departure, work_on: "preview", package_id: builder.selected_package&.id),
+              class: "dd-button #{'dd-button--quiet' unless builder.work_on == 'preview'}" %>
+      </nav>
+
+      <% if builder.package_selection_required? || builder.package_selection_invalid? %>
+        <div class="dd-field-group" role="alert">
+          <p>Choose which Package you are working on.</p>
+          <form method="get" action="<%= departure_builder_path(@departure) %>" class="dd-inline-actions">
+            <input type="hidden" name="work_on" value="<%= builder.work_on %>">
+            <select id="builder-package" name="package_id" class="dd-field" required>
+              <option value="">Select a Package</option>
+              <% builder.editable_packages.each do |package| %>
+                <option value="<%= package.id %>"><%= package.name %></option>
+              <% end %>
+            </select>
+            <button type="submit" class="dd-button">Continue</button>
+          </form>
+        </div>
+      <% elsif builder.editable_packages.many? %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="builder-package">Package</label>
+          <form method="get" action="<%= departure_builder_path(@departure) %>" class="dd-inline-actions">
+            <input type="hidden" name="work_on" value="<%= builder.work_on %>">
+            <select id="builder-package" name="package_id" class="dd-field" onchange="this.form.requestSubmit()">
+              <% builder.editable_packages.each do |package| %>
+                <option value="<%= package.id %>" <%= "selected" if builder.selected_package&.id == package.id %>><%= package.name %></option>
+              <% end %>
+            </select>
+          </form>
+        </div>
+      <% end %>
+
+      <% if builder.work_on.blank? || builder.work_on == "supplier" || builder.work_on == "pricing" || builder.selected_package %>
+        <% if builder.selected_package && (builder.work_on.blank? || builder.work_on == "pricing" || builder.work_on == "preview" || builder.work_on == "supplier") %>
+          <% if builder.work_on != "preview" %>
+            <section aria-labelledby="package-summary-heading">
+              <h2 id="package-summary-heading" class="dd-section-title">Package summary</h2>
+              <% version = builder.selected_package.editable_draft_version %>
+              <% included = version.inclusions.count(&:included?) %>
+              <% optional = version.inclusions.count(&:optional?) %>
+              <p><strong><%= builder.selected_package.name %></strong> · <%= pluralize(included, "included") %>, <%= pluralize(optional, "optional") %></p>
+              <% if common_scenarios %>
+                <ul>
+                  <% common_scenarios.summaries.each do |summary| %>
+                    <li>
+                      <%= summary.label %>:
+                      <% if summary.complete %>
+                        <%= format_offer_money(summary.amount_minor_units, summary.currency) %>
+                      <% else %>
+                        Pending — <%= summary.missing_inputs.first %>
+                      <% end %>
+                    </li>
+                  <% end %>
+                </ul>
+              <% end %>
+              <p>
+                <%= link_to "Add another component", new_departure_builder_component_path(@departure, package_id: builder.selected_package.id), class: "dd-button dd-button--quiet" %>
+                <% if version.inclusions.size >= 2 %>
+                  <%= link_to "Arrange itinerary", departure_builder_package_inclusions_reorder_path(@departure, builder.selected_package), class: "dd-button dd-button--quiet" %>
+                <% end %>
+                <% if builder.work_on == "pricing" %>
+                  <%= link_to "Set Package price", departure_package_path(@departure, builder.selected_package), class: "dd-button dd-button--quiet" %>
+                <% end %>
+              </p>
+            </section>
+          <% end %>
+        <% end %>
+
+        <% if builder.work_on == "preview" && builder.selected_package %>
+          <section aria-labelledby="internal-preview-heading" class="dd-stack">
+            <p class="dd-banner" role="status"><strong>Internal preview — not shared with Clients</strong></p>
+            <h2 id="internal-preview-heading" class="dd-section-title"><%= @departure.name %></h2>
+            <p><%= @departure.schedule_label %></p>
+            <h3 class="dd-section-title">Included</h3>
+            <ul>
+              <% builder.component_cards.select { |card| card.inclusion&.included? }.each do |card| %>
+                <li>
+                  <%= card.definition&.client_title || card.service_offer.name %>
+                  — <%= card.timing_label %>
+                  <% if card.price_label.start_with?("Pending") %> · <span>Pending</span><% end %>
+                </li>
+              <% end %>
+            </ul>
+            <h3 class="dd-section-title">Optional</h3>
+            <ul>
+              <% builder.component_cards.select { |card| card.inclusion&.optional? }.each do |card| %>
+                <li>
+                  <%= card.definition&.client_title || card.service_offer.name %>
+                  — <%= card.timing_label %>
+                  <% if card.price_label.start_with?("Pending") %> · <span>Pending</span><% end %>
+                </li>
+              <% end %>
+            </ul>
+            <% if common_scenarios&.summaries&.any? %>
+              <% summary = common_scenarios.summaries.first %>
+              <p>
+                Example total:
+                <% if summary.complete %>
+                  <%= format_offer_money(summary.amount_minor_units, summary.currency) %>
+                <% else %>
+                  Pending — <%= summary.missing_inputs.first %>
+                <% end %>
+              </p>
+            <% end %>
+          </section>
+        <% elsif builder.selected_package || builder.unassigned_offers.any? %>
+          <section aria-labelledby="itinerary-heading">
+            <h2 id="itinerary-heading" class="dd-section-title">Itinerary components</h2>
+            <% builder.component_cards.each do |card| %>
+              <% action = builder.contextual_action_for(card) %>
+              <article class="dd-stack" style="border-top: 1px solid var(--dd-border-subtle, #d0d7de); padding-top: 0.75rem;">
+                <h3 class="dd-section-title"><%= card.definition&.client_title || card.service_offer.name %></h3>
+                <p>
+                  <%= card.placement_label %> · <%= card.timing_label %> · <%= card.fulfillment_label %>
+                  <% unless builder.work_on == "preview" %> · <%= card.price_label %><% end %>
+                </p>
+                <div class="dd-inline-actions">
+                  <%= link_to action.label, builder_contextual_path(action), class: "dd-button" %>
+                  <%= link_to "View component details", departure_service_offer_path(@departure, card.service_offer), class: "dd-button dd-button--quiet" %>
+                </div>
+                <details class="dd-disclosure">
+                  <summary>Remaining setup</summary>
+                  <ul>
+                    <% if card.definition&.undecided? %>
+                      <li>Decide how provided</li>
+                    <% end %>
+                    <% if card.timing_label == "Timing not added" %>
+                      <li>Add Client timing</li>
+                    <% end %>
+                    <% if card.price_label.start_with?("Pending") %>
+                      <li>Add Client price</li>
+                    <% end %>
+                    <li>
+                      <details class="dd-disclosure">
+                        <summary>Optional cabin or room setup</summary>
+                        <p>Opening a setup form does not save categories until you submit names.</p>
+                        <p>
+                          <%= link_to "Cabin categories", cruise_setup_departure_builder_component_path(@departure, card.service_offer), class: "dd-link" %>
+                          ·
+                          <%= link_to "Room categories", hotel_setup_departure_builder_component_path(@departure, card.service_offer), class: "dd-link" %>
+                        </p>
+                      </details>
+                    </li>
+                  </ul>
+                </details>
+              </article>
+            <% end %>
+          </section>
+        <% end %>
+      <% end %>
+
+      <details class="dd-disclosure">
+        <summary>Remaining checklist</summary>
+        <% EvaluateDepartureBuilderReadiness::GROUPS.each do |group| %>
+          <% items = @builder_readiness.findings.select { |finding| finding.group == group } %>
+          <h3 class="dd-section-title"><%= group %></h3>
+          <% if items.empty? %>
+            <p>No open items.</p>
+          <% else %>
+            <ul>
+              <% items.each do |finding| %>
+                <li><%= finding.message %></li>
+              <% end %>
+            </ul>
+          <% end %>
+        <% end %>
+      </details>
+
+      <nav aria-label="Operational surfaces" class="dd-inline-actions">
+        <%= link_to "Supplier planning", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Client offers", departure_service_offers_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Packages", departure_packages_path(@departure), class: "dd-button dd-button--quiet" %>
+      </nav>
+    </div>
+  </article>
+<% end %>

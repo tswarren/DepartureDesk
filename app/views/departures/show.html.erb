@@ -9,7 +9,10 @@
   </div>
   <% if manage %>
     <div class="dd-page-actions">
-      <%= link_to "Edit departure", edit_departure_path(@departure), class: "dd-button" %>
+      <% if @departure.draft? || @departure.active? %>
+        <%= link_to "Open builder", departure_builder_path(@departure), class: "dd-button" %>
+      <% end %>
+      <%= link_to "Edit departure", edit_departure_path(@departure), class: "dd-button dd-button--quiet" %>
       <%= link_to "Edit responsibility", edit_departure_responsibility_path(@departure), class: "dd-button dd-button--quiet" %>
       <% if @departure.draft? %>
         <%= link_to "Activate", departure_activation_path(@departure), class: "dd-button dd-button--quiet" %>
@@ -52,6 +55,12 @@
         <dt>Dates</dt>
         <dd><%= @departure.schedule_label %></dd>
       </div>
+      <% if @departure.target_timing_text.present? %>
+        <div>
+          <dt>Target timing</dt>
+          <dd><%= @departure.target_timing_text %></dd>
+        </div>
+      <% end %>
       <div>
         <dt>Time zone</dt>
         <dd><%= @departure.time_zone.presence || "—" %></dd>

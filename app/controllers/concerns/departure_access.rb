@@ -47,13 +47,14 @@ module DepartureAccess
 
   def departure_params
     params.fetch(:departure, {}).permit(
-      :name, :description, :starts_on, :ends_on, :time_zone, :operating_currency,
-      :responsible_office_id, :responsible_agency_user_id, :lock_version, :reason
+      :name, :description, :target_timing_text, :starts_on, :ends_on, :time_zone, :operating_currency,
+      :responsible_office_id, :responsible_agency_user_id, :lock_version, :reason, :timing_mode
     )
   end
 
   def assign_submitted_departure_fields
-    @departure.assign_attributes(departure_params.except(:lock_version, :reason, :responsible_office_id, :responsible_agency_user_id))
+    attrs = departure_params.except(:lock_version, :reason, :responsible_office_id, :responsible_agency_user_id, :timing_mode)
+    @departure.assign_attributes(attrs)
     @departure.responsible_office_id = departure_params[:responsible_office_id]
     @departure.responsible_agency_user_id = departure_params[:responsible_agency_user_id]
   end

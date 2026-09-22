@@ -373,7 +373,8 @@ module ApplicationHelper
       "m3_backed" => "Supplier planning",
       "on_request" => "On request",
       "agency_fulfilled" => "Agency fulfilled",
-      "externally_fulfilled" => "Externally fulfilled"
+      "externally_fulfilled" => "Externally fulfilled",
+      "undecided" => "Decide later"
     }.fetch(basis.to_s, basis.to_s.humanize)
   end
 

@@ -1,0 +1,52 @@
+<% content_for :title, "Connect Supplier support · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= @departure.name %></p>
+    <h1 class="dd-page-title">Connect Supplier support</h1>
+    <p class="dd-page-description">
+      Bind a Supplier source to <strong><%= @service_offer.name %></strong> without creating a second component.
+    </p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body dd-stack">
+    <%= form_with url: sources_departure_builder_component_path(@departure, @service_offer), method: :get, class: "dd-form" do %>
+      <div class="dd-field-group">
+        <label class="dd-label" for="q">Search Supplier sources</label>
+        <input id="q" name="q" class="dd-field" value="<%= @query %>">
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Search", class: "dd-button" %>
+      </div>
+    <% end %>
+
+    <%= form_with url: sources_departure_builder_component_path(@departure, @service_offer), method: :post, class: "dd-form" do %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <%= hidden_field_tag :version_lock_version, @version.lock_version %>
+      <%= hidden_field_tag :q, @query %>
+      <% if @search.records.any? %>
+        <fieldset class="dd-field-group">
+          <legend class="dd-label">Choose a source</legend>
+          <% @search.records.each do |candidate| %>
+            <label class="dd-inline-field">
+              <%= radio_button_tag "source_key", offer_source_key(candidate) %>
+              <%= candidate.item.name %> · <%= candidate.arrangement.name %>
+            </label>
+          <% end %>
+        </fieldset>
+        <div class="dd-form-actions">
+          <%= submit_tag "Connect to this component", class: "dd-button" %>
+          <%= link_to "Back", fulfillment_departure_builder_component_path(@departure, @service_offer), class: "dd-button dd-button--quiet" %>
+        </div>
+      <% else %>
+        <p>No matching Supplier sources. Create the needed Arrangement in Supplier planning, then return here.</p>
+        <p>
+          <%= link_to "Open Supplier planning", departure_arrangements_path(@departure), class: "dd-button" %>
+          <%= link_to "Back", fulfillment_departure_builder_component_path(@departure, @service_offer), class: "dd-button dd-button--quiet" %>
+        </p>
+      <% end %>
+    <% end %>
+  </div>
+</article>

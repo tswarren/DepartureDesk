@@ -388,6 +388,15 @@ Confirm Solid Queue is connected to the queue database:
 
 Expected output includes `departure_desk_development_queue` and `true`.
 
+### Drop/Create Database
+
+```bash
+docker compose stop jobs web
+./dev/rails-docker bin/rails db:drop:primary db:create:primary db:schema:load:primary db:seed
+./dev/rails-docker bin/rails db:drop:queue db:create:queue db:schema:load:queue
+docker compose start jobs web
+```
+
 ### `root_url` is undefined
 
 Authentication redirects successful sign-ins to `root_url`. Ensure `config/routes.rb` contains an active root route:

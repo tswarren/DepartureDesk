@@ -3,8 +3,8 @@
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departures</p>
-    <h1 class="dd-page-title">New departure</h1>
-    <p class="dd-page-description">Creates a draft departure. Activation issues its durable reference.</p>
+    <h1 class="dd-page-title">Create group departure</h1>
+    <p class="dd-page-description">Save the concept and rough timing. Components and Supplier support come next.</p>
   </div>
 </header>
 
@@ -14,7 +14,8 @@
       <%= render "shared/form_errors", object: form.object %>
       <%= render "form", form: form %>
       <div class="dd-form-actions">
-        <%= form.submit "Save departure", class: "dd-button" %>
+        <%= form.submit "Save and add components", class: "dd-button", name: "commit" %>
+        <%= form.submit "Save for later", class: "dd-button dd-button--quiet", name: "commit" %>
         <%= link_to "Cancel", departures_path, class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>

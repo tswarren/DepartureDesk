@@ -1,43 +1,92 @@
 <%= form.hidden_field :lock_version if form.object.persisted? %>
 
 <div class="dd-field-group">
-  <%= form.label :name, "Name", class: "dd-label" %>
-  <%= form.text_field :name, maxlength: Departure::NAME_LIMIT, class: "dd-field" %>
+  <%= form.label :name, "Departure name", class: "dd-label" %>
+  <%= form.text_field :name, maxlength: Departure::NAME_LIMIT, class: "dd-field", required: true %>
 </div>
 
-<div class="dd-field-group">
-  <%= form.label :description, "Description", class: "dd-label" %>
-  <%= form.text_area :description, maxlength: Departure::DESCRIPTION_LIMIT, class: "dd-field" %>
-</div>
+<% timing_mode = params.dig(:departure, :timing_mode).presence || begin
+  if form.object.starts_on.present? || form.object.ends_on.present?
+    "exact"
+  elsif form.object.target_timing_text.present?
+    "target"
+  else
+    "unknown"
+  end
+end %>
 
-<div class="dd-field-group">
-  <%= form.label :starts_on, "Start date", class: "dd-label" %>
-  <%= form.date_field :starts_on, class: "dd-field" %>
-</div>
+<div class="dd-field-group" data-controller="departure-timing">
+  <fieldset>
+    <legend class="dd-label">When is it?</legend>
+    <div class="dd-stack" style="gap: 0.5rem;">
+      <label class="dd-inline-field">
+        <%= radio_button_tag "departure[timing_mode]", "unknown", timing_mode == "unknown",
+              data: { departure_timing_target: "mode", action: "departure-timing#update" } %>
+        Not known yet
+      </label>
+      <label class="dd-inline-field">
+        <%= radio_button_tag "departure[timing_mode]", "target", timing_mode == "target",
+              data: { departure_timing_target: "mode", action: "departure-timing#update" } %>
+        Month, season, or possible dates
+      </label>
+      <label class="dd-inline-field">
+        <%= radio_button_tag "departure[timing_mode]", "exact", timing_mode == "exact",
+              data: { departure_timing_target: "mode", action: "departure-timing#update" } %>
+        Exact dates
+      </label>
+    </div>
 
-<div class="dd-field-group">
-  <%= form.label :ends_on, "End date", class: "dd-label" %>
-  <%= form.date_field :ends_on, class: "dd-field" %>
-</div>
+    <div class="dd-field-group" data-departure-timing-target="targetFields" <%= "hidden" unless timing_mode == "target" %>>
+      <%= form.label :target_timing_text, "Target timing", class: "dd-label" %>
+      <%= form.text_field :target_timing_text, maxlength: Departure::TARGET_TIMING_LIMIT, class: "dd-field",
+            placeholder: "e.g. Late June 2027, or spring shoulder season" %>
+      <p class="dd-help">This helps describe the trip; exact dates can be added later.</p>
+    </div>
 
-<div class="dd-field-group">
-  <%= form.label :time_zone, "Time zone", class: "dd-label" %>
-  <%= form.select :time_zone, iana_timezone_options, { include_blank: form.object.draft? ? "No time zone" : nil }, class: "dd-field", required: !form.object.draft? %>
-</div>
-
-<div class="dd-field-group">
-  <%= form.label :operating_currency, "Operating currency", class: "dd-label" %>
-  <%= form.text_field :operating_currency, maxlength: 3, class: "dd-field" %>
+    <div data-departure-timing-target="exactFields" <%= "hidden" unless timing_mode == "exact" %>>
+      <div class="dd-field-group">
+        <%= form.label :starts_on, "Start date", class: "dd-label" %>
+        <%= form.date_field :starts_on, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :ends_on, "End date", class: "dd-label" %>
+        <%= form.date_field :ends_on, class: "dd-field" %>
+      </div>
+    </div>
+  </fieldset>
 </div>
 
 <% unless form.object.persisted? %>
   <div class="dd-field-group">
     <%= form.label :responsible_office_id, "Responsible office", class: "dd-label" %>
-    <%= form.select :responsible_office_id, departure_office_options(form.object), { include_blank: "No office" }, class: "dd-field" %>
+    <%= form.select :responsible_office_id, departure_office_options(form.object), { include_blank: "Choose an office" }, class: "dd-field", required: true %>
+    <% if departure_office_options(form.object).blank? %>
+      <p class="dd-help">Create or reactivate an office before saving a group departure.</p>
+    <% end %>
+  </div>
+<% end %>
+
+<details class="dd-disclosure">
+  <summary>Advanced</summary>
+  <div class="dd-field-group">
+    <%= form.label :description, "Description", class: "dd-label" %>
+    <%= form.text_area :description, maxlength: Departure::DESCRIPTION_LIMIT, class: "dd-field" %>
   </div>
 
   <div class="dd-field-group">
-    <%= form.label :responsible_agency_user_id, "Responsible user", class: "dd-label" %>
-    <%= form.select :responsible_agency_user_id, departure_user_options(form.object), { include_blank: "No user" }, class: "dd-field" %>
+    <%= form.label :time_zone, "Time zone", class: "dd-label" %>
+    <%= form.select :time_zone, iana_timezone_options, { include_blank: form.object.draft? ? "No time zone" : nil }, class: "dd-field", required: !form.object.draft? %>
   </div>
-<% end %>
+
+  <div class="dd-field-group">
+    <%= form.label :operating_currency, "Operating currency", class: "dd-label" %>
+    <%= form.text_field :operating_currency, maxlength: 3, class: "dd-field" %>
+  </div>
+
+  <% unless form.object.persisted? %>
+    <div class="dd-field-group">
+      <%= form.label :responsible_agency_user_id, "Responsible staff", class: "dd-label" %>
+      <%= form.select :responsible_agency_user_id, departure_user_options(form.object), { include_blank: "No user" }, class: "dd-field" %>
+    </div>
+  <% end %>
+</details>

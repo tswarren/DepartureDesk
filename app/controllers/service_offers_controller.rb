@@ -5,8 +5,8 @@ class ServiceOffersController < ApplicationController
 
   before_action :require_unpublished_offer_access!
   before_action :set_departure
-  before_action :set_service_offer, only: %i[show edit update edit_discard discard publish pause_sales resume_sales retire successor]
-  before_action :set_service_offer_version, only: %i[show edit update edit_discard discard publish pause_sales resume_sales retire successor]
+  before_action :set_service_offer, only: %i[show edit update edit_discard discard publish pause_sales resume_sales retire successor resolve_fulfillment]
+  before_action :set_service_offer_version, only: %i[show edit update edit_discard discard publish pause_sales resume_sales retire successor resolve_fulfillment]
 
   def index
     @search = ListDepartureServiceOffers.call(
@@ -187,6 +187,23 @@ class ServiceOffersController < ApplicationController
     recover_offer(error, :show)
   end
 
+  def resolve_fulfillment
+    ResolveServiceOfferFulfillmentBasis.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      offer: @service_offer,
+      fulfillment_basis: params[:fulfillment_basis],
+      version_lock_version: params[:version_lock_version],
+      offer_lock_version: params[:offer_lock_version]
+    ).call
+    redirect_to departure_builder_path(@departure), notice: "Fulfillment decided."
+  rescue AgencyCommand::Error => error
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    flash[:alert] = error.message
+    redirect_to departure_builder_path(@departure)
+  end
+
   def sources
     @query = params[:q]
     @search = SearchDepartureOfferSources.call(
@@ -287,7 +304,7 @@ class ServiceOffersController < ApplicationController
 
   def update_params
     params.fetch(:service_offer, {}).permit(
-      :name, :client_title, :client_description, :refresh_bindings, :reselect_current_sources
+      :name, :client_title, :client_description, :client_timing_text, :refresh_bindings, :reselect_current_sources
     )
   end
 

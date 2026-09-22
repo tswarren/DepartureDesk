@@ -121,3 +121,11 @@ Keep **one accepted M4D contract**. Split implementation PRs under that contract
 | **6. Staff and Viewer flow** | One combined Publish action and field-linked recovery on Package and standalone review pages. Keep Sales enabled intent visibly separate from computed availability. Viewers see only published Client facts and eligibility; Staff alone see indicative margin and Supplier cost. No public storefront or independent publish action for package-only services. Celebrity/Vineyard proofs and full required CI on the PR tip. Hand M4E a finding log and measured Staff friction against M4.0 **rules**. |
 
 **Exit:** Staff can publish an exact standalone Service Offer or a Package with its new package-only services once, see truthful time-labeled feasibility, pause/resume/retire without rewriting terms, and create an independent successor after a material source change. Viewers can read published facts without drafts or margin. M5 receives stable exact version/choice/price/term/source provenance and must still recheck transactionally. M4D creates no Client Trip, Hold, Allocation or posted money. M4D ends with immutable published offers and advisory availability.
+
+## Dated amendment — M4D.0a (2026-09-21)
+
+Authority: [M4D.0 — Narrow group departure builder](m4d0-narrow-group-departure-builder.md).
+
+- Publication readiness and publish commands **must reject** Service Offer versions whose definition `fulfillment_basis` is `undecided`.
+- Do not redesign manifests, Sales enabled, pause/resume/retire, live feasibility, or M3 offer-path disclosure in M4D.0.
+- The builder may link to shipped Publish UI when readiness says publish is the next useful action; it must not add a second publication path or publish UX.

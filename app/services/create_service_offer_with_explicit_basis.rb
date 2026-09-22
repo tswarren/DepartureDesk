@@ -14,7 +14,7 @@ class CreateServiceOfferWithExplicitBasis < AgencyCommand
   def call
     ensure_offer_actor!
     basis = @attributes[:fulfillment_basis].to_s
-    unless ServiceOfferDefinition::FULFILLMENT_BASES.include?(basis) && basis != "m3_backed"
+    unless EXPLICIT_FULFILLMENT_BASES.include?(basis)
       raise Error.new("Choose on request, Agency fulfilled, or externally fulfilled.", code: :invalid)
     end
     if @attributes[:supplier_arrangement_id].present? || @attributes[:capacity_pool_id].present?
