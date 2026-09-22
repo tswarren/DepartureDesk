@@ -19,7 +19,7 @@ class EvaluateDepartureBuilderReadiness
     # Declared per finding code — not derived from affected_area alone.
     OUTCOMES_BY_CODE = {
       no_components: %w[supplier pricing proposal publication],
-      no_package: %w[supplier pricing proposal publication],
+      no_package: %w[pricing proposal],
       empty_package: %w[supplier pricing proposal],
       undecided_fulfillment: %w[supplier],
       package_price_missing: %w[pricing proposal],

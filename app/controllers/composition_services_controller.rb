@@ -11,7 +11,9 @@ class CompositionServicesController < ApplicationController
   def new
     @package_decision = params[:package_decision].presence || "yes"
     @component = component_defaults
+    @editable_packages = editable_packages
     @selected_package = resolve_package_for_form
+    @package_selection_required = package_selection_required?
     @idempotency_key = SecureRandom.uuid
     @outcome = composition_outcome
   end
@@ -20,9 +22,18 @@ class CompositionServicesController < ApplicationController
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     @package_decision = params[:package_decision].to_s
     @component = component_params.to_h
+    @editable_packages = editable_packages
     @selected_package = resolve_package_for_form
+    @package_selection_required = package_selection_required?
     @return_intent = params[:return_intent].to_s
     @outcome = composition_outcome
+
+    if package_selection_required?
+      @component_error = "Choose which Package you are working on."
+      flash.now[:alert] = @component_error
+      render :new, status: :unprocessable_entity
+      return
+    end
 
     package_id = @selected_package&.id
     if @selected_package.present?
@@ -83,6 +94,13 @@ class CompositionServicesController < ApplicationController
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
     @component_error = error.message
+    @editable_packages = editable_packages
+    @selected_package = begin
+      resolve_package_for_form
+    rescue ActiveRecord::RecordNotFound
+      nil
+    end
+    @package_selection_required = package_selection_required?
     flash.now[:alert] = error.message
     render :new, status: :unprocessable_entity
   end
@@ -90,11 +108,19 @@ class CompositionServicesController < ApplicationController
   private
 
   def first_component?
-    @departure.service_offers.none? && @departure.packages.none?
+    @departure.service_offers.none? && editable_packages.none?
   end
 
   def create_main_package?
-    @package_decision == "yes" && @departure.packages.none?
+    @package_decision == "yes" && editable_packages.none?
+  end
+
+  def editable_packages
+    @editable_packages_list ||= @departure.packages.select { |package| package.editable_draft_version.present? }
+  end
+
+  def package_selection_required?
+    editable_packages.many? && @selected_package.nil? && !create_main_package?
   end
 
   def component_defaults
@@ -109,12 +135,18 @@ class CompositionServicesController < ApplicationController
   end
 
   def resolve_package_for_form
+    packages = editable_packages
     id = params[:package_id].presence
-    return if id.blank?
 
-    package = Current.agency.packages.find_by(id: id, departure_id: @departure.id)
-    raise ActiveRecord::RecordNotFound if package.nil?
+    if id.present?
+      package = packages.find { |candidate| candidate.id.to_s == id.to_s }
+      raise ActiveRecord::RecordNotFound if package.nil?
 
-    package
+      return package
+    end
+
+    return packages.first if packages.one?
+
+    nil
   end
 end

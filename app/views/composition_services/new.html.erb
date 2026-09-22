@@ -1,6 +1,7 @@
 <% content_for :title, "Add Service · #{@departure.name} · DepartureDesk" %>
 <% package_decision = @package_decision.presence || "yes" %>
-<% first = @departure.service_offers.none? && @departure.packages.none? %>
+<% editable = Array(@editable_packages) %>
+<% first = @departure.service_offers.none? && editable.none? %>
 <% ctx = { outcome: @outcome, package_id: @selected_package&.id }.compact %>
 
 <header class="dd-page-header">
@@ -51,7 +52,7 @@
             <option value="optional" <%= "selected" if params[:placement] == "optional" %>>Optional</option>
           </select>
         </div>
-      <% elsif @departure.packages.none? %>
+      <% elsif editable.none? %>
         <fieldset class="dd-field-group">
           <legend class="dd-label">Will most travelers buy these Services together as one main package?</legend>
           <label class="dd-inline-field">
@@ -81,7 +82,15 @@
           </div>
         </div>
       <% else %>
-        <p>Choose a Package from Services or Package & Client terms before adding an included Service, or save without a Package.</p>
+        <div class="dd-field-group" <%= "role=alert" if @package_selection_required %>>
+          <label class="dd-label" for="package_id">Package</label>
+          <select id="package_id" name="package_id" class="dd-field" required>
+            <option value="">Select a Package</option>
+            <% editable.each do |package| %>
+              <option value="<%= package.id %>"><%= package.name %></option>
+            <% end %>
+          </select>
+        </div>
         <div class="dd-field-group">
           <label class="dd-label" for="placement">Placement</label>
           <select id="placement" name="placement" class="dd-field">

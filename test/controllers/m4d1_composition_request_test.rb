@@ -319,6 +319,111 @@ class M4d1CompositionRequestTest < ActionDispatch::IntegrationTest
     assert @departure.service_offers.find_by!(name: "Standalone coach").editable_draft_version.owning_package_version_id.nil?
   end
 
+  test "no_package does not block Supplier or Publication for standalone Services" do
+    sign_in_as @staff
+    offer = CreateServiceOfferOutline.new(
+      agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { name: "Standalone coach", client_title: "Standalone coach" }
+    ).call.record
+    ResolveServiceOfferFulfillmentBasis.new(
+      agency: @agency, actor: @staff, offer: offer,
+      fulfillment_basis: "agency_fulfilled",
+      version_lock_version: offer.editable_draft_version.lock_version
+    ).call
+
+    readiness = EvaluateDepartureBuilderReadiness.new(agency: @agency, departure: @departure.reload).call
+    no_package = readiness.findings.find { |finding| finding.code == :no_package }
+    assert_not_nil no_package
+    refute no_package.applicable_to?("supplier")
+    refute no_package.applicable_to?("publication")
+    assert no_package.applicable_to?("pricing")
+    assert no_package.applicable_to?("proposal")
+
+    supplier = RecommendDepartureBuilderAction.new(
+      agency: @agency, departure: @departure, readiness: readiness, outcome: "supplier"
+    ).call
+    assert_nil supplier
+
+    ActivateDeparture.new(
+      agency: @agency, actor: @staff, departure: @departure, lock_version: @departure.lock_version
+    ).call
+    CreateServiceOfferPriceDefinition.new(
+      agency: @agency, actor: @staff, offer: offer.reload, idempotency_key: SecureRandom.uuid,
+      version_lock_version: offer.editable_draft_version.lock_version,
+      attributes: { pattern: "fixed_per_service", amount: "100.00" }
+    ).call
+
+    publication_readiness = EvaluateDepartureBuilderReadiness.new(agency: @agency, departure: @departure.reload).call
+    publication_no_package = publication_readiness.findings.find { |finding| finding.code == :no_package }
+    assert_not_nil publication_no_package
+    refute publication_no_package.applicable_to?("publication")
+
+    publication = RecommendDepartureBuilderAction.new(
+      agency: @agency, departure: @departure, readiness: publication_readiness, outcome: "publication"
+    ).call
+    if publication
+      refute_equal :no_package, publication.finding.code
+    end
+    standalone = EvaluateServiceOfferPublicationReadiness.new(
+      agency: @agency, version: offer.reload.editable_draft_version
+    ).call
+    assert standalone.ok
+  end
+
+  test "Add Service uses editable Package context rules" do
+    sign_in_as @staff
+    sole = CreateInitialPackageWithOutlineServiceOffer.new(
+      agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { package_name: "Sole", component_name: "Coach", placement: "included" }
+    ).call.record
+
+    get new_departure_composition_service_path(@departure)
+    assert_response :success
+    assert_select "input[name=package_id][value=?]", sole.id
+    assert_select "input[name=version_lock_version]", count: 1
+
+    assert_difference -> { sole.editable_draft_version.reload.inclusions.count }, 1 do
+      post departure_composition_services_path(@departure), params: {
+        idempotency_key: SecureRandom.uuid,
+        name: "Second coach",
+        placement: "included",
+        return_intent: "workspace"
+      }
+    end
+    assert_redirected_to services_departure_composition_path(@departure, package_id: sole.id)
+
+    CreatePackageDraft.new(
+      agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { name: "Second package" }
+    ).call
+    get new_departure_composition_service_path(@departure)
+    assert_response :success
+    assert_select "select#package_id", count: 1
+    assert_select "input[name=package_id]", count: 0
+
+    post departure_composition_services_path(@departure), params: {
+      idempotency_key: SecureRandom.uuid,
+      name: "Needs package",
+      placement: "included",
+      return_intent: "workspace"
+    }
+    assert_response :unprocessable_entity
+    assert_match "Choose which Package", response.body
+
+    abandoned = CreatePackageDraft.new(
+      agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { name: "Abandoned" }
+    ).call.record
+    AbandonPackageDraft.new(
+      agency: @agency, actor: @staff, package: abandoned,
+      package_lock_version: abandoned.lock_version,
+      version_lock_version: abandoned.editable_draft_version.lock_version,
+      reason: "Not used"
+    ).call
+    get new_departure_composition_service_path(@departure, package_id: abandoned.id)
+    assert_response :not_found
+  end
+
   test "recommendation uses applicability mapping and preview aliases to proposal" do
     CreateInitialPackageWithOutlineServiceOffer.new(
       agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
