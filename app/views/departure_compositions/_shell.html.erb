@@ -1,0 +1,40 @@
+<% ctx = composition_link_context %>
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Composition</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">
+      <%= departure_status_badge(@departure.status) %>
+      · <%= @departure.schedule_label %>
+      · <%= @departure.responsible_office ? office_choice_label(@departure.responsible_office) : "Office not set" %>
+      <% if @workspace.selected_package %>
+        · Package: <%= @workspace.selected_package.name %>
+      <% end %>
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Departure details", edit_departure_path(@departure), class: "dd-button dd-button--quiet" %>
+    <% if @departure.draft? %>
+      <%= link_to "Activate", departure_activation_path(@departure), class: "dd-button dd-button--quiet" %>
+    <% elsif @departure.active? %>
+      <%= link_to "Return to draft", edit_departure_return_to_draft_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% if @departure.eligible_to_depart?(at: Time.current) %>
+        <%= link_to "Mark departed", new_departure_departed_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% end %>
+    <% end %>
+    <%= link_to "Return to departures", departures_path, class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<nav aria-label="Composition areas" class="dd-inline-actions" style="margin-bottom: 1rem;">
+  <%= link_to "Overview", departure_composition_path(@departure, ctx),
+        class: "dd-button #{'dd-button--quiet' unless local_assigns[:active_area] == 'overview'}" %>
+  <%= link_to "Services", services_departure_composition_path(@departure, ctx),
+        class: "dd-button #{'dd-button--quiet' unless local_assigns[:active_area] == 'services'}" %>
+  <%= link_to "Suppliers", suppliers_departure_composition_path(@departure, ctx),
+        class: "dd-button #{'dd-button--quiet' unless local_assigns[:active_area] == 'suppliers'}" %>
+  <%= link_to "Package & Client terms", package_departure_composition_path(@departure, ctx),
+        class: "dd-button #{'dd-button--quiet' unless local_assigns[:active_area] == 'package'}" %>
+  <%= link_to "Review", review_departure_composition_path(@departure, ctx),
+        class: "dd-button #{'dd-button--quiet' unless local_assigns[:active_area] == 'review'}" %>
+</nav>

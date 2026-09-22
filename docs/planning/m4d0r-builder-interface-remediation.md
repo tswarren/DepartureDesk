@@ -1,11 +1,12 @@
 # M4D.0R — Builder interface remediation
 
-**Status:** Shipped 2026-09-21 on [PR #122](https://github.com/tswarren/DepartureDesk/pull/122). **Interim** Staff builder interaction and presentation on the M4D.0 domain base. Domain tables, commands, and publication reject-`undecided` remain governed by [M4D.0](m4d0-narrow-group-departure-builder.md). **Future** composition presentation is governed by Accepted [M4D.1](m4d1-departure-composition-workspace.md). Not authority for M4E or streamlined discovery backlog.
+**Status:** Shipped 2026-09-21 on [PR #122](https://github.com/tswarren/DepartureDesk/pull/122) as **interim** Staff builder interaction and presentation. **Primary Staff chrome superseded 2026-09-22** by shipped [M4D.1 Slice 1](m4d1-slice1-workspace-foundation.md) Composition. Domain tables, commands, and publication reject-`undecided` remain governed by [M4D.0](m4d0-narrow-group-departure-builder.md). Retain this document as historical interim presentation authority. Focused fulfillment/source/Cruise/Hotel helpers may still live under the builder controller namespace with Composition `return_to`. Not authority for M4E or streamlined discovery backlog.
 
 **Related authority and discovery:**
 
 - [M4D.0 — Narrow group departure builder](m4d0-narrow-group-departure-builder.md)
-- [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md) (Accepted; future presentation)
+- [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md) (Accepted; Slice 1 shipped)
+- [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) (shipped primary Staff chrome)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery only)
 - [M4 task flow and contract](m40-task-flow-and-contract.md)
 - [Interface contract](../ui/interface-contract.md)

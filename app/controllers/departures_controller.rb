@@ -29,7 +29,10 @@ class DeparturesController < ApplicationController
 
   def show
     if Current.agency_user.permitted?(:manage_departures) && (@departure.draft? || @departure.active?)
-      redirect_to departure_builder_path(@departure, request.query_parameters.slice("work_on", "package_id"))
+      redirect_to departure_composition_path(
+        @departure,
+        request.query_parameters.slice("outcome", "package_id").compact_blank
+      )
       return
     end
 
@@ -64,9 +67,9 @@ class DeparturesController < ApplicationController
       current_office: Current.office
     ).call
     if create_add_components?
-      redirect_to new_departure_builder_component_path(result.record), notice: "Departure concept saved."
+      redirect_to new_departure_composition_service_path(result.record), notice: "Departure concept saved."
     else
-      redirect_to departure_builder_path(result.record), notice: "Your departure concept is saved."
+      redirect_to departure_composition_path(result.record), notice: "Your departure concept is saved."
     end
   rescue AgencyCommand::Error => error
     @departure = departures_scope.new

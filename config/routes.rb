@@ -147,6 +147,13 @@ Rails.application.routes.draw do
     end
     resource :responsibility, only: %i[edit update], controller: "departure_responsibilities"
     resource :activation, only: :show, controller: "departure_activations"
+    resource :composition, only: :show, controller: "departure_compositions" do
+      get :services
+      get :suppliers
+      get :package
+      get :review
+      resources :services, only: %i[new create], controller: "composition_services"
+    end
     resource :builder, only: %i[show], controller: "departure_builders"
     namespace :builder do
       resources :components, only: %i[new create] do

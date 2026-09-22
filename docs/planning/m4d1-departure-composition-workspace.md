@@ -2,13 +2,13 @@
 
 **Status:** Accepted 2026-09-21. Implementation authority for the Departure Composition Workspace milestone and its sub-slices (1, 2A–2D, 3, 4, 5). Not authority for M4E, M5, source-document storage, proposal share, notifications, or money ledgers. Do not implement a sub-slice until that sub-slice’s accepted plan (or this parent’s named slice section used as exact authority) names the work.
 
-**Slice 1:** [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) is Accepted 2026-09-22 as the named implementation plan for the workspace foundation. It is **not shipped**. Do not implement Slice 1 until coding begins under that plan; later slices remain unauthorized.
+**Slice 1:** [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) is **Shipped 2026-09-22**. It provides the five-area Composition shell, Service Map, readiness mapping, and `/builder` compatibility redirect. Later slices remain unauthorized until named.
 
-**Interim UI:** Shipped [M4D.0R](m4d0r-builder-interface-remediation.md) remains the Staff builder until M4D.1 Slice 1 exits. This plan is **future** composition presentation authority. Demote or redirect `/departures/:id/builder` only when Slice 1 ships.
+**Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
 **Implementation baseline:** [`c64f973`](https://github.com/tswarren/DepartureDesk/commit/c64f973) (merge of [PR #122](https://github.com/tswarren/DepartureDesk/pull/122)). Production M4D.0/M4D.0R code last changed at [`893b7c3`](https://github.com/tswarren/DepartureDesk/commit/893b7c3); later PR #122 commits accept M4D.1 and update documentation (plus gate fixes) without changing the M4D.0 domain model.
 
-**Relationship to M4E:** [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md) remains the later offers acceptance-and-hardening gate. M4D.1 does not replace M4E. M4E must not close M4 without acknowledging how the Staff journey relates to M4D.1 (interim builder vs composition workspace).
+**Relationship to M4E:** [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md) remains the later offers acceptance-and-hardening gate. M4D.1 does not replace M4E. M4E must not close M4 without acknowledging how the Staff journey relates to M4D.1 (Composition workspace vs interim builder history).
 
 **Related authority and discovery:**
 
@@ -20,7 +20,7 @@
 - [M4D — Publication and live feasibility](m4d-publication-and-live-feasibility.md) (shipped)
 - [ADR 0014 — Client offers, publication, and Supplier-source compatibility](../adr/0014-client-offers-publication-and-supply-compatibility.md)
 - [M4D.0 — Narrow group departure builder](m4d0-narrow-group-departure-builder.md) (shipped domain)
-- [M4D.0R — Builder interface remediation](m4d0r-builder-interface-remediation.md) (shipped interim UI)
+- [M4D.0R — Builder interface remediation](m4d0r-builder-interface-remediation.md) (historical interim UI; primary chrome superseded by Slice 1 Composition)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery backlog only)
 - [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) · [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) · [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) · [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
 - [M3B](m3b-supplier-capacity.md) · [M3C](m3c-cost-terms-and-forecasts.md) · [M3D](m3d-activation-reservations-confirmations.md) · [M3D.7](m3d7-activated-definition-immutability.md) · [M3E](m3e-supplier-operational-control.md)
@@ -112,7 +112,7 @@ Shipped baseline this plan extends (not re-proves as invention):
 - bounded common-scenario derivation over shipped evaluators;
 - dedicated builder route as **interim** primary Staff surface for `manage_departures`.
 
-**Supersession:** M4D.1 is Accepted future Staff composition presentation authority. M4D.0R remains interim until Slice 1 exit criteria pass. Slice 1 must name retirement or redirect of `/departures/:id/builder`; do not claim that retirement in this Accept alone.
+**Supersession:** M4D.1 is Accepted Staff composition presentation authority. Slice 1 is shipped: Composition is primary Staff chrome and `/departures/:id/builder` is a compatibility redirect. M4D.0R remains historical interim presentation authority only.
 
 Implementing sub-slices must re-verify commands against the pinned SHA. If a required command or column is missing from the base, the sub-slice plan names it explicitly.
 
@@ -979,7 +979,9 @@ This document is the **M4D.1** milestone contract. Each implementation sub-slice
 
 ### Slice 1 — Workspace foundation
 
-Ship:
+**Shipped 2026-09-22.**
+
+Shipped:
 
 - five-area shell and routes;
 - persistent header;
@@ -989,7 +991,8 @@ Ship:
 - outcome-filtered Overview recommendation;
 - Review compiler using current facts;
 - explicit links/stubs into current Supplier planning and advanced price/Package editors;
-- return-to-context behavior.
+- return-to-context behavior;
+- `/departures/:id/builder` compatibility redirect.
 
 Do not claim typed Supplier entry or Client-term compilation has shipped.
 

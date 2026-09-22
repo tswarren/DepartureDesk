@@ -90,19 +90,21 @@ class ServiceOffersRequestTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "staff see client-offer CTAs on the departure" do
+  test "staff see composition CTAs on the departure" do
     sign_in_as @staff
     CreateInitialPackageWithOutlineServiceOffer.new(
       agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
       attributes: { package_name: "Main", component_name: "Coach", placement: "included" }
     ).call
     get departure_path(@departure)
-    assert_redirected_to departure_builder_path(@departure)
+    assert_redirected_to departure_composition_path(@departure)
     follow_redirect!
     assert_response :success
-    assert_select "a", text: "Client offers"
-    assert_select "a", text: "Packages"
-    assert_select "a", text: "Supplier planning"
+    assert_select "nav[aria-label='Composition areas']"
+    assert_select "a", text: "Services"
+    assert_select "a", text: "Package & Client terms"
+    assert_select "a", text: "Add Service"
+    assert_select "a", text: "Add Arrangement"
   end
 
   test "cross-agency offer routes are not found" do

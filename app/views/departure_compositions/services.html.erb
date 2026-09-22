@@ -1,0 +1,86 @@
+<% content_for :title, "Services · #{@departure.name} · DepartureDesk" %>
+<%= render "shell", active_area: "services" %>
+
+<article class="dd-panel" id="composition-services">
+  <div class="dd-panel-body dd-stack">
+    <div class="dd-inline-actions">
+      <%= link_to "Add Service", new_departure_composition_service_path(@departure, composition_link_context), class: "dd-button" %>
+    </div>
+
+    <% if @workspace.package_selection_required? || @workspace.package_selection_invalid? %>
+      <div class="dd-field-group" role="alert">
+        <p>Choose which Package you are working on.</p>
+        <form method="get" action="<%= services_departure_composition_path(@departure) %>" class="dd-inline-actions">
+          <% if @outcome.present? %><input type="hidden" name="outcome" value="<%= @outcome %>"><% end %>
+          <select id="composition-package" name="package_id" class="dd-field" required>
+            <option value="">Select a Package</option>
+            <% @workspace.editable_packages.each do |package| %>
+              <option value="<%= package.id %>"><%= package.name %></option>
+            <% end %>
+          </select>
+          <button type="submit" class="dd-button">Continue</button>
+        </form>
+      </div>
+    <% elsif @workspace.editable_packages.many? %>
+      <div class="dd-field-group">
+        <label class="dd-label" for="composition-package">Package</label>
+        <form method="get" action="<%= services_departure_composition_path(@departure) %>" class="dd-inline-actions">
+          <% if @outcome.present? %><input type="hidden" name="outcome" value="<%= @outcome %>"><% end %>
+          <select id="composition-package" name="package_id" class="dd-field" onchange="this.form.requestSubmit()">
+            <% @workspace.editable_packages.each do |package| %>
+              <option value="<%= package.id %>" <%= "selected" if @workspace.selected_package&.id == package.id %>><%= package.name %></option>
+            <% end %>
+          </select>
+        </form>
+      </div>
+    <% end %>
+
+    <section aria-labelledby="service-map-heading">
+      <h2 id="service-map-heading" class="dd-section-title">Service Map</h2>
+      <% if @component_cards.empty? %>
+        <p>No Services yet. Add a Service to outline what Clients will see.</p>
+      <% else %>
+        <div class="dd-table-wrap">
+          <table class="dd-table">
+            <thead>
+              <tr>
+                <th scope="col">Service</th>
+                <th scope="col">Timing</th>
+                <th scope="col">Placement</th>
+                <th scope="col">Supplier support</th>
+                <th scope="col">Client terms</th>
+                <th scope="col">Next action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @component_cards.each do |card| %>
+                <% action = @workspace.contextual_action_for(card) %>
+                <tr>
+                  <td><%= card.definition&.client_title || card.service_offer.name %></td>
+                  <td><%= card.timing_label %></td>
+                  <td><%= card.placement_label %></td>
+                  <td><%= card.fulfillment_label %></td>
+                  <td><%= card.price_label %></td>
+                  <td>
+                    <div class="dd-inline-actions">
+                      <%= link_to action.label, builder_contextual_path(action), class: "dd-button dd-button--quiet" %>
+                      <%= link_to "Open current Supplier planning",
+                            departure_arrangements_path(@departure),
+                            class: "dd-button dd-button--quiet" %>
+                      <%= link_to "Connect using advanced source selection",
+                            sources_departure_builder_component_path(
+                              @departure, card.service_offer,
+                              return_to: "services", outcome: @outcome, package_id: @package_id
+                            ),
+                            class: "dd-button dd-button--quiet" %>
+                    </div>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </section>
+  </div>
+</article>

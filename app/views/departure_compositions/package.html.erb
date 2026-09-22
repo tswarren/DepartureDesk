@@ -1,0 +1,71 @@
+<% content_for :title, "Package · #{@departure.name} · DepartureDesk" %>
+<%= render "shell", active_area: "package" %>
+
+<article class="dd-panel" id="composition-package">
+  <div class="dd-panel-body dd-stack">
+    <% if @workspace.package_selection_required? || @workspace.package_selection_invalid? %>
+      <div class="dd-field-group" role="alert">
+        <p>Choose which Package you are working on.</p>
+        <form method="get" action="<%= package_departure_composition_path(@departure) %>" class="dd-inline-actions">
+          <% if @outcome.present? %><input type="hidden" name="outcome" value="<%= @outcome %>"><% end %>
+          <select id="composition-package" name="package_id" class="dd-field" required>
+            <option value="">Select a Package</option>
+            <% @workspace.editable_packages.each do |package| %>
+              <option value="<%= package.id %>"><%= package.name %></option>
+            <% end %>
+          </select>
+          <button type="submit" class="dd-button">Continue</button>
+        </form>
+      </div>
+    <% elsif @editable_packages.empty? %>
+      <p>No Packages yet. Add a Service and create a main package, or open Packages.</p>
+      <nav class="dd-inline-actions">
+        <%= link_to "Add Service", new_departure_composition_service_path(@departure, composition_link_context), class: "dd-button" %>
+        <%= link_to "Packages", departure_packages_path(@departure), class: "dd-button dd-button--quiet" %>
+      </nav>
+    <% else %>
+      <% if @editable_packages.many? %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="composition-package">Package</label>
+          <form method="get" action="<%= package_departure_composition_path(@departure) %>" class="dd-inline-actions">
+            <% if @outcome.present? %><input type="hidden" name="outcome" value="<%= @outcome %>"><% end %>
+            <select id="composition-package" name="package_id" class="dd-field" onchange="this.form.requestSubmit()">
+              <% @editable_packages.each do |package| %>
+                <option value="<%= package.id %>" <%= "selected" if @selected_package&.id == package.id %>><%= package.name %></option>
+              <% end %>
+            </select>
+          </form>
+        </div>
+      <% end %>
+
+      <% if @selected_package %>
+        <% version = @selected_package.editable_draft_version %>
+        <section aria-labelledby="package-composition-heading">
+          <h2 id="package-composition-heading" class="dd-section-title"><%= @selected_package.name %></h2>
+          <% included = version.inclusions.count(&:included?) %>
+          <% optional = version.inclusions.count(&:optional?) %>
+          <p><%= pluralize(included, "included") %>, <%= pluralize(optional, "optional") %></p>
+          <p>
+            Client price:
+            <% if version.price_definition.present? %>
+              Set
+            <% else %>
+              Pending
+            <% end %>
+          </p>
+          <nav class="dd-inline-actions" aria-label="Package editors">
+            <%= link_to "Open Package", departure_package_path(@departure, @selected_package), class: "dd-button" %>
+            <%= link_to "Add Service", new_departure_composition_service_path(@departure, composition_link_context(package_id: @selected_package.id)), class: "dd-button dd-button--quiet" %>
+            <% if version.inclusions.size >= 2 %>
+              <%= link_to "Arrange itinerary",
+                    departure_builder_package_inclusions_reorder_path(@departure, @selected_package, return_to: "package", outcome: @outcome, package_id: @selected_package.id),
+                    class: "dd-button dd-button--quiet" %>
+            <% end %>
+            <%= link_to "Client offers", departure_service_offers_path(@departure), class: "dd-button dd-button--quiet" %>
+            <%= link_to "Packages", departure_packages_path(@departure), class: "dd-button dd-button--quiet" %>
+          </nav>
+        </section>
+      <% end %>
+    <% end %>
+  </div>
+</article>

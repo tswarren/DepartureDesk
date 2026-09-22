@@ -34,7 +34,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
       }
     end
     departure = @agency.departures.find_by!(name: "Harbor Week")
-    assert_redirected_to departure_builder_path(departure)
+    assert_redirected_to departure_composition_path(departure)
     assert_equal "draft", departure.status
 
     assert_difference -> { @agency.departures.count }, 1 do
@@ -53,7 +53,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
       }
     end
     components_departure = @agency.departures.find_by!(name: "Harbor Components")
-    assert_redirected_to new_departure_builder_component_path(components_departure)
+    assert_redirected_to new_departure_composition_service_path(components_departure)
     assert_equal "Late June 2027", components_departure.target_timing_text
     assert_nil components_departure.starts_on
 

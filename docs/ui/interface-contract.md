@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, shipped M2B departed/correction surfaces, shipped M2C proof of Departures search, isolation, keyboard, drawer, and viewport behavior, shipped M3A tentative Supplier planning structure, shipped M3B draft Item-card Supplier capacity configuration, shipped M3C Arrangement/Item cost workspaces plus derived forecast views, shipped [M3D.0](../planning/m3d0-planning-workspace-compression.md) guided workspace compression over those M3A–M3C surfaces, shipped [M3D](../planning/m3d-activation-reservations-confirmations.md) activation, Reservation, confirmation, and effective-capacity surfaces, shipped [M3D.8](../planning/m3d8-activation-reservation-product-quality.md) product-quality remediation for those M3D surfaces, shipped [M3E](../planning/m3e-supplier-operational-control.md) operational commitments, Deadlines, deposits/milestones, exposure, Needs attention, and Arrangement ending (through M3E.7b, including M3E.5R and M3D remediations), shipped [M3F](../planning/m3f-acceptance-and-hardening.md) acceptance/hardening including exclusive occupancy-profile editors, capacity-consequence remove/focus, and cost-review single-preload, and shipped [M4A](../planning/m4a-service-definitions-and-sources.md) unpublished Service Offer drafts in the Departure workspace, and shipped [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md) unpublished Client prices and anonymous preview, shipped [M4C](../planning/m4c-packages-choices-and-client-terms.md) unpublished Package drafts, shipped [M4D](../planning/m4d-publication-and-live-feasibility.md) Publish/Sales/live feasibility, shipped [M4D.0](../planning/m4d0-narrow-group-departure-builder.md) domain with interim [M4D.0R](../planning/m4d0r-builder-interface-remediation.md) Staff builder UI, and Accepted [M4D.1](../planning/m4d1-departure-composition-workspace.md) as future composition presentation authority (M4D.1 code not shipped). **M3 is complete.**
+**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, shipped M2B departed/correction surfaces, shipped M2C proof of Departures search, isolation, keyboard, drawer, and viewport behavior, shipped M3A tentative Supplier planning structure, shipped M3B draft Item-card Supplier capacity configuration, shipped M3C Arrangement/Item cost workspaces plus derived forecast views, shipped [M3D.0](../planning/m3d0-planning-workspace-compression.md) guided workspace compression over those M3A–M3C surfaces, shipped [M3D](../planning/m3d-activation-reservations-confirmations.md) activation, Reservation, confirmation, and effective-capacity surfaces, shipped [M3D.8](../planning/m3d8-activation-reservation-product-quality.md) product-quality remediation for those M3D surfaces, shipped [M3E](../planning/m3e-supplier-operational-control.md) operational commitments, Deadlines, deposits/milestones, exposure, Needs attention, and Arrangement ending (through M3E.7b, including M3E.5R and M3D remediations), shipped [M3F](../planning/m3f-acceptance-and-hardening.md) acceptance/hardening including exclusive occupancy-profile editors, capacity-consequence remove/focus, and cost-review single-preload, and shipped [M4A](../planning/m4a-service-definitions-and-sources.md) unpublished Service Offer drafts in the Departure workspace, and shipped [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md) unpublished Client prices and anonymous preview, shipped [M4C](../planning/m4c-packages-choices-and-client-terms.md) unpublished Package drafts, shipped [M4D](../planning/m4d-publication-and-live-feasibility.md) Publish/Sales/live feasibility, shipped [M4D.0](../planning/m4d0-narrow-group-departure-builder.md) domain with historical interim [M4D.0R](../planning/m4d0r-builder-interface-remediation.md) presentation, and shipped [M4D.1 Slice 1](../planning/m4d1-slice1-workspace-foundation.md) Composition primary Staff chrome under Accepted [M4D.1](../planning/m4d1-departure-composition-workspace.md). **M3 is complete.**
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -136,29 +136,22 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - If no Office is current, the UI remains usable and does not invent one.
 
 
-## Group departure builder (M4D.0 domain; interim M4D.0R presentation)
+## Departure Composition Workspace (M4D.1 Slice 1 shipped)
 
-Domain: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Presentation: [M4D.0R](../planning/m4d0r-builder-interface-remediation.md) (**interim** shipped UI). Future composition presentation: Accepted [M4D.1](../planning/m4d1-departure-composition-workspace.md) (not yet shipped).
+Authority: [M4D.1](../planning/m4d1-departure-composition-workspace.md); foundation: [M4D.1 Slice 1](../planning/m4d1-slice1-workspace-foundation.md) (shipped). Domain: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Historical interim presentation: [M4D.0R](../planning/m4d0r-builder-interface-remediation.md).
 
-- **Create group departure** uses two save intents: **Save and add components** (first-component screen) and **Save for later** (empty builder workspace). Timing mode toggles do not clear exploratory input until validated submit.
-- For `manage_departures`, the **builder is the primary working body** (dedicated builder route) until M4D.1 Slice 1 exits. Compact identity header only; full administrative definition, Supplier Arrangement tables, and Service Offer tables are secondary links—not peer panels on the default body.
-- Vertical order: recommended next action (action-labeled button), preparation-outcome choice (request/session only), Package summary, itinerary cards, collapsed four-group checklist, secondary operational links.
-- Each component card exposes **one** contextual action plus a Remaining setup disclosure. Do not show all fulfillment choices and both Cruise/Hotel helpers as peer buttons.
-- Supplier-supported path binds the **existing** outline Service Offer; it must not create a second offer from the collection from-source flow.
-- Cruise/Hotel helpers persist only Staff-submitted categories; opening a helper writes nothing.
-- Keyboard itinerary reorder in focused mode with full-page fallback; no drag-only path.
-- Staff-only internal Client preview labeled not shared with Clients; pending facts never display as zero.
-- Permission: `manage_departures` for all builder mutations and unpublished reads. Viewer behavior for unpublished drafts is unchanged; published Client facts remain Viewer-readable under M4D.
+- **Create group departure** uses two save intents: **Save and add components** (Add Service) and **Save for later** (Composition Overview empty-state chooser). Timing mode toggles do not clear exploratory input until validated submit.
+- For `manage_departures`, **Composition is the primary working body** for draft and active Departures (`/departures/:id/composition` and area routes). Compact identity header; five-area navigation (Overview, Services, Suppliers, Package & Client terms, Review). Full administrative definition remains via **Departure details**.
+- Query context only: `outcome`, validated `package_id`, closed `return_to`. No session-stored Package or outcome. Outcomes: Supplier readiness / Pricing review / Client proposal preparation / Publication readiness (`preview` aliases to `proposal` on old builder URLs only).
+- Services is the Service Map over draft `ServiceOffer` identities. Add Service reuses outline commands and returns to Services. No second outline aggregate; no inline expanded create in the map.
+- Focused fulfillment, source, Cruise, and Hotel helpers may remain under the builder controller namespace temporarily; they accept only closed Composition `return_to` and never return to the retired builder show page.
+- `GET /departures/:id/builder` is a compatibility redirect: `work_on=preview|supplier|pricing` maps to Review/Suppliers/Package with outcomes; invalid `package_id` is rejected.
+- Area summaries and recommendations are derived; Overview has no Ready badge. Pending facts never display as zero.
+- Permission: `manage_departures` for Composition and unpublished mutations. Viewer keeps ordinary Departure show; Composition returns not found. Departed/closed Departures use ordinary show; direct Composition redirects there.
 
-## Departure Composition Workspace (M4D.1 Accepted; not yet shipped)
+## Historical Group departure builder (M4D.0R interim)
 
-Authority: [M4D.1](../planning/m4d1-departure-composition-workspace.md). Do not treat this section as shipped UI.
-
-- Five persistent Departure areas: Overview, Services, Suppliers, Package & Client terms, Review. Freely navigable; not completion gates; not a linear wizard.
-- Service Map rows are draft `ServiceOffer` identities. No second outline/component aggregate.
-- Typed Supplier adapters and Client-term compilation are forthcoming sub-slices; until then, retain explicit links into current Supplier planning and advanced editors.
-- Demote or redirect the interim `/departures/:id/builder` surface only when M4D.1 Slice 1 exits.
-- Area status and recommendations remain derived; pending remains distinct from zero.
+Superseded as primary Staff chrome by Composition Slice 1. Retained for historical remediation proof and for temporary focused-editor paths that return into Composition.
 
 ## Forms and validation
 

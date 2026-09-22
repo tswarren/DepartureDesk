@@ -1,0 +1,73 @@
+<% content_for :title, "#{@departure.name} · Composition · DepartureDesk" %>
+<%= render "shell", active_area: "overview" %>
+
+<article class="dd-panel" id="composition-overview">
+  <div class="dd-panel-body dd-stack">
+    <% if @empty_composition %>
+      <section id="composition-starting-point" aria-labelledby="composition-starting-point-heading">
+        <h2 id="composition-starting-point-heading" class="dd-section-title">What are you starting with?</h2>
+        <p>Your departure concept is saved. Choose a starting point — nothing is stored until you add records.</p>
+        <nav aria-label="Starting point" class="dd-inline-actions">
+          <%= link_to "Supplier proposal", new_departure_arrangement_path(@departure), class: "dd-button" %>
+          <%= link_to "Client package idea", new_departure_composition_service_path(@departure, composition_link_context), class: "dd-button" %>
+          <%= link_to "Rough list", new_departure_composition_service_path(@departure, composition_link_context), class: "dd-button dd-button--quiet" %>
+          <%= link_to "Nothing else yet", departure_composition_path(@departure, composition_link_context), class: "dd-button dd-button--quiet" %>
+        </nav>
+      </section>
+    <% end %>
+
+    <section aria-labelledby="composition-outcome-heading">
+      <h2 id="composition-outcome-heading" class="dd-section-title">Preparation outcome</h2>
+      <nav aria-label="Preparation outcome" class="dd-inline-actions">
+        <% CompositionAccess::OUTCOMES.each do |outcome| %>
+          <%= link_to composition_outcome_label(outcome),
+                departure_composition_path(@departure, composition_link_context(outcome: outcome)),
+                class: "dd-button #{'dd-button--quiet' unless @outcome == outcome}" %>
+        <% end %>
+      </nav>
+      <% if @outcome.present? %>
+        <p role="status">Selected: <%= composition_outcome_label(@outcome) %></p>
+      <% end %>
+    </section>
+
+    <% if @recommendation %>
+      <section id="composition-next-action" aria-labelledby="composition-next-action-heading">
+        <h2 id="composition-next-action-heading" class="dd-section-title">Recommended next action</h2>
+        <p><%= @recommendation.label %></p>
+        <p><%= link_to @recommendation.button_label, builder_recommendation_path(@recommendation), class: "dd-button" %></p>
+      </section>
+    <% end %>
+
+    <% unresolved = @readiness.findings.select { |f| f.applicable_to?(@outcome) }.reject { |f| f.state.to_s == "waiting" } %>
+    <% if unresolved.any? %>
+      <section aria-labelledby="composition-unresolved-heading">
+        <h2 id="composition-unresolved-heading" class="dd-section-title">Unresolved facts</h2>
+        <ul>
+          <% unresolved.first(8).each do |finding| %>
+            <li><%= finding.message %></li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+
+    <section aria-labelledby="composition-areas-heading">
+      <h2 id="composition-areas-heading" class="dd-section-title">Work areas</h2>
+      <ul>
+        <% @area_summaries.each do |summary| %>
+          <li>
+            <%= link_to summary.label, composition_area_path(summary) %>
+            — <%= summary.status %>
+            <% if summary.finding_count.positive? %>
+              (<%= pluralize(summary.finding_count, "finding") %>)
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </section>
+
+    <nav aria-label="Composition actions" class="dd-inline-actions">
+      <%= link_to "Add Service", new_departure_composition_service_path(@departure, composition_link_context), class: "dd-button" %>
+      <%= link_to "Add Arrangement", new_departure_arrangement_path(@departure), class: "dd-button dd-button--quiet" %>
+    </nav>
+  </div>
+</article>

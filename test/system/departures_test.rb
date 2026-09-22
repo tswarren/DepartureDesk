@@ -1,7 +1,7 @@
 require "application_system_test_case"
 
 class DeparturesTest < ApplicationSystemTestCase
-  test "an administrator creates via builder, activates, and returns a departure to draft" do
+  test "an administrator creates via composition, activates, and returns a departure to draft" do
     sign_in_from_browser(agency_users(:harbor_admin))
 
     open_departures
@@ -19,7 +19,8 @@ class DeparturesTest < ApplicationSystemTestCase
     assert_text "Your departure concept is saved"
     assert_text "Harbor Reunion"
     assert_text "Draft"
-    assert_text "Add the first component"
+    assert_text "What are you starting with?"
+    assert_text "Add Service"
 
     click_link "Activate"
     assert_selector "h1.dd-page-title", exact_text: "Activate departure"
@@ -73,36 +74,41 @@ class DeparturesTest < ApplicationSystemTestCase
     assert_no_text "Activate"
   end
 
-  test "builder journey saves components without expanded create on workspace" do
+  test "composition journey saves services without expanded create on Services" do
     sign_in_from_browser(agency_users(:harbor_admin))
     open_departures
     click_link "New Departure"
-    fill_in "Departure name", with: "Builder Journey"
+    fill_in "Departure name", with: "Composition Journey"
     choose "Month, season, or possible dates"
     fill_in "Target timing", with: "Late June 2027"
     find("summary", text: "Advanced").click
     fill_in "Operating currency", with: "USD"
     click_button "Save and add components"
 
-    assert_selector "h1.dd-page-title", exact_text: "Add the first component"
-    fill_in "Component name", with: "Coach transfer"
+    assert_selector "h1.dd-page-title", exact_text: "Add the first Service"
+    fill_in "Service name", with: "Coach transfer"
     fill_in "When Clients see it", with: "Day 1 morning"
     choose "Yes, create the main package"
     fill_in "Package name", with: "Main trip"
-    click_button "Save component"
+    click_button "Save Service"
 
     assert_text "Coach transfer"
-    assert_text "Recommended next action"
+    assert_selector "nav[aria-label='Composition areas']"
+    assert_text "Service Map"
     assert_no_selector "input#component_name"
     assert_selector "a", text: "Decide how provided"
 
-    click_link "Add another component"
-    fill_in "Component name", with: "Optional dinner"
+    click_link "Add Service"
+    fill_in "Service name", with: "Optional dinner"
     select "Optional", from: "Placement"
-    click_button "Save component"
+    click_button "Save Service"
 
     assert_text "Optional dinner"
-    click_link "Pricing"
+    within "nav[aria-label='Composition areas']" do
+      click_link "Package & Client terms"
+    end
+    assert_text "Main trip"
+    click_link "Pricing review"
     assert_text "Pending"
     assert_no_text "$0.00"
   end
