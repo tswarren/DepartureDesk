@@ -1,6 +1,6 @@
 # M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory
 
-**Status:** Shipped 2026-09-22. Implementation authority for M4D.1 Slice 2A.1 only (parent Stop points A–B). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. This plan is the **sole shipped authority** for typed Cruise sailing and cabin inventory. Slice 2A.2 (Supplier rates and occupancy totals), later typed adapters, Client connection, and M4E remain unauthorized until named.
+**Status:** Shipped 2026-09-22. Implementation authority for M4D.1 Slice 2A.1 only (parent Stop points A–B). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. This plan is the **sole shipped authority** for typed Cruise sailing and cabin inventory. Later typed adapters (2B+), Client connection, and M4E remain unauthorized until named.
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially §§11–12, 19–20, and the Slice 2A.1 delivery contract in §21.
 
@@ -35,7 +35,7 @@ It does not yet prove the complete Smith pricing workflow.
 
 Acceptance of this plan authorized its named implementation work. Exit proof is green.
 
-**Shipping note (2026-09-22):** Composition Suppliers offers typed Cruise sailing and cabin-category inventory over generic M3. Resource definitions carry optional `supplier_code` and `maximum_occupancy`. Slice 2A.2 rates remain unauthorized.
+**Shipping note (2026-09-22):** Composition Suppliers offers typed Cruise sailing and cabin-category inventory over generic M3. Resource definitions carry optional `supplier_code` and `maximum_occupancy`. Slice 2A.2 rates are shipped separately.
 
 The shipping change set marks this slice shipped and updates the parent, planning index, roadmap, terminology, and `AGENTS.md`.
 
@@ -411,7 +411,7 @@ This slice does not implement:
 
 ## 14. Handoff to Slice 2A.2
 
-[M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) is **Accepted** (not yet shipped). It is the sole authority for Stop point C:
+[M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) is **shipped**. It is the sole authority for Stop point C:
 
 - one category’s Supplier rate schedule;
 - dollar or percentage expected commission with constrained shapes;

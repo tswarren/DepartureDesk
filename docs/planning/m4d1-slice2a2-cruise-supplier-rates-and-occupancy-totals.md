@@ -1,6 +1,6 @@
 # M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals
 
-**Status:** Accepted 2026-09-22. Sole implementation authority for M4D.1 Slice 2A.2 only (parent Stop point C). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 2B+, Client connection, and M4E remain unauthorized until named. This plan is the **only** implementation authority for typed Cruise Supplier rates and occupancy totals; do not create a companion implement-plan document.
+**Status:** Shipped 2026-09-22. Implementation authority for M4D.1 Slice 2A.2 only (parent Stop point C). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. This plan is the **sole shipped authority** for typed Cruise Supplier rates and occupancy totals. Slice 2B+, Client connection, and M4E remain unauthorized until named.
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially §§11–12, 19–20, and the Slice 2A.2 delivery contract in §21.
 
@@ -33,7 +33,9 @@ No Client, Service Offer, Package, booking, or payment records are created.
 
 ## 2. Authority and documentation timing
 
-Acceptance of this plan authorizes its named implementation work. Exit proof is green before the shipping change set marks the slice shipped.
+Acceptance of this plan authorized its named implementation work. Exit proof is green.
+
+**Shipping note (2026-09-22):** Composition Cruise workspace offers typed Supplier rates, occupancy planning, and Single/Double/Triple previews over generic M3C. Slice 2B deposits/deadlines remain unauthorized.
 
 The shipping change set marks this slice shipped and updates the parent, planning index, roadmap, terminology, and `AGENTS.md`.
 
@@ -455,7 +457,7 @@ The slice must prove:
 
 Slice 2A.2 is complete when Staff can enter and resume the accepted O1 Supplier terms, see truthful Single/Double/Triple gross illustrations, optionally record an explicit occupancy forecast, state ordinary dollar or percentage commission when known, and obtain commission/net figures when inputs support them—without seeing the generic cost graph or creating Client-side records.
 
-When exit proof is green, mark this slice shipped in the shipping change set. Until then, implementers treat this Accepted plan as the sole implementation authority for Slice 2A.2.
+Exit proof is green. This shipping change set marks Slice 2A.2 shipped.
 
 ## 14. Handoff to later slices
 
@@ -463,8 +465,6 @@ Slice 2B begins only when its own Accepted plan names deposits, deadlines, and a
 
 Client connection, choices, Client prices, Package scenarios, and Vineyard proof remain later M4D.1 slices.
 
-## 15. Next after Accept merge
+## 15. Handoff after ship
 
-1. Create branch `m4d1-slice2a2-rates` from the Accept merge tip.
-2. Implement only the commands, routes, UI sections, detectors, previews, and tests named here.
-3. Ship with a later PR that marks Status **Shipped** and updates boundary docs.
+Slice 2B begins only when its own Accepted plan names deposits, deadlines, and activation-safe editing.
