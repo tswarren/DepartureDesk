@@ -4,7 +4,7 @@
 
 **Slice 1:** [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) is **Shipped 2026-09-22**. It provides the five-area Composition shell, Service Map, readiness mapping, and `/builder` compatibility redirect.
 
-**Slice 2A.1:** [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) is **Accepted 2026-09-22** (unshipped). It is the sole implementation authority for typed Cruise Stop points A–B. Later slices remain unauthorized until named.
+**Slice 2A.1:** [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) is **Shipped 2026-09-22**. It is the sole shipped authority for typed Cruise Stop points A–B. Later slices remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -24,7 +24,7 @@
 - [M4D.0 — Narrow group departure builder](m4d0-narrow-group-departure-builder.md) (shipped domain)
 - [M4D.0R — Builder interface remediation](m4d0r-builder-interface-remediation.md) (historical interim UI; primary chrome superseded by Slice 1 Composition)
 - [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) (shipped)
-- [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (Accepted; unshipped; sole A–B authority)
+- [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (shipped; sole A–B authority)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery backlog only)
 - [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) · [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) · [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) · [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
 - [M3B](m3b-supplier-capacity.md) · [M3C](m3c-cost-terms-and-forecasts.md) · [M3D](m3d-activation-reservations-confirmations.md) · [M3D.7](m3d7-activated-definition-immutability.md) · [M3E](m3e-supplier-operational-control.md)
@@ -1009,9 +1009,9 @@ Do not claim typed Supplier entry or Client-term compilation has shipped.
 
 #### Slice 2A.1 — Cruise sailing and cabin inventory
 
-**Accepted 2026-09-22** (unshipped). Sole implementation authority: [M4D.1 Slice 2A.1](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md).
+**Shipped 2026-09-22.** Sole shipped authority: [M4D.1 Slice 2A.1](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md).
 
-Ship Stop points A–B only:
+Shipped Stop points A–B:
 
 - typed Cruise sailing adapter (`CreateCruiseSailingSetup` / `UpdateCruiseSailingSetup`);
 - cabin Resource/Pool adapter (`CreateCruiseCabinCategorySetup` / `UpdateCruiseCabinCategorySetup`);

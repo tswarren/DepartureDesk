@@ -24,6 +24,7 @@ class SupplierArrangementSuccessorsTest < ActiveSupport::TestCase
     create_capacity_terms
     create_cost_graph
     create_trigger
+    @graph[:resource_definition].update!(supplier_code: "O1", maximum_occupancy: 3)
     @first_activation = activate(@version).record
   end
 
@@ -41,6 +42,10 @@ class SupplierArrangementSuccessorsTest < ActiveSupport::TestCase
       assert_equal originals.count, copies.count, model.name
       assert_equal originals.pluck(:id).sort, copies.pluck(:copied_from_id).sort, model.name
     end
+
+    copied_resource = successor.supplier_resource_definitions.sole
+    assert_equal "O1", copied_resource.supplier_code
+    assert_equal 3, copied_resource.maximum_occupancy
 
     copied_item = successor.arrangement_item_definitions.sole
     copied_item.update!(name: "Revised independent item")

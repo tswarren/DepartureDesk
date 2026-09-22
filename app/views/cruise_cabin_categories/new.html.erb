@@ -1,0 +1,123 @@
+<% content_for :title, "Add cabin category · #{@supplier_arrangement.name} · DepartureDesk" %>
+<% resource = (@resource_attributes || {}).with_indifferent_access %>
+<% pool = (@pool_attributes || {}).with_indifferent_access %>
+<% inventory_mode = pool[:inventory_mode].presence || "block" %>
+<% numeric_inventory = %w[block allotment].include?(inventory_mode) %>
+<% override_selected = ActiveModel::Type::Boolean.new.cast(pool[:override]) %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Cruise setup</p>
+    <h1 class="dd-page-title">Add a cabin category</h1>
+    <p class="dd-page-description"><%= @supplier_arrangement.name %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
+      method: :post,
+      class: "dd-form dd-stack",
+      data: {
+        controller: "capacity-pool-fields",
+        capacity_pool_fields_inventory_mode_value: inventory_mode
+      } do %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+
+      <% if @form_error.present? %>
+        <div id="form-error-summary" class="dd-form-error-summary" role="alert" tabindex="-1">
+          <h2 class="dd-form-error-summary__title">Please fix the following:</h2>
+          <ul><li><%= @form_error %></li></ul>
+        </div>
+      <% end %>
+
+      <div class="dd-field-group">
+        <label class="dd-label" for="resource_supplier_code">Supplier category code</label>
+        <input id="resource_supplier_code" name="resource[supplier_code]" class="dd-field" maxlength="80"
+          value="<%= resource[:supplier_code] %>">
+        <p class="dd-field-hint">Optional. Example: O1.</p>
+      </div>
+
+      <div class="dd-field-group">
+        <label class="dd-label" for="resource_name">Category name</label>
+        <input id="resource_name" name="resource[name]" class="dd-field" required maxlength="160"
+          value="<%= resource[:name] %>">
+      </div>
+
+      <div class="dd-field-group">
+        <label class="dd-label" for="resource_maximum_occupancy">Maximum occupancy</label>
+        <input id="resource_maximum_occupancy" name="resource[maximum_occupancy]" type="number" min="1" step="1" class="dd-field"
+          value="<%= resource[:maximum_occupancy] %>">
+        <p class="dd-field-hint">Optional. How many people this category can sleep.</p>
+      </div>
+
+      <div class="dd-field-group">
+        <label class="dd-label" for="pool_inventory_mode">Inventory treatment</label>
+        <select id="pool_inventory_mode" name="pool[inventory_mode]" class="dd-field" required
+          data-capacity-pool-fields-target="inventoryMode"
+          data-action="change->capacity-pool-fields#updateInventoryMode">
+          <% cruise_inventory_mode_options.each do |label, value| %>
+            <option value="<%= value %>" <%= "selected" if inventory_mode == value %>><%= label %></option>
+          <% end %>
+        </select>
+      </div>
+
+      <div class="dd-field-group" data-capacity-pool-fields-target="quantityGroup" <%= "hidden" unless numeric_inventory %>>
+        <label class="dd-label" for="pool_proposed_opening_quantity">Cabin quantity</label>
+        <input id="pool_proposed_opening_quantity" name="pool[proposed_opening_quantity]" type="number" min="1" step="1" class="dd-field"
+          value="<%= pool[:proposed_opening_quantity] %>"
+          data-capacity-pool-fields-target="quantity">
+      </div>
+
+      <fieldset class="dd-field-group" data-capacity-pool-fields-target="evidenceGroup" <%= "hidden" if override_selected %>>
+        <legend class="dd-label">Supplier evidence</legend>
+        <p class="dd-field-hint">Optional. If any evidence field is entered, complete the full evidence set.</p>
+        <div class="dd-field-group">
+          <label class="dd-label" for="pool_evidence_kind">Evidence kind</label>
+          <select id="pool_evidence_kind" name="pool[evidence_kind]" class="dd-field">
+            <option value="">Evidence incomplete</option>
+            <% CapacityPoolDefinition::EVIDENCE_KINDS.each do |kind| %>
+              <option value="<%= kind %>" <%= "selected" if pool[:evidence_kind].to_s == kind %>><%= kind.tr("_", " ").titleize %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="pool_evidence_on">Evidence date</label>
+          <input id="pool_evidence_on" name="pool[evidence_on]" type="date" class="dd-field" value="<%= pool[:evidence_on] %>">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="pool_evidence_reference_note">Evidence note</label>
+          <textarea id="pool_evidence_reference_note" name="pool[evidence_reference_note]" class="dd-field" maxlength="500"><%= pool[:evidence_reference_note] %></textarea>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="pool_evidence_external_reference">External reference</label>
+          <input id="pool_evidence_external_reference" name="pool[evidence_external_reference]" class="dd-field" maxlength="160"
+            value="<%= pool[:evidence_external_reference] %>">
+        </div>
+      </fieldset>
+
+      <% if Current.agency_user.permitted?(:override_supplier_planning_terms) %>
+        <fieldset class="dd-field-group">
+          <legend class="dd-label">Administrator override</legend>
+          <label class="dd-inline-field">
+            <input type="checkbox" name="pool[override]" value="1" <%= "checked" if override_selected %>
+              data-capacity-pool-fields-target="overrideToggle"
+              data-action="change->capacity-pool-fields#updateOverride">
+            Use override instead of Supplier evidence
+          </label>
+          <div class="dd-field-group" data-capacity-pool-fields-target="overrideGroup" <%= "hidden" unless override_selected %>>
+            <label class="dd-label" for="pool_override_reason">Override reason</label>
+            <textarea id="pool_override_reason" name="pool[override_reason]" class="dd-field" maxlength="500"><%= pool[:override_reason] %></textarea>
+          </div>
+        </fieldset>
+      <% end %>
+
+      <div class="dd-form-actions">
+        <%= submit_tag "Save category", name: "commit", class: "dd-button" %>
+        <%= submit_tag "Save and add another", name: "commit", class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", departure_arrangement_cruise_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

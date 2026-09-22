@@ -6,19 +6,27 @@
     <section aria-labelledby="current-supplier-planning-heading">
       <h2 id="current-supplier-planning-heading" class="dd-section-title">Current Supplier planning</h2>
       <nav class="dd-inline-actions" aria-label="Supplier planning actions">
-        <%= link_to "Supplier planning", departure_arrangements_path(@departure), class: "dd-button" %>
+        <%= link_to "Set up a Cruise", new_departure_composition_suppliers_cruise_path(@departure), class: "dd-button" %>
         <%= link_to "Add Arrangement", new_departure_arrangement_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Supplier planning", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
       </nav>
 
       <% arrangements = Array(@arrangements) %>
+      <% cruise_shapes = @cruise_shapes || {} %>
       <% if arrangements.blank? %>
         <p>No Supplier Arrangements yet.</p>
       <% else %>
         <ul>
           <% arrangements.each do |arrangement| %>
+            <% shape = cruise_shapes[arrangement] %>
             <li>
-              <%= link_to arrangement.name.presence || "Arrangement", departure_arrangement_path(@departure, arrangement) %>
+              <%= arrangement.name.presence || "Arrangement" %>
               · <%= arrangement.status.to_s.humanize %>
+              <% if shape&.compatible? %>
+                · <%= link_to "Open Cruise setup", departure_arrangement_cruise_path(@departure, arrangement) %>
+              <% else %>
+                · <%= link_to "Open advanced Arrangement", departure_arrangement_path(@departure, arrangement) %>
+              <% end %>
             </li>
           <% end %>
         </ul>

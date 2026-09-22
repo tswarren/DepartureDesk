@@ -3019,9 +3019,9 @@ CREATE TABLE public.package_client_cancellation_tiers (
     summary character varying(2000),
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT package_client_cancellation_tiers_consequence_kind CHECK (((consequence_kind)::text = ANY ((ARRAY['fixed'::character varying, 'percent'::character varying, 'manual_review'::character varying])::text[]))),
+    CONSTRAINT package_client_cancellation_tiers_consequence_kind CHECK (((consequence_kind)::text = ANY (ARRAY[('fixed'::character varying)::text, ('percent'::character varying)::text, ('manual_review'::character varying)::text]))),
     CONSTRAINT package_client_cancellation_tiers_consequence_shape CHECK (((((consequence_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL) AND (summary IS NULL)) OR (((consequence_kind)::text = 'percent'::text) AND (percent_rate IS NOT NULL) AND ((percent_base)::text = 'selected_client_price'::text) AND (amount_minor_units IS NULL) AND (summary IS NULL)) OR (((consequence_kind)::text = 'manual_review'::text) AND (summary IS NOT NULL) AND (btrim((summary)::text) <> ''::text) AND (amount_minor_units IS NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL)))),
-    CONSTRAINT package_client_cancellation_tiers_threshold_kind CHECK (((threshold_kind)::text = ANY ((ARRAY['on_or_before_date'::character varying, 'days_before_departure'::character varying])::text[]))),
+    CONSTRAINT package_client_cancellation_tiers_threshold_kind CHECK (((threshold_kind)::text = ANY (ARRAY[('on_or_before_date'::character varying)::text, ('days_before_departure'::character varying)::text]))),
     CONSTRAINT package_client_cancellation_tiers_threshold_shape CHECK (((((threshold_kind)::text = 'on_or_before_date'::text) AND (threshold_on IS NOT NULL) AND (days_before IS NULL)) OR (((threshold_kind)::text = 'days_before_departure'::text) AND (days_before IS NOT NULL) AND (days_before >= 0) AND (threshold_on IS NULL))))
 );
 
@@ -3047,9 +3047,9 @@ CREATE TABLE public.package_client_payment_schedule_lines (
     percent_base character varying,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT package_client_payment_schedule_lines_amount_kind CHECK (((amount_kind)::text = ANY ((ARRAY['fixed'::character varying, 'percent'::character varying])::text[]))),
+    CONSTRAINT package_client_payment_schedule_lines_amount_kind CHECK (((amount_kind)::text = ANY (ARRAY[('fixed'::character varying)::text, ('percent'::character varying)::text]))),
     CONSTRAINT package_client_payment_schedule_lines_amount_shape CHECK (((((amount_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL)) OR (((amount_kind)::text = 'percent'::text) AND (percent_rate IS NOT NULL) AND ((percent_base)::text = 'selected_client_price'::text) AND (amount_minor_units IS NULL)))),
-    CONSTRAINT package_client_payment_schedule_lines_due_kind CHECK (((due_kind)::text = ANY ((ARRAY['fixed_on'::character varying, 'named_relative_milestone'::character varying])::text[]))),
+    CONSTRAINT package_client_payment_schedule_lines_due_kind CHECK (((due_kind)::text = ANY (ARRAY[('fixed_on'::character varying)::text, ('named_relative_milestone'::character varying)::text]))),
     CONSTRAINT package_client_payment_schedule_lines_due_shape CHECK (((((due_kind)::text = 'fixed_on'::text) AND (due_on IS NOT NULL) AND (milestone_name IS NULL)) OR (((due_kind)::text = 'named_relative_milestone'::text) AND (milestone_name IS NOT NULL) AND (due_on IS NULL))))
 );
 
@@ -3085,7 +3085,7 @@ CREATE TABLE public.package_client_stated_conditions (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT package_client_stated_conditions_body CHECK ((btrim((body)::text) <> ''::text)),
-    CONSTRAINT package_client_stated_conditions_kind CHECK (((condition_kind)::text = ANY ((ARRAY['eligibility'::character varying, 'acknowledgment'::character varying])::text[])))
+    CONSTRAINT package_client_stated_conditions_kind CHECK (((condition_kind)::text = ANY (ARRAY[('eligibility'::character varying)::text, ('acknowledgment'::character varying)::text])))
 );
 
 
@@ -3105,9 +3105,9 @@ CREATE TABLE public.package_client_term_resolutions (
     reason character varying(500) NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT package_client_term_resolutions_kind CHECK (((kind)::text = ANY ((ARRAY['payment'::character varying, 'cancellation'::character varying, 'stated_condition'::character varying])::text[]))),
+    CONSTRAINT package_client_term_resolutions_kind CHECK (((kind)::text = ANY (ARRAY[('payment'::character varying)::text, ('cancellation'::character varying)::text, ('stated_condition'::character varying)::text]))),
     CONSTRAINT package_client_term_resolutions_reason CHECK ((btrim((reason)::text) <> ''::text)),
-    CONSTRAINT package_client_term_resolutions_side CHECK (((governing_side)::text = ANY ((ARRAY['package'::character varying, 'service'::character varying])::text[])))
+    CONSTRAINT package_client_term_resolutions_side CHECK (((governing_side)::text = ANY (ARRAY[('package'::character varying)::text, ('service'::character varying)::text])))
 );
 
 
@@ -3128,8 +3128,8 @@ CREATE TABLE public.package_inclusions (
     "position" integer NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT package_inclusions_origin CHECK (((origin)::text = ANY ((ARRAY['inline_create'::character varying, 'adopted_draft'::character varying, 'published_reusable'::character varying])::text[]))),
-    CONSTRAINT package_inclusions_placement CHECK (((placement)::text = ANY ((ARRAY['included'::character varying, 'optional'::character varying])::text[]))),
+    CONSTRAINT package_inclusions_origin CHECK (((origin)::text = ANY (ARRAY[('inline_create'::character varying)::text, ('adopted_draft'::character varying)::text, ('published_reusable'::character varying)::text]))),
+    CONSTRAINT package_inclusions_placement CHECK (((placement)::text = ANY (ARRAY[('included'::character varying)::text, ('optional'::character varying)::text]))),
     CONSTRAINT package_inclusions_position CHECK (("position" > 0))
 );
 
@@ -3151,7 +3151,7 @@ CREATE TABLE public.package_price_component_bases (
     "position" integer NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT package_price_component_bases_direction CHECK (((direction)::text = ANY ((ARRAY['add'::character varying, 'subtract'::character varying])::text[]))),
+    CONSTRAINT package_price_component_bases_direction CHECK (((direction)::text = ANY (ARRAY[('add'::character varying)::text, ('subtract'::character varying)::text]))),
     CONSTRAINT package_price_component_bases_position CHECK (("position" > 0))
 );
 
@@ -3178,10 +3178,10 @@ CREATE TABLE public.package_price_components (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT package_price_components_amount CHECK (((amount_minor_units IS NULL) OR (amount_minor_units >= 0))),
-    CONSTRAINT package_price_components_kind CHECK (((calculation_kind)::text = ANY ((ARRAY['fixed'::character varying, 'unit_rate'::character varying, 'percentage'::character varying])::text[]))),
+    CONSTRAINT package_price_components_kind CHECK (((calculation_kind)::text = ANY (ARRAY[('fixed'::character varying)::text, ('unit_rate'::character varying)::text, ('percentage'::character varying)::text]))),
     CONSTRAINT package_price_components_position CHECK (("position" > 0)),
     CONSTRAINT package_price_components_rate CHECK (((rate IS NULL) OR (rate >= (0)::numeric))),
-    CONSTRAINT package_price_components_role CHECK (((client_role)::text = ANY ((ARRAY['base_price'::character varying, 'named_discount'::character varying, 'named_surcharge'::character varying, 'tax_fee'::character varying])::text[])))
+    CONSTRAINT package_price_components_role CHECK (((client_role)::text = ANY (ARRAY[('base_price'::character varying)::text, ('named_discount'::character varying)::text, ('named_surcharge'::character varying)::text, ('tax_fee'::character varying)::text])))
 );
 
 
@@ -3202,7 +3202,7 @@ CREATE TABLE public.package_price_definitions (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT package_price_definitions_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
-    CONSTRAINT package_price_definitions_mode CHECK (((mode)::text = ANY ((ARRAY['bundled'::character varying, 'service_sum'::character varying])::text[]))),
+    CONSTRAINT package_price_definitions_mode CHECK (((mode)::text = ANY (ARRAY[('bundled'::character varying)::text, ('service_sum'::character varying)::text]))),
     CONSTRAINT package_price_definitions_rounding CHECK (((rounding_mode)::text = 'half_up'::text)),
     CONSTRAINT package_price_definitions_supplement_mode CHECK ((((mode)::text = 'bundled'::text) OR (single_occupancy_supplement_rate IS NULL))),
     CONSTRAINT package_price_definitions_supplement_nonnegative CHECK (((single_occupancy_supplement_rate IS NULL) OR (single_occupancy_supplement_rate >= (0)::numeric)))
@@ -3297,12 +3297,12 @@ CREATE TABLE public.package_versions (
     CONSTRAINT package_versions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT package_versions_number_positive CHECK ((version_number > 0)),
     CONSTRAINT package_versions_reason CHECK (((abandoned_reason IS NULL) OR ((btrim((abandoned_reason)::text) <> ''::text) AND (char_length((abandoned_reason)::text) <= 500)))),
-    CONSTRAINT package_versions_sales_cap_basis CHECK (((sales_cap_basis IS NULL) OR ((sales_cap_basis)::text = ANY ((ARRAY['package_bookings'::character varying, 'persons'::character varying, 'resource_units'::character varying])::text[])))),
+    CONSTRAINT package_versions_sales_cap_basis CHECK (((sales_cap_basis IS NULL) OR ((sales_cap_basis)::text = ANY (ARRAY[('package_bookings'::character varying)::text, ('persons'::character varying)::text, ('resource_units'::character varying)::text])))),
     CONSTRAINT package_versions_sales_cap_pair CHECK (((sales_cap_quantity IS NULL) = (sales_cap_basis IS NULL))),
     CONSTRAINT package_versions_sales_cap_quantity CHECK (((sales_cap_quantity IS NULL) OR (sales_cap_quantity > 0))),
     CONSTRAINT package_versions_sales_window_order CHECK (((sales_starts_on IS NULL) OR (sales_starts_on <= sales_ends_on))),
     CONSTRAINT package_versions_sales_window_pair CHECK (((sales_starts_on IS NULL) = (sales_ends_on IS NULL))),
-    CONSTRAINT package_versions_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'abandoned'::character varying, 'published'::character varying, 'superseded'::character varying, 'retired'::character varying])::text[])))
+    CONSTRAINT package_versions_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('abandoned'::character varying)::text, ('published'::character varying)::text, ('superseded'::character varying)::text, ('retired'::character varying)::text])))
 );
 
 
@@ -3438,7 +3438,7 @@ CREATE TABLE public.service_offer_choice_option_source_activations (
     alternative_group_key character varying(80),
     created_at timestamp(6) with time zone CONSTRAINT service_offer_choice_option_source_activati_created_at_not_null NOT NULL,
     updated_at timestamp(6) with time zone CONSTRAINT service_offer_choice_option_source_activati_updated_at_not_null NOT NULL,
-    CONSTRAINT service_offer_choice_activations_kind CHECK (((activation_kind)::text = ANY ((ARRAY['binding'::character varying, 'alternative_group'::character varying, 'none'::character varying])::text[]))),
+    CONSTRAINT service_offer_choice_activations_kind CHECK (((activation_kind)::text = ANY (ARRAY[('binding'::character varying)::text, ('alternative_group'::character varying)::text, ('none'::character varying)::text]))),
     CONSTRAINT service_offer_choice_activations_shape CHECK (((((activation_kind)::text = 'binding'::text) AND (service_offer_source_binding_id IS NOT NULL) AND (alternative_group_key IS NULL)) OR (((activation_kind)::text = 'alternative_group'::text) AND (alternative_group_key IS NOT NULL) AND (service_offer_source_binding_id IS NULL)) OR (((activation_kind)::text = 'none'::text) AND (service_offer_source_binding_id IS NULL) AND (alternative_group_key IS NULL))))
 );
 
@@ -3502,9 +3502,9 @@ CREATE TABLE public.service_offer_client_cancellation_tiers (
     summary character varying(2000),
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT service_offer_client_cancellation_tiers_consequence_kind CHECK (((consequence_kind)::text = ANY ((ARRAY['fixed'::character varying, 'percent'::character varying, 'manual_review'::character varying])::text[]))),
+    CONSTRAINT service_offer_client_cancellation_tiers_consequence_kind CHECK (((consequence_kind)::text = ANY (ARRAY[('fixed'::character varying)::text, ('percent'::character varying)::text, ('manual_review'::character varying)::text]))),
     CONSTRAINT service_offer_client_cancellation_tiers_consequence_shape CHECK (((((consequence_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL) AND (summary IS NULL)) OR (((consequence_kind)::text = 'percent'::text) AND (percent_rate IS NOT NULL) AND ((percent_base)::text = 'selected_client_price'::text) AND (amount_minor_units IS NULL) AND (summary IS NULL)) OR (((consequence_kind)::text = 'manual_review'::text) AND (summary IS NOT NULL) AND (btrim((summary)::text) <> ''::text) AND (amount_minor_units IS NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL)))),
-    CONSTRAINT service_offer_client_cancellation_tiers_threshold_kind CHECK (((threshold_kind)::text = ANY ((ARRAY['on_or_before_date'::character varying, 'days_before_departure'::character varying])::text[]))),
+    CONSTRAINT service_offer_client_cancellation_tiers_threshold_kind CHECK (((threshold_kind)::text = ANY (ARRAY[('on_or_before_date'::character varying)::text, ('days_before_departure'::character varying)::text]))),
     CONSTRAINT service_offer_client_cancellation_tiers_threshold_shape CHECK (((((threshold_kind)::text = 'on_or_before_date'::text) AND (threshold_on IS NOT NULL) AND (days_before IS NULL)) OR (((threshold_kind)::text = 'days_before_departure'::text) AND (days_before IS NOT NULL) AND (days_before >= 0) AND (threshold_on IS NULL))))
 );
 
@@ -3530,9 +3530,9 @@ CREATE TABLE public.service_offer_client_payment_schedule_lines (
     percent_base character varying,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT service_offer_client_payment_schedule_lines_amount_kind CHECK (((amount_kind)::text = ANY ((ARRAY['fixed'::character varying, 'percent'::character varying])::text[]))),
+    CONSTRAINT service_offer_client_payment_schedule_lines_amount_kind CHECK (((amount_kind)::text = ANY (ARRAY[('fixed'::character varying)::text, ('percent'::character varying)::text]))),
     CONSTRAINT service_offer_client_payment_schedule_lines_amount_shape CHECK (((((amount_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND (percent_rate IS NULL) AND (percent_base IS NULL)) OR (((amount_kind)::text = 'percent'::text) AND (percent_rate IS NOT NULL) AND ((percent_base)::text = 'selected_client_price'::text) AND (amount_minor_units IS NULL)))),
-    CONSTRAINT service_offer_client_payment_schedule_lines_due_kind CHECK (((due_kind)::text = ANY ((ARRAY['fixed_on'::character varying, 'named_relative_milestone'::character varying])::text[]))),
+    CONSTRAINT service_offer_client_payment_schedule_lines_due_kind CHECK (((due_kind)::text = ANY (ARRAY[('fixed_on'::character varying)::text, ('named_relative_milestone'::character varying)::text]))),
     CONSTRAINT service_offer_client_payment_schedule_lines_due_shape CHECK (((((due_kind)::text = 'fixed_on'::text) AND (due_on IS NOT NULL) AND (milestone_name IS NULL)) OR (((due_kind)::text = 'named_relative_milestone'::text) AND (milestone_name IS NOT NULL) AND (due_on IS NULL))))
 );
 
@@ -3568,7 +3568,7 @@ CREATE TABLE public.service_offer_client_stated_conditions (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT service_offer_client_stated_conditions_body CHECK ((btrim((body)::text) <> ''::text)),
-    CONSTRAINT service_offer_client_stated_conditions_kind CHECK (((condition_kind)::text = ANY ((ARRAY['eligibility'::character varying, 'acknowledgment'::character varying])::text[])))
+    CONSTRAINT service_offer_client_stated_conditions_kind CHECK (((condition_kind)::text = ANY (ARRAY[('eligibility'::character varying)::text, ('acknowledgment'::character varying)::text])))
 );
 
 
@@ -3612,7 +3612,7 @@ CREATE TABLE public.service_offer_price_component_bases (
     "position" integer NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT service_offer_price_component_bases_direction CHECK (((direction)::text = ANY ((ARRAY['add'::character varying, 'subtract'::character varying])::text[]))),
+    CONSTRAINT service_offer_price_component_bases_direction CHECK (((direction)::text = ANY (ARRAY[('add'::character varying)::text, ('subtract'::character varying)::text]))),
     CONSTRAINT service_offer_price_component_bases_not_self CHECK ((service_offer_price_component_id <> base_component_id)),
     CONSTRAINT service_offer_price_component_bases_position_positive CHECK (("position" > 0))
 );
@@ -3642,15 +3642,15 @@ CREATE TABLE public.service_offer_price_components (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT service_offer_price_components_amount_nonnegative CHECK (((amount_minor_units IS NULL) OR (amount_minor_units >= 0))),
-    CONSTRAINT service_offer_price_components_calculation_kind CHECK (((calculation_kind)::text = ANY ((ARRAY['fixed'::character varying, 'unit_rate'::character varying, 'percentage'::character varying])::text[]))),
-    CONSTRAINT service_offer_price_components_client_role CHECK (((client_role)::text = ANY ((ARRAY['base_price'::character varying, 'named_discount'::character varying, 'named_surcharge'::character varying, 'tax_fee'::character varying])::text[]))),
+    CONSTRAINT service_offer_price_components_calculation_kind CHECK (((calculation_kind)::text = ANY (ARRAY[('fixed'::character varying)::text, ('unit_rate'::character varying)::text, ('percentage'::character varying)::text]))),
+    CONSTRAINT service_offer_price_components_client_role CHECK (((client_role)::text = ANY (ARRAY[('base_price'::character varying)::text, ('named_discount'::character varying)::text, ('named_surcharge'::character varying)::text, ('tax_fee'::character varying)::text]))),
     CONSTRAINT service_offer_price_components_included_role CHECK ((((percentage_treatment)::text IS DISTINCT FROM 'included'::text) OR ((client_role)::text = 'tax_fee'::text))),
-    CONSTRAINT service_offer_price_components_kind_shape CHECK (((((calculation_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND ((quantity_basis)::text = 'service_instances'::text) AND (rate IS NULL) AND (percentage_treatment IS NULL)) OR (((calculation_kind)::text = 'unit_rate'::text) AND (amount_minor_units IS NOT NULL) AND ((quantity_basis)::text = ANY ((ARRAY['persons'::character varying, 'resource_units'::character varying, 'nights'::character varying, 'person_nights'::character varying, 'resource_nights'::character varying, 'occupancy_positions'::character varying, 'occupancy_position_nights'::character varying])::text[])) AND (rate IS NULL) AND (percentage_treatment IS NULL)) OR (((calculation_kind)::text = 'percentage'::text) AND (rate IS NOT NULL) AND ((percentage_treatment)::text = ANY ((ARRAY['additive'::character varying, 'included'::character varying])::text[])) AND (amount_minor_units IS NULL) AND (quantity_basis IS NULL)))),
+    CONSTRAINT service_offer_price_components_kind_shape CHECK (((((calculation_kind)::text = 'fixed'::text) AND (amount_minor_units IS NOT NULL) AND ((quantity_basis)::text = 'service_instances'::text) AND (rate IS NULL) AND (percentage_treatment IS NULL)) OR (((calculation_kind)::text = 'unit_rate'::text) AND (amount_minor_units IS NOT NULL) AND ((quantity_basis)::text = ANY (ARRAY[('persons'::character varying)::text, ('resource_units'::character varying)::text, ('nights'::character varying)::text, ('person_nights'::character varying)::text, ('resource_nights'::character varying)::text, ('occupancy_positions'::character varying)::text, ('occupancy_position_nights'::character varying)::text])) AND (rate IS NULL) AND (percentage_treatment IS NULL)) OR (((calculation_kind)::text = 'percentage'::text) AND (rate IS NOT NULL) AND ((percentage_treatment)::text = ANY (ARRAY[('additive'::character varying)::text, ('included'::character varying)::text])) AND (amount_minor_units IS NULL) AND (quantity_basis IS NULL)))),
     CONSTRAINT service_offer_price_components_label CHECK (((btrim((label)::text) <> ''::text) AND (char_length((label)::text) <= 160))),
     CONSTRAINT service_offer_price_components_occupancy_position CHECK (((occupancy_position_key IS NULL) OR ((btrim((occupancy_position_key)::text) <> ''::text) AND (char_length((occupancy_position_key)::text) <= 40)))),
-    CONSTRAINT service_offer_price_components_percentage_treatment CHECK (((percentage_treatment IS NULL) OR ((percentage_treatment)::text = ANY ((ARRAY['additive'::character varying, 'included'::character varying])::text[])))),
+    CONSTRAINT service_offer_price_components_percentage_treatment CHECK (((percentage_treatment IS NULL) OR ((percentage_treatment)::text = ANY (ARRAY[('additive'::character varying)::text, ('included'::character varying)::text])))),
     CONSTRAINT service_offer_price_components_position_positive CHECK (("position" > 0)),
-    CONSTRAINT service_offer_price_components_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY ((ARRAY['service_instances'::character varying, 'persons'::character varying, 'resource_units'::character varying, 'nights'::character varying, 'person_nights'::character varying, 'resource_nights'::character varying, 'occupancy_positions'::character varying, 'occupancy_position_nights'::character varying])::text[])))),
+    CONSTRAINT service_offer_price_components_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY (ARRAY[('service_instances'::character varying)::text, ('persons'::character varying)::text, ('resource_units'::character varying)::text, ('nights'::character varying)::text, ('person_nights'::character varying)::text, ('resource_nights'::character varying)::text, ('occupancy_positions'::character varying)::text, ('occupancy_position_nights'::character varying)::text])))),
     CONSTRAINT service_offer_price_components_rate_category CHECK (((client_rate_category_key IS NULL) OR ((btrim((client_rate_category_key)::text) <> ''::text) AND (char_length((client_rate_category_key)::text) <= 80)))),
     CONSTRAINT service_offer_price_components_rate_nonnegative CHECK (((rate IS NULL) OR (rate >= (0)::numeric)))
 );
@@ -3673,7 +3673,7 @@ CREATE TABLE public.service_offer_price_definitions (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT service_offer_price_definitions_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
-    CONSTRAINT service_offer_price_definitions_mode CHECK (((mode)::text = ANY ((ARRAY['calculated'::character varying, 'zero_price'::character varying])::text[]))),
+    CONSTRAINT service_offer_price_definitions_mode CHECK (((mode)::text = ANY (ARRAY[('calculated'::character varying)::text, ('zero_price'::character varying)::text]))),
     CONSTRAINT service_offer_price_definitions_rounding_mode CHECK (((rounding_mode)::text = 'half_up'::text)),
     CONSTRAINT service_offer_price_definitions_zero_reason CHECK (((zero_price_reason IS NULL) OR ((btrim((zero_price_reason)::text) <> ''::text) AND (char_length((zero_price_reason)::text) <= 500)))),
     CONSTRAINT service_offer_price_definitions_zero_reason_pair CHECK ((((mode)::text = 'zero_price'::text) = (zero_price_reason IS NOT NULL)))
@@ -3733,17 +3733,17 @@ CREATE TABLE public.service_offer_source_bindings (
     client_description_provenance character varying DEFAULT 'none'::character varying CONSTRAINT service_offer_source_bindin_client_description_provena_not_null NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT service_offer_source_bindings_alternative_group CHECK (((((membership_kind)::text = ANY ((ARRAY['required'::character varying, 'choice_gated'::character varying])::text[])) AND (alternative_group_key IS NULL) AND (alternative_group_label IS NULL)) OR (((membership_kind)::text = 'alternative'::text) AND (alternative_group_key IS NOT NULL) AND (alternative_group_label IS NOT NULL)))),
-    CONSTRAINT service_offer_source_bindings_description_provenance CHECK (((client_description_provenance)::text = ANY ((ARRAY['source_description'::character varying, 'staff_entered'::character varying, 'none'::character varying])::text[]))),
+    CONSTRAINT service_offer_source_bindings_alternative_group CHECK (((((membership_kind)::text = ANY (ARRAY[('required'::character varying)::text, ('choice_gated'::character varying)::text])) AND (alternative_group_key IS NULL) AND (alternative_group_label IS NULL)) OR (((membership_kind)::text = 'alternative'::text) AND (alternative_group_key IS NOT NULL) AND (alternative_group_label IS NOT NULL)))),
+    CONSTRAINT service_offer_source_bindings_description_provenance CHECK (((client_description_provenance)::text = ANY (ARRAY[('source_description'::character varying)::text, ('staff_entered'::character varying)::text, ('none'::character varying)::text]))),
     CONSTRAINT service_offer_source_bindings_group_key CHECK (((alternative_group_key IS NULL) OR ((btrim((alternative_group_key)::text) <> ''::text) AND (char_length((alternative_group_key)::text) <= 80)))),
     CONSTRAINT service_offer_source_bindings_group_label CHECK (((alternative_group_label IS NULL) OR ((btrim((alternative_group_label)::text) <> ''::text) AND (char_length((alternative_group_label)::text) <= 160)))),
-    CONSTRAINT service_offer_source_bindings_membership_kind CHECK (((membership_kind)::text = ANY ((ARRAY['required'::character varying, 'alternative'::character varying, 'choice_gated'::character varying])::text[]))),
+    CONSTRAINT service_offer_source_bindings_membership_kind CHECK (((membership_kind)::text = ANY (ARRAY[('required'::character varying)::text, ('alternative'::character varying)::text, ('choice_gated'::character varying)::text]))),
     CONSTRAINT service_offer_source_bindings_occurrence_definition_pair CHECK (((service_occurrence_id IS NULL) = (service_occurrence_definition_id IS NULL))),
     CONSTRAINT service_offer_source_bindings_pool_definition_pair CHECK (((capacity_pool_id IS NULL) = (capacity_pool_definition_id IS NULL))),
     CONSTRAINT service_offer_source_bindings_pool_requires_occurrence_resource CHECK (((capacity_pool_id IS NULL) OR ((service_occurrence_id IS NOT NULL) AND (supplier_resource_id IS NOT NULL)))),
     CONSTRAINT service_offer_source_bindings_position CHECK (("position" > 0)),
     CONSTRAINT service_offer_source_bindings_resource_definition_pair CHECK (((supplier_resource_id IS NULL) = (supplier_resource_definition_id IS NULL))),
-    CONSTRAINT service_offer_source_bindings_title_provenance CHECK (((client_title_provenance)::text = ANY ((ARRAY['source_name'::character varying, 'staff_entered'::character varying])::text[])))
+    CONSTRAINT service_offer_source_bindings_title_provenance CHECK (((client_title_provenance)::text = ANY (ARRAY[('source_name'::character varying)::text, ('staff_entered'::character varying)::text])))
 );
 
 
@@ -3788,10 +3788,10 @@ CREATE TABLE public.service_offer_versions (
     CONSTRAINT service_offer_versions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT service_offer_versions_number_positive CHECK ((version_number > 0)),
     CONSTRAINT service_offer_versions_reason CHECK (((abandoned_reason IS NULL) OR ((btrim((abandoned_reason)::text) <> ''::text) AND (char_length((abandoned_reason)::text) <= 500)))),
-    CONSTRAINT service_offer_versions_sales_cap_basis CHECK (((sales_cap_basis IS NULL) OR ((sales_cap_basis)::text = ANY ((ARRAY['persons'::character varying, 'resource_units'::character varying])::text[])))),
+    CONSTRAINT service_offer_versions_sales_cap_basis CHECK (((sales_cap_basis IS NULL) OR ((sales_cap_basis)::text = ANY (ARRAY[('persons'::character varying)::text, ('resource_units'::character varying)::text])))),
     CONSTRAINT service_offer_versions_sales_cap_pair CHECK (((sales_cap_quantity IS NULL) = (sales_cap_basis IS NULL))),
     CONSTRAINT service_offer_versions_sales_cap_quantity CHECK (((sales_cap_quantity IS NULL) OR (sales_cap_quantity > 0))),
-    CONSTRAINT service_offer_versions_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'abandoned'::character varying, 'published'::character varying, 'superseded'::character varying, 'retired'::character varying])::text[])))
+    CONSTRAINT service_offer_versions_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('abandoned'::character varying)::text, ('published'::character varying)::text, ('superseded'::character varying)::text, ('retired'::character varying)::text])))
 );
 
 
@@ -3956,7 +3956,7 @@ CREATE TABLE public.supplier_arrangement_endings (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT arrangement_endings_other_proof CHECK ((((ending_reason)::text = 'other'::text) = ((ending_reason_label IS NOT NULL) AND (ending_reason_note IS NOT NULL)))),
-    CONSTRAINT arrangement_endings_reason_catalog CHECK (((ending_reason)::text = ANY ((ARRAY['planning_concluded'::character varying, 'agreement_expired'::character varying, 'not_proceeding_no_live_commitment'::character varying, 'replaced'::character varying, 'duplicate_or_entered_in_error'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT arrangement_endings_reason_catalog CHECK (((ending_reason)::text = ANY (ARRAY[('planning_concluded'::character varying)::text, ('agreement_expired'::character varying)::text, ('not_proceeding_no_live_commitment'::character varying)::text, ('replaced'::character varying)::text, ('duplicate_or_entered_in_error'::character varying)::text, ('other'::character varying)::text]))),
     CONSTRAINT arrangement_endings_replaced_proof CHECK ((((ending_reason)::text = 'replaced'::text) = (replacement_arrangement_id IS NOT NULL)))
 );
 
@@ -5566,10 +5566,14 @@ CREATE TABLE public.supplier_resource_definitions (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     copied_from_id uuid,
+    supplier_code character varying(80),
+    maximum_occupancy integer,
     CONSTRAINT supplier_resource_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
     CONSTRAINT supplier_resource_definitions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_resource_definitions_maximum_occupancy CHECK (((maximum_occupancy IS NULL) OR (maximum_occupancy > 0))),
     CONSTRAINT supplier_resource_definitions_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
-    CONSTRAINT supplier_resource_definitions_position_positive CHECK (("position" > 0))
+    CONSTRAINT supplier_resource_definitions_position_positive CHECK (("position" > 0)),
+    CONSTRAINT supplier_resource_definitions_supplier_code CHECK (((supplier_code IS NULL) OR ((btrim((supplier_code)::text) <> ''::text) AND (char_length((supplier_code)::text) <= 80))))
 );
 
 
@@ -8964,7 +8968,7 @@ CREATE UNIQUE INDEX index_package_inclusions_on_version_offer ON public.package_
 -- Name: index_package_inclusions_one_draft_service; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_package_inclusions_one_draft_service ON public.package_inclusions USING btree (service_offer_version_id) WHERE ((origin)::text = ANY ((ARRAY['inline_create'::character varying, 'adopted_draft'::character varying])::text[]));
+CREATE UNIQUE INDEX index_package_inclusions_one_draft_service ON public.package_inclusions USING btree (service_offer_version_id) WHERE ((origin)::text = ANY (ARRAY[('inline_create'::character varying)::text, ('adopted_draft'::character varying)::text]));
 
 
 --
@@ -11163,6 +11167,13 @@ CREATE INDEX supplier_cost_sources_copied_from_idx ON public.supplier_cost_sourc
 --
 
 CREATE UNIQUE INDEX supplier_cost_sources_lineage_owner_idx ON public.supplier_cost_sources USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_resource_defs_supplier_code_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX supplier_resource_defs_supplier_code_unique ON public.supplier_resource_definitions USING btree (supplier_arrangement_version_id, arrangement_item_id, lower(btrim((supplier_code)::text))) WHERE (supplier_code IS NOT NULL);
 
 
 --
@@ -16394,6 +16405,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922010000'),
 ('20260921120000'),
 ('20260921010000'),
 ('20260920230000'),

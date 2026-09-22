@@ -22,6 +22,9 @@ class UpdateSupplierResource < AgencyCommand
       definition = lock_resource_definition_for!(version, @definition)
       ensure_ordinary_planning_edit!(departure, arrangement, version, contractor)
       ensure_current_lock_version!(definition)
+      submitted = @attributes.to_h.with_indifferent_access
+      attrs[:supplier_code] = definition.supplier_code unless submitted.key?(:supplier_code)
+      attrs[:maximum_occupancy] = definition.maximum_occupancy unless submitted.key?(:maximum_occupancy)
       return Result.new(status: :noop, record: definition) if same_values?(definition, attrs)
 
       definition.update!(attrs)

@@ -153,6 +153,9 @@ Rails.application.routes.draw do
       get :package
       get :review
       resources :services, only: %i[new create], controller: "composition_services"
+      namespace :suppliers do
+        resources :cruises, only: %i[new create], controller: "/composition_cruises"
+      end
     end
     resource :builder, only: %i[show], controller: "departure_builders"
     namespace :builder do
@@ -177,6 +180,13 @@ Rails.application.routes.draw do
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
       collection do
         get :search
+      end
+      resource :cruise, only: :show, controller: "cruise_arrangements" do
+        post :successor
+        resource :sailing, only: %i[edit update], controller: "cruise_sailings"
+        resources :cabin_categories, path: "cabin-categories",
+          param: :resource_id, only: %i[new create edit update],
+          controller: "cruise_cabin_categories"
       end
       resource :activation,
         only: %i[show create],

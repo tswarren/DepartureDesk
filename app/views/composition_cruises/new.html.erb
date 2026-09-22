@@ -1,0 +1,124 @@
+<% content_for :title, "Set up a Cruise · #{@departure.name} · DepartureDesk" %>
+<% arrangement = (@arrangement_attributes || {}).with_indifferent_access %>
+<% item = (@item_attributes || {}).with_indifferent_access %>
+<% occurrence = (@occurrence_attributes || {}).with_indifferent_access %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= @departure.name %></p>
+    <h1 class="dd-page-title">Set up a Cruise</h1>
+    <p class="dd-page-description">
+      This creates one Supplier arrangement for the cruise and one scheduled sailing.
+      Cabin categories, rates, and deadlines can be added afterward.
+    </p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_composition_suppliers_cruises_path(@departure), method: :post, class: "dd-form dd-stack" do %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+
+      <% if @form_error.present? %>
+        <div id="form-error-summary" class="dd-form-error-summary" role="alert" tabindex="-1">
+          <h2 class="dd-form-error-summary__title">Please fix the following:</h2>
+          <ul><li><%= @form_error %></li></ul>
+        </div>
+      <% end %>
+
+      <section aria-labelledby="cruise-agreement-heading" class="dd-stack">
+        <h2 id="cruise-agreement-heading" class="dd-section-title">Supplier agreement</h2>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="arrangement_contracting_supplier_id">Contracting Supplier</label>
+          <select id="arrangement_contracting_supplier_id" name="arrangement[contracting_supplier_id]" class="dd-field" required>
+            <option value="">Choose a supplier</option>
+            <% active_supplier_options.each do |supplier| %>
+              <option value="<%= supplier.id %>" <%= "selected" if arrangement[:contracting_supplier_id].to_s == supplier.id.to_s %>>
+                <%= supplier_option_label(supplier) %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="arrangement_name">Arrangement name</label>
+          <input id="arrangement_name" name="arrangement[name]" class="dd-field" required maxlength="160"
+            value="<%= arrangement[:name] %>">
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="arrangement_supplier_contact_id">Supplier contact</label>
+          <select id="arrangement_supplier_contact_id" name="arrangement[supplier_contact_id]" class="dd-field">
+            <option value="">No arrangement contact</option>
+            <% Current.agency.supplier_contacts.includes(:supplier).where(status: "active").order(:last_name, :first_name).each do |contact| %>
+              <option value="<%= contact.id %>" <%= "selected" if arrangement[:supplier_contact_id].to_s == contact.id.to_s %>>
+                <%= supplier_contact_option_label(contact) %>
+              </option>
+            <% end %>
+          </select>
+          <p class="dd-field-hint">Optional. The contact must belong to the contracting Supplier.</p>
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="item_default_service_provider_id">Effective service provider</label>
+          <select id="item_default_service_provider_id" name="item[default_service_provider_id]" class="dd-field">
+            <option value="">Same as contracting Supplier</option>
+            <% active_supplier_options.each do |supplier| %>
+              <option value="<%= supplier.id %>" <%= "selected" if item[:default_service_provider_id].to_s == supplier.id.to_s %>>
+                <%= supplier_option_label(supplier) %>
+              </option>
+            <% end %>
+          </select>
+          <p class="dd-field-hint">Optional when different from the contractor.</p>
+        </div>
+      </section>
+
+      <section aria-labelledby="cruise-sailing-heading" class="dd-stack">
+        <h2 id="cruise-sailing-heading" class="dd-section-title">Sailing</h2>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="item_name">Ship</label>
+          <input id="item_name" name="item[name]" class="dd-field" required maxlength="160"
+            value="<%= item[:name] %>">
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="occurrence_name">Sailing or itinerary name</label>
+          <input id="occurrence_name" name="occurrence[name]" class="dd-field" required maxlength="160"
+            value="<%= occurrence[:name] %>">
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="occurrence_starts_on">Start date</label>
+          <input id="occurrence_starts_on" name="occurrence[starts_on]" type="date" class="dd-field" required
+            value="<%= occurrence[:starts_on] %>">
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="occurrence_ends_on">End date</label>
+          <input id="occurrence_ends_on" name="occurrence[ends_on]" type="date" class="dd-field" required
+            value="<%= occurrence[:ends_on] %>">
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="occurrence_time_zone">Time zone</label>
+          <select id="occurrence_time_zone" name="occurrence[time_zone]" class="dd-field" required>
+            <% iana_timezone_options.each do |zone| %>
+              <option value="<%= zone %>" <%= "selected" if occurrence[:time_zone].to_s == zone.to_s %>>
+                <%= zone %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+      </section>
+
+      <div class="dd-form-actions">
+        <%= submit_tag "Save sailing and continue", name: "commit", class: "dd-button" %>
+        <%= submit_tag "Save and return to Suppliers", name: "commit", class: "dd-button dd-button--quiet" %>
+        <%= link_to "Use advanced setup", new_departure_arrangement_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel", suppliers_departure_composition_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>
