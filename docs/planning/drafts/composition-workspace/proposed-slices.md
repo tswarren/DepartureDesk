@@ -10,13 +10,13 @@
 
 **Shipped remediation:** [M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix](../../m4d1-slice2a2r-cruise-supplier-rate-matrix.md) (**shipped**). Sole shipped authority for matrix compilation remediation of Stop point C.
 
-**Accepted interaction remediation:** [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](../../m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) (**Accepted**). Sole authority for interactive builder remediation; not yet shipped.
+**Shipped interaction remediation:** [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](../../m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) (**shipped**). Sole shipped authority for interactive builder remediation.
 
 Parent spine: [M4D.1](../../m4d1-departure-composition-workspace.md) §21.
 
 Do not implement any item below until that item has its own Accepted plan.
 
-Recommended refinement sequence after Accepted 2A.2R2:
+Recommended refinement sequence after shipped 2A.2R2:
 
 1. **Slice 2B — Deposits, deadlines, and activation-safe editing**
 2. **Slice 2C — Service connection, categories, and Client choices**

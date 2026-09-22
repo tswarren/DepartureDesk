@@ -10,7 +10,7 @@
 
 **Slice 2A.2R:** [M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix](m4d1-slice2a2r-cruise-supplier-rate-matrix.md) is **Shipped 2026-09-22**. It is the sole shipped authority for remediating Stop point C into a rate-profile matrix (M3C compilation and compatibility).
 
-**Slice 2A.2R2:** [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) is **Accepted 2026-09-22**. It is the sole implementation authority for the interactive matrix builder remediation (dynamic columns/rows, method-gated commission chrome, unsaved illustrations, browser acceptance). Later slices (2B+) remain unauthorized until named.
+**Slice 2A.2R2:** [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) is **Shipped 2026-09-22**. It is the sole shipped authority for the interactive matrix builder remediation (dynamic columns/rows, method-gated commission chrome, unsaved illustrations, browser acceptance). Later slices (2B+) remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -33,7 +33,7 @@
 - [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (shipped; sole A–B authority)
 - [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) (shipped historical fixed-form baseline)
 - [M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix](m4d1-slice2a2r-cruise-supplier-rate-matrix.md) (shipped; sole C matrix compilation authority)
-- [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) (Accepted; interactive builder remediation)
+- [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) (shipped; sole interactive builder chrome authority)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery backlog only)
 - [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) · [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) · [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) · [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
 - [M3B](m3b-supplier-capacity.md) · [M3C](m3c-cost-terms-and-forecasts.md) · [M3D](m3d-activation-reservations-confirmations.md) · [M3D.7](m3d7-activated-definition-immutability.md) · [M3E](m3e-supplier-operational-control.md)
@@ -495,7 +495,7 @@ The adapter may suggest Single/Double/Triple preview configurations from maximum
 
 **Shipped Slice 2A.2** remains the historical fixed-form baseline: [M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md).
 
-**Shipped Slice 2A.2R** is sole shipped authority for rate-matrix compilation: [M4D.1 Slice 2A.2R](m4d1-slice2a2r-cruise-supplier-rate-matrix.md). **Accepted Slice 2A.2R2** is sole authority for interactive builder chrome: [M4D.1 Slice 2A.2R2](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md).
+**Shipped Slice 2A.2R** is sole shipped authority for rate-matrix compilation: [M4D.1 Slice 2A.2R](m4d1-slice2a2r-cruise-supplier-rate-matrix.md). **Shipped Slice 2A.2R2** is sole shipped authority for interactive builder chrome: [M4D.1 Slice 2A.2R2](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md).
 
 Staff enter rates as a matrix of rate profiles × charge/credit rows, with shared or profile-specific commission, Every Traveler / Every Cabin families, Adult/Child categories with overlap resolution, custom rows, legacy projection and confirmed conversion, and the generic zero-amount readiness amendment.
 
@@ -1062,7 +1062,7 @@ Remediates Stop point C into:
 
 #### Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction
 
-**Accepted 2026-09-22.** Sole implementation authority: [M4D.1 Slice 2A.2R2](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md). Implementation base [`4a3bc3c`](https://github.com/tswarren/DepartureDesk/commit/4a3bc3c).
+**Shipped 2026-09-22.** Sole shipped authority: [M4D.1 Slice 2A.2R2](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md). Ship commit [`3f97e2e`](https://github.com/tswarren/DepartureDesk/commit/3f97e2e) (PR #141). Implementation base was [`4a3bc3c`](https://github.com/tswarren/DepartureDesk/commit/4a3bc3c).
 
 Remediates Staff chrome so the matrix is an interactive builder:
 

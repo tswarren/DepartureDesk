@@ -1,14 +1,14 @@
 # M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction
 
-**Status:** Accepted 2026-09-22. Implementation authority for Cruise Supplier rate-matrix **interaction** remediation only. Not yet shipped.
+**Status:** Shipped 2026-09-22. Sole shipped authority for Cruise Supplier rate-matrix **interaction** remediation (interactive builder over shipped 2A.2R compilation). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 2B+, Client connection, and M4E remain unauthorized until named.
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially §§11–12 and Stop point C.
 
 **Shipped matrix authority (retained):** [M4D.1 Slice 2A.2R](m4d1-slice2a2r-cruise-supplier-rate-matrix.md) remains sole shipped authority for M3C compilation, legacy projection/conversion, zero-amount readiness, and typed compatibility detection.
 
-**Implementation base:** [`4a3bc3c`](https://github.com/tswarren/DepartureDesk/commit/4a3bc3c) (ship of Slice 2A.2R, PR #139). Reconfirm CI on the branch tip before coding.
+**Ship commit:** [`3f97e2e`](https://github.com/tswarren/DepartureDesk/commit/3f97e2e) (merge of [PR #141](https://github.com/tswarren/DepartureDesk/pull/141)). Implementation base was [`4a3bc3c`](https://github.com/tswarren/DepartureDesk/commit/4a3bc3c) (ship of Slice 2A.2R, PR #139).
 
-**Layout guide (non-authority):** [Cruise Supplier Rate Workspace Wireframe](drafts/DepartureDesk-Cruise-Supplier-Rate-Workspace-Wireframe.md) suggests possible Staff layout for sections, commission panels, illustrations, and narrow-screen behavior. Use it when designing chrome. This Accepted interaction contract and the browser acceptance scenarios govern when wireframe and contract disagree. Do not treat the wireframe as a competing implementation plan.
+**Layout guide (non-authority):** [Cruise Supplier Rate Workspace Wireframe](drafts/DepartureDesk-Cruise-Supplier-Rate-Workspace-Wireframe.md) suggests possible Staff layout for sections, commission panels, illustrations, and narrow-screen behavior. Use it when designing chrome. This shipped interaction contract and the browser acceptance scenarios govern when wireframe and contract disagree. Do not treat the wireframe as a competing implementation plan.
 
 **Scope locked:** Interactive matrix builder, method-gated commission chrome, unsaved-matrix illustrations, and browser acceptance over the shipped 2A.2R compiler. Does not authorize Slice 2B+, Client Service connection, Client prices, Package scenarios, M4E, new Cruise-specific tables, or a second money engine.
 
@@ -211,7 +211,7 @@ These system scenarios are exit criteria. Programmatic flexible payloads alone d
 
 1. Accept this document and update indexes / `AGENTS.md` / parent pointers.
 2. Implement builder UI, bounded family, method-gated commission, unsaved preview, and the six system scenarios.
-3. Mark this slice **Shipped** when exit proof is green.
+3. Mark this slice **Shipped** when exit proof is green. **Done 2026-09-22** after PR #141 merge `3f97e2e`.
 
 ## 13. Non-goals
 
