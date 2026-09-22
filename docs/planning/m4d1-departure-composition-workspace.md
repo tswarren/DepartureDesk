@@ -2,7 +2,9 @@
 
 **Status:** Accepted 2026-09-21. Implementation authority for the Departure Composition Workspace milestone and its sub-slices (1, 2A–2D, 3, 4, 5). Not authority for M4E, M5, source-document storage, proposal share, notifications, or money ledgers. Do not implement a sub-slice until that sub-slice’s accepted plan (or this parent’s named slice section used as exact authority) names the work.
 
-**Slice 1:** [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) is **Shipped 2026-09-22**. It provides the five-area Composition shell, Service Map, readiness mapping, and `/builder` compatibility redirect. Later slices remain unauthorized until named.
+**Slice 1:** [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) is **Shipped 2026-09-22**. It provides the five-area Composition shell, Service Map, readiness mapping, and `/builder` compatibility redirect.
+
+**Slice 2A.1:** [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) is **Accepted 2026-09-22** (unshipped). It is the sole implementation authority for typed Cruise Stop points A–B. Later slices remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -21,6 +23,8 @@
 - [ADR 0014 — Client offers, publication, and Supplier-source compatibility](../adr/0014-client-offers-publication-and-supply-compatibility.md)
 - [M4D.0 — Narrow group departure builder](m4d0-narrow-group-departure-builder.md) (shipped domain)
 - [M4D.0R — Builder interface remediation](m4d0r-builder-interface-remediation.md) (historical interim UI; primary chrome superseded by Slice 1 Composition)
+- [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) (shipped)
+- [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (Accepted; unshipped; sole A–B authority)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery backlog only)
 - [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) · [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) · [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) · [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
 - [M3B](m3b-supplier-capacity.md) · [M3C](m3c-cost-terms-and-forecasts.md) · [M3D](m3d-activation-reservations-confirmations.md) · [M3D.7](m3d7-activated-definition-immutability.md) · [M3E](m3e-supplier-operational-control.md)
@@ -367,13 +371,11 @@ Initial fields:
 
 - Supplier;
 - Arrangement name;
-- optional contract/proposal reference;
-- source stage in presentation language;
 - typed setup selection: Cruise, Hotel, Transportation, Activity/Meal/Excursion, Mixed arrangement, or Advanced/general.
 
 The typed setup choice selects a form adapter. It does not persist a service subclass or constrain future Items.
 
-The source-stage answer is routing and explanatory context in the first implementation. It does not add a second Arrangement lifecycle enum. Draft/active/ended Arrangement state, estimate/contracted cost stage, confirmation, Reservations, and activation readiness retain their shipped meanings. If product later needs a durable proposal/held/contracted commercial stage distinct from those meanings, it requires a separately accepted contract.
+**Slice 2A.1 amendment (2026-09-22):** [Slice 2A.1](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) does **not** implement a source-stage prompt or an optional proposal/contract-document reference. Existing Arrangement state, cost-definition stage, activation, Reservation, and confirmation facts remain authoritative. The typed Cruise entry begins directly with the agreement and sailing facts. A durable proposal/held/contracted commercial stage distinct from those meanings, and a truthful generic supporting-material/reference contract, each require a separately accepted plan.
 
 ### 11.4 Common arrangement sections
 
@@ -440,11 +442,12 @@ Staff enter:
 
 - contracting Supplier;
 - Arrangement name;
-- optional group/contract reference;
 - cruise line and effective provider where different;
 - ship;
 - itinerary/sailing name;
 - start/end dates and time zone.
+
+**Slice 2A.1 amendment (2026-09-22):** Group number and contract-document reference are deferred. Group numbers belong on `SupplierIssuedIdentifier` with confirmation provenance via the Reservation/confirmation path. Proposal/contract-document reference awaits a separately accepted supporting-material contract. See [Slice 2A.1](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md).
 
 One section command creates or updates, as applicable:
 
@@ -467,7 +470,7 @@ For each category, Staff enter:
 - inventory mode;
 - blocked/held quantity when numeric;
 - measurement basis, fixed by the adapter to cabin/resource units;
-- Supplier evidence when required by the underlying Pool contract.
+- Supplier evidence under the shipped M3B contract (optional; complete evidence tuple required if any ordinary evidence field is entered; override semantics unchanged).
 
 One section command creates or updates:
 
@@ -914,19 +917,23 @@ The same Review interface accepts both occupancy-shaped and enrollment-shaped as
 
 ### 19.1 Section commands
 
-Each named durable stop point uses a dedicated command or a thin orchestration over existing dedicated commands. Command names may change during exact design, but responsibilities may not be collapsed into one mega-command.
+Each named durable stop point uses a dedicated command or a thin orchestration over existing dedicated commands. Responsibilities may not be collapsed into one mega-command.
 
-Proposed orchestration boundaries:
+**Accepted Slice 2A.1 command pairs** (sole authority: [Slice 2A.1](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md)):
 
-- `SaveCruiseSailingSetup`
-- `SaveCruiseCabinCategorySetup`
-- `SaveCruiseSupplierRateSchedule`
-- `SaveCruiseSupplierDeadlines`
-- `ConnectCruiseServiceOffer`
-- `SaveCruiseClientTermSchedule`
-- `CopySupplierComponentsToClientTerms`
+- `CreateCruiseSailingSetup` / `UpdateCruiseSailingSetup`
+- `CreateCruiseCabinCategorySetup` / `UpdateCruiseCabinCategorySetup`
 
-The accepted sub-slice plan must name exact commands, inputs, outputs, and whether each composes or replaces a shipped command.
+Typed composite commands may extract reusable generic `*_already_locked!` helpers from shipped commands. Public M3 commands retain their existing behavior. The typed command owns authorization, canonical locks, idempotency, one transaction, optimistic checks, version bump, and audit at its public boundary. It must not chain public multi-transaction commands for one section save.
+
+**Later Cruise stop-point boundaries** (names locked when the implementing slice is Accepted; former proposed `Save…` vocabulary superseded for A–B):
+
+- Supplier rate schedule (Stop C / Slice 2A.2)
+- Supplier deadlines / deposits (Stop D / Slice 2B)
+- `ConnectCruiseServiceOffer` (Stop E / Slice 2C)
+- Client term schedule and Supplier-to-Client copy (Stops F–G / Slice 2D)
+
+The accepted sub-slice plan must name exact commands, inputs, outputs, and whether each extracts already-locked helpers or composes shipped public commands.
 
 ### 19.2 Lock order
 
@@ -1000,18 +1007,29 @@ Do not claim typed Supplier entry or Client-term compilation has shipped.
 
 ### Slice 2 — Smith Cruise proof theme
 
-#### Slice 2A — Sailing, cabins, and Supplier rates
+#### Slice 2A.1 — Cruise sailing and cabin inventory
 
-Ship Stop points A–C:
+**Accepted 2026-09-22** (unshipped). Sole implementation authority: [M4D.1 Slice 2A.1](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md).
 
-- Cruise sailing adapter;
-- cabin Resource/Pool adapter;
+Ship Stop points A–B only:
+
+- typed Cruise sailing adapter (`CreateCruiseSailingSetup` / `UpdateCruiseSailingSetup`);
+- cabin Resource/Pool adapter (`CreateCruiseCabinCategorySetup` / `UpdateCruiseCabinCategorySetup`);
 - one-category-at-a-time save;
+- generic Resource-definition fields `supplier_code` and `maximum_occupancy`;
+- Open Cruise setup compatibility predicate and advanced fallback.
+
+**Exit:** O1 sailing and cabin inventory can be entered and resumed without exposing graph vocabulary or creating Client records. Rates remain unshipped.
+
+#### Slice 2A.2 — Supplier rates and occupancy totals
+
+Ship Stop point C (requires its own Accepted plan after 2A.1 ships or is otherwise authorized):
+
 - Cruise Supplier rate compiler;
 - occupancy profiles and Supplier total preview;
 - advanced-editor escape for unsupported terms.
 
-**Exit:** O1 sailing, inventory, and accepted Supplier terms can be entered and resumed without exposing graph vocabulary or creating Client records.
+**Exit:** Accepted Supplier terms for one cabin category can be entered and resumed without exposing graph vocabulary or creating Client records.
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 
