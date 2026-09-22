@@ -26,6 +26,7 @@ class M2DepartureAccessibilityTest < ApplicationSystemTestCase
     sign_in_from_browser(shell.directory.actor, password: M1DirectoryScenario::PASSWORD)
     visit new_departure_path
     wait_for_turbo
+    page.execute_script("document.querySelector('form.dd-form')?.setAttribute('novalidate','novalidate')")
     click_button "Save for later"
     wait_for_turbo
     assert_selector "#form-error-summary"

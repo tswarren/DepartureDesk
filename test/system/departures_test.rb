@@ -26,16 +26,20 @@ class DeparturesTest < ApplicationSystemTestCase
     click_button "Activate departure"
 
     assert_text "Departure activated."
-    assert_text "D-000001"
+    assert_text "Harbor Reunion"
     assert_text "Active"
+    click_link "Departure details"
+    assert_text "D-000001"
+    click_link "Cancel"
 
     click_link "Return to draft"
     fill_in "Reason", with: "Hold for a later sailing"
     click_button "Return to draft"
 
     assert_text "Departure returned to draft."
-    assert_text "D-000001"
     assert_text "Draft"
+    click_link "Departure details"
+    assert_text "D-000001"
   end
 
   test "invalid create preserves submitted values in the error summary" do
@@ -44,6 +48,7 @@ class DeparturesTest < ApplicationSystemTestCase
     click_link "New Departure"
     find("summary", text: "Advanced").click
     select "America/Chicago", from: "Time zone"
+    page.execute_script("document.querySelector('form.dd-form')?.setAttribute('novalidate','novalidate')")
     click_button "Save for later"
 
     assert_selector "#form-error-summary"

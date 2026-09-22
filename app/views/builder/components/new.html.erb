@@ -79,9 +79,9 @@
       <% end %>
 
       <div class="dd-form-actions">
-        <%= submit_tag "Save component", class: "dd-button", name: "return_intent", value: "workspace" %>
+        <%= button_tag "Save component", type: :submit, name: "return_intent", value: "workspace", class: "dd-button" %>
         <% unless first %>
-          <%= submit_tag "Save and add another", class: "dd-button dd-button--quiet", name: "return_intent", value: "add_another" %>
+          <%= button_tag "Save and add another", type: :submit, name: "return_intent", value: "add_another", class: "dd-button dd-button--quiet" %>
         <% end %>
         <%= link_to "Back to workspace", departure_builder_path(@departure), class: "dd-button dd-button--quiet" %>
       </div>
