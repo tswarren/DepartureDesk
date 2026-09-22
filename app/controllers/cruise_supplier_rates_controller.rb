@@ -328,16 +328,20 @@ class CruiseSupplierRatesController < ApplicationController
   end
 
   def cell_params
-    raw = params.fetch(:cells, {}).permit!.to_h
+    raw = params.fetch(:cells, {}).to_unsafe_h
     custom_keys = custom_row_params.map { |row| row[:key].to_s }
-    raw.select do |key, _|
+    allowed = {}
+    raw.each do |key, value|
       row_key, profile_key = CruiseSupplierRateSupport.parse_cell_key(key)
-      next false if row_key.nil? || profile_key.blank?
+      next if row_key.nil? || profile_key.blank?
 
       static_or_custom = CruiseSupplierRateSupport::STATIC_ROWS.key?(row_key) || custom_keys.include?(row_key.to_s)
       family = CruiseSupplierRateSupport.decode_profile_key(profile_key)[:family]
-      static_or_custom && CruiseSupplierRateSupport::PROFILE_FAMILIES.key?(family)
+      next unless static_or_custom && CruiseSupplierRateSupport::PROFILE_FAMILIES.key?(family)
+
+      allowed[key.to_s] = value
     end
+    allowed
   end
 
   def commission_params
