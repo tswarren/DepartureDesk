@@ -84,6 +84,7 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     assert_text "Additional · Child"
     fill_in "Base Fare · Additional · Child", with: "400.00"
     fill_in "Base Fare · Additional", with: "406.00"
+    choose "Scope the category-free profile to Adult"
     select "Not provided yet", from: "Commission method"
     click_on "Save Supplier terms"
 
@@ -127,8 +128,11 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     click_on "Save Supplier terms"
 
     assert_text "Supplier rates saved"
-    labels = current_definition.supplier_cost_participant_categories.pluck(:label)
-    refute_includes labels, "Teen"
+    projected = DetectCruiseSupplierRateShape.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource
+    ).call.projected_matrix
+    profile_keys = Array(projected[:profiles]).map(&:to_s)
+    refute profile_keys.any? { |key| key.include?("Teen") }
   end
 
   test "staff manages a custom credit row before save" do
@@ -142,7 +146,7 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     assert_text "Shipboard credit"
 
     find("button", text: "Make credit").click
-    assert_text "Supplier credit"
+    assert_button "Make charge"
     fill_in "Shipboard credit · First/Second", with: "75.00"
     # Credit reduces the advisory subtotal for First/Second once a charge exists
     fill_in "Base Fare · First/Second", with: "100.00"
@@ -260,17 +264,17 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
   end
 
   def remove_profile_named(name)
-    within "[data-cruise-rate-matrix-target='profileList']" do
-      row = find("tr", text: name)
-      if row.has_css?("button", text: "Remove")
-        # Confirm only when values present; empty profiles skip confirm
-        begin
-          accept_confirm(wait: 1) { row.click_button("Remove") }
-        rescue Capybara::ModalNotFound
-          row.click_button("Remove")
-        end
+    list = "[data-cruise-rate-matrix-target='profileList']"
+    return unless has_css?("#{list} tr", text: name, wait: 1)
+
+    begin
+      accept_confirm(wait: 1) do
+        within(list) { find("tr", text: name).click_button("Remove") }
       end
+    rescue Capybara::ModalNotFound
+      within(list) { find("tr", text: name).click_button("Remove") }
     end
+    assert_no_selector "#{list} tr", text: name, wait: 2
   end
 
   def current_definition
