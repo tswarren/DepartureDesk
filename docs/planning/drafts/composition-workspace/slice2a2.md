@@ -2,6 +2,8 @@
 
 **Status:** Promoted and shipped 2026-09-22. This stub is not implementation authority.
 
-Shipped authority: [m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md](../../m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md).
+Shipped historical baseline: [m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md](../../m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md).
+
+Matrix remediation authority: Accepted [m4d1-slice2a2r-cruise-supplier-rate-matrix.md](../../m4d1-slice2a2r-cruise-supplier-rate-matrix.md) (not yet shipped).
 
 Parent: [M4D.1 — Departure Composition Workspace](../../m4d1-departure-composition-workspace.md).
