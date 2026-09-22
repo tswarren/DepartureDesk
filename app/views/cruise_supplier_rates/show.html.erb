@@ -1,0 +1,208 @@
+<% content_for :title, "Supplier rates — #{@resource_definition.name}" %>
+
+<article class="dd-panel" id="cruise-supplier-rates">
+  <div class="dd-panel-body dd-stack">
+    <p>
+      <%= link_to "Back to Cruise workspace",
+            departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+            class: "dd-link" %>
+    </p>
+
+    <header class="dd-stack">
+      <h1 class="dd-page-title">Supplier rates</h1>
+      <p>
+        <%= @resource_definition.supplier_code.presence || @resource_definition.name %>
+        · Maximum occupancy <%= @resource_definition.maximum_occupancy.presence || "not set" %>
+        · <%= @departure.operating_currency %>
+      </p>
+    </header>
+
+    <% if @rate_shape.compatible? == false && !@rate_shape.empty? %>
+      <section class="dd-stack" aria-labelledby="advanced-rates-heading">
+        <h2 id="advanced-rates-heading" class="dd-section-title">Advanced Supplier terms</h2>
+        <p>These Supplier terms use a shape Cruise rates cannot reopen without discarding information.</p>
+        <% if @rate_shape.reasons.any? %>
+          <ul>
+            <% @rate_shape.reasons.each do |reason| %>
+              <li><%= reason %></li>
+            <% end %>
+          </ul>
+        <% end %>
+        <p><%= link_to "Open advanced cost planning", @advanced_path, class: "dd-button dd-button-secondary" %></p>
+      </section>
+    <% else %>
+      <% if @preview.illustrations.any? %>
+        <section class="dd-stack" aria-labelledby="rate-illustrations-heading">
+          <h2 id="rate-illustrations-heading" class="dd-section-title">Per-cabin illustrations</h2>
+          <ul>
+            <% @preview.illustrations.each do |row| %>
+              <li>
+                <%= row.label %>:
+                <% if row.gross_minor_units %>
+                  gross <%= Money.new(row.gross_minor_units, @preview.currency || @departure.operating_currency).format %>
+                <% else %>
+                  gross pending
+                <% end %>
+                · commission <%= row.commission_state %>
+                · net <%= row.net_state == "shown" && row.net_minor_units ? Money.new(row.net_minor_units, @preview.currency || @departure.operating_currency).format : row.net_state %>
+              </li>
+            <% end %>
+          </ul>
+        </section>
+      <% end %>
+
+      <section class="dd-stack" aria-labelledby="rate-terms-heading">
+        <h2 id="rate-terms-heading" class="dd-section-title">Supplier terms</h2>
+        <% if @editable %>
+          <%= form_with url: departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
+                method: (@rate_shape.empty? ? :post : :patch),
+                class: "dd-stack",
+                html: { id: "cruise-supplier-rate-terms" } do %>
+            <%= hidden_field_tag :version_lock_version, @cruise_shape.version.lock_version %>
+            <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+            <% unless @rate_shape.empty? %>
+              <%= hidden_field_tag :definition_lock_version, @rate_shape.definition.lock_version %>
+            <% end %>
+
+            <div class="dd-field">
+              <label class="dd-label" for="stage">Terms stage</label>
+              <%= select_tag :stage,
+                    options_for_select([ [ "Estimate", "estimate" ], [ "Contracted", "contracted" ] ], @form_stage),
+                    id: "stage", class: "dd-input" %>
+            </div>
+
+            <% CruiseSupplierRateSupport::CANONICAL_SPECS.each do |key, spec| %>
+              <div class="dd-field">
+                <label class="dd-label" for="terms_<%= key %>"><%= spec.fetch(:label) %></label>
+                <%= text_field_tag "terms[#{key}]", @form_terms[key] || @form_terms[key.to_s],
+                      id: "terms_#{key}", class: "dd-input", inputmode: "decimal" %>
+              </div>
+            <% end %>
+
+            <fieldset class="dd-stack">
+              <legend class="dd-label">How is expected commission stated?</legend>
+              <% method = (@form_commission[:method] || @form_commission["method"] || "not_provided").to_s %>
+              <label><%= radio_button_tag "commission[method]", "not_provided", method == "not_provided" %> Not provided yet</label>
+              <label><%= radio_button_tag "commission[method]", "dollar", method == "dollar" %> Dollar amount</label>
+              <label><%= radio_button_tag "commission[method]", "percentage", method == "percentage" %> Percentage</label>
+
+              <div class="dd-field">
+                <label class="dd-label" for="commission_amount">Commission amount</label>
+                <%= text_field_tag "commission[amount]", @form_commission[:amount] || @form_commission["amount"],
+                      id: "commission_amount", class: "dd-input", inputmode: "decimal" %>
+              </div>
+              <div class="dd-field">
+                <label class="dd-label" for="commission_applies_per">Applies per</label>
+                <%= select_tag "commission[applies_per]",
+                      options_for_select([ [ "Traveler", "traveler" ], [ "Cabin", "cabin" ] ],
+                        @form_commission[:applies_per] || @form_commission["applies_per"] || "traveler"),
+                      id: "commission_applies_per", class: "dd-input" %>
+              </div>
+              <div class="dd-field">
+                <label class="dd-label" for="commission_percentage">Commission percentage</label>
+                <%= text_field_tag "commission[percentage]", @form_commission[:percentage] || @form_commission["percentage"],
+                      id: "commission_percentage", class: "dd-input", inputmode: "decimal" %>
+              </div>
+
+              <fieldset class="dd-stack">
+                <legend class="dd-label">Commission is calculated on</legend>
+                <% selected_add = Array(@form_commission[:add_bases] || @form_commission["add_bases"]).map(&:to_s) %>
+                <% CruiseSupplierRateSupport::CHARGE_BASE_KEYS.each do |key| %>
+                  <% label = CruiseSupplierRateSupport::CANONICAL_SPECS.fetch(key).fetch(:label) %>
+                  <% suggested = CruiseSupplierRateSupport::SUGGESTED_PERCENTAGE_BASE_KEYS.include?(key) %>
+                  <label>
+                    <%= check_box_tag "commission[add_bases][]", key,
+                          selected_add.include?(key.to_s) || (method != "percentage" && selected_add.empty? && suggested),
+                          id: "commission_add_#{key}" %>
+                    <%= label %>
+                  </label>
+                <% end %>
+              </fieldset>
+              <fieldset class="dd-stack">
+                <legend class="dd-label">Subtract before calculating commission</legend>
+                <% selected_sub = Array(@form_commission[:subtract_bases] || @form_commission["subtract_bases"]).map(&:to_s) %>
+                <% CruiseSupplierRateSupport::DISCOUNT_BASE_KEYS.each do |key| %>
+                  <% label = CruiseSupplierRateSupport::CANONICAL_SPECS.fetch(key).fetch(:label) %>
+                  <label>
+                    <%= check_box_tag "commission[subtract_bases][]", key, selected_sub.include?(key.to_s),
+                          id: "commission_sub_#{key}" %>
+                    <%= label %>
+                  </label>
+                <% end %>
+              </fieldset>
+              <p class="dd-help">Review which charges commission applies to before saving. Saved selections are authoritative.</p>
+            </fieldset>
+
+            <div class="dd-field">
+              <label class="dd-label" for="notes">Notes</label>
+              <%= text_area_tag :notes, @form_notes, id: "notes", class: "dd-input", rows: 2 %>
+            </div>
+
+            <div class="dd-actions">
+              <%= submit_tag "Save Supplier terms", class: "dd-button dd-button-primary" %>
+              <%= link_to "Open advanced cost planning", @advanced_path, class: "dd-button dd-button-secondary" %>
+            </div>
+          <% end %>
+        <% else %>
+          <p>Create a successor draft to edit Supplier rates.</p>
+        <% end %>
+      </section>
+
+      <section class="dd-stack" aria-labelledby="occupancy-plan-heading">
+        <h2 id="occupancy-plan-heading" class="dd-section-title">Occupancy planning</h2>
+        <p>Per-cabin illustrations above do not assert an expected sales mix. Enter expected cabin counts only when known.</p>
+        <% if @editable %>
+          <%= form_with url: occupancy_plan_departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
+                method: :put, class: "dd-stack", html: { id: "cruise-occupancy-plan" } do %>
+            <%= hidden_field_tag :version_lock_version, @cruise_shape.version.lock_version %>
+            <% if @assumption %>
+              <%= hidden_field_tag :assumption_lock_version, @assumption.lock_version %>
+            <% end %>
+            <% CruiseSupplierRateSupport.occupancy_keys_for_maximum(@resource_definition.maximum_occupancy).each do |key| %>
+              <div class="dd-field">
+                <label class="dd-label" for="expected_<%= key %>">
+                  <%= CruiseSupplierRateSupport::OCCUPANCY_PROFILE_SPECS.fetch(key).fetch(:label) %> expected cabins
+                </label>
+                <%= number_field_tag "expected_cabins[#{key}]", @form_occupancy[key] || @form_occupancy[key.to_s],
+                      id: "expected_#{key}", class: "dd-input", min: 1 %>
+              </div>
+            <% end %>
+            <div class="dd-actions">
+              <%= submit_tag "Save occupancy planning", class: "dd-button dd-button-primary" %>
+            </div>
+          <% end %>
+        <% end %>
+      </section>
+
+      <section class="dd-stack" aria-labelledby="rate-ready-heading">
+        <h2 id="rate-ready-heading" class="dd-section-title">Review and mark forecast-ready</h2>
+        <p>
+          Blank Supplier terms will be treated as not applicable. Omitted expected commission will be treated as
+          no expected commission—not as an unknown value.
+        </p>
+        <% if @preview.pending_fields.any? && @rate_shape.definition&.working? %>
+          <p>Still pending: <%= @preview.pending_fields.map(&:humanize).to_sentence %>.</p>
+        <% end %>
+        <% if @editable && @rate_shape.definition&.working? %>
+          <%= form_with url: forecast_readiness_departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
+                method: :post, class: "dd-stack", html: { id: "cruise-rate-forecast-ready" } do %>
+            <%= hidden_field_tag :definition_lock_version, @rate_shape.definition.lock_version %>
+            <div class="dd-field">
+              <label class="dd-label" for="readiness_provenance">Readiness provenance</label>
+              <%= text_field_tag :readiness_provenance, nil, id: "readiness_provenance", class: "dd-input" %>
+            </div>
+            <label>
+              <%= check_box_tag :confirm_omissions, "1", false, id: "confirm_omissions" %>
+              I confirm blank terms are not applicable and omitted commission means no expected commission.
+            </label>
+            <div class="dd-actions">
+              <%= submit_tag "Mark terms forecast-ready", class: "dd-button dd-button-primary" %>
+            </div>
+          <% end %>
+        <% elsif @rate_shape.definition&.forecast_ready? %>
+          <p>These terms are forecast-ready.</p>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</article>

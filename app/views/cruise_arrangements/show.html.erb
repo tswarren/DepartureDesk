@@ -95,8 +95,60 @@
 
       <section aria-labelledby="cruise-rates-heading">
         <h2 id="cruise-rates-heading" class="dd-section-title">Supplier rates</h2>
-        <p>Rates are entered in advanced Supplier planning until the next Cruise slice.</p>
-        <p><%= link_to "Open advanced Supplier planning", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-link" %></p>
+        <% if @rate_rows.blank? %>
+          <p>Add a cabin category before entering Supplier rates.</p>
+        <% else %>
+          <ul>
+            <% @rate_rows.each do |row| %>
+              <% definition = row[:resource_definition] %>
+              <% summary = row[:summary] %>
+              <li>
+                <strong><%= definition.supplier_code.presence || definition.name %></strong>
+                — <%= definition.name %>
+                <% if summary[:stage] %>
+                  · <%= summary[:stage].humanize %>
+                <% end %>
+                <% if summary[:status] %>
+                  · <%= summary[:status].tr("_", " ") %>
+                <% end %>
+                <% if row[:preview]&.illustrations&.any? %>
+                  ·
+                  <%= row[:preview].illustrations.filter_map { |illustration|
+                        next unless illustration.gross_minor_units
+
+                        "#{illustration.label.split.first}: #{Money.new(illustration.gross_minor_units, row[:preview].currency).format}"
+                      }.join(", ") %>
+                <% end %>
+                ·
+                <% case summary[:action]
+                   when "add" %>
+                  <%= link_to "Add Supplier rates",
+                        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row[:resource]),
+                        class: "dd-link" %>
+                <% when "continue" %>
+                  <%= link_to "Continue Supplier rates",
+                        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row[:resource]),
+                        class: "dd-link" %>
+                <% when "review" %>
+                  <%= link_to "Review Supplier rates",
+                        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row[:resource]),
+                        class: "dd-link" %>
+                <% when "advanced" %>
+                  <%= link_to "Open advanced cost planning",
+                        departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @shape.item),
+                        class: "dd-link" %>
+                <% else %>
+                  <%= link_to "Open Supplier rates",
+                        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row[:resource]),
+                        class: "dd-link" %>
+                <% end %>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+        <% if @can_create_successor %>
+          <p>Activated terms need a successor draft before rate edits.</p>
+        <% end %>
       </section>
 
       <section aria-labelledby="cruise-deposits-heading">

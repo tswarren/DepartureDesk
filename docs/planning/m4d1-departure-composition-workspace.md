@@ -6,7 +6,7 @@
 
 **Slice 2A.1:** [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) is **Shipped 2026-09-22**. It is the sole shipped authority for typed Cruise Stop points A–B.
 
-**Slice 2A.2:** [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) is **Accepted 2026-09-22**. It is the sole implementation authority for typed Cruise Stop point C (not yet shipped). Later slices remain unauthorized until named.
+**Slice 2A.2:** [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) is **Shipped 2026-09-22**. It is the sole shipped authority for typed Cruise Stop point C. Later slices remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -27,7 +27,7 @@
 - [M4D.0R — Builder interface remediation](m4d0r-builder-interface-remediation.md) (historical interim UI; primary chrome superseded by Slice 1 Composition)
 - [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) (shipped)
 - [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (shipped; sole A–B authority)
-- [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) (Accepted; sole C authority; not yet shipped)
+- [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) (shipped; sole C authority)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery backlog only)
 - [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) · [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) · [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) · [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
 - [M3B](m3b-supplier-capacity.md) · [M3C](m3c-cost-terms-and-forecasts.md) · [M3D](m3d-activation-reservations-confirmations.md) · [M3D.7](m3d7-activated-definition-immutability.md) · [M3E](m3e-supplier-operational-control.md)
@@ -1036,7 +1036,7 @@ Shipped Stop points A–B:
 
 #### Slice 2A.2 — Supplier rates and occupancy totals
 
-**Accepted 2026-09-22.** Sole implementation authority: [M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md). Not yet shipped.
+**Shipped 2026-09-22.** Sole shipped authority: [M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md).
 
 Accepted Stop point C:
 

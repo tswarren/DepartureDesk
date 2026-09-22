@@ -186,7 +186,13 @@ Rails.application.routes.draw do
         resource :sailing, only: %i[edit update], controller: "cruise_sailings"
         resources :cabin_categories, path: "cabin-categories",
           param: :resource_id, only: %i[new create edit update],
-          controller: "cruise_cabin_categories"
+          controller: "cruise_cabin_categories" do
+          resource :supplier_rates, path: "supplier-rates", only: %i[show create update],
+            controller: "cruise_supplier_rates" do
+            put :occupancy_plan
+            post :forecast_readiness
+          end
+        end
       end
       resource :activation,
         only: %i[show create],
