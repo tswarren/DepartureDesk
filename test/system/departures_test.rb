@@ -52,6 +52,7 @@ class DeparturesTest < ApplicationSystemTestCase
     click_button "Save for later"
 
     assert_selector "#form-error-summary"
+    find("summary", text: "Advanced").click
     assert_field "Time zone", with: "America/Chicago"
   end
 
