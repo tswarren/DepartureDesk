@@ -1,6 +1,6 @@
 # M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix Remediation
 
-**Status:** Accepted 2026-09-22. Sole implementation authority for remediating the shipped typed Cruise Supplier-rate experience (parent Stop point C matrix). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. [Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) remains the historical shipped baseline for the fixed-form adapter; this plan **supersedes that fixed form for all new typed-rate implementation**. Slice 2B+, Client connection, and M4E remain unauthorized until named. This plan is the **only** implementation authority for 2A.2R; do not create a companion implement-plan document.
+**Status:** Shipped 2026-09-22. Sole shipped authority for Cruise Supplier rate-matrix remediation (parent Stop point C). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. [Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) remains the historical fixed-form baseline. Slice 2B+, Client connection, and M4E remain unauthorized until named.
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially §§11–12, 19–20, and §21.
 
@@ -34,7 +34,7 @@ No Client, Service Offer, Package, booking, or payment records are created. No C
 
 ## 2. Authority and documentation timing
 
-Acceptance of this plan authorizes its named implementation work. Exit proof is green before the shipping change set marks the slice shipped.
+**Shipping note (2026-09-22):** Composition Cruise Supplier rates use the rate-profile matrix over generic M3C (R-A matrix core + R-B flexible proof). Slice 2B deposits/deadlines remain unauthorized.
 
 The shipping change set marks this slice shipped and updates the parent, planning index, roadmap, terminology, and `AGENTS.md`.
 
@@ -392,7 +392,7 @@ Profile-specific dollar commission **is** in scope for the typed matrix (unlike 
 7. Persist forecast occupancy separately and clear readiness on occupancy edits.
 8. Escape to advanced planning without data loss when the graph is unsupported.
 
-When exit proof is green, mark this slice shipped. Until then, this Accepted plan is sole implementation authority for 2A.2R.
+When exit proof is green, mark this slice shipped. **Exit proof is green.** This shipping change set marks Slice 2A.2R shipped.
 
 ## 19. Handoff
 
