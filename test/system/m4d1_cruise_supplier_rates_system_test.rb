@@ -3,6 +3,8 @@
 require "application_system_test_case"
 
 class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
+  include CapacityGraphHelper
+
   setup do
     @agency = agencies(:harbor)
     @staff = agency_users(:harbor_staff)
@@ -55,7 +57,7 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
   end
 
   test "staff enters supplier rates without cost graph vocabulary" do
-    sign_in_as @staff
+    sign_in_from_browser(@staff)
     visit departure_arrangement_cruise_cabin_category_supplier_rates_path(
       @departure, @arrangement, @resource
     )
