@@ -56,9 +56,7 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     assert_text "8 cabins"
     assert_text "Fixed block"
 
-    within "nav[aria-label='Composition areas']" do
-      click_link "Suppliers"
-    end
+    click_link "Back to Suppliers"
     assert_selector "a", text: "Open Cruise setup"
 
     arrangement = @departure.supplier_arrangements.find_by!(name: "Celebrity group agreement")
