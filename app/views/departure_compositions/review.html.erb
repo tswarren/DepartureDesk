@@ -1,0 +1,68 @@
+<% content_for :title, "Review · #{@departure.name} · DepartureDesk" %>
+<%= render "shell", active_area: "review" %>
+
+<article class="dd-panel" id="composition-review">
+  <div class="dd-panel-body dd-stack">
+    <section aria-labelledby="review-outcome-heading">
+      <h2 id="review-outcome-heading" class="dd-section-title">Preparation outcome</h2>
+      <nav aria-label="Preparation outcome" class="dd-inline-actions">
+        <% CompositionAccess::OUTCOMES.each do |outcome| %>
+          <%= link_to composition_outcome_label(outcome),
+                review_departure_composition_path(@departure, composition_link_context(outcome: outcome)),
+                class: "dd-button #{'dd-button--quiet' unless @outcome == outcome}" %>
+        <% end %>
+      </nav>
+      <% if @outcome.present? %>
+        <p role="status">Selected: <%= composition_outcome_label(@outcome) %></p>
+      <% end %>
+    </section>
+
+    <% if @recommendation %>
+      <section id="composition-next-action" aria-labelledby="composition-next-action-heading">
+        <h2 id="composition-next-action-heading" class="dd-section-title">Recommended next action</h2>
+        <p><%= @recommendation.label %></p>
+        <p><%= link_to @recommendation.button_label, builder_recommendation_path(@recommendation), class: "dd-button" %></p>
+      </section>
+    <% end %>
+
+    <section aria-labelledby="review-findings-heading">
+      <h2 id="review-findings-heading" class="dd-section-title">Findings</h2>
+      <% findings = @findings || [] %>
+      <% if findings.empty? %>
+        <p>No open findings for this outcome.</p>
+      <% else %>
+        <% findings.group_by(&:affected_area).each do |area, area_findings| %>
+          <h3 class="dd-section-title"><%= area.to_s.humanize %></h3>
+          <ul>
+            <% area_findings.each do |finding| %>
+              <li>
+                <%= finding.message %>
+                · <%= link_to "Resolve", composition_finding_path(finding), class: "dd-link" %>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      <% end %>
+    </section>
+
+    <% if @selected_package && @common_scenarios %>
+      <section aria-labelledby="review-scenarios-heading">
+        <h2 id="review-scenarios-heading" class="dd-section-title">Common Package scenarios</h2>
+        <ul>
+          <% @common_scenarios.summaries.each do |summary| %>
+            <li>
+              <%= summary.label %>:
+              <% if summary.complete %>
+                <%= format_offer_money(summary.amount_minor_units, summary.currency) %>
+              <% else %>
+                Pending — <%= summary.missing_inputs.first %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      </section>
+    <% elsif @selected_package.nil? && @workspace.editable_packages.any? %>
+      <p>Select a Package to calculate common scenarios.</p>
+    <% end %>
+  </div>
+</article>

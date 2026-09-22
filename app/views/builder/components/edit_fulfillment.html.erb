@@ -13,6 +13,9 @@
   <div class="dd-panel-body">
     <%= form_with url: fulfillment_departure_builder_component_path(@departure, @service_offer), method: :post, class: "dd-form" do %>
       <%= hidden_field_tag :version_lock_version, @version.lock_version %>
+      <% if @return_to.present? %><%= hidden_field_tag :return_to, @return_to %><% end %>
+      <% if @outcome.present? %><%= hidden_field_tag :outcome, @outcome %><% end %>
+      <% if @package_id.present? %><%= hidden_field_tag :package_id, @package_id %><% end %>
       <fieldset class="dd-field-group">
         <legend class="dd-label">How is this provided?</legend>
         <label class="dd-inline-field">
@@ -38,7 +41,9 @@
       </fieldset>
       <div class="dd-form-actions">
         <%= submit_tag "Save decision", class: "dd-button" %>
-        <%= link_to "Back to workspace", departure_builder_path(@departure, work_on: "supplier"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Back to Services",
+              services_departure_composition_path(@departure, outcome: @outcome, package_id: @package_id),
+              class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

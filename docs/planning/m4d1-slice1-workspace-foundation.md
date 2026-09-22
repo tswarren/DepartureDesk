@@ -1,6 +1,6 @@
 # M4D.1 Slice 1 — Workspace foundation
 
-**Status:** Accepted 2026-09-22. Implementation authority for M4D.1 Slice 1 only.
+**Status:** Shipped 2026-09-22. Implementation authority for M4D.1 Slice 1 only. Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices; typed adapters and Client-term compilation remain unauthorized until named.
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially §§7–10, 16, 19–20, and the Slice 1 delivery and exit contract in §21.
 
@@ -33,12 +33,14 @@ Slice 1 is intentionally a thin foundation. It is judged on safe navigation, out
 
 ## 2. Authority and documentation timing
 
-Acceptance of this plan authorizes its named implementation work. Until its exit proof passes:
+Acceptance of this plan authorizes its named implementation work. Until its exit proof passed:
 
-- [M4D.0R](m4d0r-builder-interface-remediation.md) remains the shipped interim Staff presentation;
-- Composition must not be described as the shipped primary Staff chrome;
-- `/departures/:id/builder` retirement must not be documented as shipped; and
-- the Group departure builder section of [the interface contract](../ui/interface-contract.md) remains current.
+- [M4D.0R](m4d0r-builder-interface-remediation.md) remained the shipped interim Staff presentation;
+- Composition was not yet the shipped primary Staff chrome;
+- `/departures/:id/builder` retirement was not yet documented as shipped; and
+- the Group departure builder section of [the interface contract](../ui/interface-contract.md) remained current.
+
+**Shipping note (2026-09-22):** Exit proof is green. Composition is the primary Staff chrome for draft/active Departures with `manage_departures`. `/departures/:id/builder` is a compatibility redirect. M4D.0R remains historical interim authority.
 
 The acceptance change set touches only this plan, the planning index, and `AGENTS.md` to identify Slice 1 as Accepted but unshipped.
 

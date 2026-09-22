@@ -1,0 +1,112 @@
+<% content_for :title, "Add Service · #{@departure.name} · DepartureDesk" %>
+<% package_decision = @package_decision.presence || "yes" %>
+<% editable = Array(@editable_packages) %>
+<% first = @departure.service_offers.none? && editable.none? %>
+<% ctx = { outcome: @outcome, package_id: @selected_package&.id }.compact %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= @departure.name %></p>
+    <h1 class="dd-page-title"><%= first ? "Add the first Service" : "Add another Service" %></h1>
+    <p class="dd-page-description">Name what Clients will see. Supplier and pricing decisions come later.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_composition_services_path(@departure, outcome: @outcome), method: :post, class: "dd-form", data: { controller: "package-decision" } do %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <% if @outcome.present? %>
+        <%= hidden_field_tag :outcome, @outcome %>
+      <% end %>
+      <% if @selected_package %>
+        <%= hidden_field_tag :package_id, @selected_package.id %>
+        <%= hidden_field_tag :version_lock_version, @selected_package.editable_draft_version.lock_version %>
+      <% end %>
+
+      <% if @component_error.present? %>
+        <div id="form-error-summary" class="dd-form-error-summary" role="alert" tabindex="-1">
+          <h2 class="dd-form-error-summary__title">Please fix the following:</h2>
+          <ul><li><%= @component_error %></li></ul>
+        </div>
+      <% end %>
+
+      <div class="dd-field-group">
+        <label class="dd-label" for="component_name">Service name</label>
+        <input id="component_name" name="name" class="dd-field" required maxlength="160"
+          value="<%= @component[:name] || @component['name'] %>">
+      </div>
+
+      <div class="dd-field-group">
+        <label class="dd-label" for="client_timing_text">When Clients see it</label>
+        <input id="client_timing_text" name="client_timing_text" class="dd-field" maxlength="160"
+          value="<%= @component[:client_timing_text] || @component['client_timing_text'] %>"
+          placeholder="e.g. Day 2 afternoon">
+      </div>
+
+      <% if @selected_package.present? %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="placement">Placement</label>
+          <select id="placement" name="placement" class="dd-field">
+            <option value="included" <%= "selected" if params[:placement] != "optional" %>>Included</option>
+            <option value="optional" <%= "selected" if params[:placement] == "optional" %>>Optional</option>
+          </select>
+        </div>
+      <% elsif editable.none? %>
+        <fieldset class="dd-field-group">
+          <legend class="dd-label">Will most travelers buy these Services together as one main package?</legend>
+          <label class="dd-inline-field">
+            <input type="radio" name="package_decision" value="yes" <%= "checked" if package_decision == "yes" %>
+              data-package-decision-target="choice" data-action="package-decision#update">
+            Yes, create the main package
+          </label>
+          <label class="dd-inline-field">
+            <input type="radio" name="package_decision" value="no" <%= "checked" if package_decision == "no" %>
+              data-package-decision-target="choice" data-action="package-decision#update">
+            Not yet
+          </label>
+        </fieldset>
+
+        <div data-package-decision-target="packageFields" <%= "hidden" unless package_decision == "yes" %>>
+          <div class="dd-field-group">
+            <label class="dd-label" for="package_name">Package name</label>
+            <input id="package_name" name="package_name" class="dd-field" maxlength="160"
+              value="<%= params[:package_name].presence || @departure.name %>">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="placement">Placement</label>
+            <select id="placement" name="placement" class="dd-field">
+              <option value="included" <%= "selected" if params[:placement] != "optional" %>>Included</option>
+              <option value="optional" <%= "selected" if params[:placement] == "optional" %>>Optional</option>
+            </select>
+          </div>
+        </div>
+      <% else %>
+        <div class="dd-field-group" <%= "role=alert" if @package_selection_required %>>
+          <label class="dd-label" for="package_id">Package</label>
+          <select id="package_id" name="package_id" class="dd-field" required>
+            <option value="">Select a Package</option>
+            <% editable.each do |package| %>
+              <option value="<%= package.id %>"><%= package.name %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="placement">Placement</label>
+          <select id="placement" name="placement" class="dd-field">
+            <option value="included" <%= "selected" if params[:placement] != "optional" %>>Included</option>
+            <option value="optional" <%= "selected" if params[:placement] == "optional" %>>Optional</option>
+          </select>
+        </div>
+      <% end %>
+
+      <div class="dd-form-actions">
+        <%= button_tag "Save Service", type: :submit, name: "return_intent", value: "workspace", class: "dd-button" %>
+        <% unless first %>
+          <%= button_tag "Save and add another", type: :submit, name: "return_intent", value: "add_another", class: "dd-button dd-button--quiet" %>
+        <% end %>
+        <%= link_to "Back to Services", services_departure_composition_path(@departure, ctx), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

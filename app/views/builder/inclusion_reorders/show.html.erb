@@ -15,6 +15,9 @@
           class: "dd-form",
           data: { controller: "inclusion-reorder" } do %>
       <%= hidden_field_tag :version_lock_version, @version.lock_version %>
+      <% if @return_to.present? %><%= hidden_field_tag :return_to, @return_to %><% end %>
+      <% if @outcome.present? %><%= hidden_field_tag :outcome, @outcome %><% end %>
+      <%= hidden_field_tag :package_id, @package.id %>
       <ol data-inclusion-reorder-target="list" class="dd-stack">
         <% @inclusions.each do |inclusion| %>
           <li data-inclusion-reorder-target="row" class="dd-inline-actions">
@@ -27,7 +30,9 @@
       </ol>
       <div class="dd-form-actions">
         <%= submit_tag "Save order", class: "dd-button" %>
-        <%= link_to "Cancel", departure_builder_path(@departure, package_id: @package.id), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel",
+              package_departure_composition_path(@departure, outcome: @outcome, package_id: @package.id),
+              class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

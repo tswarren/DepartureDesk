@@ -10,29 +10,29 @@ class RecommendDepartureBuilderAction
     "waiting" => 3
   }.freeze
 
-  OUTCOME_GROUPS = {
-    "supplier" => [ "Supplier support" ],
-    "pricing" => [ "Pricing and Client terms" ],
-    "preview" => [ "Itinerary and Package", "Pricing and Client terms" ]
-  }.freeze
-
   EARLY_OUTLINE_CODES = %i[
     no_components no_package empty_package undecided_fulfillment
   ].freeze
 
-  def initialize(agency:, departure:, readiness: nil, work_on: nil)
+  def initialize(agency:, departure:, readiness: nil, work_on: nil, outcome: nil)
     @agency = agency
     @departure = departure
     @readiness = readiness
-    @work_on = work_on.to_s.presence
+    raw = (outcome.presence || work_on).to_s
+    raw = "proposal" if raw == "preview"
+    @outcome = raw.presence
   end
 
   def call
     findings = (@readiness || EvaluateDepartureBuilderReadiness.new(agency: @agency, departure: @departure).call).findings
     ordered = prefer_outcome(findings)
+    return if ordered.empty?
+
     actionable = ordered.reject { |finding| finding.state.to_s == "waiting" }
     pool = actionable.presence || ordered
-    pool = pool.reject { |finding| early_publication_noise?(finding) } if early_outline?(findings)
+    if early_outline?(findings) && @outcome != "publication"
+      pool = pool.reject { |finding| early_publication_noise?(finding) }
+    end
     chosen = pool.min_by { |finding| STATE_RANK.fetch(finding.state.to_s, 9) }
     return if chosen.nil?
 
@@ -48,11 +48,9 @@ class RecommendDepartureBuilderAction
   private
 
   def prefer_outcome(findings)
-    groups = OUTCOME_GROUPS[@work_on]
-    return findings if groups.blank?
+    return findings if @outcome.blank?
 
-    matching = findings.select { |finding| groups.include?(finding.group) }
-    matching.presence || findings
+    findings.select { |finding| finding.applicable_to?(@outcome) }
   end
 
   def early_outline?(findings)

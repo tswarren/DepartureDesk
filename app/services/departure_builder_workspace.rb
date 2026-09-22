@@ -76,6 +76,31 @@ class DepartureBuilderWorkspace
     cards
   end
 
+  def service_map_cards
+    cards = []
+    seen = {}
+    editable_packages.each do |package|
+      version = package.editable_draft_version
+      next if version.nil?
+
+      version.inclusions.includes(:service_offer, service_offer_version: [ :definition, :price_definition ])
+        .order(:position, :id).each do |inclusion|
+        offer = inclusion.service_offer
+        next if seen[offer.id]
+
+        seen[offer.id] = true
+        cards << build_card(offer, inclusion.service_offer_version, inclusion.placement.titleize, package, inclusion)
+      end
+    end
+    unassigned_offers.each do |offer|
+      next if seen[offer.id]
+
+      version = offer.editable_draft_version
+      cards << build_card(offer, version, "Not yet assigned", nil, nil)
+    end
+    cards
+  end
+
   def contextual_action_for(card)
     case @work_on
     when "supplier"

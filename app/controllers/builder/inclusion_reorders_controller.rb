@@ -3,6 +3,7 @@
 module Builder
   class InclusionReordersController < ApplicationController
     include DepartureAccess
+    include CompositionAccess
 
     before_action :require_builder_access!
     before_action :set_departure
@@ -13,6 +14,8 @@ module Builder
       raise ActiveRecord::RecordNotFound if @version.nil?
 
       @inclusions = @version.inclusions.includes(:service_offer).order(:position, :id).to_a
+      @return_to = composition_return_to || "package"
+      @outcome = composition_outcome
     end
 
     def update
@@ -26,7 +29,8 @@ module Builder
         ordered_ids: Array(params[:inclusion_ids]),
         version_lock_version: params[:version_lock_version]
       ).call
-      redirect_to departure_builder_path(@departure, package_id: @package.id), notice: "Itinerary order saved."
+      redirect_to composition_path_for_return(composition_return_to || "package"),
+        notice: "Itinerary order saved."
     rescue AgencyCommand::Error => error
       raise ActiveRecord::RecordNotFound if error.code == :not_found
 

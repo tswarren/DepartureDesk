@@ -1,7 +1,70 @@
 # frozen_string_literal: true
 
 class EvaluateDepartureBuilderReadiness
-  Finding = Data.define(:group, :code, :state, :message, :route_name, :route_params, :package_id, :service_offer_id)
+  Finding = Data.define(
+    :group, :code, :state, :message, :route_name, :route_params, :package_id, :service_offer_id
+  ) do
+    AREA_BY_CODE = {
+      no_components: "services",
+      no_package: "package",
+      empty_package: "package",
+      undecided_fulfillment: "suppliers",
+      package_price_missing: "package",
+      component_price_pending: "package",
+      departure_not_active: "review",
+      standalone_not_ready: "review",
+      package_not_ready: "review"
+    }.freeze
+
+    # Declared per finding code — not derived from affected_area alone.
+    OUTCOMES_BY_CODE = {
+      no_components: %w[supplier pricing proposal publication],
+      no_package: %w[pricing proposal],
+      empty_package: %w[supplier pricing proposal],
+      undecided_fulfillment: %w[supplier],
+      package_price_missing: %w[pricing proposal],
+      component_price_pending: %w[pricing proposal],
+      departure_not_active: %w[publication],
+      standalone_not_ready: %w[publication],
+      package_not_ready: %w[publication]
+    }.freeze
+
+    def affected_area
+      AREA_BY_CODE.fetch(code.to_sym) { area_for_group }
+    end
+
+    def applicable_outcomes
+      OUTCOMES_BY_CODE.fetch(code.to_sym) do
+        case affected_area
+        when "services" then %w[supplier pricing proposal]
+        when "suppliers" then %w[supplier]
+        when "package" then %w[pricing proposal]
+        when "review" then %w[publication]
+        else %w[supplier pricing proposal publication]
+        end
+      end
+    end
+
+    def applicable_to?(outcome)
+      raw = outcome.to_s
+      raw = "proposal" if raw == "preview"
+      return true if raw.blank?
+
+      applicable_outcomes.include?(raw)
+    end
+
+    private
+
+    def area_for_group
+      case group
+      when "Itinerary and Package" then "services"
+      when "Supplier support" then "suppliers"
+      when "Pricing and Client terms" then "package"
+      when "Ready to publish" then "review"
+      else "services"
+      end
+    end
+  end
   Result = Data.define(:findings)
 
   GROUPS = [
@@ -53,13 +116,13 @@ class EvaluateDepartureBuilderReadiness
       findings << finding(
         "Itinerary and Package", :no_components, :incomplete,
         "Add anything Clients will see, choose, or pay for distinctly.",
-        :new_departure_builder_component, { departure_id: @departure.id }
+        :new_departure_composition_service, { departure_id: @departure.id }
       )
     elsif editable_packages.empty? && unowned_offers.any?
       findings << finding(
         "Itinerary and Package", :no_package, :incomplete,
         "Create a main package for components travelers buy together.",
-        :new_departure_builder_component, { departure_id: @departure.id }
+        :new_departure_composition_service, { departure_id: @departure.id }
       )
     end
 
@@ -71,7 +134,7 @@ class EvaluateDepartureBuilderReadiness
         findings << finding(
           "Itinerary and Package", :empty_package, :incomplete,
           "Add a component to #{package.name}.",
-          :new_departure_builder_component, { departure_id: @departure.id, package_id: package.id },
+          :new_departure_composition_service, { departure_id: @departure.id, package_id: package.id },
           package_id: package.id
         )
       end
@@ -87,7 +150,8 @@ class EvaluateDepartureBuilderReadiness
       findings << finding(
         "Supplier support", :undecided_fulfillment, :incomplete,
         "#{definition.client_title} is still an outline and makes no Supplier or capacity claim.",
-        :fulfillment_departure_builder_component, { departure_id: @departure.id, id: offer.id },
+        :fulfillment_departure_builder_component,
+        { departure_id: @departure.id, id: offer.id, return_to: "services" },
         service_offer_id: offer.id,
         package_id: version.owning_package_version&.package_id
       )

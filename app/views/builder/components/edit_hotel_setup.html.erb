@@ -12,6 +12,9 @@
   <div class="dd-panel-body">
     <%= form_with url: hotel_setup_departure_builder_component_path(@departure, @service_offer), method: :post, class: "dd-form" do %>
       <%= hidden_field_tag :version_lock_version, @version.lock_version %>
+      <% if @return_to.present? %><%= hidden_field_tag :return_to, @return_to %><% end %>
+      <% if @outcome.present? %><%= hidden_field_tag :outcome, @outcome %><% end %>
+      <% if @package_id.present? %><%= hidden_field_tag :package_id, @package_id %><% end %>
       <p class="dd-help">Examples for guidance only: Standard, Deluxe. Persist only names you submit.</p>
       <% Array(@option_names).each_with_index do |name, index| %>
         <div class="dd-field-group">
@@ -31,7 +34,9 @@
       <% end %>
       <div class="dd-form-actions">
         <%= submit_tag "Save categories", class: "dd-button" %>
-        <%= link_to "Cancel", departure_builder_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel",
+              services_departure_composition_path(@departure, outcome: @outcome, package_id: @package_id),
+              class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>
