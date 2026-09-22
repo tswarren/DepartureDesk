@@ -8,6 +8,7 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
 
   def initialize(agency:, actor:, arrangement:, resource:,
     profiles: nil, cells: nil, terms: nil, commission: nil,
+    custom_rows: nil, overlap_resolution: nil,
     stage: "estimate", notes: nil, version_lock_version:, idempotency_key:)
     @agency = agency
     @actor = actor
@@ -17,6 +18,8 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
     @cells = cells
     @terms = terms
     @commission = commission
+    @custom_rows = custom_rows
+    @overlap_resolution = overlap_resolution
     @stage = stage
     @notes = notes
     @version_lock_version = version_lock_version
@@ -47,6 +50,7 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
 
         currency = departure.operating_currency
         matrix = build_matrix_from_inputs(currency)
+        resolve_matrix_participant_categories!(matrix, version: version, item: item)
         stage = @stage.to_s
         unless SupplierCostDefinition::STAGES.include?(stage)
           raise Error.new("Choose estimate or contracted.", code: :invalid)
@@ -58,7 +62,8 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
           service_occurrence_id: occurrence.id,
           supplier_resource_id: resource.id,
           stage: stage,
-          profiles: matrix.fetch(:profiles).map(&:to_s),
+          profiles: matrix.fetch(:profiles).map { |profile| profile.fetch(:key) },
+          custom_rows: matrix.fetch(:custom_rows),
           cells: matrix.fetch(:cells),
           commission: serialize_commission(matrix.fetch(:commission)),
           notes: @notes.to_s
@@ -133,6 +138,8 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
         profiles: @profiles.presence || default_smith_profiles,
         cells: @cells || {},
         commission: @commission,
+        custom_rows: @custom_rows,
+        overlap_resolution: @overlap_resolution,
         currency: currency
       )
     elsif @terms.present?
@@ -141,6 +148,8 @@ class CreateCruiseSupplierRateSchedule < AgencyCommand
         profiles: default_smith_profiles,
         cells: cells,
         commission: @commission,
+        custom_rows: @custom_rows,
+        overlap_resolution: @overlap_resolution,
         currency: currency
       )
     else

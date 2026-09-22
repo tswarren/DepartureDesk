@@ -6,6 +6,7 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
 
   def initialize(agency:, actor:, arrangement:, resource:,
     profiles: nil, cells: nil, terms: nil, commission: nil,
+    custom_rows: nil, overlap_resolution: nil,
     stage: nil, notes: nil, convert_legacy: false,
     version_lock_version:, definition_lock_version:, idempotency_key: nil)
     @agency = agency
@@ -16,6 +17,8 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
     @cells = cells
     @terms = terms
     @commission = commission
+    @custom_rows = custom_rows
+    @overlap_resolution = overlap_resolution
     @stage = stage
     @notes = notes
     @convert_legacy = convert_legacy
@@ -72,6 +75,7 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
 
         currency = definition.currency
         matrix = build_matrix_from_inputs(currency)
+        resolve_matrix_participant_categories!(matrix, version: version, item: item)
 
         if @stage.present?
           stage = @stage.to_s
@@ -113,6 +117,8 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
         profiles: @profiles.presence || default_smith_profiles,
         cells: @cells || {},
         commission: @commission,
+        custom_rows: @custom_rows,
+        overlap_resolution: @overlap_resolution,
         currency: currency,
         convert_legacy: @convert_legacy
       )
@@ -122,6 +128,8 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
         profiles: default_smith_profiles,
         cells: cells,
         commission: @commission,
+        custom_rows: @custom_rows,
+        overlap_resolution: @overlap_resolution,
         currency: currency,
         convert_legacy: @convert_legacy
       )
