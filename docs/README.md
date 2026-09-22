@@ -70,9 +70,10 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/m4d-publication-and-live-feasibility.md`](planning/m4d-publication-and-live-feasibility.md) | Shipped M4D publication, freeze, Sales enabled, live feasibility, and M3 disclosure previews. |
 | [`planning/m4d0-narrow-group-departure-builder.md`](planning/m4d0-narrow-group-departure-builder.md) | M4D.0 shipped domain; interim UI is M4D.0R. Future composition presentation is M4D.1. M4E remains unimplemented. |
 | [`planning/m4d0r-builder-interface-remediation.md`](planning/m4d0r-builder-interface-remediation.md) | Shipped interim M4D.0R Staff builder presentation. Future authority is Accepted M4D.1. |
-| [`planning/m4d1-departure-composition-workspace.md`](planning/m4d1-departure-composition-workspace.md) | Accepted M4D.1 Departure Composition Workspace. Not shipped. Do not implement until a named sub-slice accepts work. |
+| [`planning/m4d1-departure-composition-workspace.md`](planning/m4d1-departure-composition-workspace.md) | Accepted M4D.1 Departure Composition Workspace. Not shipped. Slice 1 is Accepted separately; later slices remain unauthorized until named. |
+| [`planning/m4d1-slice1-workspace-foundation.md`](planning/m4d1-slice1-workspace-foundation.md) | Accepted M4D.1 Slice 1 implementation authority for the workspace foundation. Not shipped. Does not authorize typed Supplier adapters or later M4D.1 slices. |
 | [`adr/0014-client-offers-publication-and-supply-compatibility.md`](adr/0014-client-offers-publication-and-supply-compatibility.md) | Accepted ADR 0014; M4 identity, publication, source compatibility, and M5 Charge-posting handoff. M4A–M4D.0 shipped; M4D.1 Accepted. Not implementation authority for M4E or unamended M4D.1 provenance/choice-rate work. |
-| [`planning/drafts/README.md`](planning/drafts/README.md) | Draft staging area. M3E promoted 2026-09-18. M4 parent, ADR 0014, and M4.0 promoted 2026-09-20. M4A–M4D.0 (+R) shipped 2026-09-20/21. M4D.1 Accepted 2026-09-21. |
+| [`planning/drafts/README.md`](planning/drafts/README.md) | Draft staging area. M3E promoted 2026-09-18. M4 parent, ADR 0014, and M4.0 promoted 2026-09-20. M4A–M4D.0 (+R) shipped 2026-09-20/21. M4D.1 Accepted 2026-09-21. M4D.1 Slice 1 Accepted 2026-09-22 (unshipped). |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |
