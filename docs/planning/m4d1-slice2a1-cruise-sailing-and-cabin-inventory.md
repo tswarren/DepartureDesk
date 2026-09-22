@@ -1,10 +1,10 @@
 # M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory
 
-**Status:** Accepted 2026-09-22. Implementation authority for M4D.1 Slice 2A.1 only (parent Stop points A–B). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. This plan is the **sole implementation authority** for 2A.1; do not require a second implement-plan document. Slice 2A.2 (Supplier rates and occupancy totals), later typed adapters, Client connection, and M4E remain unauthorized until named.
+**Status:** Shipped 2026-09-22. Implementation authority for M4D.1 Slice 2A.1 only (parent Stop points A–B). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. This plan is the **sole shipped authority** for typed Cruise sailing and cabin inventory. Slice 2A.2 (Supplier rates and occupancy totals), later typed adapters, Client connection, and M4E remain unauthorized until named.
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially §§11–12, 19–20, and the Slice 2A.1 delivery contract in §21.
 
-**Implementation base:** [`6c56566`](https://github.com/tswarren/DepartureDesk/commit/6c56566) (merge of [PR #126](https://github.com/tswarren/DepartureDesk/pull/126) — shipped M4D.1 Slice 1 Composition workspace), or one later CI-green `main` descendant pinned before implementation begins.
+**Implementation base:** [`6c56566`](https://github.com/tswarren/DepartureDesk/commit/6c56566) (merge of [PR #126](https://github.com/tswarren/DepartureDesk/pull/126) — shipped M4D.1 Slice 1 Composition workspace). Implementation landed after Accept merge [`dab634b`](https://github.com/tswarren/DepartureDesk/commit/dab634b).
 
 **Scope locked:** Stop points A and B only — typed Cruise sailing setup and cabin-category inventory over generic M3. This plan does not authorize Slice 2A.2 rates, occupancy profiles, deposits/deadlines adapters, Client Service connection, Client prices, Package scenarios, or Vineyard acceptance.
 
@@ -33,19 +33,11 @@ It does not yet prove the complete Smith pricing workflow.
 
 ## 2. Authority and documentation timing
 
-Acceptance of this plan authorizes its named implementation work. Until its exit proof passes:
+Acceptance of this plan authorized its named implementation work. Exit proof is green.
 
-- Composition Suppliers remains Arrangement-list and advanced-planning entry only;
-- no typed Cruise routes, commands, or Resource-definition columns from this plan are shipped; and
-- parent §21 Slice 2A.1 remains Accepted but unshipped.
+**Shipping note (2026-09-22):** Composition Suppliers offers typed Cruise sailing and cabin-category inventory over generic M3. Resource definitions carry optional `supplier_code` and `maximum_occupancy`. Slice 2A.2 rates remain unauthorized.
 
-The acceptance change set promotes this plan, amends the parent (§§11.3, 12.1, 19, 21), demotes the discovery draft, and updates the planning index and `AGENTS.md` to identify Slice 2A.1 as Accepted but unshipped.
-
-The shipping change set, after all exit proof is green, must:
-
-- mark this slice shipped;
-- amend parent and `AGENTS.md` / index / terminology / roadmap as needed; and
-- retain this plan as shipped authority for A–B only.
+The shipping change set marks this slice shipped and updates the parent, planning index, roadmap, terminology, and `AGENTS.md`.
 
 ## 3. Necessary generic persistence amendment
 

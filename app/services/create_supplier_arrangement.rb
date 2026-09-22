@@ -26,18 +26,11 @@ class CreateSupplierArrangement < AgencyCommand
         payload: attrs.merge(contracting_supplier_id: contractor.id, supplier_contact_id: contact&.id, departure_id: departure.id),
         result_class: SupplierArrangement
       ) do
-        arrangement = @agency.supplier_arrangements.create!(
+        arrangement, version = build_supplier_arrangement_already_locked!(
           departure: departure,
-          contracting_supplier: contractor,
-          supplier_contact: contact,
-          name: attrs[:name],
-          status: "draft"
-        )
-        version = arrangement.versions.create!(
-          agency: @agency,
-          departure: departure,
-          version_number: 1,
-          status: "draft"
+          contractor: contractor,
+          contact: contact,
+          name: attrs[:name]
         )
         audit!(
           agency: @agency,

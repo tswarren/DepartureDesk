@@ -4,7 +4,7 @@
 
 **Accepted foundation:** [M4D.1 Slice 1 — Workspace foundation](../../m4d1-slice1-workspace-foundation.md) (**shipped**).
 
-**Accepted next typed slice:** [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](../../m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (**Accepted; unshipped**). That plan is the sole implementation authority for typed Cruise Stop points A–B.
+**Shipped typed slice:** [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](../../m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (**shipped**). That plan remains the sole shipped authority for typed Cruise Stop points A–B.
 
 Parent spine: [M4D.1](../../m4d1-departure-composition-workspace.md) §21 (amended to split 2A into 2A.1 / 2A.2).
 

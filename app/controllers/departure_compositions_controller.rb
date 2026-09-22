@@ -26,6 +26,12 @@ class DepartureCompositionsController < ApplicationController
       departure: @departure
     )
     @arrangements = listing.records
+    @cruise_shapes = @arrangements.index_with do |arrangement|
+      DetectCruiseArrangementShape.new(
+        agency: Current.agency,
+        arrangement: arrangement
+      ).call
+    end
     render :suppliers
   end
 

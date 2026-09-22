@@ -412,8 +412,34 @@ module ArrangementCommandSupport
     attrs = attrs.to_h.with_indifferent_access
     {
       name: normalize_definition_name(attrs[:name]),
-      description: normalize_definition_description(attrs[:description])
+      description: normalize_definition_description(attrs[:description]),
+      supplier_code: normalize_resource_supplier_code(attrs[:supplier_code]),
+      maximum_occupancy: normalize_maximum_occupancy(attrs[:maximum_occupancy])
     }
+  end
+
+  def normalize_resource_supplier_code(value)
+    code = value.to_s.strip.presence
+    return nil if code.blank?
+    if code.length > SupplierResourceDefinition::SUPPLIER_CODE_LIMIT
+      raise AgencyCommand::Error.new(
+        "Supplier code must be #{SupplierResourceDefinition::SUPPLIER_CODE_LIMIT} characters or fewer.",
+        code: :invalid
+      )
+    end
+
+    code
+  end
+
+  def normalize_maximum_occupancy(value)
+    return nil if value.blank?
+
+    occupancy = value.is_a?(Integer) ? value : Integer(value, 10)
+    return occupancy if occupancy.positive?
+
+    raise AgencyCommand::Error.new("Maximum occupancy must be greater than zero.", code: :invalid)
+  rescue ArgumentError, TypeError
+    raise AgencyCommand::Error.new("Maximum occupancy must be a whole number.", code: :invalid)
   end
 
   def resolve_active_supplier!(id, label)
@@ -459,6 +485,23 @@ module ArrangementCommandSupport
   # the canonical agency/Departure/Arrangement/version/member locks and perform
   # authorization, state, optimistic-lock, idempotency, version-bump, and audit
   # work at the public command boundary.
+  def build_supplier_arrangement_already_locked!(departure:, contractor:, contact:, name:)
+    arrangement = @agency.supplier_arrangements.create!(
+      departure: departure,
+      contracting_supplier: contractor,
+      supplier_contact: contact,
+      name: name,
+      status: "draft"
+    )
+    version = arrangement.versions.create!(
+      agency: @agency,
+      departure: departure,
+      version_number: 1,
+      status: "draft"
+    )
+    [ arrangement, version ]
+  end
+
   def build_arrangement_item_already_locked!(departure:, arrangement:, version:, attributes:, provider: nil)
     item = arrangement.arrangement_items.create!(agency: @agency, departure: departure)
     definition = version.arrangement_item_definitions.create!(

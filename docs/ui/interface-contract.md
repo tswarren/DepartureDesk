@@ -136,15 +136,16 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - If no Office is current, the UI remains usable and does not invent one.
 
 
-## Departure Composition Workspace (M4D.1 Slice 1 shipped)
+## Departure Composition Workspace (M4D.1 Slice 1 shipped; Slice 2A.1 shipped)
 
-Authority: [M4D.1](../planning/m4d1-departure-composition-workspace.md); foundation: [M4D.1 Slice 1](../planning/m4d1-slice1-workspace-foundation.md) (shipped). Domain: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Historical interim presentation: [M4D.0R](../planning/m4d0r-builder-interface-remediation.md).
+Authority: [M4D.1](../planning/m4d1-departure-composition-workspace.md); foundation: [M4D.1 Slice 1](../planning/m4d1-slice1-workspace-foundation.md) (shipped); typed Cruise A–B: [M4D.1 Slice 2A.1](../planning/m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (shipped). Domain: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Historical interim presentation: [M4D.0R](../planning/m4d0r-builder-interface-remediation.md).
 
 - **Create group departure** uses two save intents: **Save and add components** (Add Service) and **Save for later** (Composition Overview empty-state chooser). Timing mode toggles do not clear exploratory input until validated submit.
 - For `manage_departures`, **Composition is the primary working body** for draft and active Departures (`/departures/:id/composition` and area routes). Compact identity header; five-area navigation (Overview, Services, Suppliers, Package & Client terms, Review). Full administrative definition remains via **Departure details**.
 - Query context only: `outcome`, validated `package_id`, closed `return_to`. No session-stored Package or outcome. Outcomes: Supplier readiness / Pricing review / Client proposal preparation / Publication readiness (`preview` aliases to `proposal` on old builder URLs only).
 - Services is the Service Map over draft `ServiceOffer` identities. Add Service reuses outline commands and returns to Services. No second outline aggregate; no inline expanded create in the map.
-- Focused fulfillment, source, Cruise, and Hotel helpers may remain under the builder controller namespace temporarily; they accept only closed Composition `return_to` and never return to the retired builder show page.
+- Suppliers offers **Set up a Cruise** and **Open Cruise setup** for compatible graphs (exactly one Cruise Item, one sailing, cabin Resources with at most one Pool per sailing–Resource pair). Typed forms use travel-agency language; incompatible graphs fail open to advanced Supplier planning without flattening.
+- Focused Client fulfillment, source, Cruise-choice, and Hotel helpers may remain under the builder controller namespace temporarily; they accept only closed Composition `return_to` and never return to the retired builder show page. Do not confuse Client `cruise_setup` choice helpers with Supplier cabin inventory.
 - `GET /departures/:id/builder` is a compatibility redirect: `work_on=preview|supplier|pricing` maps to Review/Suppliers/Package with outcomes; invalid `package_id` is rejected.
 - Area summaries and recommendations are derived; Overview has no Ready badge. Pending facts never display as zero.
 - Permission: `manage_departures` for Composition and unpublished mutations. Viewer keeps ordinary Departure show; Composition returns not found. Departed/closed Departures use ordinary show; direct Composition redirects there.
