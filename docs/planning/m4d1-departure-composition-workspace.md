@@ -4,7 +4,7 @@
 
 **Interim UI:** Shipped [M4D.0R](m4d0r-builder-interface-remediation.md) remains the Staff builder until M4D.1 Slice 1 exits. This plan is **future** composition presentation authority. Demote or redirect `/departures/:id/builder` only when Slice 1 ships.
 
-**Implementation baseline:** [`893b7c3`](https://github.com/tswarren/DepartureDesk/commit/893b7c3), the final M4D.0/M4D.0R production-code commit in [PR #122](https://github.com/tswarren/DepartureDesk/pull/122). Later commits in PR #122 accept M4D.1 and update documentation without changing the M4D.0 implementation. Replace the PR reference with the merge SHA after merge.
+**Implementation baseline:** [`c64f973`](https://github.com/tswarren/DepartureDesk/commit/c64f973) (merge of [PR #122](https://github.com/tswarren/DepartureDesk/pull/122)). Production M4D.0/M4D.0R code last changed at [`893b7c3`](https://github.com/tswarren/DepartureDesk/commit/893b7c3); later PR #122 commits accept M4D.1 and update documentation (plus gate fixes) without changing the M4D.0 domain model.
 
 **Relationship to M4E:** [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md) remains the later offers acceptance-and-hardening gate. M4D.1 does not replace M4E. M4E must not close M4 without acknowledging how the Staff journey relates to M4D.1 (interim builder vs composition workspace).
 
@@ -95,7 +95,7 @@ Single, Double, and Triple are occupancy or booking configurations. They are not
 
 ## 5. Authority and baseline
 
-**Implementation baseline:** [`893b7c3`](https://github.com/tswarren/DepartureDesk/commit/893b7c3), the final M4D.0/M4D.0R production-code commit in PR #122. Later PR #122 commits accept M4D.1 and update documentation only. After merge, replace the PR reference with the merge SHA. M4D.0 domain and M4D.0R interim UI are **shipped** on that production-code baseline.
+**Implementation baseline:** [`c64f973`](https://github.com/tswarren/DepartureDesk/commit/c64f973) (PR #122 merge). Production M4D.0/M4D.0R code last changed at [`893b7c3`](https://github.com/tswarren/DepartureDesk/commit/893b7c3); later PR #122 commits were documentation and gate fixes only. M4D.0 domain and M4D.0R interim UI are **shipped** on that production-code baseline.
 
 Shipped baseline this plan extends (not re-proves as invention):
 
