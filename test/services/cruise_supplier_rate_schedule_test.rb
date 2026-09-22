@@ -482,6 +482,49 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
     assert_equal "Child", component.participant_category.label
   end
 
+  test "preview illustrations follow Staff-selected anonymous occupants" do
+    adult_first = CruiseSupplierRateSupport.encode_profile_key(:first_second, category: "Adult")
+    child_additional = CruiseSupplierRateSupport.encode_profile_key(:additional, category: "Child")
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      resource: @resource,
+      profiles: [
+        { family: "first_second", category: "Adult" },
+        { family: "additional", category: "Child" },
+        { family: "every_traveler" }
+      ],
+      cells: {
+        "#{CruiseSupplierRateSupport.cell_key(:base_fare, adult_first)}" => "1000.00",
+        "#{CruiseSupplierRateSupport.cell_key(:base_fare, child_additional)}" => "400.00",
+        "#{CruiseSupplierRateSupport.cell_key(:nccf, :every_traveler)}" => "100.00"
+      },
+      commission: { method: "not_provided" },
+      stage: "estimate",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    default_preview = CompileCruiseSupplierRatePreview.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource
+    ).call
+    assert_includes default_preview.illustrations.map(&:key), "two_adults_child"
+
+    custom = CompileCruiseSupplierRatePreview.new(
+      agency: @agency,
+      arrangement: @arrangement,
+      resource: @resource,
+      illustration_occupants: %w[Adult Child Adult]
+    ).call
+    assert_equal %w[occupants_1 occupants_2 occupants_3], custom.illustrations.map(&:key)
+    assert_equal "Adult + Child + Adult", custom.illustrations.last.label
+    refute_equal(
+      default_preview.illustrations.index_by(&:key).fetch("two_adults_child").gross_minor_units,
+      custom.illustrations.last.gross_minor_units
+    )
+  end
+
   private
 
   def sailing_arguments

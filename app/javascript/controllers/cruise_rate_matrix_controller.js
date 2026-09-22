@@ -309,6 +309,13 @@ export default class extends Controller {
     if (editIndex !== null && !Number.isNaN(editIndex) && this.state.profiles[editIndex]) {
       const previous = this.state.profiles[editIndex]
       if (previous.key !== key) {
+        const duplicate = this.state.profiles.some((entry, index) => (
+          index !== editIndex && entry.key === key
+        ))
+        if (duplicate) {
+          window.alert("That rate profile is already in the schedule.")
+          return
+        }
         this.relabelProfileCells(previous.key, key)
       }
       this.state.profiles[editIndex] = profile
@@ -1206,11 +1213,20 @@ export default class extends Controller {
 
     const form = this.element.closest("form") || this.element.querySelector("form")
     const payload = new FormData()
+    const contextKeys = new Set([
+      "authenticity_token",
+      "version_lock_version",
+      "definition_lock_version",
+      "stage",
+      "convert_legacy",
+      "notes",
+      "overlap_resolution"
+    ])
     if (form) {
       new FormData(form).forEach((value, key) => {
-        if (key === "authenticity_token" || key.startsWith("profiles") ||
+        if (contextKeys.has(key) || key.startsWith("profiles") ||
             key.startsWith("custom_rows") || key.startsWith("cells") ||
-            key.startsWith("commission") || key === "overlap_resolution") {
+            key.startsWith("commission") || key.startsWith("illustration_occupants")) {
           payload.append(key, value)
         }
       })
@@ -1284,6 +1300,12 @@ export default class extends Controller {
           `commission[amounts][${profile.key}]`,
           this.state.commission.amounts[profile.key] || ""
         )
+      })
+    }
+
+    if (Array.isArray(this.state.occupants)) {
+      this.state.occupants.forEach((label, index) => {
+        payload.set(`illustration_occupants[${index}]`, label || "")
       })
     }
   }

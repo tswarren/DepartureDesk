@@ -165,6 +165,22 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     refute current_definition.supplier_cost_components.any? { |c| c.label == "Shipboard credit" }
   end
 
+  test "unsaved amount updates illustrations before save" do
+    sign_in_from_browser(@staff)
+    visit_rates_page
+
+    fill_in "Base Fare · First/Second", with: "1624.00"
+    fill_in "NCCF · Every Traveler", with: "100.00"
+    select "Not provided yet", from: "Commission method"
+
+    within "[data-cruise-rate-matrix-target='illustrations']" do
+      assert_text(/Single occupancy/i, wait: 5)
+      assert_no_text(/Illustration preview unavailable/i)
+      assert_text(/\$1,?724\.00|1724/, wait: 5)
+    end
+    assert_no_text "Supplier rates saved"
+  end
+
   test "staff builds family pricing entirely through visible page controls" do
     sign_in_from_browser(@staff)
     visit_rates_page
@@ -189,14 +205,8 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     fill_in "Discount · Single Supplement", with: "40.00"
 
     select "Percentage", from: "Commission method"
-    uncheck "Use the same commission rate for every profile"
-    fill_in "First/Second · Adult", with: "10" if has_field?("First/Second · Adult", wait: 1)
-    # Profile-specific rate inputs use profile labels as field labels
-    within "[data-cruise-rate-matrix-target='commissionRates']" do
-      all("input.dd-input").each_with_index do |input, index|
-        input.fill_in with: (%w[10 5 5 10][index] || "10")
-      end
-    end
+    check "Use the same commission rate for every profile"
+    fill_in "Shared commission percentage", with: "10"
 
     within "[data-cruise-rate-matrix-target='commissionTreatments']" do
       all("input[type='checkbox']").each do |box|
@@ -211,12 +221,18 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     end
 
     assert_text "Anonymous occupants by position", wait: 5
+    select "Child", from: "Position 2"
+    within "[data-cruise-rate-matrix-target='illustrations']" do
+      assert_text(/Adult \+ Child/i, wait: 5)
+      assert_no_text(/Illustration preview unavailable/i)
+    end
+
     click_on "Save Supplier terms"
 
     assert_text "Supplier rates saved"
     assert_text "First/Second · Adult"
     assert_text "Additional · Child"
-    assert_text(/Single Adult|Double Adult|two adults/i)
+    assert_text(/Single Adult|Adult \+|Double Adult|two adults/i)
   end
 
   test "narrow-screen profile selector includes newly added columns" do
@@ -255,26 +271,29 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     click_on "Add column"
   end
 
-  def edit_profile_category(named:, category:)
-    within "[data-cruise-rate-matrix-target='profileList']" do
-      find("tr", text: named).click_button("Edit")
-    end
-    fill_in "Traveler category (optional)", with: category
-    click_on "Add column"
-  end
-
   def remove_profile_named(name)
     list = "[data-cruise-rate-matrix-target='profileList']"
-    return unless has_css?("#{list} tr", text: name, wait: 1)
+    return unless has_css?("#{list} tbody tr", text: name, wait: 1)
 
     begin
       accept_confirm(wait: 1) do
-        within(list) { find("tr", text: name).click_button("Remove") }
+        within(list) { find("tbody tr", text: name).click_button("Remove") }
       end
     rescue Capybara::ModalNotFound
-      within(list) { find("tr", text: name).click_button("Remove") }
+      # Click already ran; only click again if the profile is still present.
+      if has_css?("#{list} tbody tr", text: name, wait: 0)
+        within(list) { find("tbody tr", text: name).click_button("Remove") }
+      end
     end
-    assert_no_selector "#{list} tr", text: name, wait: 2
+    assert_no_selector "#{list} tbody tr", text: name, wait: 2
+  end
+
+  def edit_profile_category(named:, category:)
+    within "[data-cruise-rate-matrix-target='profileList']" do
+      find("tbody tr", text: named).click_button("Edit")
+    end
+    fill_in "Traveler category (optional)", with: category
+    click_on "Add column"
   end
 
   def current_definition

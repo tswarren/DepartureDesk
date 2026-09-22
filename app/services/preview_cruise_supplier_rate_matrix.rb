@@ -21,7 +21,8 @@ class PreviewCruiseSupplierRateMatrix
     convert_legacy: nil,
     version_lock_version:,
     definition_lock_version: nil,
-    empty_schedule:
+    empty_schedule:,
+    illustration_occupants: nil
   )
     @agency = agency
     @actor = actor
@@ -38,6 +39,7 @@ class PreviewCruiseSupplierRateMatrix
     @version_lock_version = version_lock_version
     @definition_lock_version = definition_lock_version
     @empty_schedule = empty_schedule
+    @illustration_occupants = illustration_occupants
   end
 
   def call
@@ -84,7 +86,8 @@ class PreviewCruiseSupplierRateMatrix
         agency: @agency,
         arrangement: @arrangement,
         resource: @resource,
-        version: @arrangement.versions.order(:version_number).last
+        version: @arrangement.versions.order(:version_number).last,
+        illustration_occupants: @illustration_occupants
       ).call
 
       raise ActiveRecord::Rollback

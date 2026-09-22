@@ -32,7 +32,8 @@ class CruiseSupplierRatesController < ApplicationController
       convert_legacy: params[:convert_legacy],
       version_lock_version: params.require(:version_lock_version),
       definition_lock_version: params[:definition_lock_version],
-      empty_schedule: @rate_shape.empty?
+      empty_schedule: @rate_shape.empty?,
+      illustration_occupants: illustration_occupant_params
     ).call
 
     unless result.ok?
@@ -453,5 +454,17 @@ class CruiseSupplierRatesController < ApplicationController
 
   def occupancy_params
     params.fetch(:expected_cabins, {}).permit(:single, :double, :triple).to_h
+  end
+
+  def illustration_occupant_params
+    raw = params[:illustration_occupants]
+    return [] if raw.blank?
+
+    entries = if raw.is_a?(ActionController::Parameters) || raw.is_a?(Hash)
+      raw.to_unsafe_h.sort_by { |key, _| key.to_i }.map(&:last)
+    else
+      Array(raw)
+    end
+    entries.map { |label| label.to_s.strip.presence }.compact
   end
 end
