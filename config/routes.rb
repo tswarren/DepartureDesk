@@ -191,6 +191,7 @@ Rails.application.routes.draw do
             controller: "cruise_supplier_rates" do
             put :occupancy_plan
             post :forecast_readiness
+            post :preview
           end
         end
       end

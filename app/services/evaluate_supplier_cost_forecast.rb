@@ -92,6 +92,13 @@ class EvaluateSupplierCostForecast
   private
 
   def with_readonly_preload
+    # Preview paths may already be inside a rolled-back write transaction. Nested
+    # SET TRANSACTION / isolation is rejected by PostgreSQL in that case.
+    if ActiveRecord::Base.connection.transaction_open?
+      preload!
+      return yield
+    end
+
     ActiveRecord::Base.transaction(isolation: :repeatable_read) do
       ActiveRecord::Base.connection.execute("SET TRANSACTION READ ONLY")
       preload!

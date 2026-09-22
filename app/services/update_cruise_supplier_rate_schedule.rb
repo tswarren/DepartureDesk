@@ -82,7 +82,13 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
           unless SupplierCostDefinition::STAGES.include?(stage)
             raise Error.new("Choose estimate or contracted.", code: :invalid)
           end
-          definition.update!(stage: stage) if definition.stage != stage
+          if definition.stage != stage
+            raise Error.new(
+              "Terms stage cannot be changed after Supplier rates are saved. " \
+              "Keep #{definition.stage.humanize.downcase}, or open advanced cost planning for a new definition.",
+              code: :invalid
+            )
+          end
         end
 
         if !@notes.nil?

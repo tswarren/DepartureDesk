@@ -1,5 +1,55 @@
 <% content_for :title, "Supplier rates — #{@resource_definition.name}" %>
 
+<%
+  family_options = CruiseSupplierRateSupport::PROFILE_FAMILIES.map { |key, spec|
+    [spec.fetch(:label), key.to_s]
+  }
+  starter_keys = %w[first_second additional every_traveler every_cabin single_supplement]
+  profiles = (@form_profiles || []).map { |p| p.with_indifferent_access }
+  if profiles.empty?
+    profiles = starter_keys.map { |key|
+      decoded = CruiseSupplierRateSupport.decode_profile_key(key)
+      {
+        "key" => key,
+        "family" => key,
+        "category" => nil,
+        "occupancy_position_from" => decoded[:occupancy_position_from],
+        "occupancy_position_to" => decoded[:occupancy_position_to]
+      }
+    }
+  end
+  custom_rows = (@form_custom_rows || []).map(&:with_indifferent_access)
+  commission = (@form_commission || { method: "not_provided", shared: true }).with_indifferent_access
+  matrix_initial_state = {
+    profiles: profiles.map { |profile|
+      {
+        key: profile[:key].to_s,
+        family: profile[:family].to_s,
+        category: profile[:category],
+        occupancy_position_from: profile[:occupancy_position_from],
+        occupancy_position_to: profile[:occupancy_position_to]
+      }
+    },
+    customRows: custom_rows.map { |row|
+      {
+        key: row[:key].to_s,
+        label: row[:label].to_s,
+        economic_role: row[:economic_role].to_s
+      }
+    },
+    cells: (@form_cells || {}).transform_keys(&:to_s),
+    commission: {
+      method: (commission[:method] || "not_provided").to_s,
+      shared: commission.fetch(:shared, true) != false && commission[:shared].to_s != "0",
+      percentage: (commission[:percentage] || "").to_s,
+      amounts: (commission[:amounts] || {}).transform_keys(&:to_s),
+      rates: (commission[:rates] || {}).transform_keys(&:to_s),
+      addCells: Array(commission[:add_cells]).map(&:to_s),
+      subtractCells: Array(commission[:subtract_cells]).map(&:to_s)
+    }
+  }
+%>
+
 <article class="dd-panel" id="cruise-supplier-rates">
   <div class="dd-panel-body dd-stack">
     <p>
@@ -31,95 +81,104 @@
         <p><%= link_to "Open advanced cost planning", @advanced_path, class: "dd-button dd-button-secondary" %></p>
       </section>
     <% else %>
-      <% if @preview.illustrations.any? %>
-        <section class="dd-stack" aria-labelledby="rate-illustrations-heading">
-          <h2 id="rate-illustrations-heading" class="dd-section-title">Per-cabin illustrations</h2>
-          <ul>
-            <% @preview.illustrations.each do |row| %>
-              <li>
-                <%= row.label %>:
-                <% if row.gross_minor_units %>
-                  gross <%= Money.new(row.gross_minor_units, @preview.currency || @departure.operating_currency).format %>
-                <% else %>
-                  gross pending
-                <% end %>
-                · commission <%= row.commission_state %>
-                · net <%= row.net_state == "shown" && row.net_minor_units ? Money.new(row.net_minor_units, @preview.currency || @departure.operating_currency).format : row.net_state %>
-              </li>
-            <% end %>
-          </ul>
-        </section>
-      <% end %>
-
-      <section class="dd-stack" aria-labelledby="rate-terms-heading"
-            data-controller="cruise-rate-matrix">
-        <h2 id="rate-terms-heading" class="dd-section-title">Supplier rate schedule</h2>
-        <% if @rate_shape.legacy? %>
-          <p role="status">
-            These terms were saved in the earlier fixed form. Saving converts them to the rate matrix.
-            Confirm conversion below. Forecast readiness will clear.
-          </p>
-        <% end %>
-        <% if @editable %>
-          <% profiles = (@form_profiles || []).map { |p| p.with_indifferent_access } %>
-          <% if profiles.empty? %>
-            <% profiles = %w[first_second additional every_traveler single_supplement].map { |key|
-              { "key" => key, "family" => key, "category" => nil }
-            } %>
+      <% if @editable %>
+        <%= form_with url: departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
+              method: (@rate_shape.empty? ? :post : :patch),
+              class: "dd-stack",
+              html: {
+                id: "cruise-supplier-rate-terms",
+                data: {
+                  controller: "cruise-rate-matrix",
+                  cruise_rate_matrix_currency_value: (@operating_currency || @departure.operating_currency),
+                  cruise_rate_matrix_preview_url_value: @preview_path,
+                  cruise_rate_matrix_max_occupancy_value: @resource_definition.maximum_occupancy.to_i,
+                  cruise_rate_matrix_initial_state_value: matrix_initial_state
+                }
+              } do %>
+          <%= hidden_field_tag :version_lock_version, @cruise_shape.version.lock_version %>
+          <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+          <% unless @rate_shape.empty? %>
+            <%= hidden_field_tag :definition_lock_version, @rate_shape.definition.lock_version %>
           <% end %>
-          <% profile_keys = profiles.map { |p| p[:key].to_s } %>
-          <% custom_rows = (@form_custom_rows || []).map(&:with_indifferent_access) %>
-          <% all_rows = CruiseSupplierRateSupport::STATIC_ROWS.map { |key, spec|
-              { key: key.to_s, label: spec.fetch(:label), economic_role: spec.fetch(:economic_role), static: true }
-            } + custom_rows.map { |row|
-              { key: row[:key].to_s, label: row[:label], economic_role: row[:economic_role], static: false }
-            } %>
-          <%= form_with url: departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
-                method: (@rate_shape.empty? ? :post : :patch),
-                class: "dd-stack",
-                html: { id: "cruise-supplier-rate-terms" } do %>
-            <%= hidden_field_tag :version_lock_version, @cruise_shape.version.lock_version %>
-            <%= hidden_field_tag :idempotency_key, @idempotency_key %>
-            <% unless @rate_shape.empty? %>
-              <%= hidden_field_tag :definition_lock_version, @rate_shape.definition.lock_version %>
-            <% end %>
-            <% if @rate_shape.legacy? %>
-              <label>
-                <%= check_box_tag :convert_legacy, "1", true, id: "convert_legacy" %>
-                Convert this schedule to the Supplier rate matrix
-              </label>
-            <% end %>
+          <% if @rate_shape.legacy? %>
+            <label>
+              <%= check_box_tag :convert_legacy, "1", true, id: "convert_legacy" %>
+              Convert this schedule to the Supplier rate matrix
+            </label>
+          <% end %>
 
-            <div class="dd-field">
-              <label class="dd-label" for="stage">Terms stage</label>
+          <div class="dd-field">
+            <label class="dd-label" for="stage">Terms stage</label>
+            <% if @rate_shape.empty? %>
               <%= select_tag :stage,
                     options_for_select([ [ "Estimate", "estimate" ], [ "Contracted", "contracted" ] ], @form_stage),
                     id: "stage", class: "dd-input" %>
-            </div>
+            <% else %>
+              <%= hidden_field_tag :stage, @form_stage %>
+              <p id="stage" class="dd-help"><%= @form_stage.to_s.humanize %></p>
+              <p class="dd-help">Stage is fixed after the schedule is first saved.</p>
+            <% end %>
+          </div>
+
+          <section class="dd-stack" aria-labelledby="rate-terms-heading">
+            <h2 id="rate-terms-heading" class="dd-section-title">Supplier rate schedule</h2>
+            <% if @rate_shape.legacy? %>
+              <p role="status">
+                These terms were saved in the earlier fixed form. Saving converts them to the rate matrix.
+                Confirm conversion below. Forecast readiness will clear.
+              </p>
+            <% end %>
 
             <fieldset class="dd-stack">
               <legend class="dd-label">Rate profiles</legend>
-              <% profiles.each_with_index do |profile, index| %>
-                <%= hidden_field_tag "profiles[#{index}][key]", profile[:key] %>
-                <%= hidden_field_tag "profiles[#{index}][family]", profile[:family] %>
+              <div data-cruise-rate-matrix-target="profileList"></div>
+              <div class="dd-actions">
+                <button type="button" class="dd-button dd-button-secondary"
+                        data-action="cruise-rate-matrix#toggleProfilePanel">
+                  Add rate profile
+                </button>
+              </div>
+
+              <div class="dd-cruise-rate-add-profile dd-stack" data-cruise-rate-matrix-target="profilePanel" hidden>
+                <input type="hidden" data-cruise-rate-matrix-target="editProfileIndex" value="">
                 <div class="dd-field">
-                  <span class="dd-label">
-                    <%= CruiseSupplierRateSupport::PROFILE_FAMILIES.fetch(profile[:family].to_sym).fetch(:label) %>
-                  </span>
-                  <% if CruiseSupplierRateSupport::PROFILE_FAMILIES.fetch(profile[:family].to_sym).fetch(:allows_participant_category) %>
-                    <label class="dd-label" for="profile_category_<%= index %>">Traveler category (optional)</label>
-                    <%= text_field_tag "profiles[#{index}][category]", profile[:category],
-                          id: "profile_category_#{index}", class: "dd-input",
-                          placeholder: "Adult, Child, …" %>
-                  <% end %>
+                  <label class="dd-label" for="add_profile_family">Profile family</label>
+                  <select id="add_profile_family" class="dd-input"
+                          data-cruise-rate-matrix-target="profileFamily"
+                          data-action="change->cruise-rate-matrix#profileFamilyChanged">
+                    <% family_options.each do |label, key| %>
+                      <option value="<%= key %>"><%= label %></option>
+                    <% end %>
+                  </select>
                 </div>
-              <% end %>
-              <p class="dd-help">
-                Add Child or other traveler categories on overlapping positions only after choosing an overlap resolution below.
-              </p>
+                <div class="dd-field" data-cruise-rate-matrix-target="profileCategoryField">
+                  <label class="dd-label" for="add_profile_category">Traveler category (optional)</label>
+                  <input type="text" id="add_profile_category" class="dd-input"
+                         data-cruise-rate-matrix-target="profileCategory"
+                         placeholder="Adult, Child, …">
+                </div>
+                <div class="dd-cruise-rate-bounded-fields" data-cruise-rate-matrix-target="profileBoundedFields" hidden>
+                  <div class="dd-field">
+                    <label class="dd-label" for="add_profile_from">Starting position</label>
+                    <input type="number" id="add_profile_from" class="dd-input" min="1"
+                           data-cruise-rate-matrix-target="profileFrom" value="1">
+                  </div>
+                  <div class="dd-field">
+                    <label class="dd-label" for="add_profile_to">Ending position (optional)</label>
+                    <input type="number" id="add_profile_to" class="dd-input" min="1"
+                           data-cruise-rate-matrix-target="profileTo" placeholder="Open-ended">
+                  </div>
+                </div>
+                <div class="dd-actions">
+                  <button type="button" class="dd-button dd-button-primary"
+                          data-action="cruise-rate-matrix#confirmProfile">Add column</button>
+                  <button type="button" class="dd-button dd-button-secondary"
+                          data-action="cruise-rate-matrix#cancelProfilePanel">Cancel</button>
+                </div>
+              </div>
             </fieldset>
 
-            <fieldset class="dd-stack">
+            <fieldset class="dd-stack" data-cruise-rate-matrix-target="overlapPanel" hidden>
               <legend class="dd-label">Overlap with category-specific profiles</legend>
               <% resolution = @form_overlap_resolution.to_s %>
               <label>
@@ -139,209 +198,165 @@
               </label>
             </fieldset>
 
-            <div class="dd-cruise-rate-narrow" data-cruise-rate-matrix-target="narrowNav">
+            <div class="dd-cruise-rate-narrow">
               <label class="dd-label" for="cruise_rate_profile_select">Rate profile</label>
               <div class="dd-cruise-rate-narrow-controls">
-                <button type="button" class="dd-button dd-button-secondary" data-action="cruise-rate-matrix#previousProfile">Previous profile</button>
-                <%= select_tag "cruise_rate_profile_select",
-                      options_for_select(profile_keys.map { |key|
-                        [ CruiseSupplierRateSupport.profile_display_label(key), key ]
-                      }, profile_keys.first),
-                      id: "cruise_rate_profile_select",
-                      class: "dd-input",
-                      data: {
-                        cruise_rate_matrix_target: "profileSelect",
-                        action: "change->cruise-rate-matrix#selectProfile"
-                      } %>
-                <button type="button" class="dd-button dd-button-secondary" data-action="cruise-rate-matrix#nextProfile">Next profile</button>
+                <button type="button" class="dd-button dd-button-secondary"
+                        data-action="cruise-rate-matrix#previousProfile">Previous profile</button>
+                <select id="cruise_rate_profile_select" class="dd-input"
+                        data-cruise-rate-matrix-target="narrowSelect"
+                        data-action="change->cruise-rate-matrix#selectProfile">
+                </select>
+                <button type="button" class="dd-button dd-button-secondary"
+                        data-action="cruise-rate-matrix#nextProfile">Next profile</button>
               </div>
-              <p class="dd-help" data-cruise-rate-matrix-target="profilePosition">1 of <%= profile_keys.size %></p>
+              <p class="dd-help" data-cruise-rate-matrix-target="profilePosition">1 of <%= profiles.size %></p>
             </div>
 
             <div class="dd-table-wrap dd-cruise-rate-matrix" role="region" aria-label="Rate components">
               <table class="dd-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Component</th>
-                    <% profiles.each do |profile| %>
-                      <th scope="col" data-profile-column="<%= profile[:key] %>">
-                        <%= CruiseSupplierRateSupport.profile_display_label(profile[:key]) %>
-                      </th>
-                    <% end %>
-                  </tr>
-                </thead>
-                <tbody data-cruise-rate-matrix-target="rowsBody">
-                  <% all_rows.each do |row| %>
-                    <tr data-row-key="<%= row[:key] %>">
-                      <th scope="row">
-                        <% if row[:static] %>
-                          <%= row[:label] %>
-                        <% else %>
-                          <%= hidden_field_tag "custom_rows[][key]", row[:key] %>
-                          <%= text_field_tag "custom_rows[][label]", row[:label], class: "dd-input", aria: { label: "Component description" } %>
-                          <%= select_tag "custom_rows[][economic_role]",
-                                options_for_select(
-                                  [ [ "Supplier charge", "supplier_charge" ], [ "Supplier credit", "supplier_credit" ] ],
-                                  row[:economic_role]
-                                ),
-                                class: "dd-input",
-                                aria: { label: "Component kind" } %>
-                        <% end %>
-                      </th>
-                      <% profiles.each do |profile| %>
-                        <% cell = CruiseSupplierRateSupport.cell_key(row[:key], profile[:key]) %>
-                        <td data-profile-column="<%= profile[:key] %>">
-                          <label class="dd-visually-hidden" for="cell_<%= cell.tr(':', '_') %>">
-                            <%= row[:label] %> · <%= CruiseSupplierRateSupport.profile_display_label(profile[:key]) %>
-                          </label>
-                          <%= text_field_tag "cells[#{cell}]", @form_cells[cell] || @form_cells[cell.to_s],
-                                id: "cell_#{cell.tr(':', '_')}",
-                                class: "dd-input",
-                                inputmode: "decimal",
-                                data: {
-                                  cruise_rate_matrix_target: "cell",
-                                  row: row[:key],
-                                  profile: profile[:key],
-                                  role: row[:economic_role]
-                                } %>
-                        </td>
-                      <% end %>
-                    </tr>
-                  <% end %>
-                  <tr>
-                    <th scope="row">Known profile subtotal</th>
-                    <% profiles.each do |profile| %>
-                      <td data-profile-column="<%= profile[:key] %>"
-                          data-cruise-rate-matrix-target="subtotal"
-                          data-profile="<%= profile[:key] %>">—</td>
-                    <% end %>
-                  </tr>
-                </tbody>
+                <thead data-cruise-rate-matrix-target="matrixHead"></thead>
+                <tbody data-cruise-rate-matrix-target="matrixBody"></tbody>
               </table>
             </div>
             <p class="dd-help">Blank means pending. Enter 0.00 when the Supplier has confirmed a zero amount.</p>
+
             <div class="dd-actions">
-              <button type="button" class="dd-button dd-button-secondary" data-action="cruise-rate-matrix#addComponent">
+              <button type="button" class="dd-button dd-button-secondary"
+                      data-action="cruise-rate-matrix#toggleComponentPanel">
                 Add component
               </button>
             </div>
-            <template data-cruise-rate-matrix-target="customRowTemplate">
-              <tr data-row-key="__KEY__">
-                <th scope="row">
-                  <input type="hidden" name="custom_rows[][key]" value="__KEY__">
-                  <input type="text" name="custom_rows[][label]" class="dd-input" value="" aria-label="Component description" placeholder="Description">
-                  <select name="custom_rows[][economic_role]" class="dd-input" aria-label="Component kind">
-                    <option value="supplier_charge">Supplier charge</option>
-                    <option value="supplier_credit">Supplier credit</option>
-                  </select>
-                </th>
-                <% profiles.each do |profile| %>
-                  <td data-profile-column="<%= profile[:key] %>">
-                    <input type="text" name="cells[__KEY__:<%= profile[:key] %>]" class="dd-input" inputmode="decimal"
-                      data-cruise-rate-matrix-target="cell"
-                      data-row="__KEY__"
-                      data-profile="<%= profile[:key] %>"
-                      data-role="supplier_charge"
-                      aria-label="New component · <%= CruiseSupplierRateSupport.profile_display_label(profile[:key]) %>">
-                  </td>
-                <% end %>
-              </tr>
-            </template>
-
-            <fieldset class="dd-stack">
-              <legend class="dd-label">How is expected commission stated?</legend>
-              <% method = (@form_commission[:method] || @form_commission["method"] || "not_provided").to_s %>
-              <% shared = @form_commission.fetch(:shared) { @form_commission.fetch("shared", true) } != false %>
-              <label><%= radio_button_tag "commission[method]", "not_provided", method == "not_provided" %> Not provided yet</label>
-              <label><%= radio_button_tag "commission[method]", "dollar", method == "dollar" %> Dollar amount</label>
-              <label><%= radio_button_tag "commission[method]", "percentage", method == "percentage" %> Percentage</label>
-
-              <div class="dd-stack">
-                <p class="dd-label">Dollar commission by profile</p>
-                <% amounts = (@form_commission[:amounts] || @form_commission["amounts"] || {}).with_indifferent_access %>
-                <% profiles.each do |profile| %>
-                  <div class="dd-field">
-                    <label class="dd-label" for="commission_amount_<%= profile[:key].to_s.tr(':', '_') %>">
-                      <%= CruiseSupplierRateSupport.profile_display_label(profile[:key]) %>
-                    </label>
-                    <%= text_field_tag "commission[amounts][#{profile[:key]}]", amounts[profile[:key]],
-                          id: "commission_amount_#{profile[:key].to_s.tr(':', '_')}", class: "dd-input", inputmode: "decimal" %>
-                  </div>
-                <% end %>
+            <div class="dd-stack" data-cruise-rate-matrix-target="componentPanel" hidden>
+              <input type="hidden" data-cruise-rate-matrix-target="editRowKey" value="">
+              <div class="dd-field">
+                <label class="dd-label" for="component_label">Component description</label>
+                <input type="text" id="component_label" class="dd-input"
+                       data-cruise-rate-matrix-target="componentLabel">
               </div>
+              <div class="dd-field">
+                <label class="dd-label" for="component_role">Component kind</label>
+                <select id="component_role" class="dd-input"
+                        data-cruise-rate-matrix-target="componentRole">
+                  <option value="supplier_charge">Supplier charge</option>
+                  <option value="supplier_credit">Supplier credit</option>
+                </select>
+              </div>
+              <div class="dd-actions">
+                <button type="button" class="dd-button dd-button-primary"
+                        data-action="cruise-rate-matrix#confirmComponent">Save component</button>
+                <button type="button" class="dd-button dd-button-secondary"
+                        data-action="cruise-rate-matrix#cancelComponentPanel">Cancel</button>
+              </div>
+            </div>
+          </section>
 
+          <fieldset class="dd-stack">
+            <legend class="dd-label">How is expected commission stated?</legend>
+            <div class="dd-field">
+              <label class="dd-label" for="commission_method">Commission method</label>
+              <select id="commission_method" class="dd-input"
+                      data-cruise-rate-matrix-target="commissionMethod"
+                      data-action="change->cruise-rate-matrix#selectCommissionMethod">
+                <option value="not_provided" <%= "selected" if (commission[:method] || "not_provided") == "not_provided" %>>Not provided yet</option>
+                <option value="dollar" <%= "selected" if commission[:method].to_s == "dollar" %>>Dollar amount</option>
+                <option value="percentage" <%= "selected" if commission[:method].to_s == "percentage" %>>Percentage</option>
+              </select>
+            </div>
+
+            <p class="dd-help" data-cruise-rate-matrix-target="commissionNotProvided">
+              Expected commission will remain pending on illustrations until a method is chosen.
+            </p>
+
+            <div class="dd-cruise-rate-commission-panel dd-stack"
+                 data-cruise-rate-matrix-target="commissionPercentagePanel" hidden>
               <label>
-                <%= hidden_field_tag "commission[shared]", "0", id: nil %>
-                <%= check_box_tag "commission[shared]", "1", shared, id: "commission_shared" %>
+                <input type="checkbox" data-cruise-rate-matrix-target="commissionSharedField"
+                       data-action="change->cruise-rate-matrix#commissionSharedChanged"
+                       <%= "checked" if commission.fetch(:shared, true) != false %>>
                 Use the same commission rate for every profile
               </label>
-
               <div class="dd-field">
                 <label class="dd-label" for="commission_percentage">Shared commission percentage</label>
-                <%= text_field_tag "commission[percentage]", @form_commission[:percentage] || @form_commission["percentage"],
-                      id: "commission_percentage", class: "dd-input", inputmode: "decimal" %>
+                <input type="text" id="commission_percentage" class="dd-input" inputmode="decimal"
+                       data-cruise-rate-matrix-target="commissionPercentageField"
+                       data-action="input->cruise-rate-matrix#commissionPercentageInput"
+                       value="<%= commission[:percentage] %>">
               </div>
-
-              <% rates = (@form_commission[:rates] || @form_commission["rates"] || {}).with_indifferent_access %>
-              <div class="dd-stack">
-                <p class="dd-label">Commission percentage by profile</p>
-                <% profiles.each do |profile| %>
-                  <div class="dd-field">
-                    <label class="dd-label" for="commission_rate_<%= profile[:key].to_s.tr(':', '_') %>">
-                      <%= CruiseSupplierRateSupport.profile_display_label(profile[:key]) %>
-                    </label>
-                    <%= text_field_tag "commission[rates][#{profile[:key]}]", rates[profile[:key]],
-                          id: "commission_rate_#{profile[:key].to_s.tr(':', '_')}", class: "dd-input", inputmode: "decimal" %>
-                  </div>
-                <% end %>
-              </div>
-
-              <fieldset class="dd-stack">
-                <legend class="dd-label">Commissionable cells (add)</legend>
-                <% selected_add = Array(@form_commission[:add_cells] || @form_commission["add_cells"]).map(&:to_s) %>
-                <% profiles.each do |profile| %>
-                  <% all_rows.select { |row| row[:economic_role] == "supplier_charge" }.each do |row| %>
-                    <% cell = CruiseSupplierRateSupport.cell_key(row[:key], profile[:key]) %>
-                    <label>
-                      <%= check_box_tag "commission[add_cells][]", cell, selected_add.include?(cell),
-                            id: "commission_add_#{cell.tr(':', '_')}" %>
-                      <%= row[:label] %> ·
-                      <%= CruiseSupplierRateSupport.profile_display_label(profile[:key]) %>
-                    </label>
-                  <% end %>
-                <% end %>
-              </fieldset>
-              <fieldset class="dd-stack">
-                <legend class="dd-label">Subtract before calculating commission</legend>
-                <% selected_sub = Array(@form_commission[:subtract_cells] || @form_commission["subtract_cells"]).map(&:to_s) %>
-                <% profiles.each do |profile| %>
-                  <% all_rows.select { |row| row[:economic_role] == "supplier_credit" }.each do |row| %>
-                    <% cell = CruiseSupplierRateSupport.cell_key(row[:key], profile[:key]) %>
-                    <label>
-                      <%= check_box_tag "commission[subtract_cells][]", cell, selected_sub.include?(cell),
-                            id: "commission_sub_#{cell.tr(':', '_')}" %>
-                      <%= row[:label] %> · <%= CruiseSupplierRateSupport.profile_display_label(profile[:key]) %>
-                    </label>
-                  <% end %>
-                <% end %>
-              </fieldset>
-              <p class="dd-help">Shared percentage uses one commission component and one rounding boundary. Uncheck to round each profile independently.</p>
-            </fieldset>
-
-            <div class="dd-field">
-              <label class="dd-label" for="notes">Notes</label>
-              <%= text_area_tag :notes, @form_notes, id: "notes", class: "dd-input", rows: 2 %>
+              <div class="dd-stack" data-cruise-rate-matrix-target="commissionRates"></div>
+              <div data-cruise-rate-matrix-target="commissionTreatments"></div>
+              <p class="dd-help">
+                Shared percentage uses one commission component and one rounding boundary.
+                Uncheck to round each profile independently.
+              </p>
             </div>
 
-            <div class="dd-actions">
-              <%= submit_tag "Save Supplier terms", class: "dd-button dd-button-primary" %>
-              <%= link_to "Open advanced cost planning", @advanced_path, class: "dd-button dd-button-secondary" %>
+            <div class="dd-cruise-rate-commission-panel dd-stack"
+                 data-cruise-rate-matrix-target="commissionDollarPanel" hidden>
+              <p class="dd-label">Dollar commission by profile</p>
+              <div data-cruise-rate-matrix-target="commissionAmounts"></div>
             </div>
-          <% end %>
-        <% else %>
-          <p>Create a successor draft to edit Supplier rates.</p>
+          </fieldset>
+
+          <section class="dd-stack" aria-labelledby="rate-illustrations-heading">
+            <h2 id="rate-illustrations-heading" class="dd-section-title">Per-cabin illustrations</h2>
+            <div data-cruise-rate-matrix-target="occupantEditor"></div>
+            <div data-cruise-rate-matrix-target="illustrations">
+              <% if @preview.illustrations.any? %>
+                <ul>
+                  <% @preview.illustrations.each do |row| %>
+                    <li>
+                      <%= row.label %>:
+                      <% if row.gross_minor_units %>
+                        gross <%= Money.new(row.gross_minor_units, @preview.currency || @departure.operating_currency).format %>
+                      <% else %>
+                        gross pending
+                      <% end %>
+                      · commission <%= row.commission_state %>
+                      · net <%= row.net_state == "shown" && row.net_minor_units ? Money.new(row.net_minor_units, @preview.currency || @departure.operating_currency).format : row.net_state %>
+                    </li>
+                  <% end %>
+                </ul>
+              <% else %>
+                <p class="dd-help">Enter amounts to see per-cabin illustrations.</p>
+              <% end %>
+            </div>
+          </section>
+
+          <div data-cruise-rate-matrix-target="formFields" class="dd-visually-hidden" aria-hidden="true"></div>
+
+          <div class="dd-field">
+            <label class="dd-label" for="notes">Notes</label>
+            <%= text_area_tag :notes, @form_notes, id: "notes", class: "dd-input", rows: 2 %>
+          </div>
+
+          <div class="dd-actions">
+            <%= submit_tag "Save Supplier terms", class: "dd-button dd-button-primary" %>
+            <%= link_to "Open advanced cost planning", @advanced_path, class: "dd-button dd-button-secondary" %>
+          </div>
         <% end %>
-      </section>
+      <% else %>
+        <% if @preview.illustrations.any? %>
+          <section class="dd-stack" aria-labelledby="rate-illustrations-heading">
+            <h2 id="rate-illustrations-heading" class="dd-section-title">Per-cabin illustrations</h2>
+            <ul>
+              <% @preview.illustrations.each do |row| %>
+                <li>
+                  <%= row.label %>:
+                  <% if row.gross_minor_units %>
+                    gross <%= Money.new(row.gross_minor_units, @preview.currency || @departure.operating_currency).format %>
+                  <% else %>
+                    gross pending
+                  <% end %>
+                  · commission <%= row.commission_state %>
+                  · net <%= row.net_state == "shown" && row.net_minor_units ? Money.new(row.net_minor_units, @preview.currency || @departure.operating_currency).format : row.net_state %>
+                </li>
+              <% end %>
+            </ul>
+          </section>
+        <% end %>
+        <p>Create a successor draft to edit Supplier rates.</p>
+      <% end %>
 
       <section class="dd-stack" aria-labelledby="occupancy-plan-heading">
         <h2 id="occupancy-plan-heading" class="dd-section-title">Occupancy planning</h2>

@@ -445,6 +445,43 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
     assert_includes labels, "Child"
   end
 
+  test "changing terms stage after save raises a clear invalid error" do
+    CreateCruiseSupplierRateSchedule.new(**create_args.merge(stage: "contracted")).call
+    @version.reload
+
+    error = assert_raises(AgencyCommand::Error) do
+      UpdateCruiseSupplierRateSchedule.new(**update_args.merge(stage: "estimate")).call
+    end
+    assert_equal :invalid, error.code
+    assert_match(/stage cannot be changed/i, error.message)
+    assert_equal "contracted", current_definition.stage
+  end
+
+  test "bounded positions family compiles to occupancy positions" do
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      resource: @resource,
+      profiles: [
+        { family: "bounded_positions", occupancy_position_from: 2, occupancy_position_to: 3, category: "Child" }
+      ],
+      cells: {
+        "base_fare:bounded_2_3__Child" => "250.00"
+      },
+      commission: { method: "not_provided" },
+      stage: "estimate",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    component = current_definition.supplier_cost_components.find_by!(label: "Base Fare")
+    assert_equal "occupancy_positions", component.quantity_basis
+    assert_equal 2, component.occupancy_position_from
+    assert_equal 3, component.occupancy_position_to
+    assert_equal "Child", component.participant_category.label
+  end
+
   private
 
   def sailing_arguments
