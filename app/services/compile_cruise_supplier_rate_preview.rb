@@ -57,6 +57,7 @@ class CompileCruiseSupplierRatePreview
     illustrations = build_illustrations(
       definition: definition,
       resource_definition: resource_definition,
+      shape: shape,
       commission_state: commission_state,
       net_state: net_state
     )
@@ -111,9 +112,17 @@ class CompileCruiseSupplierRatePreview
     end
   end
 
-  def build_illustrations(definition:, resource_definition:, commission_state:, net_state:)
-    keys = CruiseSupplierRateSupport.occupancy_keys_for_maximum(resource_definition.maximum_occupancy)
-    category_id = traveler_category_id(definition)
+  def build_illustrations(definition:, resource_definition:, shape:, commission_state:, net_state:)
+    categories = participant_categories_for(definition)
+    adult = categories.find { |c| c.label.casecmp?(ADULT_CATEGORY_LABEL) }
+    child = categories.find { |c| c.label.casecmp?("Child") || c.label.downcase.start_with?("child") }
+
+    scenarios = if adult && child
+      family_illustration_scenarios(resource_definition, adult: adult, child: child)
+    else
+      standard_illustration_scenarios(resource_definition, categories)
+    end
+
     evaluator = EvaluateSupplierCostForecast.new(
       agency: @agency,
       departure: definition.departure,
@@ -122,17 +131,15 @@ class CompileCruiseSupplierRatePreview
       version: definition.supplier_arrangement_version
     )
 
-    keys.map do |key|
-      spec = OCCUPANCY_PROFILE_SPECS.fetch(key)
-      position_count = spec.fetch(:positions)
-      profile_id = "ephemeral-#{key}"
+    scenarios.map do |scenario|
+      profile_id = "ephemeral-#{scenario.fetch(:key)}"
       usage = EvaluateSupplierCostForecast::EphemeralUsage.new(
         id: "ephemeral-usage-#{definition.id}",
-        expected_persons: position_count,
+        expected_persons: scenario.fetch(:category_ids).size,
         expected_resource_units: 1,
         expected_billable_nights: nil
       )
-      positions = Array.new(position_count) do |index|
+      positions = scenario.fetch(:category_ids).each_with_index.map do |category_id, index|
         EvaluateSupplierCostForecast::EphemeralPosition.new(
           id: "#{profile_id}-#{index + 1}",
           occupancy_position: index + 1,
@@ -152,8 +159,8 @@ class CompileCruiseSupplierRatePreview
       totals = source_result&.totals
       complete = source_result&.complete == true
       OccupancyIllustration.new(
-        key: key.to_s,
-        label: spec.fetch(:label),
+        key: scenario.fetch(:key),
+        label: scenario.fetch(:label),
         supported: true,
         gross_minor_units: totals&.forecast_supplier_cost_minor_units,
         commission_minor_units: commission_state == "pending" || commission_state == "none" ?
@@ -169,10 +176,42 @@ class CompileCruiseSupplierRatePreview
     end
   end
 
-  def traveler_category_id(definition)
+  def standard_illustration_scenarios(resource_definition, categories)
+    default_category_id = categories.find { |c| c.label == PARTICIPANT_CATEGORY_LABEL }&.id ||
+      categories.first&.id
+    CruiseSupplierRateSupport.occupancy_keys_for_maximum(resource_definition.maximum_occupancy).map do |key|
+      spec = OCCUPANCY_PROFILE_SPECS.fetch(key)
+      {
+        key: key.to_s,
+        label: spec.fetch(:label),
+        category_ids: Array.new(spec.fetch(:positions)) { default_category_id }
+      }
+    end
+  end
+
+  def family_illustration_scenarios(resource_definition, adult:, child:)
+    max = resource_definition.maximum_occupancy.to_i
+    scenarios = []
+    if max >= 1
+      scenarios << { key: "single_adult", label: "Single Adult", category_ids: [ adult.id ] }
+    end
+    if max >= 2
+      scenarios << { key: "double_adult", label: "Double Adult", category_ids: [ adult.id, adult.id ] }
+    end
+    if max >= 3
+      scenarios << {
+        key: "two_adults_child",
+        label: "Two Adults + Child",
+        category_ids: [ adult.id, adult.id, child.id ]
+      }
+    end
+    scenarios
+  end
+
+  def participant_categories_for(definition)
     definition.supplier_arrangement_version.supplier_cost_participant_categories
-      .find_by(arrangement_item_id: definition.supplier_cost_source.arrangement_item_id, label: PARTICIPANT_CATEGORY_LABEL)
-      &.id
+      .where(arrangement_item_id: definition.supplier_cost_source.arrangement_item_id)
+      .order(:position, :id).to_a
   end
 
   def combined_forecast_total(definition, shape)

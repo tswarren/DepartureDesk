@@ -1,15 +1,17 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Advisory profile subtotals for the Cruise Supplier rate matrix.
-// Server-compiled values remain authoritative on save.
+// Advisory profile subtotals and narrow-screen column focus for the Cruise
+// Supplier rate matrix. Server-compiled values remain authoritative on save.
 export default class extends Controller {
-  static targets = ["cell", "subtotal"]
+  static targets = ["cell", "subtotal", "profileSelect", "profilePosition", "narrowNav", "rowsBody", "customRowTemplate"]
 
   connect() {
+    this.activeProfileIndex = 0
     this.recalculate()
     this.cellTargets.forEach((input) => {
       input.addEventListener("input", () => this.recalculate())
     })
+    this.showActiveProfile()
   }
 
   recalculate() {
@@ -36,5 +38,68 @@ export default class extends Controller {
         minimumFractionDigits: 2
       })
     })
+  }
+
+  profileKeys() {
+    if (!this.hasProfileSelectTarget) return []
+    return Array.from(this.profileSelectTarget.options).map((option) => option.value)
+  }
+
+  selectProfile() {
+    if (!this.hasProfileSelectTarget) return
+    const keys = this.profileKeys()
+    const index = keys.indexOf(this.profileSelectTarget.value)
+    this.activeProfileIndex = index >= 0 ? index : 0
+    this.showActiveProfile()
+  }
+
+  previousProfile() {
+    const keys = this.profileKeys()
+    if (keys.length === 0) return
+    this.activeProfileIndex = (this.activeProfileIndex - 1 + keys.length) % keys.length
+    this.syncSelect()
+    this.showActiveProfile()
+  }
+
+  nextProfile() {
+    const keys = this.profileKeys()
+    if (keys.length === 0) return
+    this.activeProfileIndex = (this.activeProfileIndex + 1) % keys.length
+    this.syncSelect()
+    this.showActiveProfile()
+  }
+
+  syncSelect() {
+    if (!this.hasProfileSelectTarget) return
+    const keys = this.profileKeys()
+    this.profileSelectTarget.value = keys[this.activeProfileIndex] || keys[0]
+  }
+
+  showActiveProfile() {
+    const keys = this.profileKeys()
+    if (keys.length === 0) return
+    const active = keys[this.activeProfileIndex] || keys[0]
+    this.element.querySelectorAll("[data-profile-column]").forEach((node) => {
+      const profile = node.getAttribute("data-profile-column")
+      node.classList.toggle("is-active-profile", profile === active)
+      node.classList.toggle("is-inactive-profile", profile !== active)
+    })
+    if (this.hasProfilePositionTarget) {
+      this.profilePositionTarget.textContent = `${this.activeProfileIndex + 1} of ${keys.length}`
+    }
+  }
+
+  addComponent() {
+    if (!this.hasCustomRowTemplateTarget || !this.hasRowsBodyTarget) return
+    const key = `custom_${Date.now().toString(36)}`
+    const html = this.customRowTemplateTarget.innerHTML.replaceAll("__KEY__", key)
+    const subtotalRow = this.rowsBodyTarget.querySelector("tr:last-child")
+    subtotalRow.insertAdjacentHTML("beforebegin", html)
+    const inserted = this.rowsBodyTarget.querySelector(`tr[data-row-key="${key}"]`)
+    inserted?.querySelectorAll('[data-cruise-rate-matrix-target="cell"]').forEach((input) => {
+      input.addEventListener("input", () => this.recalculate())
+    })
+    this.showActiveProfile()
+    this.recalculate()
   }
 }

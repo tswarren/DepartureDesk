@@ -2225,4 +2225,31 @@
       overflow-x: auto;
     }
   }
+
+  .dd-cruise-rate-narrow {
+    display: none;
+  }
+
+  .dd-cruise-rate-narrow-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  @media (max-width: 767px) {
+    .dd-cruise-rate-narrow {
+      display: block;
+    }
+
+    .dd-cruise-rate-matrix th[data-profile-column].is-inactive-profile,
+    .dd-cruise-rate-matrix td[data-profile-column].is-inactive-profile {
+      display: none;
+    }
+
+    .dd-cruise-rate-matrix th[data-profile-column].is-active-profile,
+    .dd-cruise-rate-matrix td[data-profile-column].is-active-profile {
+      display: table-cell;
+    }
+  }
 }

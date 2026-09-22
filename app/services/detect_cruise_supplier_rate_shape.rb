@@ -79,7 +79,9 @@ class DetectCruiseSupplierRateShape
     reasons = []
     reasons << "Cruise rates support one exact-context cost source per cabin category." if sources.size > 1
     source = sources.first
-    definitions = source.supplier_cost_definitions.includes(supplier_cost_components: :supplier_cost_component_bases).order(:stage, :id).to_a
+    definitions = source.supplier_cost_definitions.includes(
+      supplier_cost_components: [ :supplier_cost_component_bases, :participant_category ]
+    ).order(:stage, :id).to_a
     by_stage = definitions.group_by(&:stage)
     by_stage.each do |stage, rows|
       if rows.size > 1
@@ -89,12 +91,13 @@ class DetectCruiseSupplierRateShape
 
     definition = preferred_definition(definitions)
     components = components_for(definition)
+    categories_by_id = categories_by_id_for(version, item)
     legacy = definition && CruiseSupplierRateSupport.legacy_form?(components)
-    matrix = definition && CruiseSupplierRateSupport.matrix_form?(components)
+    matrix = definition && CruiseSupplierRateSupport.matrix_form?(components, categories_by_id: categories_by_id)
 
     if definition
       if matrix
-        reasons.concat(validate_matrix_components(components))
+        reasons.concat(validate_matrix_components(components, categories_by_id))
       elsif legacy
         reasons.concat(validate_legacy_components(components))
       else
@@ -131,7 +134,7 @@ class DetectCruiseSupplierRateShape
     end
 
     projected = if matrix
-      reconstruct_matrix(components)
+      reconstruct_matrix(components, categories_by_id)
     elsif legacy
       project_legacy_matrix(components)
     else
@@ -176,32 +179,76 @@ class DetectCruiseSupplierRateShape
     definition.supplier_cost_components.sort_by { |c| [ c.position, c.id ] }
   end
 
+  def categories_by_id_for(version, item)
+    version.supplier_cost_participant_categories.where(arrangement_item_id: item.id).index_by(&:id)
+  end
+
   def empty_projected_matrix
     {
-      profiles: %i[first_second additional every_traveler single_supplement],
+      profiles: %w[first_second additional every_traveler single_supplement],
+      profile_details: [
+        { key: "first_second", family: "first_second", category: nil },
+        { key: "additional", family: "additional", category: nil },
+        { key: "every_traveler", family: "every_traveler", category: nil },
+        { key: "single_supplement", family: "single_supplement", category: nil }
+      ],
+      custom_rows: [],
       cells: {},
       commission: { method: "not_provided" }
     }
   end
 
-  def reconstruct_matrix(components)
+  def reconstruct_matrix(components, categories_by_id)
     cells = {}
     profiles = []
+    custom_rows_by_key = {}
     components.each do |component|
       next if component.economic_role == "expected_commission"
 
-      row_key = CruiseSupplierRateSupport.static_row_key_for_label(component.label)
-      profile_key = CruiseSupplierRateSupport.profile_key_for_component(component)
-      next unless row_key && profile_key
+      profile_key = CruiseSupplierRateSupport.profile_key_for_component(component, categories_by_id: categories_by_id)
+      next unless profile_key
 
-      profiles << profile_key
+      row_key = CruiseSupplierRateSupport.static_row_key_for_label(component.label)
+      if row_key.nil?
+        key = CruiseSupplierRateSupport.slugify_custom_row_key(component.label)
+        key = unique_custom_key(key, custom_rows_by_key, component.label)
+        custom_rows_by_key[key] ||= {
+          key: key,
+          label: component.label,
+          economic_role: component.economic_role
+        }
+        row_key = key
+      end
+
+      decoded = CruiseSupplierRateSupport.decode_profile_key(profile_key)
+      profiles << {
+        key: profile_key,
+        family: decoded[:family].to_s,
+        category: decoded[:category]
+      }
       cells[CruiseSupplierRateSupport.cell_key(row_key, profile_key)] = component.amount_minor_units
     end
+
+    profile_details = profiles.uniq { |profile| profile.fetch(:key) }
     {
-      profiles: profiles.uniq.presence || empty_projected_matrix[:profiles],
+      profiles: profile_details.map { |profile| profile.fetch(:key) }.presence || empty_projected_matrix[:profiles],
+      profile_details: profile_details.presence || empty_projected_matrix[:profile_details],
+      custom_rows: custom_rows_by_key.values,
       cells: cells,
-      commission: reconstruct_commission(components, cells)
+      commission: reconstruct_commission(components, cells, categories_by_id)
     }
+  end
+
+  def unique_custom_key(base_key, existing, label)
+    return base_key unless existing.key?(base_key) && existing[base_key][:label] != label
+
+    index = 2
+    candidate = "#{base_key}_#{index}"
+    while existing.key?(candidate) && existing[candidate][:label] != label
+      index += 1
+      candidate = "#{base_key}_#{index}"
+    end
+    candidate
   end
 
   def project_legacy_matrix(components)
@@ -214,54 +261,44 @@ class DetectCruiseSupplierRateShape
       next unless pair
 
       row_key, profile_key = pair
-      profiles << profile_key
+      profiles << {
+        key: profile_key.to_s,
+        family: profile_key.to_s,
+        category: nil
+      }
       cells[CruiseSupplierRateSupport.cell_key(row_key, profile_key)] = component.amount_minor_units
     end
+    profile_details = profiles.uniq { |profile| profile.fetch(:key) }
     {
-      profiles: profiles.uniq.presence || empty_projected_matrix[:profiles],
+      profiles: profile_details.map { |profile| profile.fetch(:key) }.presence || empty_projected_matrix[:profiles],
+      profile_details: profile_details.presence || empty_projected_matrix[:profile_details],
+      custom_rows: [],
       cells: cells,
       commission: project_legacy_commission(components, cells)
     }
   end
 
-  def reconstruct_commission(components, cells)
+  def reconstruct_commission(components, cells, categories_by_id)
     commissions = components.select { |c| c.economic_role == "expected_commission" }
     return { method: "not_provided" } if commissions.empty?
 
-    if commissions.size == 1 && commissions.first.calculation_kind == "percentage"
-      add_cells = []
-      subtract_cells = []
-      commissions.first.supplier_cost_component_bases.includes(:base_component).each do |link|
-        base = link.base_component
-        row_key = CruiseSupplierRateSupport.static_row_key_for_label(base.label)
-        profile_key = CruiseSupplierRateSupport.profile_key_for_component(base)
-        next unless row_key && profile_key
+    percentage = commissions.select { |c| c.calculation_kind == "percentage" }
+    if percentage.size == 1 && commissions.size == 1
+      return reconstruct_shared_percentage(percentage.first, categories_by_id)
+    end
 
-        cell = CruiseSupplierRateSupport.cell_key(row_key, profile_key)
-        if link.direction == "subtract"
-          subtract_cells << cell
-        else
-          add_cells << cell
-        end
-      end
-      return {
-        method: "percentage",
-        rate: commissions.first.rate,
-        percentage: (commissions.first.rate * 100),
-        shared: true,
-        add_cells: add_cells,
-        subtract_cells: subtract_cells
-      }
+    if percentage.size > 1 && commissions.all? { |c| c.calculation_kind == "percentage" }
+      return reconstruct_profile_percentages(percentage, categories_by_id)
     end
 
     if commissions.all? { |c| c.calculation_kind == "unit_rate" }
       amounts = {}
       commissions.each do |component|
-        profile_key = CruiseSupplierRateSupport.profile_key_for_component(component)
+        profile_key = CruiseSupplierRateSupport.profile_key_for_component(component, categories_by_id: categories_by_id)
         profile_key ||= if component.quantity_basis == "resource_units"
-          :every_cabin
+          "every_cabin"
         elsif component.quantity_basis == "persons"
-          :every_traveler
+          "every_traveler"
         end
         next unless profile_key
 
@@ -271,6 +308,72 @@ class DetectCruiseSupplierRateShape
     end
 
     { method: "not_provided" }
+  end
+
+  def reconstruct_shared_percentage(component, categories_by_id)
+    add_cells = []
+    subtract_cells = []
+    component.supplier_cost_component_bases.includes(:base_component).each do |link|
+      base = link.base_component
+      cell = cell_key_for_base(base, categories_by_id)
+      next unless cell
+
+      if link.direction == "subtract"
+        subtract_cells << cell
+      else
+        add_cells << cell
+      end
+    end
+    {
+      method: "percentage",
+      rate: component.rate,
+      percentage: (component.rate * 100),
+      shared: true,
+      add_cells: add_cells,
+      subtract_cells: subtract_cells
+    }
+  end
+
+  def reconstruct_profile_percentages(commissions, categories_by_id)
+    rates = {}
+    add_cells = []
+    subtract_cells = []
+    commissions.each do |component|
+      profile_keys = []
+      component.supplier_cost_component_bases.includes(:base_component).each do |link|
+        base = link.base_component
+        cell = cell_key_for_base(base, categories_by_id)
+        next unless cell
+
+        _row, profile_key = CruiseSupplierRateSupport.parse_cell_key(cell)
+        profile_keys << profile_key.to_s
+        if link.direction == "subtract"
+          subtract_cells << cell
+        else
+          add_cells << cell
+        end
+      end
+      profile_keys.uniq.each do |profile_key|
+        rates[profile_key] = component.rate
+      end
+    end
+    {
+      method: "percentage",
+      shared: false,
+      rates: rates,
+      percentages: rates.transform_values { |rate| rate * 100 },
+      add_cells: add_cells.uniq,
+      subtract_cells: subtract_cells.uniq
+    }
+  end
+
+  def cell_key_for_base(base, categories_by_id)
+    profile_key = CruiseSupplierRateSupport.profile_key_for_component(base, categories_by_id: categories_by_id)
+    return nil unless profile_key
+
+    row_key = CruiseSupplierRateSupport.static_row_key_for_label(base.label)
+    row_key ||= CruiseSupplierRateSupport.slugify_custom_row_key(base.label)
+    CruiseSupplierRateSupport.cell_key(row_key, profile_key)
   end
 
   def project_legacy_commission(components, cells)
@@ -304,9 +407,9 @@ class DetectCruiseSupplierRateShape
 
     if commissions.size == 1 && commissions.first.calculation_kind == "unit_rate"
       profile_key = if commissions.first.quantity_basis == "resource_units"
-        :every_cabin
+        "every_cabin"
       else
-        :every_traveler
+        "every_traveler"
       end
       return {
         method: "dollar",
@@ -317,10 +420,12 @@ class DetectCruiseSupplierRateShape
     { method: "not_provided" }
   end
 
-  def validate_matrix_components(components)
+  def validate_matrix_components(components, categories_by_id)
     reasons = []
     cell_keys = Hash.new(0)
     percentage_commissions = 0
+    dollar_commissions = 0
+    label_roles = {}
 
     components.each do |component|
       if %w[minimum_amount_shortfall minimum_quantity_shortfall fixed].include?(component.calculation_kind)
@@ -331,29 +436,41 @@ class DetectCruiseSupplierRateShape
       if component.economic_role == "expected_commission"
         if component.calculation_kind == "percentage"
           percentage_commissions += 1
-          reasons.concat(validate_matrix_percentage_commission(component, components))
+          reasons.concat(validate_matrix_percentage_commission(component, components, categories_by_id))
         elsif component.calculation_kind == "unit_rate"
-          unless CruiseSupplierRateSupport.profile_key_for_component(component) ||
+          unless CruiseSupplierRateSupport.profile_key_for_component(component, categories_by_id: categories_by_id) ||
               %w[persons resource_units].include?(component.quantity_basis)
             reasons << "Dollar commission must use a supported rate profile."
           end
+          dollar_commissions += 1
         else
           reasons << "Cruise rates support only dollar or percentage expected commission."
         end
         next
       end
 
+      profile_key = CruiseSupplierRateSupport.profile_key_for_component(component, categories_by_id: categories_by_id)
       row_key = CruiseSupplierRateSupport.static_row_key_for_label(component.label)
-      profile_key = CruiseSupplierRateSupport.profile_key_for_component(component)
-      if row_key.nil? || profile_key.nil?
+      if row_key
+        unless component.economic_role == CruiseSupplierRateSupport.static_row_role(row_key)
+          reasons << "“#{component.label}” uses an unsupported economic role."
+        end
+      else
+        normalized = CruiseSupplierRateSupport.normalize_row_label(component.label).downcase
+        prior = label_roles[normalized]
+        if prior && prior != component.economic_role
+          reasons << "Component label “#{component.label}” cannot mix charge and credit roles."
+        end
+        label_roles[normalized] = component.economic_role
+        row_key = CruiseSupplierRateSupport.slugify_custom_row_key(component.label)
+      end
+
+      if profile_key.nil?
         reasons << "Cruise rates cannot reopen component “#{component.label}” in the typed matrix."
         next
       end
       unless component.calculation_kind == "unit_rate"
         reasons << "“#{component.label}” must use a unit rate."
-      end
-      unless component.economic_role == CruiseSupplierRateSupport.static_row_role(row_key)
-        reasons << "“#{component.label}” uses an unsupported economic role."
       end
       cell_keys[CruiseSupplierRateSupport.cell_key(row_key, profile_key)] += 1
     end
@@ -361,11 +478,13 @@ class DetectCruiseSupplierRateShape
     cell_keys.each do |key, count|
       reasons << "Cruise rates allow only one amount for matrix cell #{key}." if count > 1
     end
-    reasons << "Cruise rates allow only one shared percentage commission component." if percentage_commissions > 1
+    if percentage_commissions.positive? && dollar_commissions.positive?
+      reasons << "Cruise rates cannot mix percentage and dollar commission in one schedule."
+    end
     reasons
   end
 
-  def validate_matrix_percentage_commission(component, all_components)
+  def validate_matrix_percentage_commission(component, all_components, categories_by_id)
     reasons = []
     unless component.percentage_treatment == "additive"
       reasons << "Percentage commission must be additive."
@@ -377,16 +496,21 @@ class DetectCruiseSupplierRateShape
       by_id = all_components.index_by(&:id)
       bases.each do |link|
         base = by_id[link.base_component_id] || link.base_component
+        profile_key = CruiseSupplierRateSupport.profile_key_for_component(base, categories_by_id: categories_by_id)
         row_key = CruiseSupplierRateSupport.static_row_key_for_label(base.label)
-        profile_key = CruiseSupplierRateSupport.profile_key_for_component(base)
-        if row_key.nil? || profile_key.nil?
+        if profile_key.nil?
           reasons << "Commission bases must be matrix rate cells."
           break
         end
-        if CruiseSupplierRateSupport.static_row_role(row_key) == "supplier_credit" && link.direction != "subtract"
+        role = if row_key
+          CruiseSupplierRateSupport.static_row_role(row_key)
+        else
+          base.economic_role
+        end
+        if role == "supplier_credit" && link.direction != "subtract"
           reasons << "Discount commission bases must subtract."
         end
-        if CruiseSupplierRateSupport.static_row_role(row_key) == "supplier_charge" && link.direction != "add"
+        if role == "supplier_charge" && link.direction != "add"
           reasons << "Charge commission bases must add."
         end
       end

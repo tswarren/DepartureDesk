@@ -29,6 +29,9 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-supplier-rate-terms"
     assert_select "th", text: "Base Fare"
     assert_select "th", text: "First/Second"
+    assert_select "button", text: "Add component"
+    assert_match(/Use the same commission rate for every profile/, response.body)
+    assert_select ".dd-cruise-rate-narrow"
     assert_no_match(/\bquantity_basis\b|\bSupplierCost\b/, response.body)
 
     post departure_arrangement_cruise_cabin_category_supplier_rates_path(

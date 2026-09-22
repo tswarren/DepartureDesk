@@ -224,7 +224,7 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
       legacy_label = CruiseSupplierRateSupport::LEGACY_LABEL_TO_CELL.find do |_label, pair|
         row_key, profile_key = pair
         component.label == CruiseSupplierRateSupport.static_row_label(row_key) &&
-          CruiseSupplierRateSupport.profile_key_for_component(component) == profile_key
+          CruiseSupplierRateSupport.profile_key_for_component(component).to_s == profile_key.to_s
       end&.first
       component.update_columns(label: legacy_label) if legacy_label
     end
@@ -305,11 +305,10 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
       supplier_arrangement: @arrangement,
       supplier_arrangement_version: @version,
       supplier_cost_definition: definition,
-      label: "Group-wide coach fee",
+      label: "Tiered group fee",
       economic_role: "supplier_charge",
-      calculation_kind: "unit_rate",
+      calculation_kind: "fixed",
       amount_minor_units: 5_000,
-      quantity_basis: "persons",
       position: 99,
       pass_through: false
     )
@@ -328,6 +327,122 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
       agency: @agency, arrangement: @arrangement, resource: @resource
     ).call
     assert_equal %w[single double], preview.illustrations.map(&:key)
+  end
+
+  test "family rates support adult child custom row and profile specific commission" do
+    adult_first = CruiseSupplierRateSupport.encode_profile_key(:first_second, category: "Adult")
+    child_additional = CruiseSupplierRateSupport.encode_profile_key(:additional, category: "Child")
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      resource: @resource,
+      profiles: [
+        { family: "first_second", category: "Adult" },
+        { family: "additional", category: "Child" },
+        { family: "every_traveler" },
+        { family: "single_supplement" }
+      ],
+      custom_rows: [
+        { key: "port_transfer", label: "Port transfer fee", economic_role: "supplier_charge" }
+      ],
+      cells: {
+        "#{CruiseSupplierRateSupport.cell_key(:base_fare, adult_first)}" => "1000.00",
+        "#{CruiseSupplierRateSupport.cell_key(:discount, adult_first)}" => "100.00",
+        "#{CruiseSupplierRateSupport.cell_key(:base_fare, child_additional)}" => "400.00",
+        "#{CruiseSupplierRateSupport.cell_key(:discount, child_additional)}" => "50.00",
+        "#{CruiseSupplierRateSupport.cell_key(:nccf, :every_traveler)}" => "150.00",
+        "#{CruiseSupplierRateSupport.cell_key(:taxes_fees, :every_traveler)}" => "75.00",
+        "#{CruiseSupplierRateSupport.cell_key(:base_fare, :single_supplement)}" => "500.00",
+        "#{CruiseSupplierRateSupport.cell_key(:discount, :single_supplement)}" => "40.00",
+        "port_transfer:#{adult_first}" => "25.00"
+      },
+      commission: {
+        method: "percentage",
+        shared: false,
+        add_cells: [
+          CruiseSupplierRateSupport.cell_key(:base_fare, adult_first),
+          CruiseSupplierRateSupport.cell_key(:base_fare, child_additional),
+          CruiseSupplierRateSupport.cell_key(:base_fare, :single_supplement)
+        ],
+        subtract_cells: [
+          CruiseSupplierRateSupport.cell_key(:discount, adult_first),
+          CruiseSupplierRateSupport.cell_key(:discount, :single_supplement)
+        ],
+        rates: {
+          adult_first => "10",
+          child_additional => "5",
+          "single_supplement" => "10"
+        }
+      },
+      stage: "estimate",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    definition = current_definition
+    assert definition.supplier_cost_components.any? { |c| c.label == "Port transfer fee" }
+    commissions = definition.supplier_cost_components.where(economic_role: "expected_commission")
+    assert_equal 3, commissions.count
+    assert commissions.all? { |c| c.calculation_kind == "percentage" }
+
+    child_discount = definition.supplier_cost_components.find_by!(
+      label: "Discount",
+      occupancy_position_from: 3
+    )
+    refute commissions.flat_map { |c| c.supplier_cost_component_bases.map(&:base_component_id) }
+      .include?(child_discount.id)
+
+    preview = CompileCruiseSupplierRatePreview.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource
+    ).call
+    by_key = preview.illustrations.index_by(&:key)
+    assert_equal %w[single_adult double_adult two_adults_child], by_key.keys
+    assert by_key.fetch("single_adult").gross_minor_units.positive?
+    assert_operator by_key.fetch("double_adult").gross_minor_units, :>, by_key.fetch("single_adult").gross_minor_units
+    mixed_delta = by_key.fetch("two_adults_child").gross_minor_units - by_key.fetch("double_adult").gross_minor_units
+    assert_operator mixed_delta, :>=, 40_000
+  end
+
+  test "category free and child overlap requires explicit resolution" do
+    create_smith_rates!
+    error = assert_raises(AgencyCommand::Error) do
+      UpdateCruiseSupplierRateSchedule.new(
+        **update_args.merge(
+          profiles: [
+            { family: "first_second" },
+            { family: "first_second", category: "Child" }
+          ],
+          cells: {
+            "base_fare:first_second" => "1624.00",
+            "base_fare:#{CruiseSupplierRateSupport.encode_profile_key(:first_second, category: 'Child')}" => "800.00"
+          }
+        )
+      ).call
+    end
+    assert_match(/overlap|resolution/i, error.message)
+
+    UpdateCruiseSupplierRateSchedule.new(
+      **update_args.merge(
+        profiles: [
+          { family: "first_second" },
+          { family: "first_second", category: "Child" }
+        ],
+        cells: {
+          "base_fare:first_second" => "1624.00",
+          "base_fare:#{CruiseSupplierRateSupport.encode_profile_key(:first_second, category: 'Child')}" => "800.00"
+        },
+        overlap_resolution: "scope_existing_to_adult"
+      )
+    ).call
+    shape = DetectCruiseSupplierRateShape.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource
+    ).call
+    assert shape.compatible?
+    labels = shape.definition.supplier_arrangement_version.supplier_cost_participant_categories
+      .where(arrangement_item_id: shape.item.id).pluck(:label)
+    assert_includes labels, "Adult"
+    assert_includes labels, "Child"
   end
 
   private
