@@ -1,6 +1,6 @@
 # M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals
 
-**Status:** Shipped 2026-09-22. Implementation authority for M4D.1 Slice 2A.2 only (parent Stop point C). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. This plan is the **sole shipped authority** for typed Cruise Supplier rates and occupancy totals. Slice 2B+, Client connection, and M4E remain unauthorized until named.
+**Status:** Shipped 2026-09-22. Historical shipped baseline for the fixed Smith-shaped typed Cruise Supplier-rate form (parent Stop point C). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. **The fixed typed form is superseded for new typed-rate implementation by Accepted [Slice 2A.2R](m4d1-slice2a2r-cruise-supplier-rate-matrix.md)** (pin [`bf41e0b`](https://github.com/tswarren/DepartureDesk/commit/bf41e0b)). Retain this document as the shipped 2A.2 baseline and pin. Slice 2B+, Client connection, and M4E remain unauthorized until named.
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially §§11–12, 19–20, and the Slice 2A.2 delivery contract in §21.
 

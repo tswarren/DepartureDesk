@@ -6,7 +6,9 @@
 
 **Slice 2A.1:** [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) is **Shipped 2026-09-22**. It is the sole shipped authority for typed Cruise Stop points A–B.
 
-**Slice 2A.2:** [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) is **Shipped 2026-09-22**. It is the sole shipped authority for typed Cruise Stop point C. Later slices remain unauthorized until named.
+**Slice 2A.2:** [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) is **Shipped 2026-09-22** (historical fixed-form baseline for Stop point C).
+
+**Slice 2A.2R:** [M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix](m4d1-slice2a2r-cruise-supplier-rate-matrix.md) is **Accepted 2026-09-22**. It is the sole implementation authority for remediating Stop point C into a rate-profile matrix. Not yet shipped. Later slices (2B+) remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -27,7 +29,8 @@
 - [M4D.0R — Builder interface remediation](m4d0r-builder-interface-remediation.md) (historical interim UI; primary chrome superseded by Slice 1 Composition)
 - [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) (shipped)
 - [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (shipped; sole A–B authority)
-- [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) (shipped; sole C authority)
+- [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) (shipped historical fixed-form baseline)
+- [M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix](m4d1-slice2a2r-cruise-supplier-rate-matrix.md) (Accepted; sole C matrix remediation authority; not yet shipped)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery backlog only)
 - [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) · [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) · [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) · [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
 - [M3B](m3b-supplier-capacity.md) · [M3C](m3c-cost-terms-and-forecasts.md) · [M3D](m3d-activation-reservations-confirmations.md) · [M3D.7](m3d7-activated-definition-immutability.md) · [M3E](m3e-supplier-operational-control.md)
@@ -487,19 +490,11 @@ The adapter may suggest Single/Double/Triple preview configurations from maximum
 
 ### 12.3 Stop point C — One category’s Supplier rates saved
 
-**Accepted Slice 2A.2** is sole authority: [M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md).
+**Shipped Slice 2A.2** remains the historical fixed-form baseline: [M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md).
 
-The common Cruise rate form accepts:
+**Accepted Slice 2A.2R** is sole authority for matrix remediation (not yet shipped): [M4D.1 Slice 2A.2R](m4d1-slice2a2r-cruise-supplier-rate-matrix.md).
 
-- first/second fare;
-- additional-person fare;
-- single supplement;
-- NCCF;
-- first/second discount;
-- additional-person discount;
-- taxes, fees, and port charges;
-- expected commission method: not provided, dollar amount (per traveler or per cabin), or percentage with explicit selection of canonical bases;
-- stage and forecast-readiness evidence.
+Until 2A.2R ships, the common Cruise rate form still accepts the shipped 2A.2 fixed fields. After 2A.2R ships, Staff enter rates as a matrix of rate profiles × charge/credit rows, with shared or profile-specific commission, Every Traveler / Every Cabin families, legacy projection and confirmed conversion, and the generic zero-amount readiness amendment named in 2A.2R.
 
 Suggested Single/Double/Triple configurations from maximum occupancy are **ephemeral per-cabin illustrations** only. They are not persistence, support authority, or a price. Persisted occupancy profiles represent **confirmed forecast quantities** after explicit Staff confirmation, and only for configurations the entered category facts support (for example Single and Double when maximum occupancy is 2; Triple only when Triple is supported). Never create a fixed always-three profile set, and never auto-create profiles without Staff confirmation.
 
@@ -933,7 +928,7 @@ Each named durable stop point uses a dedicated command or a thin orchestration o
 
 Typed composite commands may extract reusable generic `*_already_locked!` helpers from shipped commands. Public M3 commands retain their existing behavior. The typed command owns authorization, canonical locks, idempotency, one transaction, optimistic checks, version bump, and audit at its public boundary. It must not chain public multi-transaction commands for one section save.
 
-**Accepted Slice 2A.2 command set** (sole authority: [Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md)):
+**Shipped Slice 2A.2 command set** (historical baseline: [Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md)). **Accepted Slice 2A.2R** retains the same command names with a normalized matrix payload (sole remediation authority: [Slice 2A.2R](m4d1-slice2a2r-cruise-supplier-rate-matrix.md)):
 
 - `CreateCruiseSupplierRateSchedule` / `UpdateCruiseSupplierRateSchedule`
 - `SetCruiseSupplierOccupancyPlan`
@@ -1036,9 +1031,9 @@ Shipped Stop points A–B:
 
 #### Slice 2A.2 — Supplier rates and occupancy totals
 
-**Shipped 2026-09-22.** Sole shipped authority: [M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md).
+**Shipped 2026-09-22.** Historical fixed-form baseline: [M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md).
 
-Accepted Stop point C:
+Shipped Stop point C (fixed form):
 
 - typed Cruise Supplier rate schedule (`CreateCruiseSupplierRateSchedule` / `UpdateCruiseSupplierRateSchedule`);
 - dollar or percentage expected commission with constrained shapes;
@@ -1047,6 +1042,20 @@ Accepted Stop point C:
 - category-scoped rate-shape detector and advanced-editor escape.
 
 **Exit:** Accepted Supplier terms for one cabin category can be entered and resumed without exposing graph vocabulary or creating Client records.
+
+#### Slice 2A.2R — Cruise Supplier Rate Matrix remediation
+
+**Accepted 2026-09-22.** Sole implementation authority for matrix remediation (not yet shipped): [M4D.1 Slice 2A.2R](m4d1-slice2a2r-cruise-supplier-rate-matrix.md). Implementation base [`bf41e0b`](https://github.com/tswarren/DepartureDesk/commit/bf41e0b). Deliver as vertical **2A.2R-A** then **2A.2R-B** from the Accept tip only.
+
+Remediates Stop point C into:
+
+- rate-profile × component-row matrix over generic M3C;
+- Every Traveler / Every Cabin families; Adult/Child overlap resolution;
+- shared vs profile-specific percentage commission; dollar commission per profile;
+- legacy projection and confirmed first-edit conversion (no bulk migration);
+- generic M3C zero-amount readiness amendment.
+
+**Exit:** Smith matrix and family-rate fixtures prove flexible cruise rates without inventing commission; legacy schedules reopen safely. Do not claim shipped until exit proof is green.
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 

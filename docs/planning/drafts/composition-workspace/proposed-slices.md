@@ -6,13 +6,15 @@
 
 **Shipped typed slice:** [M4D.1 Slice 2A.1 — Cruise sailing and cabin inventory](../../m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (**shipped**). That plan remains the sole shipped authority for typed Cruise Stop points A–B.
 
-**Shipped typed slice:** [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](../../m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) (**shipped**). That plan is the sole shipped authority for Stop point C.
+**Shipped typed slice:** [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](../../m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) (**shipped**). Historical fixed-form baseline for Stop point C.
 
-Parent spine: [M4D.1](../../m4d1-departure-composition-workspace.md) §21 (amended to split 2A into 2A.1 / 2A.2).
+**Accepted remediation:** [M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix](../../m4d1-slice2a2r-cruise-supplier-rate-matrix.md) (**Accepted**; not yet shipped). Sole implementation authority for matrix remediation of Stop point C. Implement as 2A.2R-A then 2A.2R-B from the Accept tip only.
 
-Do not implement any item below until that item has its own Accepted plan.
+Parent spine: [M4D.1](../../m4d1-departure-composition-workspace.md) §21 (amended to split 2A into 2A.1 / 2A.2; 2A.2R Accepted for matrix remediation).
 
-Recommended refinement sequence after shipped 2A.2:
+Do not implement any item below until that item has its own Accepted plan. Do not claim 2A.2R shipped until its exit proof is green.
+
+Recommended refinement sequence after Accepted 2A.2R (and after 2A.2R ships):
 
 1. **Slice 2B — Deposits, deadlines, and activation-safe editing**
 2. **Slice 2C — Service connection, categories, and Client choices**
