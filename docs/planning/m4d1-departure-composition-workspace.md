@@ -4,7 +4,7 @@
 
 **Interim UI:** Shipped [M4D.0R](m4d0r-builder-interface-remediation.md) remains the Staff builder until M4D.1 Slice 1 exits. This plan is **future** composition presentation authority. Demote or redirect `/departures/:id/builder` only when Slice 1 ships.
 
-**Pinned baseline:** Open [PR #122](https://github.com/tswarren/DepartureDesk/pull/122) tip [`893b7c3`](https://github.com/tswarren/DepartureDesk/commit/893b7c3) (M4D.0 domain + M4D.0R presentation). Reconcile to the merge SHA when PR #122 merges; do not treat a different tip as base without amending this plan.
+**Implementation baseline:** [`893b7c3`](https://github.com/tswarren/DepartureDesk/commit/893b7c3), the final M4D.0/M4D.0R production-code commit in [PR #122](https://github.com/tswarren/DepartureDesk/pull/122). Later commits in PR #122 accept M4D.1 and update documentation without changing the M4D.0 implementation. Replace the PR reference with the merge SHA after merge.
 
 **Relationship to M4E:** [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md) remains the later offers acceptance-and-hardening gate. M4D.1 does not replace M4E. M4E must not close M4 without acknowledging how the Staff journey relates to M4D.1 (interim builder vs composition workspace).
 
@@ -95,7 +95,7 @@ Single, Double, and Triple are occupancy or booking configurations. They are not
 
 ## 5. Authority and baseline
 
-**Pinned base:** PR #122 tip `893b7c3` (or its merge SHA). M4D.0 domain and M4D.0R interim UI are **shipped on that tip**.
+**Implementation baseline:** [`893b7c3`](https://github.com/tswarren/DepartureDesk/commit/893b7c3), the final M4D.0/M4D.0R production-code commit in PR #122. Later PR #122 commits accept M4D.1 and update documentation only. After merge, replace the PR reference with the merge SHA. M4D.0 domain and M4D.0R interim UI are **shipped** on that production-code baseline.
 
 Shipped baseline this plan extends (not re-proves as invention):
 
@@ -448,7 +448,7 @@ One section command creates or updates, as applicable:
 
 - Arrangement draft/version;
 - one Cruise Item/definition;
-- one sailing Occurrence/definition;
+- one sailing Occurrence/definition (**Smith Family Cruise shape** — one sailing Occurrence for this proof; not a universal cruise-adapter invariant that every typed cruise must have exactly one Occurrence);
 - exact provider inheritance/override facts.
 
 It creates no cabin Resource, Pool, cost, deadline, Service Offer, choice, or Client price.
@@ -475,7 +475,7 @@ One section command creates or updates:
 
 Saving O1 does not require rates, deposits, deadlines, a Client Service, or other categories. Each category is independently resumable and idempotent.
 
-The adapter may suggest Single/Double/Triple preview configurations from maximum occupancy, but suggestion is not persistence, support authority, or a price.
+The adapter may suggest Single/Double/Triple preview configurations from maximum occupancy, but suggestion is not persistence, support authority, or a price. Creating occupancy profiles requires explicit Staff confirmation at Stop C (and only for supported configurations).
 
 ### 12.3 Stop point C — One category’s Supplier rates saved
 
@@ -497,7 +497,7 @@ The orchestration writes generic:
 - cost definition;
 - ordered cost components and base links;
 - usage assumption;
-- occupancy profiles **only for configurations the entered category facts support** (for example Single and Double when maximum occupancy is 2; Triple only when Triple is supported). Never create a fixed always-three profile set;
+- occupancy profiles **only after explicit Staff confirmation**, and **only for configurations the entered category facts support** (for example Single and Double when maximum occupancy is 2; Triple only when Triple is supported). Suggestion from maximum occupancy is not persistence. Never create a fixed always-three profile set, and never auto-create profiles without Staff confirmation;
 - participant/position rows required by M3C.
 
 Every field maps to a named M3 calculation primitive. Unsupported contract language routes to the advanced cost editor; it is never flattened into a guessed fixed amount.
@@ -639,15 +639,17 @@ The copied Client component’s own amount, rate, role, quantity basis, selector
 
 ### 14.2.1 Copy-time fingerprint
 
-`copied_from_supplier_cost_component_fingerprint` is a stable digest of the Supplier cost component **as copied**. At minimum it covers:
+`copied_from_supplier_cost_component_fingerprint` is a stable **semantic** digest of the Supplier cost component **as copied**. It fingerprints meaning, not row identity.
 
-- Supplier cost component id;
-- client-facing copy role/calculation shape as mapped;
+At minimum it covers:
+
+- client-facing copy role / calculation shape as mapped;
 - monetary amount and/or rate fields used by that shape;
 - currency;
-- ordered base component ids (and their contribution fields) when the shape uses bases;
-- owning cost definition id and stage;
-- owning Arrangement version id.
+- ordered base-component contribution fields (and their relative order) when the shape uses bases;
+- definition stage (estimate vs contracted, or the stage enum the copy adapter recognizes).
+
+It must **not** include database primary keys, foreign keys, or version ids (component id, definition id, Arrangement version id, or similar) in the digest. Stable source identity for Staff review and “open source” navigation remains on the separate nullable source-component FK / provenance pointer fields—not inside the fingerprint.
 
 The accepting Slice 2D plan names the exact canonical serialization. A later Supplier edit that changes any fingerprint input marks provenance **changed**; an unreachable or deleted source marks **missing**; an unsupported comparison marks **unknown**.
 
@@ -850,11 +852,11 @@ The minimum proof uses accepted Smith/Celebrity facts and clearly labels any ill
 - Supplier: Celebrity Cruises.
 - Arrangement and draft/activated version as required by the sub-slice.
 - Cruise Item.
-- Celebrity Beyond sailing Occurrence.
-- Supplier group number `1119999` persisted as a shipped `SupplierIssuedIdentifier` with `identifier_type: group_number` (M3D), linked through confirmation/Arrangement ownership as those commands require. Do not invent a parallel group-number column on Arrangement or Service Offer.
+- Celebrity Beyond sailing Occurrence (Smith shape: one sailing Occurrence for this proof; not a universal adapter rule).
+- Supplier group number `1119999` persisted only as `SupplierIssuedIdentifier(identifier_type: :group_number)` with **confirmation provenance** (issued through the confirmation / Reservation path that owns that identifier family). Do not invent a parallel group-number column on Arrangement or Service Offer, and do not store `1119999` without confirmation provenance.
 - O1 Prime Oceanview Resource.
 - O1 cabin-unit Pool with eight blocked cabins from accepted scenario facts.
-- O1 Single, Double, and Triple occupancy profiles.
+- O1 Single, Double, and Triple occupancy profiles (created only after Staff confirmation that those profiles are supported).
 - Supplier terms:
   - first/second fare $1,624;
   - additional fare $406;
@@ -881,6 +883,9 @@ The minimum proof uses accepted Smith/Celebrity facts and clearly labels any ill
 - Supplier cost amounts do not become Client prices unless Staff explicitly copy and confirm them.
 - Illustrative Client prices are labeled illustrative in tests and UI fixtures.
 - O1 maximum occupancy does not by itself prove every Client scenario price.
+- Occupancy profiles are not created without explicit Staff confirmation for supported configurations.
+- One sailing Occurrence is the Smith proof shape, not a universal typed-cruise adapter invariant.
+- Group number `1119999` is only a `SupplierIssuedIdentifier` with `identifier_type: :group_number` and confirmation provenance.
 - Eight blocked cabins do not become 24 traveler positions.
 - No cabin assignment, named Traveler, booking, Hold, Allocation, Charge, Receipt, Obligation, or Payment is created.
 
