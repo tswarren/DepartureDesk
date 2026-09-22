@@ -1,6 +1,6 @@
 # DepartureDesk — Cruise Supplier Rate Workspace Wireframe
 
-**Status:** Implementation guide only under Accepted [M4D.1 Slice 2A.2R](../m4d1-slice2a2r-cruise-supplier-rate-matrix.md). Not competing product authority.
+**Status:** Implementation guide only under Accepted [M4D.1 Slice 2A.2R2](../m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) (layout suggestions). Shipped compilation authority remains [M4D.1 Slice 2A.2R](../m4d1-slice2a2r-cruise-supplier-rate-matrix.md). Not competing product authority.
 
 **Purpose:** Enter and review one cabin category's Supplier rate schedule as a matrix without exposing the underlying Supplier cost graph.
 
