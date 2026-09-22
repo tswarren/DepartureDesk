@@ -4,7 +4,7 @@
 
 **Placement:** Between shipped [M4D](m4d-publication-and-live-feasibility.md) and draft [M4E](drafts/DepartureDesk-M4E-acceptance-and-hardening-draft.md). M4A–M4D remain shipped. [M4D.1](m4d1-departure-composition-workspace.md) is Accepted as the next composition-workspace milestone. This phase amends the draft-creation journey so Staff can reach a publishable outline without rewriting M4 identities, price arithmetic, choice templates, Client terms, publication, Sales enabled, or live feasibility.
 
-**Implementation base:** [`88db505`](https://github.com/tswarren/DepartureDesk/commit/88db505fa81ab740ad134fea28998841b401d7e9) (`88db505`), the [M4D merge](https://github.com/tswarren/DepartureDesk/pull/120) on `main`. M4D.0/M4D.0R production code in PR #122 lands at [`893b7c3`](https://github.com/tswarren/DepartureDesk/commit/893b7c3); later PR #122 commits are documentation (including Accepted M4D.1). After merge, prefer the merge SHA when citing the shipped builder.
+**Implementation base:** [`88db505`](https://github.com/tswarren/DepartureDesk/commit/88db505fa81ab740ad134fea28998841b401d7e9) (`88db505`), the [M4D merge](https://github.com/tswarren/DepartureDesk/pull/120) on `main`. M4D.0/M4D.0R production code last changed at [`893b7c3`](https://github.com/tswarren/DepartureDesk/commit/893b7c3); shipped via [PR #122](https://github.com/tswarren/DepartureDesk/pull/122) merge [`c64f973`](https://github.com/tswarren/DepartureDesk/commit/c64f973).
 
 **Discovery backlog:** [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) remains discovery-only and is not implementation authority. Deferred items there need their own accepted slice before code.
 
