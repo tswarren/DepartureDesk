@@ -35,7 +35,14 @@
             <% if @editable %>
               <%= link_to "Edit sailing", edit_departure_arrangement_cruise_sailing_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
             <% elsif @can_create_successor %>
-              <%= button_to "Create successor draft", successor_departure_arrangement_path(@departure, @supplier_arrangement), method: :post, class: "dd-button" %>
+              <%= button_to "Create successor draft", successor_departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+                method: :post,
+                params: {
+                  arrangement_lock_version: @supplier_arrangement.lock_version,
+                  version_lock_version: @supplier_arrangement_version.lock_version,
+                  idempotency_key: SecureRandom.uuid
+                },
+                class: "dd-button" %>
             <% end %>
           </div>
         </header>
@@ -65,16 +72,19 @@
               <% definition = row[:resource_definition] %>
               <% pool = row[:pool] %>
               <% pool_definition = row[:pool_definition] %>
+              <% typed_pool = cruise_typed_cabin_pool?(pool, pool_definition) %>
               <li>
                 <strong><%= [ definition.supplier_code, definition.name ].compact_blank.join(" · ") %></strong>
                 <% if definition.maximum_occupancy.present? %>
                   · sleeps up to <%= definition.maximum_occupancy %>
                 <% end %>
-                <% if pool %>
+                <% if typed_pool %>
                   · <%= cruise_inventory_mode_label(pool.inventory_mode) %>
                   · <%= cruise_cabin_quantity_label(pool, pool_definition) %>
+                <% elsif pool.nil? %>
+                  · Inventory not configured — use advanced planning or recreate
                 <% end %>
-                <% if @editable %>
+                <% if @editable && typed_pool %>
                   · <%= link_to "Edit", edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, row[:resource]), class: "dd-link" %>
                 <% end %>
               </li>

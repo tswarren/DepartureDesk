@@ -3,6 +3,7 @@
 <% pool_attrs = (@pool_attributes || {}).with_indifferent_access %>
 <% override_selected = ActiveModel::Type::Boolean.new.cast(pool_attrs[:override]) %>
 <% numeric_inventory = @pool.numeric_inventory? %>
+<% can_manage_override = Current.agency_user.permitted?(:override_supplier_planning_terms) %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
@@ -21,6 +22,7 @@
       <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
       <%= hidden_field_tag :resource_lock_version, @resource_definition.lock_version %>
       <%= hidden_field_tag :pool_lock_version, @pool_definition.lock_version %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
 
       <% if @form_error.present? %>
         <div id="form-error-summary" class="dd-form-error-summary" role="alert" tabindex="-1">
@@ -82,46 +84,58 @@
         <textarea id="pool_notes" name="pool[notes]" class="dd-field" maxlength="2000"><%= pool_attrs[:notes] %></textarea>
       </div>
 
-      <fieldset class="dd-field-group" data-capacity-pool-fields-target="evidenceGroup" <%= "hidden" if override_selected %>>
-        <legend class="dd-label">Supplier evidence</legend>
-        <div class="dd-field-group">
-          <label class="dd-label" for="pool_evidence_kind">Evidence kind</label>
-          <select id="pool_evidence_kind" name="pool[evidence_kind]" class="dd-field">
-            <option value="">Evidence incomplete</option>
-            <% CapacityPoolDefinition::EVIDENCE_KINDS.each do |kind| %>
-              <option value="<%= kind %>" <%= "selected" if pool_attrs[:evidence_kind].to_s == kind %>><%= kind.tr("_", " ").titleize %></option>
+      <% if override_selected && !can_manage_override %>
+        <div class="dd-field-group" role="status">
+          <p class="dd-label">Administrator override in effect</p>
+          <p class="dd-field-hint">
+            Staff cannot change evidence or override from this form. The existing override remains in effect.
+            <% if pool_attrs[:override_reason].present? %>
+              Reason: <%= pool_attrs[:override_reason] %>
             <% end %>
-          </select>
+          </p>
         </div>
-        <div class="dd-field-group">
-          <label class="dd-label" for="pool_evidence_on">Evidence date</label>
-          <input id="pool_evidence_on" name="pool[evidence_on]" type="date" class="dd-field" value="<%= pool_attrs[:evidence_on] %>">
-        </div>
-        <div class="dd-field-group">
-          <label class="dd-label" for="pool_evidence_reference_note">Evidence note</label>
-          <textarea id="pool_evidence_reference_note" name="pool[evidence_reference_note]" class="dd-field" maxlength="500"><%= pool_attrs[:evidence_reference_note] %></textarea>
-        </div>
-        <div class="dd-field-group">
-          <label class="dd-label" for="pool_evidence_external_reference">External reference</label>
-          <input id="pool_evidence_external_reference" name="pool[evidence_external_reference]" class="dd-field" maxlength="160"
-            value="<%= pool_attrs[:evidence_external_reference] %>">
-        </div>
-      </fieldset>
-
-      <% if Current.agency_user.permitted?(:override_supplier_planning_terms) %>
-        <fieldset class="dd-field-group">
-          <legend class="dd-label">Administrator override</legend>
-          <label class="dd-inline-field">
-            <input type="checkbox" name="pool[override]" value="1" <%= "checked" if override_selected %>
-              data-capacity-pool-fields-target="overrideToggle"
-              data-action="change->capacity-pool-fields#updateOverride">
-            Use override instead of Supplier evidence
-          </label>
-          <div class="dd-field-group" data-capacity-pool-fields-target="overrideGroup" <%= "hidden" unless override_selected %>>
-            <label class="dd-label" for="pool_override_reason">Override reason</label>
-            <textarea id="pool_override_reason" name="pool[override_reason]" class="dd-field" maxlength="500"><%= pool_attrs[:override_reason] %></textarea>
+      <% else %>
+        <fieldset class="dd-field-group" data-capacity-pool-fields-target="evidenceGroup" <%= "hidden" if override_selected %>>
+          <legend class="dd-label">Supplier evidence</legend>
+          <div class="dd-field-group">
+            <label class="dd-label" for="pool_evidence_kind">Evidence kind</label>
+            <select id="pool_evidence_kind" name="pool[evidence_kind]" class="dd-field">
+              <option value="">Evidence incomplete</option>
+              <% CapacityPoolDefinition::EVIDENCE_KINDS.each do |kind| %>
+                <option value="<%= kind %>" <%= "selected" if pool_attrs[:evidence_kind].to_s == kind %>><%= kind.tr("_", " ").titleize %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="pool_evidence_on">Evidence date</label>
+            <input id="pool_evidence_on" name="pool[evidence_on]" type="date" class="dd-field" value="<%= pool_attrs[:evidence_on] %>">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="pool_evidence_reference_note">Evidence note</label>
+            <textarea id="pool_evidence_reference_note" name="pool[evidence_reference_note]" class="dd-field" maxlength="500"><%= pool_attrs[:evidence_reference_note] %></textarea>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="pool_evidence_external_reference">External reference</label>
+            <input id="pool_evidence_external_reference" name="pool[evidence_external_reference]" class="dd-field" maxlength="160"
+              value="<%= pool_attrs[:evidence_external_reference] %>">
           </div>
         </fieldset>
+
+        <% if can_manage_override %>
+          <fieldset class="dd-field-group">
+            <legend class="dd-label">Administrator override</legend>
+            <label class="dd-inline-field">
+              <input type="checkbox" name="pool[override]" value="1" <%= "checked" if override_selected %>
+                data-capacity-pool-fields-target="overrideToggle"
+                data-action="change->capacity-pool-fields#updateOverride">
+              Use override instead of Supplier evidence
+            </label>
+            <div class="dd-field-group" data-capacity-pool-fields-target="overrideGroup" <%= "hidden" unless override_selected %>>
+              <label class="dd-label" for="pool_override_reason">Override reason</label>
+              <textarea id="pool_override_reason" name="pool[override_reason]" class="dd-field" maxlength="500"><%= pool_attrs[:override_reason] %></textarea>
+            </div>
+          </fieldset>
+        <% end %>
       <% end %>
 
       <div class="dd-form-actions">

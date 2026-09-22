@@ -134,13 +134,12 @@ class CreateCruiseSailingSetup < AgencyCommand
   private
 
   def setup_result_for(arrangement)
-    version = arrangement.versions.find_by!(status: "draft")
-    item_definition = version.arrangement_item_definitions.sole
-    occurrence_definition = version.service_occurrence_definitions.sole
+    item = arrangement.arrangement_items.sole
+    occurrence = item.service_occurrences.sole
     SetupResult.new(
       arrangement: arrangement,
-      item: item_definition.arrangement_item,
-      occurrence: occurrence_definition.service_occurrence
+      item: item,
+      occurrence: occurrence
     )
   end
 end

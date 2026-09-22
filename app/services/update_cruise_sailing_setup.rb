@@ -7,7 +7,7 @@ class UpdateCruiseSailingSetup < AgencyCommand
 
   def initialize(agency:, actor:, arrangement:, arrangement_attributes:, item_attributes:,
     occurrence_attributes:, arrangement_lock_version:, version_lock_version:,
-    item_lock_version:, occurrence_lock_version:)
+    item_lock_version:, occurrence_lock_version:, idempotency_key: nil)
     @agency = agency
     @actor = actor
     @arrangement = arrangement
@@ -18,6 +18,7 @@ class UpdateCruiseSailingSetup < AgencyCommand
     @version_lock_version = version_lock_version
     @item_lock_version = item_lock_version
     @occurrence_lock_version = occurrence_lock_version
+    @idempotency_key = idempotency_key
   end
 
   def call
@@ -33,13 +34,9 @@ class UpdateCruiseSailingSetup < AgencyCommand
       )
       departure, arrangement, version = lock_departure_arrangement_version!(@arrangement)
       ensure_ordinary_planning_edit!(departure, arrangement, version, contractor)
-      ensure_current_lock_version!(arrangement, @arrangement_lock_version)
-      ensure_current_lock_version!(version, @version_lock_version)
 
       item_definition = version.arrangement_item_definitions.lock.sole
       occurrence_definition = version.service_occurrence_definitions.lock.sole
-      ensure_current_lock_version!(item_definition, @item_lock_version)
-      ensure_current_lock_version!(occurrence_definition, @occurrence_lock_version)
 
       unless item_definition.category == "cruise"
         raise Error.new("That arrangement is not a Cruise sailing setup.", code: :invalid_state)
@@ -72,11 +69,44 @@ class UpdateCruiseSailingSetup < AgencyCommand
       ).merge(service_provider_id: occurrence_definition.service_provider_id)
 
       arrangement_attrs = { name: arrangement_name, supplier_contact_id: contact&.id }
+      payload = {
+        supplier_arrangement_id: arrangement.id,
+        supplier_arrangement_version_id: version.id,
+        arrangement: arrangement_attrs,
+        item: item_attrs,
+        occurrence: occurrence_attrs
+      }
+
+      if replay_optional_idempotency?(
+        payload: payload,
+        result_record_type: SupplierArrangement.name,
+        result_record_id: arrangement.id
+      )
+        return Result.new(
+          status: :replayed,
+          record: SetupResult.new(
+            arrangement: arrangement.reload,
+            item_definition: item_definition.reload,
+            occurrence_definition: occurrence_definition.reload
+          )
+        )
+      end
+
+      ensure_current_lock_version!(arrangement, @arrangement_lock_version)
+      ensure_current_lock_version!(version, @version_lock_version)
+      ensure_current_lock_version!(item_definition, @item_lock_version)
+      ensure_current_lock_version!(occurrence_definition, @occurrence_lock_version)
+
       unchanged =
         same_values?(arrangement, arrangement_attrs) &&
         same_values?(item_definition, item_attrs) &&
         same_values?(occurrence_definition, occurrence_attrs)
       if unchanged
+        claim_optional_idempotency!(
+          payload: payload,
+          result_record_type: SupplierArrangement.name,
+          result_record_id: arrangement.id
+        )
         return Result.new(
           status: :noop,
           record: SetupResult.new(
@@ -93,6 +123,11 @@ class UpdateCruiseSailingSetup < AgencyCommand
         occurrence_definition.update!(occurrence_attrs)
       end
       bump_version!(version)
+      claim_optional_idempotency!(
+        payload: payload,
+        result_record_type: SupplierArrangement.name,
+        result_record_id: arrangement.id
+      )
 
       audit!(
         agency: @agency,
@@ -125,5 +160,46 @@ class UpdateCruiseSailingSetup < AgencyCommand
     command_error_from(error)
   rescue ActiveRecord::RecordNotFound, Enumerable::SoleItemExpectedError
     raise Error.new("That arrangement is not a Cruise sailing setup.", code: :invalid_state)
+  end
+
+  private
+
+  def replay_optional_idempotency?(payload:, result_record_type:, result_record_id:)
+    return false if @idempotency_key.blank?
+
+    key = normalize_idempotency_key(@idempotency_key)
+    digest = payload_digest(payload)
+    lock_idempotency_slot!(self.class.name, key)
+    existing = AgencyCommandIdempotencyKey.where(
+      agency: @agency,
+      command_name: self.class.name,
+      idempotency_key: key
+    ).lock.first
+    return false unless existing
+
+    unless existing.payload_digest == digest &&
+        existing.result_record_type == result_record_type &&
+        existing.result_record_id == result_record_id
+      raise Error.new("That idempotency key was already used for different input.", code: :conflict)
+    end
+
+    true
+  end
+
+  def claim_optional_idempotency!(payload:, result_record_type:, result_record_id:)
+    return if @idempotency_key.blank?
+
+    key = normalize_idempotency_key(@idempotency_key)
+    digest = payload_digest(payload)
+    AgencyCommandIdempotencyKey.create!(
+      agency: @agency,
+      command_name: self.class.name,
+      idempotency_key: key,
+      payload_digest: digest,
+      result_record_type: result_record_type,
+      result_record_id: result_record_id
+    )
+  rescue ActiveRecord::RecordNotUnique
+    raise Error.new("That idempotency key was already used for different input.", code: :conflict)
   end
 end

@@ -55,11 +55,13 @@ class CreateCruiseCabinCategorySetup < AgencyCommand
       ensure_occurrence_accepts_capacity!(occurrence)
       raise Error.new("Capacity pool time zone is incomplete.", code: :invalid) if occurrence_definition.time_zone.blank?
 
-      provider = suppliers.fetch(
-        occurrence_definition.service_provider_id ||
-          item_definition.default_service_provider_id ||
-          arrangement.contracting_supplier_id
-      )
+      resolved_provider_id = occurrence_definition.service_provider_id ||
+        item_definition.default_service_provider_id ||
+        arrangement.contracting_supplier_id
+      unless suppliers.key?(resolved_provider_id)
+        raise Error.new("Service provider changed during capacity pool setup.", code: :conflict)
+      end
+      provider = suppliers.fetch(resolved_provider_id)
       ensure_active_effective_provider!(provider)
 
       submitted_definition_attrs = normalize_pool_definition_attributes(

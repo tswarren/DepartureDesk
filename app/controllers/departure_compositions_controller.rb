@@ -26,6 +26,21 @@ class DepartureCompositionsController < ApplicationController
       departure: @departure
     )
     @arrangements = listing.records
+    ActiveRecord::Associations::Preloader.new(
+      records: @arrangements,
+      associations: [
+        :contracting_supplier,
+        {
+          versions: [
+            { arrangement_item_definitions: :arrangement_item },
+            { service_occurrence_definitions: :service_occurrence },
+            { supplier_resource_definitions: :supplier_resource },
+            { capacity_pool_definitions: :capacity_pool },
+            :capacity_pair_definitions
+          ]
+        }
+      ]
+    ).call
     @cruise_shapes = @arrangements.index_with do |arrangement|
       DetectCruiseArrangementShape.new(
         agency: Current.agency,

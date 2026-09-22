@@ -51,6 +51,7 @@ class CruiseCabinCategoriesController < ApplicationController
   end
 
   def edit
+    @idempotency_key = SecureRandom.uuid
     @resource_attributes = {
       name: @resource_definition.name,
       supplier_code: @resource_definition.supplier_code,
@@ -69,6 +70,7 @@ class CruiseCabinCategoriesController < ApplicationController
   end
 
   def update
+    @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     @resource_attributes = resource_params.to_h
     @pool_attributes = pool_update_params.to_h
 
@@ -81,7 +83,8 @@ class CruiseCabinCategoriesController < ApplicationController
       pool_attributes: @pool_attributes,
       version_lock_version: params.require(:version_lock_version),
       resource_lock_version: params.require(:resource_lock_version),
-      pool_lock_version: params.require(:pool_lock_version)
+      pool_lock_version: params.require(:pool_lock_version),
+      idempotency_key: @idempotency_key
     ).call
 
     redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),

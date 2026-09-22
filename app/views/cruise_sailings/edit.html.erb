@@ -19,6 +19,7 @@
       <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
       <%= hidden_field_tag :item_lock_version, @shape.item_definition.lock_version %>
       <%= hidden_field_tag :occurrence_lock_version, @shape.occurrence_definition.lock_version %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
 
       <% if @form_error.present? %>
         <div id="form-error-summary" class="dd-form-error-summary" role="alert" tabindex="-1">

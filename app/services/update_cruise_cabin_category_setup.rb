@@ -4,9 +4,14 @@ class UpdateCruiseCabinCategorySetup < AgencyCommand
   include CapacityCommandSupport
 
   SetupResult = Data.define(:resource_definition, :pool_definition)
+  EVIDENCE_KEYS = %i[
+    evidence_kind evidence_on evidence_reference_note evidence_external_reference
+    override override_reason
+  ].freeze
 
   def initialize(agency:, actor:, arrangement:, resource:, resource_attributes:,
-    pool_attributes:, version_lock_version:, resource_lock_version:, pool_lock_version:)
+    pool_attributes:, version_lock_version:, resource_lock_version:, pool_lock_version:,
+    idempotency_key: nil)
     @agency = agency
     @actor = actor
     @arrangement = arrangement
@@ -16,6 +21,7 @@ class UpdateCruiseCabinCategorySetup < AgencyCommand
     @version_lock_version = version_lock_version
     @resource_lock_version = resource_lock_version
     @pool_lock_version = pool_lock_version
+    @idempotency_key = idempotency_key
   end
 
   def call
@@ -27,7 +33,6 @@ class UpdateCruiseCabinCategorySetup < AgencyCommand
       contractor = locked_supplier!(@arrangement.contracting_supplier_id)
       departure, arrangement, version = lock_departure_arrangement_version!(@arrangement)
       ensure_capacity_ordinary_edit!(departure, arrangement, version, contractor)
-      ensure_current_lock_version!(version, @version_lock_version)
 
       item_definition = version.arrangement_item_definitions.sole
       occurrence_definition = version.service_occurrence_definitions.sole
@@ -42,7 +47,6 @@ class UpdateCruiseCabinCategorySetup < AgencyCommand
         arrangement_item: item,
         supplier_resource: resource
       )
-      ensure_current_lock_version!(resource_definition, @resource_lock_version)
 
       pool = arrangement.capacity_pools.lock.find_by!(
         arrangement_item: item,
@@ -50,7 +54,6 @@ class UpdateCruiseCabinCategorySetup < AgencyCommand
         supplier_resource: resource
       )
       pool_definition = version.capacity_pool_definitions.lock.find_by!(capacity_pool: pool)
-      ensure_current_lock_version!(pool_definition, @pool_lock_version)
 
       resource_attrs = normalize_resource_attributes(
         @resource_attributes.merge(
@@ -58,17 +61,49 @@ class UpdateCruiseCabinCategorySetup < AgencyCommand
         )
       )
       pool_attrs = normalize_pool_definition_update_attributes(
-        @pool_attributes.merge(
+        pool_attributes_for_update(pool_definition).merge(
           unit_label: pool_definition.unit_label,
           inventory_mode: pool.inventory_mode
         ),
         pool_definition
       )
 
+      payload = {
+        supplier_arrangement_id: arrangement.id,
+        supplier_arrangement_version_id: version.id,
+        supplier_resource_id: resource.id,
+        capacity_pool_id: pool.id,
+        resource: resource_attrs,
+        pool: pool_attrs
+      }
+
+      if replay_optional_idempotency?(
+        payload: payload,
+        result_record_type: CapacityPool.name,
+        result_record_id: pool.id
+      )
+        return Result.new(
+          status: :replayed,
+          record: SetupResult.new(
+            resource_definition: resource_definition.reload,
+            pool_definition: pool_definition.reload
+          )
+        )
+      end
+
+      ensure_current_lock_version!(version, @version_lock_version)
+      ensure_current_lock_version!(resource_definition, @resource_lock_version)
+      ensure_current_lock_version!(pool_definition, @pool_lock_version)
+
       unchanged =
         same_values?(resource_definition, resource_attrs) &&
         same_values?(pool_definition, pool_attrs)
       if unchanged
+        claim_optional_idempotency!(
+          payload: payload,
+          result_record_type: CapacityPool.name,
+          result_record_id: pool.id
+        )
         return Result.new(
           status: :noop,
           record: SetupResult.new(
@@ -81,6 +116,11 @@ class UpdateCruiseCabinCategorySetup < AgencyCommand
       resource_definition.update!(resource_attrs) unless same_values?(resource_definition, resource_attrs)
       pool_definition.update!(pool_attrs) unless same_values?(pool_definition, pool_attrs)
       bump_version!(version)
+      claim_optional_idempotency!(
+        payload: payload,
+        result_record_type: CapacityPool.name,
+        result_record_id: pool.id
+      )
 
       audit!(
         agency: @agency,
@@ -127,6 +167,18 @@ class UpdateCruiseCabinCategorySetup < AgencyCommand
 
   private
 
+  def pool_attributes_for_update(definition)
+    attrs = @pool_attributes.dup
+    return attrs if actor_may_change_evidence_or_override?
+
+    EVIDENCE_KEYS.each { |key| attrs.delete(key) }
+    attrs
+  end
+
+  def actor_may_change_evidence_or_override?
+    @actor.permitted?(:override_supplier_planning_terms)
+  end
+
   def reject_immutable_pool_identity_mutations!
     {
       inventory_mode: "Inventory mode",
@@ -141,5 +193,44 @@ class UpdateCruiseCabinCategorySetup < AgencyCommand
         code: :invalid
       )
     end
+  end
+
+  def replay_optional_idempotency?(payload:, result_record_type:, result_record_id:)
+    return false if @idempotency_key.blank?
+
+    key = normalize_idempotency_key(@idempotency_key)
+    digest = payload_digest(payload)
+    lock_idempotency_slot!(self.class.name, key)
+    existing = AgencyCommandIdempotencyKey.where(
+      agency: @agency,
+      command_name: self.class.name,
+      idempotency_key: key
+    ).lock.first
+    return false unless existing
+
+    unless existing.payload_digest == digest &&
+        existing.result_record_type == result_record_type &&
+        existing.result_record_id == result_record_id
+      raise Error.new("That idempotency key was already used for different input.", code: :conflict)
+    end
+
+    true
+  end
+
+  def claim_optional_idempotency!(payload:, result_record_type:, result_record_id:)
+    return if @idempotency_key.blank?
+
+    key = normalize_idempotency_key(@idempotency_key)
+    digest = payload_digest(payload)
+    AgencyCommandIdempotencyKey.create!(
+      agency: @agency,
+      command_name: self.class.name,
+      idempotency_key: key,
+      payload_digest: digest,
+      result_record_type: result_record_type,
+      result_record_id: result_record_id
+    )
+  rescue ActiveRecord::RecordNotUnique
+    raise Error.new("That idempotency key was already used for different input.", code: :conflict)
   end
 end

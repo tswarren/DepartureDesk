@@ -27,10 +27,18 @@ module CruiseCompositionHelper
     end
   end
 
-  def cruise_cabin_quantity_label(pool, pool_definition)
-    return "Quantity not tracked" if pool.nil? || !pool.numeric_inventory?
+  def cruise_typed_cabin_pool?(pool, pool_definition)
+    pool.present? &&
+      pool_definition.present? &&
+      pool.resource_units? &&
+      pool_definition.unit_label.to_s.casecmp("cabins").zero?
+  end
 
-    quantity = pool_definition&.proposed_opening_quantity
+  def cruise_cabin_quantity_label(pool, pool_definition)
+    return "Quantity not tracked" unless cruise_typed_cabin_pool?(pool, pool_definition)
+    return "Quantity not tracked" unless pool.numeric_inventory?
+
+    quantity = pool_definition.proposed_opening_quantity
     return "Cabin quantity not set" if quantity.blank?
 
     "#{quantity} #{"cabin".pluralize(quantity)}"

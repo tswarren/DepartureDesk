@@ -336,6 +336,368 @@ class CruiseSailingAndCabinInventoryTest < ActiveSupport::TestCase
     assert_equal Date.new(2027, 11, 13), occurrence_definition.starts_on
   end
 
+  test "staff cabin update preserves administrator override without evidence keys" do
+    arrangement = create_sailing.record.arrangement
+    version = arrangement.versions.sole
+    cabin = CreateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @admin,
+      arrangement: arrangement,
+      resource_attributes: {
+        name: "Prime Oceanview",
+        supplier_code: "O1",
+        maximum_occupancy: 3
+      },
+      pool_attributes: {
+        inventory_mode: "block",
+        proposed_opening_quantity: 8,
+        override: true,
+        override_reason: "Administrator verified the exception."
+      },
+      version_lock_version: version.lock_version,
+      idempotency_key: "cabin-override-1"
+    ).call
+    resource_definition = version.supplier_resource_definitions.find_by!(
+      supplier_resource: cabin.record.resource
+    )
+    pool_definition = version.capacity_pool_definitions.find_by!(
+      capacity_pool: cabin.record.pool
+    )
+
+    result = UpdateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: arrangement,
+      resource: cabin.record.resource,
+      resource_attributes: {
+        name: "Prime Oceanview Staff Edit",
+        supplier_code: "O1",
+        maximum_occupancy: 4
+      },
+      pool_attributes: {
+        proposed_opening_quantity: 9,
+        notes: "Staff quantity change",
+        evidence_kind: "",
+        evidence_on: "",
+        evidence_reference_note: "",
+        override: "0",
+        override_reason: ""
+      },
+      version_lock_version: version.reload.lock_version,
+      resource_lock_version: resource_definition.lock_version,
+      pool_lock_version: pool_definition.lock_version
+    ).call
+
+    assert_equal :updated, result.status
+    pool_definition.reload
+    assert_predicate pool_definition, :override?
+    assert_equal "Administrator verified the exception.", pool_definition.override_reason
+    assert_nil pool_definition.evidence_kind
+    assert_equal "Prime Oceanview Staff Edit", resource_definition.reload.name
+    assert_equal 9, pool_definition.proposed_opening_quantity
+  end
+
+  test "shape detector rejects unsupported pool measurement and unit labels" do
+    arrangement = create_sailing.record.arrangement
+    version = arrangement.versions.sole
+    item = arrangement.arrangement_items.sole
+    occurrence = item.service_occurrences.sole
+
+    resource = CreateSupplierResource.new(
+      agency: @agency,
+      actor: @actor,
+      item: item,
+      attributes: { name: "Traveler positions cabin", supplier_code: "TP1" },
+      version_lock_version: version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    ConfigureCapacityPairWithPool.new(
+      agency: @agency,
+      actor: @actor,
+      item: item,
+      service_occurrence: occurrence,
+      supplier_resource: resource,
+      pool_attributes: {
+        inventory_mode: "block",
+        measurement_basis: "traveler_positions",
+        unit_label: "cabins",
+        proposed_opening_quantity: 8,
+        label: "Traveler positions inventory"
+      },
+      version_lock_version: version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    incompatible_measurement = DetectCruiseArrangementShape.new(
+      agency: @agency, arrangement: arrangement
+    ).call
+    assert_not incompatible_measurement.compatible?
+    assert_match(/resource units/i, incompatible_measurement.reasons.join(" "))
+
+    arrangement_two = create_sailing_named("Unit label cruise").record.arrangement
+    version_two = arrangement_two.versions.sole
+    cabin = create_cabin(arrangement_two, version_two, code: "O1", key: "cabin-shape-unit")
+    pool_definition = version_two.capacity_pool_definitions.find_by!(
+      capacity_pool: cabin.record.pool
+    )
+    pool_definition.update_columns(unit_label: "berths")
+
+    incompatible_unit = DetectCruiseArrangementShape.new(
+      agency: @agency, arrangement: arrangement_two
+    ).call
+    assert_not incompatible_unit.compatible?
+    assert_match(/cabins/i, incompatible_unit.reasons.join(" "))
+  end
+
+  test "shape detector remains compatible when a cabin resource has no pool" do
+    arrangement = create_sailing.record.arrangement
+    version = arrangement.versions.sole
+    item = arrangement.arrangement_items.sole
+    CreateSupplierResource.new(
+      agency: @agency,
+      actor: @actor,
+      item: item,
+      attributes: { name: "Inventory pending", supplier_code: "PX" },
+      version_lock_version: version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    shape = DetectCruiseArrangementShape.new(agency: @agency, arrangement: arrangement).call
+    assert_predicate shape, :compatible?
+    assert_equal 1, shape.cabin_category_count
+  end
+
+  test "cruise sailing create replay works after activation" do
+    arguments = sailing_arguments(idempotency_key: "cruise-sailing-activate-replay")
+    created = CreateCruiseSailingSetup.new(**arguments).call
+    arrangement = created.record.arrangement
+    version = arrangement.versions.sole
+    item = created.record.item
+    occurrence = created.record.occurrence
+    create_cabin(
+      arrangement,
+      version,
+      code: "O1",
+      key: "cabin-activate-replay",
+      name: "Prime Oceanview"
+    ).tap do |cabin|
+      version.capacity_pool_definitions.find_by!(capacity_pool: cabin.record.pool).update!(
+        evidence_kind: "contract",
+        evidence_on: Date.current,
+        evidence_reference_note: "Signed cabin block"
+      )
+    end
+
+    @departure.update!(
+      status: "active",
+      departure_reference: "D-#{SecureRandom.random_number(900_000) + 100_000}",
+      first_activated_at: Time.current
+    )
+    source = SupplierCostSource.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: version.reload,
+      arrangement_item: item,
+      charging_supplier: @contractor,
+      label: "Entered cruise cost",
+      position: 1
+    )
+    SupplierCostDefinition.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: version,
+      supplier_cost_source: source,
+      stage: "contracted",
+      status: "forecast_ready",
+      mode: "zero_cost",
+      zero_cost_reason: "Included",
+      currency: "USD",
+      forecast_ready_by: @actor,
+      forecast_ready_at: Time.current,
+      readiness_fingerprint: "sha256:cruise-replay",
+      readiness_provenance: "Signed"
+    )
+    SupplierCommitmentTriggerDefinition.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      supplier_arrangement_version: version,
+      committed_supplier: @contractor,
+      trigger_kind: "arrangement_confirmation",
+      authority_shape: "fixed_quantity",
+      description: "Guaranteed sailing",
+      fixed_quantity: 8,
+      quantity_basis: "resource_units",
+      position: 1
+    )
+    ActivateSupplierArrangementVersion.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: arrangement,
+      version: version,
+      arrangement_lock_version: arrangement.reload.lock_version,
+      version_lock_version: version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      evidence_attributes: {
+        evidence_kind: "supplier_confirmation",
+        evidence_on: Date.current,
+        channel: "portal",
+        reference_note: "Supplier approved exact terms",
+        confirmed_without_identifier_reason: "Supplier did not issue one"
+      },
+      cost_source_coverage_acknowledged: true,
+      provisional_costs_acknowledged: true,
+      commitment_trigger_coverage_acknowledged: true
+    ).call
+
+    replay = CreateCruiseSailingSetup.new(**arguments).call
+    assert_equal :replayed, replay.status
+    assert_equal arrangement.id, replay.record.arrangement.id
+    assert_equal item.id, replay.record.item.id
+    assert_equal occurrence.id, replay.record.occurrence.id
+  end
+
+  test "cabin create raises conflict when service provider changes after supplier lock" do
+    arrangement = create_sailing.record.arrangement
+    version = arrangement.versions.sole
+    other_provider = create_capacity_supplier(@agency, "Other Ship Ops")
+    flip_id = other_provider.id
+
+    command = CreateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: arrangement,
+      resource_attributes: {
+        name: "Prime Oceanview",
+        supplier_code: "O9",
+        maximum_occupancy: 3
+      },
+      pool_attributes: {
+        inventory_mode: "block",
+        proposed_opening_quantity: 8
+      },
+      version_lock_version: version.lock_version,
+      idempotency_key: "cabin-provider-flip"
+    )
+
+    command.define_singleton_method(:lock_occurrence_definition_for!) do |locked_version, occurrence_definition|
+      definition = ArrangementCommandSupport.instance_method(:lock_occurrence_definition_for!)
+        .bind_call(command, locked_version, occurrence_definition)
+      definition.write_attribute(:service_provider_id, flip_id)
+      definition
+    end
+
+    error = assert_raises(AgencyCommand::Error) { command.call }
+    assert_equal :conflict, error.code
+    assert_match(/Service provider changed/i, error.message)
+    assert_equal 0, arrangement.capacity_pools.count
+  end
+
+  test "typed sailing and cabin updates are idempotent when a key is supplied" do
+    sailing = create_sailing.record
+    arrangement = sailing.arrangement
+    version = arrangement.versions.sole
+    item_definition = version.arrangement_item_definitions.sole
+    occurrence_definition = version.service_occurrence_definitions.sole
+    key = "sailing-update-idempotent"
+
+    first = UpdateCruiseSailingSetup.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: arrangement,
+      arrangement_attributes: {
+        name: "Celebrity group agreement idempotent",
+        supplier_contact_id: @contact.id
+      },
+      item_attributes: { name: "Celebrity Beyond Idempotent" },
+      occurrence_attributes: {
+        name: "Western Caribbean",
+        starts_on: "2027-11-06",
+        ends_on: "2027-11-13",
+        time_zone: "America/New_York"
+      },
+      arrangement_lock_version: arrangement.lock_version,
+      version_lock_version: version.lock_version,
+      item_lock_version: item_definition.lock_version,
+      occurrence_lock_version: occurrence_definition.lock_version,
+      idempotency_key: key
+    ).call
+    assert_equal :updated, first.status
+
+    replay = UpdateCruiseSailingSetup.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: arrangement.reload,
+      arrangement_attributes: {
+        name: "Celebrity group agreement idempotent",
+        supplier_contact_id: @contact.id
+      },
+      item_attributes: { name: "Celebrity Beyond Idempotent" },
+      occurrence_attributes: {
+        name: "Western Caribbean",
+        starts_on: "2027-11-06",
+        ends_on: "2027-11-13",
+        time_zone: "America/New_York"
+      },
+      arrangement_lock_version: arrangement.lock_version,
+      version_lock_version: version.reload.lock_version,
+      item_lock_version: item_definition.reload.lock_version,
+      occurrence_lock_version: occurrence_definition.reload.lock_version,
+      idempotency_key: key
+    ).call
+    assert_equal :replayed, replay.status
+    assert_equal 1, AuditEvent.where(
+      action: "supplier_arrangement.updated", subject_id: arrangement.id
+    ).count
+
+    cabin = create_cabin(arrangement, version.reload, code: "O1", key: "cabin-update-idem")
+    resource_definition = version.supplier_resource_definitions.find_by!(
+      supplier_resource: cabin.record.resource
+    )
+    pool_definition = version.capacity_pool_definitions.find_by!(
+      capacity_pool: cabin.record.pool
+    )
+    cabin_key = "cabin-update-idempotent"
+    cabin_first = UpdateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: arrangement,
+      resource: cabin.record.resource,
+      resource_attributes: {
+        name: "Prime Oceanview Idempotent",
+        supplier_code: "O1",
+        maximum_occupancy: 3
+      },
+      pool_attributes: { proposed_opening_quantity: 11, notes: "Idempotent" },
+      version_lock_version: version.reload.lock_version,
+      resource_lock_version: resource_definition.lock_version,
+      pool_lock_version: pool_definition.lock_version,
+      idempotency_key: cabin_key
+    ).call
+    assert_equal :updated, cabin_first.status
+
+    cabin_replay = UpdateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: arrangement,
+      resource: cabin.record.resource,
+      resource_attributes: {
+        name: "Prime Oceanview Idempotent",
+        supplier_code: "O1",
+        maximum_occupancy: 3
+      },
+      pool_attributes: { proposed_opening_quantity: 11, notes: "Idempotent" },
+      version_lock_version: version.reload.lock_version,
+      resource_lock_version: resource_definition.reload.lock_version,
+      pool_lock_version: pool_definition.reload.lock_version,
+      idempotency_key: cabin_key
+    ).call
+    assert_equal :replayed, cabin_replay.status
+    assert_equal 11, pool_definition.reload.proposed_opening_quantity
+  end
+
   private
 
   def sailing_arguments(idempotency_key:)
@@ -368,6 +730,18 @@ class CruiseSailingAndCabinInventoryTest < ActiveSupport::TestCase
 
   def create_sailing
     CreateCruiseSailingSetup.new(**sailing_arguments(idempotency_key: SecureRandom.uuid)).call
+  end
+
+  def create_sailing_named(name)
+    CreateCruiseSailingSetup.new(
+      **sailing_arguments(idempotency_key: SecureRandom.uuid).merge(
+        arrangement_attributes: {
+          name: name,
+          contracting_supplier_id: @contractor.id,
+          supplier_contact_id: @contact.id
+        }
+      )
+    ).call
   end
 
   def create_cabin(arrangement, version, code:, key:, name: "Prime Oceanview")

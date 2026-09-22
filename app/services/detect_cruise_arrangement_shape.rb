@@ -21,21 +21,29 @@ class DetectCruiseArrangementShape
   end
 
   def call
-    arrangement = @agency.supplier_arrangements.find(@arrangement.id)
+    arrangement = resolve_arrangement!
     version = resolve_version!(arrangement)
     return incompatible(version, [ "No editable draft or governing version is available." ]) if version.nil?
 
-    item_definitions = version.arrangement_item_definitions.includes(:arrangement_item).order(:position, :id).to_a
-    occurrence_definitions = version.service_occurrence_definitions
-      .includes(:service_occurrence)
-      .order(:id)
-      .to_a
-    resource_definitions = version.supplier_resource_definitions
-      .includes(:supplier_resource)
-      .order(:position, :id)
-      .to_a
-    pool_definitions = version.capacity_pool_definitions.to_a
-    pair_definitions = version.capacity_pair_definitions.to_a
+    item_definitions = association_records(version, :arrangement_item_definitions) do
+      version.arrangement_item_definitions.includes(:arrangement_item).order(:position, :id).to_a
+    end.sort_by { |definition| [ definition.position, definition.id ] }
+
+    occurrence_definitions = association_records(version, :service_occurrence_definitions) do
+      version.service_occurrence_definitions.includes(:service_occurrence).order(:id).to_a
+    end.sort_by(&:id)
+
+    resource_definitions = association_records(version, :supplier_resource_definitions) do
+      version.supplier_resource_definitions.includes(:supplier_resource).order(:position, :id).to_a
+    end.sort_by { |definition| [ definition.position, definition.id ] }
+
+    pool_definitions = association_records(version, :capacity_pool_definitions) do
+      version.capacity_pool_definitions.includes(:capacity_pool).to_a
+    end
+
+    pair_definitions = association_records(version, :capacity_pair_definitions) do
+      version.capacity_pair_definitions.to_a
+    end
 
     reasons = []
     reasons << "Cruise setup requires exactly one Arrangement Item." unless item_definitions.size == 1
@@ -50,11 +58,23 @@ class DetectCruiseArrangementShape
       pools_by_resource = pool_definitions.group_by(&:supplier_resource_id)
       resource_definitions.each do |resource_definition|
         resource_id = resource_definition.supplier_resource_id
-        pool_count = pools_by_resource.fetch(resource_id, []).count do |pool|
+        matching_pools = pools_by_resource.fetch(resource_id, []).select do |pool|
           pool.service_occurrence_id == occurrence.id
         end
-        if pool_count > 1
+        if matching_pools.size > 1
           reasons << "Cruise setup allows at most one Pool per sailing and cabin category."
+          break
+        end
+        next if matching_pools.empty?
+
+        pool_definition = matching_pools.first
+        pool = pool_definition.capacity_pool
+        unless pool&.resource_units?
+          reasons << "Cruise setup requires cabin inventory measured in resource units."
+          break
+        end
+        unless pool_definition.unit_label.to_s.casecmp("cabins").zero?
+          reasons << "Cruise setup requires cabin inventory labeled as cabins."
           break
         end
       end
@@ -96,10 +116,30 @@ class DetectCruiseArrangementShape
 
   private
 
+  def resolve_arrangement!
+    if @arrangement.is_a?(SupplierArrangement) && @arrangement.agency_id == @agency.id
+      return @arrangement
+    end
+
+    @agency.supplier_arrangements.find(@arrangement.id)
+  end
+
   def resolve_version!(arrangement)
     return arrangement.versions.find(@version.id) if @version
 
-    arrangement.versions.find_by(status: "draft") || arrangement.governing_version
+    if arrangement.association(:versions).loaded?
+      arrangement.versions.find { |version| version.draft? } ||
+        arrangement.versions.find { |version| version.id == arrangement.governing_version_id }
+    else
+      arrangement.versions.find_by(status: "draft") || arrangement.governing_version
+    end
+  end
+
+  def association_records(version, name)
+    association = version.association(name)
+    return association.target if association.loaded?
+
+    yield
   end
 
   def incompatible(version, reasons, item_definition: nil, occurrence_definition: nil, resource_definitions: [])

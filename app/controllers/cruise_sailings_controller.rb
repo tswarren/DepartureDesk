@@ -11,10 +11,12 @@ class CruiseSailingsController < ApplicationController
   before_action :require_editable_draft!
 
   def edit
+    @idempotency_key = SecureRandom.uuid
     assign_sailing_form_from_shape
   end
 
   def update
+    @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     assign_sailing_form_from_params
 
     UpdateCruiseSailingSetup.new(
@@ -27,7 +29,8 @@ class CruiseSailingsController < ApplicationController
       arrangement_lock_version: params.require(:arrangement_lock_version),
       version_lock_version: params.require(:version_lock_version),
       item_lock_version: params.require(:item_lock_version),
-      occurrence_lock_version: params.require(:occurrence_lock_version)
+      occurrence_lock_version: params.require(:occurrence_lock_version),
+      idempotency_key: @idempotency_key
     ).call
 
     redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
