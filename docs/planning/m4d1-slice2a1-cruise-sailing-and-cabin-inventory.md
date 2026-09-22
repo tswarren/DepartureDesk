@@ -411,11 +411,10 @@ This slice does not implement:
 
 ## 14. Handoff to Slice 2A.2
 
-Slice 2A.2 begins only after 2A.1 proves the typed adapter can safely write and resume the generic graph, and only when an Accepted 2A.2 plan names that work.
-
-Its scope is narrowly:
+[M4D.1 Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) is **Accepted** (not yet shipped). It is the sole authority for Stop point C:
 
 - one category’s Supplier rate schedule;
+- dollar or percentage expected commission with constrained shapes;
 - explicit Single/Double/Triple occupancy-profile confirmation;
 - known gross, commission, and net Supplier totals;
 - pending figures when some inputs are absent;
