@@ -616,6 +616,7 @@ export default class extends Controller {
     const method = event.currentTarget.value
     this.state.commission.method = method
     this.renderCommissionPanels()
+    this.renderCommissionTreatments()
     this.syncFormFields()
     this.schedulePreview()
   }
@@ -623,6 +624,7 @@ export default class extends Controller {
   commissionSharedChanged(event) {
     this.state.commission.shared = event.currentTarget.checked
     this.renderCommissionPanels()
+    this.renderCommissionTreatments()
     this.syncFormFields()
     this.schedulePreview()
   }

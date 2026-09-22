@@ -208,7 +208,9 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     check "Use the same commission rate for every profile"
     fill_in "Shared commission percentage", with: "10"
 
+    assert_selector "[data-cruise-rate-matrix-target='commissionTreatments']", visible: true, wait: 5
     within "[data-cruise-rate-matrix-target='commissionTreatments']" do
+      assert_selector "input[type='checkbox']", wait: 2
       all("input[type='checkbox']").each do |box|
         check(box[:id]) unless box.checked?
       end
