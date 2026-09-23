@@ -236,7 +236,7 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
         projected_fields: shape.projected_fields,
         operational: operational,
         successor_compare: successor_compare,
-        row_blocker: row_blocker_for(preview, preview_row)
+        row_blocker: row_blocker_for(preview_row)
       )
     end
 
@@ -298,10 +298,14 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
       preview_row = preview&.rows&.find { |row|
         row.kind == "deposit" && row.definition_id == definition.id
       }
-      display_label = CruiseDepositsAndDeadlinesLanguage.deposit_display_label(
-        description: definition.description,
-        template: shape.template
-      )
+      display_label = if editable
+        CruiseDepositsAndDeadlinesLanguage.deposit_display_label(
+          description: definition.description,
+          template: shape.template
+        )
+      else
+        definition.description.presence || "Deposit requirement"
+      end
 
       DepositRow.new(
         definition: definition,
@@ -329,7 +333,7 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
         projected_fields: shape.projected_fields,
         operational: operational,
         successor_compare: successor_compare,
-        row_blocker: row_blocker_for(preview, preview_row)
+        row_blocker: row_blocker_for(preview_row)
       )
     end
 
@@ -477,16 +481,13 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
     "Ready"
   end
 
-  def row_blocker_for(preview, preview_row)
+  def row_blocker_for(preview_row)
     return unless preview_row&.blocker.present?
 
-    matched = Array(preview&.unique_blockers).find { |blocker|
-      blocker.message.to_s == preview_row.blocker.to_s
-    }
     RowBlocker.new(
       message: preview_row.blocker,
-      corrective_path: matched&.corrective_path,
-      corrective_label: matched&.corrective_label
+      corrective_path: preview_row.corrective_path,
+      corrective_label: preview_row.corrective_label
     )
   end
 

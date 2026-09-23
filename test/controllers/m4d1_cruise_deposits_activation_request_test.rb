@@ -110,7 +110,7 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-planning-milestone-heading"
     assert_select "input[name=return_to][value=?]",
       CompileCruiseDepositsAndDeadlinesWorkspace::RETURN_TOKEN
-    assert_select "input[name=occurred_on][max]"
+    assert_select "input[name=occurred_on]"
     assert_select "#cruise-activation-details", count: 0
     assert_select "a", text: "Edit", count: 0
     assert_select "form", text: /Remove/, count: 0

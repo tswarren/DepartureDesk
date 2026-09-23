@@ -129,8 +129,7 @@
               <%= label_tag :occurred_on, "Names assigned to Supplier on", class: "dd-label" %>
               <%= date_field_tag :occurred_on, milestone_local_today,
                     required: true,
-                    class: "dd-input",
-                    max: milestone_local_today %>
+                    class: "dd-input" %>
               <%= label_tag :note, "Note (optional)", class: "dd-label" %>
               <%= text_field_tag :note, nil, class: "dd-input", maxlength: 2000 %>
             </div>

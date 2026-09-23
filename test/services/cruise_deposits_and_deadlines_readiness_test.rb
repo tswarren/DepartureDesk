@@ -156,6 +156,130 @@ class CruiseDepositsAndDeadlinesReadinessTest < ActiveSupport::TestCase
     assert_equal "Initial deposit", final.reload.description
   end
 
+  test "governing display retains persisted description despite detector template" do
+    initial = create_typed_deposit!(description: "Initial deposit")
+    CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version.reload,
+      attributes: {
+        description: "Final deposit",
+        amount_shape: "cumulative_target",
+        quantity_basis: "capacity_pool_units",
+        rate_minor_units: 50_000,
+        currency: "USD",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-03-11" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        coverage_links: pool_coverage(@pool),
+        contributor_definition_ids: [ initial.id ]
+      },
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    final = @version.reload.supplier_deposit_requirement_definitions.order(:id).last
+    final.update_columns(description: "Initial deposit", updated_at: Time.current)
+    @version.update_columns(
+      status: "activated",
+      activated_at: Time.current,
+      updated_at: Time.current
+    )
+
+    workspace = CompileCruiseDepositsAndDeadlinesWorkspace.new(
+      agency: @agency,
+      arrangement: @arrangement,
+      version: @version.reload
+    ).call
+
+    refute workspace.editable?
+    assert workspace.governing_read_only?
+    final_row = workspace.deposit_rows.find { |row| row.definition.id == final.id }
+    assert final_row
+    assert_equal "final_deposit", final_row.template.to_s
+    assert_equal "Initial deposit", final_row.display_label
+    assert_equal "Initial deposit", final.reload.description
+  end
+
+  test "per-row blockers keep definition-specific cabin corrective links" do
+    second = CreateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource_attributes: {
+        name: "Veranda",
+        supplier_code: "V1",
+        maximum_occupancy: 3
+      },
+      pool_attributes: {
+        inventory_mode: "block",
+        proposed_opening_quantity: 4,
+        evidence_kind: "contract",
+        evidence_on: Date.current,
+        evidence_reference_note: "Second cabin block"
+      },
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    second_resource = second.record.resource
+    second_pool = @version.reload.capacity_pool_definitions
+      .find { |row| row.supplier_resource_id == second_resource.id }
+      .capacity_pool
+
+    first_deposit = create_typed_deposit!(description: "Oceanview deposit", date: "2026-09-20")
+    # Retarget first deposit coverage to the first pool only (already true).
+    second_deposit = CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version.reload,
+      attributes: {
+        description: "Veranda deposit",
+        amount_shape: "quantity_times_rate",
+        quantity_basis: "capacity_pool_units",
+        rate_minor_units: 6_000,
+        currency: "USD",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2026-09-21" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        coverage_links: pool_coverage(second_pool)
+      },
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    @version.capacity_pool_definitions.find_each do |pool_definition|
+      pool_definition.update_columns(proposed_opening_quantity: nil, updated_at: Time.current)
+    end
+
+    preview = PreviewCruiseDepositsAndDeadlinesActivation.call(
+      agency: @agency,
+      arrangement: @arrangement,
+      version: @version.reload,
+      version_lock_version: @version.lock_version
+    )
+    first_preview = preview.rows.find { |row| row.definition_id == first_deposit.id }
+    second_preview = preview.rows.find { |row| row.definition_id == second_deposit.id }
+    assert first_preview.blocker.present?
+    assert second_preview.blocker.present?
+    assert_equal normalize(first_preview.blocker), normalize(second_preview.blocker)
+    assert_match(%r{/cabin-categories/#{@resource.id}/edit}, first_preview.corrective_path)
+    assert_match(%r{/cabin-categories/#{second_resource.id}/edit}, second_preview.corrective_path)
+    refute_equal first_preview.corrective_path, second_preview.corrective_path
+
+    workspace = CompileCruiseDepositsAndDeadlinesWorkspace.new(
+      agency: @agency,
+      arrangement: @arrangement,
+      version: @version,
+      activation_preview: preview
+    ).call
+
+    first_row = workspace.deposit_rows.find { |row| row.definition.id == first_deposit.id }
+    second_row = workspace.deposit_rows.find { |row| row.definition.id == second_deposit.id }
+    assert_equal first_preview.corrective_path, first_row.row_blocker.corrective_path
+    assert_equal second_preview.corrective_path, second_row.row_blocker.corrective_path
+  end
+
   test "duplicate blocker messages collapse to one unique blocker" do
     first = create_typed_deposit!(description: "Initial deposit A", date: "2026-09-20")
     second = create_typed_deposit!(description: "Initial deposit B", date: "2026-09-21")

@@ -107,7 +107,9 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
       will_open_commitment: row.will_open_commitment?,
       elapsed_acknowledgment_required: row.elapsed_acknowledgment_required?,
       blocker: row.blocker,
-      editor_anchor: row.editor_anchor
+      editor_anchor: row.editor_anchor,
+      corrective_path: row.corrective_path,
+      corrective_label: row.corrective_label
     }
   end
 

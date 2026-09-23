@@ -117,7 +117,8 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     click_on "Save deposit"
     assert_text "Deposit requirement saved"
     assert_text "Final deposit"
-    assert_text(/Cumulative/i)
+    assert_selector "#cruise-deposit-summaries .dd-definition-card", text: /Final/
+    assert_text(/per retained cabin, less credited earlier deposits/i)
     assert_no_text "Fixed amount"
   end
 

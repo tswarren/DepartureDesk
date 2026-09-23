@@ -15,7 +15,9 @@ class PreviewCruiseDepositsAndDeadlinesActivation
     :will_open_commitment?,
     :elapsed_acknowledgment_required?,
     :blocker,
-    :editor_anchor
+    :editor_anchor,
+    :corrective_path,
+    :corrective_label
   )
 
   UniqueBlocker = Data.define(
@@ -178,7 +180,8 @@ class PreviewCruiseDepositsAndDeadlinesActivation
           definition:,
           departure:,
           cruise_shape:,
-          reconciler: deadline_reconciler
+          reconciler: deadline_reconciler,
+          arrangement:
         )
       end
 
@@ -253,6 +256,15 @@ class PreviewCruiseDepositsAndDeadlinesActivation
     end
 
     will_open = reconciler.nil? || !reconciler.skip_open?(definition)
+    corrective_path = nil
+    corrective_label = nil
+    if blocker.present?
+      corrective_path, corrective_label = corrective_for_row(
+        CorrectiveProbe.new(kind: "deposit", definition_id: definition.id, blocker: blocker),
+        departure,
+        arrangement
+      )
+    end
 
     ActivationRow.new(
       kind: "deposit",
@@ -266,11 +278,13 @@ class PreviewCruiseDepositsAndDeadlinesActivation
       will_open_commitment?: will_open,
       elapsed_acknowledgment_required?: elapsed,
       blocker: blocker,
-      editor_anchor: "#cruise-deposit-#{definition.id}"
+      editor_anchor: "#cruise-deposit-#{definition.id}",
+      corrective_path: corrective_path,
+      corrective_label: corrective_label
     )
   end
 
-  def deadline_row(definition:, departure:, cruise_shape:, reconciler:)
+  def deadline_row(definition:, departure:, cruise_shape:, reconciler:, arrangement:)
     due_sentence = nil
     elapsed = false
     blocker = nil
@@ -302,6 +316,16 @@ class PreviewCruiseDepositsAndDeadlinesActivation
       }
     end
 
+    corrective_path = nil
+    corrective_label = nil
+    if blocker.present?
+      corrective_path, corrective_label = corrective_for_row(
+        CorrectiveProbe.new(kind: "deadline", definition_id: definition.id, blocker: blocker),
+        departure,
+        arrangement
+      )
+    end
+
     ActivationRow.new(
       kind: "deadline",
       definition_id: definition.id,
@@ -314,7 +338,9 @@ class PreviewCruiseDepositsAndDeadlinesActivation
       will_open_commitment?: will_open,
       elapsed_acknowledgment_required?: elapsed,
       blocker: blocker,
-      editor_anchor: "#cruise-deadline-#{definition.id}"
+      editor_anchor: "#cruise-deadline-#{definition.id}",
+      corrective_path: corrective_path,
+      corrective_label: corrective_label
     )
   end
 
@@ -338,7 +364,11 @@ class PreviewCruiseDepositsAndDeadlinesActivation
     rows.each do |row|
       next if row.blocker.blank?
 
-      path, label = corrective_for_row(row, departure, arrangement)
+      path = row.corrective_path
+      label = row.corrective_label
+      if path.blank?
+        path, label = corrective_for_row(row, departure, arrangement)
+      end
       append_unique_blocker!(
         unique,
         seen,
@@ -353,6 +383,8 @@ class PreviewCruiseDepositsAndDeadlinesActivation
 
     unique
   end
+
+  CorrectiveProbe = Struct.new(:kind, :definition_id, :blocker, keyword_init: true)
 
   def append_unique_blocker!(unique, seen, message:, corrective_path:, corrective_label:, editor_anchor:, kind:, definition_id:)
     key = normalize_blocker_message(message)

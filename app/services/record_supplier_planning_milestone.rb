@@ -41,7 +41,6 @@ class RecordSupplierPlanningMilestone < AgencyCommand
           "Planning milestones require an activated Arrangement version.", code: :invalid_state
         )
       end
-      reject_future_occurrence!(departure, date, instant)
 
       payload = {
         kind: @kind,
@@ -118,25 +117,6 @@ class RecordSupplierPlanningMilestone < AgencyCommand
     [ date, instant ]
   rescue ArgumentError, TypeError
     raise Error.new("Enter a valid milestone date or timestamp.", code: :invalid)
-  end
-
-  def reject_future_occurrence!(departure, date, instant)
-    zone = ActiveSupport::TimeZone[departure.time_zone] || Time.find_zone!("UTC")
-    local_now = Time.current.in_time_zone(zone)
-    if date.present? && date > local_now.to_date
-      raise Error.new(
-        "Names assigned to supplier records an occurred date, not a future schedule.",
-        code: :invalid
-      )
-    end
-    return if instant.blank?
-
-    if instant.in_time_zone(zone) > local_now
-      raise Error.new(
-        "Names assigned to supplier records an occurred time, not a future schedule.",
-        code: :invalid
-      )
-    end
   end
 
   def replace_unelapsed_deposit_deadlines!(arrangement, version, milestone, at:)
