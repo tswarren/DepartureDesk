@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 module CruiseDeadlineTemplateSupport
+  FINAL_PAYMENT_LABEL = "Final payment"
+
   TEMPLATES = {
     "option_or_release" => {
       label: "Option/release decision",
@@ -8,17 +10,23 @@ module CruiseDeadlineTemplateSupport
       default_kind: "actionable",
       kind_fixed: true,
       default_other_label: nil,
+      label_editable: false,
       default_commitment_description:
-        "Review retained cabins and release any unretained block by the option date"
+        "Review retained cabins and release any unretained block by the option date",
+      action_explanation:
+        "On activation, opens one actionable Supplier commitment to retain or release inventory."
     },
     "final_payment" => {
       label: "Final payment",
       deadline_type: "other",
       default_kind: "actionable",
       kind_fixed: false,
-      default_other_label: "Final payment",
+      default_other_label: FINAL_PAYMENT_LABEL,
+      label_editable: false,
       default_commitment_description:
-        "Record Supplier final-payment evidence (not a Client Payment record)"
+        "Record Supplier final-payment evidence (not a Client Payment record)",
+      action_explanation:
+        "On activation, opens one actionable Supplier commitment for final-payment evidence (not a Client Payment)."
     },
     "rooming_list" => {
       label: "Rooming list",
@@ -26,7 +34,10 @@ module CruiseDeadlineTemplateSupport
       default_kind: "informational",
       kind_fixed: true,
       default_other_label: nil,
-      default_commitment_description: nil
+      label_editable: false,
+      default_commitment_description: nil,
+      action_explanation:
+        "On activation, records an informational requirement. No Supplier commitment opens."
     },
     "other" => {
       label: "Other Supplier deadline",
@@ -34,8 +45,11 @@ module CruiseDeadlineTemplateSupport
       default_kind: "informational",
       kind_fixed: false,
       default_other_label: nil,
+      label_editable: true,
       default_commitment_description:
-        "Complete the required Supplier deadline action or evidence"
+        "Complete the required Supplier deadline action or evidence",
+      action_explanation:
+        "On activation, behavior follows the chosen kind (actionable commitment or informational only)."
     }
   }.freeze
 
@@ -77,14 +91,18 @@ module CruiseDeadlineTemplateSupport
     when "rooming_list_due"
       return "rooming_list" if kind == "informational"
     when "other"
-      if other_label.casecmp("final payment").zero?
+      if other_label == FINAL_PAYMENT_LABEL
         return "final_payment" if %w[actionable informational].include?(kind)
-      elsif other_label.present?
+      elsif other_label.present? && other_label.casecmp(FINAL_PAYMENT_LABEL) != 0
         return "other" if %w[actionable informational].include?(kind)
       end
     end
 
     nil
+  end
+
+  def expected_commitment_description(spec, definition_description)
+    definition_description.to_s.strip.presence || spec[:default_commitment_description]
   end
 
   def compile_attributes(
@@ -101,7 +119,7 @@ module CruiseDeadlineTemplateSupport
   )
     spec = template_spec(template_key)
     resolved_kind = resolve_kind(spec, kind)
-    resolved_label = resolve_other_label(spec, other_label)
+    resolved_label = resolve_other_label(spec, other_label, template_key)
     rule_shape, precision, rule_parameters = compile_timing(timing)
     coverage_links = compile_coverage(coverage, version: version, cruise_item: cruise_item)
     commitment_lines = compile_commitment_lines(
@@ -137,13 +155,20 @@ module CruiseDeadlineTemplateSupport
     value
   end
 
-  def resolve_other_label(spec, other_label)
+  def resolve_other_label(spec, other_label, template_key)
     type = spec.fetch(:deadline_type)
     return nil unless type == "other"
+
+    return FINAL_PAYMENT_LABEL if template_key.to_s == "final_payment"
 
     label = other_label.to_s.strip.presence || spec[:default_other_label]
     if label.blank?
       raise AgencyCommand::Error.new("Enter a label for this deadline.", code: :invalid)
+    end
+    if label.casecmp(FINAL_PAYMENT_LABEL).zero?
+      raise AgencyCommand::Error.new(
+        "Use the Final payment template for that semantic deadline.", code: :invalid
+      )
     end
     label
   end
@@ -266,7 +291,7 @@ module CruiseDeadlineTemplateSupport
   def compile_commitment_lines(spec:, kind:, description:, arrangement:)
     return [] if kind == "informational"
 
-    text = description.to_s.strip.presence || spec[:default_commitment_description]
+    text = expected_commitment_description(spec, description)
     if text.blank?
       raise AgencyCommand::Error.new(
         "Enter a description of the required Supplier action or evidence.", code: :invalid
@@ -282,12 +307,20 @@ module CruiseDeadlineTemplateSupport
   end
 
   def timing_sentence(definition)
-    params = (definition.rule_parameters || {}).with_indifferent_access
-    case definition.rule_shape
+    timing_sentence_from(
+      rule_shape: definition.rule_shape,
+      rule_parameters: definition.rule_parameters,
+      time_zone: definition.time_zone
+    )
+  end
+
+  def timing_sentence_from(rule_shape:, rule_parameters:, time_zone:)
+    params = (rule_parameters || {}).with_indifferent_access
+    case rule_shape.to_s
     when "fixed_date"
-      "Due on #{params[:date]} (#{definition.time_zone})"
+      "Due on #{params[:date]} (#{time_zone})"
     when "fixed_local_datetime"
-      "Due at #{params[:datetime]} (#{definition.time_zone})"
+      "Due at #{params[:datetime]} (#{time_zone})"
     when "days_before_departure"
       "#{params[:days]} day#{"s" unless params[:days].to_i == 1} before Departure"
     when "days_after_departure"
@@ -301,7 +334,7 @@ module CruiseDeadlineTemplateSupport
     when "later_of"
       "Later of #{arm_sentence(params.dig(:arms, 0))} or #{arm_sentence(params.dig(:arms, 1))}"
     else
-      definition.rule_shape.to_s.humanize
+      rule_shape.to_s.humanize
     end
   end
 
@@ -317,6 +350,15 @@ module CruiseDeadlineTemplateSupport
     when "hours_before_departure" then "#{params[:hours]} hours before Departure"
     when "hours_after_departure" then "#{params[:hours]} hours after Departure"
     else shape.presence || "unsupported arm"
+    end
+  end
+
+  def coverage_sentence(scope:, resource_label: nil, pool_label: nil)
+    case scope.to_s
+    when "arrangement", "" then "Entire Cruise Arrangement"
+    when "resource" then resource_label.present? ? "Cabin category #{resource_label}" : "One cabin category"
+    when "capacity_pool" then pool_label.present? ? "Capacity Pool #{pool_label}" : "One cabin Capacity Pool"
+    else "Coverage not selected"
     end
   end
 
@@ -345,11 +387,14 @@ module CruiseDeadlineTemplateSupport
       timing_fields[:"#{prefix}_offset_hours"] = arm_params[:hours]
     end
 
+    line = definition.supplier_deadline_commitment_definition_lines.order(:position, :id).first
+    projected_description = definition.description.presence || line&.description
+
     {
       template: template,
       kind: definition.kind,
       other_label: definition.other_label,
-      description: definition.description,
+      description: projected_description,
       warning_lead_days: definition.warning_lead_days,
       timing: timing_fields,
       coverage: coverage_fields
@@ -380,12 +425,12 @@ module CruiseDeadlineTemplateSupport
     end
   end
 
-  def typed_commitment_line?(line, arrangement:)
+  def typed_commitment_line?(line, arrangement:, expected_description:)
     line.authority_shape == "fixed_quantity" &&
       line.fixed_quantity == 1 &&
       line.quantity_basis == "resource_units" &&
       line.committed_supplier_id == arrangement.contracting_supplier_id &&
       line.supplier_cost_component_id.nil? &&
-      line.description.present?
+      line.description == expected_description
   end
 end

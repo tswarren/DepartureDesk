@@ -59,9 +59,8 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
         }
       }
     end
-    assert_redirected_to departure_arrangement_cruise_deposits_and_deadlines_path(
-      @departure, @arrangement
-    )
+    assert_response :redirect
+    assert_match %r{/cruise/deposits-and-deadlines#cruise-deadline-}, @response.redirect_url
 
     definition = @version.supplier_deadline_definitions.order(:position, :id).last
     assert_equal "option_or_release_date", definition.deadline_type
@@ -89,20 +88,19 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
         version_lock_version: @version.reload.lock_version,
         idempotency_key: SecureRandom.uuid,
         cruise_deadline: {
-          template: "final_payment",
-          kind: "actionable",
-          other_label: "Final payment",
-          rule_shape: "fixed_date",
-          fixed_date: "not-a-date",
-          coverage_scope: "arrangement",
-          description: "Final payment evidence"
+          template: "other",
+          kind: "informational",
+          other_label: "Broken sibling",
+          rule_shape: "days_before_departure",
+          offset_days: "0",
+          coverage_scope: "arrangement"
         }
       }
     end
 
     assert_response :unprocessable_entity
-    assert_select "#form-error-summary"
-    assert_select "input[name='cruise_deadline[fixed_date]'][value=?]", "not-a-date"
+    assert_select "#form-error-summary[data-controller='form-error-summary']"
+    assert_select "input[name='cruise_deadline[offset_days]'][value=?]", "0"
     assert_equal first.id, @version.supplier_deadline_definitions.sole.id
     assert_equal "actionable", first.reload.kind
   end
@@ -228,9 +226,8 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
         description: copied.supplier_deadline_commitment_definition_lines.sole.description
       }
     }
-    assert_redirected_to departure_arrangement_cruise_deposits_and_deadlines_path(
-      @departure, @arrangement
-    )
+    assert_response :redirect
+    assert_match %r{/cruise/deposits-and-deadlines#cruise-deadline-#{copied.id}}, @response.redirect_url
     assert_equal "2027-04-01", copied.reload.rule_parameters["date"]
   end
 

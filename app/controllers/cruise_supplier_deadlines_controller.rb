@@ -13,7 +13,7 @@ class CruiseSupplierDeadlinesController < ApplicationController
 
   def create
     attributes = compiled_attributes!
-    CreateSupplierDeadlineDefinition.new(
+    result = CreateSupplierDeadlineDefinition.new(
       agency: Current.agency,
       actor: Current.agency_user,
       version: @cruise_shape.version,
@@ -22,7 +22,8 @@ class CruiseSupplierDeadlinesController < ApplicationController
       idempotency_key: params.require(:idempotency_key)
     ).call
     redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
-      @departure, @supplier_arrangement
+      @departure, @supplier_arrangement,
+      anchor: "cruise-deadline-#{result.record.id}"
     ), notice: "Deadline saved."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
@@ -32,7 +33,7 @@ class CruiseSupplierDeadlinesController < ApplicationController
 
   def update
     attributes = compiled_attributes!
-    UpdateSupplierDeadlineDefinition.new(
+    result = UpdateSupplierDeadlineDefinition.new(
       agency: Current.agency,
       actor: Current.agency_user,
       definition: @definition,
@@ -40,7 +41,8 @@ class CruiseSupplierDeadlinesController < ApplicationController
       lock_version: params.require(:lock_version)
     ).call
     redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
-      @departure, @supplier_arrangement
+      @departure, @supplier_arrangement,
+      anchor: "cruise-deadline-#{result.record.id}"
     ), notice: "Deadline updated."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found

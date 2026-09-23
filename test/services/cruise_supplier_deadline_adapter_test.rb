@@ -174,8 +174,21 @@ class CruiseSupplierDeadlineAdapterTest < ActiveSupport::TestCase
       agency: @agency, arrangement: @arrangement, definition: definition, version: @version
     ).call
     assert_not shape.compatible?
-    assert_includes shape.reasons.join(" "), "fixed quantity 1"
+    assert_match(/commitment line must match/i, shape.reasons.join(" "))
     assert_equal before, fingerprint(definition.reload)
+
+    mismatched = create_typed_deadline!(
+      template_key: "option_or_release",
+      timing: { rule_shape: "fixed_date", fixed_date: "2027-04-01" },
+      description: "Supplier contract deadline"
+    )
+    line = mismatched.supplier_deadline_commitment_definition_lines.sole
+    line.update_columns(description: "Retain or release eight cabins")
+    shape = DetectCruiseSupplierDeadlineShape.new(
+      agency: @agency, arrangement: @arrangement, definition: mismatched.reload, version: @version
+    ).call
+    assert_not shape.compatible?
+    assert_match(/action\/evidence text/i, shape.reasons.join(" "))
 
     milestone_blob = definition.rule_parameters.merge(
       "arms" => [ {
@@ -189,6 +202,54 @@ class CruiseSupplierDeadlineAdapterTest < ActiveSupport::TestCase
     ).call
     assert_not shape.compatible?
     assert shape.reasons.any? { |reason| reason.match?(/milestone/i) }
+  end
+
+  test "typed reopen unchanged save preserves complete child graph" do
+    definition = create_typed_deadline!(
+      template_key: "option_or_release",
+      timing: { rule_shape: "fixed_date", fixed_date: "2027-03-11" },
+      description: "Review retained cabins and release any unretained block by the option date"
+    )
+    before = fingerprint(definition)
+    shape = DetectCruiseSupplierDeadlineShape.new(
+      agency: @agency, arrangement: @arrangement, definition: definition, version: @version
+    ).call
+    assert shape.compatible?
+    fields = shape.projected_fields.with_indifferent_access
+
+    UpdateSupplierDeadlineDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      definition: definition,
+      attributes: CruiseDeadlineTemplateSupport.compile_attributes(
+        template_key: fields[:template],
+        kind: fields[:kind],
+        other_label: fields[:other_label],
+        description: fields[:description],
+        warning_lead_days: fields[:warning_lead_days],
+        timing: fields[:timing],
+        coverage: {
+          scope: fields.dig(:coverage, :scope),
+          supplier_resource_id: fields.dig(:coverage, :supplier_resource_id),
+          capacity_pool_id: fields.dig(:coverage, :capacity_pool_id)
+        },
+        arrangement: @arrangement,
+        version: @version.reload,
+        cruise_item: @item
+      ),
+      lock_version: definition.lock_version
+    ).call
+
+    reopened = DetectCruiseSupplierDeadlineShape.new(
+      agency: @agency, arrangement: @arrangement, definition: definition.reload, version: @version
+    ).call
+    assert reopened.compatible?
+    after = fingerprint(definition)
+    assert_equal before[0].except("lock_version"), after[0].except("lock_version")
+    assert_equal before[1].map { |row| row.except("id", "lock_version", "updated_at", "created_at") },
+      after[1].map { |row| row.except("id", "lock_version", "updated_at", "created_at") }
+    assert_equal before[2].map { |row| row.except("id", "lock_version", "updated_at", "created_at") },
+      after[2].map { |row| row.except("id", "lock_version", "updated_at", "created_at") }
   end
 
   test "workspace compilation is write-free and definition-scoped" do

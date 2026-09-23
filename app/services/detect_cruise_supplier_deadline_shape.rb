@@ -222,9 +222,20 @@ class DetectCruiseSupplierDeadlineShape
       return reasons
     end
 
+    if template.blank?
+      reasons << "Actionable typed deadlines require a recognized template."
+      return reasons
+    end
+
+    spec = CruiseDeadlineTemplateSupport::TEMPLATES.fetch(template)
+    expected = CruiseDeadlineTemplateSupport.expected_commitment_description(
+      spec, definition.description
+    )
     line = lines.first
-    unless CruiseDeadlineTemplateSupport.typed_commitment_line?(line, arrangement: arrangement)
-      reasons << "Commitment authority must be fixed quantity 1 resource unit for the contracting Supplier."
+    unless CruiseDeadlineTemplateSupport.typed_commitment_line?(
+      line, arrangement: arrangement, expected_description: expected
+    )
+      reasons << "Commitment line must match the typed fixed-quantity authority and action/evidence text."
     end
 
     if template == "rooming_list"
