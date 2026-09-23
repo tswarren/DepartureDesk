@@ -21,13 +21,15 @@ class CreateSupplierDepositRequirementDefinition < AgencyCommand
       attrs = normalize_deposit_attributes(version, arrangement, @attributes)
       coverage_links = attrs.delete(:coverage_links)
       cost_links = attrs.delete(:cost_links)
+      contributor_links = attrs.delete(:contributor_links)
       idempotent_create!(
         command_name: self.class.name,
         idempotency_key: @idempotency_key,
         payload: attrs.merge(
           supplier_arrangement_version_id: version.id,
           coverage_links:,
-          cost_links:
+          cost_links:,
+          contributor_links:
         ),
         result_class: SupplierDepositRequirementDefinition
       ) do
@@ -38,7 +40,7 @@ class CreateSupplierDepositRequirementDefinition < AgencyCommand
             position: version.supplier_deposit_requirement_definitions.maximum(:position).to_i + 1
           )
         )
-        persist_deposit_children!(definition, coverage_links, cost_links)
+        persist_deposit_children!(definition, coverage_links, cost_links, contributor_links)
         bump_version!(version)
         audit!(
           agency: @agency, actor: @actor, subject: arrangement,

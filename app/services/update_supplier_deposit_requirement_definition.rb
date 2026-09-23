@@ -20,11 +20,15 @@ class UpdateSupplierDepositRequirementDefinition < AgencyCommand
       definition = version.supplier_deposit_requirement_definitions.lock.find(@definition.id)
       ensure_deposit_editable!(departure, arrangement, version, contractor)
       ensure_current_lock_version!(definition, @lock_version)
-      attrs = normalize_deposit_attributes(version, arrangement, @attributes)
+      attrs = normalize_deposit_attributes(
+        version, arrangement, @attributes.merge(_cumulative_definition: definition)
+      )
       coverage_links = attrs.delete(:coverage_links)
       cost_links = attrs.delete(:cost_links)
+      contributor_links = attrs.delete(:contributor_links)
+      attrs.delete(:_cumulative_definition)
       definition.update!(attrs)
-      replace_deposit_children!(definition, coverage_links, cost_links)
+      replace_deposit_children!(definition, coverage_links, cost_links, contributor_links)
       bump_version!(version)
       audit!(
         agency: @agency, actor: @actor, subject: arrangement,

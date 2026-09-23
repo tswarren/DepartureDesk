@@ -841,6 +841,9 @@ module CapacityCommandSupport
           record_capacity_reconciliation_resolution!(arrangement, event, resolution_note) if event.capacity_reconciliation_id.present?
           catch_up_capacity_projection!(locked_pool, projection, event, recorded_at)
         end
+        reevaluate_quantity_derived_deposit_cumulatives_after_capacity!(
+          arrangement:, version:, pool: locked_pool, recorded_at:
+        )
         audit_capacity_events!(arrangement, events)
       end
     end
@@ -982,28 +985,7 @@ module CapacityCommandSupport
   end
 
   def refresh_capacity_projection_state!(pool, projection, now)
-    events = pool.capacity_events.order(:effective_on, :effective_sequence, :recorded_at, :id).to_a
-    CapacityTimelineReplay.new(events).call
-
-    applied_events = events.select { |event| event.applies_at <= now }
-    current = applied_events.sum { |event| CapacityTimelineReplay::DIRECTIONS.fetch(event.event_type).sign * event.quantity }
-    last_event = applied_events.last
-    next_event = events.select { |event| event.applies_at > now }.min_by do |event|
-      [ event.applies_at, event.effective_on, event.effective_sequence, event.recorded_at, event.id ]
-    end
-
-    attrs = {
-      current_supplier_capacity: current,
-      last_event: last_event,
-      last_effective_on: last_event&.effective_on,
-      last_effective_sequence: last_event&.effective_sequence,
-      last_recorded_at: last_event&.recorded_at,
-      next_event: next_event,
-      next_applies_at: next_event&.applies_at
-    }
-    return if capacity_projection_matches?(projection, attrs)
-
-    projection.update!(attrs.merge(rebuilt_at: now))
+    CapacityProjectionRefresher.call(pool:, projection:, now:)
   end
 
   def capacity_projection_matches?(projection, attrs)
@@ -1014,6 +996,18 @@ module CapacityCommandSupport
         projection.public_send(name) == value
       end
     end
+  end
+
+  def reevaluate_quantity_derived_deposit_cumulatives_after_capacity!(arrangement:, version:, pool:, recorded_at:)
+    return if @actor.nil?
+
+    ReevaluateQuantityDerivedDepositCumulativeAlreadyLocked.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement:,
+      version:,
+      at: recorded_at
+    ).call(pool_ids: [ pool.id ])
   end
 
   def catch_up_capacity_projection!(pool, projection, event, now)

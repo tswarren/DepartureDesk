@@ -67,6 +67,8 @@ Only `block` and `allotment` use the numeric ledger. They share ledger mechanics
 
 M3 capacity quantities are whole numbers only. M3B measurement bases are exactly `resource_units` and `traveler_positions`. One Pool has one basis; the system never converts one basis into the other. No later M3 slice may add fractional precision or another measurement basis without amending the M3 parent and this ADR.
 
+**Clarification (M4D.1 Slice 2B-R):** Deposit Requirement evaluators may read Capacity Pool definition and projection quantities through deposit `quantity_basis` values such as `capacity_pool_units`. That read path does not expand this ADR’s closed Pool `measurement_basis` catalog and does not authorize converting one Pool basis into another.
+
 ### Immutable event ledger
 
 Capacity events are append-only Supplier-side business facts. The closed event catalog is:

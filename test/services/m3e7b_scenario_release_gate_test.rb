@@ -13,6 +13,8 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
 
   test "Celebrity Beyond group-cruise deposit Deadline evidence and exposure composition" do
     # Reference sailing: Celebrity Beyond, November 6–13, 2027.
+    # Path B (M4D.1 Slice 2B-R): $50 × initially blocked capacity; final $500 × retained
+    # source-aware cumulative with explicit contributor; no canonical legal_names_due.
     graph = activated_graph!(
       "Celebrity",
       "Celebrity Beyond",
@@ -20,28 +22,29 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       ends_on: Date.new(2027, 11, 13)
     )
     cabin_source = create_celebrity_cabin_cost!(graph, cabins: 24)
+    pool = add_numeric_pool!(graph, quantity: 24)
 
-    # Per-cabin $50 rate under resource_units coverage. Coverage targets the Resource
-    # without a resource-scoped assumption so quantity resolves to 1 (Arrangement-wide
-    # $50), while the Item assumption of 24 cabins drives cost/exposure calculation.
-    create_deposit!(
+    initial = create_deposit!(
       graph,
       amount_shape: "quantity_times_rate",
       rate_minor_units: 5_000,
-      quantity_basis: "resource_units",
-      description: "Initial $50 per-cabin deposit (Arrangement-wide opening)",
+      quantity_basis: "capacity_pool_units",
+      description: "Initial $50 × blocked cabin capacity",
       rule_shape: "fixed_date",
       rule_parameters: { "date" => "2027-01-15" },
       coverage_links: [ {
         arrangement_item_id: graph[:item].id,
-        supplier_resource_id: graph[:resource].id
+        service_occurrence_id: graph[:occurrence].id,
+        supplier_resource_id: graph[:resource].id,
+        capacity_pool_id: pool.id
       } ]
     )
     create_deposit!(
       graph,
       amount_shape: "cumulative_target",
-      target_amount_minor_units: 50_000,
-      description: "Final cumulative $500 target",
+      rate_minor_units: 50_000,
+      quantity_basis: "capacity_pool_units",
+      description: "Final $500 × retained capacity (source-aware)",
       rule_shape: "earlier_of",
       rule_parameters: {
         "arms" => [
@@ -51,7 +54,14 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
             "rule_parameters" => { "kind" => "names_assigned_to_supplier" }
           }
         ]
-      }
+      },
+      coverage_links: [ {
+        arrangement_item_id: graph[:item].id,
+        service_occurrence_id: graph[:occurrence].id,
+        supplier_resource_id: graph[:resource].id,
+        capacity_pool_id: pool.id
+      } ],
+      contributor_definition_ids: [ initial.id ]
     )
     create_deadline!(
       graph,
@@ -60,13 +70,6 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       rule_shape: "days_before_departure",
       rule_parameters: { "days" => 60 }
     )
-    create_deadline!(
-      graph,
-      kind: "informational",
-      deadline_type: "legal_names_due",
-      rule_shape: "days_before_departure",
-      rule_parameters: { "days" => 30 }
-    )
     create_confirmation_trigger!(graph, description: "Confirm dining hold", fixed_quantity: 1)
 
     activate!(graph)
@@ -74,10 +77,20 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
     initial_definition = SupplierDepositRequirementDefinition.find_by!(
       supplier_arrangement_version: graph[:version], amount_shape: "quantity_times_rate"
     )
-    assert_equal "resource_units", initial_definition.quantity_basis
+    assert_equal "capacity_pool_units", initial_definition.quantity_basis
     assert_equal 1, initial_definition.supplier_deposit_requirement_definition_coverage_links.count
-    assert_equal graph[:resource].id,
-      initial_definition.supplier_deposit_requirement_definition_coverage_links.sole.supplier_resource_id
+    assert_equal pool.id,
+      initial_definition.supplier_deposit_requirement_definition_coverage_links.sole.capacity_pool_id
+
+    final_definition = SupplierDepositRequirementDefinition.find_by!(
+      supplier_arrangement_version: graph[:version], amount_shape: "cumulative_target"
+    )
+    assert_equal "capacity_pool_units", final_definition.quantity_basis
+    assert_equal 50_000, final_definition.rate_minor_units
+    assert_nil final_definition.target_amount_minor_units
+    assert_equal [ initial_definition.id ],
+      final_definition.supplier_deposit_requirement_definition_contributor_links
+        .order(:position).map(&:contributor_definition_id)
 
     tranches = SupplierDepositRequirementTranche
       .where(supplier_arrangement_version: graph[:version])
@@ -85,13 +98,16 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       .order(:materialized_at, :id)
     assert_equal 2, tranches.count
 
-    initial = tranches.find { |row| row.amount_shape == "quantity_times_rate" }
-    final = tranches.find { |row| row.amount_shape == "cumulative_target" }
-    assert_equal 5_000, initial.current_amount_minor_units
-    assert_equal 1, initial.amount_inputs_snapshot["quantity"]
-    assert_equal "resource_units", initial.amount_inputs_snapshot["quantity_basis"]
-    assert_equal 45_000, final.current_amount_minor_units,
-      "Cumulative $500 target leaves $450 remaining after the $50 initial"
+    initial_tranche = tranches.find { |row| row.amount_shape == "quantity_times_rate" }
+    final_tranche = tranches.find { |row| row.amount_shape == "cumulative_target" }
+    assert_equal 120_000, initial_tranche.current_amount_minor_units,
+      "$50 × 24 initially blocked cabins"
+    assert_equal 24, initial_tranche.amount_inputs_snapshot["quantity"]
+    assert_equal "capacity_pool_units", initial_tranche.amount_inputs_snapshot["quantity_basis"]
+    assert_equal "established_opening", initial_tranche.amount_inputs_snapshot["quantity_phase"]
+    assert_equal 1_080_000, final_tranche.current_amount_minor_units,
+      "$500 × 24 retained minus $1,200 credited initial"
+    assert_equal "capacity_pool_units", final_tranche.amount_inputs_snapshot["quantity_basis"]
 
     # Documented 24-cabin inventory assumption driving cost/exposure (not deposit fan-out).
     cabin_assumption = SupplierCostUsageAssumption.find_by!(
@@ -105,23 +121,20 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
     assert_equal 10_000, charge.amount_minor_units
     assert_equal 240_000, cabin_assumption.expected_resource_units * charge.amount_minor_units
 
-    final_deadline = final.governing_deadline_occurrence
+    final_deadline = final_tranche.governing_deadline_occurrence
     assert_equal "deposit_due", final_deadline.deadline_type
     assert_equal Date.new(2027, 3, 11), final_deadline.calculated_on
 
     rooming = SupplierDeadlineOccurrence.find_by!(
       supplier_arrangement_version: graph[:version], deadline_type: "rooming_list_due"
     )
-    legal = SupplierDeadlineOccurrence.find_by!(
+    assert_nil SupplierDeadlineOccurrence.find_by(
       supplier_arrangement_version: graph[:version], deadline_type: "legal_names_due"
     )
     assert_equal Date.new(2027, 9, 7), rooming.calculated_on
-    assert_equal Date.new(2027, 10, 7), legal.calculated_on
-    [ rooming, legal ].each do |occurrence|
-      assert_equal "one_shared", occurrence.cardinality
-      assert_equal "date_only", occurrence.precision
-      assert_equal "America/New_York", occurrence.time_zone
-    end
+    assert_equal "one_shared", rooming.cardinality
+    assert_equal "date_only", rooming.precision
+    assert_equal "America/New_York", rooming.time_zone
 
     forecast = SupplierExposureSummary.find_by!(
       supplier_arrangement: graph[:arrangement],
@@ -167,7 +180,7 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
 
     initial_commitment = SupplierCommitment.find_by!(
       opening_kind: "deposit_requirement",
-      supplier_deposit_requirement_tranche: initial
+      supplier_deposit_requirement_tranche: initial_tranche
     )
     AttestSupplierDepositHandledExternally.new(
       agency: @agency, actor: @actor, commitment: initial_commitment,
@@ -178,7 +191,7 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
     assert_equal "handled_externally", initial_commitment.reload.disposition_outcome
 
     AdjustSupplierDepositRequirementTranche.new(
-      agency: @agency, actor: @actor, tranche: initial.reload,
+      agency: @agency, actor: @actor, tranche: initial_tranche.reload,
       amount_delta_minor_units: 5_000,
       note: "Qualifying cabin quantity increased by one after attestation",
       idempotency_key: SecureRandom.uuid
@@ -189,7 +202,7 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       ).count,
       "Post-attestation cabin increase must open one incremental deposit commitment"
     increment = SupplierDepositRequirementTranche
-      .where(supplier_arrangement_version: graph[:version], predecessor_tranche: initial)
+      .where(supplier_arrangement_version: graph[:version], predecessor_tranche: initial_tranche)
       .sole
     assert_equal 5_000, increment.current_amount_minor_units
 
@@ -220,7 +233,7 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       supplier_arrangement: graph[:arrangement]
     ).count
 
-    replacement = final.reload.governing_deadline_occurrence
+    replacement = final_tranche.reload.governing_deadline_occurrence
     assert_not_equal final_deadline.id, replacement.id
     assert_equal Date.new(2027, 2, 20), replacement.calculated_on
     assert final_deadline.reload.superseded_at.present?
@@ -863,7 +876,8 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       precision: "date_only",
       time_zone: "America/New_York",
       coverage_links: [],
-      cost_links: []
+      cost_links: [],
+      contributor_definition_ids: []
     }.merge(overrides)
   end
 

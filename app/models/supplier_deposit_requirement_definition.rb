@@ -6,7 +6,7 @@ class SupplierDepositRequirementDefinition < ApplicationRecord
   AMOUNT_SHAPES = %w[
     fixed_amount quantity_times_rate percentage_of_cost_sources cumulative_target
   ].freeze
-  QUANTITY_BASES = %w[resource_units traveler_positions explicit].freeze
+  QUANTITY_BASES = %w[resource_units traveler_positions explicit capacity_pool_units].freeze
   ROUNDING_SCOPES = %w[aggregate per_source].freeze
   RULE_SHAPES = SupplierDeadlineDefinition::RULE_SHAPES
   PRECISIONS = SupplierDeadlineDefinition::PRECISIONS
@@ -20,6 +20,7 @@ class SupplierDepositRequirementDefinition < ApplicationRecord
 
   has_many :supplier_deposit_requirement_definition_coverage_links, dependent: :restrict_with_exception
   has_many :supplier_deposit_requirement_definition_cost_links, dependent: :restrict_with_exception
+  has_many :supplier_deposit_requirement_definition_contributor_links, dependent: :restrict_with_exception
   has_many :supplier_deposit_requirement_tranches, dependent: :restrict_with_exception
   has_many :supplier_deadline_occurrences, dependent: :restrict_with_exception
 

@@ -232,7 +232,8 @@ module M3fScenarioHelper
       precision: "date_only",
       time_zone: "America/New_York",
       coverage_links: [],
-      cost_links: []
+      cost_links: [],
+      contributor_definition_ids: []
     }.merge(overrides)
   end
 
