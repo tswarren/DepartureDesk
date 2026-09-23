@@ -1090,7 +1090,7 @@ Amends ADR 0013 / M3E register for Path B Celebrity economics (`$50 × initially
 
 #### Slice 2A.2R3 — Cruise rate-shape detector remediation
 
-**Shipped 2026-09-23.** Sole shipped authority: [M4D.1 Slice 2A.2R3](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md). Accept package base [`5a391d1`](https://github.com/tswarren/DepartureDesk/commit/5a391d1). Ship commit [`5367743`](https://github.com/tswarren/DepartureDesk/commit/5367743).
+**Shipped 2026-09-23.** Sole shipped authority: [M4D.1 Slice 2A.2R3](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md). Ship commit / merge tip [`e5ded27`](https://github.com/tswarren/DepartureDesk/commit/e5ded27) (PR #145). Accept package base [`5a391d1`](https://github.com/tswarren/DepartureDesk/commit/5a391d1).
 
 Remediates Stop point C detector reopen:
 
