@@ -16,7 +16,7 @@
 
 **Shipped:** [Slice 2A.2R3 — Rate-shape detector remediation](../../m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md).
 
-**Draft (not Accepted):** [Slice 2B — Deposits, deadlines, and activation-safe editing](M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md).
+**Accepted (not shipped):** [Slice 2B — Deposits, deadlines, and activation-safe editing](../../m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md).
 
 Parent spine: [M4D.1](../../m4d1-departure-composition-workspace.md) §21.
 
@@ -26,7 +26,7 @@ Recommended refinement sequence after shipped 2A.2R2:
 
 1. **Slice 2B-R — M3E Cruise deposit-semantics amendment** ([Shipped](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md))
 2. **Slice 2A.2R3 — Cruise rate-shape detector remediation** ([Shipped](../../m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md))
-3. **Slice 2B — Deposits, deadlines, and activation-safe editing** (typed Stop D; Draft; may Accept now that 2A.2R3 and 2B-R shipped)
+3. **Slice 2B — Deposits, deadlines, and activation-safe editing** ([Accepted](../../m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md); implement via 2B-A / 2B-B / 2B-C)
 4. **Slice 2C — Service connection, categories, and Client choices**
 5. **Slice 2D — Client-term compilation and scenario Review**
 6. **Slice 3 — Adapter generalization**

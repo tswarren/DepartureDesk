@@ -1,6 +1,6 @@
 # M4D.1 Slice 2B-R — Cruise Deposit Semantics Amendment (M3E)
 
-**Status:** Shipped 2026-09-22. Sole shipped authority for generic M3E capacity-sourced deposit quantities and source-aware cumulative targets. Not authority for typed Cruise UI ([Slice 2B](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) remains Draft until separately Accepted).
+**Status:** Shipped 2026-09-22. Sole shipped authority for generic M3E capacity-sourced deposit quantities and source-aware cumulative targets. Not authority for typed Cruise UI ([Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) is Accepted separately).
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md) Stop point D / Slice 2B sequencing.
 
@@ -10,7 +10,7 @@
 
 **Ship commit:** Merge tip [`5a391d1`](https://github.com/tswarren/DepartureDesk/commit/5a391d1) (PR #143). Intermediate impl tip [`dbdb6c2`](https://github.com/tswarren/DepartureDesk/commit/dbdb6c2). Accept package base [`bfe8431`](https://github.com/tswarren/DepartureDesk/commit/bfe8431). Implementation base was green `main` tip including shipped [Slice 2A.2R2](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) at [`b73a9ff`](https://github.com/tswarren/DepartureDesk/commit/b73a9ff).
 
-**Downstream:** Typed [Slice 2B](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) may be Accepted after this slice ships (and other named gates). Rate-shape detector gate is cleared by shipped [Slice 2A.2R3](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md).
+**Downstream:** Typed [Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) is Accepted. Rate-shape detector gate is cleared by shipped [Slice 2A.2R3](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md).
 
 ---
 

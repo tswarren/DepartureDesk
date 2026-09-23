@@ -8,7 +8,8 @@
 - [Slice 2A.2R2](../../m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) — shipped matrix interaction remediation.
 - [Slice 2B-R](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md) — Shipped M3E deposit-semantics amendment (Path B).
 - [Slice 2A.2R3](../../m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md) — Shipped rate-shape detector remediation.
-- [Slice 2B draft](M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) — Draft typed Stop D adapter.
+- [Slice 2B](../../m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) — Accepted typed Stop D adapter (not shipped; implement via 2B-A/B/C).
+- [Slice 2B stub](M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) — points at Accepted 2B.
 - [Slice 2A.2R3 stub](M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md) — points at shipped 2A.2R3.
 - [Proposed later slices](proposed-slices.md) — discovery sequencing only (not implementation authority).
 - Wireframe guide: [Cruise Supplier Rate Workspace](../DepartureDesk-Cruise-Supplier-Rate-Workspace-Wireframe.md) under shipped 2A.2R2 (non-authority layout).
