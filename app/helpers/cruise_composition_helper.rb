@@ -51,4 +51,9 @@ module CruiseCompositionHelper
   def cruise_deposit_amount_label(definition, currency:)
     CruiseDepositsAndDeadlinesLanguage.amount_label_for(definition, currency:)
   end
+
+  def cruise_definition_status_badge(status_label)
+    modifier = CruiseDepositsAndDeadlinesLanguage.status_badge_modifier(status_label)
+    tag.span(status_label, class: "dd-badge dd-badge--#{modifier}")
+  end
 end

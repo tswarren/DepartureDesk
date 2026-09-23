@@ -3,7 +3,44 @@
 # Staff-facing labels for typed Cruise deposit amount shapes and amount summaries.
 # Presentation only — does not change M3E persistence or evaluator semantics.
 module CruiseDepositsAndDeadlinesLanguage
+  GENERATED_DEPOSIT_NAMES = {
+    "initial_deposit" => "Initial deposit",
+    "final_deposit" => "Final deposit"
+  }.freeze
+
   module_function
+
+  def generated_deposit_name(template)
+    GENERATED_DEPOSIT_NAMES[template.to_s]
+  end
+
+  def generated_deposit_name?(description)
+    GENERATED_DEPOSIT_NAMES.value?(description.to_s.strip)
+  end
+
+  # Display-only: when the stored description is blank or equals a generated
+  # template default, prefer the detector template's generated name. Custom
+  # Staff-authored names are preserved. Does not rewrite persistence.
+  def deposit_display_label(description:, template:)
+    generated = generated_deposit_name(template)
+    stored = description.to_s.strip
+    return generated if stored.blank? && generated.present?
+    return generated if generated.present? && generated_deposit_name?(stored)
+
+    stored.presence || generated || "Deposit requirement"
+  end
+
+  def status_badge_modifier(status_label)
+    label = status_label.to_s
+    case label
+    when "Ready" then "success"
+    when "Blocked", /\ANeeds/i then "warning"
+    when "Open", "Informational", "Governing" then "info"
+    when /\AWill /i, /supersede|unchanged/i then "info"
+    when "Open advanced" then "neutral"
+    else "neutral"
+    end
+  end
 
   def amount_shape_label(amount_shape, quantity_basis: nil)
     shape = amount_shape.to_s

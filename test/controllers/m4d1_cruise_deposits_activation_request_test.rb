@@ -131,12 +131,18 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
     assert_select ".dd-eyebrow", text: "Cruise Supplier planning"
     assert_select "h1", text: "Deposits and deadlines"
     assert_select "a", text: "Back to Cruise"
+    assert_select "#cruise-deposit-requirements-heading"
+    assert_select "#cruise-supplier-deadlines-heading"
+    assert_select ".dd-definition-card", minimum: 1
     assert_select "a", text: "Add deposit"
     assert_select "a", text: "Add deadline"
     assert_select "#cruise-deposit-editor", count: 0
     assert_select "#cruise-deadline-editor", count: 0
-    assert_select "dt", text: "Semantic type"
+    assert_select "dt", text: "Type"
+    assert_select "dt", text: "Semantic type", count: 0
     assert_select "dt", text: "Amount"
+    assert_select ".dd-badge", minimum: 1
+    assert_no_match(/Template choice is a creation affordance/, response.body)
   end
 
   test "opening a deposit editor closes a concurrent deadline editor" do
@@ -155,7 +161,7 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-deadline-editor", count: 0
   end
 
-  test "blocked readiness omits Activate Arrangement" do
+  test "blocked readiness omits Activate Arrangement and shows per-row corrective" do
     create_deposit!
     pool_definition = @version.capacity_pool_definitions.find_by!(capacity_pool_id: @pool.id)
     pool_definition.update_columns(proposed_opening_quantity: nil, updated_at: Time.current)
@@ -166,6 +172,56 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "#cruise-readiness-heading", text: "Not ready to activate"
     assert_select "a", text: "Activate Arrangement", count: 0
+    assert_select "a", text: "Review issues", count: 0
+    assert_select "#cruise-readiness-issues"
+    assert_select ".dd-definition-card .dd-attention-callout"
+    assert_select ".dd-definition-card a", text: "Open cabin inventory"
+  end
+
+  test "activation details do not duplicate the time zone" do
+    create_deposit!
+    sign_in_as @staff
+
+    get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "#cruise-activation-details"
+    refute_match(
+      /\(America\/New_York\)\s*\(America\/New_York\)/,
+      response.body
+    )
+  end
+
+  test "list display reconciles generated Initial name when detector is Final" do
+    initial = create_deposit!
+    CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version.reload,
+      attributes: {
+        description: "Final deposit",
+        amount_shape: "cumulative_target",
+        quantity_basis: "capacity_pool_units",
+        rate_minor_units: 50_000,
+        currency: "USD",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-03-11" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        coverage_links: pool_coverage(@pool),
+        contributor_definition_ids: [ initial.id ]
+      },
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    final = @version.reload.supplier_deposit_requirement_definitions.order(:id).last
+    final.update_columns(description: "Initial deposit", updated_at: Time.current)
+
+    sign_in_as @staff
+    get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "#cruise-deposit-#{final.id} h3", text: "Final deposit"
+    assert_select "#cruise-deposit-#{final.id} dd", text: "Final"
+    assert_equal "Initial deposit", final.reload.description
   end
 
   test "milestone recording returns to cruise deposits workspace" do
@@ -229,7 +285,7 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
   private
 
   def create_deposit!
-    CreateSupplierDepositRequirementDefinition.new(
+    result = CreateSupplierDepositRequirementDefinition.new(
       agency: @agency,
       actor: @staff,
       version: @version,
@@ -249,6 +305,7 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
       idempotency_key: SecureRandom.uuid
     ).call
     @version.reload
+    result.record
   end
 
   def pool_coverage(pool)

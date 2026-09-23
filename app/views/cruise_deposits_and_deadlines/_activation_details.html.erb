@@ -48,12 +48,7 @@
             <% if row.due_sentence.present? %>
               <div>
                 <dt>Due</dt>
-                <dd>
-                  <%= row.due_sentence %>
-                  <% if row.time_zone.present? %>
-                    (<%= row.time_zone %>)
-                  <% end %>
-                </dd>
+                <dd><%= row.due_sentence %></dd>
               </div>
             <% end %>
             <div>

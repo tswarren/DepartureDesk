@@ -82,9 +82,6 @@
         </ul>
       <% end %>
       <div class="dd-inline-actions">
-        <% if readiness.unique_blockers.any? %>
-          <%= link_to "Review issues", "#cruise-readiness-issues", class: "dd-button dd-button--quiet" %>
-        <% end %>
         <% if @activation_preview %>
           <details id="cruise-activation-details">
             <summary class="dd-link">View activation details</summary>
@@ -181,43 +178,46 @@
   <% end %>
 <% end %>
 
-<article class="dd-panel" id="cruise-deposits-and-deadlines">
-  <div class="dd-panel-body dd-stack">
-    <section class="dd-stack" aria-labelledby="cruise-deposit-requirements-heading">
-      <header class="dd-panel-header" style="padding: 0; border: 0;">
-        <div>
-          <h2 id="cruise-deposit-requirements-heading" class="dd-section-title" tabindex="-1">
-            Deposit requirements
-          </h2>
-          <p class="dd-page-description">
-            Amounts and due rules required by the Supplier agreement.
-          </p>
+<div id="cruise-deposits-and-deadlines" class="dd-stack">
+  <article class="dd-panel" aria-labelledby="cruise-deposit-requirements-heading">
+    <header class="dd-panel-header">
+      <div>
+        <h2 id="cruise-deposit-requirements-heading" class="dd-panel-title" tabindex="-1">
+          Deposit requirements
+        </h2>
+        <p class="dd-page-description">
+          Amounts and due rules required by the Supplier agreement.
+        </p>
+      </div>
+      <% if @editable && !any_editor_open %>
+        <div class="dd-inline-actions">
+          <%= link_to "Add deposit",
+                departure_arrangement_cruise_deposits_and_deadlines_path(
+                  @departure, @supplier_arrangement, deposit_editor: "new"
+                ),
+                class: "dd-button" %>
         </div>
-        <% if @editable && !any_editor_open %>
-          <div class="dd-inline-actions">
-            <%= link_to "Add deposit",
-                  departure_arrangement_cruise_deposits_and_deadlines_path(
-                    @departure, @supplier_arrangement, deposit_editor: "new"
-                  ),
-                  class: "dd-button" %>
-          </div>
-        <% end %>
-      </header>
+      <% end %>
+    </header>
 
+    <div class="dd-panel-body dd-stack">
       <% if @workspace.deposit_rows.any? %>
-        <ul class="dd-stack" id="cruise-deposit-summaries">
+        <ul class="dd-definition-grid" id="cruise-deposit-summaries">
           <% @workspace.deposit_rows.each do |row| %>
-            <li class="dd-stack"
+            <li class="dd-definition-card"
                 id="cruise-deposit-<%= row.definition.id %>"
                 tabindex="-1"
                 <% if params[:focus_deposit_id].to_s == row.definition.id.to_s %>
                   data-controller="form-error-summary"
                 <% end %>>
-              <h3 class="dd-section-title"><%= row.display_label %></h3>
+              <header class="dd-definition-card__header">
+                <h3><%= row.display_label %></h3>
+                <%= cruise_definition_status_badge(row.status_label) %>
+              </header>
 
-              <dl class="dd-definition-list">
+              <dl class="dd-fact-grid">
                 <div>
-                  <dt>Semantic type</dt>
+                  <dt>Type</dt>
                   <dd><%= row.semantic_type_label %></dd>
                 </div>
                 <div>
@@ -232,11 +232,22 @@
                   <dt>Coverage</dt>
                   <dd><%= row.coverage_label %></dd>
                 </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd><%= row.status_label %></dd>
-                </div>
               </dl>
+
+              <% if row.row_blocker %>
+                <div class="dd-attention-callout" role="status">
+                  <div>
+                    <p><%= row.row_blocker.message %></p>
+                    <% if row.row_blocker.corrective_path.present? %>
+                      <p>
+                        <%= link_to row.row_blocker.corrective_label.presence || "Review issue",
+                              row.row_blocker.corrective_path,
+                              class: "dd-link" %>
+                      </p>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
 
               <% if row.operational %>
                 <div class="dd-stack" aria-label="Operational facts for <%= row.display_label %>">
@@ -278,28 +289,30 @@
               <% if row.compatible? %>
                 <% if @editable %>
                   <% remove_label = row.definition.copied_from_id.present? ? "Remove from successor" : "Remove" %>
-                  <div class="dd-inline-actions">
-                    <%= link_to "Edit",
-                          departure_arrangement_cruise_deposits_and_deadlines_path(
-                            @departure, @supplier_arrangement,
-                            deposit_editor: "edit", deposit_id: row.definition.id
-                          ),
-                          class: "dd-row-action dd-row-action--edit" %>
-                    <%= button_to remove_label,
-                          departure_arrangement_cruise_deposits_and_deadlines_deposit_path(
-                            @departure, @supplier_arrangement, row.definition
-                          ),
-                          method: :delete,
-                          class: "dd-row-action",
-                          form: {
-                            class: "dd-inline-form",
-                            data: {
-                              turbo_confirm:
-                                "#{remove_label} #{row.display_label}? This deletes only this draft definition and its children."
-                            }
-                          },
-                          params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
-                  </div>
+                  <footer class="dd-definition-card__actions">
+                    <div class="dd-inline-actions">
+                      <%= link_to "Edit",
+                            departure_arrangement_cruise_deposits_and_deadlines_path(
+                              @departure, @supplier_arrangement,
+                              deposit_editor: "edit", deposit_id: row.definition.id
+                            ),
+                            class: "dd-button dd-button--quiet" %>
+                      <%= button_to remove_label,
+                            departure_arrangement_cruise_deposits_and_deadlines_deposit_path(
+                              @departure, @supplier_arrangement, row.definition
+                            ),
+                            method: :delete,
+                            class: "dd-row-action dd-row-action--danger",
+                            form: {
+                              class: "dd-inline-form",
+                              data: {
+                                turbo_confirm:
+                                  "#{remove_label} #{row.display_label}? This deletes only this draft definition and its children."
+                              }
+                            },
+                            params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+                    </div>
+                  </footer>
                   <% if open_deposit_edit_id == row.definition.id %>
                     <%= render "cruise_deposits_and_deadlines/deposit_form",
                           form: deposit_form,
@@ -321,11 +334,11 @@
                     <% end %>
                   </ul>
                 <% end %>
-                <p>
+                <footer class="dd-definition-card__actions">
                   <%= link_to "Open advanced deposit",
                         row.advanced_path,
                         class: "dd-link" %>
-                </p>
+                </footer>
               <% end %>
             </li>
           <% end %>
@@ -340,47 +353,54 @@
               mode: :new,
               definition: nil %>
       <% end %>
+    </div>
 
-      <p>
+    <% if @workspace.advanced_deposits_path.present? %>
+      <footer class="dd-panel-footer">
         <%= link_to "Open advanced deposits",
               @workspace.advanced_deposits_path,
               class: "dd-link" %>
-      </p>
-    </section>
+      </footer>
+    <% end %>
+  </article>
 
-    <section class="dd-stack" aria-labelledby="cruise-supplier-deadlines-heading">
-      <header class="dd-panel-header" style="padding: 0; border: 0;">
-        <div>
-          <h2 id="cruise-supplier-deadlines-heading" class="dd-section-title" tabindex="-1">
-            Supplier deadlines
-          </h2>
-          <p class="dd-page-description">
-            Dates that require Supplier action or provide operational information.
-          </p>
+  <article class="dd-panel" aria-labelledby="cruise-supplier-deadlines-heading">
+    <header class="dd-panel-header">
+      <div>
+        <h2 id="cruise-supplier-deadlines-heading" class="dd-panel-title" tabindex="-1">
+          Supplier deadlines
+        </h2>
+        <p class="dd-page-description">
+          Dates that require Supplier action or provide operational information.
+        </p>
+      </div>
+      <% if @editable && !any_editor_open %>
+        <div class="dd-inline-actions">
+          <%= link_to "Add deadline",
+                departure_arrangement_cruise_deposits_and_deadlines_path(
+                  @departure, @supplier_arrangement, editor: "new"
+                ),
+                class: "dd-button" %>
         </div>
-        <% if @editable && !any_editor_open %>
-          <div class="dd-inline-actions">
-            <%= link_to "Add deadline",
-                  departure_arrangement_cruise_deposits_and_deadlines_path(
-                    @departure, @supplier_arrangement, editor: "new"
-                  ),
-                  class: "dd-button" %>
-          </div>
-        <% end %>
-      </header>
+      <% end %>
+    </header>
 
+    <div class="dd-panel-body dd-stack">
       <% if @workspace.deadline_rows.any? %>
-        <ul class="dd-stack" id="cruise-deadline-summaries">
+        <ul class="dd-definition-grid" id="cruise-deadline-summaries">
           <% @workspace.deadline_rows.each do |row| %>
-            <li class="dd-stack"
+            <li class="dd-definition-card"
                 id="cruise-deadline-<%= row.definition.id %>"
                 tabindex="-1"
                 <% if params[:focus_deadline_id].to_s == row.definition.id.to_s %>
                   data-controller="form-error-summary"
                 <% end %>>
-              <h3 class="dd-section-title"><%= row.display_label %></h3>
+              <header class="dd-definition-card__header">
+                <h3><%= row.display_label %></h3>
+                <%= cruise_definition_status_badge(row.status_label) %>
+              </header>
 
-              <dl class="dd-definition-list">
+              <dl class="dd-fact-grid">
                 <div>
                   <dt>Operational effect</dt>
                   <dd><%= row.semantic_type_label %></dd>
@@ -393,11 +413,22 @@
                   <dt>Coverage</dt>
                   <dd><%= row.coverage_label %></dd>
                 </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd><%= row.status_label %></dd>
-                </div>
               </dl>
+
+              <% if row.row_blocker %>
+                <div class="dd-attention-callout" role="status">
+                  <div>
+                    <p><%= row.row_blocker.message %></p>
+                    <% if row.row_blocker.corrective_path.present? %>
+                      <p>
+                        <%= link_to row.row_blocker.corrective_label.presence || "Review issue",
+                              row.row_blocker.corrective_path,
+                              class: "dd-link" %>
+                      </p>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
 
               <% if row.operational %>
                 <div class="dd-stack" aria-label="Operational facts for <%= row.display_label %>">
@@ -431,28 +462,30 @@
               <% if row.compatible? %>
                 <% if @editable %>
                   <% remove_label = row.definition.copied_from_id.present? ? "Remove from successor" : "Remove" %>
-                  <div class="dd-inline-actions">
-                    <%= link_to "Edit",
-                          departure_arrangement_cruise_deposits_and_deadlines_path(
-                            @departure, @supplier_arrangement,
-                            editor: "edit", deadline_id: row.definition.id
-                          ),
-                          class: "dd-row-action dd-row-action--edit" %>
-                    <%= button_to remove_label,
-                          departure_arrangement_cruise_deposits_and_deadlines_deadline_path(
-                            @departure, @supplier_arrangement, row.definition
-                          ),
-                          method: :delete,
-                          class: "dd-row-action",
-                          form: {
-                            class: "dd-inline-form",
-                            data: {
-                              turbo_confirm:
-                                "#{remove_label} #{row.display_label}? This deletes only this draft definition and its children."
-                            }
-                          },
-                          params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
-                  </div>
+                  <footer class="dd-definition-card__actions">
+                    <div class="dd-inline-actions">
+                      <%= link_to "Edit",
+                            departure_arrangement_cruise_deposits_and_deadlines_path(
+                              @departure, @supplier_arrangement,
+                              editor: "edit", deadline_id: row.definition.id
+                            ),
+                            class: "dd-button dd-button--quiet" %>
+                      <%= button_to remove_label,
+                            departure_arrangement_cruise_deposits_and_deadlines_deadline_path(
+                              @departure, @supplier_arrangement, row.definition
+                            ),
+                            method: :delete,
+                            class: "dd-row-action dd-row-action--danger",
+                            form: {
+                              class: "dd-inline-form",
+                              data: {
+                                turbo_confirm:
+                                  "#{remove_label} #{row.display_label}? This deletes only this draft definition and its children."
+                              }
+                            },
+                            params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+                    </div>
+                  </footer>
                   <% if open_edit_id == row.definition.id %>
                     <%= render "cruise_deposits_and_deadlines/deadline_form",
                           form: form,
@@ -474,11 +507,11 @@
                     <% end %>
                   </ul>
                 <% end %>
-                <p>
+                <footer class="dd-definition-card__actions">
                   <%= link_to "Open advanced deadline",
                         row.advanced_path,
                         class: "dd-link" %>
-                </p>
+                </footer>
               <% end %>
             </li>
           <% end %>
@@ -493,12 +526,14 @@
               mode: :new,
               definition: nil %>
       <% end %>
+    </div>
 
-      <p>
+    <% if @workspace.advanced_deadlines_path.present? %>
+      <footer class="dd-panel-footer">
         <%= link_to "Open advanced Deadlines",
               @workspace.advanced_deadlines_path,
               class: "dd-link" %>
-      </p>
-    </section>
-  </div>
-</article>
+      </footer>
+    <% end %>
+  </article>
+</div>

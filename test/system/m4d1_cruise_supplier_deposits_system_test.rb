@@ -64,8 +64,14 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit_deposits_workspace
 
+    assert_selector "#cruise-deposit-requirements-heading"
+    assert_selector "#cruise-supplier-deadlines-heading"
+    assert_no_selector "#cruise-deposit-editor"
+    assert_no_selector "#cruise-deadline-editor"
+
     click_on "Add deposit"
     select "Initial deposit", from: "Template"
+    assert_text "Choose the kind of deposit required by the Supplier agreement."
     select "Amount × quantity", from: "Amount"
     select "Amount per initially blocked cabin", from: "Quantity"
     fill_in "Rate per unit (USD)", with: "50"

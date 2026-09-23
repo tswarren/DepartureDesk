@@ -37,6 +37,12 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
     :can_activate?
   )
 
+  RowBlocker = Data.define(
+    :message,
+    :corrective_path,
+    :corrective_label
+  )
+
   DeadlineRow = Data.define(
     :definition,
     :shape,
@@ -55,7 +61,8 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
     :advanced_path,
     :projected_fields,
     :operational,
-    :successor_compare
+    :successor_compare,
+    :row_blocker
   )
 
   DepositRow = Data.define(
@@ -76,7 +83,8 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
     :advanced_path,
     :projected_fields,
     :operational,
-    :successor_compare
+    :successor_compare,
+    :row_blocker
   )
 
   Result = Data.define(
@@ -227,7 +235,8 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
         advanced_path: advanced_deadlines,
         projected_fields: shape.projected_fields,
         operational: operational,
-        successor_compare: successor_compare
+        successor_compare: successor_compare,
+        row_blocker: row_blocker_for(preview, preview_row)
       )
     end
 
@@ -289,13 +298,17 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
       preview_row = preview&.rows&.find { |row|
         row.kind == "deposit" && row.definition_id == definition.id
       }
+      display_label = CruiseDepositsAndDeadlinesLanguage.deposit_display_label(
+        description: definition.description,
+        template: shape.template
+      )
 
       DepositRow.new(
         definition: definition,
         shape: shape,
         compatible?: shape.compatible?,
         template: shape.template,
-        display_label: shape.summary[:display_label],
+        display_label: display_label,
         amount_sentence: amount,
         timing_sentence: timing,
         coverage_summary: coverage,
@@ -315,7 +328,8 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
         advanced_path: advanced_deposits,
         projected_fields: shape.projected_fields,
         operational: operational,
-        successor_compare: successor_compare
+        successor_compare: successor_compare,
+        row_blocker: row_blocker_for(preview, preview_row)
       )
     end
 
@@ -461,6 +475,19 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
     return "Blocked" if preview_row&.blocker.present?
 
     "Ready"
+  end
+
+  def row_blocker_for(preview, preview_row)
+    return unless preview_row&.blocker.present?
+
+    matched = Array(preview&.unique_blockers).find { |blocker|
+      blocker.message.to_s == preview_row.blocker.to_s
+    }
+    RowBlocker.new(
+      message: preview_row.blocker,
+      corrective_path: matched&.corrective_path,
+      corrective_label: matched&.corrective_label
+    )
   end
 
   def deadline_coverage_summary_for(definition, cruise_shape)

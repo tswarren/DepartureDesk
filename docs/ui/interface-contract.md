@@ -182,12 +182,13 @@ Superseded as primary Staff chrome by Composition Slice 1. Retained for historic
 
 Authority: [Slice 2B](../planning/m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) (shipped domain); [Slice 2B-UX](../planning/m4d1-slice2bux-deposits-deadlines-workspace-remediation.md) (Accepted workspace remediation).
 
-- Page order: `dd-page-header` (eyebrow `Cruise Supplier planning`, secondary `Back to Cruise`) → mutually exclusive readiness/operational banner → Deposit requirements panel → Supplier deadlines panel.
-- Draft readiness is compact (counts + unique blockers); definition-level activation consequences live in an on-demand disclosure. Counts do not replace Slice 2B §10.2 rows. Gate `Activate Arrangement` when preview status is blocked.
-- Definition summaries use structured labeled fields (`Semantic type` / `Amount` / `Due` / `Coverage` / `Status`), not a single concatenated sentence.
-- At most one deposit or deadline editor is open. Open state is query-param driven (`deposit_editor` / `editor`); concurrent params normalize to a single editor. Fragments must not open editors.
+- Page order: `dd-page-header` (eyebrow `Cruise Supplier planning`, secondary `Back to Cruise`) → mutually exclusive readiness/operational banner → independent Deposit requirements `dd-panel` → independent Supplier deadlines `dd-panel`.
+- Draft readiness is compact (counts + unique blockers); definition-level activation consequences live in an on-demand disclosure. Counts do not replace Slice 2B §10.2 rows. Gate `Activate Arrangement` when preview status is blocked. Do not duplicate a “Review issues” jump when the blocker list is already in the banner.
+- Definition summaries are `dd-definition-card` entries in a responsive `dd-definition-grid`: header (name + `dd-badge` status), `dd-fact-grid` facts (`Type` / `Amount` / `Due` / `Coverage`), optional per-row blocker callout with corrective link, action footer.
+- At most one deposit or deadline editor is open. Open state is query-param driven (`deposit_editor` / `editor`); concurrent params normalize to a single editor. Fragments must not open editors. Add lives in the panel header; Advanced links are quiet panel footers.
 - Deposit editor sections are Amount / Coverage / When is it due? over Slice 2B’s five-step content (including 2B-R contributors). Staff-facing amount and timing language maps to existing M3E shapes without inventing new persistence.
-- Template-generated names sync on template change until Staff edits the name; Staff-authored names are preserved.
+- Template-generated names sync on template change until Staff edits the name; Staff-authored names are preserved. List display is display-only: when a stored description equals a generated Initial/Final default, prefer the detector template’s generated name without rewriting persistence.
+- Activation due sentences must not append the time zone twice.
 - Draft Remove and activated operational disposition are labeled differently; governing rows explain why destruction is unavailable and offer named deep links (`Record handled externally`, `Open commitment`, `Create successor draft`, `Record names assigned to Supplier`) into shipped M3E chrome with `return_to=cruise_deposits_and_deadlines`.
 - Successor rows distinguish governing vs proposed terms and use `Remove from successor` when lineage is present.
 - Mutations: success `303` redirect; validation `422` with focused `#form-error-summary`.

@@ -94,6 +94,66 @@ class CruiseDepositsAndDeadlinesReadinessTest < ActiveSupport::TestCase
     assert_equal cabin_blocker.message, readiness.unique_blockers.first.message
     assert_equal cabin_blocker.corrective_path, readiness.unique_blockers.first.corrective_path
     assert_equal "Blocked", workspace.deposit_rows.sole.status_label
+    row_blocker = workspace.deposit_rows.sole.row_blocker
+    assert row_blocker, "expected per-row blocker facts"
+    assert_equal cabin_blocker.message, row_blocker.message
+    assert_equal cabin_blocker.corrective_path, row_blocker.corrective_path
+    assert_equal "Open cabin inventory", row_blocker.corrective_label
+  end
+
+  test "display label prefers detector template when description is a generated default" do
+    assert_equal "Final deposit",
+      CruiseDepositsAndDeadlinesLanguage.deposit_display_label(
+        description: "Initial deposit",
+        template: "final_deposit"
+      )
+    assert_equal "Initial deposit",
+      CruiseDepositsAndDeadlinesLanguage.deposit_display_label(
+        description: "Final deposit",
+        template: "initial_deposit"
+      )
+    assert_equal "Custom group hold",
+      CruiseDepositsAndDeadlinesLanguage.deposit_display_label(
+        description: "Custom group hold",
+        template: "final_deposit"
+      )
+
+    initial = create_typed_deposit!(description: "Initial deposit")
+    CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version.reload,
+      attributes: {
+        description: "Final deposit",
+        amount_shape: "cumulative_target",
+        quantity_basis: "capacity_pool_units",
+        rate_minor_units: 50_000,
+        currency: "USD",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-03-11" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        coverage_links: pool_coverage(@pool),
+        contributor_definition_ids: [ initial.id ]
+      },
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    final = @version.reload.supplier_deposit_requirement_definitions.order(:id).last
+    final.update_columns(description: "Initial deposit", updated_at: Time.current)
+
+    workspace = CompileCruiseDepositsAndDeadlinesWorkspace.new(
+      agency: @agency,
+      arrangement: @arrangement,
+      version: @version
+    ).call
+
+    final_row = workspace.deposit_rows.find { |row| row.definition.id == final.id }
+    assert final_row
+    assert_equal "final_deposit", final_row.template.to_s
+    assert_equal "Final deposit", final_row.display_label
+    assert_equal "Final", final_row.semantic_type_label
+    assert_equal "Initial deposit", final.reload.description
   end
 
   test "duplicate blocker messages collapse to one unique blocker" do
