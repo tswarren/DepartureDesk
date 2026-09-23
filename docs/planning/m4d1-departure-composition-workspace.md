@@ -524,8 +524,9 @@ The Cruise form supports the accepted Celebrity shapes:
 - earlier-of named milestone and fallback date;
 - final payment;
 - rooming list;
-- legal names;
 - other supported Supplier deadlines.
+
+Path B cabin-quantity / cumulative economics are authorized by shipped or Accepted [Slice 2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md). Do not invent a separate legal-names Deadline for the canonical fixture; `names_assigned_to_supplier` remains the final-deposit trigger only.
 
 Deposit definitions, deadline definitions, coverage, and later materialized commitments remain M3E records. The typed adapter does not call a deposit “paid,” create a Supplier Obligation, or create a Payment.
 
@@ -1073,14 +1074,23 @@ Remediates Staff chrome so the matrix is an interactive builder:
 
 **Exit:** Six system scenarios green; family-rate fixture built only through page controls.
 
-#### Slice 2B — Deposits, deadlines, and activation-safe editing
+#### Slice 2B-R — M3E Cruise deposit-semantics amendment
 
-Ship Stop point D:
+**Accepted 2026-09-22.** Sole implementation authority: [M4D.1 Slice 2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md).
 
-- Cruise deposit/deadline adapter;
+Amends ADR 0013 / M3E register for Path B Celebrity economics (`$50 × initially blocked cabins`, `$500 × retained cabins` source-aware cumulative), deposit `capacity_pool_units`, and explicit cumulative contributors. No typed Cruise UI. Must **ship** before Slice 2B is Accepted.
+
+#### Slice 2B — Deposits, deadlines, and activation-safe editing (Draft)
+
+**Draft only — not Accepted.** Discovery: [Slice 2B draft](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md). Implementation also awaits shipped [Slice 2A.2R3](drafts/composition-workspace/M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md) (rate-shape detector remediation) and **shipped** Slice 2B-R.
+
+Ship Stop point D after 2B-R:
+
+- Cruise deposit/deadline adapter over public M3E commands;
 - draft versus activated/successor labeling;
 - M3D.7-safe successor editing;
-- exact M3E materialization boundaries.
+- exact M3E materialization boundaries;
+- advisory write-free activation preview.
 
 **Exit:** accepted Celebrity deadline/deposit shapes are entered without payment language, activated mutation, or one giant Arrangement save.
 

@@ -2,7 +2,7 @@
 
 - Status: Accepted. Implemented by shipped [M3E](../planning/m3e-supplier-operational-control.md). M3E.1–M3E.7b (including M3E.5R and M3D remediations) are shipped. Arrangement ending is shipped. M3E is fully shipped and production-ready.
 - Date: 2026-09-18
-- Amended: 2026-09-18; amended again 2026-09-18 (tranche, earlier-of, reconciliation matrix, cascade catalog, projection locators); Accepted 2026-09-18
+- Amended: 2026-09-18; amended again 2026-09-18 (tranche, earlier-of, reconciliation matrix, cascade catalog, projection locators); Accepted 2026-09-18; amended 2026-09-22 ([M4D.1 Slice 2B-R](../planning/m4d1-slice2br-cruise-deposit-semantics-amendment.md) capacity-sourced deposits and source-aware cumulative targets)
 - Decision owners: DepartureDesk maintainers
 - Parent: [M3 — Supplier planning](../planning/m3-supplier-planning.md)
 - Architecture: [ADR 0008](0008-supplier-arrangement-version-topology.md), [ADR 0009](0009-supplier-contracting-and-service-provider-roles.md), [ADR 0010](0010-supplier-capacity-ledger-and-projection.md), [ADR 0011](0011-supplier-cost-definitions-and-forecast-evaluation.md), and [ADR 0012](0012-arrangement-activation-reservations-and-confirmations.md)
@@ -105,9 +105,13 @@ A Deposit Requirement Definition belongs to one exact Arrangement version. It re
 
 The rule catalog is closed. Trigger and date shapes support fixed dates, supported date offsets, qualifying events (including Staff-recorded planning milestones), and bounded `earlier_of` / `later_of` composition. Amount shapes support fixed amount, quantity multiplied by rate, percentage of selected Supplier cost sources, and target amount less prior materialized Deposit Requirements (staged balance / **cumulative target**). There is no arbitrary expression engine.
 
-Celebrity staged deposits are cumulative: an initial $50 tranche plus a final **$500 target** leaves $450 remaining after the initial $50 is handled externally—not an additional flat $500.
+Celebrity staged deposits are cumulative and capacity-sourced: an initial **$50 × initially blocked cabins** tranche, then a final **cumulative target of $500 × retained cabins**, crediting the initial requirement with **source-aware** quantities and clamps. The remainder is not an additional flat $500 on top of the initial, and it is not a single Arrangement-wide $500 − $50 when cabin quantities differ by source.
 
-“Per cabin” and similar quantity language map through explicit cost or coverage sources, ordinarily `resource_units`. M3E does not add a new capacity measurement basis.
+Cabin-block deposit quantities use deposit `quantity_basis = capacity_pool_units`, which **reads** Capacity Pool opening and projection facts for explicitly covered pools/resources. This does **not** add a Capacity Pool `measurement_basis`. Pool measurement bases remain the closed ADR 0010 catalog (`resource_units`, `traveler_positions`). Other deposit shapes may still use `resource_units`, `traveler_positions`, or `explicit` where appropriate.
+
+Cumulative-target definitions that credit prior deposits name **explicit contributing Deposit Requirement Definitions**. Definition position alone must not decide which priors contribute. Materialization snapshots the full calculation trace (per-source quantities, credits, clamps, totals). Legacy fixed cumulative targets without contributor links may still sum earlier definitions by position.
+
+The Staff planning milestone `names_assigned_to_supplier` remains **Arrangement-wide**. Capacity-sourced deposit **amounts** do not authorize per-cabin Traveler milestones or per-cabin name-assignment advancement.
 
 A percentage definition explicitly chooses aggregate-base or per-source calculation and rounding. Materialization snapshots every authoritative input, component amount, quantity, rate, percentage, rounding rule, currency, and result.
 

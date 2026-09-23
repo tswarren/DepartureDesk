@@ -19,7 +19,7 @@ The M4 package was Accepted and promoted on 2026-09-20:
 - [M4E](DepartureDesk-M4E-acceptance-and-hardening-draft.md)
 - [M4D.0 streamlined discovery backlog](DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (not implementation authority)
 - [Narrow builder stub](DepartureDesk-M4D0-narrow-group-departure-builder-draft.md) (points at the accepted plan)
-- [Composition workspace](composition-workspace/README.md) (stubs → Accepted M4D.1 / shipped Slice 1 / shipped Slice 2A.1 / shipped Slice 2A.2 / shipped Slice 2A.2R / shipped Slice 2A.2R2; proposed later slices discovery-only)
+- [Composition workspace](composition-workspace/README.md) (stubs → Accepted M4D.1 / shipped Slice 1 / shipped Slice 2A.1–2A.2R2; Accepted 2B-R; Draft 2B / 2A.2R3; proposed later slices discovery-only)
 - [Group-departure wizard notes stub](DepartureDesk-group-departure-wizard.md) (points at M4D.1)
 
 Place new draft slice plans or amendments here until they are Accepted and moved into the canonical `docs/planning/` or `docs/adr/` trees.
