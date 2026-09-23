@@ -8,9 +8,9 @@
 
 **Retained:** M3E remains generic Supplier-side planning. No Cruise-specific deposit or deadline tables. No Payments, Obligations, Receipts, or `paid` labeling. `names_assigned_to_supplier` remains Arrangement-wide (no Traveler records).
 
-**Ship commit:** [`dbdb6c2`](https://github.com/tswarren/DepartureDesk/commit/dbdb6c2). Accept package base [`bfe8431`](https://github.com/tswarren/DepartureDesk/commit/bfe8431). Implementation base was green `main` tip including shipped [Slice 2A.2R2](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) at [`b73a9ff`](https://github.com/tswarren/DepartureDesk/commit/b73a9ff).
+**Ship commit:** Merge tip [`5a391d1`](https://github.com/tswarren/DepartureDesk/commit/5a391d1) (PR #143). Intermediate impl tip [`dbdb6c2`](https://github.com/tswarren/DepartureDesk/commit/dbdb6c2). Accept package base [`bfe8431`](https://github.com/tswarren/DepartureDesk/commit/bfe8431). Implementation base was green `main` tip including shipped [Slice 2A.2R2](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) at [`b73a9ff`](https://github.com/tswarren/DepartureDesk/commit/b73a9ff).
 
-**Downstream:** Typed [Slice 2B](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) may be Accepted after this slice ships (and other named gates).
+**Downstream:** Typed [Slice 2B](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) may be Accepted after this slice ships (and other named gates). Rate-shape detector gate is cleared by shipped [Slice 2A.2R3](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md).
 
 ---
 
@@ -136,4 +136,4 @@ Same lifecycle and source-aware rules as Accepted product facts in §§4–5. Mi
 
 ## 8. Handoff
 
-This slice is **shipped**. Typed Slice 2B may be Accepted when its own Accept package is ready (still gated on other named prerequisites such as 2A.2R3). This plan does not authorize that UI.
+This slice is **shipped**. Typed Slice 2B may be Accepted when its own Accept package is ready. This plan does not authorize that UI.
