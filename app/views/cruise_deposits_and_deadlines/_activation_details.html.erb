@@ -1,0 +1,101 @@
+<% activation_preview = local_assigns.fetch(:activation_preview) %>
+
+<div class="dd-stack" id="cruise-activation-preview-rows">
+  <p>
+    Definition-level preview of what activation will materialize.
+    Activation creates no Supplier Payment, Obligation, or paid record.
+  </p>
+
+  <% if activation_preview.elapsed_acknowledgment_required? %>
+    <p>Elapsed dates will require acknowledgment at activation.</p>
+  <% end %>
+
+  <% if activation_preview.unique_blockers.any? %>
+    <ul class="dd-error-list">
+      <% activation_preview.unique_blockers.each do |blocker| %>
+        <li>
+          <%= blocker.message %>
+          <% if blocker.corrective_path.present? %>
+            · <%= link_to blocker.corrective_label.presence || "Review issue",
+                  blocker.corrective_path,
+                  class: "dd-link" %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <% if activation_preview.rows.any? %>
+    <ul class="dd-stack">
+      <% activation_preview.rows.each do |row| %>
+        <li class="dd-stack">
+          <dl class="dd-definition-list">
+            <div>
+              <dt>Definition</dt>
+              <dd><%= row.display_name %></dd>
+            </div>
+            <% if row.amount_sentence.present? || row.pending_reasons.any? %>
+              <div>
+                <dt>Amount</dt>
+                <dd>
+                  <%= row.amount_sentence.presence || "Pending" %>
+                  <% row.pending_reasons.each do |reason| %>
+                    · <%= reason %>
+                  <% end %>
+                </dd>
+              </div>
+            <% end %>
+            <% if row.due_sentence.present? %>
+              <div>
+                <dt>Due</dt>
+                <dd>
+                  <%= row.due_sentence %>
+                  <% if row.time_zone.present? %>
+                    (<%= row.time_zone %>)
+                  <% end %>
+                </dd>
+              </div>
+            <% end %>
+            <div>
+              <dt>Coverage</dt>
+              <dd><%= row.coverage_summary %></dd>
+            </div>
+            <div>
+              <dt>Commitment</dt>
+              <dd><%= row.will_open_commitment? ? "Opens commitment" : "No commitment opening" %></dd>
+            </div>
+            <% if row.elapsed_acknowledgment_required? %>
+              <div>
+                <dt>Elapsed acknowledgment</dt>
+                <dd>Required at activation</dd>
+              </div>
+            <% end %>
+            <% if row.blocker.present? %>
+              <div>
+                <dt>Blocker</dt>
+                <dd><%= row.blocker %></dd>
+              </div>
+            <% end %>
+          </dl>
+          <p>
+            <% editor_path =
+                 if row.kind.to_s == "deposit"
+                   departure_arrangement_cruise_deposits_and_deadlines_path(
+                     @departure, @supplier_arrangement,
+                     deposit_editor: "edit", deposit_id: row.definition_id
+                   )
+                 else
+                   departure_arrangement_cruise_deposits_and_deadlines_path(
+                     @departure, @supplier_arrangement,
+                     editor: "edit", deadline_id: row.definition_id
+                   )
+                 end %>
+            <%= link_to "Open definition", editor_path, class: "dd-link" %>
+          </p>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p>No deposit or deadline definitions to materialize yet.</p>
+  <% end %>
+</div>

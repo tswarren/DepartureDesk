@@ -25,9 +25,11 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_response :success
-    assert_select "#cruise-activation-preview"
+    assert_select "#cruise-readiness-banner"
+    assert_select "#cruise-activation-details"
     assert_select "#cruise-activation-preview-rows li", minimum: 1
     assert_select "a", text: "Activate Arrangement"
+    assert_select "a", text: "Open definition"
 
     before_occurrences = SupplierDeadlineOccurrence.count
     before_tranches = SupplierDepositRequirementTranche.count
@@ -103,12 +105,67 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_response :success
-    assert_select "#cruise-governing-terms-heading"
-    assert_match(/Create successor draft to change future terms/, response.body)
+    assert_select "#cruise-readiness-heading", text: "Governing operational terms"
+    assert_match(/Create successor draft/, response.body)
     assert_select "#cruise-planning-milestone-heading"
     assert_select "input[name=return_to][value=?]",
       CompileCruiseDepositsAndDeadlinesWorkspace::RETURN_TOKEN
-    assert_select "#cruise-activation-preview", count: 0
+    assert_select "input[name=occurred_on][max]"
+    assert_select "#cruise-activation-details", count: 0
+    assert_select "a", text: "Edit", count: 0
+    assert_select "form", text: /Remove/, count: 0
+    assert_select "a", text: "Open commitment"
+    assert_match(/cannot be edited or removed/i, response.body)
+    assert_select "a", text: "Record handled externally"
+    assert_select "a", text: "Add deposit", count: 0
+    assert_select "h2", text: "Deposit requirements"
+    assert_select "h2", text: "Supplier deadlines"
+  end
+
+  test "draft page shows list-first chrome without an open editor" do
+    create_deposit!
+    sign_in_as @staff
+
+    get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
+    assert_response :success
+    assert_select ".dd-eyebrow", text: "Cruise Supplier planning"
+    assert_select "h1", text: "Deposits and deadlines"
+    assert_select "a", text: "Back to Cruise"
+    assert_select "a", text: "Add deposit"
+    assert_select "a", text: "Add deadline"
+    assert_select "#cruise-deposit-editor", count: 0
+    assert_select "#cruise-deadline-editor", count: 0
+    assert_select "dt", text: "Semantic type"
+    assert_select "dt", text: "Amount"
+  end
+
+  test "opening a deposit editor closes a concurrent deadline editor" do
+    create_deposit!
+    deposit = @version.supplier_deposit_requirement_definitions.order(:id).first
+    sign_in_as @staff
+
+    get departure_arrangement_cruise_deposits_and_deadlines_path(
+      @departure, @arrangement,
+      editor: "new",
+      deposit_editor: "edit",
+      deposit_id: deposit.id
+    )
+    assert_response :success
+    assert_select "#cruise-deposit-editor"
+    assert_select "#cruise-deadline-editor", count: 0
+  end
+
+  test "blocked readiness omits Activate Arrangement" do
+    create_deposit!
+    pool_definition = @version.capacity_pool_definitions.find_by!(capacity_pool_id: @pool.id)
+    pool_definition.update_columns(proposed_opening_quantity: nil, updated_at: Time.current)
+    @version.reload
+
+    sign_in_as @staff
+    get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "#cruise-readiness-heading", text: "Not ready to activate"
+    assert_select "a", text: "Activate Arrangement", count: 0
   end
 
   test "milestone recording returns to cruise deposits workspace" do
@@ -157,9 +214,10 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
     sign_in_as @staff
     get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_response :success
-    assert_select "#cruise-successor-compare-heading"
+    assert_select "#cruise-readiness-heading", text: "Proposed successor terms"
+    assert_match(/Governing term/, response.body)
     assert_match(/Reconcile foreshadow/, response.body)
-    assert_match(/not yet applied/, response.body)
+    assert_match(/remain in force until activation/, response.body)
     assert_match(/Will supersede|Will open a commitment|Unchanged/, response.body)
 
     governing_occurrence.reload

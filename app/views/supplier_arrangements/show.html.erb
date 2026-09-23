@@ -623,6 +623,9 @@
                       @departure, @supplier_arrangement, commitment_id: commitment.id
                     ), method: :post, class: "dd-form dd-inline-form" do %>
                       <%= hidden_field_tag :idempotency_key, @deposit_attest_idempotency_key %>
+                      <% if params[:return_to].to_s == CompileCruiseDepositsAndDeadlinesWorkspace::RETURN_TOKEN %>
+                        <%= hidden_field_tag :return_to, CompileCruiseDepositsAndDeadlinesWorkspace::RETURN_TOKEN %>
+                      <% end %>
                       <label class="dd-label">
                         <%= check_box_tag :confirmed_complete, "1", false, required: true %>
                         Confirmed handled outside DepartureDesk

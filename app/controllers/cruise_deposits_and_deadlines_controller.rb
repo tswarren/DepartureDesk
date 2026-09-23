@@ -15,6 +15,7 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
     @editing_id = params[:deadline_id].presence
     @deposit_editor = params[:deposit_editor].to_s
     @editing_deposit_id = params[:deposit_id].presence
+    normalize_single_editor!
     @idempotency_key = SecureRandom.uuid
     @planning_milestone_idempotency_key = SecureRandom.uuid
     assign_form_defaults
@@ -41,6 +42,7 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
       version_lock_version: result.version_lock_version,
       elapsed_acknowledgment_required: result.elapsed_acknowledgment_required?,
       blockers: result.blockers,
+      unique_blockers: result.unique_blockers.map { |blocker| serialize_unique_blocker(blocker) },
       activation_path: result.activation_path,
       rows: result.rows.map { |row| serialize_activation_row(row) }
     }
@@ -49,22 +51,47 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
   private
 
   def load_workspace!
+    version = @cruise_shape.version
+    preview = if version.draft?
+      PreviewCruiseDepositsAndDeadlinesActivation.call(
+        agency: Current.agency,
+        arrangement: @supplier_arrangement,
+        version: version,
+        version_lock_version: version.lock_version
+      )
+    end
+
     @workspace = CompileCruiseDepositsAndDeadlinesWorkspace.new(
       agency: Current.agency,
       arrangement: @supplier_arrangement,
-      version: @cruise_shape.version
+      version: version,
+      activation_preview: preview
     ).call
     @supplier_arrangement_version = @workspace.version
     @editable = @workspace.editable?
+    @activation_preview = preview if @editable
   end
 
   def assign_activation_preview
+    return if @activation_preview
+
     @activation_preview = PreviewCruiseDepositsAndDeadlinesActivation.call(
       agency: Current.agency,
       arrangement: @supplier_arrangement,
       version: @supplier_arrangement_version,
       version_lock_version: @supplier_arrangement_version.lock_version
     )
+  end
+
+  # At most one deposit or deadline editor may be open (2B-UX §7.1).
+  def normalize_single_editor!
+    deposit_open = @deposit_editor.in?(%w[new edit])
+    deadline_open = @editor.in?(%w[new edit])
+    return unless deposit_open && deadline_open
+
+    # Prefer the deposit editor when both query params are present.
+    @editor = ""
+    @editing_id = nil
   end
 
   def serialize_activation_row(row)
@@ -81,6 +108,17 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
       elapsed_acknowledgment_required: row.elapsed_acknowledgment_required?,
       blocker: row.blocker,
       editor_anchor: row.editor_anchor
+    }
+  end
+
+  def serialize_unique_blocker(blocker)
+    {
+      message: blocker.message,
+      corrective_path: blocker.corrective_path,
+      corrective_label: blocker.corrective_label,
+      editor_anchor: blocker.editor_anchor,
+      kind: blocker.kind,
+      definition_id: blocker.definition_id
     }
   end
 

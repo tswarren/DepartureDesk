@@ -64,17 +64,17 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit_deposits_workspace
 
-    click_on "Add deposit requirement"
+    click_on "Add deposit"
     select "Initial deposit", from: "Template"
-    select "Quantity × rate", from: "Amount shape"
-    select "Cabin Capacity Pool units", from: "Quantity basis"
+    select "Amount × quantity", from: "Amount"
+    select "Amount per initially blocked cabin", from: "Quantity"
     fill_in "Rate per unit (USD)", with: "50"
     check "O1 · pool"
     check "V1 · pool"
     select "Fixed date", from: "Timing rule"
     fill_deposit_date "Date", "2026-09-20"
     assert_text "$1,200.00", wait: 5
-    click_on "Add deposit"
+    click_on "Save deposit"
     assert_text "Deposit requirement saved"
     assert_text "Initial deposit"
     assert_match(/focus_deposit_id=/, page.current_url)
@@ -86,9 +86,9 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     assert_checked_field "V1 · pool"
     click_on "Cancel"
 
-    click_on "Add deposit requirement"
+    click_on "Add deposit"
     select "Final deposit", from: "Template"
-    select "Cumulative target", from: "Amount shape"
+    select "Cumulative amount per retained cabin", from: "Amount"
     fill_in "Rate per unit (USD)", with: "500"
     check "O1 · pool"
     check "V1 · pool"
@@ -108,24 +108,71 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     end
     assert_text(/Earlier of/i)
     assert_text "$10,800.00", wait: 5
-    click_on "Add deposit"
+    click_on "Save deposit"
     assert_text "Deposit requirement saved"
     assert_text "Final deposit"
     assert_text(/Cumulative/i)
     assert_no_text "Fixed amount"
   end
 
-  test "19.4 deposit removal and validation recovery" do
+  test "template change updates generated name and preserves staff-authored name" do
     sign_in_from_browser(@staff)
     visit_deposits_workspace
 
-    click_on "Add deposit requirement"
+    click_on "Add deposit"
+    select "Initial deposit", from: "Template"
+    assert_field "Name", with: "Initial deposit"
+    select "Final deposit", from: "Template"
+    assert_field "Name", with: "Final deposit"
+    click_on "Cancel"
+
+    click_on "Add deposit"
+    select "Other deposit", from: "Template"
+    fill_in "Name", with: "Custom group hold"
+    select "Initial deposit", from: "Template"
+    assert_field "Name", with: "Custom group hold"
+    select "Fixed amount", from: "Amount"
+    fill_in "Fixed amount (USD)", with: "250"
+    select "Fixed date", from: "Timing rule"
+    fill_deposit_date "Date", "2026-09-20"
+    click_on "Save deposit"
+    assert_text "Deposit requirement saved"
+    assert_text "Custom group hold"
+  end
+
+  test "opening a second editor closes the first" do
+    sign_in_from_browser(@staff)
+    visit_deposits_workspace
+
+    click_on "Add deposit"
     select "Initial deposit", from: "Template"
     fill_in "Rate per unit (USD)", with: "50"
     check "O1 · pool"
     select "Fixed date", from: "Timing rule"
     fill_deposit_date "Date", "2026-09-20"
+    click_on "Save deposit"
+    assert_text "Deposit requirement saved"
+
+    click_on "Add deadline"
+    assert_selector "#cruise-deadline-editor"
+    within "#cruise-deposit-summaries" do
+      click_on "Edit"
+    end
+    assert_selector "#cruise-deposit-editor"
+    assert_no_selector "#cruise-deadline-editor"
+  end
+
+  test "19.4 deposit removal and validation recovery" do
+    sign_in_from_browser(@staff)
+    visit_deposits_workspace
+
     click_on "Add deposit"
+    select "Initial deposit", from: "Template"
+    fill_in "Rate per unit (USD)", with: "50"
+    check "O1 · pool"
+    select "Fixed date", from: "Timing rule"
+    fill_deposit_date "Date", "2026-09-20"
+    click_on "Save deposit"
     assert_text "Deposit requirement saved"
 
     accept_confirm(/Remove Initial deposit/i) do
@@ -136,14 +183,14 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     assert_text "Deposit requirement removed"
     assert_no_text "Initial deposit"
 
-    click_on "Add deposit requirement"
+    click_on "Add deposit"
     select "Other deposit", from: "Template"
     fill_in "Name", with: ""
-    select "Fixed amount", from: "Amount shape"
+    select "Fixed amount", from: "Amount"
     fill_in "Fixed amount (USD)", with: "100"
     select "Fixed date", from: "Timing rule"
     fill_deposit_date "Date", "2026-09-20"
-    click_on "Add deposit"
+    click_on "Save deposit"
     assert_selector "#form-error-summary"
     assert_field "Fixed amount (USD)", with: "100"
   end
@@ -190,13 +237,13 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     assert_text(/Percentage/i)
     assert_link "Open advanced deposits"
 
-    click_on "Add deposit requirement"
+    click_on "Add deposit"
     select "Initial deposit", from: "Template"
     fill_in "Rate per unit (USD)", with: "50"
     check "O1 · pool"
     select "Fixed date", from: "Timing rule"
     fill_deposit_date "Date", "2026-09-20"
-    click_on "Add deposit"
+    click_on "Save deposit"
     assert_text "Deposit requirement saved"
     assert_text "Percent sibling"
     assert_text "Initial deposit"
@@ -207,14 +254,14 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     visit_deposits_workspace
     page.current_window.resize_to(390, 844)
 
-    click_on "Add deposit requirement"
+    click_on "Add deposit"
     find_field("Template").send_keys(:tab)
     select "Initial deposit", from: "Template"
     fill_in "Rate per unit (USD)", with: "50"
     check "O1 · pool"
     select "Fixed date", from: "Timing rule"
     fill_deposit_date "Date", "2026-09-20"
-    click_on "Add deposit"
+    click_on "Save deposit"
     assert_text "Deposit requirement saved"
     assert_match(/\Acruise-deposit-/, page.evaluate_script("document.activeElement && document.activeElement.id"))
   end
@@ -223,28 +270,28 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit_deposits_workspace
 
-    click_on "Add deposit requirement"
+    click_on "Add deposit"
     select "Initial deposit", from: "Template"
     fill_in "Rate per unit (USD)", with: "50"
     check "O1 · pool"
     select "Fixed date", from: "Timing rule"
     fill_deposit_date "Date", "2026-09-20"
-    click_on "Add deposit"
+    click_on "Save deposit"
     assert_text "Deposit requirement saved"
 
-    click_on "Add deposit requirement"
+    click_on "Add deposit"
     select "Final deposit", from: "Template"
     fill_in "Rate per unit (USD)", with: "500"
     check "O1 · pool"
     check "Initial deposit"
     select "Fixed date", from: "Timing rule"
     fill_deposit_date "Date", "2027-03-11"
-    select "Fixed amount", from: "Amount shape"
+    select "Fixed amount", from: "Amount"
     assert_selector "[data-cruise-deposit-editor-target='contributorGroup'][hidden]", visible: :all
     assert_selector "input[name='cruise_deposit[contributor_definition_ids][]'][disabled]", visible: :all
     fill_in "Fixed amount (USD)", with: "100"
     select "Entire Cruise Arrangement", from: "Coverage scope"
-    click_on "Add deposit"
+    click_on "Save deposit"
     assert_text "Deposit requirement saved"
     assert_text(/Fixed/i)
   end

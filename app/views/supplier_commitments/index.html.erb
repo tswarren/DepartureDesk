@@ -22,9 +22,16 @@
         waive_departure_arrangement_commitments_path(@departure, @supplier_arrangement),
         class: "dd-button dd-button--quiet" %>
     <% end %>
-    <%= link_to "Back to arrangement",
-      departure_arrangement_path(@departure, @supplier_arrangement),
-      class: "dd-button dd-button--quiet" %>
+    <%= link_to(
+          params[:return_to].to_s == CompileCruiseDepositsAndDeadlinesWorkspace::RETURN_TOKEN ?
+            "Back to deposits and deadlines" : "Back to arrangement",
+          if params[:return_to].to_s == CompileCruiseDepositsAndDeadlinesWorkspace::RETURN_TOKEN
+            departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement)
+          else
+            departure_arrangement_path(@departure, @supplier_arrangement)
+          end,
+          class: "dd-button dd-button--quiet"
+        ) %>
   </div>
 </header>
 

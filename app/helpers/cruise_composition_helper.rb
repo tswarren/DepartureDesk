@@ -43,4 +43,12 @@ module CruiseCompositionHelper
 
     "#{quantity} #{"cabin".pluralize(quantity)}"
   end
+
+  def cruise_deposit_amount_shape_label(amount_shape, quantity_basis: nil)
+    CruiseDepositsAndDeadlinesLanguage.amount_shape_label(amount_shape, quantity_basis:)
+  end
+
+  def cruise_deposit_amount_label(definition, currency:)
+    CruiseDepositsAndDeadlinesLanguage.amount_label_for(definition, currency:)
+  end
 end

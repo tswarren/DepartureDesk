@@ -18,6 +18,15 @@ class PreviewCruiseDepositsAndDeadlinesActivation
     :editor_anchor
   )
 
+  UniqueBlocker = Data.define(
+    :message,
+    :corrective_path,
+    :corrective_label,
+    :editor_anchor,
+    :kind,
+    :definition_id
+  )
+
   Result = Data.define(
     :status,
     :stale?,
@@ -25,8 +34,17 @@ class PreviewCruiseDepositsAndDeadlinesActivation
     :rows,
     :elapsed_acknowledgment_required?,
     :blockers,
+    :unique_blockers,
     :activation_path
   )
+
+  CABIN_QUANTITY_MESSAGE = /
+    proposed\s+opening\s+quantity|
+    capacity[-\s]?pool\s+quantity|
+    retained\s+capacity|
+    established\s+capacity|
+    capacity\s+projection
+  /ix
 
   def self.call(**)
     new(**).call
@@ -52,25 +70,47 @@ class PreviewCruiseDepositsAndDeadlinesActivation
     departure = arrangement.departure
 
     if @version_lock_version.present? && version.lock_version != Integer(@version_lock_version)
+      message = "This Arrangement version changed. Refresh before continuing."
       return Result.new(
         status: "stale",
         stale?: true,
         version_lock_version: version.lock_version,
         rows: [],
         elapsed_acknowledgment_required?: false,
-        blockers: [ "This Arrangement version changed. Refresh before continuing." ],
+        blockers: [ message ],
+        unique_blockers: [
+          UniqueBlocker.new(
+            message: message,
+            corrective_path: deposits_and_deadlines_path(departure, arrangement),
+            corrective_label: "Refresh deposits and deadlines",
+            editor_anchor: nil,
+            kind: nil,
+            definition_id: nil
+          )
+        ],
         activation_path: activation_path_for(departure, arrangement)
       )
     end
 
     unless version.draft?
+      message = "Activation preview is available only for draft Arrangement versions."
       return Result.new(
         status: "invalid",
         stale?: false,
         version_lock_version: version.lock_version,
         rows: [],
         elapsed_acknowledgment_required?: false,
-        blockers: [ "Activation preview is available only for draft Arrangement versions." ],
+        blockers: [ message ],
+        unique_blockers: [
+          UniqueBlocker.new(
+            message: message,
+            corrective_path: deposits_and_deadlines_path(departure, arrangement),
+            corrective_label: "Open deposits and deadlines",
+            editor_anchor: nil,
+            kind: nil,
+            definition_id: nil
+          )
+        ],
         activation_path: activation_path_for(departure, arrangement)
       )
     end
@@ -146,6 +186,13 @@ class PreviewCruiseDepositsAndDeadlinesActivation
       blockers << row.blocker if row.blocker.present?
     end
 
+    unique_blockers = build_unique_blockers(
+      removal_messages: removal_blockers,
+      rows: rows,
+      departure: departure,
+      arrangement: arrangement
+    )
+
     Result.new(
       status: blockers.any? ? "blocked" : "ready",
       stale?: false,
@@ -153,6 +200,7 @@ class PreviewCruiseDepositsAndDeadlinesActivation
       rows: rows,
       elapsed_acknowledgment_required?: rows.any?(&:elapsed_acknowledgment_required?),
       blockers: blockers.uniq,
+      unique_blockers: unique_blockers,
       activation_path: activation_path_for(departure, arrangement)
     )
   end
@@ -270,6 +318,128 @@ class PreviewCruiseDepositsAndDeadlinesActivation
     )
   end
 
+  def build_unique_blockers(removal_messages:, rows:, departure:, arrangement:)
+    seen = {}
+    unique = []
+
+    removal_messages.each do |message|
+      append_unique_blocker!(
+        unique,
+        seen,
+        message: message,
+        corrective_path: commitments_path(departure, arrangement),
+        corrective_label: "Open commitments",
+        editor_anchor: nil,
+        kind: nil,
+        definition_id: nil
+      )
+    end
+
+    rows.each do |row|
+      next if row.blocker.blank?
+
+      path, label = corrective_for_row(row, departure, arrangement)
+      append_unique_blocker!(
+        unique,
+        seen,
+        message: row.blocker,
+        corrective_path: path,
+        corrective_label: label,
+        editor_anchor: row.editor_anchor,
+        kind: row.kind,
+        definition_id: row.definition_id
+      )
+    end
+
+    unique
+  end
+
+  def append_unique_blocker!(unique, seen, message:, corrective_path:, corrective_label:, editor_anchor:, kind:, definition_id:)
+    key = normalize_blocker_message(message)
+    return if key.blank? || seen[key]
+
+    seen[key] = true
+    unique << UniqueBlocker.new(
+      message: message,
+      corrective_path: corrective_path,
+      corrective_label: corrective_label,
+      editor_anchor: editor_anchor,
+      kind: kind,
+      definition_id: definition_id
+    )
+  end
+
+  def normalize_blocker_message(message)
+    message.to_s.strip.downcase.gsub(/\s+/, " ")
+  end
+
+  def corrective_for_row(row, departure, arrangement)
+    if cabin_quantity_blocker?(row.blocker)
+      path = cabin_inventory_corrective_path(row, departure, arrangement)
+      return [ path, "Open cabin inventory" ]
+    end
+
+    case row.kind
+    when "deposit"
+      [
+        deposits_and_deadlines_path(
+          departure,
+          arrangement,
+          deposit_editor: "edit",
+          deposit_id: row.definition_id
+        ),
+        "Edit deposit requirement"
+      ]
+    when "deadline"
+      [
+        deposits_and_deadlines_path(
+          departure,
+          arrangement,
+          editor: "edit",
+          deadline_id: row.definition_id
+        ),
+        "Edit Supplier deadline"
+      ]
+    else
+      [ deposits_and_deadlines_path(departure, arrangement), "Open deposits and deadlines" ]
+    end
+  end
+
+  def cabin_quantity_blocker?(message)
+    message.to_s.match?(CABIN_QUANTITY_MESSAGE)
+  end
+
+  def cabin_inventory_corrective_path(row, departure, arrangement)
+    resource_id = cabin_resource_id_for(row)
+    if resource_id.present?
+      return Rails.application.routes.url_helpers
+        .edit_departure_arrangement_cruise_cabin_category_path(
+          departure, arrangement, resource_id
+        )
+    end
+
+    Rails.application.routes.url_helpers
+      .departure_arrangement_cruise_path(departure, arrangement)
+  end
+
+  def cabin_resource_id_for(row)
+    return unless row.kind == "deposit" && row.definition_id.present?
+
+    definition = SupplierDepositRequirementDefinition.find_by(id: row.definition_id)
+    return unless definition
+
+    links = definition.supplier_deposit_requirement_definition_coverage_links.to_a
+    resource_ids = links.filter_map(&:supplier_resource_id).uniq
+    return resource_ids.first if resource_ids.size == 1
+
+    pool_ids = links.filter_map(&:capacity_pool_id).uniq
+    return if pool_ids.empty?
+
+    pools = CapacityPool.where(id: pool_ids, agency_id: @agency.id)
+    pool_resource_ids = pools.filter_map(&:supplier_resource_id).uniq
+    pool_resource_ids.first if pool_resource_ids.size == 1
+  end
+
   def due_sentence_for(provisional, time_zone)
     if provisional.calculated_on.present?
       "#{provisional.calculated_on.iso8601} (#{time_zone})"
@@ -296,5 +466,15 @@ class PreviewCruiseDepositsAndDeadlinesActivation
   def activation_path_for(departure, arrangement)
     Rails.application.routes.url_helpers
       .departure_arrangement_activation_path(departure, arrangement)
+  end
+
+  def deposits_and_deadlines_path(departure, arrangement, **query)
+    Rails.application.routes.url_helpers
+      .departure_arrangement_cruise_deposits_and_deadlines_path(departure, arrangement, **query)
+  end
+
+  def commitments_path(departure, arrangement)
+    Rails.application.routes.url_helpers
+      .departure_arrangement_commitments_path(departure, arrangement)
   end
 end

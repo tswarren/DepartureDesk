@@ -1113,7 +1113,7 @@ Remediates Stop point C detector reopen:
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 
-**Shipped.** Sole typed Stop D authority: [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Next unauthorized boundary: Slice 2C.
+**Shipped.** Sole typed Stop D domain authority (workspace remediation is Accepted [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Next unauthorized boundary: Slice 2C.
 
 Ship Stop point D:
 
@@ -1124,6 +1124,10 @@ Ship Stop point D:
 - advisory write-free activation preview.
 
 **Exit:** accepted Celebrity deadline/deposit shapes are entered without payment language, activated mutation, or one giant Arrangement save.
+
+#### Slice 2B-UX — Deposits and deadlines workspace remediation
+
+**Accepted.** Sole Stop D workspace remediation authority: [M4D.1 Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md). Task-flow and defect repair over shipped Slice 2B; does not authorize Slice 2C.
 
 #### Slice 2C — Connect Cruise, categories, and choices
 
