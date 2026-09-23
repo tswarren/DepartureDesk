@@ -536,16 +536,24 @@ module DepositDefinitionCommandSupport
     contributor_links = Array(contributor_links)
     existing_contributors = definition.supplier_deposit_requirement_definition_contributor_links
       .order(:position, :id).lock.to_a
-    contributor_links.each_with_index do |attrs, index|
-      if (existing = existing_contributors[index])
-        existing.update!(attrs)
+    retained_contributor_ids = {}
+    contributor_links.each do |attrs|
+      contributor_id = attrs.fetch(:contributor_definition_id).to_s
+      existing = existing_contributors.find { |row|
+        row.contributor_definition_id.to_s == contributor_id
+      }
+      if existing
+        # contributor_definition_id is attr_readonly — only repositions retained links.
+        existing.update!(position: attrs.fetch(:position))
+        retained_contributor_ids[existing.id] = true
       else
-        definition.supplier_deposit_requirement_definition_contributor_links.create!(
+        created = definition.supplier_deposit_requirement_definition_contributor_links.create!(
           attrs.merge(owner)
         )
+        retained_contributor_ids[created.id] = true
       end
     end
-    existing_contributors.drop(contributor_links.size).each(&:destroy!)
+    existing_contributors.reject { |row| retained_contributor_ids[row.id] }.each(&:destroy!)
   end
 
   def child_owner_attrs(definition)
