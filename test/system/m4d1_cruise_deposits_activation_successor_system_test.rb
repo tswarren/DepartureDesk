@@ -96,7 +96,7 @@ class M4d1CruiseDepositsActivationSuccessorSystemTest < ApplicationSystemTestCas
 
     sign_in_from_browser(@staff)
     visit_deposits_workspace
-    fill_in "Names assigned to supplier on", with: "2027-02-01"
+    fill_in_html_date "Names assigned to supplier on", "2027-02-01"
     click_on "Record names assigned to supplier"
     assert_text "Planning milestone recorded"
     assert_selector "#cruise-deposits-and-deadlines"
@@ -123,7 +123,7 @@ class M4d1CruiseDepositsActivationSuccessorSystemTest < ApplicationSystemTestCas
 
       sign_in_from_browser(@staff)
       visit_deposits_workspace
-      fill_in "Names assigned to supplier on", with: "2027-03-25"
+      fill_in_html_date "Names assigned to supplier on", "2027-03-25"
       click_on "Record names assigned to supplier"
       assert_text "Planning milestone recorded"
 
