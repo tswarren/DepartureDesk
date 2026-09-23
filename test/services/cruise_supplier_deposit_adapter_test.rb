@@ -272,6 +272,153 @@ class CruiseSupplierDepositAdapterTest < ActiveSupport::TestCase
     assert_equal final.id, contributors.sole.supplier_deposit_requirement_definition_id
   end
 
+  test "final deposit drops first of multiple contributors without position collision" do
+    first = create_initial!(rate: 5_000, description: "Initial deposit A")
+    second = create_initial!(rate: 2_500, description: "Initial deposit B")
+    final = CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version.reload,
+      attributes: {
+        amount_shape: "cumulative_target",
+        currency: "USD",
+        rate_minor_units: 50_000,
+        quantity_basis: "capacity_pool_units",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-03-11" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        description: "Final deposit",
+        coverage_links: @pools.map { |pool|
+          definition = @version.capacity_pool_definitions.find_by!(capacity_pool_id: pool.id)
+          {
+            capacity_pool_id: pool.id,
+            arrangement_item_id: definition.arrangement_item_id,
+            service_occurrence_id: definition.service_occurrence_id,
+            supplier_resource_id: definition.supplier_resource_id
+          }
+        },
+        contributor_definition_ids: [ first.id, second.id ]
+      },
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    links_before = final.supplier_deposit_requirement_definition_contributor_links.order(:position, :id)
+    assert_equal [ first.id, second.id ], links_before.map(&:contributor_definition_id)
+    assert_equal [ 1, 2 ], links_before.map(&:position)
+    retained_link_id = links_before.second.id
+
+    candidate = CruiseDepositCandidateNormalizer.call(
+      template_key: "final_deposit",
+      form: {
+        template: "final_deposit",
+        description: final.description,
+        amount_shape: "cumulative_target",
+        quantity_basis: "capacity_pool_units",
+        rate_amount: "500",
+        rule_shape: "fixed_date",
+        fixed_date: "2027-03-11",
+        capacity_pool_ids: @pools.map(&:id),
+        contributor_definition_ids: [ second.id ]
+      },
+      arrangement: @arrangement,
+      version: @version,
+      cruise_item: @item,
+      currency: "USD",
+      cumulative_definition: final
+    )
+
+    result = UpdateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      definition: final,
+      attributes: candidate.attributes,
+      lock_version: final.lock_version
+    ).call
+    assert_equal :updated, result.status
+
+    final.reload
+    contributors = final.supplier_deposit_requirement_definition_contributor_links.order(:position, :id)
+    assert_equal 1, contributors.size
+    assert_equal second.id, contributors.sole.contributor_definition_id
+    assert_equal 1, contributors.sole.position
+    assert_equal retained_link_id, contributors.sole.id
+  end
+
+  test "final deposit reorders retained contributors without position collision" do
+    first = create_initial!(rate: 5_000, description: "Initial deposit A")
+    second = create_initial!(rate: 2_500, description: "Initial deposit B")
+    final = CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version.reload,
+      attributes: {
+        amount_shape: "cumulative_target",
+        currency: "USD",
+        rate_minor_units: 50_000,
+        quantity_basis: "capacity_pool_units",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-03-11" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        description: "Final deposit",
+        coverage_links: @pools.map { |pool|
+          definition = @version.capacity_pool_definitions.find_by!(capacity_pool_id: pool.id)
+          {
+            capacity_pool_id: pool.id,
+            arrangement_item_id: definition.arrangement_item_id,
+            service_occurrence_id: definition.service_occurrence_id,
+            supplier_resource_id: definition.supplier_resource_id
+          }
+        },
+        contributor_definition_ids: [ first.id, second.id ]
+      },
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    links_before = final.supplier_deposit_requirement_definition_contributor_links.order(:position, :id)
+    first_link_id = links_before.first.id
+    second_link_id = links_before.second.id
+
+    candidate = CruiseDepositCandidateNormalizer.call(
+      template_key: "final_deposit",
+      form: {
+        template: "final_deposit",
+        description: final.description,
+        amount_shape: "cumulative_target",
+        quantity_basis: "capacity_pool_units",
+        rate_amount: "500",
+        rule_shape: "fixed_date",
+        fixed_date: "2027-03-11",
+        capacity_pool_ids: @pools.map(&:id),
+        contributor_definition_ids: [ second.id, first.id ]
+      },
+      arrangement: @arrangement,
+      version: @version,
+      cruise_item: @item,
+      currency: "USD",
+      cumulative_definition: final
+    )
+
+    result = UpdateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      definition: final,
+      attributes: candidate.attributes,
+      lock_version: final.lock_version
+    ).call
+    assert_equal :updated, result.status
+
+    final.reload
+    contributors = final.supplier_deposit_requirement_definition_contributor_links.order(:position, :id)
+    assert_equal [ second.id, first.id ], contributors.map(&:contributor_definition_id)
+    assert_equal [ 1, 2 ], contributors.map(&:position)
+    assert_equal second_link_id, contributors.first.id
+    assert_equal first_link_id, contributors.second.id
+  end
+
   test "preview and save share validation for negative rates and incompatible contributors" do
     initial = create_initial!(rate: 5_000)
     other_pool_only = @pools.last
@@ -464,7 +611,7 @@ class CruiseSupplierDepositAdapterTest < ActiveSupport::TestCase
     } ]
   end
 
-  def create_initial!(rate:)
+  def create_initial!(rate:, description: "Initial deposit")
     CreateSupplierDepositRequirementDefinition.new(
       agency: @agency,
       actor: @staff,
@@ -478,7 +625,7 @@ class CruiseSupplierDepositAdapterTest < ActiveSupport::TestCase
         rule_parameters: { "date" => "2026-09-20" },
         precision: "date_only",
         time_zone: "America/New_York",
-        description: "Initial deposit",
+        description: description,
         coverage_links: @pools.map { |pool|
           definition = @version.capacity_pool_definitions.find_by!(capacity_pool_id: pool.id)
           {

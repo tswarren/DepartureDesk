@@ -18,7 +18,9 @@
 
 **Shipped:** [Slice 2B — Deposits, deadlines, and activation-safe editing](../../m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md).
 
-**Accepted (not shipped):** [Slice 2B-UX — Deposits and deadlines workspace remediation](../../m4d1-slice2bux-deposits-deadlines-workspace-remediation.md).
+**Shipped:** [Slice 2B-UX — Deposits and deadlines workspace remediation](../../m4d1-slice2bux-deposits-deadlines-workspace-remediation.md) (product merge [`bba974c`](https://github.com/tswarren/DepartureDesk/commit/bba974c)).
+
+**Shipped:** [Slice 2B-UX-R — Contributor replace and 2B-UX closure](../../m4d1-slice2buxr-contributor-replace-and-closure.md).
 
 Parent spine: [M4D.1](../../m4d1-departure-composition-workspace.md) §21.
 
@@ -29,11 +31,12 @@ Recommended refinement sequence after shipped 2A.2R2:
 1. **Slice 2B-R — M3E Cruise deposit-semantics amendment** ([Shipped](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md))
 2. **Slice 2A.2R3 — Cruise rate-shape detector remediation** ([Shipped](../../m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md))
 3. **Slice 2B — Deposits, deadlines, and activation-safe editing** ([Shipped](../../m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md))
-4. **Slice 2B-UX — Workspace remediation** ([Accepted](../../m4d1-slice2bux-deposits-deadlines-workspace-remediation.md))
-5. **Slice 2C — Service connection, categories, and Client choices**
-5. **Slice 2D — Client-term compilation and scenario Review**
-6. **Slice 3 — Adapter generalization**
-7. **Slice 4 — Vineyard proof**
-8. **Slice 5 — Broader Client terms and Review refinement**
+4. **Slice 2B-UX — Workspace remediation** ([Shipped](../../m4d1-slice2bux-deposits-deadlines-workspace-remediation.md))
+5. **Slice 2B-UX-R — Contributor replace and closure** ([Shipped](../../m4d1-slice2buxr-contributor-replace-and-closure.md))
+6. **Slice 2C — Service connection, categories, and Client choices**
+7. **Slice 2D — Client-term compilation and scenario Review**
+8. **Slice 3 — Adapter generalization**
+9. **Slice 4 — Vineyard proof**
+10. **Slice 5 — Broader Client terms and Review refinement**
 
 Splitting 2A keeps the first typed implementation from combining topology, capacity, cost evaluation, and occupancy rules in one delivery contract. Splitting 2B-R from 2B keeps domain economics out of the typed adapter Accept.

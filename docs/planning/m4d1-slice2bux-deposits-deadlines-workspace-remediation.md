@@ -1,17 +1,19 @@
 # M4D.1 Slice 2B-UX — Deposits and Deadlines Workspace Remediation
 
-**Status:** Accepted 2026-09-23. Sole implementation authority for typed Cruise Stop D workspace remediation (task-flow, interaction, and defect repair). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Shipped [Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) / [2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md) / M3E semantics remain authoritative. Slice 2C+, Client connection, and M4E remain unauthorized until named.
+**Status:** Shipped 2026-09-23. Sole shipped authority for typed Cruise Stop D workspace remediation (task-flow, interaction, and defect repair). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Shipped [Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) / [2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md) / M3E semantics remain authoritative. Contributor-position collision closure and milestone-authority reconcile: [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md). Slice 2C+, Client connection, and M4E remain unauthorized until named.
 
 **Parent authority:** [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md), shipped M3E/ADR 0013 operational semantics, and shipped 2B-R deposit economics. This remediation changes the typed Cruise workspace and repairs defects; it does not reinterpret deposit, deadline, activation, successor, or commitment semantics.
 
 **Accept package base:** Tip of green `main` including shipped Slice 2B (merge of 2B-C). Implementation branches from that tip after the deposit child-replacement unblock.
+
+**Ship commit:** Merge tip [`bba974c`](https://github.com/tswarren/DepartureDesk/commit/bba974c) (PR #151). Documentation Mark Shipped and contributor-replace closure: [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md).
 
 **Locked Accept caveats:**
 
 1. Compact readiness counts may supplement; an on-demand disclosure must still expose full Slice 2B §10.2 definition-level activation consequence rows.
 2. Operational actions on this surface are named deep links into shipped M3E Arrangement chrome (`return_to=cruise_deposits_and_deadlines`), plus the existing typed milestone form. Do not rebuild disposition engines here.
 3. Three visible editor sections are presentation over Slice 2B’s five-step deposit content (including 2B-R contributors).
-4. Planning milestones reject Arrangement-local future `occurred_on`; pre/post-fallback replacement rules stay as shipped M3E.
+4. Planning milestones follow shipped M3E: Arrangement-local future `occurred_on` is permitted; pre/post-fallback replacement rules stay as shipped M3E. Do not tighten milestone dates beyond M3E.
 
 ## 1. Outcome
 
@@ -61,7 +63,7 @@ Observed problems include:
 - Distinguish draft definition removal from activated operational resolution.
 - Provide direct operational actions or specific deep links for activated rows.
 - Normalize Turbo/navigation behavior.
-- Repair deposit child replacement and planning-milestone date behavior.
+- Repair deposit child replacement. Do not tighten planning-milestone dates beyond shipped M3E.
 - Add responsive, keyboard, focus, Turbo-history, and lifecycle system proof.
 
 ### 3.2 Non-goals
@@ -308,11 +310,11 @@ Update retained children in place where lineage must survive, explicitly destroy
 
 ### 9.2 Planning-milestone dates
 
-`Record names assigned to Supplier` records an occurred fact, not a scheduled future event.
+`Record names assigned to Supplier` records an occurred planning fact under shipped M3E rules. This remediation does **not** reject Arrangement-local future `occurred_on` (an early Accept draft that proposed rejection was reverted to keep M3E scenarios green).
 
-- Reject a date later than the Arrangement-local current date.
-- Set the date input maximum accordingly.
-- Reevaluate the earlier-of rule using the accepted occurrence.
+- Accept Arrangement-local dates including future dates when M3E permits them.
+- A future milestone date may be recorded even when it does not yet alter the earlier-of calculation.
+- Reevaluate the earlier-of rule using the accepted occurrence when replacement applies.
 - Replace only an unelapsed governing occurrence.
 - Never open a duplicate deposit commitment.
 - Preserve an elapsed historical fallback occurrence when the milestone is recorded afterward.
@@ -339,7 +341,7 @@ Update retained children in place where lineage must survive, explicitly destroy
 - Deposit update replaces child graphs without nulling required foreign keys.
 - Failed deposit update preserves the previous graph.
 - Template changes update untouched generated names and preserve Staff-authored names.
-- Future planning milestones are rejected.
+- Future planning milestones remain permitted under shipped M3E (not rejected by this remediation).
 - An occurred pre-fallback milestone replaces the unelapsed due occurrence without duplicating the commitment.
 - A post-fallback milestone preserves elapsed history.
 - Draft removal succeeds independently for deposits and deadlines.
@@ -368,14 +370,14 @@ Update retained children in place where lineage must survive, explicitly destroy
 
 ## 12. Delivery sequence
 
-1. Repair the deposit child-replacement defect and planning-milestone contract; make existing CI green.
+1. Repair the deposit child-replacement defect; keep planning milestones aligned with shipped M3E (do not reject future dates); make existing CI green.
 2. Extract shared workspace summaries and deduplicated readiness facts.
 3. Implement page header, readiness banner, and structured definition panels.
 4. Implement the single-editor interaction and generated-name state.
 5. Add activated and successor operational actions/labels.
 6. Complete accessibility, responsive, Turbo-history, and lifecycle proof.
 7. Update the interface contract with the shipped panel/editor patterns.
-8. Mark 2B-UX Shipped only after merge to green `main`; do not pre-mark an open PR as shipped. Pin ship/merge SHA in the usual pattern.
+8. Mark 2B-UX Shipped after merge to green `main`; pin product ship/merge SHA [`bba974c`](https://github.com/tswarren/DepartureDesk/commit/bba974c) (PR #151). Contributor-replace collision and documentation closure: [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md).
 
 ## 13. Exit criteria
 
