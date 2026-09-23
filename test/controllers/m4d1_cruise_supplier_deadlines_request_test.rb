@@ -28,8 +28,8 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
     get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_response :success
     assert_select "#cruise-deposits-and-deadlines"
-    assert_select "a", text: "Add Supplier deadline"
-    assert_select "a", text: "Add deposit requirement"
+    assert_select "a", text: "Add deadline"
+    assert_select "a", text: "Add deposit"
     assert_select "a", text: "Open advanced Deadlines"
     assert_match(/return_to=#{CompileCruiseDepositsAndDeadlinesWorkspace::RETURN_TOKEN}/, response.body)
 
@@ -157,8 +157,8 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_response :success
-    assert_match(/read-only/i, response.body)
-    assert_select "a", text: "Add Supplier deadline", count: 0
+    assert_match(/cannot be edited|retained as history/i, response.body)
+    assert_select "a", text: "Add deadline", count: 0
     assert_select "a", text: "Edit", count: 0
 
     post departure_arrangement_cruise_deposits_and_deadlines_deadlines_path(
@@ -191,7 +191,7 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_response :success
-    assert_select "a", text: "Add Supplier deadline"
+    assert_select "a", text: "Add deadline"
 
     patch departure_arrangement_cruise_deposits_and_deadlines_deadline_path(
       @departure, @arrangement, governing

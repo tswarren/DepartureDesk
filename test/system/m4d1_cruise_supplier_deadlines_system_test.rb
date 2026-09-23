@@ -59,7 +59,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit_deadlines_workspace
 
-    click_on "Add Supplier deadline"
+    click_on "Add deadline"
     select "Option/release decision", from: "Template"
     assert_no_selector :field, "Kind", visible: true
     assert_no_selector :field, "Label", visible: true
@@ -76,7 +76,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     assert_match(/focus_deadline_id=/, page.current_url)
     assert_match(/\Acruise-deadline-/, page.evaluate_script("document.activeElement && document.activeElement.id"))
 
-    click_on "Add Supplier deadline"
+    click_on "Add deadline"
     select "Final payment", from: "Template"
     assert_text "canonical template label"
     assert_selector :field, "Kind", visible: true
@@ -88,7 +88,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     assert_text "Deadline saved"
     assert_text "Final payment"
 
-    click_on "Add Supplier deadline"
+    click_on "Add deadline"
     select "Rooming list", from: "Template"
     assert_no_selector :field, "Kind", visible: true
     select "Fixed date", from: "Timing rule"
@@ -97,7 +97,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     assert_text "Deadline saved"
     assert_text "Rooming list due"
 
-    click_on "Add Supplier deadline"
+    click_on "Add deadline"
     select "Other Supplier deadline", from: "Template"
     assert_selector :field, "Label", visible: true
     select "Informational", from: "Kind"
@@ -120,7 +120,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit_deadlines_workspace
 
-    click_on "Add Supplier deadline"
+    click_on "Add deadline"
     select "Rooming list", from: "Template"
     select "Fixed date", from: "Timing rule"
     fill_deadline_date "Fixed date", "2027-10-07"
@@ -137,7 +137,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
   test "editor reveals only applicable controls for coverage and composite timing" do
     sign_in_from_browser(@staff)
     visit_deadlines_workspace
-    click_on "Add Supplier deadline"
+    click_on "Add deadline"
 
     select "Other Supplier deadline", from: "Template"
     fill_in "Label", with: "Names packet"

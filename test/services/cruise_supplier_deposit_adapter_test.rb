@@ -198,6 +198,80 @@ class CruiseSupplierDepositAdapterTest < ActiveSupport::TestCase
     assert links.first.supplier_deposit_requirement_definition_id.present?
   end
 
+  test "final deposit coverage update keeps contributor links without readonly errors" do
+    initial = create_initial!(rate: 5_000)
+    final = CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version.reload,
+      attributes: {
+        amount_shape: "cumulative_target",
+        currency: "USD",
+        rate_minor_units: 50_000,
+        quantity_basis: "capacity_pool_units",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-03-11" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        description: "Final deposit",
+        coverage_links: @pools.map { |pool|
+          definition = @version.capacity_pool_definitions.find_by!(capacity_pool_id: pool.id)
+          {
+            capacity_pool_id: pool.id,
+            arrangement_item_id: definition.arrangement_item_id,
+            service_occurrence_id: definition.service_occurrence_id,
+            supplier_resource_id: definition.supplier_resource_id
+          }
+        },
+        contributor_definition_ids: [ initial.id ]
+      },
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    assert_equal 1, final.supplier_deposit_requirement_definition_contributor_links.count
+    contributor_link_id = final.supplier_deposit_requirement_definition_contributor_links.sole.id
+    second_pool = @pools.last
+
+    candidate = CruiseDepositCandidateNormalizer.call(
+      template_key: "final_deposit",
+      form: {
+        template: "final_deposit",
+        description: final.description,
+        amount_shape: "cumulative_target",
+        quantity_basis: "capacity_pool_units",
+        rate_amount: "500",
+        rule_shape: "fixed_date",
+        fixed_date: "2027-03-11",
+        capacity_pool_ids: [ second_pool.id ],
+        contributor_definition_ids: [ initial.id ]
+      },
+      arrangement: @arrangement,
+      version: @version,
+      cruise_item: @item,
+      currency: "USD",
+      cumulative_definition: final
+    )
+
+    UpdateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      definition: final,
+      attributes: candidate.attributes,
+      lock_version: final.lock_version
+    ).call
+
+    final.reload
+    links = final.supplier_deposit_requirement_definition_coverage_links.order(:position, :id)
+    assert_equal 1, links.size
+    assert_equal second_pool.id, links.first.capacity_pool_id
+    contributors = final.supplier_deposit_requirement_definition_contributor_links.order(:position, :id)
+    assert_equal 1, contributors.size
+    assert_equal initial.id, contributors.sole.contributor_definition_id
+    assert_equal contributor_link_id, contributors.sole.id
+    assert_equal final.id, contributors.sole.supplier_deposit_requirement_definition_id
+  end
+
   test "preview and save share validation for negative rates and incompatible contributors" do
     initial = create_initial!(rate: 5_000)
     other_pool_only = @pools.last

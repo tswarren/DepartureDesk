@@ -1,0 +1,114 @@
+# frozen_string_literal: true
+
+# Staff-facing labels for typed Cruise deposit amount shapes and amount summaries.
+# Presentation only — does not change M3E persistence or evaluator semantics.
+module CruiseDepositsAndDeadlinesLanguage
+  GENERATED_DEPOSIT_NAMES = {
+    "initial_deposit" => "Initial deposit",
+    "final_deposit" => "Final deposit"
+  }.freeze
+
+  module_function
+
+  def generated_deposit_name(template)
+    GENERATED_DEPOSIT_NAMES[template.to_s]
+  end
+
+  def generated_deposit_name?(description)
+    GENERATED_DEPOSIT_NAMES.value?(description.to_s.strip)
+  end
+
+  # Display-only: when the stored description is blank or equals a generated
+  # template default, prefer the detector template's generated name. Custom
+  # Staff-authored names are preserved. Does not rewrite persistence.
+  def deposit_display_label(description:, template:)
+    generated = generated_deposit_name(template)
+    stored = description.to_s.strip
+    return generated if stored.blank? && generated.present?
+    return generated if generated.present? && generated_deposit_name?(stored)
+
+    stored.presence || generated || "Deposit requirement"
+  end
+
+  def status_badge_modifier(status_label)
+    label = status_label.to_s
+    case label
+    when "Ready" then "success"
+    when "Blocked", /\ANeeds/i then "warning"
+    when "Open", "Informational", "Governing" then "info"
+    when /\AWill /i, /supersede|unchanged/i then "info"
+    when "Open advanced" then "neutral"
+    else "neutral"
+    end
+  end
+
+  def amount_shape_label(amount_shape, quantity_basis: nil)
+    shape = amount_shape.to_s
+    basis = quantity_basis.to_s
+
+    case shape
+    when "fixed_amount"
+      "Fixed amount"
+    when "quantity_times_rate"
+      case basis
+      when "capacity_pool_units" then "Amount per initially blocked cabin"
+      when "explicit" then "Amount per explicit quantity"
+      else "Amount × quantity"
+      end
+    when "cumulative_target"
+      case basis
+      when "capacity_pool_units" then "Cumulative amount per retained cabin"
+      else "Cumulative target"
+      end
+    when "percentage_of_cost_sources"
+      "Percentage of cost sources"
+    else
+      shape.tr("_", " ").presence&.capitalize || "Amount"
+    end
+  end
+
+  def amount_label_for(definition, currency:)
+    code = (definition.currency.presence || currency).to_s.upcase
+
+    case definition.amount_shape.to_s
+    when "fixed_amount"
+      "Fixed deposit of #{format_minor(definition.fixed_amount_minor_units, code)}"
+    when "quantity_times_rate"
+      rate = format_minor(definition.rate_minor_units, code)
+      case definition.quantity_basis.to_s
+      when "capacity_pool_units"
+        "#{rate} per initially blocked cabin"
+      when "explicit"
+        "#{rate} × #{definition.explicit_quantity}"
+      else
+        "#{rate} × quantity"
+      end
+    when "cumulative_target"
+      if definition.quantity_basis.to_s == "capacity_pool_units" && definition.rate_minor_units.present?
+        "#{format_minor(definition.rate_minor_units, code)} per retained cabin, less credited earlier deposits"
+      else
+        "Cumulative target #{format_minor(definition.target_amount_minor_units, code)}"
+      end
+    else
+      CruiseDepositTemplateSupport.amount_sentence(definition, currency: code)
+    end
+  end
+
+  def deposit_semantic_type_label(template)
+    case template.to_s
+    when "initial_deposit" then "Initial"
+    when "final_deposit" then "Final"
+    else "Other"
+    end
+  end
+
+  def deadline_semantic_type_label(kind)
+    kind.to_s == "actionable" ? "Action required" : "Informational"
+  end
+
+  def format_minor(minor_units, currency)
+    return "—" if minor_units.nil?
+
+    Money.new(minor_units, currency.to_s.upcase).format
+  end
+end

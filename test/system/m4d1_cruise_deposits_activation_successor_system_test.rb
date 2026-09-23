@@ -66,16 +66,19 @@ class M4d1CruiseDepositsActivationSuccessorSystemTest < ApplicationSystemTestCas
     sign_in_from_browser(@staff)
     visit_deposits_workspace
 
-    assert_selector "#cruise-activation-preview"
+    assert_selector "#cruise-readiness-banner"
+    assert_text "Ready for activation review"
     assert_text "Initial deposit"
-    assert_text "Opens commitment"
     assert_link "Activate Arrangement"
+    find("summary", text: "View activation details").click
+    assert_text "Opens commitment"
+    assert_link "Open definition"
 
     activate_cruise!
     visit_deposits_workspace
 
-    assert_no_selector "#cruise-activation-preview"
-    assert_text "Governing operational state"
+    assert_no_selector "#cruise-activation-details"
+    assert_text "Governing operational terms"
     assert_text "Tranche"
     assert_text "Open"
     refute_text(/\bpaid\b/i)
@@ -94,19 +97,21 @@ class M4d1CruiseDepositsActivationSuccessorSystemTest < ApplicationSystemTestCas
       supplier_arrangement: @arrangement
     ).count
 
-    sign_in_from_browser(@staff)
-    visit_deposits_workspace
-    fill_in_html_date "Names assigned to supplier on", "2027-02-01"
-    click_on "Record names assigned to supplier"
-    assert_text "Planning milestone recorded"
-    assert_selector "#cruise-deposits-and-deadlines"
+    travel_to Time.zone.parse("2027-02-15 12:00:00") do
+      sign_in_from_browser(@staff)
+      visit_deposits_workspace
+      fill_in_html_date "Names assigned to Supplier on", "2027-02-01"
+      click_on "Record names assigned to Supplier"
+      assert_text "Planning milestone recorded"
+      assert_selector "#cruise-deposits-and-deadlines"
 
-    tranche = SupplierDepositRequirementTranche.find_by!(supplier_arrangement: @arrangement)
-    assert_equal Date.new(2027, 2, 1), tranche.governing_deadline_occurrence.calculated_on
-    assert_equal before_count, SupplierCommitment.where(
-      opening_kind: "deposit_requirement",
-      supplier_arrangement: @arrangement
-    ).count
+      tranche = SupplierDepositRequirementTranche.find_by!(supplier_arrangement: @arrangement)
+      assert_equal Date.new(2027, 2, 1), tranche.governing_deadline_occurrence.calculated_on
+      assert_equal before_count, SupplierCommitment.where(
+        opening_kind: "deposit_requirement",
+        supplier_arrangement: @arrangement
+      ).count
+    end
   end
 
   test "19.6 earlier-of milestone after fallback preserves historical overdue occurrence" do
@@ -123,8 +128,8 @@ class M4d1CruiseDepositsActivationSuccessorSystemTest < ApplicationSystemTestCas
 
       sign_in_from_browser(@staff)
       visit_deposits_workspace
-      fill_in_html_date "Names assigned to supplier on", "2027-03-25"
-      click_on "Record names assigned to supplier"
+      fill_in_html_date "Names assigned to Supplier on", "2027-03-18"
+      click_on "Record names assigned to Supplier"
       assert_text "Planning milestone recorded"
 
       fallback.reload
@@ -148,14 +153,14 @@ class M4d1CruiseDepositsActivationSuccessorSystemTest < ApplicationSystemTestCas
 
     sign_in_from_browser(@staff)
     visit_deposits_workspace
-    click_on "Create successor draft to change future terms"
+    click_on "Create successor draft"
     visit_deposits_workspace
 
-    assert_text "Successor comparison"
+    assert_text "Proposed successor terms"
     assert_text "Governing term"
     assert_text "Proposed term"
     assert_text "Reconcile foreshadow"
-    assert_text "not yet applied"
+    assert_text "remain in force until activation"
 
     click_on "Edit", match: :first
     select "Fixed date", from: "Timing rule"

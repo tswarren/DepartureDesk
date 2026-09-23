@@ -48,6 +48,7 @@ export default class extends Controller {
   connect() {
     this.previewSequence = 0
     this.lastTemplate = null
+    this.nameStaffAuthored = this.initNameStaffAuthored()
     this.update()
     this.schedulePreview()
   }
@@ -64,6 +65,38 @@ export default class extends Controller {
     this.previewTimer = setTimeout(() => this.requestPreview(), 250)
   }
 
+  markNameStaffAuthored() {
+    this.nameStaffAuthored = true
+  }
+
+  initNameStaffAuthored() {
+    if (!this.hasDescriptionTarget) return false
+
+    const attr = this.descriptionTarget.dataset.staffAuthored
+    if (attr === "true") return true
+    if (attr === "false") return false
+
+    return this.descriptionIsStaffAuthoredFor(
+      this.hasTemplateTarget ? this.templateTarget.value : ""
+    )
+  }
+
+  generatedNameFor(template) {
+    if (template === "initial_deposit") return "Initial deposit"
+    if (template === "final_deposit") return "Final deposit"
+    return null
+  }
+
+  descriptionIsStaffAuthoredFor(template) {
+    const value = (this.descriptionTarget.value || "").trim()
+    if (!value) return false
+
+    const generated = this.generatedNameFor(template)
+    if (generated === null) return true
+
+    return value !== generated
+  }
+
   updateTemplateDefaults() {
     const template = this.hasTemplateTarget ? this.templateTarget.value : ""
     if (template === this.lastTemplate) return
@@ -72,11 +105,17 @@ export default class extends Controller {
     if (template === "initial_deposit") {
       this.amountShapeTarget.value = "quantity_times_rate"
       if (this.hasQuantityBasisTarget) this.quantityBasisTarget.value = "capacity_pool_units"
-      if (!this.descriptionTarget.value) this.descriptionTarget.value = "Initial deposit"
+      if (!this.nameStaffAuthored && this.hasDescriptionTarget) {
+        this.descriptionTarget.value = "Initial deposit"
+      }
     } else if (template === "final_deposit") {
       this.amountShapeTarget.value = "cumulative_target"
       if (this.hasQuantityBasisTarget) this.quantityBasisTarget.value = "capacity_pool_units"
-      if (!this.descriptionTarget.value) this.descriptionTarget.value = "Final deposit"
+      if (!this.nameStaffAuthored && this.hasDescriptionTarget) {
+        this.descriptionTarget.value = "Final deposit"
+      }
+    } else if (!this.nameStaffAuthored && this.hasDescriptionTarget) {
+      this.descriptionTarget.value = ""
     }
   }
 

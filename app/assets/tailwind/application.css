@@ -761,6 +761,77 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dd-fact-grid dt {
+    color: var(--dd-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .dd-fact-grid dd {
+    margin: 0.15rem 0 0;
+  }
+
+  .dd-definition-grid {
+    display: grid;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  @media (min-width: 768px) {
+    .dd-definition-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .dd-definition-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0;
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-md);
+    background: var(--dd-surface);
+    padding: 0.85rem 1rem;
+  }
+
+  .dd-definition-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .dd-definition-card__header h3 {
+    margin: 0;
+    color: var(--dd-navy);
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .dd-definition-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-top: 1px solid var(--dd-border);
+    padding-top: 0.75rem;
+  }
+
+  .dd-definition-card__actions .dd-inline-actions {
+    margin-left: auto;
+  }
+
+  .dd-row-action--danger {
+    color: var(--dd-danger-text);
+  }
+
+  .dd-row-action--danger:hover {
+    color: var(--dd-danger);
+  }
+
   .dd-cell-title {
     display: block;
     color: var(--dd-navy);

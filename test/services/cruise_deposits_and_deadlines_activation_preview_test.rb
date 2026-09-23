@@ -38,6 +38,7 @@ class CruiseDepositsAndDeadlinesActivationPreviewTest < ActiveSupport::TestCase
     assert_equal "ready", result.status
     assert_equal false, result.stale?
     assert_equal 2, result.rows.size
+    assert_empty result.unique_blockers
     deposit_row = result.rows.find { |row| row.kind == "deposit" }
     deadline_row = result.rows.find { |row| row.kind == "deadline" }
     assert deposit_row.display_name.present?
