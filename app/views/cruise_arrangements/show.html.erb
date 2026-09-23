@@ -153,8 +153,12 @@
 
       <section aria-labelledby="cruise-deposits-heading">
         <h2 id="cruise-deposits-heading" class="dd-section-title">Deposits and deadlines</h2>
-        <p>Use advanced Supplier planning for deposits and deadlines.</p>
-        <p><%= link_to "Open advanced Supplier planning", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-link" %></p>
+        <p>Record Supplier deadlines and deposit requirements for this Cruise.</p>
+        <p>
+          <%= link_to "Open deposits and deadlines",
+                departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement),
+                class: "dd-link" %>
+        </p>
       </section>
 
       <section aria-labelledby="cruise-client-heading">

@@ -1,0 +1,138 @@
+<% form = local_assigns.fetch(:form).with_indifferent_access %>
+<% mode = local_assigns.fetch(:mode) %>
+<% definition = local_assigns[:definition] %>
+<% path = if mode == :edit
+  departure_arrangement_cruise_deposits_and_deadlines_deadline_path(
+    @departure, @supplier_arrangement, definition
+  )
+else
+  departure_arrangement_cruise_deposits_and_deadlines_deadlines_path(
+    @departure, @supplier_arrangement
+  )
+end %>
+<% http_method = mode == :edit ? :patch : :post %>
+
+<section class="dd-stack" id="cruise-deadline-editor" aria-labelledby="cruise-deadline-editor-heading">
+  <h3 id="cruise-deadline-editor-heading" class="dd-section-title">
+    <%= mode == :edit ? "Edit Supplier deadline" : "Add Supplier deadline" %>
+  </h3>
+
+  <%= form_with url: path, method: http_method, scope: :cruise_deadline, class: "dd-stack" do |f| %>
+    <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+    <% if mode == :new %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+    <% else %>
+      <%= hidden_field_tag :lock_version, definition.lock_version %>
+    <% end %>
+
+    <div class="dd-field-group">
+      <%= f.label :template, "Template", class: "dd-label" %>
+      <%= f.select :template,
+            CruiseDeadlineTemplateSupport.template_options,
+            { include_blank: "Choose a template", selected: form[:template] },
+            required: true,
+            class: "dd-input" %>
+    </div>
+
+    <div class="dd-field-group">
+      <%= f.label :other_label, "Label (for Final payment or Other)", class: "dd-label" %>
+      <%= f.text_field :other_label, value: form[:other_label], maxlength: SupplierDeadlineDefinition::OTHER_LABEL_LIMIT, class: "dd-input" %>
+    </div>
+
+    <div class="dd-field-group">
+      <%= f.label :kind, "Kind", class: "dd-label" %>
+      <%= f.select :kind,
+            SupplierDeadlineDefinition::KINDS.map { |value| [value.humanize, value] },
+            { selected: form[:kind] },
+            required: true,
+            class: "dd-input" %>
+      <p class="dd-help">Option/release is always actionable. Rooming list is always informational. Final payment and Other let you choose.</p>
+    </div>
+
+    <fieldset class="dd-field-group">
+      <legend class="dd-label">When is it due?</legend>
+      <%= f.label :rule_shape, "Timing rule", class: "dd-label" %>
+      <%= f.select :rule_shape,
+            CruiseDeadlineTemplateSupport::TYPED_TIMING_SHAPES.map { |value| [value.humanize, value] },
+            { include_blank: "Choose timing", selected: form[:rule_shape] },
+            required: true,
+            class: "dd-input" %>
+
+      <%= f.label :fixed_date, "Fixed date", class: "dd-label" %>
+      <%= f.date_field :fixed_date, value: form[:fixed_date], class: "dd-input" %>
+
+      <%= f.label :fixed_datetime, "Fixed local date and time", class: "dd-label" %>
+      <%= f.text_field :fixed_datetime, value: form[:fixed_datetime], placeholder: "2027-03-11T17:00", class: "dd-input" %>
+
+      <%= f.label :offset_days, "Day offset from Departure", class: "dd-label" %>
+      <%= f.number_field :offset_days, value: form[:offset_days], min: 0, step: 1, class: "dd-input" %>
+
+      <%= f.label :offset_hours, "Hour offset from Departure", class: "dd-label" %>
+      <%= f.number_field :offset_hours, value: form[:offset_hours], min: 0, step: 1, class: "dd-input" %>
+
+      <% 2.times do |index| %>
+        <% prefix = "arm#{index + 1}" %>
+        <fieldset class="dd-field-group">
+          <legend class="dd-label">Composite arm <%= index + 1 %></legend>
+          <%= f.label :"#{prefix}_rule_shape", "Arm rule", class: "dd-label" %>
+          <%= f.select :"#{prefix}_rule_shape",
+                CruiseDeadlineTemplateSupport::SIMPLE_TIMING_SHAPES.map { |value| [value.humanize, value] },
+                { include_blank: "Unused unless earlier/later of", selected: form[:"#{prefix}_rule_shape"] },
+                class: "dd-input" %>
+          <%= f.label :"#{prefix}_fixed_date", "Arm fixed date", class: "dd-label" %>
+          <%= f.date_field :"#{prefix}_fixed_date", value: form[:"#{prefix}_fixed_date"], class: "dd-input" %>
+          <%= f.label :"#{prefix}_fixed_datetime", "Arm fixed datetime", class: "dd-label" %>
+          <%= f.text_field :"#{prefix}_fixed_datetime", value: form[:"#{prefix}_fixed_datetime"], class: "dd-input" %>
+          <%= f.label :"#{prefix}_offset_days", "Arm day offset", class: "dd-label" %>
+          <%= f.number_field :"#{prefix}_offset_days", value: form[:"#{prefix}_offset_days"], min: 0, step: 1, class: "dd-input" %>
+          <%= f.label :"#{prefix}_offset_hours", "Arm hour offset", class: "dd-label" %>
+          <%= f.number_field :"#{prefix}_offset_hours", value: form[:"#{prefix}_offset_hours"], min: 0, step: 1, class: "dd-input" %>
+        </fieldset>
+      <% end %>
+      <p class="dd-help">Planning-milestone timing is not available for Supplier Deadlines. Use advanced planning or a Deposit Requirement for milestone arms.</p>
+    </fieldset>
+
+    <fieldset class="dd-field-group">
+      <legend class="dd-label">Coverage</legend>
+      <%= f.label :coverage_scope, "What does it cover?", class: "dd-label" %>
+      <%= f.select :coverage_scope,
+            [
+              ["Entire Cruise Arrangement", "arrangement"],
+              ["One cabin category", "resource"],
+              ["One cabin Capacity Pool", "capacity_pool"]
+            ],
+            { selected: form[:coverage_scope].presence || "arrangement" },
+            required: true,
+            class: "dd-input" %>
+
+      <%= f.label :supplier_resource_id, "Cabin category", class: "dd-label" %>
+      <%= f.select :supplier_resource_id,
+            @resource_options,
+            { include_blank: "Choose a cabin category", selected: form[:supplier_resource_id] },
+            class: "dd-input" %>
+
+      <%= f.label :capacity_pool_id, "Capacity Pool", class: "dd-label" %>
+      <%= f.select :capacity_pool_id,
+            @pool_options,
+            { include_blank: "Choose a Capacity Pool", selected: form[:capacity_pool_id] },
+            class: "dd-input" %>
+    </fieldset>
+
+    <div class="dd-field-group">
+      <%= f.label :description, "Required action or evidence", class: "dd-label" %>
+      <%= f.text_area :description, value: form[:description], maxlength: SupplierDeadlineDefinition::DESCRIPTION_LIMIT, class: "dd-input", rows: 3 %>
+    </div>
+
+    <div class="dd-field-group">
+      <%= f.label :warning_lead_days, "Warning lead days", class: "dd-label" %>
+      <%= f.number_field :warning_lead_days, value: form[:warning_lead_days], min: 0, step: 1, class: "dd-input" %>
+    </div>
+
+    <div class="dd-inline-actions">
+      <%= f.submit mode == :edit ? "Update deadline" : "Save deadline", class: "dd-button" %>
+      <%= link_to "Cancel",
+            departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement),
+            class: "dd-button dd-button--quiet" %>
+    </div>
+  <% end %>
+</section>
