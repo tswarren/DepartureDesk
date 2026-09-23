@@ -1,0 +1,149 @@
+<% content_for :title, "Deposits and deadlines — #{@supplier_arrangement.name}" %>
+
+<% form = (@form || {}).with_indifferent_access %>
+<% open_new = @editable && @editor == "new" %>
+<% open_edit_id = @editable && @editor == "edit" ? @editing_id : nil %>
+
+<article class="dd-panel" id="cruise-deposits-and-deadlines">
+  <div class="dd-panel-body dd-stack">
+    <p>
+      <%= link_to "Back to Cruise workspace",
+            departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+            class: "dd-link" %>
+    </p>
+
+    <header class="dd-stack">
+      <h1 class="dd-page-title">Deposits and deadlines</h1>
+      <p>
+        <%= @supplier_arrangement.name %>
+        · <%= cruise_version_status_label(@supplier_arrangement_version) %>
+        · <%= @departure.operating_currency %>
+      </p>
+    </header>
+
+    <% if @form_error.present? %>
+      <div id="form-error-summary"
+           class="dd-alert dd-alert--danger"
+           role="alert"
+           tabindex="-1"
+           data-controller="form-error-summary">
+        <p><%= @form_error %></p>
+      </div>
+    <% end %>
+
+    <% if @workspace.governing_read_only? %>
+      <p>
+        Governing Supplier deadlines are read-only.
+        <% if @workspace.can_create_successor? %>
+          Create a successor draft from the Cruise workspace to change future terms.
+        <% end %>
+      </p>
+    <% end %>
+
+    <section class="dd-stack" aria-labelledby="cruise-other-deadlines-heading">
+      <h2 id="cruise-other-deadlines-heading" class="dd-section-title">Other Supplier deadlines</h2>
+
+      <% if @workspace.deadline_rows.any? %>
+        <ul class="dd-stack" id="cruise-deadline-summaries">
+          <% @workspace.deadline_rows.each do |row| %>
+            <li class="dd-stack"
+                id="cruise-deadline-<%= row.definition.id %>"
+                tabindex="-1"
+                <% if params[:focus_deadline_id].to_s == row.definition.id.to_s %>
+                  data-controller="form-error-summary"
+                <% end %>>
+              <p>
+                <strong><%= row.display_label %></strong>
+                · <%= row.kind.humanize %>
+                · <%= row.timing_sentence %>
+                · <%= row.coverage_summary %>
+              </p>
+              <% if row.compatible? %>
+                <% if @editable %>
+                  <div class="dd-inline-actions">
+                    <%= link_to "Edit",
+                          departure_arrangement_cruise_deposits_and_deadlines_path(
+                            @departure, @supplier_arrangement,
+                            editor: "edit", deadline_id: row.definition.id
+                          ),
+                          class: "dd-row-action dd-row-action--edit" %>
+                    <%= button_to "Remove",
+                          departure_arrangement_cruise_deposits_and_deadlines_deadline_path(
+                            @departure, @supplier_arrangement, row.definition
+                          ),
+                          method: :delete,
+                          class: "dd-row-action",
+                          form: {
+                            class: "dd-inline-form",
+                            data: {
+                              turbo_confirm: "Remove #{row.display_label}? This deletes only this draft definition and its children."
+                            }
+                          },
+                          params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+                  </div>
+                  <% if open_edit_id == row.definition.id %>
+                    <%= render "cruise_deposits_and_deadlines/deadline_form",
+                          form: form,
+                          mode: :edit,
+                          definition: row.definition %>
+                  <% end %>
+                <% end %>
+              <% else %>
+                <p>This deadline uses an advanced shape.</p>
+                <% if row.shape.reasons.any? %>
+                  <ul>
+                    <% row.shape.reasons.each do |reason| %>
+                      <li><%= reason %></li>
+                    <% end %>
+                  </ul>
+                <% end %>
+                <p>
+                  <%= link_to "Open advanced Deadlines",
+                        row.advanced_path,
+                        class: "dd-link" %>
+                </p>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p>No Supplier deadlines yet.</p>
+      <% end %>
+
+      <% if @editable %>
+        <% unless open_new || open_edit_id.present? %>
+          <p>
+            <%= link_to "Add Supplier deadline",
+                  departure_arrangement_cruise_deposits_and_deadlines_path(
+                    @departure, @supplier_arrangement, editor: "new"
+                  ),
+                  class: "dd-button" %>
+          </p>
+        <% end %>
+
+        <% if open_new %>
+          <%= render "cruise_deposits_and_deadlines/deadline_form",
+                form: form,
+                mode: :new,
+                definition: nil %>
+        <% end %>
+      <% end %>
+
+      <p>
+        <%= link_to "Open advanced Deadlines",
+              @workspace.advanced_deadlines_path,
+              class: "dd-link" %>
+      </p>
+    </section>
+
+    <section class="dd-stack" aria-labelledby="cruise-deposits-placeholder-heading">
+      <h2 id="cruise-deposits-placeholder-heading" class="dd-section-title">Deposit requirements</h2>
+      <p><%= @workspace.deposit_placeholder %></p>
+      <p>
+        <%= link_to "Open advanced deposits",
+              @workspace.advanced_deposits_path,
+              class: "dd-link" %>
+      </p>
+    </section>
+  </div>
+</article>

@@ -1,6 +1,6 @@
 # M4D.1 Slice 2B — Cruise Deposits, Deadlines, and Activation-Safe Editing
 
-**Status:** Accepted 2026-09-23. Sole implementation authority for typed Cruise Stop point D (Supplier deposits, deadlines, activation consequences, and successor-safe editing). Not shipped. Implementation is authorized: required bases are shipped. Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 2C+, Client connection beyond Stop D, and M4E remain unauthorized until named.
+**Status:** Accepted 2026-09-23. Sole implementation authority for typed Cruise Stop point D (Supplier deposits, deadlines, activation consequences, and successor-safe editing). Not fully shipped. **2B-A (typed Supplier Deadline definitions) delivered**; 2B-B and 2B-C remain open. Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 2C+, Client connection beyond Stop D, and M4E remain unauthorized until named.
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially §§11–12, §19, and §21.
 
@@ -711,11 +711,13 @@ One Accepted 2B contract, delivered through three vertical PRs after this Accept
 
 ### 2B-A — Typed Supplier Deadline definitions
 
+**Delivered** (implementation PR; Slice 2B overall remains Accepted / not fully shipped until 2B-B and 2B-C).
+
 - Arrangement-level section and readable summaries.
-- Shared timing editor.
-- Option/release, final-payment (`other`), rooming-list, and Other templates.
-- Definition-scoped detector and advanced fallback.
-- Independent save/remove/recovery proof.
+- Shared timing editor (no planning-milestone arms; Departure-relative day/hour only).
+- Option/release, final-payment (`other`), rooming-list, and Other templates with locked commitment-line compilation.
+- Definition-scoped detector and advanced fallback with return target.
+- Independent save/remove/recovery proof; draft-only mutations / governing read-only.
 
 ### 2B-B — Deposit Requirement definitions
 

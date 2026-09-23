@@ -23,8 +23,10 @@ class UpdateSupplierDeadlineDefinition < AgencyCommand
       attrs = normalize_deadline_attributes(version, arrangement, @attributes)
       coverage_links = attrs.delete(:coverage_links)
       commitment_lines = attrs.delete(:commitment_lines)
-      definition.update!(attrs)
+      # Replace children before updating kind so informational↔actionable transitions
+      # do not fail association validation against the previous commitment-line graph.
       replace_deadline_children!(definition, coverage_links, commitment_lines)
+      definition.update!(attrs)
       bump_version!(version)
       audit!(
         agency: @agency, actor: @actor, subject: arrangement,

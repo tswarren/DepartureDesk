@@ -194,6 +194,11 @@ Rails.application.routes.draw do
             post :preview
           end
         end
+        resource :deposits_and_deadlines, path: "deposits-and-deadlines", only: :show,
+          controller: "cruise_deposits_and_deadlines" do
+          resources :deadlines, only: %i[create update destroy],
+            controller: "cruise_supplier_deadlines"
+        end
       end
       resource :activation,
         only: %i[show create],
