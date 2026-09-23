@@ -8,7 +8,7 @@
 
 **Accept package base:** [`5a391d1`](https://github.com/tswarren/DepartureDesk/commit/5a391d1) (green `main` tip including shipped [Slice 2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md)).
 
-**Ship commit:** [`5367743`](https://github.com/tswarren/DepartureDesk/commit/5367743) (implementation tip on this branch; pin merge tip after PR merge).
+**Ship commit:** Merge tip [`e5ded27`](https://github.com/tswarren/DepartureDesk/commit/e5ded27) (PR #145). Implementation tip [`5367743`](https://github.com/tswarren/DepartureDesk/commit/5367743).
 
 **Downstream:** Typed [Slice 2B](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) implementation may begin when Slice 2B has its own Accepted plan (2B-R Path B domain already shipped).
 
