@@ -10,7 +10,7 @@
 
 **Ship commit:** Merge tip [`e5ded27`](https://github.com/tswarren/DepartureDesk/commit/e5ded27) (PR #145). Implementation tip [`5367743`](https://github.com/tswarren/DepartureDesk/commit/5367743).
 
-**Downstream:** Typed [Slice 2B](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) implementation may begin when Slice 2B has its own Accepted plan (2B-R Path B domain already shipped).
+**Downstream:** Typed [Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) is Accepted (2B-R Path B domain already shipped).
 
 **Scope locked:** Detector reconstruction and validation for percentage commission ↔ matrix cell association. No new commission economics, mixed percentage/dollar typed matrices, deposit/deadline work, or Cruise-specific persistence.
 
