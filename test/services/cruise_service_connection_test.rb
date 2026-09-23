@@ -208,10 +208,19 @@ class CruiseServiceConnectionTest < ActiveSupport::TestCase
     assert_equal :replayed, replay.status
     assert_equal first.record.id, replay.record.id
 
-    conflict = assert_raises(AgencyCommand::Error) do
+    mismatch = assert_raises(AgencyCommand::Error) do
       ConnectCruiseServiceOffer.new(
         agency: @agency, actor: @actor, arrangement: arrangement, idempotency_key: key,
         attributes: attributes.merge(use_tentative_draft: false)
+      ).call
+    end
+    assert_equal :invalid, mismatch.code
+    assert_match "tentative", mismatch.message
+
+    conflict = assert_raises(AgencyCommand::Error) do
+      ConnectCruiseServiceOffer.new(
+        agency: @agency, actor: @actor, arrangement: arrangement, idempotency_key: key,
+        attributes: attributes.merge(title: "Different title")
       ).call
     end
     assert_equal :conflict, conflict.code
@@ -231,6 +240,56 @@ class CruiseServiceConnectionTest < ActiveSupport::TestCase
     assert_equal :conflict, stale.code
     assert_nil ServiceOffer.find_by(intended_arrangement_item_id: other_item.id)
     assert_nil ServiceOffer.find_by(name: "Stale later")
+  end
+
+  test "decide later rejects version mismatches and defaults to the governing activated version" do
+    arrangement, version, item, = cruise_with_cabins("O1" => "Prime Oceanview")
+    draft_as_activated = assert_raises(AgencyCommand::Error) do
+      connect_later(arrangement, item, version: version, tentative: false)
+    end
+    assert_equal :invalid, draft_as_activated.code
+    assert_match "tentative", draft_as_activated.message
+    assert_nil ServiceOffer.find_by(intended_arrangement_item_id: item.id)
+
+    version.update!(status: "activated", activated_at: Time.current)
+    arrangement.update!(status: "active", governing_version: version)
+    governing = version.reload
+    successor = arrangement.versions.create!(
+      agency: @agency, departure: @departure, version_number: governing.version_number + 1, status: "draft"
+    )
+    older = arrangement.versions.create!(
+      agency: @agency, departure: @departure, version_number: governing.version_number + 2, status: "superseded",
+      activated_at: Time.current - 2.days, superseded_at: Time.current - 1.day
+    )
+
+    activated_as_tentative = assert_raises(AgencyCommand::Error) do
+      connect_later(arrangement, item, version: governing, tentative: true)
+    end
+    assert_equal :invalid, activated_as_tentative.code
+    assert_match "draft", activated_as_tentative.message
+
+    successor_as_activated = assert_raises(AgencyCommand::Error) do
+      connect_later(arrangement, item, version: successor, tentative: false)
+    end
+    assert_equal :invalid, successor_as_activated.code
+    assert_match "activated", successor_as_activated.message
+
+    older_version = assert_raises(AgencyCommand::Error) do
+      connect_later(arrangement, item, version: older, tentative: false)
+    end
+    assert_equal :invalid, older_version.code
+    assert_match "governing", older_version.message
+
+    wrong_lock = assert_raises(AgencyCommand::Error) do
+      connect_later(arrangement, item, tentative: false, lock_version: successor.lock_version)
+    end
+    assert_equal :conflict, wrong_lock.code
+    assert_nil ServiceOffer.find_by(intended_arrangement_item_id: item.id)
+
+    outlined = connect_later(arrangement, item, tentative: false, lock_version: governing.lock_version)
+    assert_equal :outlined, outlined.status
+    assert_equal item.id, outlined.record.intended_arrangement_item_id
+    assert_equal arrangement.id, outlined.record.intended_supplier_arrangement_id
   end
 
   test "a claim that points at a different cruise than the cabin choices stays advanced" do
@@ -278,6 +337,47 @@ class CruiseServiceConnectionTest < ActiveSupport::TestCase
     assert_equal option.client_rate_category_key, draft.choice_options.sole.client_rate_category_key
     assert_equal other_item.id, draft.source_bindings.sole.arrangement_item_id
     assert_equal "Celebrity Beyond sailing", draft.definition.client_title
+  end
+
+  test "an unclaimed compatible cruise graph stays connected and the first update claims it" do
+    arrangement, version, item, ocean = cruise_with_cabins("O1" => "Prime Oceanview")
+    source = connect_new(arrangement, version, item, [ ocean.id ], title: "Claimed source").record
+    source_draft = source.editable_draft_version
+    offer = CreateServiceOfferOutline.new(
+      agency: @agency, actor: @actor, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { name: "Legacy typed sailing" }
+    ).call.record
+    offer.editable_draft_version.update!(
+      status: "abandoned", abandoned_at: Time.current, abandoned_reason: "Replaced by the copied cruise graph"
+    )
+    copied = offer.versions.create!(
+      agency: @agency, departure: @departure, version_number: 2, status: "draft", copied_from_version: source_draft
+    )
+    OfferVersionGraphCopy.copy_service_offer_version!(
+      agency: @agency, departure: @departure, offer: offer, from: source_draft, to: copied
+    )
+    DiscardServiceOfferDraft.new(
+      agency: @agency, actor: @actor, offer: source, reason: "Source claim released",
+      offer_lock_version: source.reload.lock_version,
+      version_lock_version: source_draft.reload.lock_version
+    ).call
+
+    option = copied.reload.choice_options.sole
+    detected = DetectCruiseServiceConnectionShape.new(agency: @agency, offer: offer, version: copied).call
+    assert detected.compatible?
+    shape = DetectCruiseArrangementShape.new(agency: @agency, arrangement: arrangement, version: version.reload).call
+    workspace = CompileCruiseServiceConnectionWorkspace.new(
+      agency: @agency, arrangement: arrangement, shape: shape
+    ).call
+    assert_equal :connected, workspace.status
+    assert_equal offer.id, workspace.offer.id
+    assert_nil offer.reload.intended_arrangement_item_id
+
+    update_connection(offer, version, [ ocean.id ], title: "Legacy typed sailing")
+    assert_equal item.id, offer.reload.intended_arrangement_item_id
+    assert_equal arrangement.id, offer.intended_supplier_arrangement_id
+    assert_equal option.id, copied.reload.choice_options.sole.id
+    assert_equal option.client_rate_category_key, copied.choice_options.sole.client_rate_category_key
   end
 
   test "a legacy source binding blocks a second service" do
@@ -500,6 +600,21 @@ class CruiseServiceConnectionTest < ActiveSupport::TestCase
       created.record.resource
     end
     [ arrangement, version.reload, item, *resources ]
+  end
+
+  def connect_later(arrangement, item, version: nil, tentative: false, lock_version: nil, title: "Governed later")
+    attributes = {
+      mode: "later",
+      title: title,
+      description: nil,
+      arrangement_item_id: item.id,
+      use_tentative_draft: tentative,
+      arrangement_lock_version: lock_version || version&.lock_version
+    }
+    attributes[:supplier_arrangement_version_id] = version.id if version
+    ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @actor, arrangement: arrangement, idempotency_key: SecureRandom.uuid, attributes: attributes
+    ).call
   end
 
   def connect_new(arrangement, version, item, resource_ids, title:)

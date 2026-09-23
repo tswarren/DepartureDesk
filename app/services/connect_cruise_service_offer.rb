@@ -66,15 +66,6 @@ class ConnectCruiseServiceOffer < AgencyCommand
   private
 
   def ancestry_version_for(arrangement)
-    if @mode == "later"
-      if @attributes[:supplier_arrangement_version_id].present?
-        return arrangement.versions.find(@attributes[:supplier_arrangement_version_id])
-      end
-
-      draft = arrangement.versions.find_by(status: "draft")
-      return draft || arrangement.governing_version || raise(Error.new("That cruise has no version to check.", code: :invalid_state))
-    end
-
     requested = @attributes[:supplier_arrangement_version_id].presence
     tentative = boolean_flag(@attributes[:use_tentative_draft])
     version = resolve_planning_version!(arrangement, requested_version_id: requested, use_tentative_draft: tentative)

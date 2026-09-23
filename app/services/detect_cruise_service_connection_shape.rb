@@ -157,6 +157,7 @@ class DetectCruiseServiceConnectionShape
 
   def claim_reasons(offer, arrangement, item)
     return [] if arrangement.nil? || item.nil?
+    return [] if offer.intended_arrangement_item_id.nil? && offer.intended_supplier_arrangement_id.nil?
     return [] if offer.intended_arrangement_item_id == item.id && offer.intended_supplier_arrangement_id == arrangement.id
 
     [ "The Cruise item claim does not match the cabin choices." ]
