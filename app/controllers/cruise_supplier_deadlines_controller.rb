@@ -23,7 +23,7 @@ class CruiseSupplierDeadlinesController < ApplicationController
     ).call
     redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
       @departure, @supplier_arrangement,
-      anchor: "cruise-deadline-#{result.record.id}"
+      focus_deadline_id: result.record.id
     ), notice: "Deadline saved."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
@@ -42,7 +42,7 @@ class CruiseSupplierDeadlinesController < ApplicationController
     ).call
     redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
       @departure, @supplier_arrangement,
-      anchor: "cruise-deadline-#{result.record.id}"
+      focus_deadline_id: result.record.id
     ), notice: "Deadline updated."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found

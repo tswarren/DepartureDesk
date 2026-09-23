@@ -60,7 +60,7 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
       }
     end
     assert_response :redirect
-    assert_match %r{/cruise/deposits-and-deadlines#cruise-deadline-}, @response.redirect_url
+    assert_match %r{/cruise/deposits-and-deadlines\?focus_deadline_id=}, @response.redirect_url
 
     definition = @version.supplier_deadline_definitions.order(:position, :id).last
     assert_equal "option_or_release_date", definition.deadline_type
@@ -227,7 +227,7 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
       }
     }
     assert_response :redirect
-    assert_match %r{/cruise/deposits-and-deadlines#cruise-deadline-#{copied.id}}, @response.redirect_url
+    assert_match %r{/cruise/deposits-and-deadlines\?focus_deadline_id=#{copied.id}}, @response.redirect_url
     assert_equal "2027-04-01", copied.reload.rule_parameters["date"]
   end
 

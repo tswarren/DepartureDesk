@@ -49,7 +49,9 @@
             <li class="dd-stack"
                 id="cruise-deadline-<%= row.definition.id %>"
                 tabindex="-1"
-                data-controller="focus-hash-target">
+                <% if params[:focus_deadline_id].to_s == row.definition.id.to_s %>
+                  data-controller="form-error-summary"
+                <% end %>>
               <p>
                 <strong><%= row.display_label %></strong>
                 · <%= row.kind.humanize %>

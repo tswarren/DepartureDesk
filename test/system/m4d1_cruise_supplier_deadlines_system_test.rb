@@ -73,7 +73,8 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     click_on "Save deadline"
     assert_text "Deadline saved"
     assert_text "Option or release date"
-    assert_match(/#cruise-deadline-/, page.current_url)
+    assert_match(/focus_deadline_id=/, page.current_url)
+    assert_match(/\Acruise-deadline-/, page.evaluate_script("document.activeElement && document.activeElement.id"))
 
     click_on "Add Supplier deadline"
     select "Final payment", from: "Template"
