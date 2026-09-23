@@ -1,0 +1,238 @@
+<% form = local_assigns.fetch(:form).with_indifferent_access %>
+<% mode = local_assigns.fetch(:mode) %>
+<% definition = local_assigns[:definition] %>
+<% path = if mode == :edit
+  departure_arrangement_cruise_deposits_and_deadlines_deposit_path(
+    @departure, @supplier_arrangement, definition
+  )
+else
+  departure_arrangement_cruise_deposits_and_deadlines_deposits_path(
+    @departure, @supplier_arrangement
+  )
+end %>
+<% http_method = mode == :edit ? :patch : :post %>
+<% preview_path = deposit_preview_departure_arrangement_cruise_deposits_and_deadlines_path(
+  @departure, @supplier_arrangement
+) %>
+<% selected_pools = Array(form[:capacity_pool_ids]).map(&:to_s) %>
+<% selected_contributors = Array(form[:contributor_definition_ids]).map(&:to_s) %>
+
+<section class="dd-stack" id="cruise-deposit-editor" aria-labelledby="cruise-deposit-editor-heading"
+  data-controller="cruise-deposit-editor"
+  data-cruise-deposit-editor-preview-url-value="<%= preview_path %>"
+  data-cruise-deposit-editor-version-lock-version-value="<%= @supplier_arrangement_version.lock_version %>"
+  data-action="change->cruise-deposit-editor#update input->cruise-deposit-editor#schedulePreview">
+  <h3 id="cruise-deposit-editor-heading" class="dd-section-title">
+    <%= mode == :edit ? "Edit deposit requirement" : "Add deposit requirement" %>
+  </h3>
+
+  <%= form_with url: path, method: http_method, scope: :cruise_deposit, class: "dd-stack" do |f| %>
+    <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+    <% if mode == :new %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+    <% else %>
+      <%= hidden_field_tag :lock_version, definition.lock_version %>
+    <% end %>
+
+    <div class="dd-field-group">
+      <%= f.label :template, "Template", class: "dd-label" %>
+      <%= f.select :template,
+            CruiseDepositTemplateSupport.template_options,
+            { include_blank: "Choose a template", selected: form[:template] },
+            required: true,
+            class: "dd-input",
+            data: { cruise_deposit_editor_target: "template" } %>
+      <p class="dd-help">
+        Template choice is a creation affordance only. It is not stored as a separate field.
+      </p>
+    </div>
+
+    <div class="dd-field-group" data-cruise-deposit-editor-target="descriptionGroup">
+      <%= f.label :description, "Name", class: "dd-label" %>
+      <%= f.text_field :description,
+            value: form[:description],
+            maxlength: 500,
+            class: "dd-input",
+            data: { cruise_deposit_editor_target: "description" } %>
+    </div>
+
+    <fieldset class="dd-field-group">
+      <legend class="dd-label">Amount</legend>
+      <%= f.label :amount_shape, "Amount shape", class: "dd-label" %>
+      <%= f.select :amount_shape,
+            [
+              [ "Fixed amount", "fixed_amount" ],
+              [ "Quantity × rate", "quantity_times_rate" ],
+              [ "Cumulative target", "cumulative_target" ]
+            ],
+            { include_blank: "Choose amount shape", selected: form[:amount_shape] },
+            class: "dd-input",
+            data: { cruise_deposit_editor_target: "amountShape" } %>
+
+      <div class="dd-field-group" data-cruise-deposit-editor-target="fixedAmountGroup" hidden>
+        <%= f.label :fixed_amount, "Fixed amount (#{@departure.operating_currency})", class: "dd-label" %>
+        <%= f.text_field :fixed_amount,
+              value: form[:fixed_amount].presence || (
+                form[:fixed_amount_minor_units].present? ?
+                  Money.new(form[:fixed_amount_minor_units], @departure.operating_currency).amount : nil
+              ),
+              class: "dd-input",
+              data: { cruise_deposit_editor_target: "fixedAmount" } %>
+      </div>
+
+      <div class="dd-field-group" data-cruise-deposit-editor-target="rateGroup" hidden>
+        <%= f.label :rate_amount, "Rate per unit (#{@departure.operating_currency})", class: "dd-label" %>
+        <%= f.text_field :rate_amount,
+              value: form[:rate_amount].presence || (
+                form[:rate_minor_units].present? ?
+                  Money.new(form[:rate_minor_units], @departure.operating_currency).amount : nil
+              ),
+              class: "dd-input",
+              data: { cruise_deposit_editor_target: "rateAmount" } %>
+      </div>
+
+      <div class="dd-field-group" data-cruise-deposit-editor-target="quantityBasisGroup" hidden>
+        <%= f.label :quantity_basis, "Quantity basis", class: "dd-label" %>
+        <%= f.select :quantity_basis,
+              [
+                [ "Cabin Capacity Pool units", "capacity_pool_units" ],
+                [ "Explicit quantity", "explicit" ]
+              ],
+              { selected: form[:quantity_basis] || "capacity_pool_units" },
+              class: "dd-input",
+              data: { cruise_deposit_editor_target: "quantityBasis" } %>
+      </div>
+
+      <div class="dd-field-group" data-cruise-deposit-editor-target="explicitQuantityGroup" hidden>
+        <%= f.label :explicit_quantity, "Explicit quantity", class: "dd-label" %>
+        <%= f.number_field :explicit_quantity,
+              value: form[:explicit_quantity],
+              min: 1,
+              class: "dd-input",
+              data: { cruise_deposit_editor_target: "explicitQuantity" } %>
+      </div>
+    </fieldset>
+
+    <fieldset class="dd-field-group" data-cruise-deposit-editor-target="poolGroup" hidden>
+      <legend class="dd-label">Cabin Capacity Pools</legend>
+      <div class="dd-stack" role="group" aria-label="Capacity Pool coverage">
+        <% Array(@pool_options).each do |label, pool_id| %>
+          <label class="dd-checkbox-label">
+            <%= check_box_tag "cruise_deposit[capacity_pool_ids][]",
+                  pool_id,
+                  selected_pools.include?(pool_id.to_s),
+                  id: "cruise_deposit_capacity_pool_#{pool_id}",
+                  data: { cruise_deposit_editor_target: "poolCheckbox" } %>
+            <%= label %>
+          </label>
+        <% end %>
+      </div>
+    </fieldset>
+
+    <fieldset class="dd-field-group" data-cruise-deposit-editor-target="contributorGroup" hidden>
+      <legend class="dd-label">Contributing deposits</legend>
+      <div class="dd-stack" role="group" aria-label="Contributor definitions">
+        <% Array(@contributor_options).each do |label, contributor_id| %>
+          <label class="dd-checkbox-label">
+            <%= check_box_tag "cruise_deposit[contributor_definition_ids][]",
+                  contributor_id,
+                  selected_contributors.include?(contributor_id.to_s),
+                  id: "cruise_deposit_contributor_#{contributor_id}",
+                  data: { cruise_deposit_editor_target: "contributorCheckbox" } %>
+            <%= label %>
+          </label>
+        <% end %>
+        <% if Array(@contributor_options).empty? %>
+          <p class="dd-help">Add an initial capacity-pool deposit before a final cumulative deposit.</p>
+        <% end %>
+      </div>
+    </fieldset>
+
+    <fieldset class="dd-field-group">
+      <legend class="dd-label">When is it due?</legend>
+      <%= f.label :rule_shape, "Timing rule", class: "dd-label" %>
+      <%= f.select :rule_shape,
+            (
+              CruiseDepositTemplateSupport::SIMPLE_TIMING_SHAPES.map { |value| [ value.humanize, value ] } +
+              [ [ "Earlier of…", "earlier_of" ] ]
+            ),
+            { include_blank: "Choose timing", selected: form[:rule_shape] },
+            required: true,
+            class: "dd-input",
+            data: { cruise_deposit_editor_target: "ruleShape" } %>
+
+      <div class="dd-field-group" data-cruise-deposit-editor-target="fixedDateGroup" hidden>
+        <%= f.label :fixed_date, "Date", class: "dd-label" %>
+        <%= f.date_field :fixed_date, value: form[:fixed_date], class: "dd-input",
+              data: { cruise_deposit_editor_target: "fixedDate" } %>
+      </div>
+      <div class="dd-field-group" data-cruise-deposit-editor-target="fixedDatetimeGroup" hidden>
+        <%= f.label :fixed_datetime, "Local date and time", class: "dd-label" %>
+        <%= f.datetime_local_field :fixed_datetime, value: form[:fixed_datetime], class: "dd-input" %>
+      </div>
+      <div class="dd-field-group" data-cruise-deposit-editor-target="offsetDaysGroup" hidden>
+        <%= f.label :offset_days, "Days", class: "dd-label" %>
+        <%= f.number_field :offset_days, value: form[:offset_days], min: 0, class: "dd-input" %>
+      </div>
+      <div class="dd-field-group" data-cruise-deposit-editor-target="offsetHoursGroup" hidden>
+        <%= f.label :offset_hours, "Hours", class: "dd-label" %>
+        <%= f.number_field :offset_hours, value: form[:offset_hours], min: 0, class: "dd-input" %>
+      </div>
+
+      <div class="dd-stack" data-cruise-deposit-editor-target="compositeGroup" hidden>
+        <fieldset class="dd-field-group" id="cruise-deposit-arm1">
+          <legend class="dd-label">Earlier-of arm 1</legend>
+          <%= f.select :arm1_rule_shape,
+                (
+                  CruiseDepositTemplateSupport::SIMPLE_TIMING_SHAPES.map { |value| [ value.humanize, value ] } +
+                  [ [ "Names assigned to Supplier", "planning_milestone" ] ]
+                ),
+                { include_blank: "Choose arm", selected: form[:arm1_rule_shape] },
+                class: "dd-input",
+                data: { cruise_deposit_editor_target: "arm1RuleShape" } %>
+          <%= f.hidden_field :arm1_milestone_kind,
+                value: form[:arm1_milestone_kind].presence || CruiseDepositTemplateSupport::MILESTONE_KIND %>
+          <div data-cruise-deposit-editor-target="arm1FixedDateGroup" hidden>
+            <%= f.date_field :arm1_fixed_date, value: form[:arm1_fixed_date], class: "dd-input" %>
+          </div>
+          <div data-cruise-deposit-editor-target="arm1OffsetDaysGroup" hidden>
+            <%= f.number_field :arm1_offset_days, value: form[:arm1_offset_days], min: 0, class: "dd-input" %>
+          </div>
+        </fieldset>
+        <fieldset class="dd-field-group" id="cruise-deposit-arm2">
+          <legend class="dd-label">Earlier-of arm 2</legend>
+          <%= f.select :arm2_rule_shape,
+                (
+                  CruiseDepositTemplateSupport::SIMPLE_TIMING_SHAPES.map { |value| [ value.humanize, value ] } +
+                  [ [ "Names assigned to Supplier", "planning_milestone" ] ]
+                ),
+                { include_blank: "Choose arm", selected: form[:arm2_rule_shape] },
+                class: "dd-input",
+                data: { cruise_deposit_editor_target: "arm2RuleShape" } %>
+          <%= f.hidden_field :arm2_milestone_kind,
+                value: form[:arm2_milestone_kind].presence || CruiseDepositTemplateSupport::MILESTONE_KIND %>
+          <div data-cruise-deposit-editor-target="arm2FixedDateGroup" hidden>
+            <%= f.date_field :arm2_fixed_date, value: form[:arm2_fixed_date], class: "dd-input" %>
+          </div>
+          <div data-cruise-deposit-editor-target="arm2OffsetDaysGroup" hidden>
+            <%= f.number_field :arm2_offset_days, value: form[:arm2_offset_days], min: 0, class: "dd-input" %>
+          </div>
+        </fieldset>
+      </div>
+    </fieldset>
+
+    <div class="dd-field-group" aria-live="polite">
+      <p class="dd-label">Amount preview</p>
+      <p data-cruise-deposit-editor-target="previewOutput">Enter amount fields to preview.</p>
+      <p class="dd-help" data-cruise-deposit-editor-target="previewLabel" hidden></p>
+      <p class="dd-help" data-cruise-deposit-editor-target="previewPending" hidden></p>
+    </div>
+
+    <div class="dd-inline-actions">
+      <%= f.submit mode == :edit ? "Save deposit" : "Add deposit", class: "dd-button" %>
+      <%= link_to "Cancel",
+            departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement),
+            class: "dd-link" %>
+    </div>
+  <% end %>
+</section>

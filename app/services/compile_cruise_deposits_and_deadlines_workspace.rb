@@ -15,6 +15,20 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
     :projected_fields
   )
 
+  DepositRow = Data.define(
+    :definition,
+    :shape,
+    :compatible?,
+    :template,
+    :display_label,
+    :amount_sentence,
+    :timing_sentence,
+    :coverage_summary,
+    :action,
+    :advanced_path,
+    :projected_fields
+  )
+
   Result = Data.define(
     :compatible?,
     :version,
@@ -24,7 +38,7 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
     :successor_draft?,
     :can_create_successor?,
     :deadline_rows,
-    :deposit_placeholder,
+    :deposit_rows,
     :advanced_deadlines_path,
     :advanced_deposits_path,
     :return_to,
@@ -57,7 +71,7 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
         successor_draft?: false,
         can_create_successor?: false,
         deadline_rows: [],
-        deposit_placeholder: deposit_placeholder_message,
+        deposit_rows: [],
         advanced_deadlines_path: nil,
         advanced_deposits_path: nil,
         return_to: RETURN_TOKEN,
@@ -85,7 +99,7 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
         departure, arrangement, version, return_to: RETURN_TOKEN
       )
 
-    definitions = version.supplier_deadline_definitions
+    deadline_definitions = version.supplier_deadline_definitions
       .includes(
         :supplier_deadline_definition_coverage_links,
         :supplier_deadline_commitment_definition_lines
@@ -93,7 +107,7 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
       .order(:position, :id)
       .to_a
 
-    rows = definitions.map do |definition|
+    deadline_rows = deadline_definitions.map do |definition|
       shape = DetectCruiseSupplierDeadlineShape.new(
         agency: @agency,
         arrangement: arrangement,
@@ -110,9 +124,47 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
         timing_sentence: shape.compatible? ?
           shape.summary[:timing_sentence] :
           CruiseDeadlineTemplateSupport.timing_sentence(definition),
-        coverage_summary: coverage_summary_for(definition, cruise_shape),
+        coverage_summary: deadline_coverage_summary_for(definition, cruise_shape),
         action: shape.compatible? ? "edit" : "advanced",
         advanced_path: advanced_deadlines,
+        projected_fields: shape.projected_fields
+      )
+    end
+
+    deposit_definitions = version.supplier_deposit_requirement_definitions
+      .includes(
+        :supplier_deposit_requirement_definition_coverage_links,
+        :supplier_deposit_requirement_definition_contributor_links,
+        :supplier_deposit_requirement_definition_cost_links
+      )
+      .order(:position, :id)
+      .to_a
+
+    deposit_rows = deposit_definitions.map do |definition|
+      shape = DetectCruiseDepositRequirementShape.new(
+        agency: @agency,
+        arrangement: arrangement,
+        definition: definition,
+        version: version
+      ).call
+      DepositRow.new(
+        definition: definition,
+        shape: shape,
+        compatible?: shape.compatible?,
+        template: shape.template,
+        display_label: shape.summary[:display_label],
+        amount_sentence: shape.compatible? ?
+          shape.summary[:amount_sentence] :
+          CruiseDepositTemplateSupport.amount_sentence(
+            definition,
+            currency: departure.operating_currency
+          ),
+        timing_sentence: shape.compatible? ?
+          shape.summary[:timing_sentence] :
+          CruiseDepositTemplateSupport.timing_sentence(definition),
+        coverage_summary: CruiseDepositTemplateSupport.coverage_summary(definition, cruise_shape),
+        action: shape.compatible? ? "edit" : "advanced",
+        advanced_path: advanced_deposits,
         projected_fields: shape.projected_fields
       )
     end
@@ -125,8 +177,8 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
       governing_read_only?: governing_read_only,
       successor_draft?: successor_draft,
       can_create_successor?: can_create_successor,
-      deadline_rows: rows,
-      deposit_placeholder: deposit_placeholder_message,
+      deadline_rows: deadline_rows,
+      deposit_rows: deposit_rows,
       advanced_deadlines_path: advanced_deadlines,
       advanced_deposits_path: advanced_deposits,
       return_to: RETURN_TOKEN,
@@ -136,11 +188,7 @@ class CompileCruiseDepositsAndDeadlinesWorkspace
 
   private
 
-  def deposit_placeholder_message
-    "Deposit requirements are not yet typed here. Open advanced deposits, or continue after the next Cruise deposits slice."
-  end
-
-  def coverage_summary_for(definition, cruise_shape)
+  def deadline_coverage_summary_for(definition, cruise_shape)
     links = definition.supplier_deadline_definition_coverage_links.order(:position, :id).to_a
     projected = CruiseDeadlineTemplateSupport.project_coverage_fields(links)
     case projected[:scope]

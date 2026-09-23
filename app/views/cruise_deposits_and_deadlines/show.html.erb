@@ -1,8 +1,11 @@
 <% content_for :title, "Deposits and deadlines — #{@supplier_arrangement.name}" %>
 
 <% form = (@form || {}).with_indifferent_access %>
+<% deposit_form = (@deposit_form || {}).with_indifferent_access %>
 <% open_new = @editable && @editor == "new" %>
 <% open_edit_id = @editable && @editor == "edit" ? @editing_id : nil %>
+<% open_deposit_new = @editable && @deposit_editor == "new" %>
+<% open_deposit_edit_id = @editable && @deposit_editor == "edit" ? @editing_deposit_id : nil %>
 
 <article class="dd-panel" id="cruise-deposits-and-deadlines">
   <div class="dd-panel-body dd-stack">
@@ -33,12 +36,113 @@
 
     <% if @workspace.governing_read_only? %>
       <p>
-        Governing Supplier deadlines are read-only.
+        Governing Supplier deadlines and deposits are read-only.
         <% if @workspace.can_create_successor? %>
           Create a successor draft from the Cruise workspace to change future terms.
         <% end %>
       </p>
     <% end %>
+
+    <section class="dd-stack" aria-labelledby="cruise-deposit-requirements-heading">
+      <h2 id="cruise-deposit-requirements-heading" class="dd-section-title">Deposit requirements</h2>
+
+      <% if @workspace.deposit_rows.any? %>
+        <ul class="dd-stack" id="cruise-deposit-summaries">
+          <% @workspace.deposit_rows.each do |row| %>
+            <li class="dd-stack"
+                id="cruise-deposit-<%= row.definition.id %>"
+                tabindex="-1"
+                <% if params[:focus_deposit_id].to_s == row.definition.id.to_s %>
+                  data-controller="form-error-summary"
+                <% end %>>
+              <p>
+                <strong><%= row.display_label %></strong>
+                <% if row.template.present? %>
+                  · <%= CruiseDepositTemplateSupport::TEMPLATES.dig(row.template, :label) || "Other" %>
+                <% else %>
+                  · Other
+                <% end %>
+                · <%= row.amount_sentence %>
+                · <%= row.timing_sentence %>
+                · <%= row.coverage_summary %>
+              </p>
+              <% if row.compatible? %>
+                <% if @editable %>
+                  <div class="dd-inline-actions">
+                    <%= link_to "Edit",
+                          departure_arrangement_cruise_deposits_and_deadlines_path(
+                            @departure, @supplier_arrangement,
+                            deposit_editor: "edit", deposit_id: row.definition.id
+                          ),
+                          class: "dd-row-action dd-row-action--edit" %>
+                    <%= button_to "Remove",
+                          departure_arrangement_cruise_deposits_and_deadlines_deposit_path(
+                            @departure, @supplier_arrangement, row.definition
+                          ),
+                          method: :delete,
+                          class: "dd-row-action",
+                          form: {
+                            class: "dd-inline-form",
+                            data: {
+                              turbo_confirm: "Remove #{row.display_label}? This deletes only this draft definition and its children."
+                            }
+                          },
+                          params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+                  </div>
+                  <% if open_deposit_edit_id == row.definition.id %>
+                    <%= render "cruise_deposits_and_deadlines/deposit_form",
+                          form: deposit_form,
+                          mode: :edit,
+                          definition: row.definition %>
+                  <% end %>
+                <% end %>
+              <% else %>
+                <p>This deposit uses an advanced shape.</p>
+                <% if row.shape.reasons.any? %>
+                  <ul>
+                    <% row.shape.reasons.each do |reason| %>
+                      <li><%= reason %></li>
+                    <% end %>
+                  </ul>
+                <% end %>
+                <p>
+                  <%= link_to "Open advanced deposits",
+                        row.advanced_path,
+                        class: "dd-link" %>
+                </p>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p>No deposit requirements yet.</p>
+      <% end %>
+
+      <% if @editable %>
+        <% unless open_deposit_new || open_deposit_edit_id.present? || open_new || open_edit_id.present? %>
+          <p>
+            <%= link_to "Add deposit requirement",
+                  departure_arrangement_cruise_deposits_and_deadlines_path(
+                    @departure, @supplier_arrangement, deposit_editor: "new"
+                  ),
+                  class: "dd-button" %>
+          </p>
+        <% end %>
+
+        <% if open_deposit_new %>
+          <%= render "cruise_deposits_and_deadlines/deposit_form",
+                form: deposit_form,
+                mode: :new,
+                definition: nil %>
+        <% end %>
+      <% end %>
+
+      <p>
+        <%= link_to "Open advanced deposits",
+              @workspace.advanced_deposits_path,
+              class: "dd-link" %>
+      </p>
+    </section>
 
     <section class="dd-stack" aria-labelledby="cruise-other-deadlines-heading">
       <h2 id="cruise-other-deadlines-heading" class="dd-section-title">Other Supplier deadlines</h2>
@@ -111,7 +215,7 @@
       <% end %>
 
       <% if @editable %>
-        <% unless open_new || open_edit_id.present? %>
+        <% unless open_new || open_edit_id.present? || open_deposit_new || open_deposit_edit_id.present? %>
           <p>
             <%= link_to "Add Supplier deadline",
                   departure_arrangement_cruise_deposits_and_deadlines_path(
@@ -132,16 +236,6 @@
       <p>
         <%= link_to "Open advanced Deadlines",
               @workspace.advanced_deadlines_path,
-              class: "dd-link" %>
-      </p>
-    </section>
-
-    <section class="dd-stack" aria-labelledby="cruise-deposits-placeholder-heading">
-      <h2 id="cruise-deposits-placeholder-heading" class="dd-section-title">Deposit requirements</h2>
-      <p><%= @workspace.deposit_placeholder %></p>
-      <p>
-        <%= link_to "Open advanced deposits",
-              @workspace.advanced_deposits_path,
               class: "dd-link" %>
       </p>
     </section>
