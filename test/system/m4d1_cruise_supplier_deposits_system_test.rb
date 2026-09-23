@@ -95,11 +95,16 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     check "Initial deposit"
     select "Earlier of…", from: "Timing rule"
     within "#cruise-deposit-arm1" do
-      select "Names assigned to Supplier", from: "cruise_deposit[arm1_rule_shape]"
+      find("select").select("Names assigned to Supplier")
     end
     within "#cruise-deposit-arm2" do
-      select "Fixed date", from: "cruise_deposit[arm2_rule_shape]"
-      fill_in_html_date "cruise_deposit[arm2_fixed_date]", "2027-03-11"
+      find("select").select("Fixed date")
+      date_field = find("input[type='date']", visible: true)
+      date_field.execute_script(<<~JS, "2027-03-11")
+        this.value = arguments[0];
+        this.dispatchEvent(new Event("input", { bubbles: true }));
+        this.dispatchEvent(new Event("change", { bubbles: true }));
+      JS
     end
     assert_text(/Earlier of/i)
     assert_text "$10,800.00", wait: 5
@@ -235,7 +240,8 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     select "Fixed date", from: "Timing rule"
     fill_deposit_date "Date", "2027-03-11"
     select "Fixed amount", from: "Amount shape"
-    assert_selector "[data-cruise-deposit-editor-target='contributorGroup'][hidden]"
+    assert_selector "[data-cruise-deposit-editor-target='contributorGroup'][hidden]", visible: :all
+    assert_selector "input[name='cruise_deposit[contributor_definition_ids][]'][disabled]", visible: :all
     fill_in "Fixed amount (USD)", with: "100"
     select "Entire Cruise Arrangement", from: "Coverage scope"
     click_on "Add deposit"
