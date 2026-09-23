@@ -12,7 +12,7 @@
 
 **Shipped interaction remediation:** [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](../../m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) (**shipped** at [`b73a9ff`](https://github.com/tswarren/DepartureDesk/commit/b73a9ff)). Sole shipped authority for interactive builder remediation.
 
-**Accepted:** [Slice 2B-R — Cruise deposit semantics amendment](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md) (**Accepted**; not yet shipped).
+**Shipped:** [Slice 2B-R — Cruise deposit semantics amendment](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md).
 
 **Draft (not Accepted):** [Slice 2B — Deposits, deadlines, and activation-safe editing](M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md); [Slice 2A.2R3 — Rate-shape detector remediation](M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md).
 
@@ -22,9 +22,9 @@ Do not implement any item below until that item has its own Accepted plan.
 
 Recommended refinement sequence after shipped 2A.2R2:
 
-1. **Slice 2B-R — M3E Cruise deposit-semantics amendment** ([Accepted](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md); implement/ship next)
+1. **Slice 2B-R — M3E Cruise deposit-semantics amendment** ([Shipped](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md))
 2. **Slice 2A.2R3 — Cruise rate-shape detector remediation** (2B implementation prerequisite; Draft)
-3. **Slice 2B — Deposits, deadlines, and activation-safe editing** (typed Stop D; Accept only after 2B-R ships; Draft)
+3. **Slice 2B — Deposits, deadlines, and activation-safe editing** (typed Stop D; Accept after 2A.2R3 ships; Draft)
 4. **Slice 2C — Service connection, categories, and Client choices**
 5. **Slice 2D — Client-term compilation and scenario Review**
 6. **Slice 3 — Adapter generalization**

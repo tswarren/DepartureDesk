@@ -1,13 +1,13 @@
 # M4D.1 Slice 2B — Cruise Deposits, Deadlines, and Activation-Safe Editing
 
-**Status:** Draft. Not implementation authority until accepted. Do not Accept until [Slice 2B-R](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md) is **shipped**.
+**Status:** Draft. Not implementation authority until accepted. Do not Accept until remaining named gates (including [Slice 2A.2R3](M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md)) are ready; Path B deposit domain is **shipped** under [Slice 2B-R](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md).
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](../../m4d1-departure-composition-workspace.md), especially §§11–12, §19, and §21.
 
 **Required shipped bases:**
 
 - [M4D.1 Slice 2A.2R2](../../m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) — **Shipped** at [`b73a9ff`](https://github.com/tswarren/DepartureDesk/commit/b73a9ff) (PR #142).
-- [M4D.1 Slice 2B-R](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md) — **Accepted**; capacity-sourced deposit quantities and source-aware cumulative targets (must **ship** before this plan is Accepted or implemented).
+- [M4D.1 Slice 2B-R](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md) — **Shipped**; capacity-sourced deposit quantities and source-aware cumulative targets.
 - [M4D.1 Slice 2A.2R3](M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md) — rate-shape detector remediation (must ship before this plan is implemented).
 
 **Retained domain authority:** After 2B-R ships, amended M3E and ADR 0013 remain authoritative for Deadline Definitions, Deposit Requirement Definitions, immutable materializations, operational commitments, planning milestones, exposure, and evidence-backed dispositions. This slice is a typed Cruise **adapter and interaction surface** over those generic records. It does not create a parallel deadline, deposit, or payment model.

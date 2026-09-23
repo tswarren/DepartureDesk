@@ -10,7 +10,9 @@
 
 **Slice 2A.2R:** [M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix](m4d1-slice2a2r-cruise-supplier-rate-matrix.md) is **Shipped 2026-09-22**. It is the sole shipped authority for remediating Stop point C into a rate-profile matrix (M3C compilation and compatibility).
 
-**Slice 2A.2R2:** [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) is **Shipped 2026-09-22**. It is the sole shipped authority for the interactive matrix builder remediation (dynamic columns/rows, method-gated commission chrome, unsaved illustrations, browser acceptance). Later slices (2B+) remain unauthorized until named.
+**Slice 2A.2R2:** [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) is **Shipped 2026-09-22**. It is the sole shipped authority for the interactive matrix builder remediation (dynamic columns/rows, method-gated commission chrome, unsaved illustrations, browser acceptance).
+
+**Slice 2B-R:** [M4D.1 Slice 2B-R — Cruise Deposit Semantics Amendment](m4d1-slice2br-cruise-deposit-semantics-amendment.md) is **Shipped 2026-09-22**. It is the sole shipped authority for generic M3E capacity-sourced deposit quantities (`capacity_pool_units`) and source-aware cumulative targets. Typed Slice 2B and later slices remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -34,6 +36,7 @@
 - [M4D.1 Slice 2A.2 — Cruise Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) (shipped historical fixed-form baseline)
 - [M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix](m4d1-slice2a2r-cruise-supplier-rate-matrix.md) (shipped; sole C matrix compilation authority)
 - [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) (shipped; sole interactive builder chrome authority)
+- [M4D.1 Slice 2B-R — Cruise Deposit Semantics Amendment](m4d1-slice2br-cruise-deposit-semantics-amendment.md) (shipped; sole Path B deposit quantity/cumulative authority)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery backlog only)
 - [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) · [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) · [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) · [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
 - [M3B](m3b-supplier-capacity.md) · [M3C](m3c-cost-terms-and-forecasts.md) · [M3D](m3d-activation-reservations-confirmations.md) · [M3D.7](m3d7-activated-definition-immutability.md) · [M3E](m3e-supplier-operational-control.md)
@@ -526,7 +529,7 @@ The Cruise form supports the accepted Celebrity shapes:
 - rooming list;
 - other supported Supplier deadlines.
 
-Path B cabin-quantity / cumulative economics are authorized by shipped or Accepted [Slice 2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md). Do not invent a separate legal-names Deadline for the canonical fixture; `names_assigned_to_supplier` remains the final-deposit trigger only.
+Path B cabin-quantity / cumulative economics are authorized by shipped [Slice 2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md). Do not invent a separate legal-names Deadline for the canonical fixture; `names_assigned_to_supplier` remains the final-deposit trigger only.
 
 Deposit definitions, deadline definitions, coverage, and later materialized commitments remain M3E records. The typed adapter does not call a deposit “paid,” create a Supplier Obligation, or create a Payment.
 
@@ -1076,15 +1079,15 @@ Remediates Staff chrome so the matrix is an interactive builder:
 
 #### Slice 2B-R — M3E Cruise deposit-semantics amendment
 
-**Accepted 2026-09-22.** Sole implementation authority: [M4D.1 Slice 2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md).
+**Shipped 2026-09-22.** Sole shipped authority: [M4D.1 Slice 2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md). Ship commit [`dbdb6c2`](https://github.com/tswarren/DepartureDesk/commit/dbdb6c2). Accept package base [`bfe8431`](https://github.com/tswarren/DepartureDesk/commit/bfe8431).
 
-Amends ADR 0013 / M3E register for Path B Celebrity economics (`$50 × initially blocked cabins`, `$500 × retained cabins` source-aware cumulative), deposit `capacity_pool_units`, and explicit cumulative contributors. No typed Cruise UI. Must **ship** before Slice 2B is Accepted.
+Amends ADR 0013 / M3E register for Path B Celebrity economics (`$50 × initially blocked cabins`, `$500 × retained cabins` source-aware cumulative), deposit `capacity_pool_units`, and explicit cumulative contributors. No typed Cruise UI.
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing (Draft)
 
-**Draft only — not Accepted.** Discovery: [Slice 2B draft](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md). Implementation also awaits shipped [Slice 2A.2R3](drafts/composition-workspace/M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md) (rate-shape detector remediation) and **shipped** Slice 2B-R.
+**Draft only — not Accepted.** Discovery: [Slice 2B draft](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md). Implementation also awaits shipped [Slice 2A.2R3](drafts/composition-workspace/M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md) (rate-shape detector remediation). Domain Path B economics are shipped under Slice 2B-R.
 
-Ship Stop point D after 2B-R:
+Ship Stop point D after Accept of this adapter plan:
 
 - Cruise deposit/deadline adapter over public M3E commands;
 - draft versus activated/successor labeling;

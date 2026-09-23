@@ -1,6 +1,6 @@
 # M4D.1 Slice 2B-R — Cruise Deposit Semantics Amendment (M3E)
 
-**Status:** Accepted 2026-09-22. Sole implementation authority for generic M3E capacity-sourced deposit quantities and source-aware cumulative targets. Not authority for typed Cruise UI ([Slice 2B](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) remains Draft until this slice ships).
+**Status:** Shipped 2026-09-22. Sole shipped authority for generic M3E capacity-sourced deposit quantities and source-aware cumulative targets. Not authority for typed Cruise UI ([Slice 2B](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) remains Draft until separately Accepted).
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md) Stop point D / Slice 2B sequencing.
 
@@ -8,9 +8,9 @@
 
 **Retained:** M3E remains generic Supplier-side planning. No Cruise-specific deposit or deadline tables. No Payments, Obligations, Receipts, or `paid` labeling. `names_assigned_to_supplier` remains Arrangement-wide (no Traveler records).
 
-**Downstream:** Typed [Slice 2B](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) must not be Accepted until this slice is **shipped**.
+**Ship commit:** [`dbdb6c2`](https://github.com/tswarren/DepartureDesk/commit/dbdb6c2). Accept package base [`bfe8431`](https://github.com/tswarren/DepartureDesk/commit/bfe8431). Implementation base was green `main` tip including shipped [Slice 2A.2R2](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) at [`b73a9ff`](https://github.com/tswarren/DepartureDesk/commit/b73a9ff).
 
-**Implementation base:** green `main` tip including shipped [Slice 2A.2R2](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) at [`b73a9ff`](https://github.com/tswarren/DepartureDesk/commit/b73a9ff).
+**Downstream:** Typed [Slice 2B](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md) may be Accepted after this slice ships (and other named gates).
 
 ---
 
@@ -134,4 +134,4 @@ Same lifecycle and source-aware rules as Accepted product facts in §§4–5. Mi
 
 ## 8. Handoff
 
-After **this slice ships**, typed Slice 2B may be Accepted. This plan does not authorize that UI.
+This slice is **shipped**. Typed Slice 2B may be Accepted when its own Accept package is ready (still gated on other named prerequisites such as 2A.2R3). This plan does not authorize that UI.
