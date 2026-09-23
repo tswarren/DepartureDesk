@@ -85,24 +85,29 @@ class M3f2IntegratedScenarioJourneysTest < ActiveSupport::TestCase
       "ledger=#{LEDGER_CONFIRMED} 2 missing × $50 = $100 shortfall"
 
     # Agreement-confirmed initial deposit due date (Smith Family Reunion).
-    m3f_create_deposit!(
+    # Path B (M4D.1 Slice 2B-R): $50 × blocked capacity; final $500 × retained source-aware.
+    pool = m3f_add_numeric_pool!(cruise, quantity: 24, label: "Cabin block")
+    initial_def = m3f_create_deposit!(
       cruise,
       amount_shape: "quantity_times_rate",
       rate_minor_units: 5_000,
-      quantity_basis: "resource_units",
-      description: "Initial $50 per-cabin deposit (Arrangement-wide)",
+      quantity_basis: "capacity_pool_units",
+      description: "Initial $50 × blocked cabin capacity",
       rule_shape: "fixed_date",
       rule_parameters: { "date" => CELEBRITY_INITIAL_DEPOSIT_ON.iso8601 },
       coverage_links: [ {
         arrangement_item_id: cruise[:item].id,
-        supplier_resource_id: cruise[:resource].id
+        service_occurrence_id: cruise[:occurrence].id,
+        supplier_resource_id: cruise[:resource].id,
+        capacity_pool_id: pool.id
       } ]
     )
     m3f_create_deposit!(
       cruise,
       amount_shape: "cumulative_target",
-      target_amount_minor_units: 50_000,
-      description: "Final cumulative $500 target",
+      rate_minor_units: 50_000,
+      quantity_basis: "capacity_pool_units",
+      description: "Final $500 × retained capacity (source-aware)",
       rule_shape: "earlier_of",
       rule_parameters: {
         "arms" => [
@@ -112,22 +117,22 @@ class M3f2IntegratedScenarioJourneysTest < ActiveSupport::TestCase
             "rule_parameters" => { "kind" => "names_assigned_to_supplier" }
           }
         ]
-      }
+      },
+      coverage_links: [ {
+        arrangement_item_id: cruise[:item].id,
+        service_occurrence_id: cruise[:occurrence].id,
+        supplier_resource_id: cruise[:resource].id,
+        capacity_pool_id: pool.id
+      } ],
+      contributor_definition_ids: [ initial_def.id ]
     )
-    # Rooming / legal-names: confirmed M3E.7b / scenario authority (60-day / 30-day).
+    # Rooming list informational (legal_names_due dropped under 2B-R Celebrity proof).
     m3f_create_deadline!(
       cruise,
       kind: "informational",
       deadline_type: "rooming_list_due",
       rule_shape: "days_before_departure",
       rule_parameters: { "days" => 60 }
-    )
-    m3f_create_deadline!(
-      cruise,
-      kind: "informational",
-      deadline_type: "legal_names_due",
-      rule_shape: "days_before_departure",
-      rule_parameters: { "days" => 30 }
     )
 
     error = assert_raises(AgencyCommand::Error) do
@@ -154,8 +159,9 @@ class M3f2IntegratedScenarioJourneysTest < ActiveSupport::TestCase
     final = SupplierDepositRequirementTranche.find_by!(
       supplier_arrangement_version: cruise[:version], amount_shape: "cumulative_target"
     )
-    assert_equal 5_000, initial.current_amount_minor_units, "ledger=#{LEDGER_CONFIRMED}"
-    assert_equal 45_000, final.current_amount_minor_units, "ledger=#{LEDGER_CONFIRMED}"
+    assert_equal 120_000, initial.current_amount_minor_units, "ledger=#{LEDGER_CONFIRMED} $50 × 24"
+    assert_equal 1_080_000, final.current_amount_minor_units,
+      "ledger=#{LEDGER_CONFIRMED} $500 × 24 retained − $1,200 credited"
     assert_equal CELEBRITY_INITIAL_DEPOSIT_ON, initial.governing_deadline_occurrence.calculated_on,
       "ledger=#{LEDGER_CONFIRMED} Smith agreement initial deposit due date"
     final_deadline = final.governing_deadline_occurrence
@@ -165,13 +171,11 @@ class M3f2IntegratedScenarioJourneysTest < ActiveSupport::TestCase
     rooming = SupplierDeadlineOccurrence.find_by!(
       supplier_arrangement_version: cruise[:version], deadline_type: "rooming_list_due"
     )
-    legal = SupplierDeadlineOccurrence.find_by!(
+    assert_nil SupplierDeadlineOccurrence.find_by(
       supplier_arrangement_version: cruise[:version], deadline_type: "legal_names_due"
     )
     assert_equal Date.new(2027, 9, 7), rooming.calculated_on,
       "ledger=#{LEDGER_CONFIRMED} 60 days before sailing (M3E.7b / scenario)"
-    assert_equal Date.new(2027, 10, 7), legal.calculated_on,
-      "ledger=#{LEDGER_CONFIRMED} 30 days before sailing (M3E.7b / scenario)"
 
     assert_raises(AgencyCommand::Error) do
       ReturnDepartureToDraft.new(

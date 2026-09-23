@@ -24,7 +24,8 @@ class MaterializeSupplierDepositRequirementDefinitionsAlreadyLocked
     definitions = @version.supplier_deposit_requirement_definitions
       .includes(
         :supplier_deposit_requirement_definition_coverage_links,
-        :supplier_deposit_requirement_definition_cost_links
+        :supplier_deposit_requirement_definition_cost_links,
+        :supplier_deposit_requirement_definition_contributor_links
       )
       .order(:position, :id)
       .lock
@@ -93,7 +94,7 @@ class MaterializeSupplierDepositRequirementDefinitionsAlreadyLocked
     end
 
     evaluated_amount = SupplierDepositAmountEvaluator.call(
-      definition:, version: @version, arrangement: @arrangement
+      definition:, version: @version, arrangement: @arrangement, mode: :materialize
     )
     coverage_snapshot = definition.supplier_deposit_requirement_definition_coverage_links
       .order(:position, :id).map do |link|

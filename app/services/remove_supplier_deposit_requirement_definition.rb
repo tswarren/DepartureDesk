@@ -20,6 +20,10 @@ class RemoveSupplierDepositRequirementDefinition < AgencyCommand
       ensure_deposit_editable!(departure, arrangement, version, contractor)
       ensure_current_lock_version!(version, @version_lock_version)
       details = deposit_details(definition)
+      version.supplier_deposit_requirement_definition_contributor_links
+        .where(contributor_definition_id: definition.id)
+        .order(:id).lock.load.each(&:destroy!)
+      definition.supplier_deposit_requirement_definition_contributor_links.order(:id).lock.load.each(&:destroy!)
       definition.supplier_deposit_requirement_definition_cost_links.order(:id).lock.load.each(&:destroy!)
       definition.supplier_deposit_requirement_definition_coverage_links.order(:id).lock.load.each(&:destroy!)
       definition.destroy!

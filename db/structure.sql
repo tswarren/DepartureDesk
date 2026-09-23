@@ -4956,6 +4956,26 @@ CREATE TABLE public.supplier_deposit_external_attestations (
 
 
 --
+-- Name: supplier_deposit_requirement_definition_contributor_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deposit_requirement_definition_contributor_links (
+    id uuid DEFAULT uuidv7() CONSTRAINT supplier_deposit_requirement_definition_contributor_id_not_null NOT NULL,
+    agency_id uuid CONSTRAINT supplier_deposit_requirement_definition_cont_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_deposit_requirement_definition__departure_id_not_null2 NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_deposit_requirement__supplier_arrangement_id_not_null4 NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_deposit_requireme_supplier_arrangement_versi_not_null5 NOT NULL,
+    supplier_deposit_requirement_definition_id uuid CONSTRAINT supplier_deposit_requireme_supplier_deposit_requireme_not_null4 NOT NULL,
+    contributor_definition_id uuid CONSTRAINT supplier_deposit_requirement_contributor_definition_id_not_null NOT NULL,
+    "position" integer CONSTRAINT supplier_deposit_requirement_definition_contr_position_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_deposit_requirement_definition_con_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_deposit_requirement_definition_con_updated_at_not_null NOT NULL,
+    CONSTRAINT deposit_contributor_links_not_self CHECK ((contributor_definition_id <> supplier_deposit_requirement_definition_id)),
+    CONSTRAINT deposit_contributor_links_position_positive CHECK (("position" > 0))
+);
+
+
+--
 -- Name: supplier_deposit_requirement_definition_cost_links; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5029,14 +5049,14 @@ CREATE TABLE public.supplier_deposit_requirement_definitions (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT deposit_definitions_amount_fields CHECK (((((amount_shape)::text = 'fixed_amount'::text) AND (fixed_amount_minor_units IS NOT NULL) AND (fixed_amount_minor_units >= 0) AND (rate_minor_units IS NULL) AND (quantity_basis IS NULL) AND (explicit_quantity IS NULL) AND (percentage IS NULL) AND (rounding_scope IS NULL) AND (target_amount_minor_units IS NULL)) OR (((amount_shape)::text = 'quantity_times_rate'::text) AND (rate_minor_units IS NOT NULL) AND (rate_minor_units >= 0) AND (quantity_basis IS NOT NULL) AND (fixed_amount_minor_units IS NULL) AND (percentage IS NULL) AND (rounding_scope IS NULL) AND (target_amount_minor_units IS NULL) AND ((((quantity_basis)::text = 'explicit'::text) AND (explicit_quantity IS NOT NULL) AND (explicit_quantity > 0)) OR (((quantity_basis)::text <> 'explicit'::text) AND (explicit_quantity IS NULL)))) OR (((amount_shape)::text = 'percentage_of_cost_sources'::text) AND (percentage IS NOT NULL) AND (percentage > (0)::numeric) AND (rounding_scope IS NOT NULL) AND (fixed_amount_minor_units IS NULL) AND (rate_minor_units IS NULL) AND (quantity_basis IS NULL) AND (explicit_quantity IS NULL) AND (target_amount_minor_units IS NULL)) OR (((amount_shape)::text = 'cumulative_target'::text) AND (target_amount_minor_units IS NOT NULL) AND (target_amount_minor_units >= 0) AND (fixed_amount_minor_units IS NULL) AND (rate_minor_units IS NULL) AND (quantity_basis IS NULL) AND (explicit_quantity IS NULL) AND (percentage IS NULL) AND (rounding_scope IS NULL)))),
+    CONSTRAINT deposit_definitions_amount_fields CHECK (((((amount_shape)::text = 'fixed_amount'::text) AND (fixed_amount_minor_units IS NOT NULL) AND (fixed_amount_minor_units >= 0) AND (rate_minor_units IS NULL) AND (quantity_basis IS NULL) AND (explicit_quantity IS NULL) AND (percentage IS NULL) AND (rounding_scope IS NULL) AND (target_amount_minor_units IS NULL)) OR (((amount_shape)::text = 'quantity_times_rate'::text) AND (rate_minor_units IS NOT NULL) AND (rate_minor_units >= 0) AND (quantity_basis IS NOT NULL) AND (fixed_amount_minor_units IS NULL) AND (percentage IS NULL) AND (rounding_scope IS NULL) AND (target_amount_minor_units IS NULL) AND ((((quantity_basis)::text = 'explicit'::text) AND (explicit_quantity IS NOT NULL) AND (explicit_quantity > 0)) OR (((quantity_basis)::text <> 'explicit'::text) AND (explicit_quantity IS NULL)))) OR (((amount_shape)::text = 'percentage_of_cost_sources'::text) AND (percentage IS NOT NULL) AND (percentage > (0)::numeric) AND (rounding_scope IS NOT NULL) AND (fixed_amount_minor_units IS NULL) AND (rate_minor_units IS NULL) AND (quantity_basis IS NULL) AND (explicit_quantity IS NULL) AND (target_amount_minor_units IS NULL)) OR (((amount_shape)::text = 'cumulative_target'::text) AND (target_amount_minor_units IS NOT NULL) AND (target_amount_minor_units >= 0) AND (fixed_amount_minor_units IS NULL) AND (rate_minor_units IS NULL) AND (quantity_basis IS NULL) AND (explicit_quantity IS NULL) AND (percentage IS NULL) AND (rounding_scope IS NULL)) OR (((amount_shape)::text = 'cumulative_target'::text) AND (target_amount_minor_units IS NULL) AND (rate_minor_units IS NOT NULL) AND (rate_minor_units >= 0) AND ((quantity_basis)::text = 'capacity_pool_units'::text) AND (explicit_quantity IS NULL) AND (fixed_amount_minor_units IS NULL) AND (percentage IS NULL) AND (rounding_scope IS NULL)))),
     CONSTRAINT deposit_definitions_amount_shape CHECK (((amount_shape)::text = ANY (ARRAY[('fixed_amount'::character varying)::text, ('quantity_times_rate'::character varying)::text, ('percentage_of_cost_sources'::character varying)::text, ('cumulative_target'::character varying)::text]))),
     CONSTRAINT deposit_definitions_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT deposit_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 500)))),
     CONSTRAINT deposit_definitions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT deposit_definitions_position_positive CHECK (("position" > 0)),
     CONSTRAINT deposit_definitions_precision CHECK ((("precision")::text = ANY (ARRAY[('date_only'::character varying)::text, ('local_date_time'::character varying)::text]))),
-    CONSTRAINT deposit_definitions_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY (ARRAY[('resource_units'::character varying)::text, ('traveler_positions'::character varying)::text, ('explicit'::character varying)::text])))),
+    CONSTRAINT deposit_definitions_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY ((ARRAY['resource_units'::character varying, 'traveler_positions'::character varying, 'explicit'::character varying, 'capacity_pool_units'::character varying])::text[])))),
     CONSTRAINT deposit_definitions_rounding_scope CHECK (((rounding_scope IS NULL) OR ((rounding_scope)::text = ANY (ARRAY[('aggregate'::character varying)::text, ('per_source'::character varying)::text])))),
     CONSTRAINT deposit_definitions_rule_shape CHECK (((rule_shape)::text = ANY (ARRAY[('fixed_date'::character varying)::text, ('fixed_local_datetime'::character varying)::text, ('days_before_departure'::character varying)::text, ('days_after_departure'::character varying)::text, ('hours_before_departure'::character varying)::text, ('hours_after_departure'::character varying)::text, ('earlier_of'::character varying)::text, ('later_of'::character varying)::text]))),
     CONSTRAINT deposit_definitions_time_zone CHECK (((btrim((time_zone)::text) <> ''::text) AND (char_length((time_zone)::text) <= 64)))
@@ -6557,6 +6577,14 @@ ALTER TABLE ONLY public.supplier_deadline_projections
 
 ALTER TABLE ONLY public.supplier_deposit_external_attestations
     ADD CONSTRAINT supplier_deposit_external_attestations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_contributor_links supplier_deposit_requirement_definition_contributor_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_contributor_links
+    ADD CONSTRAINT supplier_deposit_requirement_definition_contributor_links_pkey PRIMARY KEY (id);
 
 
 --
@@ -8510,6 +8538,20 @@ CREATE UNIQUE INDEX index_dep_cmp_on_id_departure_agency ON public.supplier_depo
 
 
 --
+-- Name: index_dep_contrib_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_contrib_on_id_agency ON public.supplier_deposit_requirement_definition_contributor_links USING btree (id, agency_id);
+
+
+--
+-- Name: index_dep_contrib_on_id_departure_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_dep_contrib_on_id_departure_agency ON public.supplier_deposit_requirement_definition_contributor_links USING btree (id, departure_id, agency_id);
+
+
+--
 -- Name: index_dep_cost_on_id_agency; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8654,6 +8696,27 @@ CREATE UNIQUE INDEX index_deposit_attestations_on_full_owner ON public.supplier_
 --
 
 CREATE UNIQUE INDEX index_deposit_attestations_on_opening_owner ON public.supplier_deposit_external_attestations USING btree (id, supplier_commitment_id, supplier_deposit_requirement_tranche_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_deposit_contributor_links_on_definition_contributor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_contributor_links_on_definition_contributor ON public.supplier_deposit_requirement_definition_contributor_links USING btree (supplier_deposit_requirement_definition_id, contributor_definition_id);
+
+
+--
+-- Name: index_deposit_contributor_links_on_definition_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_contributor_links_on_definition_position ON public.supplier_deposit_requirement_definition_contributor_links USING btree (supplier_deposit_requirement_definition_id, "position");
+
+
+--
+-- Name: index_deposit_contributor_links_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_deposit_contributor_links_on_full_owner ON public.supplier_deposit_requirement_definition_contributor_links USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -12325,6 +12388,13 @@ CREATE TRIGGER supplier_deposit_external_attestations_reject_update BEFORE UPDAT
 
 
 --
+-- Name: supplier_deposit_requirement_definition_contributor_links supplier_deposit_requirement_definition_contributor_links_rejec; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_definition_contributor_links_rejec BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deposit_requirement_definition_contributor_links FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
 -- Name: supplier_deposit_requirement_definition_cost_links supplier_deposit_requirement_definition_cost_links_reject_non_d; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13820,6 +13890,30 @@ ALTER TABLE ONLY public.supplier_deposit_external_attestations
 
 ALTER TABLE ONLY public.supplier_deposit_external_attestations
     ADD CONSTRAINT deposit_attestations_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_contributor_links deposit_contributor_links_contributor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_contributor_links
+    ADD CONSTRAINT deposit_contributor_links_contributor_fk FOREIGN KEY (contributor_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_contributor_links deposit_contributor_links_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_contributor_links
+    ADD CONSTRAINT deposit_contributor_links_definition_fk FOREIGN KEY (supplier_deposit_requirement_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_deposit_requirement_definition_contributor_links deposit_contributor_links_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deposit_requirement_definition_contributor_links
+    ADD CONSTRAINT deposit_contributor_links_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -16405,6 +16499,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260923010000'),
 ('20260922010000'),
 ('20260921120000'),
 ('20260921010000'),

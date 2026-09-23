@@ -50,6 +50,9 @@ module DepositDefinitionCommandSupport
     description = normalize_deposit_description(attrs[:description])
     coverage_links = normalize_deposit_coverage_links(version, attrs[:coverage_links])
     cost_links = normalize_deposit_cost_links(version, amount_shape, attrs[:cost_links])
+    contributor_links = normalize_deposit_contributor_links(
+      version, amount_shape, amount_fields, attrs[:contributor_definition_ids] || attrs[:contributor_links]
+    )
 
     amount_fields.merge(
       amount_shape:,
@@ -60,7 +63,8 @@ module DepositDefinitionCommandSupport
       time_zone:,
       description:,
       coverage_links:,
-      cost_links:
+      cost_links:,
+      contributor_links:
     )
   end
 
@@ -95,13 +99,62 @@ module DepositDefinitionCommandSupport
       end
       blank.merge(percentage:, rounding_scope: scope)
     when "cumulative_target"
-      target = required_nonnegative_minor_units(attrs[:target_amount_minor_units], "Target amount")
-      blank.merge(target_amount_minor_units: target)
+      if attrs[:quantity_basis].to_s == "capacity_pool_units" || attrs[:rate_minor_units].present?
+        rate = required_nonnegative_minor_units(attrs[:rate_minor_units], "Cumulative rate")
+        basis = attrs[:quantity_basis].to_s
+        unless basis == "capacity_pool_units"
+          raise AgencyCommand::Error.new(
+            "Quantity-derived cumulative targets require capacity_pool_units.", code: :invalid
+          )
+        end
+        blank.merge(rate_minor_units: rate, quantity_basis: basis)
+      else
+        target = required_nonnegative_minor_units(attrs[:target_amount_minor_units], "Target amount")
+        blank.merge(target_amount_minor_units: target)
+      end
     else
       raise AgencyCommand::Error.new("Choose a supported deposit amount shape.", code: :invalid)
     end
   rescue ArgumentError, TypeError
     raise AgencyCommand::Error.new("Enter valid deposit amount fields.", code: :invalid)
+  end
+
+  def normalize_deposit_contributor_links(version, amount_shape, amount_fields, raw)
+    links = Array(raw).filter_map do |entry|
+      case entry
+      when Hash, ActionController::Parameters
+        entry = entry.to_h.with_indifferent_access
+        entry[:contributor_definition_id] || entry[:id]
+      else
+        entry
+      end
+    end
+    quantity_derived = amount_shape == "cumulative_target" &&
+      amount_fields[:quantity_basis] == "capacity_pool_units"
+    if quantity_derived && links.empty?
+      raise AgencyCommand::Error.new(
+        "Quantity-derived cumulative targets require at least one contributor.", code: :invalid
+      )
+    end
+    if amount_shape != "cumulative_target" && links.any?
+      raise AgencyCommand::Error.new(
+        "Contributor links are only used for cumulative targets.", code: :invalid
+      )
+    end
+    if amount_shape == "cumulative_target" && amount_fields[:target_amount_minor_units].present? && links.any?
+      raise AgencyCommand::Error.new(
+        "Fixed cumulative targets do not use contributor links.", code: :invalid
+      )
+    end
+
+    links.map.with_index(1) do |raw_id, position|
+      contributor_id = parse_required_uuid(raw_id, "Contributor definition")
+      contributor = version.supplier_deposit_requirement_definitions.find_by(id: contributor_id)
+      if contributor.nil?
+        raise AgencyCommand::Error.new("Contributor definition is not on this version.", code: :invalid)
+      end
+      { contributor_definition_id: contributor_id, position: }
+    end
   end
 
   def required_nonnegative_minor_units(value, label)
@@ -337,7 +390,7 @@ module DepositDefinitionCommandSupport
     end
   end
 
-  def persist_deposit_children!(definition, coverage_links, cost_links)
+  def persist_deposit_children!(definition, coverage_links, cost_links, contributor_links = [])
     coverage_links.each do |attrs|
       definition.supplier_deposit_requirement_definition_coverage_links.create!(
         attrs.merge(
@@ -358,12 +411,23 @@ module DepositDefinitionCommandSupport
         )
       )
     end
+    Array(contributor_links).each do |attrs|
+      definition.supplier_deposit_requirement_definition_contributor_links.create!(
+        attrs.merge(
+          agency_id: definition.agency_id,
+          departure_id: definition.departure_id,
+          supplier_arrangement_id: definition.supplier_arrangement_id,
+          supplier_arrangement_version_id: definition.supplier_arrangement_version_id
+        )
+      )
+    end
   end
 
-  def replace_deposit_children!(definition, coverage_links, cost_links)
+  def replace_deposit_children!(definition, coverage_links, cost_links, contributor_links = [])
     definition.supplier_deposit_requirement_definition_coverage_links.delete_all
     definition.supplier_deposit_requirement_definition_cost_links.delete_all
-    persist_deposit_children!(definition, coverage_links, cost_links)
+    definition.supplier_deposit_requirement_definition_contributor_links.delete_all
+    persist_deposit_children!(definition, coverage_links, cost_links, contributor_links)
   end
 
   def deposit_details(definition)

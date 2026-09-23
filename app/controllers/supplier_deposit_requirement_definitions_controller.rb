@@ -13,7 +13,8 @@ class SupplierDepositRequirementDefinitionsController < ApplicationController
   def index
     @definitions = definition_scope.includes(
       :supplier_deposit_requirement_definition_coverage_links,
-      :supplier_deposit_requirement_definition_cost_links
+      :supplier_deposit_requirement_definition_cost_links,
+      :supplier_deposit_requirement_definition_contributor_links
     ).order(:position, :id)
     @tranches = if @supplier_arrangement_version.activated? || @supplier_arrangement_version.superseded?
       @supplier_arrangement_version.supplier_deposit_requirement_tranches
@@ -50,7 +51,7 @@ class SupplierDepositRequirementDefinitionsController < ApplicationController
     ), notice: "Deposit requirement definition saved."
   rescue AgencyCommand::Error => error
     @definition = definition_scope.new(
-      definition_params.except(:coverage_links, :cost_links, :rule_parameters)
+      definition_params.except(:coverage_links, :cost_links, :contributor_definition_ids, :rule_parameters)
     )
     @definition.rule_parameters = parse_rule_parameters_for_form
     @idempotency_key = params[:idempotency_key]
@@ -73,7 +74,9 @@ class SupplierDepositRequirementDefinitionsController < ApplicationController
     ), notice: "Deposit requirement definition updated."
   rescue AgencyCommand::Error => error
     @definition.assign_attributes(
-      definition_params.except(:coverage_links, :cost_links, :rule_parameters, :lock_version)
+      definition_params.except(
+        :coverage_links, :cost_links, :contributor_definition_ids, :rule_parameters, :lock_version
+      )
     )
     @definition.rule_parameters = parse_rule_parameters_for_form
     add_definition_error(error)
@@ -112,6 +115,22 @@ class SupplierDepositRequirementDefinitionsController < ApplicationController
   def load_form_options
     @items = @supplier_arrangement_version.arrangement_item_definitions.order(:position, :id)
     @cost_sources = @supplier_arrangement_version.supplier_cost_sources.order(:position, :id)
+    @occurrences = @supplier_arrangement_version.service_occurrence_definitions
+      .order(:position, :id)
+      .map { |row| [ row.name.presence || row.service_occurrence_id, row.service_occurrence_id ] }
+    @resources = @supplier_arrangement_version.supplier_resource_definitions
+      .order(:position, :id)
+      .map { |row| [ row.name.presence || row.supplier_resource_id, row.supplier_resource_id ] }
+    pool_labels = @supplier_arrangement_version.capacity_pool_definitions
+      .pluck(:capacity_pool_id, :label).to_h
+    @capacity_pools = CapacityPool.where(
+      agency_id: @supplier_arrangement.agency_id,
+      supplier_arrangement_id: @supplier_arrangement.id
+    ).order(:id).map { |pool| [ pool_labels[pool.id].presence || pool.id, pool.id ] }
+    @contributor_definitions = definition_scope.order(:position, :id)
+    if @definition&.persisted?
+      @contributor_definitions = @contributor_definitions.where.not(id: @definition.id)
+    end
   end
 
   def definition_params
@@ -124,12 +143,14 @@ class SupplierDepositRequirementDefinitionsController < ApplicationController
       :arm1_offset_hours, :arm1_milestone_kind,
       :arm2_rule_shape, :arm2_fixed_date, :arm2_fixed_datetime, :arm2_offset_days,
       :arm2_offset_hours, :arm2_milestone_kind,
+      contributor_definition_ids: [],
       coverage_links: [ :arrangement_item_id, :service_occurrence_id, :supplier_resource_id, :capacity_pool_id ],
       cost_links: [ :supplier_cost_source_id, :supplier_cost_definition_id, :supplier_cost_component_id ]
     ).to_h
     raw[:rule_parameters] = build_rule_parameters(raw)
     raw[:coverage_links] = Array(raw[:coverage_links]).reject { |row| row.values.all?(&:blank?) }
     raw[:cost_links] = Array(raw[:cost_links]).reject { |row| row.values.all?(&:blank?) }
+    raw[:contributor_definition_ids] = Array(raw[:contributor_definition_ids]).reject(&:blank?)
     raw.except(
       "fixed_date", "fixed_datetime", "offset_days", "offset_hours",
       "arm1_rule_shape", "arm1_fixed_date", "arm1_fixed_datetime", "arm1_offset_days",

@@ -282,6 +282,17 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
         )
       )
     end
+    from.supplier_deposit_requirement_definition_contributor_links.order(:id).each do |link|
+      to.supplier_deposit_requirement_definition_contributor_links.create!(
+        copy_attributes(link).merge(
+          supplier_arrangement_version: to,
+          supplier_deposit_requirement_definition_id:
+            deposit_copies.fetch(link.supplier_deposit_requirement_definition_id).id,
+          contributor_definition_id:
+            deposit_copies.fetch(link.contributor_definition_id).id
+        )
+      )
+    end
     deposit_copies
   end
 

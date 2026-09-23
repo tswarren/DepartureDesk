@@ -71,6 +71,7 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
     supplier_deadline_occurrences
     supplier_deadline_projections
     supplier_deposit_external_attestations
+    supplier_deposit_requirement_definition_contributor_links
     supplier_deposit_requirement_definition_cost_links
     supplier_deposit_requirement_definition_coverage_links
     supplier_deposit_requirement_definitions

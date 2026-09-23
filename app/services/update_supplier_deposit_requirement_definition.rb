@@ -23,8 +23,9 @@ class UpdateSupplierDepositRequirementDefinition < AgencyCommand
       attrs = normalize_deposit_attributes(version, arrangement, @attributes)
       coverage_links = attrs.delete(:coverage_links)
       cost_links = attrs.delete(:cost_links)
+      contributor_links = attrs.delete(:contributor_links)
       definition.update!(attrs)
-      replace_deposit_children!(definition, coverage_links, cost_links)
+      replace_deposit_children!(definition, coverage_links, cost_links, contributor_links)
       bump_version!(version)
       audit!(
         agency: @agency, actor: @actor, subject: arrangement,
