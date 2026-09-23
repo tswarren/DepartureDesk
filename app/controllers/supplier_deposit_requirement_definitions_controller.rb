@@ -116,7 +116,7 @@ class SupplierDepositRequirementDefinitionsController < ApplicationController
     @items = @supplier_arrangement_version.arrangement_item_definitions.order(:position, :id)
     @cost_sources = @supplier_arrangement_version.supplier_cost_sources.order(:position, :id)
     @occurrences = @supplier_arrangement_version.service_occurrence_definitions
-      .order(:position, :id)
+      .order(:starts_on, :id)
       .map { |row| [ row.name.presence || row.service_occurrence_id, row.service_occurrence_id ] }
     @resources = @supplier_arrangement_version.supplier_resource_definitions
       .order(:position, :id)
