@@ -18,10 +18,9 @@ class SupplierDepositOperationsController < ApplicationController
       confirmed_complete: params[:confirmed_complete],
       idempotency_key: params[:idempotency_key].presence || SecureRandom.uuid
     ).call
-    redirect_to departure_arrangement_path(@departure, @supplier_arrangement),
-      notice: "Deposit confirmed handled outside DepartureDesk."
+    redirect_after_deposit_operation notice: "Deposit confirmed handled outside DepartureDesk."
   rescue AgencyCommand::Error => error
-    redirect_to departure_arrangement_path(@departure, @supplier_arrangement), alert: error.message
+    redirect_after_deposit_operation alert: error.message
   end
 
   def record_milestone
@@ -40,9 +39,20 @@ class SupplierDepositOperationsController < ApplicationController
       note: params[:note],
       idempotency_key: params[:idempotency_key].presence || SecureRandom.uuid
     ).call
-    redirect_to departure_arrangement_path(@departure, @supplier_arrangement),
-      notice: "Planning milestone recorded."
+    redirect_after_deposit_operation notice: "Planning milestone recorded."
   rescue AgencyCommand::Error => error
-    redirect_to departure_arrangement_path(@departure, @supplier_arrangement), alert: error.message
+    redirect_after_deposit_operation alert: error.message
+  end
+
+  private
+
+  def redirect_after_deposit_operation(**flash)
+    if params[:return_to].to_s == CompileCruiseDepositsAndDeadlinesWorkspace::RETURN_TOKEN
+      redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
+        @departure, @supplier_arrangement
+      ), **flash
+    else
+      redirect_to departure_arrangement_path(@departure, @supplier_arrangement), **flash
+    end
   end
 end

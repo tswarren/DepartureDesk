@@ -35,12 +35,120 @@
     <% end %>
 
     <% if @workspace.governing_read_only? %>
-      <p>
-        Governing Supplier deadlines and deposits are read-only.
+      <section class="dd-stack" aria-labelledby="cruise-governing-terms-heading">
+        <h2 id="cruise-governing-terms-heading" class="dd-section-title">Governing operational state</h2>
+        <p>
+          Governing Supplier deadlines and deposits are read-only.
+          Evidence actions remain on Arrangement commitments chrome.
+        </p>
         <% if @workspace.can_create_successor? %>
-          Create a successor draft from the Cruise workspace to change future terms.
+          <%= button_to "Create successor draft to change future terms",
+                successor_departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+                method: :post,
+                params: {
+                  arrangement_lock_version: @supplier_arrangement.lock_version,
+                  version_lock_version: @supplier_arrangement_version.lock_version,
+                  idempotency_key: SecureRandom.uuid
+                },
+                class: "dd-button" %>
         <% end %>
-      </p>
+      </section>
+
+      <% if Current.agency_user.permitted?(:manage_departures) && @supplier_arrangement.active? %>
+        <section class="dd-stack" aria-labelledby="cruise-planning-milestone-heading">
+          <h2 id="cruise-planning-milestone-heading" class="dd-section-title">Record planning milestone</h2>
+          <p>Record names assigned to supplier for earlier-of Deposit Requirements.</p>
+          <%= form_with url: departure_arrangement_planning_milestones_path(@departure, @supplier_arrangement),
+                method: :post, class: "dd-form" do %>
+            <%= hidden_field_tag :idempotency_key, @planning_milestone_idempotency_key %>
+            <%= hidden_field_tag :kind, "names_assigned_to_supplier" %>
+            <%= hidden_field_tag :return_to, CompileCruiseDepositsAndDeadlinesWorkspace::RETURN_TOKEN %>
+            <div class="dd-field-group">
+              <%= label_tag :occurred_on, "Names assigned to supplier on", class: "dd-label" %>
+              <%= date_field_tag :occurred_on, Date.current, required: true, class: "dd-input" %>
+              <%= label_tag :note, "Note (optional)", class: "dd-label" %>
+              <%= text_field_tag :note, nil, class: "dd-input", maxlength: 2000 %>
+            </div>
+            <%= submit_tag "Record names assigned to supplier", class: "dd-button" %>
+          <% end %>
+        </section>
+      <% end %>
+    <% end %>
+
+    <% if @workspace.successor_draft? %>
+      <section class="dd-stack" aria-labelledby="cruise-successor-compare-heading">
+        <h2 id="cruise-successor-compare-heading" class="dd-section-title">Successor comparison</h2>
+        <p>
+          Proposed terms edit this draft only. Reconcile foreshadow is not yet applied.
+          Governing occurrences and tranches remain unchanged until successor activation.
+        </p>
+      </section>
+    <% end %>
+
+    <% if @activation_preview %>
+      <section class="dd-stack"
+               id="cruise-activation-preview"
+               aria-labelledby="cruise-activation-preview-heading"
+               data-controller="cruise-activation-preview"
+               data-cruise-activation-preview-url-value="<%= activation_preview_departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement) %>"
+               data-cruise-activation-preview-lock-version-value="<%= @supplier_arrangement_version.lock_version %>">
+        <h2 id="cruise-activation-preview-heading" class="dd-section-title">Activation consequences</h2>
+        <p>
+          Definition-level preview of what activation will materialize. No durable writes occur here.
+          Activation itself uses the shipped Arrangement activation path.
+        </p>
+        <p id="cruise-activation-preview-status"
+           class="dd-page-description"
+           role="status"
+           aria-live="polite"
+           data-cruise-activation-preview-target="status">
+          <% if @activation_preview.elapsed_acknowledgment_required? %>
+            Elapsed dates will require acknowledgment at activation.
+          <% end %>
+          <% if @activation_preview.blockers.any? %>
+            <%= @activation_preview.blockers.join(" ") %>
+          <% elsif !@activation_preview.elapsed_acknowledgment_required? %>
+            Preview is current.
+          <% end %>
+        </p>
+        <% if @activation_preview.rows.any? %>
+          <ul class="dd-stack" id="cruise-activation-preview-rows" data-cruise-activation-preview-target="list">
+            <% @activation_preview.rows.each do |row| %>
+              <li class="dd-stack">
+                <p>
+                  <strong><%= row.display_name %></strong>
+                  <% if row.amount_sentence.present? %>· <%= row.amount_sentence %><% end %>
+                  <% if row.due_sentence.present? %>· <%= row.due_sentence %><% end %>
+                  · <%= row.coverage_summary %>
+                  · <%= row.will_open_commitment? ? "Opens commitment" : "No commitment opening" %>
+                  <% if row.elapsed_acknowledgment_required? %>· Elapsed acknowledgment required<% end %>
+                  <% if row.blocker.present? %>· <%= row.blocker %><% end %>
+                  <% row.pending_reasons.each do |reason| %>
+                    · <%= reason %>
+                  <% end %>
+                </p>
+                <p>
+                  <%= link_to "Open definition", row.editor_anchor, class: "dd-link" %>
+                </p>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p>No deposit or deadline definitions to materialize yet.</p>
+        <% end %>
+        <div class="dd-inline-actions">
+          <button type="button"
+                  class="dd-button dd-button--quiet"
+                  data-action="cruise-activation-preview#refresh">
+            Refresh preview
+          </button>
+          <% if Current.agency_user.permitted?(:manage_departures) %>
+            <%= link_to "Activate Arrangement",
+                  @activation_preview.activation_path,
+                  class: "dd-button" %>
+          <% end %>
+        </div>
+      </section>
     <% end %>
 
     <section class="dd-stack" aria-labelledby="cruise-deposit-requirements-heading">
@@ -66,6 +174,38 @@
                 · <%= row.timing_sentence %>
                 · <%= row.coverage_summary %>
               </p>
+
+              <% if row.operational %>
+                <p>
+                  Governing term · <%= row.operational.term_summary %>
+                  <% if row.operational.tranche_amount_sentence.present? %>
+                    · Tranche <%= row.operational.tranche_amount_sentence %>
+                  <% end %>
+                  <% if row.operational.occurrence_due_sentence.present? %>
+                    · Due <%= row.operational.occurrence_due_sentence %>
+                  <% end %>
+                  <% if row.operational.projection_status.present? %>
+                    · <%= row.operational.projection_status %>
+                  <% end %>
+                  · <%= row.operational.commitment_state_label %>
+                </p>
+                <p>
+                  <%= link_to "Open commitments", row.operational.commitments_path, class: "dd-link" %>
+                  <% if row.operational.attest_path.present? %>
+                    · <%= link_to "Attest handled externally", row.operational.attest_path, class: "dd-link" %>
+                  <% end %>
+                </p>
+              <% end %>
+
+              <% if row.successor_compare %>
+                <div class="dd-stack" aria-label="Successor compare for <%= row.display_label %>">
+                  <p><strong>Governing term</strong> · <%= row.successor_compare.governing_term_summary %></p>
+                  <p><strong>Proposed term</strong> · <%= row.successor_compare.proposed_term_summary %></p>
+                  <p><strong>Current materialized</strong> · <%= row.successor_compare.governing_operational_summary %></p>
+                  <p><strong>Reconcile foreshadow</strong> · <%= row.successor_compare.reconcile_foreshadow_label %></p>
+                </div>
+              <% end %>
+
               <% if row.compatible? %>
                 <% if @editable %>
                   <div class="dd-inline-actions">
@@ -162,6 +302,32 @@
                 · <%= row.timing_sentence %>
                 · <%= row.coverage_summary %>
               </p>
+
+              <% if row.operational %>
+                <p>
+                  Governing term · <%= row.operational.term_summary %>
+                  <% if row.operational.occurrence_due_sentence.present? %>
+                    · Due <%= row.operational.occurrence_due_sentence %>
+                  <% end %>
+                  <% if row.operational.projection_status.present? %>
+                    · <%= row.operational.projection_status %>
+                  <% end %>
+                  · <%= row.operational.commitment_state_label %>
+                </p>
+                <p>
+                  <%= link_to "Open commitments", row.operational.commitments_path, class: "dd-link" %>
+                </p>
+              <% end %>
+
+              <% if row.successor_compare %>
+                <div class="dd-stack" aria-label="Successor compare for <%= row.display_label %>">
+                  <p><strong>Governing term</strong> · <%= row.successor_compare.governing_term_summary %></p>
+                  <p><strong>Proposed term</strong> · <%= row.successor_compare.proposed_term_summary %></p>
+                  <p><strong>Current materialized</strong> · <%= row.successor_compare.governing_operational_summary %></p>
+                  <p><strong>Reconcile foreshadow</strong> · <%= row.successor_compare.reconcile_foreshadow_label %></p>
+                </div>
+              <% end %>
+
               <% if row.compatible? %>
                 <% if @editable %>
                   <div class="dd-inline-actions">
