@@ -143,7 +143,7 @@ class CruiseSupplierDepositsController < ApplicationController
     params.fetch(:cruise_deposit, {}).permit(
       :template, :description, :amount_shape, :quantity_basis,
       :fixed_amount, :fixed_amount_minor_units, :rate_amount, :rate_minor_units,
-      :explicit_quantity,
+      :explicit_quantity, :coverage_scope,
       :rule_shape, :fixed_date, :fixed_datetime, :offset_days, :offset_hours,
       :arm1_rule_shape, :arm1_fixed_date, :arm1_fixed_datetime, :arm1_offset_days, :arm1_offset_hours,
       :arm1_milestone_kind,
@@ -163,7 +163,8 @@ class CruiseSupplierDepositsController < ApplicationController
       arrangement: @supplier_arrangement,
       version: @cruise_shape.version,
       cruise_item: @cruise_shape.item,
-      currency: @departure.operating_currency
+      currency: @departure.operating_currency,
+      cumulative_definition: @definition
     )
   end
 
@@ -213,10 +214,12 @@ class CruiseSupplierDepositsController < ApplicationController
 
   def assign_contributor_options
     version = @cruise_shape.version
+    edit_position = @definition&.position
     @contributor_options = version.supplier_deposit_requirement_definitions
       .order(:position, :id)
       .filter_map { |definition|
         next if @definition && definition.id == @definition.id
+        next if edit_position && definition.position >= edit_position
         next unless definition.amount_shape == "quantity_times_rate" &&
           definition.quantity_basis == "capacity_pool_units"
 

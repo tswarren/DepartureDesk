@@ -33,6 +33,14 @@ module CruiseDepositTemplateSupport
     hours_before_departure hours_after_departure
   ].freeze
 
+  # Composite arms only expose shapes the typed editor can collect.
+  COMPOSITE_ARM_SHAPES = %w[
+    fixed_date
+    days_before_departure
+    days_after_departure
+    planning_milestone
+  ].freeze
+
   TYPED_TIMING_SHAPES = (SIMPLE_TIMING_SHAPES + %w[earlier_of]).freeze
   MILESTONE_KIND = "names_assigned_to_supplier"
 
@@ -41,6 +49,8 @@ module CruiseDepositTemplateSupport
     quantity_times_rate
     cumulative_target
   ].freeze
+
+  COVERAGE_SCOPES = %w[arrangement resource capacity_pool].freeze
 
   module_function
 
@@ -161,12 +171,22 @@ module CruiseDepositTemplateSupport
   end
 
   def parse_money_minor_units(display, minor_units, currency)
-    return Integer(minor_units, exception: false) if minor_units.present?
+    if minor_units.present?
+      number = Integer(minor_units, exception: false)
+      if number.nil? || number.negative?
+        raise AgencyCommand::Error.new("Enter a valid non-negative money amount.", code: :invalid)
+      end
+      return number
+    end
 
     text = display.to_s.strip
     return nil if text.blank?
 
-    Money.from_amount(BigDecimal(text), currency.to_s.upcase).fractional
+    fractional = Money.from_amount(BigDecimal(text), currency.to_s.upcase).fractional
+    if fractional.negative?
+      raise AgencyCommand::Error.new("Enter a valid non-negative money amount.", code: :invalid)
+    end
+    fractional
   rescue ArgumentError, TypeError, Money::Currency::UnknownCurrency
     raise AgencyCommand::Error.new("Enter a valid money amount.", code: :invalid)
   end
@@ -230,9 +250,9 @@ module CruiseDepositTemplateSupport
       }
     end
 
-    unless SIMPLE_TIMING_SHAPES.include?(shape)
+    unless COMPOSITE_ARM_SHAPES.include?(shape)
       raise AgencyCommand::Error.new(
-        "Composite timing arms must use a simple rule or names-assigned milestone.",
+        "Composite timing arms must use fixed date, day offset, or names-assigned milestone.",
         code: :invalid
       )
     end
@@ -240,12 +260,8 @@ module CruiseDepositTemplateSupport
     params = case shape
     when "fixed_date"
       { "date" => attrs[:"#{prefix}_fixed_date"] }
-    when "fixed_local_datetime"
-      { "datetime" => attrs[:"#{prefix}_fixed_datetime"] }
     when "days_before_departure", "days_after_departure"
       { "days" => attrs[:"#{prefix}_offset_days"] }
-    when "hours_before_departure", "hours_after_departure"
-      { "hours" => attrs[:"#{prefix}_offset_hours"] }
     else
       {}
     end
@@ -269,8 +285,45 @@ module CruiseDepositTemplateSupport
       return normalize_pool_coverage!(version, pool_ids)
     end
 
-    # Arrangement-wide fixed / explicit shapes: exactly one Item coverage link.
-    [ { arrangement_item_id: cruise_item.id } ]
+    scope = attrs[:coverage_scope].to_s.presence || "arrangement"
+    unless COVERAGE_SCOPES.include?(scope)
+      raise AgencyCommand::Error.new("Choose a supported coverage scope.", code: :invalid)
+    end
+
+    case scope
+    when "arrangement"
+      [ { arrangement_item_id: cruise_item.id } ]
+    when "resource"
+      if resource_ids.empty?
+        raise AgencyCommand::Error.new(
+          "Select one or more cabin categories for coverage.", code: :invalid
+        )
+      end
+      normalize_resource_coverage!(version, resource_ids)
+    when "capacity_pool"
+      if pool_ids.empty?
+        raise AgencyCommand::Error.new(
+          "Select one or more cabin Capacity Pools for coverage.", code: :invalid
+        )
+      end
+      normalize_pool_coverage!(version, pool_ids)
+    end
+  end
+
+  def normalize_resource_coverage!(version, resource_ids)
+    seen = {}
+    resource_ids.filter_map do |resource_id|
+      next if seen[resource_id]
+
+      seen[resource_id] = true
+      definition = version.supplier_resource_definitions.find_by(supplier_resource_id: resource_id)
+      raise AgencyCommand::Error.new("Cabin category is not on this Cruise version.", code: :invalid) if definition.nil?
+
+      {
+        arrangement_item_id: definition.arrangement_item_id,
+        supplier_resource_id: resource_id
+      }
+    end
   end
 
   def resolve_pools_from_resources!(version, resource_ids)
@@ -430,6 +483,16 @@ module CruiseDepositTemplateSupport
       return "Cabin pools: #{labels.join(", ")}"
     end
 
+    resource_ids = links.filter_map(&:supplier_resource_id)
+    if resource_ids.any?
+      labels = resource_ids.map do |resource_id|
+        resource_definition = cruise_shape.version.supplier_resource_definitions
+          .find_by(supplier_resource_id: resource_id)
+        resource_definition&.supplier_code.presence || resource_definition&.name || "cabin"
+      end
+      return "Cabin categories: #{labels.join(", ")}"
+    end
+
     if links.size == 1 &&
         links.first.arrangement_item_id.present? &&
         links.first.supplier_resource_id.blank? &&
@@ -438,6 +501,18 @@ module CruiseDepositTemplateSupport
     end
 
     "Advanced coverage"
+  end
+
+  def project_coverage_scope(coverage_links)
+    return "arrangement" if coverage_links.empty?
+
+    if coverage_links.any? { |link| link.capacity_pool_id.present? }
+      "capacity_pool"
+    elsif coverage_links.any? { |link| link.supplier_resource_id.present? }
+      "resource"
+    else
+      "arrangement"
+    end
   end
 
   def project_editor_fields(definition)
@@ -477,6 +552,7 @@ module CruiseDepositTemplateSupport
       fixed_amount_minor_units: definition.fixed_amount_minor_units,
       rate_minor_units: definition.rate_minor_units,
       explicit_quantity: definition.explicit_quantity,
+      coverage_scope: project_coverage_scope(coverage_links),
       capacity_pool_ids: coverage_links.filter_map(&:capacity_pool_id),
       supplier_resource_ids: coverage_links.filter_map(&:supplier_resource_id).uniq,
       contributor_definition_ids: contributor_ids,

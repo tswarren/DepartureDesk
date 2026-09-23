@@ -15,6 +15,10 @@ export default class extends Controller {
     "quantityBasis",
     "explicitQuantityGroup",
     "explicitQuantity",
+    "coverageScopeGroup",
+    "coverageScope",
+    "resourceGroup",
+    "resourceCheckbox",
     "poolGroup",
     "poolCheckbox",
     "contributorGroup",
@@ -43,6 +47,7 @@ export default class extends Controller {
 
   connect() {
     this.previewSequence = 0
+    this.lastTemplate = null
     this.update()
     this.schedulePreview()
   }
@@ -61,6 +66,9 @@ export default class extends Controller {
 
   updateTemplateDefaults() {
     const template = this.hasTemplateTarget ? this.templateTarget.value : ""
+    if (template === this.lastTemplate) return
+    this.lastTemplate = template
+
     if (template === "initial_deposit") {
       this.amountShapeTarget.value = "quantity_times_rate"
       if (this.hasQuantityBasisTarget) this.quantityBasisTarget.value = "capacity_pool_units"
@@ -78,6 +86,8 @@ export default class extends Controller {
     const capacityBased =
       (shape === "quantity_times_rate" && basis === "capacity_pool_units") ||
       shape === "cumulative_target"
+    const coverageScope = this.hasCoverageScopeTarget ? this.coverageScopeTarget.value : "arrangement"
+    const showIndependentCoverage = shape !== "" && !capacityBased
 
     this.setGroup(this.fixedAmountGroupTarget, shape === "fixed_amount")
     this.setGroup(this.rateGroupTarget, shape === "quantity_times_rate" || shape === "cumulative_target")
@@ -86,8 +96,16 @@ export default class extends Controller {
       this.explicitQuantityGroupTarget,
       shape === "quantity_times_rate" && basis === "explicit"
     )
-    this.setGroup(this.poolGroupTarget, capacityBased)
-    this.setGroup(this.contributorGroupTarget, shape === "cumulative_target")
+    this.setGroup(this.coverageScopeGroupTarget, showIndependentCoverage)
+    this.setGroup(
+      this.resourceGroupTarget,
+      showIndependentCoverage && coverageScope === "resource"
+    )
+    this.setGroup(
+      this.poolGroupTarget,
+      capacityBased || (showIndependentCoverage && coverageScope === "capacity_pool")
+    )
+    this.setGroup(this.contributorGroupTarget, shape === "cumulative_target", { clearCheckboxes: true })
   }
 
   updateTiming() {
@@ -189,8 +207,14 @@ export default class extends Controller {
     return node ? node.getAttribute("content") : ""
   }
 
-  setGroup(node, visible) {
+  setGroup(node, visible, { clearCheckboxes = false } = {}) {
     if (!node) return
     node.hidden = !visible
+    node.querySelectorAll("input, select, textarea").forEach((field) => {
+      field.disabled = !visible
+      if (!visible && clearCheckboxes && field.type === "checkbox") {
+        field.checked = false
+      }
+    })
   }
 }

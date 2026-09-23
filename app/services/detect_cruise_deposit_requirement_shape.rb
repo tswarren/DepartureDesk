@@ -178,11 +178,44 @@ class DetectCruiseDepositRequirementShape
           reasons << "Coverage Capacity Pool is not on this Cruise version."
         end
       end
-    else
-      if links.size != 1
+      return reasons.uniq
+    end
+
+    kinds = links.map { |link|
+      if link.capacity_pool_id.present?
+        :capacity_pool
+      elsif link.supplier_resource_id.present?
+        :resource
+      elsif link.arrangement_item_id.present?
+        :arrangement
+      else
+        :unsupported
+      end
+    }.uniq
+    if kinds.size > 1 || kinds.include?(:unsupported)
+      reasons << "Mixed or unsupported coverage kinds are Advanced."
+      return reasons.uniq
+    end
+
+    case kinds.first
+    when :arrangement
+      if links.size != 1 ||
+          links.first.service_occurrence_id.present? ||
+          links.first.supplier_resource_id.present? ||
+          links.first.capacity_pool_id.present?
         reasons << "Arrangement-wide deposits require exactly one Item coverage link."
-      elsif links.first.capacity_pool_id.present? || links.first.supplier_resource_id.present?
-        reasons << "Arrangement-wide deposits must cover the Cruise Item only."
+      end
+    when :resource
+      links.each do |link|
+        unless version.supplier_resource_definitions.exists?(supplier_resource_id: link.supplier_resource_id)
+          reasons << "Coverage cabin category is not on this Cruise version."
+        end
+      end
+    when :capacity_pool
+      links.each do |link|
+        unless version.capacity_pool_definitions.exists?(capacity_pool_id: link.capacity_pool_id)
+          reasons << "Coverage Capacity Pool is not on this Cruise version."
+        end
       end
     end
 
@@ -261,8 +294,8 @@ class DetectCruiseDepositRequirementShape
           if kind != CruiseDepositTemplateSupport::MILESTONE_KIND
             reasons << "Unsupported planning milestone kind on arm #{index + 1}."
           end
-        elsif !CruiseDepositTemplateSupport::SIMPLE_TIMING_SHAPES.include?(arm_shape)
-          reasons << "Composite arm #{index + 1} must use a simple rule or names-assigned milestone."
+        elsif !CruiseDepositTemplateSupport::COMPOSITE_ARM_SHAPES.include?(arm_shape)
+          reasons << "Composite arm #{index + 1} must use fixed date, day offset, or names-assigned milestone."
         end
       end
       if milestone_count > 1

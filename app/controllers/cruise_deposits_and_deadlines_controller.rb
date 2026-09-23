@@ -87,6 +87,7 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
           fixed_amount_minor_units: fields[:fixed_amount_minor_units],
           rate_minor_units: fields[:rate_minor_units],
           explicit_quantity: fields[:explicit_quantity],
+          coverage_scope: fields[:coverage_scope],
           capacity_pool_ids: fields[:capacity_pool_ids],
           supplier_resource_ids: fields[:supplier_resource_ids],
           contributor_definition_ids: fields[:contributor_definition_ids]
@@ -100,8 +101,10 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
       description: "Initial deposit",
       amount_shape: "quantity_times_rate",
       quantity_basis: "capacity_pool_units",
+      coverage_scope: "arrangement",
       rule_shape: "fixed_date",
       capacity_pool_ids: [],
+      supplier_resource_ids: [],
       contributor_definition_ids: []
     }.with_indifferent_access
   end
@@ -127,11 +130,14 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
 
   def assign_contributor_options
     version = @cruise_shape.version
-    exclude_id = @editing_deposit_id
+    editing = @editing_deposit_id.present? ?
+      version.supplier_deposit_requirement_definitions.find_by(id: @editing_deposit_id) : nil
+    edit_position = editing&.position
     @contributor_options = version.supplier_deposit_requirement_definitions
       .order(:position, :id)
       .filter_map { |definition|
-        next if exclude_id.present? && definition.id.to_s == exclude_id.to_s
+        next if editing && definition.id == editing.id
+        next if edit_position && definition.position >= edit_position
         next unless definition.amount_shape == "quantity_times_rate" &&
           definition.quantity_basis == "capacity_pool_units"
 

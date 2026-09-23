@@ -15,7 +15,15 @@ end %>
   @departure, @supplier_arrangement
 ) %>
 <% selected_pools = Array(form[:capacity_pool_ids]).map(&:to_s) %>
+<% selected_resources = Array(form[:supplier_resource_ids]).map(&:to_s) %>
 <% selected_contributors = Array(form[:contributor_definition_ids]).map(&:to_s) %>
+<% composite_arm_options =
+     [
+       [ "Fixed date", "fixed_date" ],
+       [ "Days before departure", "days_before_departure" ],
+       [ "Days after departure", "days_after_departure" ],
+       [ "Names assigned to Supplier", "planning_milestone" ]
+     ] %>
 
 <section class="dd-stack" id="cruise-deposit-editor" aria-labelledby="cruise-deposit-editor-heading"
   data-controller="cruise-deposit-editor"
@@ -113,6 +121,36 @@ end %>
       </div>
     </fieldset>
 
+    <fieldset class="dd-field-group" data-cruise-deposit-editor-target="coverageScopeGroup" hidden>
+      <legend class="dd-label">What does it cover?</legend>
+      <%= f.label :coverage_scope, "Coverage scope", class: "dd-label" %>
+      <%= f.select :coverage_scope,
+            [
+              [ "Entire Cruise Arrangement", "arrangement" ],
+              [ "Selected cabin categories", "resource" ],
+              [ "Selected cabin Capacity Pools", "capacity_pool" ]
+            ],
+            { selected: form[:coverage_scope] || "arrangement" },
+            class: "dd-input",
+            data: { cruise_deposit_editor_target: "coverageScope" } %>
+    </fieldset>
+
+    <fieldset class="dd-field-group" data-cruise-deposit-editor-target="resourceGroup" hidden>
+      <legend class="dd-label">Cabin categories</legend>
+      <div class="dd-stack" role="group" aria-label="Cabin category coverage">
+        <% Array(@resource_options).each do |label, resource_id| %>
+          <label class="dd-checkbox-label">
+            <%= check_box_tag "cruise_deposit[supplier_resource_ids][]",
+                  resource_id,
+                  selected_resources.include?(resource_id.to_s),
+                  id: "cruise_deposit_supplier_resource_#{resource_id}",
+                  data: { cruise_deposit_editor_target: "resourceCheckbox" } %>
+            <%= label %>
+          </label>
+        <% end %>
+      </div>
+    </fieldset>
+
     <fieldset class="dd-field-group" data-cruise-deposit-editor-target="poolGroup" hidden>
       <legend class="dd-label">Cabin Capacity Pools</legend>
       <div class="dd-stack" role="group" aria-label="Capacity Pool coverage">
@@ -183,10 +221,7 @@ end %>
         <fieldset class="dd-field-group" id="cruise-deposit-arm1">
           <legend class="dd-label">Earlier-of arm 1</legend>
           <%= f.select :arm1_rule_shape,
-                (
-                  CruiseDepositTemplateSupport::SIMPLE_TIMING_SHAPES.map { |value| [ value.humanize, value ] } +
-                  [ [ "Names assigned to Supplier", "planning_milestone" ] ]
-                ),
+                composite_arm_options,
                 { include_blank: "Choose arm", selected: form[:arm1_rule_shape] },
                 class: "dd-input",
                 data: { cruise_deposit_editor_target: "arm1RuleShape" } %>
@@ -202,10 +237,7 @@ end %>
         <fieldset class="dd-field-group" id="cruise-deposit-arm2">
           <legend class="dd-label">Earlier-of arm 2</legend>
           <%= f.select :arm2_rule_shape,
-                (
-                  CruiseDepositTemplateSupport::SIMPLE_TIMING_SHAPES.map { |value| [ value.humanize, value ] } +
-                  [ [ "Names assigned to Supplier", "planning_milestone" ] ]
-                ),
+                composite_arm_options,
                 { include_blank: "Choose arm", selected: form[:arm2_rule_shape] },
                 class: "dd-input",
                 data: { cruise_deposit_editor_target: "arm2RuleShape" } %>

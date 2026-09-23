@@ -151,7 +151,197 @@ class CruiseSupplierDepositAdapterTest < ActiveSupport::TestCase
     refute_respond_to workspace, :deposit_placeholder
   end
 
+  test "preview and save share validation for negative rates and incompatible contributors" do
+    initial = create_initial!(rate: 5_000)
+    other_pool_only = @pools.last
+
+    error = assert_raises(AgencyCommand::Error) do
+      CruiseDepositCandidateNormalizer.call(
+        template_key: "initial_deposit",
+        form: {
+          template: "initial_deposit",
+          description: "Bad rate",
+          amount_shape: "quantity_times_rate",
+          quantity_basis: "capacity_pool_units",
+          rate_amount: "-50",
+          rule_shape: "fixed_date",
+          fixed_date: "2026-09-20",
+          capacity_pool_ids: [ @pools.first.id ]
+        },
+        arrangement: @arrangement,
+        version: @version,
+        cruise_item: @item,
+        currency: "USD"
+      )
+    end
+    assert_match(/non-negative|valid/i, error.message)
+
+    # Contributor covering an unrelated pool only.
+    isolated = CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version,
+      attributes: {
+        amount_shape: "quantity_times_rate",
+        currency: "USD",
+        rate_minor_units: 1_000,
+        quantity_basis: "capacity_pool_units",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2026-09-21" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        description: "Isolated pool deposit",
+        coverage_links: [ {
+          capacity_pool_id: other_pool_only.id,
+          arrangement_item_id: @version.capacity_pool_definitions
+            .find_by!(capacity_pool_id: other_pool_only.id).arrangement_item_id,
+          service_occurrence_id: @version.capacity_pool_definitions
+            .find_by!(capacity_pool_id: other_pool_only.id).service_occurrence_id,
+          supplier_resource_id: @version.capacity_pool_definitions
+            .find_by!(capacity_pool_id: other_pool_only.id).supplier_resource_id
+        } ]
+      },
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    error = assert_raises(AgencyCommand::Error) do
+      CruiseDepositCandidateNormalizer.call(
+        template_key: "final_deposit",
+        form: {
+          template: "final_deposit",
+          description: "Final deposit",
+          amount_shape: "cumulative_target",
+          quantity_basis: "capacity_pool_units",
+          rate_amount: "500",
+          rule_shape: "fixed_date",
+          fixed_date: "2027-03-11",
+          capacity_pool_ids: [ @pools.first.id ],
+          contributor_definition_ids: [ isolated.id ]
+        },
+        arrangement: @arrangement,
+        version: @version,
+        cruise_item: @item,
+        currency: "USD"
+      )
+    end
+    assert_match(/cover at least one capacity pool/i, error.message)
+
+    final = CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version,
+      attributes: {
+        amount_shape: "cumulative_target",
+        currency: "USD",
+        rate_minor_units: 50_000,
+        quantity_basis: "capacity_pool_units",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-03-11" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        description: "Final deposit",
+        coverage_links: pool_coverage(@pools.first),
+        contributor_definition_ids: [ initial.id ]
+      },
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    later = CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version,
+      attributes: {
+        amount_shape: "quantity_times_rate",
+        currency: "USD",
+        rate_minor_units: 2_000,
+        quantity_basis: "capacity_pool_units",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2026-09-22" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        description: "Later deposit",
+        coverage_links: pool_coverage(@pools.first)
+      },
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    error = assert_raises(AgencyCommand::Error) do
+      CruiseDepositCandidateNormalizer.call(
+        template_key: "final_deposit",
+        form: {
+          template: "final_deposit",
+          description: "Final deposit",
+          amount_shape: "cumulative_target",
+          quantity_basis: "capacity_pool_units",
+          rate_amount: "500",
+          rule_shape: "fixed_date",
+          fixed_date: "2027-03-11",
+          capacity_pool_ids: [ @pools.first.id ],
+          contributor_definition_ids: [ later.id ]
+        },
+        arrangement: @arrangement,
+        version: @version,
+        cruise_item: @item,
+        currency: "USD",
+        cumulative_definition: final
+      )
+    end
+    assert_match(/earlier deposit/i, error.message)
+  end
+
+  test "typed fixed deposits accept independent resource coverage" do
+    resource_id = @version.supplier_resource_definitions.order(:position, :id).first.supplier_resource_id
+    candidate = CruiseDepositCandidateNormalizer.call(
+      template_key: "other_deposit",
+      form: {
+        template: "other_deposit",
+        description: "Fixed cabin deposit",
+        amount_shape: "fixed_amount",
+        fixed_amount: "100",
+        coverage_scope: "resource",
+        supplier_resource_ids: [ resource_id ],
+        rule_shape: "fixed_date",
+        fixed_date: "2026-09-20"
+      },
+      arrangement: @arrangement,
+      version: @version,
+      cruise_item: @item,
+      currency: "USD"
+    )
+    assert_equal 1, candidate.coverage_links.size
+    assert_equal resource_id, candidate.coverage_links.first[:supplier_resource_id]
+
+    result = CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: @version,
+      attributes: candidate.attributes,
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    detected = DetectCruiseDepositRequirementShape.new(
+      agency: @agency,
+      arrangement: @arrangement,
+      definition: result.record,
+      version: @version
+    ).call
+    assert detected.compatible?
+  end
+
   private
+
+  def pool_coverage(pool)
+    definition = @version.capacity_pool_definitions.find_by!(capacity_pool_id: pool.id)
+    [ {
+      capacity_pool_id: pool.id,
+      arrangement_item_id: definition.arrangement_item_id,
+      service_occurrence_id: definition.service_occurrence_id,
+      supplier_resource_id: definition.supplier_resource_id
+    } ]
+  end
 
   def create_initial!(rate:)
     CreateSupplierDepositRequirementDefinition.new(

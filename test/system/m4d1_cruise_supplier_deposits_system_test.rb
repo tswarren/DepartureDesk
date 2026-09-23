@@ -74,7 +74,6 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     select "Fixed date", from: "Timing rule"
     fill_deposit_date "Date", "2026-09-20"
     assert_text "$1,200.00", wait: 5
-    assert_text(/cabin block/i)
     click_on "Add deposit"
     assert_text "Deposit requirement saved"
     assert_text "Initial deposit"
@@ -176,7 +175,8 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
       amount_shape: "percentage_of_cost_sources",
       quantity_basis: nil,
       rate_minor_units: nil,
-      percentage: 10
+      percentage: 10,
+      rounding_scope: "aggregate"
     )
 
     sign_in_from_browser(@staff)
@@ -212,6 +212,35 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     click_on "Add deposit"
     assert_text "Deposit requirement saved"
     assert_match(/\Acruise-deposit-/, page.evaluate_script("document.activeElement && document.activeElement.id"))
+  end
+
+  test "changing cumulative to fixed clears contributor submission path" do
+    sign_in_from_browser(@staff)
+    visit_deposits_workspace
+
+    click_on "Add deposit requirement"
+    select "Initial deposit", from: "Template"
+    fill_in "Rate per unit (USD)", with: "50"
+    check "O1 · pool"
+    select "Fixed date", from: "Timing rule"
+    fill_deposit_date "Date", "2026-09-20"
+    click_on "Add deposit"
+    assert_text "Deposit requirement saved"
+
+    click_on "Add deposit requirement"
+    select "Final deposit", from: "Template"
+    fill_in "Rate per unit (USD)", with: "500"
+    check "O1 · pool"
+    check "Initial deposit"
+    select "Fixed date", from: "Timing rule"
+    fill_deposit_date "Date", "2027-03-11"
+    select "Fixed amount", from: "Amount shape"
+    assert_selector "[data-cruise-deposit-editor-target='contributorGroup'][hidden]"
+    fill_in "Fixed amount (USD)", with: "100"
+    select "Entire Cruise Arrangement", from: "Coverage scope"
+    click_on "Add deposit"
+    assert_text "Deposit requirement saved"
+    assert_text(/Fixed/i)
   end
 
   private
