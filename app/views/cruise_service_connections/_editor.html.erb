@@ -32,6 +32,9 @@
                   include_blank: "Choose a service",
                   class: "dd-field" %>
           </div>
+          <% workspace.eligible_offers.each do |offer| %>
+            <%= hidden_field_tag "offer_lock_versions[#{offer.id}]", offer.editable_draft_version.lock_version %>
+          <% end %>
         <% end %>
 
         <div class="dd-inline-actions">

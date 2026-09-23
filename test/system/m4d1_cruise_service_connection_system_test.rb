@@ -48,6 +48,7 @@ class M4d1CruiseServiceConnectionSystemTest < ApplicationSystemTestCase
     visit departure_arrangement_cruise_service_connection_path(@departure, arrangement, editor: "connect", sailing: "draft")
     fill_in "Client title", with: "Celebrity Beyond sailing"
     click_button "Create and connect service"
+    assert_selector "h1.dd-page-title", exact_text: "Cruise service connection"
     offer = ServiceOffer.find_by!(name: "Celebrity Beyond sailing")
     option_id = offer.editable_draft_version.choice_options.sole.id
     click_link "Edit Cruise service connection"
@@ -66,16 +67,19 @@ class M4d1CruiseServiceConnectionSystemTest < ApplicationSystemTestCase
     fill_in "Client title", with: "Both categories"
     uncheck "I1 — Inside"
     click_button "Create and connect service"
+    assert_text "Connected"
     offer = ServiceOffer.find_by!(name: "Both categories")
     kept_id = offer.editable_draft_version.choice_options.sole.id
     click_link "Edit Cruise service connection"
     check "I1 — Inside"
     click_button "Save connection"
+    assert_text "Cruise service connection updated."
     assert_equal 2, offer.reload.editable_draft_version.choice_options.count
     assert offer.editable_draft_version.choice_options.exists?(kept_id)
     click_link "Edit Cruise service connection"
     uncheck "I1 — Inside"
     click_button "Save connection"
+    assert_text "Cruise service connection updated."
     assert_equal [ kept_id ], offer.reload.editable_draft_version.choice_options.pluck(:id)
   end
 
@@ -119,6 +123,7 @@ class M4d1CruiseServiceConnectionSystemTest < ApplicationSystemTestCase
     visit departure_arrangement_cruise_service_connection_path(@departure, arrangement, editor: "connect", sailing: "draft")
     fill_in "Client title", with: "Celebrity Beyond sailing"
     click_button "Create and connect service"
+    assert_text "Connected"
     offer = ServiceOffer.find_by!(name: "Celebrity Beyond sailing")
     option = offer.editable_draft_version.choice_options.sole
     option.update!(price_effect_minor_units: 2_500)

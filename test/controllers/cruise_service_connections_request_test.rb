@@ -113,4 +113,37 @@ class CruiseServiceConnectionsRequestTest < ActionDispatch::IntegrationTest
     assert_match "Decide later", response.body
     assert_match "Smith sailing", response.body
   end
+
+  test "connecting an existing outline uses the lock captured for that outline" do
+    outline = CreateServiceOfferOutline.new(
+      agency: @agency, actor: @staff, departure: @departure, idempotency_key: SecureRandom.uuid,
+      attributes: { name: "Existing outline" }
+    ).call.record
+    lock_version = outline.editable_draft_version.lock_version
+    sign_in_as @staff
+
+    stale = {
+      mode: "existing",
+      title: "Client sailing",
+      sailing: "draft",
+      use_tentative_draft: "1",
+      supplier_arrangement_version_id: @version.id,
+      arrangement_lock_version: @version.lock_version,
+      supplier_resource_ids: [ @resource.id ],
+      service_offer_id: outline.id,
+      idempotency_key: SecureRandom.uuid
+    }
+    post departure_arrangement_cruise_service_connection_path(@departure, @arrangement), params: stale
+    assert_response :unprocessable_entity
+    assert_match "This record changed", response.body
+    assert_nil outline.reload.intended_arrangement_item_id
+
+    post departure_arrangement_cruise_service_connection_path(@departure, @arrangement), params: stale.merge(
+      offer_lock_versions: { outline.id => lock_version },
+      idempotency_key: SecureRandom.uuid
+    )
+    assert_response :see_other
+    assert_equal @item.id, outline.reload.intended_arrangement_item_id
+    assert_equal "Client sailing", outline.editable_draft_version.definition.client_title
+  end
 end

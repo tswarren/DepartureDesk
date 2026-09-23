@@ -136,6 +136,7 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     click_on "Add deposit"
     select "Other deposit", from: "Template"
     fill_in "Name", with: "Custom group hold"
+    find_field("Name").execute_script("this.dispatchEvent(new Event('input', { bubbles: true }))")
     select "Initial deposit", from: "Template"
     assert_field "Name", with: "Custom group hold"
     select "Fixed amount", from: "Amount"

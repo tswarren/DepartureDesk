@@ -152,8 +152,14 @@ class CruiseServiceConnectionsController < ApplicationController
       supplier_arrangement_version_id: version&.id,
       use_tentative_draft: @sailing_tentative,
       arrangement_lock_version: params[:arrangement_lock_version],
-      version_lock_version: params[:version_lock_version]
+      version_lock_version: submitted_offer_lock_version
     }
+  end
+
+  def submitted_offer_lock_version
+    return params[:version_lock_version] if params[:version_lock_version].present?
+
+    params.dig(:offer_lock_versions, params[:service_offer_id].to_s)
   end
 
   def assign_failure(error)
