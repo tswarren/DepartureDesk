@@ -201,6 +201,8 @@ Rails.application.routes.draw do
           resources :deposits, only: %i[create update destroy],
             controller: "cruise_supplier_deposits"
           post "deposit-preview", to: "cruise_supplier_deposits#preview", as: :deposit_preview
+          post "activation-preview", to: "cruise_deposits_and_deadlines#activation_preview",
+            as: :activation_preview
         end
       end
       resource :activation,

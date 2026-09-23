@@ -4,11 +4,51 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
   include SupplierArrangementAccess
 
   before_action :require_departure_view!
+  before_action :require_departure_management!, only: :activation_preview
   before_action :set_departure
   before_action :set_supplier_arrangement
   before_action :require_compatible_cruise_shape!
 
   def show
+    load_workspace!
+    @editor = params[:editor].to_s
+    @editing_id = params[:deadline_id].presence
+    @deposit_editor = params[:deposit_editor].to_s
+    @editing_deposit_id = params[:deposit_id].presence
+    @idempotency_key = SecureRandom.uuid
+    @planning_milestone_idempotency_key = SecureRandom.uuid
+    assign_form_defaults
+    assign_deposit_form_defaults
+    assign_coverage_options
+    assign_contributor_options
+    assign_activation_preview if @editable
+  end
+
+  def activation_preview
+    version = @cruise_shape.version
+    raise ActiveRecord::RecordNotFound unless version.draft?
+
+    result = PreviewCruiseDepositsAndDeadlinesActivation.call(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      version: version,
+      version_lock_version: params[:version_lock_version]
+    )
+
+    render json: {
+      status: result.status,
+      stale: result.stale?,
+      version_lock_version: result.version_lock_version,
+      elapsed_acknowledgment_required: result.elapsed_acknowledgment_required?,
+      blockers: result.blockers,
+      activation_path: result.activation_path,
+      rows: result.rows.map { |row| serialize_activation_row(row) }
+    }
+  end
+
+  private
+
+  def load_workspace!
     @workspace = CompileCruiseDepositsAndDeadlinesWorkspace.new(
       agency: Current.agency,
       arrangement: @supplier_arrangement,
@@ -16,18 +56,33 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
     ).call
     @supplier_arrangement_version = @workspace.version
     @editable = @workspace.editable?
-    @editor = params[:editor].to_s
-    @editing_id = params[:deadline_id].presence
-    @deposit_editor = params[:deposit_editor].to_s
-    @editing_deposit_id = params[:deposit_id].presence
-    @idempotency_key = SecureRandom.uuid
-    assign_form_defaults
-    assign_deposit_form_defaults
-    assign_coverage_options
-    assign_contributor_options
   end
 
-  private
+  def assign_activation_preview
+    @activation_preview = PreviewCruiseDepositsAndDeadlinesActivation.call(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      version: @supplier_arrangement_version,
+      version_lock_version: @supplier_arrangement_version.lock_version
+    )
+  end
+
+  def serialize_activation_row(row)
+    {
+      kind: row.kind,
+      definition_id: row.definition_id,
+      display_name: row.display_name,
+      amount_sentence: row.amount_sentence,
+      pending_reasons: row.pending_reasons,
+      due_sentence: row.due_sentence,
+      time_zone: row.time_zone,
+      coverage_summary: row.coverage_summary,
+      will_open_commitment: row.will_open_commitment?,
+      elapsed_acknowledgment_required: row.elapsed_acknowledgment_required?,
+      blocker: row.blocker,
+      editor_anchor: row.editor_anchor
+    }
+  end
 
   def require_compatible_cruise_shape!
     @cruise_shape = DetectCruiseArrangementShape.new(

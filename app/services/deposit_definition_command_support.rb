@@ -502,11 +502,59 @@ module DepositDefinitionCommandSupport
     end
   end
 
+  # Update retained children in place so ordinary edits do not null non-nullable
+  # ownership keys (association `delete_all` can issue UPDATE ... id = NULL).
   def replace_deposit_children!(definition, coverage_links, cost_links, contributor_links = [])
-    definition.supplier_deposit_requirement_definition_coverage_links.delete_all
-    definition.supplier_deposit_requirement_definition_cost_links.delete_all
-    definition.supplier_deposit_requirement_definition_contributor_links.delete_all
-    persist_deposit_children!(definition, coverage_links, cost_links, contributor_links)
+    owner = child_owner_attrs(definition)
+
+    existing_coverage = definition.supplier_deposit_requirement_definition_coverage_links
+      .order(:position, :id).lock.to_a
+    coverage_links.each_with_index do |attrs, index|
+      if (existing = existing_coverage[index])
+        existing.update!(attrs)
+      else
+        definition.supplier_deposit_requirement_definition_coverage_links.create!(
+          attrs.merge(owner)
+        )
+      end
+    end
+    existing_coverage.drop(coverage_links.size).each(&:destroy!)
+
+    existing_costs = definition.supplier_deposit_requirement_definition_cost_links
+      .order(:position, :id).lock.to_a
+    cost_links.each_with_index do |attrs, index|
+      if (existing = existing_costs[index])
+        existing.update!(attrs)
+      else
+        definition.supplier_deposit_requirement_definition_cost_links.create!(
+          attrs.merge(owner)
+        )
+      end
+    end
+    existing_costs.drop(cost_links.size).each(&:destroy!)
+
+    contributor_links = Array(contributor_links)
+    existing_contributors = definition.supplier_deposit_requirement_definition_contributor_links
+      .order(:position, :id).lock.to_a
+    contributor_links.each_with_index do |attrs, index|
+      if (existing = existing_contributors[index])
+        existing.update!(attrs)
+      else
+        definition.supplier_deposit_requirement_definition_contributor_links.create!(
+          attrs.merge(owner)
+        )
+      end
+    end
+    existing_contributors.drop(contributor_links.size).each(&:destroy!)
+  end
+
+  def child_owner_attrs(definition)
+    {
+      agency_id: definition.agency_id,
+      departure_id: definition.departure_id,
+      supplier_arrangement_id: definition.supplier_arrangement_id,
+      supplier_arrangement_version_id: definition.supplier_arrangement_version_id
+    }
   end
 
   def deposit_details(definition)

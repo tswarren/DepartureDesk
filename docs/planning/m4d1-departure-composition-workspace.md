@@ -16,7 +16,7 @@
 
 **Slice 2A.2R3:** [M4D.1 Slice 2A.2R3 — Cruise Rate-Shape Detector Remediation](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md) is **Shipped 2026-09-23**. It is the sole shipped authority for percentage↔profile / collision-safe cell-key detector remediation.
 
-**Slice 2B:** [M4D.1 Slice 2B — Cruise Deposits, Deadlines, and Activation-Safe Editing](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) is **Accepted**. It is the sole authority for typed Cruise Stop point D. **2B-A and 2B-B delivered**; 2B-C remains open. Not fully shipped. Later slices remain unauthorized until named.
+**Slice 2B:** [M4D.1 Slice 2B — Cruise Deposits, Deadlines, and Activation-Safe Editing](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) is **Shipped**. It is the sole shipped authority for typed Cruise Stop point D. **2B-A, 2B-B, and 2B-C delivered.** Later slices remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -1113,7 +1113,7 @@ Remediates Stop point C detector reopen:
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 
-**Accepted.** Sole typed Stop D authority: [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). Not fully shipped. **2B-A (typed Supplier Deadlines) and 2B-B (typed Deposit Requirements) delivered**; 2B-C remains open. Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3.
+**Shipped.** Sole typed Stop D authority: [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Next unauthorized boundary: Slice 2C.
 
 Ship Stop point D:
 
