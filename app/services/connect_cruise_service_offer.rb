@@ -89,26 +89,23 @@ class ConnectCruiseServiceOffer < AgencyCommand
   end
 
   def idempotency_payload(departure, arrangement, item, title, description, resource_ids, ancestry_version)
-    payload = {
+    {
       departure_id: departure.id,
       supplier_arrangement_id: arrangement.id,
+      supplier_arrangement_version_id: ancestry_version.id,
       arrangement_item_id: item.id,
       mode: @mode,
-      title: title,
-      description: description
-    }
-    return payload if @mode == "later"
-
-    payload.merge(
-      supplier_arrangement_version_id: ancestry_version.id,
+      service_offer_id: @mode == "existing" ? @attributes[:service_offer_id].to_s : nil,
       use_tentative_draft: boolean_flag(@attributes[:use_tentative_draft]),
-      supplier_resource_ids: resource_ids,
-      service_offer_id: @mode == "existing" ? @attributes[:service_offer_id].to_s : nil
-    )
+      title: title,
+      description: description,
+      supplier_resource_ids: @mode == "later" ? [] : resource_ids
+    }
   end
 
   def write_connection!(departure, arrangement, arrangement_version, shape, title, description, resource_ids)
     if @mode == "later"
+      ensure_current_lock_version!(arrangement_version, @attributes[:arrangement_lock_version])
       ensure_departure_accepts_new_offer!(departure)
       CruiseServiceConnectionSupport.assert_item_available!(shape.item)
       offer = create_outline!(departure, arrangement, shape.item, title, description, "undecided")

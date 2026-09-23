@@ -4,12 +4,11 @@ class UpdateCruiseServiceConnection < AgencyCommand
   include OfferCommandSupport
   include CruiseServiceConnectionGraph
 
-  def initialize(agency:, actor:, offer:, attributes:, idempotency_key:)
+  def initialize(agency:, actor:, offer:, attributes:)
     @agency = agency
     @actor = actor
     @offer = offer
     @attributes = attributes.to_h.with_indifferent_access
-    @idempotency_key = idempotency_key
   end
 
   def call
@@ -45,39 +44,20 @@ class UpdateCruiseServiceConnection < AgencyCommand
       title = normalize_client_title(@attributes[:title].presence || @attributes[:client_title])
       description = normalize_client_description(@attributes[:description].presence || @attributes[:client_description])
       resource_ids = Array(@attributes[:supplier_resource_ids]).map(&:to_s).reject(&:blank?)
-      payload = {
-        service_offer_id: offer.id,
-        service_offer_version_id: version.id,
-        supplier_arrangement_version_id: arrangement_version.id,
-        title: title,
-        description: description,
-        supplier_resource_ids: resource_ids
-      }
+      ensure_current_lock_version!(version, @attributes[:version_lock_version])
+      ensure_current_lock_version!(arrangement_version, @attributes[:arrangement_lock_version])
+      connection = DetectCruiseServiceConnectionShape.new(agency: @agency, offer: offer, version: version).call
+      raise Error.new("Open advanced Service Offer editing for this service.", code: :invalid) unless connection.compatible?
+      raise Error.new("This connection is pinned to a different sailing version.", code: :conflict) if connection.arrangement_version.id != arrangement_version.id
 
-      result = idempotent_create!(
-        command_name: self.class.name,
-        idempotency_key: @idempotency_key,
-        payload: payload,
-        result_class: ServiceOffer
-      ) do
-        ensure_current_lock_version!(version, @attributes[:version_lock_version])
-        ensure_current_lock_version!(arrangement_version, @attributes[:arrangement_lock_version])
-        connection = DetectCruiseServiceConnectionShape.new(agency: @agency, offer: offer, version: version).call
-        raise Error.new("Open advanced Service Offer editing for this service.", code: :invalid) unless connection.compatible?
-        raise Error.new("This connection is pinned to a different sailing version.", code: :conflict) if connection.arrangement_version.id != arrangement_version.id
-
-        ensure_same_version_categories!(arrangement_version, resource_ids)
-        CruiseServiceConnectionSupport.assert_item_available!(connection.item, except_offer: offer)
-        claim_item!(offer, connection.item, arrangement) if offer.intended_arrangement_item_id.blank?
-        apply_replacement!(offer, version, departure, arrangement_version, connection, title, description, resource_ids)
-        offer
-      rescue ActiveRecord::RecordNotUnique
-        raise Error.new("This cruise already has a Client service.", code: :conflict)
-      end
-
-      status = result.status == :created ? :updated : result.status
-      Result.new(status: status, record: result.record)
+      ensure_same_version_categories!(arrangement_version, resource_ids)
+      CruiseServiceConnectionSupport.assert_item_available!(connection.item, except_offer: offer)
+      claim_item!(offer, connection.item, arrangement) if offer.intended_arrangement_item_id.blank?
+      apply_replacement!(offer, version, departure, arrangement_version, connection, title, description, resource_ids)
+      Result.new(status: :updated, record: offer.reload)
     end
+  rescue ActiveRecord::RecordNotUnique
+    raise Error.new("This cruise already has a Client service.", code: :conflict)
   rescue ActiveRecord::RecordInvalid => error
     command_error_from(error)
   end

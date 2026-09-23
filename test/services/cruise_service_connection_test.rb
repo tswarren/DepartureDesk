@@ -164,7 +164,8 @@ class CruiseServiceConnectionTest < ActiveSupport::TestCase
       agency: @agency, actor: @actor, arrangement: arrangement, idempotency_key: SecureRandom.uuid,
       attributes: {
         mode: "later", title: "Smith sailing", description: "Hold the categories",
-        supplier_arrangement_version_id: version.id, arrangement_item_id: item.id
+        supplier_arrangement_version_id: version.id, use_tentative_draft: true,
+        arrangement_lock_version: version.lock_version, arrangement_item_id: item.id
       }
     ).call
     offer = outlined.record
@@ -188,6 +189,95 @@ class CruiseServiceConnectionTest < ActiveSupport::TestCase
     assert_equal offer.id, resumed.record.id
     assert resumed.record.editable_draft_version.definition.m3_backed?
     assert_equal 1, resumed.record.editable_draft_version.choice_options.count
+  end
+
+  test "decide later conflicts when the version selection changes and a stale lock writes nothing" do
+    arrangement, version, item, _ocean = cruise_with_cabins("O1" => "Prime Oceanview")
+    key = SecureRandom.uuid
+    attributes = {
+      mode: "later", title: "Smith sailing", description: "Hold the categories",
+      supplier_arrangement_version_id: version.id, use_tentative_draft: true,
+      arrangement_lock_version: version.lock_version, arrangement_item_id: item.id
+    }
+    first = ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @actor, arrangement: arrangement, idempotency_key: key, attributes: attributes
+    ).call
+    replay = ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @actor, arrangement: arrangement, idempotency_key: key, attributes: attributes
+    ).call
+    assert_equal :replayed, replay.status
+    assert_equal first.record.id, replay.record.id
+
+    conflict = assert_raises(AgencyCommand::Error) do
+      ConnectCruiseServiceOffer.new(
+        agency: @agency, actor: @actor, arrangement: arrangement, idempotency_key: key,
+        attributes: attributes.merge(use_tentative_draft: false)
+      ).call
+    end
+    assert_equal :conflict, conflict.code
+    assert_equal 1, ServiceOffer.where(intended_arrangement_item_id: item.id).count
+
+    other_arrangement, other_version, other_item, = cruise_with_cabins({ "O2" => "Cove" }, "Second sailing")
+    stale = assert_raises(AgencyCommand::Error) do
+      ConnectCruiseServiceOffer.new(
+        agency: @agency, actor: @actor, arrangement: other_arrangement, idempotency_key: SecureRandom.uuid,
+        attributes: {
+          mode: "later", title: "Stale later", description: nil,
+          supplier_arrangement_version_id: other_version.id, use_tentative_draft: true,
+          arrangement_lock_version: other_version.lock_version + 4, arrangement_item_id: other_item.id
+        }
+      ).call
+    end
+    assert_equal :conflict, stale.code
+    assert_nil ServiceOffer.find_by(intended_arrangement_item_id: other_item.id)
+    assert_nil ServiceOffer.find_by(name: "Stale later")
+  end
+
+  test "a claim that points at a different cruise than the cabin choices stays advanced" do
+    arrangement, version, item, ocean = cruise_with_cabins("O1" => "Prime Oceanview")
+    other_arrangement, other_version, other_item, other_ocean = cruise_with_cabins({ "I1" => "Inside" }, "Second sailing")
+    offer = connect_new(arrangement, version, item, [ ocean.id ], title: "Celebrity Beyond sailing").record
+    draft = offer.editable_draft_version
+    option = draft.choice_options.sole
+    binding = draft.source_bindings.sole
+    other_shape = DetectCruiseArrangementShape.new(
+      agency: @agency, arrangement: other_arrangement, version: other_version
+    ).call
+    other_resource_definition = other_version.supplier_resource_definitions.find_by!(supplier_resource_id: other_ocean.id)
+    other_pool_definition = other_version.capacity_pool_definitions.find_by!(supplier_resource_id: other_ocean.id)
+    binding.update!(
+      supplier_arrangement: other_arrangement,
+      supplier_arrangement_version: other_version,
+      arrangement_item: other_item,
+      arrangement_item_definition: other_shape.item_definition,
+      service_occurrence: other_shape.occurrence,
+      service_occurrence_definition: other_shape.occurrence_definition,
+      supplier_resource: other_ocean,
+      supplier_resource_definition: other_resource_definition,
+      capacity_pool: other_pool_definition.capacity_pool,
+      capacity_pool_definition: other_pool_definition
+    )
+
+    detected = DetectCruiseServiceConnectionShape.new(agency: @agency, offer: offer, version: draft).call
+    assert_not detected.compatible?
+    assert_includes detected.reasons, "The Cruise item claim does not match the cabin choices."
+
+    shape = DetectCruiseArrangementShape.new(agency: @agency, arrangement: arrangement, version: version.reload).call
+    workspace = CompileCruiseServiceConnectionWorkspace.new(
+      agency: @agency, arrangement: arrangement, shape: shape
+    ).call
+    assert_equal :advanced, workspace.status
+
+    error = assert_raises(AgencyCommand::Error) do
+      update_connection(offer, version, [ ocean.id ], title: "Changed title")
+    end
+    assert_equal :invalid, error.code
+    assert_equal item.id, offer.reload.intended_arrangement_item_id
+    assert_equal arrangement.id, offer.intended_supplier_arrangement_id
+    assert_equal option.id, draft.reload.choice_options.sole.id
+    assert_equal option.client_rate_category_key, draft.choice_options.sole.client_rate_category_key
+    assert_equal other_item.id, draft.source_bindings.sole.arrangement_item_id
+    assert_equal "Celebrity Beyond sailing", draft.definition.client_title
   end
 
   test "a legacy source binding blocks a second service" do
@@ -372,6 +462,14 @@ class CruiseServiceConnectionTest < ActiveSupport::TestCase
     assert_equal :conflict, error.code
     assert_equal "Celebrity Beyond sailing", offer.editable_draft_version.definition.reload.client_title
 
+    previous_lock = offer.editable_draft_version.lock_version
+    update_connection(offer, version, [ ocean.id ], title: "First save")
+    stale_after_edit = assert_raises(AgencyCommand::Error) do
+      update_connection(offer, version.reload, [ ocean.id ], title: "Second save", lock_version: previous_lock)
+    end
+    assert_equal :conflict, stale_after_edit.code
+    assert_equal "First save", offer.editable_draft_version.definition.reload.client_title
+
     draft_error = assert_raises(AgencyCommand::Error) do
       UpdateServiceOfferDraft.new(
         agency: @agency, actor: @actor, offer: offer,
@@ -386,8 +484,8 @@ class CruiseServiceConnectionTest < ActiveSupport::TestCase
 
   private
 
-  def cruise_with_cabins(cabins)
-    sailing = CreateCruiseSailingSetup.new(**sailing_arguments).call
+  def cruise_with_cabins(cabins, arrangement_name = "Celebrity group agreement")
+    sailing = CreateCruiseSailingSetup.new(**sailing_arguments(name: arrangement_name)).call
     arrangement = sailing.record.arrangement
     version = arrangement.versions.sole
     item = sailing.record.item
@@ -413,7 +511,7 @@ class CruiseServiceConnectionTest < ActiveSupport::TestCase
 
   def update_connection(offer, version, resource_ids, title:, description: nil, lock_version: nil)
     UpdateCruiseServiceConnection.new(
-      agency: @agency, actor: @actor, offer: offer, idempotency_key: SecureRandom.uuid,
+      agency: @agency, actor: @actor, offer: offer,
       attributes: {
         title: title,
         description: description,
@@ -435,13 +533,13 @@ class CruiseServiceConnectionTest < ActiveSupport::TestCase
     }
   end
 
-  def sailing_arguments
+  def sailing_arguments(name: "Celebrity group agreement")
     {
       agency: @agency,
       actor: @actor,
       departure: @departure,
       arrangement_attributes: {
-        name: "Celebrity group agreement",
+        name: name,
         contracting_supplier_id: @contractor.id,
         supplier_contact_id: @contact.id
       },

@@ -7,7 +7,6 @@
   <div class="dd-panel-body">
     <% if workspace.status == :connected %>
       <%= form_with url: departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement), method: :patch, class: "dd-form dd-stack" do %>
-        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
         <%= hidden_field_tag :arrangement_lock_version, form[:arrangement_lock_version] %>
         <%= hidden_field_tag :version_lock_version, form[:version_lock_version] %>
         <%= render "cruise_service_connections/fields", form: form, workspace: workspace %>
@@ -26,24 +25,24 @@
         <%= render "cruise_service_connections/fields", form: form, workspace: workspace %>
 
         <% if workspace.status == :not_connected && workspace.eligible_offers.any? %>
-          <fieldset class="dd-field-group">
-            <legend class="dd-label">Existing service outline</legend>
+          <div class="dd-field-group">
+            <%= label_tag :service_offer_id, "Existing service outline", class: "dd-label" %>
             <%= select_tag :service_offer_id,
                   options_from_collection_for_select(workspace.eligible_offers, :id, :name, form[:service_offer_id]),
                   include_blank: "Choose a service",
                   class: "dd-field" %>
-          </fieldset>
+          </div>
         <% end %>
 
         <div class="dd-inline-actions">
           <% if workspace.status == :decide_later %>
-            <%= submit_tag "Connect existing service", name: "mode", value: "existing", class: "dd-button" %>
+            <%= button_tag "Connect existing service", type: "submit", name: "mode", value: "existing", class: "dd-button" %>
           <% else %>
-            <%= submit_tag "Create and connect service", name: "mode", value: "new", class: "dd-button" %>
+            <%= button_tag "Create and connect service", type: "submit", name: "mode", value: "new", class: "dd-button" %>
             <% if workspace.eligible_offers.any? %>
-              <%= submit_tag "Connect existing service", name: "mode", value: "existing", class: "dd-button dd-button--secondary" %>
+              <%= button_tag "Connect existing service", type: "submit", name: "mode", value: "existing", class: "dd-button dd-button--secondary" %>
             <% end %>
-            <%= submit_tag "Save for later", name: "mode", value: "later", class: "dd-button dd-button--quiet" %>
+            <%= button_tag "Save for later", type: "submit", name: "mode", value: "later", class: "dd-button dd-button--quiet" %>
           <% end %>
         </div>
       <% end %>

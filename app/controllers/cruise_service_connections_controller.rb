@@ -39,7 +39,6 @@ class CruiseServiceConnectionsController < ApplicationController
 
   def update
     offer = @workspace.offer || raise(ActiveRecord::RecordNotFound)
-    @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     assign_editor_from_failure
     assign_form_from_params
 
@@ -47,7 +46,6 @@ class CruiseServiceConnectionsController < ApplicationController
       agency: Current.agency,
       actor: Current.agency_user,
       offer: offer,
-      idempotency_key: @idempotency_key,
       attributes: connection_attributes
     ).call
     redirect_to departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement),

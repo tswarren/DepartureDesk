@@ -35,6 +35,7 @@ class DetectCruiseServiceConnectionShape
 
     cruise_reasons, arrangement, arrangement_version, item, occurrence = cruise_reasons_for(bindings)
     reasons.concat(cruise_reasons) if reasons.empty? || bindings.any?
+    reasons.concat(claim_reasons(offer, arrangement, item))
     reasons = reasons.uniq
 
     Result.new(
@@ -152,6 +153,13 @@ class DetectCruiseServiceConnectionShape
       reasons.concat(binding_reasons(binding, arrangement_version))
     end
     [ reasons, arrangement, arrangement_version, shape.item, shape.occurrence ]
+  end
+
+  def claim_reasons(offer, arrangement, item)
+    return [] if arrangement.nil? || item.nil?
+    return [] if offer.intended_arrangement_item_id == item.id && offer.intended_supplier_arrangement_id == arrangement.id
+
+    [ "The Cruise item claim does not match the cabin choices." ]
   end
 
   def binding_reasons(binding, arrangement_version)
