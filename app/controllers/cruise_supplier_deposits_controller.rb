@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CruiseSupplierDeadlinesController < ApplicationController
+class CruiseSupplierDepositsController < ApplicationController
   include SupplierArrangementAccess
 
   before_action :require_departure_view!
@@ -12,46 +12,46 @@ class CruiseSupplierDeadlinesController < ApplicationController
   before_action :set_definition, only: %i[update destroy]
 
   def create
-    attributes = compiled_attributes!
-    result = CreateSupplierDeadlineDefinition.new(
+    candidate = normalize_candidate!
+    result = CreateSupplierDepositRequirementDefinition.new(
       agency: Current.agency,
       actor: Current.agency_user,
       version: @cruise_shape.version,
-      attributes: attributes,
+      attributes: candidate.attributes,
       version_lock_version: params.require(:version_lock_version),
       idempotency_key: params.require(:idempotency_key)
     ).call
     redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
       @departure, @supplier_arrangement,
-      focus_deadline_id: result.record.id
-    ), notice: "Deadline saved."
+      focus_deposit_id: result.record.id
+    ), notice: "Deposit requirement saved."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    render_workspace_with_error(error, editor: "new")
+    render_workspace_with_error(error, deposit_editor: "new")
   end
 
   def update
-    attributes = compiled_attributes!
-    result = UpdateSupplierDeadlineDefinition.new(
+    candidate = normalize_candidate!
+    result = UpdateSupplierDepositRequirementDefinition.new(
       agency: Current.agency,
       actor: Current.agency_user,
       definition: @definition,
-      attributes: attributes,
+      attributes: candidate.attributes,
       lock_version: params.require(:lock_version)
     ).call
     redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
       @departure, @supplier_arrangement,
-      focus_deadline_id: result.record.id
-    ), notice: "Deadline updated."
+      focus_deposit_id: result.record.id
+    ), notice: "Deposit requirement updated."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    render_workspace_with_error(error, editor: "edit", editing_id: @definition.id)
+    render_workspace_with_error(error, deposit_editor: "edit", editing_deposit_id: @definition.id)
   end
 
   def destroy
-    RemoveSupplierDeadlineDefinition.new(
+    RemoveSupplierDepositRequirementDefinition.new(
       agency: Current.agency,
       actor: Current.agency_user,
       definition: @definition,
@@ -59,13 +59,48 @@ class CruiseSupplierDeadlinesController < ApplicationController
     ).call
     redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
       @departure, @supplier_arrangement
-    ), notice: "Deadline removed."
+    ), notice: "Deposit requirement removed."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
     redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
       @departure, @supplier_arrangement
     ), alert: error.message
+  end
+
+  def preview
+    candidate = normalize_candidate!
+    result = PreviewCruiseDepositRequirement.call(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      version: @cruise_shape.version,
+      candidate: candidate,
+      version_lock_version: params[:version_lock_version]
+    )
+
+    render json: {
+      status: result.status,
+      amount_minor_units: result.amount_minor_units,
+      amount_display: format_preview_amount(result.amount_minor_units),
+      pending_reasons: result.pending_reasons,
+      quantity_label: result.quantity_label,
+      stale: result.stale?,
+      version_lock_version: result.version_lock_version,
+      request_token: params[:request_token]
+    }
+  rescue AgencyCommand::Error => error
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    render json: {
+      status: "invalid",
+      amount_minor_units: nil,
+      amount_display: nil,
+      pending_reasons: [ error.message ],
+      quantity_label: nil,
+      stale: false,
+      version_lock_version: @cruise_shape.version.lock_version,
+      request_token: params[:request_token]
+    }, status: :unprocessable_entity
   end
 
   private
@@ -84,49 +119,62 @@ class CruiseSupplierDeadlinesController < ApplicationController
   def require_editable_draft!
     return if @cruise_shape.version&.draft?
 
+    if action_name == "preview"
+      render json: {
+        status: "invalid",
+        pending_reasons: [ "Create a successor draft before editing deposits." ]
+      }, status: :unprocessable_entity
+      return
+    end
+
     redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
       @departure, @supplier_arrangement
-    ), alert: "Create a successor draft before editing deadlines."
+    ), alert: "Create a successor draft before editing deposits."
   end
 
   def set_definition
     version = @cruise_shape.version
     raise ActiveRecord::RecordNotFound unless version&.draft?
 
-    @definition = version.supplier_deadline_definitions.find(params[:id])
+    @definition = version.supplier_deposit_requirement_definitions.find(params[:id])
   end
 
-  def deadline_form_params
-    params.fetch(:cruise_deadline, {}).permit(
-      :template, :kind, :other_label, :description, :warning_lead_days,
+  def deposit_form_params
+    params.fetch(:cruise_deposit, {}).permit(
+      :template, :description, :amount_shape, :quantity_basis,
+      :fixed_amount, :fixed_amount_minor_units, :rate_amount, :rate_minor_units,
+      :explicit_quantity, :coverage_scope,
       :rule_shape, :fixed_date, :fixed_datetime, :offset_days, :offset_hours,
       :arm1_rule_shape, :arm1_fixed_date, :arm1_fixed_datetime, :arm1_offset_days, :arm1_offset_hours,
+      :arm1_milestone_kind,
       :arm2_rule_shape, :arm2_fixed_date, :arm2_fixed_datetime, :arm2_offset_days, :arm2_offset_hours,
-      :coverage_scope, :supplier_resource_id, :capacity_pool_id
+      :arm2_milestone_kind,
+      capacity_pool_ids: [],
+      supplier_resource_ids: [],
+      contributor_definition_ids: []
     )
   end
 
-  def compiled_attributes!
-    form = deadline_form_params.to_h.with_indifferent_access
-    CruiseDeadlineTemplateSupport.compile_attributes(
-      template_key: form[:template],
-      kind: form[:kind],
-      other_label: form[:other_label],
-      description: form[:description],
-      warning_lead_days: form[:warning_lead_days],
-      timing: form,
-      coverage: {
-        scope: form[:coverage_scope],
-        supplier_resource_id: form[:supplier_resource_id],
-        capacity_pool_id: form[:capacity_pool_id]
-      },
+  def normalize_candidate!
+    form = deposit_form_params.to_h.with_indifferent_access
+    CruiseDepositCandidateNormalizer.call(
+      template_key: form[:template].presence || "other_deposit",
+      form: form,
       arrangement: @supplier_arrangement,
       version: @cruise_shape.version,
-      cruise_item: @cruise_shape.item
+      cruise_item: @cruise_shape.item,
+      currency: @departure.operating_currency,
+      cumulative_definition: @definition
     )
   end
 
-  def render_workspace_with_error(error, editor:, editing_id: nil)
+  def format_preview_amount(minor_units)
+    return nil if minor_units.nil?
+
+    Money.new(minor_units, @departure.operating_currency).format
+  end
+
+  def render_workspace_with_error(error, deposit_editor:, editing_deposit_id: nil)
     @form_error = error.message
     flash.now[:alert] = error.message
     @workspace = CompileCruiseDepositsAndDeadlinesWorkspace.new(
@@ -136,20 +184,10 @@ class CruiseSupplierDeadlinesController < ApplicationController
     ).call
     @supplier_arrangement_version = @workspace.version
     @editable = @workspace.editable?
-    @editor = editor
-    @editing_id = editing_id
-    @deposit_editor = nil
-    @editing_deposit_id = nil
+    @deposit_editor = deposit_editor
+    @editing_deposit_id = editing_deposit_id
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
-    @form = deadline_form_params.to_h.with_indifferent_access
-    @deposit_form = {
-      template: "initial_deposit",
-      amount_shape: "quantity_times_rate",
-      quantity_basis: "capacity_pool_units",
-      rule_shape: "fixed_date",
-      capacity_pool_ids: [],
-      contributor_definition_ids: []
-    }.with_indifferent_access
+    @deposit_form = deposit_form_params.to_h.with_indifferent_access
     assign_coverage_options
     assign_contributor_options
     render "cruise_deposits_and_deadlines/show", status: :unprocessable_entity
@@ -176,9 +214,12 @@ class CruiseSupplierDeadlinesController < ApplicationController
 
   def assign_contributor_options
     version = @cruise_shape.version
+    edit_position = @definition&.position
     @contributor_options = version.supplier_deposit_requirement_definitions
       .order(:position, :id)
       .filter_map { |definition|
+        next if @definition && definition.id == @definition.id
+        next if edit_position && definition.position >= edit_position
         next unless definition.amount_shape == "quantity_times_rate" &&
           definition.quantity_basis == "capacity_pool_units"
 

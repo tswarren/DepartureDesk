@@ -29,7 +29,7 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "#cruise-deposits-and-deadlines"
     assert_select "a", text: "Add Supplier deadline"
-    assert_match(/not yet typed/i, response.body)
+    assert_select "a", text: "Add deposit requirement"
     assert_select "a", text: "Open advanced Deadlines"
     assert_match(/return_to=#{CompileCruiseDepositsAndDeadlinesWorkspace::RETURN_TOKEN}/, response.body)
 

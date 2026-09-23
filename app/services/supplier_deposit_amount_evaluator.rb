@@ -3,16 +3,49 @@
 class SupplierDepositAmountEvaluator
   IncompleteCalculation = Class.new(StandardError)
 
-  def self.call(definition:, version:, arrangement:, mode: :materialize, at: Time.current)
-    new(definition:, version:, arrangement:, mode:, at:).call
+  CoverageSource = Data.define(
+    :capacity_pool_id,
+    :arrangement_item_id,
+    :service_occurrence_id,
+    :supplier_resource_id
+  )
+
+  def self.call(
+    definition:,
+    version:,
+    arrangement:,
+    mode: :materialize,
+    at: Time.current,
+    coverage_links: nil,
+    contributor_definition_ids: nil
+  )
+    new(
+      definition:,
+      version:,
+      arrangement:,
+      mode:,
+      at:,
+      coverage_links:,
+      contributor_definition_ids:
+    ).call
   end
 
-  def initialize(definition:, version:, arrangement:, mode: :materialize, at: Time.current)
+  def initialize(
+    definition:,
+    version:,
+    arrangement:,
+    mode: :materialize,
+    at: Time.current,
+    coverage_links: nil,
+    contributor_definition_ids: nil
+  )
     @definition = definition
     @version = version
     @arrangement = arrangement
     @mode = mode.to_sym
     @at = at
+    @coverage_links_override = coverage_links
+    @contributor_definition_ids_override = contributor_definition_ids
   end
 
   def call
@@ -39,6 +72,46 @@ class SupplierDepositAmountEvaluator
   end
 
   private
+
+  def coverage_link_rows
+    if @coverage_links_override
+      Array(@coverage_links_override).map do |raw|
+        attrs = raw.to_h.with_indifferent_access
+        CoverageSource.new(
+          capacity_pool_id: attrs[:capacity_pool_id],
+          arrangement_item_id: attrs[:arrangement_item_id],
+          service_occurrence_id: attrs[:service_occurrence_id],
+          supplier_resource_id: attrs[:supplier_resource_id]
+        )
+      end
+    else
+      @definition.supplier_deposit_requirement_definition_coverage_links.order(:position, :id).to_a
+    end
+  end
+
+  def contributor_definitions
+    if @contributor_definition_ids_override
+      ids = Array(@contributor_definition_ids_override).map(&:to_s)
+      raise IncompleteCalculation, "Quantity-derived cumulative targets require contributors" if ids.empty?
+
+      ids.map do |id|
+        definition = @version.supplier_deposit_requirement_definitions.find_by(id:)
+        raise IncompleteCalculation, "Contributor definition is missing" if definition.nil?
+
+        definition
+      end
+    else
+      links = @definition.supplier_deposit_requirement_definition_contributor_links.order(:position, :id)
+      raise IncompleteCalculation, "Quantity-derived cumulative targets require contributors" if links.empty?
+
+      links.map do |link|
+        contributor = link.contributor_definition
+        raise IncompleteCalculation, "Contributor definition is missing" if contributor.nil?
+
+        contributor
+      end
+    end
+  end
 
   def evaluate_quantity_times_rate
     rate = @definition.rate_minor_units
@@ -92,6 +165,18 @@ class SupplierDepositAmountEvaluator
     @mode == :preview ? :proposed_opening : :established_opening
   end
 
+  def cumulative_quantity_phase
+    return :retained unless @mode == :preview
+    return :retained if successor_preview_context?
+    return :provisional_retained if @version.draft?
+
+    :retained
+  end
+
+  def successor_preview_context?
+    @arrangement.versions.where.not(status: "draft").exists?
+  end
+
   def evaluate_capacity_pool_rate(rate, quantity_phase:)
     sources = capacity_pool_sources(quantity_phase:)
     total_quantity = sources.sum { |row| row.fetch(:quantity) }
@@ -107,6 +192,7 @@ class SupplierDepositAmountEvaluator
         "rate_minor_units" => rate,
         "amount_minor_units" => row[:quantity] * rate,
         "quantity_phase" => quantity_phase.to_s,
+        "quantity_label" => row[:quantity_label],
         "projection_id" => row[:projection_id],
         "capacity_event_id" => row[:capacity_event_id]
       }
@@ -126,7 +212,7 @@ class SupplierDepositAmountEvaluator
   end
 
   def capacity_pool_sources(quantity_phase:)
-    links = @definition.supplier_deposit_requirement_definition_coverage_links.order(:position, :id)
+    links = coverage_link_rows
     raise IncompleteCalculation, "Deposit coverage is required for capacity-pool quantities" if links.empty?
 
     links.map do |link|
@@ -136,6 +222,7 @@ class SupplierDepositAmountEvaluator
         capacity_pool_id: pool.id,
         supplier_resource_id: pool.supplier_resource_id,
         quantity:,
+        quantity_label: meta[:quantity_label],
         projection_id: meta[:projection_id],
         capacity_event_id: meta[:capacity_event_id]
       }
@@ -179,12 +266,13 @@ class SupplierDepositAmountEvaluator
   def quantity_for_pool(pool, quantity_phase:)
     case quantity_phase
     when :proposed_opening
-      definition = @version.capacity_pool_definitions.find_by(capacity_pool_id: pool.id)
-      raise IncompleteCalculation, "Capacity pool definition is incomplete" if definition.nil?
-      quantity = definition.proposed_opening_quantity
-      raise IncompleteCalculation, "Proposed opening quantity is incomplete" if quantity.nil? || quantity <= 0
-
-      [ quantity, {} ]
+      proposed_opening_quantity_for(pool)
+    when :provisional_retained
+      quantity, meta = proposed_opening_quantity_for(pool)
+      [
+        quantity,
+        meta.merge(quantity_label: "If activated with the current cabin block")
+      ]
     when :established_opening
       event = pool.capacity_events.where(event_type: "established")
         .order(:effective_on, :effective_sequence, :id).first
@@ -204,6 +292,16 @@ class SupplierDepositAmountEvaluator
     end
   end
 
+  def proposed_opening_quantity_for(pool)
+    definition = @version.capacity_pool_definitions.find_by(capacity_pool_id: pool.id)
+    raise IncompleteCalculation, "Capacity pool definition is incomplete" if definition.nil?
+
+    quantity = definition.proposed_opening_quantity
+    raise IncompleteCalculation, "Proposed opening quantity is incomplete" if quantity.nil? || quantity <= 0
+
+    [ quantity, {} ]
+  end
+
   def ensure_fresh_retained_projection!(pool)
     projection = pool.capacity_projection
     raise IncompleteCalculation, "Capacity projection is missing for retained quantity" if projection.nil?
@@ -218,7 +316,7 @@ class SupplierDepositAmountEvaluator
   end
 
   def quantity_from_resource_units
-    links = @definition.supplier_deposit_requirement_definition_coverage_links.order(:position, :id)
+    links = coverage_link_rows
     raise IncompleteCalculation, "Deposit coverage is required for resource-unit quantities" if links.empty?
 
     total = 0
@@ -327,17 +425,12 @@ class SupplierDepositAmountEvaluator
 
   def evaluate_quantity_derived_cumulative
     rate = @definition.rate_minor_units
-    contributor_links = @definition.supplier_deposit_requirement_definition_contributor_links.order(:position, :id)
-    raise IncompleteCalculation, "Quantity-derived cumulative targets require contributors" if contributor_links.empty?
-
-    retained_sources = capacity_pool_sources(quantity_phase: :retained)
+    contributors = contributor_definitions
+    retained_sources = capacity_pool_sources(quantity_phase: cumulative_quantity_phase)
     credits_by_pool = Hash.new(0)
     contributor_traces = []
 
-    contributor_links.each do |link|
-      contributor = link.contributor_definition
-      raise IncompleteCalculation, "Contributor definition is missing" if contributor.nil?
-
+    contributors.each do |contributor|
       amount_by_pool, trace = credited_amounts_by_pool(contributor)
       amount_by_pool.each { |pool_id, amount| credits_by_pool[pool_id] += amount }
       contributor_traces << trace
@@ -353,6 +446,7 @@ class SupplierDepositAmountEvaluator
         "capacity_pool_id" => pool_id,
         "supplier_resource_id" => row[:supplier_resource_id],
         "retained_quantity" => row[:quantity],
+        "quantity_label" => row[:quantity_label],
         "rate_minor_units" => rate,
         "target_minor_units" => target,
         "credited_minor_units" => credited,
@@ -367,6 +461,7 @@ class SupplierDepositAmountEvaluator
       inputs: {
         "amount_shape" => "cumulative_target",
         "quantity_basis" => "capacity_pool_units",
+        "quantity_phase" => cumulative_quantity_phase.to_s,
         "rate_minor_units" => rate,
         "contributors" => contributor_traces,
         "sources" => components
@@ -376,7 +471,11 @@ class SupplierDepositAmountEvaluator
 
   def credited_amounts_by_pool(contributor)
     tranches = tranches_for_contributor(contributor)
-    raise IncompleteCalculation, "Contributor tranche is not materialized" if tranches.empty?
+    if tranches.empty?
+      return provisional_contributor_credit(contributor) if @mode == :preview
+
+      raise IncompleteCalculation, "Contributor tranche is not materialized"
+    end
 
     by_pool = Hash.new(0)
     tranche_traces = []
@@ -393,8 +492,41 @@ class SupplierDepositAmountEvaluator
       by_pool,
       {
         "contributor_definition_id" => contributor.id,
+        "credit_source" => "materialized_tranches",
         "tranches" => tranche_traces,
         "amounts_by_pool" => by_pool
+      }
+    ]
+  end
+
+  def provisional_contributor_credit(contributor)
+    evaluated = self.class.call(
+      definition: contributor,
+      version: @version,
+      arrangement: @arrangement,
+      mode: :preview,
+      at: @at
+    )
+    by_pool = Hash.new(0)
+    Array(evaluated.dig(:inputs, "sources")).each do |row|
+      row = row.with_indifferent_access
+      pool_id = row[:capacity_pool_id]
+      next if pool_id.blank?
+
+      by_pool[pool_id] += row[:amount_minor_units].to_i
+    end
+    if by_pool.empty? && evaluated[:amount_minor_units].to_i.positive?
+      raise IncompleteCalculation,
+        "Contributor preview lacks per-source attribution for cumulative credit"
+    end
+
+    [
+      by_pool,
+      {
+        "contributor_definition_id" => contributor.id,
+        "credit_source" => "draft_contributor_preview",
+        "amounts_by_pool" => by_pool,
+        "preview_amount_minor_units" => evaluated[:amount_minor_units]
       }
     ]
   end
@@ -453,7 +585,6 @@ class SupplierDepositAmountEvaluator
     rows = Array(snapshot["sources"]).presence || Array(snapshot[:sources])
     return rows if rows.present?
 
-    # Post-attestation increments must carry durable pool attribution.
     attributed = snapshot["amounts_by_pool"] || snapshot[:amounts_by_pool]
     if attributed.present?
       return attributed.map do |pool_id, amount|
@@ -504,16 +635,5 @@ class SupplierDepositAmountEvaluator
         supplier_deposit_requirement_definition_id: definition.copied_from_id
       )
       .sum(:current_amount_minor_units)
-  end
-
-  def latest_tranche_for_definition_id(definition_id)
-    SupplierDepositRequirementTranche
-      .where(
-        agency_id: @arrangement.agency_id,
-        supplier_arrangement_id: @arrangement.id,
-        supplier_deposit_requirement_definition_id: definition_id
-      )
-      .order(:materialized_at, :id)
-      .last
   end
 end
