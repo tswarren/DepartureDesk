@@ -1113,7 +1113,7 @@ Remediates Stop point C detector reopen:
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 
-**Shipped.** Sole typed Stop D domain authority (workspace remediation is Accepted [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Next unauthorized boundary: Slice 2C.
+**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Next unauthorized boundary: Slice 2C.
 
 Ship Stop point D:
 
@@ -1127,7 +1127,11 @@ Ship Stop point D:
 
 #### Slice 2B-UX — Deposits and deadlines workspace remediation
 
-**Accepted.** Sole Stop D workspace remediation authority: [M4D.1 Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md). Task-flow and defect repair over shipped Slice 2B; does not authorize Slice 2C.
+**Shipped.** Sole Stop D workspace remediation authority: [M4D.1 Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md) (product merge [`bba974c`](https://github.com/tswarren/DepartureDesk/commit/bba974c) / PR #151). Task-flow and defect repair over shipped Slice 2B; does not authorize Slice 2C.
+
+#### Slice 2B-UX-R — Contributor replace and 2B-UX closure
+
+**Shipped.** Contributor-position collision fix and 2B-UX Mark Shipped documentation: [M4D.1 Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md). Does not authorize Slice 2C.
 
 #### Slice 2C — Connect Cruise, categories, and choices
 

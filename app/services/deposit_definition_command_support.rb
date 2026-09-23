@@ -533,27 +533,39 @@ module DepositDefinitionCommandSupport
     end
     existing_costs.drop(cost_links.size).each(&:destroy!)
 
-    contributor_links = Array(contributor_links)
+    replace_deposit_contributor_links!(definition, Array(contributor_links), owner)
+  end
+
+  # Match retained links by contributor_definition_id (attr_readonly). Destroy removed
+  # rows first, then two-phase reposition retained rows, then create newcomers so the
+  # unique (definition_id, position) index never collides mid-replace.
+  def replace_deposit_contributor_links!(definition, contributor_links, owner)
     existing_contributors = definition.supplier_deposit_requirement_definition_contributor_links
       .order(:position, :id).lock.to_a
-    retained_contributor_ids = {}
-    contributor_links.each do |attrs|
-      contributor_id = attrs.fetch(:contributor_definition_id).to_s
-      existing = existing_contributors.find { |row|
-        row.contributor_definition_id.to_s == contributor_id
-      }
-      if existing
-        # contributor_definition_id is attr_readonly — only repositions retained links.
-        existing.update!(position: attrs.fetch(:position))
-        retained_contributor_ids[existing.id] = true
-      else
-        created = definition.supplier_deposit_requirement_definition_contributor_links.create!(
-          attrs.merge(owner)
-        )
-        retained_contributor_ids[created.id] = true
-      end
+    retained_by_contributor_id = contributor_links.index_by { |attrs|
+      attrs.fetch(:contributor_definition_id).to_s
+    }
+    removed, retained = existing_contributors.partition { |row|
+      retained_by_contributor_id[row.contributor_definition_id.to_s].blank?
+    }
+    removed.each(&:destroy!)
+
+    retained.each_with_index do |row, index|
+      row.update!(position: 10_000 + index)
     end
-    existing_contributors.reject { |row| retained_contributor_ids[row.id] }.each(&:destroy!)
+    retained.each do |row|
+      attrs = retained_by_contributor_id.fetch(row.contributor_definition_id.to_s)
+      row.update!(position: attrs.fetch(:position))
+    end
+
+    retained_ids = retained.map { |row| row.contributor_definition_id.to_s }.to_set
+    contributor_links.each do |attrs|
+      next if retained_ids.include?(attrs.fetch(:contributor_definition_id).to_s)
+
+      definition.supplier_deposit_requirement_definition_contributor_links.create!(
+        attrs.merge(owner)
+      )
+    end
   end
 
   def child_owner_attrs(definition)
