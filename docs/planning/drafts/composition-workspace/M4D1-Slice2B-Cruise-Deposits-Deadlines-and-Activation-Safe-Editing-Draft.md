@@ -1,6 +1,6 @@
 # M4D.1 Slice 2B — Cruise Deposits, Deadlines, and Activation-Safe Editing
 
-**Status:** Draft. Not implementation authority until accepted. Do not Accept until remaining named gates (including [Slice 2A.2R3](M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md)) are ready; Path B deposit domain is **shipped** under [Slice 2B-R](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md).
+**Status:** Draft. Not implementation authority until accepted. Path B deposit domain is **shipped** under [Slice 2B-R](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md). Rate-shape detector remediation is **shipped** under [Slice 2A.2R3](../../m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md).
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](../../m4d1-departure-composition-workspace.md), especially §§11–12, §19, and §21.
 
@@ -8,7 +8,7 @@
 
 - [M4D.1 Slice 2A.2R2](../../m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) — **Shipped** at [`b73a9ff`](https://github.com/tswarren/DepartureDesk/commit/b73a9ff) (PR #142).
 - [M4D.1 Slice 2B-R](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md) — **Shipped**; capacity-sourced deposit quantities and source-aware cumulative targets.
-- [M4D.1 Slice 2A.2R3](M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md) — rate-shape detector remediation (must ship before this plan is implemented).
+- [M4D.1 Slice 2A.2R3](../../m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md) — **Shipped**; rate-shape detector remediation.
 
 **Retained domain authority:** After 2B-R ships, amended M3E and ADR 0013 remain authoritative for Deadline Definitions, Deposit Requirement Definitions, immutable materializations, operational commitments, planning milestones, exposure, and evidence-backed dispositions. This slice is a typed Cruise **adapter and interaction surface** over those generic records. It does not create a parallel deadline, deposit, or payment model.
 
@@ -47,8 +47,8 @@ The typed interface preserves the distinctions among a contractual requirement, 
 Before this plan can become Accepted:
 
 1. Confirm Slice 2A.2R2 remains Shipped at `b73a9ff` (or a later green main tip that includes it).
-2. **Ship Slice 2B-R** (Path B deposit semantics + ADR/register amendments). Do not Accept 2B against unshipped 2B-R authority.
-3. **Ship Slice 2A.2R3** (rate-shape detector remediation for percentage↔profile mapping) before 2B **implementation** begins.
+2. **Ship Slice 2B-R** (Path B deposit semantics + ADR/register amendments). **Done** — shipped under [Slice 2B-R](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md).
+3. **Ship Slice 2A.2R3** (rate-shape detector remediation). **Done** — shipped under [Slice 2A.2R3](../../m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md).
 4. Pin the green `main` SHA from which 2B implementation will branch.
 5. Verify the current M3E public commands and already-locked helpers used by Deadline and Deposit definition editors, activation, materialization, milestones, and successor copying.
 6. Amend the parent §19 command vocabulary with the exact 2B services/routes selected at Accept.

@@ -12,7 +12,9 @@
 
 **Slice 2A.2R2:** [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) is **Shipped 2026-09-22**. It is the sole shipped authority for the interactive matrix builder remediation (dynamic columns/rows, method-gated commission chrome, unsaved illustrations, browser acceptance).
 
-**Slice 2B-R:** [M4D.1 Slice 2B-R — Cruise Deposit Semantics Amendment](m4d1-slice2br-cruise-deposit-semantics-amendment.md) is **Shipped 2026-09-22**. It is the sole shipped authority for generic M3E capacity-sourced deposit quantities (`capacity_pool_units`) and source-aware cumulative targets. Typed Slice 2B and later slices remain unauthorized until named.
+**Slice 2B-R:** [M4D.1 Slice 2B-R — Cruise Deposit Semantics Amendment](m4d1-slice2br-cruise-deposit-semantics-amendment.md) is **Shipped 2026-09-22**. It is the sole shipped authority for generic M3E capacity-sourced deposit quantities (`capacity_pool_units`) and source-aware cumulative targets.
+
+**Slice 2A.2R3:** [M4D.1 Slice 2A.2R3 — Cruise Rate-Shape Detector Remediation](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md) is **Shipped 2026-09-23**. It is the sole shipped authority for percentage↔profile / collision-safe cell-key detector remediation. Typed Slice 2B remains unauthorized until its Accepted plan names that work; later slices remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -37,6 +39,7 @@
 - [M4D.1 Slice 2A.2R — Cruise Supplier Rate Matrix](m4d1-slice2a2r-cruise-supplier-rate-matrix.md) (shipped; sole C matrix compilation authority)
 - [M4D.1 Slice 2A.2R2 — Cruise Supplier Rate Matrix Interaction](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) (shipped; sole interactive builder chrome authority)
 - [M4D.1 Slice 2B-R — Cruise Deposit Semantics Amendment](m4d1-slice2br-cruise-deposit-semantics-amendment.md) (shipped; sole Path B deposit quantity/cumulative authority)
+- [M4D.1 Slice 2A.2R3 — Cruise Rate-Shape Detector Remediation](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md) (shipped; sole detector remediation authority)
 - [M4D.0 — Streamlined group departure builder](drafts/DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (discovery backlog only)
 - [ADR 0010](../adr/0010-supplier-capacity-ledger-and-projection.md) · [ADR 0011](../adr/0011-supplier-cost-definitions-and-forecast-evaluation.md) · [ADR 0012](../adr/0012-arrangement-activation-reservations-and-confirmations.md) · [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
 - [M3B](m3b-supplier-capacity.md) · [M3C](m3c-cost-terms-and-forecasts.md) · [M3D](m3d-activation-reservations-confirmations.md) · [M3D.7](m3d7-activated-definition-immutability.md) · [M3E](m3e-supplier-operational-control.md)
@@ -942,6 +945,8 @@ Typed composite commands may extract reusable generic `*_already_locked!` helper
 - `MarkCruiseSupplierRateScheduleForecastReady`
 - Read adapters: `CompileCruiseSupplierRatePreview`, `DetectCruiseSupplierRateShape`
 
+**Shipped Slice 2A.2R3** remediates detector reconstruction/validation for those same read/write surfaces (sole detector remediation authority: [Slice 2A.2R3](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md)). It does not rename commands.
+
 **Later Cruise stop-point boundaries** (names locked when the implementing slice is Accepted; former proposed `Save…` vocabulary superseded for A–C):
 
 - Supplier deadlines / deposits (Stop D / Slice 2B)
@@ -1079,13 +1084,25 @@ Remediates Staff chrome so the matrix is an interactive builder:
 
 #### Slice 2B-R — M3E Cruise deposit-semantics amendment
 
-**Shipped 2026-09-22.** Sole shipped authority: [M4D.1 Slice 2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md). Ship commit [`dbdb6c2`](https://github.com/tswarren/DepartureDesk/commit/dbdb6c2). Accept package base [`bfe8431`](https://github.com/tswarren/DepartureDesk/commit/bfe8431).
+**Shipped 2026-09-22.** Sole shipped authority: [M4D.1 Slice 2B-R](m4d1-slice2br-cruise-deposit-semantics-amendment.md). Ship commit / merge tip [`5a391d1`](https://github.com/tswarren/DepartureDesk/commit/5a391d1) (PR #143). Accept package base [`bfe8431`](https://github.com/tswarren/DepartureDesk/commit/bfe8431).
 
 Amends ADR 0013 / M3E register for Path B Celebrity economics (`$50 × initially blocked cabins`, `$500 × retained cabins` source-aware cumulative), deposit `capacity_pool_units`, and explicit cumulative contributors. No typed Cruise UI.
 
+#### Slice 2A.2R3 — Cruise rate-shape detector remediation
+
+**Shipped 2026-09-23.** Sole shipped authority: [M4D.1 Slice 2A.2R3](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md). Accept package base [`5a391d1`](https://github.com/tswarren/DepartureDesk/commit/5a391d1). Ship commit [`5367743`](https://github.com/tswarren/DepartureDesk/commit/5367743).
+
+Remediates Stop point C detector reopen:
+
+- authoritative `component_id → cell_key` mapping for commission bases;
+- shared vs profile-specific percentage topology with fail-closed Advanced for ambiguous graphs;
+- non-destructive detect; reopen → unchanged save → reopen preserves topology.
+
+**Exit:** Seven blocking regressions green; documentation marks Shipped.
+
 #### Slice 2B — Deposits, deadlines, and activation-safe editing (Draft)
 
-**Draft only — not Accepted.** Discovery: [Slice 2B draft](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md). Implementation also awaits shipped [Slice 2A.2R3](drafts/composition-workspace/M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md) (rate-shape detector remediation). Domain Path B economics are shipped under Slice 2B-R.
+**Draft only — not Accepted.** Discovery: [Slice 2B draft](drafts/composition-workspace/M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md). Rate-shape detector prerequisite is shipped under [Slice 2A.2R3](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md). Domain Path B economics are shipped under Slice 2B-R.
 
 Ship Stop point D after Accept of this adapter plan:
 

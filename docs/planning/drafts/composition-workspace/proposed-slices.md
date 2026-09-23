@@ -14,7 +14,9 @@
 
 **Shipped:** [Slice 2B-R — Cruise deposit semantics amendment](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md).
 
-**Draft (not Accepted):** [Slice 2B — Deposits, deadlines, and activation-safe editing](M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md); [Slice 2A.2R3 — Rate-shape detector remediation](M4D1-Slice2A2R3-Cruise-Rate-Shape-Detector-Remediation-Draft.md).
+**Shipped:** [Slice 2A.2R3 — Rate-shape detector remediation](../../m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md).
+
+**Draft (not Accepted):** [Slice 2B — Deposits, deadlines, and activation-safe editing](M4D1-Slice2B-Cruise-Deposits-Deadlines-and-Activation-Safe-Editing-Draft.md).
 
 Parent spine: [M4D.1](../../m4d1-departure-composition-workspace.md) §21.
 
@@ -23,8 +25,8 @@ Do not implement any item below until that item has its own Accepted plan.
 Recommended refinement sequence after shipped 2A.2R2:
 
 1. **Slice 2B-R — M3E Cruise deposit-semantics amendment** ([Shipped](../../m4d1-slice2br-cruise-deposit-semantics-amendment.md))
-2. **Slice 2A.2R3 — Cruise rate-shape detector remediation** (2B implementation prerequisite; Draft)
-3. **Slice 2B — Deposits, deadlines, and activation-safe editing** (typed Stop D; Accept after 2A.2R3 ships; Draft)
+2. **Slice 2A.2R3 — Cruise rate-shape detector remediation** ([Shipped](../../m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md))
+3. **Slice 2B — Deposits, deadlines, and activation-safe editing** (typed Stop D; Draft; may Accept now that 2A.2R3 and 2B-R shipped)
 4. **Slice 2C — Service connection, categories, and Client choices**
 5. **Slice 2D — Client-term compilation and scenario Review**
 6. **Slice 3 — Adapter generalization**
