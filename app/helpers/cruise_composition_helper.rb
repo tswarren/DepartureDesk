@@ -28,10 +28,16 @@ module CruiseCompositionHelper
   end
 
   def cruise_typed_cabin_pool?(pool, pool_definition)
-    pool.present? &&
-      pool_definition.present? &&
-      pool.resource_units? &&
-      pool_definition.unit_label.to_s.casecmp("cabins").zero?
+    CruiseCabinCategorySupport.typed_cabin_pool?(pool, pool_definition)
+  end
+
+  def cruise_connection_status_label(status)
+    {
+      not_connected: "Not connected",
+      decide_later: "Decide later",
+      connected: "Connected",
+      advanced: "Advanced"
+    }.fetch(status.to_sym, "Not connected")
   end
 
   def cruise_cabin_quantity_label(pool, pool_definition)

@@ -1,0 +1,33 @@
+<%# locals: (form:, workspace:) %>
+<div class="dd-field-group">
+  <%= label_tag :title, "Client title", class: "dd-label" %>
+  <%= text_field_tag :title, form[:title], class: "dd-field", required: true, autocomplete: "off" %>
+</div>
+
+<div class="dd-field-group">
+  <%= label_tag :description, "Client description", class: "dd-label" %>
+  <%= text_area_tag :description, form[:description], class: "dd-field", rows: 3 %>
+</div>
+
+<fieldset class="dd-field-group">
+  <legend class="dd-label">Cabin categories</legend>
+  <% if workspace.categories.empty? %>
+    <p>Add a cabin category before connecting this sailing.</p>
+  <% else %>
+    <ul class="dd-stack">
+      <% workspace.categories.each do |category| %>
+        <li>
+          <% if category.selectable %>
+            <%= label_tag "supplier_resource_ids_#{category.resource.id}" do %>
+              <%= check_box_tag "supplier_resource_ids[]", category.resource.id, Array(form[:supplier_resource_ids]).map(&:to_s).include?(category.resource.id.to_s), id: "supplier_resource_ids_#{category.resource.id}" %>
+              <span><%= category.supplier_label %></span>
+            <% end %>
+          <% else %>
+            <span><%= category.supplier_label %></span>
+            <span class="dd-field-hint"><%= category.unavailable_reason %></span>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</fieldset>

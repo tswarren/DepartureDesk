@@ -1,0 +1,35 @@
+<% content_for :title, "Cruise service connection — #{@supplier_arrangement.name}" %>
+<% form = (@form || {}).with_indifferent_access %>
+<% workspace = @workspace %>
+<% editor_title = workspace.status == :connected ? "Edit Cruise service connection" : "Connect Cruise service" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Cruise Supplier planning</p>
+    <h1 class="dd-page-title" id="cruise-service-connection-summary" tabindex="-1" <%= "autofocus" if flash[:notice].present? && !@editor_open %>>
+      <%= @editor_open ? editor_title : "Cruise service connection" %>
+    </h1>
+    <p class="dd-page-description">
+      <%= @supplier_arrangement.name %>
+      · <%= cruise_connection_status_label(workspace.status) %>
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to Cruise",
+          departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+          class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<% if @form_error.present? %>
+  <div id="form-error-summary" class="dd-alert dd-alert--danger" role="alert" tabindex="-1">
+    <p class="dd-alert-title">Please fix the following</p>
+    <p><%= @form_error %></p>
+  </div>
+<% end %>
+
+<% if @editor_open %>
+  <%= render "cruise_service_connections/editor", form: form, workspace: workspace %>
+<% else %>
+  <%= render "cruise_service_connections/summary", workspace: workspace %>
+<% end %>

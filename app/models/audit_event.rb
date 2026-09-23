@@ -184,6 +184,7 @@ class AuditEvent < ApplicationRecord
     package.sales_resumed
     package.retired
     service_offer.choice_updated
+    service_offer.cruise_connection_saved
     service_offer.terms_updated
   ].freeze
 

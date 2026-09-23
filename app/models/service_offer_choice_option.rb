@@ -17,7 +17,9 @@ class ServiceOfferChoiceOption < ApplicationRecord
 
   normalizes :name, with: ->(value) { value.to_s.strip }
   normalizes :client_description, with: ->(value) { value.to_s.strip.presence }
+  normalizes :client_rate_category_key, with: ->(value) { value.to_s.strip.presence }
 
   validates :name, presence: true, length: { maximum: 160 }
+  validates :client_rate_category_key, length: { maximum: ServiceOfferPriceComponent::RATE_CATEGORY_LIMIT }, allow_nil: true
   validates :position, numericality: { only_integer: true, greater_than: 0 }
 end

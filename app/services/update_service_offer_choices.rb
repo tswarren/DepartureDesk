@@ -19,6 +19,12 @@ class UpdateServiceOfferChoices < AgencyCommand
       departure, offer, version = lock_departure_offer_draft!(@offer)
       ensure_offer_draft_editable!(departure, offer, version)
       ensure_current_lock_version!(version, @version_lock_version)
+      if offer.intended_arrangement_item_id.present?
+        raise Error.new(
+          "This service is connected to a cruise. Edit it from the Cruise service connection workspace.",
+          code: :invalid
+        )
+      end
       replace_groups!(version, offer, departure)
       validate_choice_gated!(version)
       bump_version!(version)

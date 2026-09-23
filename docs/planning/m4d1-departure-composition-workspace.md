@@ -959,9 +959,15 @@ Typed composite commands may extract reusable generic `*_already_locked!` helper
 - Cruise adapter services: `CompileCruiseDepositsAndDeadlinesWorkspace`, `DetectCruiseSupplierDeadlineShape`, `DetectCruiseDepositRequirementShape`, `PreviewCruiseDepositRequirement`, `PreviewCruiseDepositsAndDeadlinesActivation`
 - Typed routes under `/departures/:departure_id/arrangements/:arrangement_id/cruise/deposits-and-deadlines` (nested deadlines/deposits + preview POSTs). Generic `/deadlines` and `/deposits` remain Advanced planning.
 
-**Later Cruise stop-point boundaries** (names locked when the implementing slice is Accepted; former proposed `Save…` vocabulary superseded for A–C):
+**Accepted Slice 2C** (sole Stop E authority: [Slice 2C](m4d1-slice2c-cruise-service-connection.md)):
 
-- `ConnectCruiseServiceOffer` (Stop E / Slice 2C)
+- `ConnectCruiseServiceOffer` (`new`, `existing`, `later`) and `UpdateCruiseServiceConnection`
+- Read adapters: `DetectCruiseServiceConnectionShape`, `CompileCruiseServiceConnectionWorkspace`
+- Typed route under `/departures/:departure_id/arrangements/:arrangement_id/cruise/service-connection`
+- Option rate key and Arrangement Item claim, with claim reassignment rejected in PostgreSQL
+
+**Later Cruise stop-point boundary** (names locked when the implementing slice is Accepted):
+
 - Client term schedule and Supplier-to-Client copy (Stops F–G / Slice 2D)
 
 The accepted sub-slice plan must name exact commands, inputs, outputs, and whether each extracts already-locked helpers or composes shipped public commands.
@@ -1113,7 +1119,7 @@ Remediates Stop point C detector reopen:
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 
-**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Next unauthorized boundary: Slice 2C.
+**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is accepted separately. Next unauthorized boundary: Slice 2D.
 
 Ship Stop point D:
 
@@ -1135,15 +1141,19 @@ Ship Stop point D:
 
 #### Slice 2C — Connect Cruise, categories, and choices
 
+**Accepted 2026-09-23.** Sole Stop E authority: [M4D.1 Slice 2C](m4d1-slice2c-cruise-service-connection.md). Not shipped. Implementation base is green `main` at or after `df16a71` (PR #152).
+
 Ship Stop point E plus the durable choice-rate key:
 
-- connect existing/new/decide-later flow;
-- one Cruise Service with multiple category bindings;
-- choice group/options/source activations;
-- option-to-rate-category persistence and validation;
-- no duplicate Service Offer on connect.
+- connect existing/new/decide-later flow through `ConnectCruiseServiceOffer`, with one Arrangement Item claim per Cruise service;
+- one Cruise Service with multiple `choice_gated` category bindings;
+- exactly-one `Cabin category` group, options, and source activations;
+- option-minted `client_rate_category_key`, copied unchanged onto a successor;
+- identity-preserving update with two-phase position replacement;
+- `manage_departures` only; Viewers receive not found;
+- no duplicate Service Offer on connect, and no Client price.
 
-**Exit:** O1 is a Client choice inside one Cruise Service and is traceable to exact Supplier support.
+**Exit:** O1 is a Client choice inside one Cruise Service and is traceable to exact Supplier support and a durable option-owned rate key.
 
 #### Slice 2D — Client term compiler and scenario Review
 

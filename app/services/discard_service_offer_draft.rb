@@ -26,6 +26,7 @@ class DiscardServiceOfferDraft < AgencyCommand
       ensure_current_lock_version!(version, @version_lock_version)
       reason = normalize_reason(@reason)
       version.update!(status: "abandoned", abandoned_at: Time.current, abandoned_reason: reason)
+      release_cruise_item_claim!(offer)
       audit!(
         agency: @agency,
         action: "service_offer.discarded",
@@ -41,5 +42,17 @@ class DiscardServiceOfferDraft < AgencyCommand
     end
   rescue ActiveRecord::RecordInvalid => error
     command_error_from(error)
+  end
+
+  private
+
+  def release_cruise_item_claim!(offer)
+    return if offer.intended_arrangement_item_id.blank?
+    return if offer.versions.where.not(status: "abandoned").exists?
+
+    offer.update!(
+      intended_arrangement_item_id: nil,
+      intended_supplier_arrangement_id: nil
+    )
   end
 end

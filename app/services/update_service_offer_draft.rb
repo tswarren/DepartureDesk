@@ -26,6 +26,10 @@ class UpdateServiceOfferDraft < AgencyCommand
       ensure_current_lock_version!(offer, @offer_lock_version)
       ensure_current_lock_version!(version, @version_lock_version)
 
+      if @attributes.key?(:intended_arrangement_item_id) || @attributes.key?(:intended_supplier_arrangement_id)
+        raise Error.new("The Cruise item claim cannot be changed from this form.", code: :invalid)
+      end
+
       definition = version.definition
       raise Error.new("That service offer has no draft definition.", code: :invalid_state) if definition.nil?
 

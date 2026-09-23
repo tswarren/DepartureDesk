@@ -71,7 +71,9 @@ module OfferVersionGraphCopy
         new_option = new_group.service_offer_choice_options.create!(
           agency:, departure:, service_offer: offer, service_offer_version: to,
           name: option.name, client_description: option.client_description,
-          price_effect_minor_units: option.price_effect_minor_units, position: option.position
+          price_effect_minor_units: option.price_effect_minor_units,
+          client_rate_category_key: option.client_rate_category_key,
+          position: option.position
         )
         option_map[option.id] = new_option
         activation = option.source_activation

@@ -1,0 +1,79 @@
+<%# locals: (workspace:) %>
+<article class="dd-panel" id="cruise-service-summary">
+  <div class="dd-panel-body dd-stack">
+    <p>
+      <strong><%= cruise_connection_status_label(workspace.status) %></strong>
+    </p>
+
+    <% if workspace.status == :advanced %>
+      <p>This Client service uses an advanced structure. Cruise setup will not change it.</p>
+      <% if workspace.reasons.any? %>
+        <ul>
+          <% workspace.reasons.each do |reason| %>
+            <li><%= reason %></li>
+          <% end %>
+        </ul>
+      <% end %>
+      <% if workspace.offer %>
+        <p>
+          <%= link_to "Open service offer",
+                departure_service_offer_path(@departure, workspace.offer),
+                class: "dd-link" %>
+        </p>
+      <% end %>
+    <% elsif workspace.status == :not_connected %>
+      <p>This sailing is not connected to a Client service yet.</p>
+      <p>
+        <%= link_to "Connect Cruise service",
+              departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement, editor: "connect", sailing: (@sailing_tentative ? "draft" : "activated")),
+              class: "dd-button" %>
+      </p>
+    <% elsif workspace.status == :decide_later %>
+      <p>Client title: <%= workspace.definition.client_title %></p>
+      <% if workspace.offer.name != workspace.definition.client_title %>
+        <p>Staff name: <%= workspace.offer.name %></p>
+      <% end %>
+      <p>Cabin categories are not chosen yet.</p>
+      <p>
+        <%= link_to "Connect Cruise service",
+              departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement, editor: "connect", sailing: (@sailing_tentative ? "draft" : "activated")),
+              class: "dd-button" %>
+      </p>
+    <% elsif workspace.status == :connected %>
+      <p>Client title: <%= workspace.definition.client_title %></p>
+      <% if workspace.offer.name != workspace.definition.client_title %>
+        <p>Staff name: <%= workspace.offer.name %></p>
+      <% end %>
+      <% if workspace.definition.client_description.present? %>
+        <p><%= workspace.definition.client_description %></p>
+      <% end %>
+      <p>Ready for category pricing</p>
+      <% if workspace.older_than_governing %>
+        <p>This connection is pinned to an earlier sailing version.</p>
+      <% end %>
+      <ul>
+        <% workspace.categories.select { |category| category.option.present? }.each do |category| %>
+          <li>
+            <%= category.option_name %>
+            <% if category.supplier_label.present? && category.supplier_label != category.option_name %>
+              <span class="dd-field-hint">Supplier category: <%= category.supplier_label %></span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+      <% if workspace.editable %>
+        <p>
+          <%= link_to "Edit Cruise service connection",
+                departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement, editor: "edit"),
+                class: "dd-button" %>
+        </p>
+      <% else %>
+        <p>
+          <%= link_to "Open service offer",
+                departure_service_offer_path(@departure, workspace.offer),
+                class: "dd-link" %>
+        </p>
+      <% end %>
+    <% end %>
+  </div>
+</article>

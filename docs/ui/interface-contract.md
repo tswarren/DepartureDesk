@@ -194,6 +194,16 @@ Authority: [Slice 2B](../planning/m4d1-slice2b-cruise-deposits-deadlines-and-act
 - Successor rows distinguish governing vs proposed terms and use `Remove from successor` when lineage is present.
 - Mutations: success `303` redirect; validation `422` with focused `#form-error-summary`.
 
+## Cruise service connection workspace (M4D.1 Slice 2C)
+
+Authority: [Slice 2C](../planning/m4d1-slice2c-cruise-service-connection.md) (Accepted, not shipped).
+
+- Route: `/departures/:departure_id/arrangements/:arrangement_id/cruise/service-connection`. Every action, including show, requires `manage_departures` and responds not found when that permission is absent.
+- Page order: `dd-page-header` (eyebrow `Cruise Supplier planning`, one `h1`, secondary `Back to Cruise`) → summary or one editor. The summary is the default. The editor opens only from `editor=connect` or `editor=edit`. Success redirects `303` to the summary URL without that query. Failed saves render `422` and keep the entered fields.
+- Summary shows the Client title, the Staff name only when it differs, and the current Supplier label only when it differs from the stored option name. Status text is `Not connected`, `Decide later`, `Connected`, or `Advanced`. A connected summary says `Ready for category pricing`. Do not show binding ids, membership enums, activation kinds, or rate keys.
+- Editor titles are `Connect Cruise service` and `Edit Cruise service connection`. Actions are `Create and connect service`, `Connect existing service`, `Save for later`, and `Save connection`. Cabin categories are a fieldset. Resources without typed cabin inventory stay visible and unselectable.
+- An incompatible cruise shape redirects to the cruise overview. The Client service panel appears on the cruise overview only.
+
 ## Responsive and accessibility gate
 
 Every changed surface must be checked at 375px, 768px, reference desktop width, and 1280px. Verify skip link, landmarks, headings, visible focus, complete keyboard order, drawer focus containment/restoration, accessible names, validation associations, reflow, and no hover-only action.
