@@ -101,7 +101,7 @@ end %>
       <div data-cruise-deadline-editor-target="compositeGroup" hidden>
         <% 2.times do |index| %>
           <% prefix = "arm#{index + 1}" %>
-          <fieldset class="dd-field-group">
+          <fieldset class="dd-field-group" id="cruise-deadline-<%= prefix %>">
             <legend class="dd-label">Composite arm <%= index + 1 %></legend>
             <%= f.label :"#{prefix}_rule_shape", "Arm rule", class: "dd-label" %>
             <%= f.select :"#{prefix}_rule_shape",

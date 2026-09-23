@@ -66,7 +66,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     select "Fixed date", from: "Timing rule"
     assert_selector :field, "Fixed date", visible: true
     assert_no_selector :field, "Day offset from Departure", visible: true
-    fill_in "Fixed date", with: "2027-03-11"
+    fill_deadline_date "Fixed date", "2027-03-11"
     fill_in "Required action or evidence", with: "Review retained cabins and release any unretained block by the option date"
     assert_text "Due on 2027-03-11"
     assert_text "opens one actionable Supplier commitment"
@@ -81,7 +81,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     assert_selector :field, "Kind", visible: true
     select "Actionable", from: "Kind"
     select "Fixed date", from: "Timing rule"
-    fill_in "Fixed date", with: "2027-07-09"
+    fill_deadline_date "Fixed date", "2027-07-09"
     fill_in "Required action or evidence", with: "Record Supplier final-payment evidence"
     click_on "Save deadline"
     assert_text "Deadline saved"
@@ -91,7 +91,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     select "Rooming list", from: "Template"
     assert_no_selector :field, "Kind", visible: true
     select "Fixed date", from: "Timing rule"
-    fill_in "Fixed date", with: "2027-10-07"
+    fill_deadline_date "Fixed date", "2027-10-07"
     click_on "Save deadline"
     assert_text "Deadline saved"
     assert_text "Rooming list due"
@@ -122,7 +122,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     click_on "Add Supplier deadline"
     select "Rooming list", from: "Template"
     select "Fixed date", from: "Timing rule"
-    fill_in "Fixed date", with: "2027-10-07"
+    fill_deadline_date "Fixed date", "2027-10-07"
     click_on "Save deadline"
     assert_text "Deadline saved"
 
@@ -141,14 +141,14 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     select "Other Supplier deadline", from: "Template"
     fill_in "Label", with: "Names packet"
     select "Earlier of", from: "Timing rule"
-    assert_text "Composite arm 1"
-    assert_text "Composite arm 2"
-    select "Fixed date", from: "Arm rule", match: :first
-    within first("fieldset", text: "Composite arm 1") do
+    assert_selector "#cruise-deadline-arm1"
+    assert_selector "#cruise-deadline-arm2"
+    within "#cruise-deadline-arm1" do
+      select "Fixed date", from: "Arm rule"
       assert_selector :field, "Arm fixed date", visible: true
-      fill_in "Arm fixed date", with: "2027-03-11"
+      fill_deadline_date "Arm fixed date", "2027-03-11"
     end
-    within find("fieldset", text: "Composite arm 2") do
+    within "#cruise-deadline-arm2" do
       select "Days before departure", from: "Arm rule"
       fill_in "Arm day offset", with: "30"
     end
@@ -167,5 +167,13 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     visit departure_arrangement_cruise_path(@departure, @arrangement)
     click_on "Open deposits and deadlines"
     assert_selector "#cruise-deposits-and-deadlines"
+  end
+
+  def fill_deadline_date(locator, iso_date)
+    fill_in_html_date locator, iso_date
+    find_field(locator).execute_script(<<~JS)
+      this.dispatchEvent(new Event("input", { bubbles: true }));
+      this.dispatchEvent(new Event("change", { bubbles: true }));
+    JS
   end
 end
