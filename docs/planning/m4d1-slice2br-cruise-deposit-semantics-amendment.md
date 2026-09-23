@@ -98,9 +98,11 @@ Table `supplier_deposit_requirement_definition_contributor_links`:
 - `position`; unique `(definition_id, contributor_definition_id)`
 - Included in M3D.7 definition freeze
 
-**Retained quantity:** refreshed `CapacityProjection.current_supplier_capacity`; block if missing/stale.
+**Retained quantity:** refreshed `CapacityProjection.current_supplier_capacity` (refresh before snapshot; block if missing/stale after refresh).
 
 Formula per source `s`: `max(0, rate × retained_s − credited_earlier_s)` then sum.
+
+**Recalculation:** Open quantity-derived cumulative tranches re-evaluate and append-only adjust when covered Pool capacity events change retained quantity, when due projection catch-up applies, and when Staff records a planning milestone that replaces an unelapsed deposit Deadline. Contributor credit sums every tranche for the contributing definition (including post-attestation increments) using durable per-pool attribution.
 
 ### 5.3 Commands
 

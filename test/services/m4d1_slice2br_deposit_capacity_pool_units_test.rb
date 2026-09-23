@@ -67,49 +67,158 @@ class M4d1Slice2brDepositCapacityPoolUnitsTest < ActiveSupport::TestCase
     assert_equal @pool.id, materialized[:inputs]["sources"].sole["capacity_pool_id"]
   end
 
-  test "quantity-derived cumulative is source-aware and ignores non-listed earlier defs" do
-    ignored = create_deposit!(
-      amount_shape: "fixed_amount",
-      fixed_amount_minor_units: 9_999,
-      description: "Not a contributor"
-    )
+  test "quantity-derived cumulative reevaluates after retained capacity decreases" do
     initial = create_deposit!(
       amount_shape: "quantity_times_rate",
       rate_minor_units: 5_000,
       quantity_basis: "capacity_pool_units",
-      coverage_links: [ {
-        arrangement_item_id: @graph[:item].id,
-        service_occurrence_id: @graph[:occurrence].id,
-        supplier_resource_id: @graph[:resource].id,
-        capacity_pool_id: @pool.id
-      } ]
+      coverage_links: pool_coverage
     )
     final = create_deposit!(
       amount_shape: "cumulative_target",
       rate_minor_units: 50_000,
       quantity_basis: "capacity_pool_units",
-      coverage_links: [ {
-        arrangement_item_id: @graph[:item].id,
-        service_occurrence_id: @graph[:occurrence].id,
-        supplier_resource_id: @graph[:resource].id,
-        capacity_pool_id: @pool.id
-      } ],
+      coverage_links: pool_coverage,
       contributor_definition_ids: [ initial.id ]
     )
-    assert_equal [ initial.id ],
-      final.supplier_deposit_requirement_definition_contributor_links.map(&:contributor_definition_id)
-    assert_not_includes(
-      final.supplier_deposit_requirement_definition_contributor_links.map(&:contributor_definition_id),
-      ignored.id
-    )
-
     activate!
-    tranches = SupplierDepositRequirementTranche.where(supplier_arrangement_version: @version)
-    initial_tranche = tranches.find_by!(supplier_deposit_requirement_definition: initial)
-    final_tranche = tranches.find_by!(supplier_deposit_requirement_definition: final)
-    assert_equal 50_000, initial_tranche.current_amount_minor_units
-    assert_equal 450_000, final_tranche.current_amount_minor_units,
-      "$500 × 10 retained − $50 × 10 credited; ignored fixed def not subtracted"
+    final_tranche = SupplierDepositRequirementTranche.find_by!(
+      supplier_deposit_requirement_definition: final
+    )
+    assert_equal 450_000, final_tranche.current_amount_minor_units
+
+    projection = @pool.capacity_projection
+    ReleaseCapacity.new(
+      agency: @agency, actor: @actor, pool: @pool, quantity: 2,
+      projection_lock_version: projection.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        evidence_kind: "contract", evidence_on: Date.current,
+        evidence_reference_note: "Option release", override: false
+      }
+    ).call
+
+    final_tranche.reload
+    assert_equal 350_000, final_tranche.current_amount_minor_units,
+      "$500 × 8 retained − $50 × 10 credited after releasing 2"
+    assert final_tranche.supplier_deposit_requirement_tranche_components
+      .exists?(component_kind: "adjustment_decrease")
+  end
+
+  test "contributor credit includes post-attestation increments" do
+    initial = create_deposit!(
+      amount_shape: "quantity_times_rate",
+      rate_minor_units: 5_000,
+      quantity_basis: "capacity_pool_units",
+      coverage_links: pool_coverage
+    )
+    final = create_deposit!(
+      amount_shape: "cumulative_target",
+      rate_minor_units: 50_000,
+      quantity_basis: "capacity_pool_units",
+      coverage_links: pool_coverage,
+      contributor_definition_ids: [ initial.id ]
+    )
+    activate!
+    initial_tranche = SupplierDepositRequirementTranche.find_by!(
+      supplier_deposit_requirement_definition: initial
+    )
+    final_tranche = SupplierDepositRequirementTranche.find_by!(
+      supplier_deposit_requirement_definition: final
+    )
+    commitment = SupplierCommitment.find_by!(supplier_deposit_requirement_tranche: initial_tranche)
+    AttestSupplierDepositHandledExternally.new(
+      agency: @agency, actor: @actor, commitment:,
+      note: "Handled outside", confirmed_complete: true,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    AdjustSupplierDepositRequirementTranche.new(
+      agency: @agency, actor: @actor, tranche: initial_tranche.reload,
+      amount_delta_minor_units: 5_000,
+      note: "One more cabin",
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    ReevaluateQuantityDerivedDepositCumulativeAlreadyLocked.new(
+      agency: @agency, actor: @actor, arrangement: @arrangement,
+      version: @version.reload, at: Time.current
+    ).call
+
+    final_tranche.reload
+    assert_equal 445_000, final_tranche.current_amount_minor_units,
+      "$500 × 10 − ($1,200 initial + $50 increment)"
+  end
+
+  test "capacity_pool_units coverage requires explicit capacity_pool_id" do
+    error = assert_raises(AgencyCommand::Error) do
+      create_deposit!(
+        amount_shape: "quantity_times_rate",
+        rate_minor_units: 5_000,
+        quantity_basis: "capacity_pool_units",
+        coverage_links: [ {
+          arrangement_item_id: @graph[:item].id,
+          supplier_resource_id: @graph[:resource].id
+        } ]
+      )
+    end
+    assert_match(/capacity_pool_id/i, error.message)
+  end
+
+  test "contributor must be earlier capacity_pool_units quantity definition" do
+    fixed = create_deposit!(
+      amount_shape: "fixed_amount",
+      fixed_amount_minor_units: 1_000
+    )
+    error = assert_raises(AgencyCommand::Error) do
+      create_deposit!(
+        amount_shape: "cumulative_target",
+        rate_minor_units: 50_000,
+        quantity_basis: "capacity_pool_units",
+        coverage_links: pool_coverage,
+        contributor_definition_ids: [ fixed.id ]
+      )
+    end
+    assert_match(/capacity_pool_units contributors/i, error.message)
+  end
+
+  test "retained evaluation refreshes projection before snapshotting amount" do
+    initial = create_deposit!(
+      amount_shape: "quantity_times_rate",
+      rate_minor_units: 5_000,
+      quantity_basis: "capacity_pool_units",
+      coverage_links: pool_coverage
+    )
+    final = create_deposit!(
+      amount_shape: "cumulative_target",
+      rate_minor_units: 50_000,
+      quantity_basis: "capacity_pool_units",
+      coverage_links: pool_coverage,
+      contributor_definition_ids: [ initial.id ]
+    )
+    activate!
+    projection = @pool.capacity_projection
+    ReleaseCapacity.new(
+      agency: @agency, actor: @actor, pool: @pool, quantity: 2,
+      projection_lock_version: projection.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        evidence_kind: "contract", evidence_on: Date.current,
+        evidence_reference_note: "Immediate option", override: false
+      }
+    ).call
+
+    projection = @pool.capacity_projection.reload
+    assert_equal 8, projection.current_supplier_capacity
+    # Corrupt the cached current so only a refresh restores the ledger truth.
+    projection.update_columns(current_supplier_capacity: 10, rebuilt_at: 1.hour.ago)
+
+    evaluated = SupplierDepositAmountEvaluator.call(
+      definition: final.reload, version: @version.reload,
+      arrangement: @arrangement, mode: :materialize, at: Time.current
+    )
+    assert_equal 8, @pool.capacity_projection.reload.current_supplier_capacity
+    assert_equal 350_000, evaluated[:amount_minor_units],
+      "Evaluator refresh must apply released capacity before retained snapshot"
   end
 
   test "legacy fixed cumulative still credits earlier defs by position" do
@@ -133,23 +242,13 @@ class M4d1Slice2brDepositCapacityPoolUnitsTest < ActiveSupport::TestCase
       amount_shape: "quantity_times_rate",
       rate_minor_units: 5_000,
       quantity_basis: "capacity_pool_units",
-      coverage_links: [ {
-        arrangement_item_id: @graph[:item].id,
-        service_occurrence_id: @graph[:occurrence].id,
-        supplier_resource_id: @graph[:resource].id,
-        capacity_pool_id: @pool.id
-      } ]
+      coverage_links: pool_coverage
     )
     final = create_deposit!(
       amount_shape: "cumulative_target",
       rate_minor_units: 50_000,
       quantity_basis: "capacity_pool_units",
-      coverage_links: [ {
-        arrangement_item_id: @graph[:item].id,
-        service_occurrence_id: @graph[:occurrence].id,
-        supplier_resource_id: @graph[:resource].id,
-        capacity_pool_id: @pool.id
-      } ],
+      coverage_links: pool_coverage,
       contributor_definition_ids: [ initial.id ]
     )
     activate!
@@ -165,6 +264,15 @@ class M4d1Slice2brDepositCapacityPoolUnitsTest < ActiveSupport::TestCase
   end
 
   private
+
+  def pool_coverage
+    [ {
+      arrangement_item_id: @graph[:item].id,
+      service_occurrence_id: @graph[:occurrence].id,
+      supplier_resource_id: @graph[:resource].id,
+      capacity_pool_id: @pool.id
+    } ]
+  end
 
   def create_ready_cost!
     SupplierCostSource.create!(

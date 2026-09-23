@@ -79,7 +79,8 @@ class AdjustSupplierDepositRequirementTranche < AgencyCommand
         amount_delta_minor_units: delta,
         calculation_snapshot: {
           "prior_amount_minor_units" => tranche.current_amount_minor_units,
-          "new_amount_minor_units" => new_amount
+          "new_amount_minor_units" => new_amount,
+          "amounts_by_pool" => pool_delta_attribution(tranche, delta)
         },
         note: @note,
         actor: @actor,
@@ -102,6 +103,13 @@ class AdjustSupplierDepositRequirementTranche < AgencyCommand
     end
 
     governing = current_governing_deadline(prior_tranche)
+    amounts_by_pool = pool_delta_attribution(prior_tranche, delta)
+    if amounts_by_pool.nil?
+      raise Error.new(
+        "Post-attestation increments require a single-pool deposit source attribution.",
+        code: :invalid
+      )
+    end
 
     idempotent_create!(
       command_name: "#{self.class.name}#increment",
@@ -120,7 +128,15 @@ class AdjustSupplierDepositRequirementTranche < AgencyCommand
         supplier_arrangement_activation_id: prior_tranche.supplier_arrangement_activation_id,
         amount_shape: prior_tranche.amount_shape,
         amount_inputs_snapshot: prior_tranche.amount_inputs_snapshot.merge(
-          "post_satisfaction_increment" => delta
+          "post_satisfaction_increment" => delta,
+          "amounts_by_pool" => amounts_by_pool,
+          "sources" => amounts_by_pool.map do |pool_id, amount|
+            {
+              "kind" => "capacity_pool_units",
+              "capacity_pool_id" => pool_id,
+              "amount_minor_units" => amount
+            }
+          end
         ),
         coverage_snapshot: prior_tranche.coverage_snapshot,
         initial_amount_minor_units: delta,
@@ -140,7 +156,10 @@ class AdjustSupplierDepositRequirementTranche < AgencyCommand
         supplier_deposit_requirement_tranche: tranche,
         component_kind: "post_satisfaction_increment",
         amount_delta_minor_units: delta,
-        calculation_snapshot: { "prior_tranche_id" => prior_tranche.id },
+        calculation_snapshot: {
+          "prior_tranche_id" => prior_tranche.id,
+          "amounts_by_pool" => amounts_by_pool
+        },
         note: @note,
         actor: @actor,
         recorded_at: now
@@ -152,6 +171,20 @@ class AdjustSupplierDepositRequirementTranche < AgencyCommand
       ).call
       tranche
     end
+  end
+
+  def pool_delta_attribution(tranche, delta)
+    sources = Array(tranche.amount_inputs_snapshot&.dig("sources")).presence ||
+      Array(tranche.amount_inputs_snapshot&.dig(:sources))
+    pool_ids = sources.filter_map { |row| row.with_indifferent_access[:capacity_pool_id] }.uniq
+    return { pool_ids.first => delta } if pool_ids.size == 1
+
+    coverage_pools = Array(tranche.coverage_snapshot).filter_map { |row|
+      row.with_indifferent_access[:capacity_pool_id]
+    }.uniq
+    return { coverage_pools.first => delta } if coverage_pools.size == 1
+
+    nil
   end
 
   def current_governing_deadline(tranche)

@@ -127,9 +127,13 @@ class SupplierDepositRequirementDefinitionsController < ApplicationController
       agency_id: @supplier_arrangement.agency_id,
       supplier_arrangement_id: @supplier_arrangement.id
     ).order(:id).map { |pool| [ pool_labels[pool.id].presence || pool.id, pool.id ] }
-    @contributor_definitions = definition_scope.order(:position, :id)
+    @contributor_definitions = definition_scope
+      .where(amount_shape: "quantity_times_rate", quantity_basis: "capacity_pool_units")
+      .order(:position, :id)
     if @definition&.persisted?
-      @contributor_definitions = @contributor_definitions.where.not(id: @definition.id)
+      @contributor_definitions = @contributor_definitions
+        .where.not(id: @definition.id)
+        .where("position < ?", @definition.position)
     end
   end
 

@@ -3,15 +3,16 @@
 class SupplierDepositAmountEvaluator
   IncompleteCalculation = Class.new(StandardError)
 
-  def self.call(definition:, version:, arrangement:, mode: :materialize)
-    new(definition:, version:, arrangement:, mode:).call
+  def self.call(definition:, version:, arrangement:, mode: :materialize, at: Time.current)
+    new(definition:, version:, arrangement:, mode:, at:).call
   end
 
-  def initialize(definition:, version:, arrangement:, mode: :materialize)
+  def initialize(definition:, version:, arrangement:, mode: :materialize, at: Time.current)
     @definition = definition
     @version = version
     @arrangement = arrangement
     @mode = mode.to_sym
+    @at = at
   end
 
   def call
@@ -153,15 +154,23 @@ class SupplierDepositAmountEvaluator
       return pool
     end
     if link.supplier_resource_id.present?
-      pool = CapacityPool.find_by(
+      scope = CapacityPool.where(
         agency_id: @arrangement.agency_id,
         supplier_arrangement_id: @arrangement.id,
         supplier_resource_id: link.supplier_resource_id,
         arrangement_item_id: link.arrangement_item_id
       )
-      raise IncompleteCalculation, "Capacity pool for covered resource is missing" if pool.nil?
+      if link.service_occurrence_id.present?
+        scope = scope.where(service_occurrence_id: link.service_occurrence_id)
+      end
+      pools = scope.order(:id).to_a
+      raise IncompleteCalculation, "Capacity pool for covered resource is missing" if pools.empty?
+      if pools.size > 1
+        raise IncompleteCalculation,
+          "Coverage resource matches multiple capacity pools; name capacity_pool_id explicitly"
+      end
 
-      return pool
+      return pools.first
     end
 
     raise IncompleteCalculation, "Capacity-pool deposits require pool or resource coverage"
@@ -184,9 +193,7 @@ class SupplierDepositAmountEvaluator
 
       [ event.quantity, { capacity_event_id: event.id } ]
     when :retained
-      projection = pool.capacity_projection
-      raise IncompleteCalculation, "Capacity projection is missing for retained quantity" if projection.nil?
-
+      projection = ensure_fresh_retained_projection!(pool)
       quantity = projection.current_supplier_capacity
       raise IncompleteCalculation, "Retained capacity quantity is incomplete" if quantity.nil?
       raise IncompleteCalculation, "Retained capacity quantity must be positive" unless quantity.positive?
@@ -195,6 +202,19 @@ class SupplierDepositAmountEvaluator
     else
       raise IncompleteCalculation, "Unsupported capacity quantity phase"
     end
+  end
+
+  def ensure_fresh_retained_projection!(pool)
+    projection = pool.capacity_projection
+    raise IncompleteCalculation, "Capacity projection is missing for retained quantity" if projection.nil?
+
+    CapacityProjectionRefresher.call(pool:, projection:, now: @at)
+    projection.reload
+    if projection.next_applies_at.present? && projection.next_applies_at <= @at
+      raise IncompleteCalculation, "Capacity projection is stale for retained quantity"
+    end
+
+    projection
   end
 
   def quantity_from_resource_units
@@ -355,32 +375,107 @@ class SupplierDepositAmountEvaluator
   end
 
   def credited_amounts_by_pool(contributor)
-    tranche = latest_tranche_for_definition_id(contributor.id) ||
-      (contributor.copied_from_id.present? && latest_tranche_for_definition_id(contributor.copied_from_id))
-    raise IncompleteCalculation, "Contributor tranche is not materialized" if tranche.blank?
+    tranches = tranches_for_contributor(contributor)
+    raise IncompleteCalculation, "Contributor tranche is not materialized" if tranches.empty?
 
-    sources = Array(tranche.amount_inputs_snapshot["sources"]).presence ||
-      Array(tranche.amount_inputs_snapshot[:sources])
-    if sources.blank?
-      raise IncompleteCalculation, "Contributor lacks per-source calculation trace"
-    end
-
-    by_pool = {}
-    sources.each do |row|
-      row = row.with_indifferent_access
-      pool_id = row[:capacity_pool_id]
-      raise IncompleteCalculation, "Contributor source pool is incomplete" if pool_id.blank?
-
-      by_pool[pool_id] = row[:amount_minor_units].to_i
+    by_pool = Hash.new(0)
+    tranche_traces = []
+    tranches.each do |tranche|
+      amounts = pool_amounts_for_contributor_tranche(tranche)
+      amounts.each { |pool_id, amount| by_pool[pool_id] += amount }
+      tranche_traces << {
+        "tranche_id" => tranche.id,
+        "current_amount_minor_units" => tranche.current_amount_minor_units,
+        "amounts_by_pool" => amounts
+      }
     end
     [
       by_pool,
       {
         "contributor_definition_id" => contributor.id,
-        "tranche_id" => tranche.id,
+        "tranches" => tranche_traces,
         "amounts_by_pool" => by_pool
       }
     ]
+  end
+
+  def tranches_for_contributor(contributor)
+    definition_ids = [ contributor.id, contributor.copied_from_id ].compact
+    SupplierDepositRequirementTranche
+      .where(
+        agency_id: @arrangement.agency_id,
+        supplier_arrangement_id: @arrangement.id,
+        supplier_deposit_requirement_definition_id: definition_ids
+      )
+      .order(:materialized_at, :id)
+      .to_a
+  end
+
+  def pool_amounts_for_contributor_tranche(tranche)
+    sources = source_rows_for_tranche(tranche)
+    if sources.blank?
+      raise IncompleteCalculation, "Contributor lacks per-source calculation trace"
+    end
+
+    initial_by_pool = {}
+    sources.each do |row|
+      row = row.with_indifferent_access
+      pool_id = row[:capacity_pool_id]
+      raise IncompleteCalculation, "Contributor source pool is incomplete" if pool_id.blank?
+
+      initial_by_pool[pool_id] = row[:amount_minor_units].to_i
+    end
+
+    current = tranche.current_amount_minor_units
+    return { initial_by_pool.keys.first => current } if initial_by_pool.size == 1
+
+    initial_sum = initial_by_pool.values.sum
+    return initial_by_pool if initial_sum == current
+
+    attributed = attributed_adjustment_amounts_by_pool(tranche)
+    if attributed.nil?
+      raise IncompleteCalculation,
+        "Contributor adjustment lacks per-source attribution for multi-pool credit"
+    end
+
+    result = initial_by_pool.dup
+    attributed.each { |pool_id, delta| result[pool_id] = result.fetch(pool_id, 0) + delta }
+    result_sum = result.values.sum
+    if result_sum != current
+      raise IncompleteCalculation,
+        "Contributor source-attributed amounts do not match current tranche amount"
+    end
+    result
+  end
+
+  def source_rows_for_tranche(tranche)
+    snapshot = tranche.amount_inputs_snapshot || {}
+    rows = Array(snapshot["sources"]).presence || Array(snapshot[:sources])
+    return rows if rows.present?
+
+    # Post-attestation increments must carry durable pool attribution.
+    attributed = snapshot["amounts_by_pool"] || snapshot[:amounts_by_pool]
+    if attributed.present?
+      return attributed.map do |pool_id, amount|
+        { "capacity_pool_id" => pool_id, "amount_minor_units" => amount }
+      end
+    end
+
+    []
+  end
+
+  def attributed_adjustment_amounts_by_pool(tranche)
+    deltas = Hash.new(0)
+    tranche.supplier_deposit_requirement_tranche_components.order(:recorded_at, :id).each do |component|
+      next if component.component_kind == "initial_calculation"
+
+      snapshot = component.calculation_snapshot || {}
+      by_pool = snapshot["amounts_by_pool"] || snapshot[:amounts_by_pool]
+      return nil if by_pool.blank?
+
+      by_pool.each { |pool_id, amount| deltas[pool_id] += amount.to_i }
+    end
+    deltas
   end
 
   def prior_tranche_amounts_sum_by_position
@@ -392,12 +487,23 @@ class SupplierDepositAmountEvaluator
   end
 
   def governing_prior_amount_for(definition)
-    tranche = latest_tranche_for_definition_id(definition.id)
-    return tranche.current_amount_minor_units if tranche
+    tranches = SupplierDepositRequirementTranche
+      .where(
+        agency_id: @arrangement.agency_id,
+        supplier_arrangement_id: @arrangement.id,
+        supplier_deposit_requirement_definition_id: definition.id
+      )
+    return tranches.sum(:current_amount_minor_units) if tranches.exists?
 
     return 0 if definition.copied_from_id.blank?
 
-    latest_tranche_for_definition_id(definition.copied_from_id)&.current_amount_minor_units.to_i
+    SupplierDepositRequirementTranche
+      .where(
+        agency_id: @arrangement.agency_id,
+        supplier_arrangement_id: @arrangement.id,
+        supplier_deposit_requirement_definition_id: definition.copied_from_id
+      )
+      .sum(:current_amount_minor_units)
   end
 
   def latest_tranche_for_definition_id(definition_id)
