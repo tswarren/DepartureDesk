@@ -151,6 +151,53 @@ class CruiseSupplierDepositAdapterTest < ActiveSupport::TestCase
     refute_respond_to workspace, :deposit_placeholder
   end
 
+  test "deposit update replaces coverage without nulling ownership foreign keys" do
+    initial = create_initial!(rate: 5_000)
+    first_pool = @pools.first
+    second_pool = @pools.last
+    assert_operator @pools.size, :>=, 2
+
+    before_ids = initial.supplier_deposit_requirement_definition_coverage_links.order(:id).pluck(:id)
+    assert_operator before_ids.size, :>=, 1
+
+    candidate = CruiseDepositCandidateNormalizer.call(
+      template_key: "initial_deposit",
+      form: {
+        template: "initial_deposit",
+        description: initial.description,
+        amount_shape: "quantity_times_rate",
+        quantity_basis: "capacity_pool_units",
+        rate_amount: "75",
+        rule_shape: "fixed_date",
+        fixed_date: "2026-09-20",
+        capacity_pool_ids: [ second_pool.id ]
+      },
+      arrangement: @arrangement,
+      version: @version,
+      cruise_item: @item,
+      currency: "USD",
+      cumulative_definition: initial
+    )
+
+    UpdateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      definition: initial,
+      attributes: candidate.attributes,
+      lock_version: initial.lock_version
+    ).call
+
+    initial.reload
+    links = initial.supplier_deposit_requirement_definition_coverage_links.order(:position, :id)
+    assert_equal 1, links.size
+    assert_equal second_pool.id, links.first.capacity_pool_id
+    assert_equal initial.id, links.first.supplier_deposit_requirement_definition_id
+    assert_equal @agency.id, links.first.agency_id
+    assert_equal 7_500, initial.rate_minor_units
+    # In-place update may retain the row id; ownership keys must never null.
+    assert links.first.supplier_deposit_requirement_definition_id.present?
+  end
+
   test "preview and save share validation for negative rates and incompatible contributors" do
     initial = create_initial!(rate: 5_000)
     other_pool_only = @pools.last
