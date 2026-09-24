@@ -1267,12 +1267,24 @@
     min-width: 0;
   }
 
-  .dd-client-terms {
+  .dd-client-terms,
+  .dd-client-terms form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     width: 100%;
     min-width: 0;
     max-width: 100%;
+  }
+
+  .dd-client-terms > *,
+  .dd-client-terms section,
+  .dd-client-terms form {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dd-client-terms {
     overflow-x: clip;
-    contain: inline-size;
   }
 
   .dd-client-terms .dd-page-header {
@@ -1284,6 +1296,7 @@
     display: block;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     overflow-x: auto;
   }
 
@@ -1292,9 +1305,22 @@
     min-width: 0;
   }
 
+  .dd-client-terms .dd-table th {
+    white-space: normal;
+  }
+
   .dd-client-terms .dd-table input {
+    box-sizing: border-box;
     width: 6.5rem;
-    max-width: 100%;
+    min-width: 0;
+    max-width: 6.5rem;
+  }
+
+  .dd-client-terms fieldset {
+    min-width: 0;
+    margin: 0;
+    border: 0;
+    padding: 0;
   }
 
   .dd-table {

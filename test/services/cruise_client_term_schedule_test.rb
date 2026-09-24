@@ -326,6 +326,23 @@ class CruiseClientTermScheduleTest < ActiveSupport::TestCase
     assert_not_includes bands.enabled, "additional"
   end
 
+  test "a triple profile enables additional only after an additional supplier rate exists" do
+    arrangement, version, _item, ocean = cruise_with_cabins("O1" => "Prime Oceanview")
+    confirm_occupancy(arrangement, version, ocean, triple: 1)
+    before = CompileCruiseClientTermBandSet.new(agency: @agency, arrangement_version: version.reload, resource: ocean).call
+    assert_not_includes before.enabled, "additional"
+
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency, actor: @actor, arrangement: arrangement, resource: ocean,
+      terms: { first_second_fare: "1624.00", additional_fare: "406.00", nccf: "320.00", taxes_fees: "137.00" },
+      commission: { method: "not_provided" }, stage: "estimate",
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid
+    ).call
+    after = CompileCruiseClientTermBandSet.new(agency: @agency, arrangement_version: version.reload, resource: ocean).call
+    assert_includes after.enabled, "additional"
+    assert_includes after.enabled, "first"
+  end
+
   private
 
   def assert_graph_unchanged(offer, option, component)

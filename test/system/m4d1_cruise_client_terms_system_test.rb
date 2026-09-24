@@ -227,6 +227,7 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit", option_id: ocean_option.id)
     fill_in "Cruise fare first", with: "1931.00"
     fill_in "Cruise fare second", with: "1931.00"
+    click_button "Save Client terms"
     assert_text "Client terms created."
     assert_text "O1 — Prime Oceanview"
     assert_text "I1 — Inside"
@@ -276,6 +277,12 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     SetCruiseSupplierOccupancyPlan.new(
       agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
       expected_cabins: { triple: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      terms: { first_second_fare: "1624.00", additional_fare: "406.00", nccf: "320.00", taxes_fees: "137.00" },
+      commission: { method: "not_provided" }, stage: "estimate",
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid
     ).call
     ConnectCruiseServiceOffer.new(
       agency: @agency, actor: @staff, arrangement: arrangement, idempotency_key: SecureRandom.uuid,
