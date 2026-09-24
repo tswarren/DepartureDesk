@@ -23,6 +23,11 @@ class CruiseArrangementsController < ApplicationController
 
     return unless @shape.compatible?
 
+    @connection_workspace = CompileCruiseServiceConnectionWorkspace.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      shape: @shape
+    ).call
     assign_cabin_categories
     assign_rate_rows
     @recommended_action =

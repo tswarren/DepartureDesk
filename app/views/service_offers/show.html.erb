@@ -216,6 +216,14 @@
   <article class="dd-panel">
     <header class="dd-panel-header"><h2 class="dd-panel-title">Client choices</h2></header>
     <div class="dd-panel-body">
+      <% if @service_offer.intended_arrangement_item_id.present? %>
+        <p>This service is connected to a cruise. Edit cabin choices from the Cruise service connection.</p>
+        <p>
+          <%= link_to "Open Cruise service connection",
+                departure_arrangement_cruise_service_connection_path(@departure, @service_offer.intended_supplier_arrangement),
+                class: "dd-link" %>
+        </p>
+      <% else %>
       <%= form_with url: departure_service_offer_choices_path(@departure, @service_offer), method: :patch, class: "dd-form" do %>
         <%= hidden_field_tag :version_lock_version, @service_offer_version.lock_version %>
         <div class="dd-field-group">
@@ -236,6 +244,7 @@
         </div>
         <%= hidden_field_tag "choices[groups][][options][][activation][activation_kind]", "none" %>
         <%= submit_tag "Save choices", class: "dd-button" %>
+      <% end %>
       <% end %>
     </div>
   </article>

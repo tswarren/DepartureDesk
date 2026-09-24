@@ -1,0 +1,68 @@
+<%# locals: (form:, workspace:) %>
+<% sailing_query = @sailing_tentative ? "draft" : "activated" %>
+<% draft = @supplier_arrangement.versions.find { |version| version.draft? } || @supplier_arrangement.versions.find_by(status: "draft") %>
+<% governing = @supplier_arrangement.governing_version %>
+
+<article class="dd-panel" id="cruise-service-editor">
+  <div class="dd-panel-body">
+    <% if workspace.status == :connected %>
+      <%= form_with url: departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement), method: :patch, class: "dd-form dd-stack" do %>
+        <%= hidden_field_tag :arrangement_lock_version, form[:arrangement_lock_version] %>
+        <%= hidden_field_tag :version_lock_version, form[:version_lock_version] %>
+        <%= render "cruise_service_connections/fields", form: form, workspace: workspace %>
+        <%= submit_tag "Save connection", class: "dd-button" %>
+      <% end %>
+    <% else %>
+      <%= form_with url: departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement, sailing: sailing_query), method: :post, class: "dd-form dd-stack" do %>
+        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+        <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement_version.lock_version %>
+        <%= hidden_field_tag :use_tentative_draft, (@sailing_tentative ? "1" : "0") %>
+        <%= hidden_field_tag :supplier_arrangement_version_id, @supplier_arrangement_version.id %>
+        <% if workspace.status == :decide_later %>
+          <%= hidden_field_tag :service_offer_id, workspace.offer.id %>
+          <%= hidden_field_tag :version_lock_version, workspace.version.lock_version %>
+        <% end %>
+        <%= render "cruise_service_connections/fields", form: form, workspace: workspace %>
+
+        <% if workspace.status == :not_connected && workspace.eligible_offers.any? %>
+          <div class="dd-field-group">
+            <%= label_tag :service_offer_id, "Existing service outline", class: "dd-label" %>
+            <%= select_tag :service_offer_id,
+                  options_from_collection_for_select(workspace.eligible_offers, :id, :name, form[:service_offer_id]),
+                  include_blank: "Choose a service",
+                  class: "dd-field" %>
+          </div>
+          <% workspace.eligible_offers.each do |offer| %>
+            <%= hidden_field_tag "offer_lock_versions[#{offer.id}]", offer.editable_draft_version.lock_version %>
+          <% end %>
+        <% end %>
+
+        <div class="dd-inline-actions">
+          <% if workspace.status == :decide_later %>
+            <%= button_tag "Connect existing service", type: "submit", name: "mode", value: "existing", class: "dd-button" %>
+          <% else %>
+            <%= button_tag "Create and connect service", type: "submit", name: "mode", value: "new", class: "dd-button" %>
+            <% if workspace.eligible_offers.any? %>
+              <%= button_tag "Connect existing service", type: "submit", name: "mode", value: "existing", class: "dd-button dd-button--secondary" %>
+            <% end %>
+            <%= button_tag "Save for later", type: "submit", name: "mode", value: "later", class: "dd-button dd-button--quiet" %>
+          <% end %>
+        </div>
+      <% end %>
+
+      <% if draft && governing && workspace.status != :connected %>
+        <p>
+          <% if @sailing_tentative %>
+            <%= link_to "Use the activated sailing",
+                  departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement, editor: "connect", sailing: "activated"),
+                  class: "dd-link" %>
+          <% else %>
+            <%= link_to "Use the tentative draft",
+                  departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement, editor: "connect", sailing: "draft"),
+                  class: "dd-link" %>
+          <% end %>
+        </p>
+      <% end %>
+    <% end %>
+  </div>
+</article>

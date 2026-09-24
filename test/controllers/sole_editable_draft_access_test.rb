@@ -43,6 +43,7 @@ class SoleEditableDraftAccessTest < ActionDispatch::IntegrationTest
 
     assert_equal [
       "app/services/arrangement_command_support.rb:version_number: 1,",
+      "app/services/connect_cruise_service_offer.rb:version_number: 1,",
       "app/services/create_initial_package_with_outline_service_offer.rb:version_number: 1,",
       "app/services/create_initial_package_with_outline_service_offer.rb:version_number: 1,",
       "app/services/create_package_draft.rb:version_number: 1,",

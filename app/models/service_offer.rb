@@ -5,6 +5,8 @@ class ServiceOffer < ApplicationRecord
 
   belongs_to :agency
   belongs_to :departure
+  belongs_to :intended_arrangement_item, class_name: "ArrangementItem", optional: true
+  belongs_to :intended_supplier_arrangement, class_name: "SupplierArrangement", optional: true
 
   has_many :versions, class_name: "ServiceOfferVersion", dependent: :restrict_with_exception
   has_many :definitions, class_name: "ServiceOfferDefinition", dependent: :restrict_with_exception
@@ -22,8 +24,19 @@ class ServiceOffer < ApplicationRecord
   normalizes :name, with: ->(value) { value.to_s.strip }
 
   validates :name, presence: true, length: { maximum: NAME_LIMIT }
+  validate :intended_cruise_item_is_paired
 
   def editable_draft_version
     versions.find_by(status: "draft")
+  end
+
+  private
+
+  def intended_cruise_item_is_paired
+    item_present = intended_arrangement_item_id.present?
+    arrangement_present = intended_supplier_arrangement_id.present?
+    return if item_present == arrangement_present
+
+    errors.add(:intended_arrangement_item, "must be paired with its cruise arrangement")
   end
 end

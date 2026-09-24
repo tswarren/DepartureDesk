@@ -162,8 +162,21 @@
       </section>
 
       <section aria-labelledby="cruise-client-heading">
-        <h2 id="cruise-client-heading" class="dd-section-title">Client-service connection</h2>
-        <p>Connecting this sailing to Client Services comes later.</p>
+        <h2 id="cruise-client-heading" class="dd-section-title">Client service</h2>
+        <% if @connection_workspace %>
+          <p><%= cruise_connection_status_label(@connection_workspace.status) %></p>
+          <% if @connection_workspace.status == :connected && @connection_workspace.definition %>
+            <p><%= @connection_workspace.definition.client_title %></p>
+            <p>Ready for category pricing</p>
+          <% elsif @connection_workspace.status == :decide_later && @connection_workspace.definition %>
+            <p><%= @connection_workspace.definition.client_title %></p>
+          <% end %>
+          <p>
+            <%= link_to "Open client service",
+                  departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement),
+                  class: "dd-link" %>
+          </p>
+        <% end %>
       </section>
     </div>
   </article>

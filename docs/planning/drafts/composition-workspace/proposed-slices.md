@@ -22,6 +22,8 @@
 
 **Shipped:** [Slice 2B-UX-R — Contributor replace and 2B-UX closure](../../m4d1-slice2buxr-contributor-replace-and-closure.md).
 
+**Accepted, not shipped:** [Slice 2C — Cruise service connection](../../m4d1-slice2c-cruise-service-connection.md).
+
 Parent spine: [M4D.1](../../m4d1-departure-composition-workspace.md) §21.
 
 Do not implement any item below until that item has its own Accepted plan.
@@ -33,7 +35,7 @@ Recommended refinement sequence after shipped 2A.2R2:
 3. **Slice 2B — Deposits, deadlines, and activation-safe editing** ([Shipped](../../m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md))
 4. **Slice 2B-UX — Workspace remediation** ([Shipped](../../m4d1-slice2bux-deposits-deadlines-workspace-remediation.md))
 5. **Slice 2B-UX-R — Contributor replace and closure** ([Shipped](../../m4d1-slice2buxr-contributor-replace-and-closure.md))
-6. **Slice 2C — Service connection, categories, and Client choices**
+6. **Slice 2C — Service connection, categories, and Client choices** ([Accepted](../../m4d1-slice2c-cruise-service-connection.md); not shipped)
 7. **Slice 2D — Client-term compilation and scenario Review**
 8. **Slice 3 — Adapter generalization**
 9. **Slice 4 — Vineyard proof**

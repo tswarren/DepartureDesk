@@ -1282,6 +1282,45 @@ $$;
 
 
 --
+-- Name: reject_service_offer_item_claim_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_service_offer_item_claim_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  live_version_count integer;
+BEGIN
+  IF OLD.intended_arrangement_item_id IS NULL
+     AND OLD.intended_supplier_arrangement_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.intended_arrangement_item_id IS NOT DISTINCT FROM OLD.intended_arrangement_item_id
+     AND NEW.intended_supplier_arrangement_id IS NOT DISTINCT FROM OLD.intended_supplier_arrangement_id THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.intended_arrangement_item_id IS NULL
+     AND NEW.intended_supplier_arrangement_id IS NULL THEN
+    SELECT COUNT(*) INTO live_version_count
+      FROM public.service_offer_versions
+     WHERE service_offer_id = NEW.id
+       AND status IS DISTINCT FROM 'abandoned';
+
+    IF live_version_count > 0 THEN
+      RAISE EXCEPTION 'service offer item claim can be cleared only when every version is abandoned';
+    END IF;
+
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'service offer item claim cannot be reassigned';
+END;
+$$;
+
+
+--
 -- Name: reject_service_offer_owner_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3460,8 +3499,10 @@ CREATE TABLE public.service_offer_choice_options (
     "position" integer NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    client_rate_category_key character varying(80),
     CONSTRAINT service_offer_choice_options_position CHECK (("position" > 0)),
-    CONSTRAINT service_offer_choice_options_price_effect CHECK (((price_effect_minor_units IS NULL) OR (price_effect_minor_units >= 0)))
+    CONSTRAINT service_offer_choice_options_price_effect CHECK (((price_effect_minor_units IS NULL) OR (price_effect_minor_units >= 0))),
+    CONSTRAINT service_offer_choice_options_rate_key CHECK (((client_rate_category_key IS NULL) OR ((btrim((client_rate_category_key)::text) <> ''::text) AND (char_length((client_rate_category_key)::text) <= 80))))
 );
 
 
@@ -3808,6 +3849,9 @@ CREATE TABLE public.service_offers (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     current_published_version_id uuid,
+    intended_arrangement_item_id uuid,
+    intended_supplier_arrangement_id uuid,
+    CONSTRAINT service_offers_intended_item_pair CHECK ((((intended_arrangement_item_id IS NULL) AND (intended_supplier_arrangement_id IS NULL)) OR ((intended_arrangement_item_id IS NOT NULL) AND (intended_supplier_arrangement_id IS NOT NULL)))),
     CONSTRAINT service_offers_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT service_offers_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160)))
 );
@@ -9889,6 +9933,13 @@ CREATE UNIQUE INDEX index_service_offers_on_id_departure_agency ON public.servic
 
 
 --
+-- Name: index_service_offers_on_intended_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_service_offers_on_intended_item ON public.service_offers USING btree (intended_arrangement_item_id) WHERE (intended_arrangement_item_id IS NOT NULL);
+
+
+--
 -- Name: index_sessions_on_agency_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9900,6 +9951,13 @@ CREATE INDEX index_sessions_on_agency_user_id ON public.sessions USING btree (ag
 --
 
 CREATE INDEX index_sessions_on_office_id ON public.sessions USING btree (office_id);
+
+
+--
+-- Name: index_so_choice_options_on_rate_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_so_choice_options_on_rate_key ON public.service_offer_choice_options USING btree (service_offer_version_id, client_rate_category_key) WHERE (client_rate_category_key IS NOT NULL);
 
 
 --
@@ -11846,6 +11904,13 @@ CREATE TRIGGER service_offer_versions_reject_owner_change BEFORE UPDATE ON publi
 --
 
 CREATE CONSTRAINT TRIGGER service_offer_versions_validate_ownership_match AFTER INSERT OR UPDATE OF owning_package_version_id ON public.service_offer_versions DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.validate_package_ownership_inclusion_match();
+
+
+--
+-- Name: service_offers service_offers_reject_item_claim_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_offers_reject_item_claim_change BEFORE UPDATE ON public.service_offers FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_item_claim_change();
 
 
 --
@@ -15829,6 +15894,14 @@ ALTER TABLE ONLY public.service_offers
 
 
 --
+-- Name: service_offers service_offers_intended_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offers
+    ADD CONSTRAINT service_offers_intended_item_fk FOREIGN KEY (intended_arrangement_item_id, intended_supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: sessions sessions_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16499,6 +16572,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260923190000'),
 ('20260923010000'),
 ('20260922010000'),
 ('20260921120000'),

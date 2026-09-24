@@ -16,6 +16,15 @@ class SetupCruiseCabinChoices < AgencyCommand
       raise Error.new("Enter at least one cabin category.", code: :invalid)
     end
 
+    offer = @agency.service_offers.find(@offer.id)
+    version = offer.editable_draft_version
+    if offer.intended_arrangement_item_id.present? || obvious_cruise_choices?(version)
+      raise Error.new(
+        "This service is connected to a cruise. Edit it from the Cruise service connection workspace.",
+        code: :invalid
+      )
+    end
+
     UpdateServiceOfferChoices.new(
       agency: @agency,
       actor: @actor,
@@ -34,5 +43,14 @@ class SetupCruiseCabinChoices < AgencyCommand
         ]
       }
     ).call
+  end
+
+  private
+
+  def obvious_cruise_choices?(version)
+    return false if version.nil?
+
+    version.choice_groups.where(name: CruiseServiceConnectionSupport::GROUP_NAME).exists? &&
+      version.source_bindings.choice_gated.exists?
   end
 end
