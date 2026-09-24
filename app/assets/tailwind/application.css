@@ -1263,6 +1263,28 @@
 
   .dd-table-wrap {
     overflow-x: auto;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .dd-client-terms {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .dd-client-terms .dd-table-wrap {
+    width: 100%;
+  }
+
+  .dd-client-terms .dd-table {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .dd-client-terms .dd-table input {
+    width: 6.5rem;
+    max-width: 100%;
   }
 
   .dd-table {

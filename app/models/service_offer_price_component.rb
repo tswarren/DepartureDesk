@@ -127,7 +127,7 @@ class ServiceOfferPriceComponent < ApplicationRecord
   def provenance_mapping_shape
     mapping = copied_from_supplier_cost_component_mapping
     return if mapping.nil?
-    return if mapping.is_a?(Hash) && mapping["schema"] == 1
+    return if SupplierCostComponentCopyFingerprint.valid_snapshot?(mapping)
 
     errors.add(:copied_from_supplier_cost_component_mapping, "is not a supported copy mapping")
   end

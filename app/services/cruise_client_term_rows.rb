@@ -24,7 +24,9 @@ module CruiseClientTermRows
   end
 
   def role_for(key)
-    STANDARD.dig(key.to_s, :client_role) || "named_surcharge"
+    return STANDARD.dig(key.to_s, :client_role) if standard?(key)
+
+    key.to_s.include?("discount") ? "named_discount" : "named_surcharge"
   end
 
   def label_for(key)

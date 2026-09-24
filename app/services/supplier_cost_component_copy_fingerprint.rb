@@ -21,7 +21,7 @@ class SupplierCostComponentCopyFingerprint
   def self.valid_snapshot?(mapping)
     return false unless mapping.is_a?(Hash)
     data = mapping.stringify_keys
-    data["schema"] == 1 && SNAPSHOT_KEYS.all? { |key| data.key?(key) }
+    data["schema"] == 1 && data.keys.map(&:to_s).sort == SNAPSHOT_KEYS.sort
   end
 
   def self.hexdigest(component, snapshot)

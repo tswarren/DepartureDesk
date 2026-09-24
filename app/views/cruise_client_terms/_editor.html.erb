@@ -3,8 +3,8 @@
 <% option = category[:option] %>
 <% bands = category[:bands].enabled %>
 <% existing = category[:components].index_by { |component| [ component.cruise_client_term_row_key, component.occupancy_position_key ] } %>
-<% rows = (CruiseClientTermRows::STANDARD.keys + existing.keys.map(&:first)).uniq %>
 <% submitted = (@submitted || {}) %>
+<% rows = (CruiseClientTermRows::STANDARD.keys + existing.keys.map(&:first) + submitted.keys).uniq %>
 <% proposal_cells = Array(@proposal&.cells).index_by { |cell| [ cell.row_key, cell.band ] } %>
 <% version = @offer.editable_draft_version %>
 <% creating = category[:components].empty? %>
@@ -82,20 +82,22 @@
                       <% value = submitted.dig(row_key, band) || proposed&.amount || client_term_amount(component&.amount) %>
                       <%= label_tag "rows_#{row_key}_#{band}", "#{label} #{band}", class: "sr-only" %>
                       <%= text_field_tag "rows[#{row_key}][#{band}]", value, id: "rows_#{row_key}_#{band}", inputmode: "decimal" %>
-                      <% source_id = proposed&.source_id || component&.copied_from_supplier_cost_component_id %>
+                      <% submitted_source = submitted.dig(row_key, "source_#{band}").presence %>
+                      <% source_id = submitted_source || proposed&.source_id || component&.copied_from_supplier_cost_component_id %>
                       <% if source_id.present? %>
                         <%= hidden_field_tag "rows[#{row_key}][source_#{band}]", source_id %>
                         <% state = category[:states][component] if component %>
-                        <% if state.present? && state != "independent" %>
-                          <p><%= state.humanize %>. Client amount <%= client_term_amount(component.amount) %>.</p>
+                        <% chosen = submitted.dig(row_key, "provenance_#{band}").presence || "keep" %>
+                        <% if submitted_source.present? || (state.present? && state != "independent") %>
+                          <p><%= (state || "proposed").to_s.humanize %>. Client amount <%= value %>.</p>
                           <fieldset>
                             <legend class="sr-only">Provenance for <%= label %> <%= band %></legend>
                             <%= label_tag "rows_#{row_key}_keep_#{band}", "Keep Client term" %>
-                            <%= radio_button_tag "rows[#{row_key}][provenance_#{band}]", "keep", true, id: "rows_#{row_key}_keep_#{band}" %>
+                            <%= radio_button_tag "rows[#{row_key}][provenance_#{band}]", "keep", chosen == "keep", id: "rows_#{row_key}_keep_#{band}" %>
                             <%= label_tag "rows_#{row_key}_recopy_#{band}", "Recopy from Supplier" %>
-                            <%= radio_button_tag "rows[#{row_key}][provenance_#{band}]", "recopy", false, id: "rows_#{row_key}_recopy_#{band}" %>
+                            <%= radio_button_tag "rows[#{row_key}][provenance_#{band}]", "recopy", chosen == "recopy", id: "rows_#{row_key}_recopy_#{band}" %>
                             <%= label_tag "rows_#{row_key}_clear_#{band}", "Remove source link" %>
-                            <%= radio_button_tag "rows[#{row_key}][provenance_#{band}]", "clear", false, id: "rows_#{row_key}_clear_#{band}" %>
+                            <%= radio_button_tag "rows[#{row_key}][provenance_#{band}]", "clear", chosen == "clear", id: "rows_#{row_key}_clear_#{band}" %>
                           </fieldset>
                         <% end %>
                       <% end %>
@@ -118,6 +120,8 @@
       <div class="dd-form-actions">
         <%= submit_tag "Save Client terms", class: "dd-button" %>
         <%= submit_tag "Preview", class: "dd-button dd-button--quiet", formaction: preview_departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement), formmethod: :post %>
+        <%= submit_tag "Add surcharge", class: "dd-button dd-button--quiet", name: "add_row", value: "surcharge", formaction: preview_departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement), formmethod: :post %>
+        <%= submit_tag "Add discount", class: "dd-button dd-button--quiet", name: "add_row", value: "discount", formaction: preview_departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement), formmethod: :post %>
       </div>
     <% end %>
     <% if @preview.is_a?(Array) && @preview.any? %>
@@ -130,7 +134,8 @@
               <%= scenario[:name].humanize %>
               <% if scenario[:pending].any? %>
                 — pending <%= scenario[:pending].map { |band| band_labels[band] || band }.to_sentence %>
-              <% else %>
+              <% end %>
+              <% if scenario[:total_minor] %>
                 — <%= Money.new(scenario[:total_minor], scenario[:currency]).format %>
               <% end %>
             </li>

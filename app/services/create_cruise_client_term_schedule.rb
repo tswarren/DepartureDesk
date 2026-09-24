@@ -20,7 +20,7 @@ class CreateCruiseClientTermSchedule < AgencyCommand
       departure, offer, version = lock_departure_offer_draft!(offer)
       ensure_offer_draft_editable!(departure, offer, version)
       shape, option, binding, resource = load_context!(offer)
-      ensure_typed_graph!(version, option)
+      ensure_typed_graph!(version)
       cells = normalized_cells
       lock_suppliers_in_uuid_order!(shape.arrangement.contracting_supplier_id)
       arrangement_version = nil

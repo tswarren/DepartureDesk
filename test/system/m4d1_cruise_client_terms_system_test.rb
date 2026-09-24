@@ -91,7 +91,57 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     assert_text "Unchanged"
   end
 
+  test "celebrity double preview subtracts the discount" do
+    arrangement, _version, _item, _ocean = connected_double
+    sign_in_from_browser(@staff)
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit")
+    fill_in "Cruise fare first", with: "1624.00"
+    fill_in "Cruise fare second", with: "1624.00"
+    fill_in "NCCF first", with: "320.00"
+    fill_in "NCCF second", with: "320.00"
+    fill_in "Taxes and fees first", with: "137.00"
+    fill_in "Taxes and fees second", with: "137.00"
+    fill_in "Discount first", with: "150.00"
+    fill_in "Discount second", with: "150.00"
+    click_button "Preview"
+    assert_text "$3,862.00"
+    assert_no_text "$4,462.00"
+  end
+
+  test "a category without occupancy stays advanced" do
+    arrangement, _version, _item, _ocean = cruise_with
+    ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        mode: "new", title: "Celebrity Beyond sailing", supplier_arrangement_version_id: arrangement.versions.sole.id,
+        use_tentative_draft: true, arrangement_lock_version: arrangement.versions.sole.lock_version,
+        arrangement_item_id: arrangement.arrangement_items.sole.id, supplier_resource_ids: [ arrangement.supplier_resources.sole.id ]
+      }
+    ).call
+    sign_in_from_browser(@staff)
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit")
+    assert_text "Confirm occupancy"
+    assert_no_selector "#cruise-client-terms-form"
+  end
+
   private
+
+  def connected_double
+    arrangement, version, item, ocean = cruise_with
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      expected_cabins: { double: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        mode: "new", title: "Celebrity Beyond sailing", supplier_arrangement_version_id: version.id,
+        use_tentative_draft: true, arrangement_lock_version: version.reload.lock_version,
+        arrangement_item_id: item.id, supplier_resource_ids: [ ocean.id ]
+      }
+    ).call
+    [ arrangement, version, item, ocean ]
+  end
 
   def cruise_with
     sailing = CreateCruiseSailingSetup.new(

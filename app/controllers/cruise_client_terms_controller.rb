@@ -29,7 +29,8 @@ class CruiseClientTermsController < ApplicationController
 
   def preview
     assign_submitted
-    @preview = preview_totals
+    append_custom_row if params[:add_row].present?
+    @preview = preview_totals unless params[:add_row].present?
     @editor_open = true
     render :show, status: :ok
   end
@@ -100,7 +101,7 @@ class CruiseClientTermsController < ApplicationController
   end
 
   def submitted_cells
-    rows = params.fetch(:rows, {}).permit!.to_h
+    rows = permitted_rows
     rows.flat_map do |row_key, bands|
       label = bands["label"]
       CruiseClientTermRows::BANDS.filter_map do |band|
@@ -119,9 +120,29 @@ class CruiseClientTermsController < ApplicationController
   end
 
   def assign_submitted
-    @submitted = params.fetch(:rows, {}).permit!.to_h
+    @submitted = permitted_rows
     @selected_option_id = params[:option_id]
     @idempotency_key = params[:idempotency_key]
+  end
+
+  def permitted_rows
+    raw = params[:rows]
+    return {} unless raw.respond_to?(:keys)
+
+    raw.keys.index_with { |row_key| raw[row_key].permit(*self.class::ROW_PERMIT).to_h }
+  end
+
+  ROW_PERMIT = (
+    %i[label single first second additional] +
+    CruiseClientTermRows::BANDS.flat_map { |band| [ :"source_#{band}", :"provenance_#{band}", :"recopy_#{band}", :"clear_#{band}" ] }
+  ).freeze
+
+  def append_custom_row
+    kind = params[:add_row].to_s
+    return unless %w[surcharge discount].include?(kind)
+
+    key = kind == "discount" ? "custom_discount_#{SecureRandom.hex(8)}" : CruiseClientTermRows.mint_custom_key
+    @submitted[key] = { "label" => (kind == "discount" ? "Discount" : "Surcharge") }
   end
 
   def preview_totals
@@ -129,23 +150,35 @@ class CruiseClientTermsController < ApplicationController
     return [] if category.nil?
 
     currency = @departure.operating_currency
+    option = category[:option]
     CompileCruiseScenarioReview::SCENARIOS.filter_map do |name, spec|
       next unless spec[:positions].all? { |band| category[:bands].enabled.include?(band) }
 
-      pending = []
-      total = 0
-      spec[:positions].each do |band|
-        amounts = submitted_cells.select { |cell| cell[:band] == band }
-        if amounts.none? { |cell| cell[:row_key] == "cruise_fare" && cell[:amount].present? }
-          pending << band
-        end
-        amounts.each do |cell|
-          next if cell[:amount].blank?
-
-          total += Money.from_amount(BigDecimal(cell[:amount]), currency).fractional
-        end
+      cells = submitted_cells.select { |cell| spec[:positions].include?(cell[:band]) && cell[:amount].present? }
+      pending = spec[:positions].select { |band| cells.none? { |cell| cell[:row_key] == "cruise_fare" && cell[:band] == band } }
+      components = cells.each_with_index.map do |cell, index|
+        {
+          label: cell[:label].presence || CruiseClientTermRows.label_for(cell[:row_key]),
+          client_role: CruiseClientTermRows.role_for(cell[:row_key]),
+          calculation_kind: "unit_rate",
+          amount_minor_units: Money.from_amount(BigDecimal(cell[:amount]), currency).fractional,
+          quantity_basis: "occupancy_positions",
+          client_rate_category_key: option.client_rate_category_key,
+          occupancy_position_key: cell[:band],
+          position: index + 1
+        }
       end
-      { name: name, total_minor: total, pending: pending, currency: currency }
+      price = if components.any?
+        EvaluateClientPrice.new(
+          definition: { currency: currency, mode: "calculated", components: components },
+          scenario: EvaluateClientPrice::Scenario.build(
+            occupancy_positions: spec[:positions].map { |key| { key: key, rate_category: option.client_rate_category_key } },
+            persons: spec[:persons],
+            resource_units: 1
+          )
+        ).call
+      end
+      { name: name, total_minor: price&.complete ? price.amount_minor_units : nil, pending: pending, currency: currency, price: price }
     end
   rescue ArgumentError
     []

@@ -69,6 +69,40 @@ class M4d1CruiseClientTermsRequestTest < ActionDispatch::IntegrationTest
     assert_match "10.00", response.body
   end
 
+  test "preview subtracts a discount through the client price evaluator" do
+    sign_in_as @staff
+    offer = ServiceOffer.find_by!(intended_arrangement_item_id: @item.id)
+    option = offer.editable_draft_version.choice_options.sole
+    assert_no_difference [ "ServiceOfferPriceDefinition.count", "ServiceOfferPriceComponent.count" ] do
+      post preview_departure_arrangement_cruise_client_terms_path(@departure, @arrangement), params: {
+        option_id: option.id,
+        rows: {
+          cruise_fare: { label: "Cruise fare", first: "1624.00", second: "1624.00" },
+          nccf: { label: "NCCF", first: "320.00", second: "320.00" },
+          taxes_fees: { label: "Taxes and fees", first: "137.00", second: "137.00" },
+          discount: { label: "Discount", first: "150.00", second: "150.00" }
+        }
+      }
+    end
+    assert_response :success
+    assert_match "$3,862.00", response.body
+    assert_no_match "4,462", response.body
+  end
+
+  test "preview keeps a submitted supplier source" do
+    sign_in_as @staff
+    offer = ServiceOffer.find_by!(intended_arrangement_item_id: @item.id)
+    option = offer.editable_draft_version.choice_options.sole
+    source_id = SecureRandom.uuid
+    post preview_departure_arrangement_cruise_client_terms_path(@departure, @arrangement), params: {
+      option_id: option.id,
+      rows: { cruise_fare: { label: "Cruise fare", first: "10.00", second: "10.00", source_first: source_id, provenance_first: "recopy" } }
+    }
+    assert_response :success
+    assert_match source_id, response.body
+    assert_match "recopy", response.body
+  end
+
   test "staff sees the summary without an open editor" do
     sign_in_as @staff
     get departure_arrangement_cruise_client_terms_path(@departure, @arrangement)

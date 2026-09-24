@@ -195,6 +195,90 @@ class CruiseClientTermScheduleTest < ActiveSupport::TestCase
     assert double[:capacity][:text].include?("not promised inventory")
   end
 
+  test "a supplier term from another cabin is rejected without writes" do
+    arrangement, version, item, ocean, inside = cruise_with_cabins("O1" => "Prime Oceanview", "I1" => "Inside")
+    confirm_occupancy(arrangement, version, ocean, double: 1)
+    confirm_occupancy(arrangement, version, inside, double: 1)
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency, actor: @actor, arrangement: arrangement, resource: inside,
+      terms: { first_second_fare: "100.00", nccf: "10.00", taxes_fees: "5.00" },
+      commission: { method: "not_provided" }, stage: "estimate",
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid
+    ).call
+    offer = connect_new(arrangement, version.reload, item, [ ocean.id, inside.id ]).record
+    ocean_option = offer.editable_draft_version.choice_options.find { |option| option.name.include?("O1") }
+    inside_source = SupplierCostComponent.joins(supplier_cost_definition: :supplier_cost_source)
+      .find_by!(supplier_cost_sources: { supplier_resource_id: inside.id })
+    assert_no_difference "ServiceOfferPriceComponent.count" do
+      error = assert_raises(AgencyCommand::Error) do
+        save_terms(offer, ocean_option, version, [
+          cell("cruise_fare", "first", "10.00").merge(supplier_cost_component_id: inside_source.id)
+        ], arrangement_lock_version: version.reload.lock_version)
+      end
+      assert_equal :not_found, error.code
+    end
+  end
+
+  test "unsafe client graphs stay unchanged" do
+    arrangement, version, item, ocean, inside = cruise_with_cabins("O1" => "Prime Oceanview", "I1" => "Inside")
+    confirm_occupancy(arrangement, version, ocean, double: 1)
+    confirm_occupancy(arrangement, version, inside, double: 1)
+    offer = connect_new(arrangement, version, item, [ ocean.id, inside.id ]).record
+    options = offer.editable_draft_version.choice_options.order(:position).to_a
+    save_terms(offer, options[0], version, [ cell("cruise_fare", "first", "10.00"), cell("cruise_fare", "second", "10.00") ])
+    save_terms(offer, options[1], version, [ cell("cruise_fare", "first", "20.00"), cell("cruise_fare", "second", "20.00") ])
+    definition = offer.editable_draft_version.price_definition
+    first = definition.service_offer_price_components.find_by!(client_rate_category_key: options[0].client_rate_category_key, occupancy_position_key: "first")
+    second_category = definition.service_offer_price_components.find_by!(client_rate_category_key: options[1].client_rate_category_key, occupancy_position_key: "first")
+
+    assert_graph_unchanged(offer, options[0], first) { first.update_columns(client_rate_category_key: nil) }
+    first.update_columns(client_rate_category_key: options[0].client_rate_category_key)
+    assert_graph_unchanged(offer, options[0], first) { first.update_columns(client_rate_category_key: "adult") }
+    first.update_columns(client_rate_category_key: options[0].client_rate_category_key)
+    assert_graph_unchanged(offer, options[0], first) { first.update_columns(cruise_client_term_row_key: nil) }
+    first.update_columns(cruise_client_term_row_key: "cruise_fare")
+    assert_graph_unchanged(offer, options[0], first) { first.update_columns(occupancy_position_key: "child") }
+    first.update_columns(occupancy_position_key: "first")
+
+    percentage = definition.service_offer_price_components.create!(
+      agency: @agency, departure: @departure, service_offer: offer, service_offer_version: offer.editable_draft_version,
+      label: "Percent", client_role: "named_surcharge", calculation_kind: "percentage", rate: 0.1,
+      percentage_treatment: "additive", client_rate_category_key: options[0].client_rate_category_key,
+      occupancy_position_key: "first", cruise_client_term_row_key: CruiseClientTermRows.mint_custom_key, position: 50
+    )
+    percentage.service_offer_price_component_bases.create!(
+      agency: @agency, departure: @departure, service_offer: offer, service_offer_version: offer.editable_draft_version,
+      service_offer_price_definition: definition, base_component: second_category, direction: "add", position: 1
+    )
+    before = definition.service_offer_price_components.count
+    error = assert_raises(AgencyCommand::Error) { update_terms(offer, options[0], [ cell("cruise_fare", "first", "11.00"), cell("cruise_fare", "second", "10.00") ]) }
+    assert_equal :invalid, error.code
+    assert_equal before, definition.reload.service_offer_price_components.count
+    assert_equal 10_00, first.reload.amount_minor_units
+  end
+
+  test "an ordinary keyed choice with a null effect stays incomplete" do
+    arrangement, version, item, ocean = cruise_with_cabins("O1" => "Prime Oceanview")
+    confirm_occupancy(arrangement, version, ocean, double: 1)
+    offer = connect_new(arrangement, version, item, [ ocean.id ]).record
+    option = offer.editable_draft_version.choice_options.sole
+    save_terms(offer, option, version, [ cell("cruise_fare", "first", "10.00"), cell("cruise_fare", "second", "10.00") ])
+    option.update_columns(client_rate_category_key: "adult")
+    offer.editable_draft_version.price_definition.service_offer_price_components.update_all(client_rate_category_key: "adult")
+    decision = CruiseCategoryOptionPrice.call(option: option.reload, version: offer.editable_draft_version)
+    assert_equal :incomplete, decision.status
+    assert_equal :ordinary_option, decision.reason
+  end
+
+  test "a copy snapshot rejects extra mapping keys" do
+    snapshot = SupplierCostComponentCopyFingerprint.snapshot(
+      mapped_client_role: "base_price", mapped_calculation_kind: "unit_rate",
+      mapped_quantity_basis: "occupancy_positions", target_occupancy_position: "first"
+    )
+    assert SupplierCostComponentCopyFingerprint.valid_snapshot?(snapshot)
+    assert_not SupplierCostComponentCopyFingerprint.valid_snapshot?(snapshot.merge("extra" => "1"))
+  end
+
   test "maximum occupancy without a triple profile does not enable additional" do
     arrangement, version, _item, ocean = cruise_with_cabins("O1" => "Prime Oceanview")
     confirm_occupancy(arrangement, version, ocean, double: 1)
@@ -203,6 +287,16 @@ class CruiseClientTermScheduleTest < ActiveSupport::TestCase
   end
 
   private
+
+  def assert_graph_unchanged(offer, option, component)
+    before = component.amount_minor_units
+    yield
+    error = assert_raises(AgencyCommand::Error) do
+      update_terms(offer, option, [ cell("cruise_fare", "first", "99.00"), cell("cruise_fare", "second", "10.00") ])
+    end
+    assert_equal :invalid, error.code
+    assert_equal before, component.reload.amount_minor_units
+  end
 
   def cell(row_key, band, amount)
     { row_key: row_key, band: band, amount: amount }

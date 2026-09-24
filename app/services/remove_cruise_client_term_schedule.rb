@@ -20,7 +20,7 @@ class RemoveCruiseClientTermSchedule < AgencyCommand
       ensure_offer_draft_editable!(departure, offer, version)
       ensure_current_lock_version!(version, @attributes[:version_lock_version])
       _shape, option, _binding, _resource = load_context!(offer)
-      ensure_typed_graph!(version, option)
+      ensure_typed_graph!(version)
       remove_category!(version, option)
       bump_version!(version)
       audit_terms!(offer, version, option, "removed", 0, 0)

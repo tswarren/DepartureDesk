@@ -20,7 +20,7 @@ class UpdateCruiseClientTermSchedule < AgencyCommand
       ensure_offer_draft_editable!(departure, offer, version)
       ensure_current_lock_version!(version, @attributes[:version_lock_version])
       shape, option, binding, resource = load_context!(offer)
-      ensure_typed_graph!(version, option)
+      ensure_typed_graph!(version)
       cells = normalized_cells
       lock_suppliers_in_uuid_order!(shape.arrangement.contracting_supplier_id)
       if provenance_save?(version, option, cells)

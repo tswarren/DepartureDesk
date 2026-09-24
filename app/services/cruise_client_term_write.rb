@@ -23,18 +23,9 @@ module CruiseClientTermWrite
     [ shape, option, binding, resource ]
   end
 
-  def ensure_typed_graph!(version, option)
-    definition = version.price_definition
-    return if definition.nil?
-    raise AgencyCommand::Error.new("Open advanced Client pricing for this service.", code: :invalid) unless definition.calculated?
-
-    selected = definition.service_offer_price_components.select { |component| component.client_rate_category_key == option.client_rate_category_key }
-    if selected.any? { |component| component.cruise_client_term_row_key.blank? || !CruiseClientTermRows.known?(component.cruise_client_term_row_key) }
-      raise AgencyCommand::Error.new("Open advanced Client pricing for this service.", code: :invalid)
-    end
-    if definition.service_offer_price_components.any?(&:percentage?)
-      raise AgencyCommand::Error.new("Open advanced Client pricing for this service.", code: :invalid)
-    end
+  def ensure_typed_graph!(version)
+    shape = DetectCruiseClientTermShape.new(agency: @agency, offer: version.service_offer, version: version).call
+    raise AgencyCommand::Error.new("Open advanced Client pricing for this service.", code: :invalid) unless shape.compatible?
   end
 
   def normalized_cells
@@ -117,11 +108,11 @@ module CruiseClientTermWrite
       component = index[[ row_key, band ]]
       amount = money_minor_or_nil(cell[:amount], currency, "Amount", major_units: true)
       label = cell[:label].presence || component&.label || CruiseClientTermRows.label_for(row_key)
-      role = CruiseClientTermRows.standard?(row_key) ? CruiseClientTermRows.role_for(row_key) : (component&.client_role || custom_role(row_key))
+      role = component&.client_role || CruiseClientTermRows.role_for(row_key)
       if component
         component.update!(
           label: label, client_role: role, amount_minor_units: amount,
-          **provenance_attributes(component, cell, binding)
+          **provenance_attributes(component, cell, binding, resource)
         )
       else
         position = definition.service_offer_price_components.maximum(:position).to_i + 1
@@ -130,7 +121,7 @@ module CruiseClientTermWrite
           label: label, client_role: role, calculation_kind: "unit_rate", quantity_basis: "occupancy_positions",
           amount_minor_units: amount, occupancy_position_key: band, client_rate_category_key: option.client_rate_category_key,
           cruise_client_term_row_key: row_key, position: position,
-          **provenance_attributes(nil, cell, binding)
+          **provenance_attributes(nil, cell, binding, resource)
         )
       end
       seen << component.id
@@ -145,25 +136,17 @@ module CruiseClientTermWrite
     definition
   end
 
-  def custom_role(row_key)
-    row_key.include?("discount") ? "named_discount" : "named_surcharge"
-  end
-
-  def provenance_attributes(component, cell, binding)
+  def provenance_attributes(component, cell, binding, resource)
     source_id = cell[:supplier_cost_component_id].presence
     recopy = ActiveModel::Type::Boolean.new.cast(cell[:recopy])
     clear = ActiveModel::Type::Boolean.new.cast(cell[:clear_provenance])
     if source_id.present? && (component.nil? || component.copied_from_supplier_cost_component_id.nil? || recopy)
-      source = SupplierCostComponent.find(source_id)
-      unless source.agency_id == @agency.id && source.departure_id == binding.departure_id &&
-          source.supplier_arrangement_version_id == binding.supplier_arrangement_version_id
-        raise AgencyCommand::Error.new("That Supplier term was not found.", code: :not_found)
-      end
+      source = supplier_source_for!(source_id, binding, resource)
       unless %w[supplier_charge supplier_credit].include?(source.economic_role) && %w[fixed unit_rate].include?(source.calculation_kind)
         raise AgencyCommand::Error.new("That Supplier term cannot be copied.", code: :invalid)
       end
       snapshot = SupplierCostComponentCopyFingerprint.snapshot(
-        mapped_client_role: CruiseClientTermRows.standard?(cell[:row_key]) ? CruiseClientTermRows.role_for(cell[:row_key]) : custom_role(cell[:row_key]),
+        mapped_client_role: CruiseClientTermRows.role_for(cell[:row_key]),
         mapped_calculation_kind: "unit_rate",
         mapped_quantity_basis: "occupancy_positions",
         target_occupancy_position: cell[:band].to_s
@@ -188,6 +171,19 @@ module CruiseClientTermWrite
     end
 
     cleared_provenance
+  end
+
+  def supplier_source_for!(source_id, binding, resource)
+    source = SupplierCostComponent.joins(supplier_cost_definition: :supplier_cost_source).find_by(
+      id: source_id,
+      agency_id: @agency.id,
+      departure_id: binding.departure_id,
+      supplier_arrangement_version_id: binding.supplier_arrangement_version_id,
+      supplier_cost_sources: { supplier_resource_id: resource.id }
+    )
+    raise AgencyCommand::Error.new("That Supplier term was not found.", code: :not_found) if source.nil?
+
+    source
   end
 
   def cleared_provenance
