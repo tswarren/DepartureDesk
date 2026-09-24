@@ -2349,6 +2349,26 @@
       width: 100%;
     }
 
+    .dd-client-terms .dd-table,
+    .dd-client-terms .dd-table thead,
+    .dd-client-terms .dd-table tbody,
+    .dd-client-terms .dd-table tr,
+    .dd-client-terms .dd-table th,
+    .dd-client-terms .dd-table td {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .dd-client-terms .dd-table-wrap {
+      overflow-x: visible;
+    }
+
+    .dd-client-terms .dd-table input {
+      width: 100%;
+      max-width: 100%;
+    }
+
     .dd-subnav {
       flex-wrap: nowrap;
       overflow-x: auto;

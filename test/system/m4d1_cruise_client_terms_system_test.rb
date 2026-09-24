@@ -247,9 +247,12 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit", copy: "review")
     click_button "Save Client terms"
+    assert_text "Client terms created."
     offer = ServiceOffer.find_by!(intended_arrangement_item_id: item.id)
-    component = offer.editable_draft_version.price_definition.service_offer_price_components.find_by!(
-      cruise_client_term_row_key: "cruise_fare", occupancy_position_key: "first"
+    component = ServiceOfferPriceComponent.find_by!(
+      service_offer_id: offer.id,
+      cruise_client_term_row_key: "cruise_fare",
+      occupancy_position_key: "first"
     )
     SupplierCostComponent.find(component.copied_from_supplier_cost_component_id).update_columns(amount_minor_units: 170_000)
     visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit")
