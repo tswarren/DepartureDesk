@@ -257,6 +257,46 @@ class CruiseClientTermScheduleTest < ActiveSupport::TestCase
     assert_equal 10_00, first.reload.amount_minor_units
   end
 
+  test "a typed cell with the wrong role calculation or quantity stays advanced" do
+    arrangement, version, item, ocean = cruise_with_cabins("O1" => "Prime Oceanview")
+    confirm_occupancy(arrangement, version, ocean, double: 1)
+    offer = connect_new(arrangement, version, item, [ ocean.id ]).record
+    option = offer.editable_draft_version.choice_options.sole
+    save_terms(offer, option, version, [ cell("cruise_fare", "first", "10.00"), cell("cruise_fare", "second", "10.00") ])
+    first = offer.editable_draft_version.price_definition.service_offer_price_components.find_by!(occupancy_position_key: "first")
+
+    assert_graph_unchanged(offer, option, first) { first.update_columns(client_role: "named_discount") }
+    first.update_columns(client_role: "base_price")
+    assert_graph_unchanged(offer, option, first) { first.update_columns(calculation_kind: "fixed", quantity_basis: "service_instances") }
+    first.update_columns(calculation_kind: "unit_rate", quantity_basis: "occupancy_positions")
+    assert_graph_unchanged(offer, option, first) { first.update_columns(quantity_basis: "persons") }
+  end
+
+  test "a same cabin source that does not cover the cell is rejected" do
+    arrangement, version, item, ocean = cruise_with_cabins("O1" => "Prime Oceanview")
+    confirm_occupancy(arrangement, version, ocean, double: 1)
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency, actor: @actor, arrangement: arrangement, resource: ocean,
+      terms: { first_second_fare: "1624.00", nccf: "320.00", taxes_fees: "137.00" },
+      commission: { method: "not_provided" }, stage: "estimate",
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid
+    ).call
+    offer = connect_new(arrangement, version.reload, item, [ ocean.id ]).record
+    option = offer.editable_draft_version.choice_options.sole
+    nccf = SupplierCostComponent.joins(supplier_cost_definition: :supplier_cost_source)
+      .where(supplier_cost_sources: { supplier_resource_id: ocean.id })
+      .find { |component| component.label.to_s.downcase.include?("nccf") || component.label.to_s.downcase.include?("non-commission") }
+    assert nccf
+    assert_no_difference "ServiceOfferPriceComponent.count" do
+      error = assert_raises(AgencyCommand::Error) do
+        save_terms(offer, option, version, [
+          cell("cruise_fare", "first", "10.00").merge(supplier_cost_component_id: nccf.id)
+        ], arrangement_lock_version: version.reload.lock_version)
+      end
+      assert_equal :invalid, error.code
+    end
+  end
+
   test "an ordinary keyed choice with a null effect stays incomplete" do
     arrangement, version, item, ocean = cruise_with_cabins("O1" => "Prime Oceanview")
     confirm_occupancy(arrangement, version, ocean, double: 1)

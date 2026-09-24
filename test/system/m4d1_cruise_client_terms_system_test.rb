@@ -151,8 +151,9 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     ).call
     sign_in_from_browser(@staff)
     visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit")
-    assert_selector "th", text: "Single"
-    assert_no_selector "th", text: "1st"
+    assert_selector "th", text: "SINGLE", exact_text: true
+    assert_no_selector "th", text: "1ST", exact_text: true
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement)
     assert_text "Double is unavailable"
     assert_text "Triple is unavailable"
   end
@@ -181,11 +182,163 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit", copy: "review")
     click_button "Save Client terms"
     click_link "Edit terms"
-    choose "Remove source link", match: :first
+    within(find("tr", text: "CRUISE FARE")) do
+      choose "Remove source link", match: :first
+    end
     click_button "Save Client terms"
     click_link "Edit terms"
     assert_field "Cruise fare first", with: "1624.00"
-    assert_no_text "Unchanged"
+    within(find("tr", text: "CRUISE FARE")) do
+      within(find_field("Cruise fare first").find(:xpath, "./ancestor::td")) do
+        assert_no_text "Unchanged"
+      end
+    end
+  end
+
+  test "ocean and inside categories keep independent fares" do
+    arrangement, version, item, ocean = cruise_with
+    inside = CreateCruiseCabinCategorySetup.new(
+      agency: @agency, actor: @staff, arrangement: arrangement,
+      resource_attributes: { name: "Inside", supplier_code: "I1", maximum_occupancy: 2 },
+      pool_attributes: { inventory_mode: "block", proposed_opening_quantity: 4 },
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid
+    ).call.record.resource
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      expected_cabins: { double: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: inside,
+      expected_cabins: { double: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        mode: "new", title: "Celebrity Beyond sailing", supplier_arrangement_version_id: version.id,
+        use_tentative_draft: true, arrangement_lock_version: version.reload.lock_version,
+        arrangement_item_id: item.id, supplier_resource_ids: [ ocean.id, inside.id ]
+      }
+    ).call
+    offer = ServiceOffer.find_by!(intended_arrangement_item_id: item.id)
+    ocean_option = offer.editable_draft_version.choice_options.find { |option| option.name.include?("O1") }
+    inside_option = offer.editable_draft_version.choice_options.find { |option| option.name.include?("I1") }
+
+    sign_in_from_browser(@staff)
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit", option_id: ocean_option.id)
+    fill_in "Cruise fare first", with: "1931.00"
+    fill_in "Cruise fare second", with: "1931.00"
+    assert_text "Client terms created."
+    assert_text "O1 — Prime Oceanview"
+    assert_text "I1 — Inside"
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit", option_id: inside_option.id)
+    assert_field "Cruise fare first", with: ""
+    fill_in "Cruise fare first", with: "900.00"
+    fill_in "Cruise fare second", with: "900.00"
+    click_button "Save Client terms"
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit", option_id: ocean_option.id)
+    assert_field "Cruise fare first", with: "1931.00"
+    assert_equal 1, ServiceOffer.where(intended_arrangement_item_id: item.id).count
+    assert_equal 1, ServiceOfferPriceDefinition.where(service_offer_version_id: offer.reload.editable_draft_version.id).count
+  end
+
+  test "supplier change stays changed on keep and clears on recopy" do
+    arrangement, _version, item, _ocean = connected_copy
+    sign_in_from_browser(@staff)
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit", copy: "review")
+    click_button "Save Client terms"
+    offer = ServiceOffer.find_by!(intended_arrangement_item_id: item.id)
+    component = offer.editable_draft_version.price_definition.service_offer_price_components.find_by!(
+      cruise_client_term_row_key: "cruise_fare", occupancy_position_key: "first"
+    )
+    SupplierCostComponent.find(component.copied_from_supplier_cost_component_id).update_columns(amount_minor_units: 170_000)
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit")
+    within(find_field("Cruise fare first").find(:xpath, "./ancestor::td")) do
+      assert_text "Changed"
+      choose "Keep Client term"
+    end
+    click_button "Save Client terms"
+    click_link "Edit terms"
+    within(find_field("Cruise fare first").find(:xpath, "./ancestor::td")) do
+      assert_text "Changed"
+      assert_field "Cruise fare first", with: "1624.00"
+      choose "Recopy from Supplier"
+    end
+    click_button "Save Client terms"
+    click_link "Edit terms"
+    within(find_field("Cruise fare first").find(:xpath, "./ancestor::td")) do
+      assert_text "Unchanged"
+      assert_field "Cruise fare first", with: "1624.00"
+    end
+  end
+
+  test "a saved additional band stays visible after occupancy no longer supports it" do
+    arrangement, version, item, ocean = cruise_with
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      expected_cabins: { triple: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        mode: "new", title: "Celebrity Beyond sailing", supplier_arrangement_version_id: version.id,
+        use_tentative_draft: true, arrangement_lock_version: version.reload.lock_version,
+        arrangement_item_id: item.id, supplier_resource_ids: [ ocean.id ]
+      }
+    ).call
+    sign_in_from_browser(@staff)
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit")
+    fill_in "Cruise fare additional", with: "406.00"
+    fill_in "Cruise fare first", with: "1624.00"
+    fill_in "Cruise fare second", with: "1624.00"
+    click_button "Save Client terms"
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      expected_cabins: { double: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement)
+    assert_text "no longer supported"
+    click_link "Edit terms"
+    assert_text "UNSUPPORTED ADDITIONAL"
+    assert_text "Saved amounts remain"
+  end
+
+  test "celebrity single double and triple review shows one offer and the illustrative totals" do
+    arrangement, version, item, ocean = cruise_with
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      expected_cabins: { single: 1, double: 1, triple: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      terms: {
+        first_second_fare: "1624.00", additional_fare: "406.00", single_supplement: "1624.00",
+        nccf: "320.00", first_second_discount: "150.00", additional_discount: "37.50", taxes_fees: "137.00"
+      },
+      commission: { method: "not_provided" }, stage: "estimate",
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid
+    ).call
+    ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        mode: "new", title: "Celebrity Beyond sailing", supplier_arrangement_version_id: version.id,
+        use_tentative_draft: true, arrangement_lock_version: version.reload.lock_version,
+        arrangement_item_id: item.id, supplier_resource_ids: [ ocean.id ]
+      }
+    ).call
+    sign_in_from_browser(@staff)
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit", copy: "review")
+    fill_in "Cruise fare single", with: "1624.00"
+    fill_in "NCCF single", with: "320.00"
+    fill_in "Taxes and fees single", with: "137.00"
+    fill_in "Discount single", with: "150.00"
+    fill_in "Single supplement single", with: "1624.00"
+    click_button "Save Client terms"
+    assert_text "Client total $3,555.00"
+    assert_text "Client total $3,862.00"
+    assert_text "Client total $4,687.50"
+    offer = ServiceOffer.find_by!(intended_arrangement_item_id: item.id)
+    assert_equal 1, ServiceOffer.where(intended_arrangement_item_id: item.id).count
+    assert_equal 1, ServiceOfferPriceDefinition.where(service_offer_version_id: offer.editable_draft_version.id).count
   end
 
   private
@@ -195,6 +348,29 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     SetCruiseSupplierOccupancyPlan.new(
       agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
       expected_cabins: { double: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        mode: "new", title: "Celebrity Beyond sailing", supplier_arrangement_version_id: version.id,
+        use_tentative_draft: true, arrangement_lock_version: version.reload.lock_version,
+        arrangement_item_id: item.id, supplier_resource_ids: [ ocean.id ]
+      }
+    ).call
+    [ arrangement, version, item, ocean ]
+  end
+
+  def connected_copy
+    arrangement, version, item, ocean = cruise_with
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      expected_cabins: { double: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      terms: { first_second_fare: "1624.00", nccf: "320.00", taxes_fees: "137.00" },
+      commission: { method: "not_provided" }, stage: "estimate",
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid
     ).call
     ConnectCruiseServiceOffer.new(
       agency: @agency, actor: @staff, arrangement: arrangement, idempotency_key: SecureRandom.uuid,

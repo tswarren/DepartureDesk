@@ -32,8 +32,17 @@ class DetectCruiseClientTermShape
         reasons << "A Client price component uses a category this Cruise connection does not offer."
         next
       end
-      if component.cruise_client_term_row_key.blank? || !CruiseClientTermRows.known?(component.cruise_client_term_row_key)
+      row_key = component.cruise_client_term_row_key
+      if row_key.blank? || !CruiseClientTermRows.known?(row_key)
         reasons << "A Client term row cannot be edited here."
+      else
+        reasons << "A Client term uses a role this row does not mean." if component.client_role != CruiseClientTermRows.role_for(row_key)
+        unless component.calculation_kind == "unit_rate" && component.quantity_basis == "occupancy_positions"
+          reasons << "A Client term is not an occupancy unit rate."
+        end
+        if component.percentage? || component.percentage_treatment.present? || component.rate.present? || component.service_offer_price_component_bases.any?
+          reasons << "A Client term uses percentage or base semantics."
+        end
       end
       unless CruiseClientTermRows::BANDS.include?(component.occupancy_position_key)
         reasons << "A Client term uses an unsupported traveler position."

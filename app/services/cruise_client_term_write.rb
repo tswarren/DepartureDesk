@@ -141,7 +141,7 @@ module CruiseClientTermWrite
     recopy = ActiveModel::Type::Boolean.new.cast(cell[:recopy])
     clear = ActiveModel::Type::Boolean.new.cast(cell[:clear_provenance])
     if source_id.present? && (component.nil? || component.copied_from_supplier_cost_component_id.nil? || recopy)
-      source = supplier_source_for!(source_id, binding, resource)
+      source = supplier_source_for!(source_id, binding, resource, row_key: cell[:row_key], band: cell[:band])
       unless %w[supplier_charge supplier_credit].include?(source.economic_role) && %w[fixed unit_rate].include?(source.calculation_kind)
         raise AgencyCommand::Error.new("That Supplier term cannot be copied.", code: :invalid)
       end
@@ -173,7 +173,7 @@ module CruiseClientTermWrite
     cleared_provenance
   end
 
-  def supplier_source_for!(source_id, binding, resource)
+  def supplier_source_for!(source_id, binding, resource, row_key:, band:)
     source = SupplierCostComponent.joins(supplier_cost_definition: :supplier_cost_source).find_by(
       id: source_id,
       agency_id: @agency.id,
@@ -182,6 +182,17 @@ module CruiseClientTermWrite
       supplier_cost_sources: { supplier_resource_id: resource.id }
     )
     raise AgencyCommand::Error.new("That Supplier term was not found.", code: :not_found) if source.nil?
+
+    bands = CompileCruiseClientTermBandSet.new(
+      agency: @agency, arrangement_version: binding.supplier_arrangement_version, resource: resource
+    ).call
+    covered = ProposeCruiseSupplierTermCopy.new(
+      agency: @agency,
+      arrangement_version: binding.supplier_arrangement_version,
+      resource: resource,
+      enabled_bands: bands.enabled
+    ).call.cells.any? { |proposed| proposed.source_id == source.id && proposed.row_key == row_key.to_s && proposed.band == band.to_s }
+    raise AgencyCommand::Error.new("That Supplier term does not cover this Client cell.", code: :invalid) unless covered
 
     source
   end
