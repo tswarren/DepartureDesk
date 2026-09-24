@@ -124,6 +124,70 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     assert_no_selector "#cruise-client-terms-form"
   end
 
+  test "invalid save preserves the entered fare" do
+    arrangement, _version, _item, _ocean = connected_double
+    sign_in_from_browser(@staff)
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit")
+    fill_in "Cruise fare first", with: "10.00"
+    fill_in "Cruise fare additional", with: "5.00"
+    click_button "Save Client terms"
+    assert_selector "#form-error-summary"
+    assert_field "Cruise fare first", with: "10.00"
+  end
+
+  test "single occupancy shows a single column and not double review" do
+    arrangement, version, item, ocean = cruise_with
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      expected_cabins: { single: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        mode: "new", title: "Celebrity Beyond sailing", supplier_arrangement_version_id: version.id,
+        use_tentative_draft: true, arrangement_lock_version: version.reload.lock_version,
+        arrangement_item_id: item.id, supplier_resource_ids: [ ocean.id ]
+      }
+    ).call
+    sign_in_from_browser(@staff)
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit")
+    assert_selector "th", text: "Single"
+    assert_no_selector "th", text: "1st"
+    assert_text "Double is unavailable"
+    assert_text "Triple is unavailable"
+  end
+
+  test "removing the source link keeps the client amount" do
+    arrangement, version, item, ocean = cruise_with
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      expected_cabins: { double: 1 }, version_lock_version: version.reload.lock_version
+    ).call
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
+      terms: { first_second_fare: "1624.00", nccf: "320.00", taxes_fees: "137.00" },
+      commission: { method: "not_provided" }, stage: "estimate",
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid
+    ).call
+    ConnectCruiseServiceOffer.new(
+      agency: @agency, actor: @staff, arrangement: arrangement, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        mode: "new", title: "Celebrity Beyond sailing", supplier_arrangement_version_id: version.id,
+        use_tentative_draft: true, arrangement_lock_version: version.reload.lock_version,
+        arrangement_item_id: item.id, supplier_resource_ids: [ ocean.id ]
+      }
+    ).call
+    sign_in_from_browser(@staff)
+    visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit", copy: "review")
+    click_button "Save Client terms"
+    click_link "Edit terms"
+    choose "Remove source link", match: :first
+    click_button "Save Client terms"
+    click_link "Edit terms"
+    assert_field "Cruise fare first", with: "1624.00"
+    assert_no_text "Unchanged"
+  end
+
   private
 
   def connected_double
