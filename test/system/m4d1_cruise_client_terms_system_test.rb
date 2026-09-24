@@ -128,11 +128,11 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     arrangement, _version, _item, _ocean = connected_double
     sign_in_from_browser(@staff)
     visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit")
-    fill_in "Cruise fare first", with: "10.00"
-    fill_in "Cruise fare additional", with: "5.00"
+    fill_in "Cruise fare first", with: "not-a-price"
+    fill_in "Cruise fare second", with: "10.00"
     click_button "Save Client terms"
     assert_selector "#form-error-summary"
-    assert_field "Cruise fare first", with: "10.00"
+    assert_field "Cruise fare first", with: "not-a-price"
   end
 
   test "single occupancy shows a single column and not double review" do
