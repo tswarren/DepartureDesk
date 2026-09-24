@@ -1,6 +1,8 @@
 # M4D.1 Slice 2C — Connect Cruise Service, Cabin Categories, and Client Choices
 
-**Status:** Accepted 2026-09-23. Sole implementation authority for M4D.1 Slice 2C (Stop E). Not shipped. Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 2D, later M4D.1 slices, M4E, and M5 remain unauthorized until named.
+**Status:** Shipped 2026-09-23. Sole shipped authority for M4D.1 Slice 2C (Stop E). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 2D, later M4D.1 slices, M4E, and M5 remain unauthorized until named.
+
+**Ship commit:** [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6) (PR #153).
 
 **Supersedes:** Historical notes [slice2c.md](drafts/slice2c.md) and [slice2c-proposed-decisions.md](drafts/slice2c-proposed-decisions.md). Those notes are not implementation authority.
 
@@ -688,7 +690,7 @@ Using the Celebrity Cruise fixture:
 7. Add the dedicated Stop E summary and editor, and the cruise overview panel.
 8. Add request, system, and accessibility proof.
 9. Update the interface contract and repository indexes.
-10. Mark Slice 2C Shipped only after a green merge to `main`.
+10. Mark Slice 2C Shipped after the green merge to `main` at `b35a4f6`.
 
 ---
 

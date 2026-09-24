@@ -196,7 +196,7 @@ Authority: [Slice 2B](../planning/m4d1-slice2b-cruise-deposits-deadlines-and-act
 
 ## Cruise service connection workspace (M4D.1 Slice 2C)
 
-Authority: [Slice 2C](../planning/m4d1-slice2c-cruise-service-connection.md) (Accepted, not shipped).
+Authority: [Slice 2C](../planning/m4d1-slice2c-cruise-service-connection.md) (Shipped; merge `b35a4f6`).
 
 - Route: `/departures/:departure_id/arrangements/:arrangement_id/cruise/service-connection`. Every action, including show, requires `manage_departures` and responds not found when that permission is absent.
 - Page order: `dd-page-header` (eyebrow `Cruise Supplier planning`, one `h1`, secondary `Back to Cruise`) → summary or one editor. The summary is the default. The editor opens only from `editor=connect` or `editor=edit`. Success redirects `303` to the summary URL without that query. Failed saves render `422` and keep the entered fields.

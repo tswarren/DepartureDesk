@@ -959,7 +959,7 @@ Typed composite commands may extract reusable generic `*_already_locked!` helper
 - Cruise adapter services: `CompileCruiseDepositsAndDeadlinesWorkspace`, `DetectCruiseSupplierDeadlineShape`, `DetectCruiseDepositRequirementShape`, `PreviewCruiseDepositRequirement`, `PreviewCruiseDepositsAndDeadlinesActivation`
 - Typed routes under `/departures/:departure_id/arrangements/:arrangement_id/cruise/deposits-and-deadlines` (nested deadlines/deposits + preview POSTs). Generic `/deadlines` and `/deposits` remain Advanced planning.
 
-**Accepted Slice 2C** (sole Stop E authority: [Slice 2C](m4d1-slice2c-cruise-service-connection.md)):
+**Shipped Slice 2C** (sole Stop E authority: [Slice 2C](m4d1-slice2c-cruise-service-connection.md); merge [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6) / PR #153):
 
 - `ConnectCruiseServiceOffer` (`new`, `existing`, `later`) and `UpdateCruiseServiceConnection`
 - Read adapters: `DetectCruiseServiceConnectionShape`, `CompileCruiseServiceConnectionWorkspace`
@@ -1119,7 +1119,7 @@ Remediates Stop point C detector reopen:
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 
-**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is accepted separately. Next unauthorized boundary: Slice 2D.
+**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is shipped separately. Next unauthorized boundary: Slice 2D.
 
 Ship Stop point D:
 
@@ -1141,7 +1141,7 @@ Ship Stop point D:
 
 #### Slice 2C — Connect Cruise, categories, and choices
 
-**Accepted 2026-09-23.** Sole Stop E authority: [M4D.1 Slice 2C](m4d1-slice2c-cruise-service-connection.md). Not shipped. Implementation base is green `main` at or after `df16a71` (PR #152).
+**Shipped 2026-09-23.** Sole Stop E authority: [M4D.1 Slice 2C](m4d1-slice2c-cruise-service-connection.md). Ship commit / merge tip [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6) (PR #153). Implementation base [`df16a71`](https://github.com/tswarren/DepartureDesk/commit/df16a71) (PR #152). Next unauthorized boundary: Slice 2D.
 
 Ship Stop point E plus the durable choice-rate key:
 
