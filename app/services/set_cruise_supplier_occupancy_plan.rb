@@ -94,6 +94,7 @@ class SetCruiseSupplierOccupancyPlan < AgencyCommand
           if count.nil?
             if profile
               profile.supplier_cost_occupancy_profile_positions.order(:id).lock.each(&:destroy!)
+              profile.supplier_cost_occupancy_profile_positions.reset
               profile.destroy!
             end
             next

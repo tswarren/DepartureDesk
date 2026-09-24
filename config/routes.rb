@@ -196,6 +196,10 @@ Rails.application.routes.draw do
         end
         resource :service_connection, path: "service-connection", only: %i[show create update],
           controller: "cruise_service_connections"
+        resource :client_terms, path: "client-terms", only: %i[show create update destroy],
+          controller: "cruise_client_terms" do
+          post :preview
+        end
         resource :deposits_and_deadlines, path: "deposits-and-deadlines", only: :show,
           controller: "cruise_deposits_and_deadlines" do
           resources :deadlines, only: %i[create update destroy],

@@ -1,6 +1,6 @@
 # M4D.1 Slice 2C — Connect Cruise Service, Cabin Categories, and Client Choices
 
-**Status:** Shipped 2026-09-23. Sole shipped authority for M4D.1 Slice 2C (Stop E). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 2D, later M4D.1 slices, M4E, and M5 remain unauthorized until named.
+**Status:** Shipped 2026-09-23. Sole shipped authority for M4D.1 Slice 2C (Stop E). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. [Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) is Accepted separately. Later M4D.1 slices, M4E, and M5 remain unauthorized until named.
 
 **Ship commit:** [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6) (PR #153).
 

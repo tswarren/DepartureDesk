@@ -97,11 +97,11 @@ class EvaluateServiceOfferPublicationReadiness
         issues << Issue.new(field: :choices, message: "Choice group #{group.name} needs enough options for its minimum.")
       end
       options.each do |option|
-        if option.price_effect_minor_units.nil?
-          issues << Issue.new(
-            field: :choices,
-            message: "Enter an included price (0) or surcharge for #{option.name}."
-          )
+        decision = CruiseCategoryOptionPrice.call(option: option, version: @version)
+        if decision.status == :missing_base_price
+          issues << Issue.new(field: :choices, message: "Enter the category price for #{option.name}.")
+        elsif decision.status == :incomplete && option.price_effect_minor_units.nil?
+          issues << Issue.new(field: :choices, message: "Enter an included price (0) or surcharge for #{option.name}.")
         end
       end
     end

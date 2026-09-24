@@ -160,6 +160,7 @@ class AuditEvent < ApplicationRecord
     service_offer.price_created
     service_offer.price_updated
     service_offer.price_removed
+    service_offer.cruise_client_terms_saved
     service_offer.published
     service_offer.successor_created
     service_offer.sales_paused

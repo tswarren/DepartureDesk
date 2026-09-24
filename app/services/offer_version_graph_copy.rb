@@ -45,6 +45,11 @@ module OfferVersionGraphCopy
           percentage_treatment: component.percentage_treatment,
           occupancy_position_key: component.occupancy_position_key,
           client_rate_category_key: component.client_rate_category_key,
+          cruise_client_term_row_key: component.cruise_client_term_row_key,
+          copied_from_supplier_cost_component_id: component.copied_from_supplier_cost_component_id,
+          copied_from_supplier_cost_component_fingerprint: component.copied_from_supplier_cost_component_fingerprint,
+          copied_from_supplier_cost_component_at: component.copied_from_supplier_cost_component_at,
+          copied_from_supplier_cost_component_mapping: component.copied_from_supplier_cost_component_mapping,
           position: component.position
         )
         component_map[component.id] = copied

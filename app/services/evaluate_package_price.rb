@@ -88,7 +88,13 @@ class EvaluatePackagePrice
     amount = result.amount_minor_units.to_i
     blockers = result.blockers.dup
     options.sort_by { |option| [ option.position, option.id ] }.each_with_index do |option, index|
-      if option.price_effect_minor_units.nil?
+      decision = CruiseCategoryOptionPrice.call(option: option, version: option.service_offer_version)
+      if decision.status == :waived
+        next
+      elsif decision.status == :missing_base_price
+        blockers << "Enter the category price for #{option.name}."
+        next
+      elsif option.price_effect_minor_units.nil?
         blockers << "Choice option #{option.name} needs an included price (0) or surcharge."
         next
       end
