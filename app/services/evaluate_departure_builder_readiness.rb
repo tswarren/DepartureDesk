@@ -186,6 +186,52 @@ class EvaluateDepartureBuilderReadiness
         )
       end
     end
+    findings.concat(cruise_client_term_findings)
+    findings
+  end
+
+  def cruise_client_term_findings
+    findings = []
+    @departure.service_offers.find_each do |offer|
+      version = offer.editable_draft_version
+      next if version.nil?
+
+      connection = DetectCruiseServiceConnectionShape.new(agency: @agency, offer: offer, version: version).call
+      next unless connection.compatible?
+
+      workspace = CompileCruiseClientTermsWorkspace.new(agency: @agency, offer: offer, version: version).call
+      workspace[:categories].each do |category|
+        option = category[:option]
+        route_params = { departure_id: @departure.id, arrangement_id: connection.arrangement.id, option_id: option.id, editor: "edit" }
+        if category[:components].none? { |component| component.client_role == "base_price" }
+          findings << finding(
+            "Pricing and Client terms", :cruise_category_base_price_missing, :incomplete,
+            "Enter the category price for #{option.name}.",
+            :departure_arrangement_cruise_client_terms, route_params,
+            service_offer_id: offer.id
+          )
+        end
+        category[:states].each do |component, state|
+          code = { "changed" => :cruise_client_source_changed, "missing" => :cruise_client_source_missing, "unknown" => :cruise_client_source_unknown }[state]
+          next if code.nil?
+
+          findings << finding(
+            "Pricing and Client terms", code, :needs_attention,
+            "#{component.label} remains #{component.amount.format}. The Supplier source is #{state}.",
+            :departure_arrangement_cruise_client_terms, route_params,
+            service_offer_id: offer.id
+          )
+        end
+        if category[:unsupported_bands].any?
+          findings << finding(
+            "Pricing and Client terms", :cruise_client_band_no_longer_supported, :needs_attention,
+            "A saved Client term uses #{category[:unsupported_bands].to_sentence}, which this category no longer supports.",
+            :departure_arrangement_cruise_client_terms, route_params,
+            service_offer_id: offer.id
+          )
+        end
+      end
+    end
     findings
   end
 

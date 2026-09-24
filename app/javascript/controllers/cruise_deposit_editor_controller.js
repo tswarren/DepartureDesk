@@ -67,6 +67,7 @@ export default class extends Controller {
 
   markNameStaffAuthored() {
     this.nameStaffAuthored = true
+    if (this.hasDescriptionTarget) this.descriptionTarget.dataset.staffAuthored = "true"
   }
 
   initNameStaffAuthored() {
@@ -100,7 +101,13 @@ export default class extends Controller {
   updateTemplateDefaults() {
     const template = this.hasTemplateTarget ? this.templateTarget.value : ""
     if (template === this.lastTemplate) return
+
+    const previous = this.lastTemplate
     this.lastTemplate = template
+    if (previous !== null && !this.nameStaffAuthored && this.hasDescriptionTarget) {
+      this.nameStaffAuthored = this.descriptionIsStaffAuthoredFor(previous)
+      if (this.nameStaffAuthored) this.descriptionTarget.dataset.staffAuthored = "true"
+    }
 
     if (template === "initial_deposit") {
       this.amountShapeTarget.value = "quantity_times_rate"

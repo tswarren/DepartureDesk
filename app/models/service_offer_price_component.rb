@@ -21,6 +21,7 @@ class ServiceOfferPriceComponent < ApplicationRecord
   belongs_to :service_offer
   belongs_to :service_offer_version
   belongs_to :service_offer_price_definition
+  belongs_to :copied_from_supplier_cost_component, class_name: "SupplierCostComponent", optional: true
 
   has_many :service_offer_price_component_bases, class_name: "ServiceOfferPriceComponentBase",
     dependent: :restrict_with_exception
@@ -37,7 +38,7 @@ class ServiceOfferPriceComponent < ApplicationRecord
     :service_offer_version_id, :service_offer_price_definition_id
 
   normalizes :label, with: ->(value) { value.to_s.strip }
-  normalizes :client_rate_category_key, :occupancy_position_key,
+  normalizes :client_rate_category_key, :occupancy_position_key, :cruise_client_term_row_key,
     with: ->(value) { value.to_s.strip.presence }
 
   monetize :amount_minor_units, as: :amount, with_model_currency: :currency, allow_nil: true
@@ -48,6 +49,9 @@ class ServiceOfferPriceComponent < ApplicationRecord
   validates :rate, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :client_rate_category_key, length: { maximum: RATE_CATEGORY_LIMIT }, allow_nil: true
   validates :occupancy_position_key, length: { maximum: OCCUPANCY_POSITION_LIMIT }, allow_nil: true
+  validates :cruise_client_term_row_key, length: { maximum: 80 }, allow_nil: true
+  validate :provenance_is_complete
+  validate :provenance_mapping_shape
   validate :kind_shape
   validate :included_treatment_is_tax_fee
   validate :parent_is_calculated
@@ -106,6 +110,26 @@ class ServiceOfferPriceComponent < ApplicationRecord
     return if tax_fee?
 
     errors.add(:percentage_treatment, "included treatment is only valid for a tax or fee")
+  end
+
+  def provenance_is_complete
+    fields = [
+      copied_from_supplier_cost_component_id,
+      copied_from_supplier_cost_component_fingerprint,
+      copied_from_supplier_cost_component_at,
+      copied_from_supplier_cost_component_mapping
+    ]
+    return if fields.all?(&:nil?) || fields.all?(&:present?)
+
+    errors.add(:base, "Supplier copy provenance must be complete")
+  end
+
+  def provenance_mapping_shape
+    mapping = copied_from_supplier_cost_component_mapping
+    return if mapping.nil?
+    return if SupplierCostComponentCopyFingerprint.valid_snapshot?(mapping)
+
+    errors.add(:copied_from_supplier_cost_component_mapping, "is not a supported copy mapping")
   end
 
   def parent_is_calculated

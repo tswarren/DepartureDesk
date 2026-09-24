@@ -1263,6 +1263,64 @@
 
   .dd-table-wrap {
     overflow-x: auto;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .dd-client-terms,
+  .dd-client-terms form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dd-client-terms > *,
+  .dd-client-terms section,
+  .dd-client-terms form {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dd-client-terms {
+    overflow-x: clip;
+  }
+
+  .dd-client-terms .dd-page-header {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .dd-client-terms .dd-table-wrap {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .dd-client-terms .dd-table {
+    width: max-content;
+    min-width: 0;
+  }
+
+  .dd-client-terms .dd-table th {
+    white-space: normal;
+  }
+
+  .dd-client-terms .dd-table input {
+    box-sizing: border-box;
+    width: 6.5rem;
+    min-width: 0;
+    max-width: 6.5rem;
+  }
+
+  .dd-client-terms fieldset {
+    min-width: 0;
+    margin: 0;
+    border: 0;
+    padding: 0;
   }
 
   .dd-table {
@@ -2289,6 +2347,26 @@
     .dd-button-group .dd-button,
     .dd-form-actions .dd-button {
       width: 100%;
+    }
+
+    .dd-client-terms .dd-table,
+    .dd-client-terms .dd-table thead,
+    .dd-client-terms .dd-table tbody,
+    .dd-client-terms .dd-table tr,
+    .dd-client-terms .dd-table th,
+    .dd-client-terms .dd-table td {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .dd-client-terms .dd-table-wrap {
+      overflow-x: visible;
+    }
+
+    .dd-client-terms .dd-table input {
+      width: 100%;
+      max-width: 100%;
     }
 
     .dd-subnav {

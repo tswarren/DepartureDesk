@@ -1,0 +1,147 @@
+<% category = @workspace[:categories].find { |row| row[:option].id == @selected_option_id } || @workspace[:categories].first %>
+<% return if category.nil? %>
+<% option = category[:option] %>
+<% bands = category[:bands].enabled %>
+<% existing = category[:components].index_by { |component| [ component.cruise_client_term_row_key, component.occupancy_position_key ] } %>
+<% submitted = (@submitted || {}) %>
+<% rows = (CruiseClientTermRows::STANDARD.keys + existing.keys.map(&:first) + submitted.keys).uniq %>
+<% proposal_cells = Array(@proposal&.cells).index_by { |cell| [ cell.row_key, cell.band ] } %>
+<% version = @offer.editable_draft_version %>
+<% creating = category[:components].empty? %>
+<% band_labels = { "single" => "Single", "first" => "1st", "second" => "2nd", "additional" => "Additional" } %>
+
+<section aria-labelledby="edit-client-terms">
+  <h2 id="edit-client-terms">Edit Client terms — <%= option.name %></h2>
+  <% if category[:bands].advanced? %>
+    <p><%= category[:bands].unavailable_reasons[:base] %></p>
+    <%= link_to "Back to Cruise", departure_arrangement_cruise_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  <% else %>
+    <% if @proposal.nil? %>
+      <p>
+        <%= link_to "Start from Supplier terms",
+              departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement, editor: "edit", option_id: option.id, copy: "review"),
+              class: "dd-button dd-button--quiet" %>
+      </p>
+    <% else %>
+      <section aria-label="Supplier copy review">
+        <h3>Review Supplier copy</h3>
+        <p>These values are a proposal. Nothing is saved until you choose Save Client terms.</p>
+        <% if @proposal.cells.empty? && @proposal.unsupported.empty? %>
+          <p>No Supplier terms are available to copy.</p>
+        <% end %>
+        <ul>
+          <% @proposal.cells.each do |cell| %>
+            <li>
+              <%= cell.source_label %> <%= cell.source_amount %>
+              proposes <%= cell.label %> <%= band_labels[cell.band] %>
+              as <%= cell.role.humanize %> <%= cell.amount %>.
+              <%= "One Supplier term expands to several cells." if cell.expands %>
+            </li>
+          <% end %>
+          <% @proposal.unsupported.each do |reason| %>
+            <li><%= reason %></li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+
+    <%= form_with url: departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement),
+          method: creating ? :post : :patch, html: { id: "cruise-client-terms-form" }, data: { turbo: false } do %>
+      <%= hidden_field_tag :option_id, option.id %>
+      <%= hidden_field_tag :version_lock_version, version.lock_version %>
+      <%= hidden_field_tag :arrangement_lock_version, category[:binding].supplier_arrangement_version.lock_version %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key if creating %>
+      <div class="dd-table-wrap" tabindex="0" aria-label="Client term matrix">
+        <table class="dd-table">
+          <caption class="sr-only">Client prices by traveler position. Currency <%= @departure.operating_currency %>.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Client price component</th>
+              <% bands.each do |band| %>
+                <th scope="col"><%= band_labels[band] %></th>
+              <% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.each do |row_key| %>
+              <% next if row_key == "single_supplement" && !bands.include?("single") %>
+              <% label = submitted.dig(row_key, "label") || existing[[ row_key, bands.first ]]&.label || CruiseClientTermRows.label_for(row_key) %>
+              <tr>
+                <th scope="row">
+                  <%= label_tag "rows_#{row_key}_label", label %>
+                  <%= text_field_tag "rows[#{row_key}][label]", label, id: "rows_#{row_key}_label" %>
+                  <% if row_key == "discount" %>
+                    <span>Entered as a positive amount and applied as a reduction.</span>
+                  <% end %>
+                </th>
+                <% bands.each do |band| %>
+                  <td>
+                    <% if CruiseClientTermRows.allowed_bands(row_key).include?(band) %>
+                      <% component = existing[[ row_key, band ]] %>
+                      <% proposed = proposal_cells[[ row_key, band ]] %>
+                      <% value = submitted.dig(row_key, band) || proposed&.amount || client_term_amount(component&.amount) %>
+                      <%= label_tag "rows_#{row_key}_#{band}", "#{label} #{band}", class: "sr-only" %>
+                      <%= text_field_tag "rows[#{row_key}][#{band}]", value, id: "rows_#{row_key}_#{band}", inputmode: "decimal" %>
+                      <% submitted_source = submitted.dig(row_key, "source_#{band}").presence %>
+                      <% source_id = submitted_source || proposed&.source_id || component&.copied_from_supplier_cost_component_id %>
+                      <% if source_id.present? %>
+                        <%= hidden_field_tag "rows[#{row_key}][source_#{band}]", source_id %>
+                        <% state = category[:states][component] if component %>
+                        <% chosen = submitted.dig(row_key, "provenance_#{band}").presence || "keep" %>
+                        <% if submitted_source.present? || (state.present? && state != "independent") %>
+                          <p><%= (state || "proposed").to_s.humanize %>. Client amount <%= value %>.</p>
+                          <fieldset>
+                            <legend class="sr-only">Provenance for <%= label %> <%= band %></legend>
+                            <%= label_tag "rows_#{row_key}_keep_#{band}", "Keep Client term" %>
+                            <%= radio_button_tag "rows[#{row_key}][provenance_#{band}]", "keep", chosen == "keep", id: "rows_#{row_key}_keep_#{band}" %>
+                            <%= label_tag "rows_#{row_key}_recopy_#{band}", "Recopy from Supplier" %>
+                            <%= radio_button_tag "rows[#{row_key}][provenance_#{band}]", "recopy", chosen == "recopy", id: "rows_#{row_key}_recopy_#{band}" %>
+                            <%= label_tag "rows_#{row_key}_clear_#{band}", "Remove source link" %>
+                            <%= radio_button_tag "rows[#{row_key}][provenance_#{band}]", "clear", chosen == "clear", id: "rows_#{row_key}_clear_#{band}" %>
+                          </fieldset>
+                        <% end %>
+                      <% end %>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+            <% category[:unsupported_bands].each do |band| %>
+              <tr>
+                <th scope="row">Unsupported <%= band_labels[band] || band %></th>
+                <td colspan="<%= [ bands.size, 1 ].max %>">Saved amounts remain. This position is no longer supported.</td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <div class="dd-form-actions">
+        <%= submit_tag "Save Client terms", class: "dd-button" %>
+        <%= submit_tag "Preview", class: "dd-button dd-button--quiet", formaction: preview_departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement), formmethod: :post %>
+        <%= submit_tag "Add surcharge", class: "dd-button dd-button--quiet", name: "add_row", value: "surcharge", formaction: preview_departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement), formmethod: :post %>
+        <%= submit_tag "Add discount", class: "dd-button dd-button--quiet", name: "add_row", value: "discount", formaction: preview_departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement), formmethod: :post %>
+      </div>
+    <% end %>
+    <% if @preview.is_a?(Array) && @preview.any? %>
+      <section aria-label="Scenario preview">
+        <h3>Preview</h3>
+        <p>Advisory until save. Pending cells are not treated as zero.</p>
+        <ul>
+          <% @preview.each do |scenario| %>
+            <li>
+              <%= scenario[:name].humanize %>
+              <% if scenario[:pending].any? %>
+                — pending <%= scenario[:pending].map { |band| band_labels[band] || band }.to_sentence %>
+              <% end %>
+              <% if scenario[:total_minor] %>
+                — <%= Money.new(scenario[:total_minor], scenario[:currency]).format %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+  <% end %>
+</section>

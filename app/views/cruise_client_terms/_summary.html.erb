@@ -1,0 +1,62 @@
+<section aria-labelledby="client-term-summaries">
+  <h2 id="client-term-summaries" class="dd-section-title">Cabin categories</h2>
+  <p>Illustrative Celebrity example, not a stored price: Single $3,555.00 · Double $3,862.00 · Triple $4,687.50 when those bands are enabled and the supplier amounts are copied unchanged.</p>
+  <% if @workspace[:categories].empty? %>
+    <p>Connect a Cruise service before entering Client terms.</p>
+  <% end %>
+  <% @workspace[:categories].each do |category| %>
+    <article class="dd-panel">
+      <h3><%= category[:option].name %></h3>
+      <% if category[:bands].advanced? %>
+        <p><%= category[:bands].unavailable_reasons[:base] %></p>
+        <%= link_to "Back to Cruise", departure_arrangement_cruise_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+      <% elsif category[:components].empty? %>
+        <p>No Client terms yet. Enter the category price for <%= category[:option].name %>.</p>
+      <% else %>
+        <p><%= category[:components].size %> entered cells.</p>
+      <% end %>
+      <% if category[:unsupported_bands].any? %>
+        <p>Needs attention. A saved traveler position is no longer supported: <%= category[:unsupported_bands].to_sentence %>.</p>
+      <% end %>
+      <% reviews = (@reviews || {})[category[:option].id] || [] %>
+      <% if reviews.any? %>
+        <h4>Scenario review</h4>
+        <ul>
+          <% reviews.each do |scenario| %>
+            <li>
+              <%= scenario[:name].humanize %>
+              <% if scenario[:omitted] %>
+                — <%= scenario[:reason] %>
+              <% elsif scenario[:pending] %>
+                — pending. <%= scenario[:reason] %>
+                <% if scenario[:price]&.lines&.any? %>
+                  Known Client lines remain:
+                  <% scenario[:price].lines.each do |line| %>
+                    <%= line.label %> <%= Money.new(line.signed_revenue_effect_minor_units, scenario[:price].currency).format %>.
+                  <% end %>
+                <% end %>
+              <% elsif scenario[:price]&.complete %>
+                — Client total <%= Money.new(scenario[:price].amount_minor_units, scenario[:price].currency).format %>
+              <% end %>
+              <% economics = scenario[:economics] %>
+              <% if economics&.status == :known %>
+                Supplier gross <%= Money.new(economics.forecast_supplier_cost_minor_units, economics.currency).format %>.
+                Expected commission <%= Money.new(economics.expected_commission_minor_units, economics.currency).format %>.
+                Supplier net <%= Money.new(economics.forecast_supplier_cost_minor_units - economics.expected_commission_minor_units, economics.currency).format %>.
+                Indicative margin <%= Money.new(economics.indicative_margin_minor_units, economics.currency).format %>.
+              <% elsif economics&.reason.present? %>
+                Supplier economics pending: <%= economics.reason %>
+              <% end %>
+              <% if scenario[:capacity] %>
+                <%= scenario[:capacity][:text] %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+      <%= link_to "Edit terms",
+            departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement, editor: "edit", option_id: category[:option].id),
+            class: "dd-button" %>
+    </article>
+  <% end %>
+</section>

@@ -16,7 +16,11 @@
 
 **Slice 2A.2R3:** [M4D.1 Slice 2A.2R3 — Cruise Rate-Shape Detector Remediation](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md) is **Shipped 2026-09-23**. It is the sole shipped authority for percentage↔profile / collision-safe cell-key detector remediation.
 
-**Slice 2B:** [M4D.1 Slice 2B — Cruise Deposits, Deadlines, and Activation-Safe Editing](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) is **Shipped**. It is the sole shipped authority for typed Cruise Stop point D. **2B-A, 2B-B, and 2B-C delivered.** Later slices remain unauthorized until named.
+**Slice 2B:** [M4D.1 Slice 2B — Cruise Deposits, Deadlines, and Activation-Safe Editing](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) is **Shipped**. It is the sole shipped authority for typed Cruise Stop point D. **2B-A, 2B-B, and 2B-C delivered.**
+
+**Slice 2C:** [M4D.1 Slice 2C — Cruise service connection](m4d1-slice2c-cruise-service-connection.md) is **Shipped 2026-09-23** (merge `b35a4f6`). It is the sole shipped authority for Stop E.
+
+**Slice 2D:** [M4D.1 Slice 2D — Cruise Client terms and scenario review](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) is **Accepted 2026-09-24** and not shipped. It is the sole authority for Stops F–G. Implementation base `b35a4f6`. Later slices remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -565,16 +569,16 @@ The command refuses to create a second Service Offer when the user is adding sup
 
 ### 12.6 Stop point F — Client terms saved
 
-Staff select one cabin category and compile independent Client price components for:
+Staff select one cabin category and compile independent Client price components for the traveler-position bands that category’s confirmed Supplier occupancy profiles enable:
 
 - first/second fare;
 - additional-person fare;
 - single supplement or single-position price shape supported by M4B;
 - NCCF;
 - taxes and fees;
-- named discounts or surcharges.
+- named discounts or surcharges, including an ordinary Agency fee row whose default label is editable.
 
-The minimum Smith slice supports additive, separately explained taxes and fees using shipped `tax_fee` Client components. Rich combined/internal presentation modes are not required for this stop point unless separately accepted.
+The minimum Smith slice supports additive, separately explained taxes and fees using shipped `tax_fee` Client components. The accepted row catalog is [Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) §6.2. Rich combined/internal presentation modes are not required for this stop point unless separately accepted.
 
 Staff may:
 
@@ -588,9 +592,7 @@ No Supplier component is copied automatically. Expected commission never becomes
 
 Review derives, without persisting totals:
 
-- category + Single;
-- category + Double;
-- category + Triple when supported;
+- category + Single, Double, or Triple only when [Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) §2.9 enables every band that scenario uses. Confirmed occupancy profiles choose those bands. A profile of three or more positions enables Additional only when the typed rate shape supports the additional position. Maximum occupancy alone enables no band;
 - known Client lines and total;
 - known Supplier gross, commission, and net;
 - projected profit/margin when inputs are sufficient;
@@ -624,6 +626,8 @@ A choice option may still have no rate-category key when it has only a fixed opt
 - Two options in the same Service Offer version cannot silently share a key.
 - Source activation and rate-category selection remain two properties of the same existing choice option. No new Category identity is introduced.
 
+**Slice 2D amendment (2026-09-24):** For a Slice 2C category option, a null `price_effect_minor_units` means no separate option surcharge once that option’s stored rate key has a same-version category-scoped Client `base_price` and selection supplies that key to Service and Package evaluation. A null effect remains incomplete for an ordinary option that has neither an included zero, a surcharge, nor a reachable category price. [Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) §2.8 is the implementing authority.
+
 ## 14. Supplier-to-Client price-copy provenance
 
 ### 14.1 Semantic decision
@@ -639,25 +643,28 @@ At copy time:
 5. The exact Supplier component and a copy-time fingerprint are retained as provenance.
 6. A later Supplier edit or activated successor never overwrites the Client component.
 7. A pure comparison flags unchanged, changed, missing, or unknown provenance.
-8. Staff may keep the Client term, recopy into a new draft component, or remove provenance deliberately.
+8. Staff may keep the Client term, recopy onto the same draft component, or remove provenance deliberately. Keep retains the Client value and does not rewrite copy-time provenance. Recopy, after confirmation, writes a new mapping snapshot and fingerprint on that same component.
 
 ### 14.2 Minimum Smith persistence contract
 
-For the one-to-one compatible copy path, add to `service_offer_price_components`:
+**Slice 2D amendment (2026-09-24):** Each Client component has zero or one Supplier provenance source. One compatible Supplier component may seed several Client cells when its source position range expands into independent target positions. Combining several Supplier components into one Client component remains deferred.
+
+For that copy path, add to `service_offer_price_components`:
 
 - nullable `copied_from_supplier_cost_component_id`;
 - nullable `copied_from_supplier_cost_component_fingerprint`;
-- nullable `copied_from_supplier_cost_component_at`.
+- nullable `copied_from_supplier_cost_component_at`;
+- nullable `copied_from_supplier_cost_component_mapping` JSONB, the copy-time mapping snapshot.
 
 Database and Rails constraints require:
 
-- all three provenance fields present or all absent;
-- same Agency and Departure;
-- the source component belongs to the Arrangement/version reachable through one selected/bound source path on the same Service Offer version;
+- all four provenance fields present or all absent;
+- same Agency and Departure, enforced by the composite foreign key;
+- the source component is reachable through one selected source binding on the same Service Offer version, enforced by the command and detector;
 - the source calculation shape is supported by the copy adapter;
 - provenance mutation only while the Client Service Offer version is draft.
 
-The copied Client component’s own amount, rate, role, quantity basis, selectors, and bases are the copy-time Client snapshot. The source fingerprint identifies later Supplier change. This minimum path does not merge several Supplier components into one provenance chain. Staff can create an independent Client component when transformation is not one-to-one. Multi-source transformation provenance is deferred until separately accepted.
+The copied Client component’s own amount, rate, role, quantity basis, selectors, and bases are the copy-time Client snapshot. The source fingerprint identifies later Supplier change. Comparison recomputes that digest from the current Supplier component plus the frozen mapping snapshot. It does not read the Client component’s current role or selectors. [Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) names the canonical serialization. Multi-source transformation provenance remains deferred.
 
 ### 14.2.1 Copy-time fingerprint
 
@@ -673,7 +680,7 @@ At minimum it covers:
 
 It must **not** include database primary keys, foreign keys, or version ids (component id, definition id, Arrangement version id, or similar) in the digest. Stable source identity for Staff review and “open source” navigation remains on the separate nullable source-component FK / provenance pointer fields—not inside the fingerprint.
 
-The accepting Slice 2D plan names the exact canonical serialization. A later Supplier edit that changes any fingerprint input marks provenance **changed**; an unreachable or deleted source marks **missing**; an unsupported comparison marks **unknown**.
+[Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) names the exact canonical serialization. Mapping fields in that document come from the frozen snapshot. Supplier semantic fields come from the current Supplier component. A later Supplier edit that changes any fingerprint input marks provenance **changed**; an unreachable or deleted source marks **missing**; an unsupported comparison marks **unknown**. A Client-value or Client-role edit does not by itself mark the source changed.
 
 ### 14.3 Eligible mappings
 
@@ -959,18 +966,21 @@ Typed composite commands may extract reusable generic `*_already_locked!` helper
 - Cruise adapter services: `CompileCruiseDepositsAndDeadlinesWorkspace`, `DetectCruiseSupplierDeadlineShape`, `DetectCruiseDepositRequirementShape`, `PreviewCruiseDepositRequirement`, `PreviewCruiseDepositsAndDeadlinesActivation`
 - Typed routes under `/departures/:departure_id/arrangements/:arrangement_id/cruise/deposits-and-deadlines` (nested deadlines/deposits + preview POSTs). Generic `/deadlines` and `/deposits` remain Advanced planning.
 
-**Accepted Slice 2C** (sole Stop E authority: [Slice 2C](m4d1-slice2c-cruise-service-connection.md)):
+**Shipped Slice 2C** (sole Stop E authority: [Slice 2C](m4d1-slice2c-cruise-service-connection.md); merge [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6) / PR #153):
 
 - `ConnectCruiseServiceOffer` (`new`, `existing`, `later`) and `UpdateCruiseServiceConnection`
 - Read adapters: `DetectCruiseServiceConnectionShape`, `CompileCruiseServiceConnectionWorkspace`
 - Typed route under `/departures/:departure_id/arrangements/:arrangement_id/cruise/service-connection`
 - Option rate key and Arrangement Item claim, with claim reassignment rejected in PostgreSQL
 
-**Later Cruise stop-point boundary** (names locked when the implementing slice is Accepted):
+**Accepted Slice 2D** (sole Stops F–G authority: [Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md); not shipped; implementation base [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6)):
 
-- Client term schedule and Supplier-to-Client copy (Stops F–G / Slice 2D)
+- `CreateCruiseClientTermSchedule`, `UpdateCruiseClientTermSchedule`, and `RemoveCruiseClientTermSchedule`
+- Read adapters: `DetectCruiseClientTermShape`, `CompileCruiseClientTermBandSet`, `CompileCruiseClientTermsWorkspace`, `CompileCruiseScenarioReview`, `SupplierCostComponentCopyFingerprint`, and `CompareSupplierCostCopyProvenance`
+- Typed route under `/departures/:departure_id/arrangements/:arrangement_id/cruise/client-terms`
+- Four-field Supplier-copy provenance and the null category-option price-effect amendment
 
-The accepted sub-slice plan must name exact commands, inputs, outputs, and whether each extracts already-locked helpers or composes shipped public commands.
+The accepted sub-slice plan names exact commands, inputs, outputs, and the already-locked helper boundary. Later slices still require their own accepted plans.
 
 ### 19.2 Lock order
 
@@ -1119,7 +1129,7 @@ Remediates Stop point C detector reopen:
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 
-**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is accepted separately. Next unauthorized boundary: Slice 2D.
+**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is shipped separately. Slice 2D is Accepted separately. Next unauthorized boundary: Slice 3.
 
 Ship Stop point D:
 
@@ -1141,7 +1151,7 @@ Ship Stop point D:
 
 #### Slice 2C — Connect Cruise, categories, and choices
 
-**Accepted 2026-09-23.** Sole Stop E authority: [M4D.1 Slice 2C](m4d1-slice2c-cruise-service-connection.md). Not shipped. Implementation base is green `main` at or after `df16a71` (PR #152).
+**Shipped 2026-09-23.** Sole Stop E authority: [M4D.1 Slice 2C](m4d1-slice2c-cruise-service-connection.md). Ship commit / merge tip [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6) (PR #153). Implementation base [`df16a71`](https://github.com/tswarren/DepartureDesk/commit/df16a71) (PR #152). Slice 2D is Accepted separately.
 
 Ship Stop point E plus the durable choice-rate key:
 
@@ -1157,16 +1167,11 @@ Ship Stop point E plus the durable choice-rate key:
 
 #### Slice 2D — Client term compiler and scenario Review
 
-Ship Stop points F–G:
+**Accepted 2026-09-24.** Sole Stops F–G authority: [M4D.1 Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md). Implementation base [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6). Not shipped. Deliveries 2D-A, 2D-B, and 2D-C remain unshipped until each merges green. Next unauthorized boundary: Slice 3.
 
-- independent Cruise Client term compiler;
-- separately itemized fare/NCCF/taxes-and-fees lines;
-- minimum one-to-one Supplier-copy provenance;
-- Single/Double/Triple review;
-- known/pending arithmetic;
-- Supplier-change provenance findings through the existing readiness model.
+The accepted plan ships Stop points F–G: category-scoped Client terms whose bands follow confirmed Supplier occupancy profiles, an ordinary Agency fee row, zero-or-one Supplier-copy provenance with a frozen mapping snapshot, review of enabled Single/Double/Triple scenarios, known/pending arithmetic, provenance and unsupported-band findings that do not block publication, and the null category-option price-effect amendment.
 
-**Exit:** Staff can explain both Supplier cost and Client revenue for O1 without silently equating them, and Review gives one actionable next step.
+**Exit:** Staff can explain both Supplier cost and Client revenue for O1 without equating them, and Review gives one actionable next step.
 
 ### Slice 3 — Typed adapter generalization
 

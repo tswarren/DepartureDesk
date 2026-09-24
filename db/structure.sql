@@ -3682,6 +3682,11 @@ CREATE TABLE public.service_offer_price_components (
     "position" integer NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    cruise_client_term_row_key character varying(80),
+    copied_from_supplier_cost_component_id uuid,
+    copied_from_supplier_cost_component_fingerprint character varying(64),
+    copied_from_supplier_cost_component_at timestamp with time zone,
+    copied_from_supplier_cost_component_mapping jsonb,
     CONSTRAINT service_offer_price_components_amount_nonnegative CHECK (((amount_minor_units IS NULL) OR (amount_minor_units >= 0))),
     CONSTRAINT service_offer_price_components_calculation_kind CHECK (((calculation_kind)::text = ANY (ARRAY[('fixed'::character varying)::text, ('unit_rate'::character varying)::text, ('percentage'::character varying)::text]))),
     CONSTRAINT service_offer_price_components_client_role CHECK (((client_role)::text = ANY (ARRAY[('base_price'::character varying)::text, ('named_discount'::character varying)::text, ('named_surcharge'::character varying)::text, ('tax_fee'::character varying)::text]))),
@@ -3691,9 +3696,13 @@ CREATE TABLE public.service_offer_price_components (
     CONSTRAINT service_offer_price_components_occupancy_position CHECK (((occupancy_position_key IS NULL) OR ((btrim((occupancy_position_key)::text) <> ''::text) AND (char_length((occupancy_position_key)::text) <= 40)))),
     CONSTRAINT service_offer_price_components_percentage_treatment CHECK (((percentage_treatment IS NULL) OR ((percentage_treatment)::text = ANY (ARRAY[('additive'::character varying)::text, ('included'::character varying)::text])))),
     CONSTRAINT service_offer_price_components_position_positive CHECK (("position" > 0)),
+    CONSTRAINT service_offer_price_components_provenance_complete CHECK ((((copied_from_supplier_cost_component_id IS NULL) AND (copied_from_supplier_cost_component_fingerprint IS NULL) AND (copied_from_supplier_cost_component_at IS NULL) AND (copied_from_supplier_cost_component_mapping IS NULL)) OR ((copied_from_supplier_cost_component_id IS NOT NULL) AND (copied_from_supplier_cost_component_fingerprint IS NOT NULL) AND (copied_from_supplier_cost_component_at IS NOT NULL) AND (copied_from_supplier_cost_component_mapping IS NOT NULL)))),
+    CONSTRAINT service_offer_price_components_provenance_fingerprint CHECK (((copied_from_supplier_cost_component_fingerprint IS NULL) OR ((copied_from_supplier_cost_component_fingerprint)::text ~ '^[0-9a-f]{64}$'::text))),
+    CONSTRAINT service_offer_price_components_provenance_mapping_object CHECK (((copied_from_supplier_cost_component_mapping IS NULL) OR (jsonb_typeof(copied_from_supplier_cost_component_mapping) = 'object'::text))),
     CONSTRAINT service_offer_price_components_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY (ARRAY[('service_instances'::character varying)::text, ('persons'::character varying)::text, ('resource_units'::character varying)::text, ('nights'::character varying)::text, ('person_nights'::character varying)::text, ('resource_nights'::character varying)::text, ('occupancy_positions'::character varying)::text, ('occupancy_position_nights'::character varying)::text])))),
     CONSTRAINT service_offer_price_components_rate_category CHECK (((client_rate_category_key IS NULL) OR ((btrim((client_rate_category_key)::text) <> ''::text) AND (char_length((client_rate_category_key)::text) <= 80)))),
-    CONSTRAINT service_offer_price_components_rate_nonnegative CHECK (((rate IS NULL) OR (rate >= (0)::numeric)))
+    CONSTRAINT service_offer_price_components_rate_nonnegative CHECK (((rate IS NULL) OR (rate >= (0)::numeric))),
+    CONSTRAINT service_offer_price_components_row_key CHECK (((cruise_client_term_row_key IS NULL) OR ((btrim((cruise_client_term_row_key)::text) <> ''::text) AND (char_length((cruise_client_term_row_key)::text) <= 80))))
 );
 
 
@@ -9961,6 +9970,20 @@ CREATE UNIQUE INDEX index_so_choice_options_on_rate_key ON public.service_offer_
 
 
 --
+-- Name: index_so_price_components_on_supplier_copy; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_so_price_components_on_supplier_copy ON public.service_offer_price_components USING btree (copied_from_supplier_cost_component_id) WHERE (copied_from_supplier_cost_component_id IS NOT NULL);
+
+
+--
+-- Name: index_so_price_components_on_typed_cell; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_so_price_components_on_typed_cell ON public.service_offer_price_components USING btree (service_offer_price_definition_id, client_rate_category_key, occupancy_position_key, cruise_client_term_row_key) WHERE (cruise_client_term_row_key IS NOT NULL);
+
+
+--
 -- Name: index_so_publication_manifests_on_version_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -15158,6 +15181,14 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: service_offer_price_components fk_so_price_components_supplier_cost_copy; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_offer_price_components
+    ADD CONSTRAINT fk_so_price_components_supplier_cost_copy FOREIGN KEY (copied_from_supplier_cost_component_id, departure_id, agency_id) REFERENCES public.supplier_cost_components(id, departure_id, agency_id);
+
+
+--
 -- Name: arrangement_item_definitions item_definitions_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16572,6 +16603,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260924180000'),
 ('20260923190000'),
 ('20260923010000'),
 ('20260922010000'),

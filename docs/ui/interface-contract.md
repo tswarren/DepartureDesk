@@ -196,13 +196,28 @@ Authority: [Slice 2B](../planning/m4d1-slice2b-cruise-deposits-deadlines-and-act
 
 ## Cruise service connection workspace (M4D.1 Slice 2C)
 
-Authority: [Slice 2C](../planning/m4d1-slice2c-cruise-service-connection.md) (Accepted, not shipped).
+Authority: [Slice 2C](../planning/m4d1-slice2c-cruise-service-connection.md) (Shipped; merge `b35a4f6`).
 
 - Route: `/departures/:departure_id/arrangements/:arrangement_id/cruise/service-connection`. Every action, including show, requires `manage_departures` and responds not found when that permission is absent.
 - Page order: `dd-page-header` (eyebrow `Cruise Supplier planning`, one `h1`, secondary `Back to Cruise`) → summary or one editor. The summary is the default. The editor opens only from `editor=connect` or `editor=edit`. Success redirects `303` to the summary URL without that query. Failed saves render `422` and keep the entered fields.
 - Summary shows the Client title, the Staff name only when it differs, and the current Supplier label only when it differs from the stored option name. Status text is `Not connected`, `Decide later`, `Connected`, or `Advanced`. A connected summary says `Ready for category pricing`. Do not show binding ids, membership enums, activation kinds, or rate keys.
 - Editor titles are `Connect Cruise service` and `Edit Cruise service connection`. Actions are `Create and connect service`, `Connect existing service`, `Save for later`, and `Save connection`. Cabin categories are a fieldset. Resources without typed cabin inventory stay visible and unselectable.
 - An incompatible cruise shape redirects to the cruise overview. The Client service panel appears on the cruise overview only.
+
+## Cruise Client terms workspace (M4D.1 Slice 2D)
+
+Authority: [Slice 2D](../planning/m4d1-slice2d-cruise-client-terms-and-scenario-review.md) (Accepted; not shipped).
+
+- Route: `/departures/:departure_id/arrangements/:arrangement_id/cruise/client-terms`. Every action, including show, requires `manage_departures` and responds not found when that permission is absent.
+- Page order: summary, then one category editor. The summary is the default. The editor opens only from an explicit category action. Success redirects `303` to the summary without that query. Failed saves render `422`, preserve the matrix, and focus `#form-error-summary`.
+- The summary shows one card per connected cabin category. Illustrative Celebrity totals are labeled illustrative. Saved summaries do not show binding ids, option ids, rate keys, provenance digests, or mapping snapshots.
+- The editor title is `Edit Client terms` plus the category name. Columns are the enabled bands for that category: Single, 1st, 2nd, and Additional, in that order, and only when the confirmed Supplier occupancy profiles enable them. Standard rows include Cruise fare, NCCF, Taxes and fees, Discount, and Agency fee. Single supplement appears only when Single is enabled. Agency fee’s default label is editable. A saved band that is no longer supported stays readable and labeled unsupported. It does not accept new cells.
+- The matrix uses `dd-table-wrap` as a labeled scroll region (`aria-label="Client term matrix"`). Save uses `303`. Invalid saves use `422` and `#form-error-summary`. Preview does not write and names pending positions instead of treating them as zero.
+- “Start from Supplier terms” opens a review before any write. It lists each proposed cell, an expanded source, and unsupported sources. Saving that proposal is the confirmation.
+- A copied cell shows its provenance state in text, the known Client amount, and Keep Client term, Recopy from Supplier, or Remove source link. Keep does not rewrite the copy-time snapshot.
+- Scenario review lists Single, Double, and Triple. An unavailable scenario stays visible with the reason it is omitted. A pending scenario still shows known Client lines. Known Supplier gross, expected commission, Supplier net, and indicative margin appear only when the economics are known. Capacity is time-labeled and says it is not promised inventory.
+- The matrix may scroll horizontally inside a labeled region. The page itself must not overflow at 375, 768, 1280, or 1400 pixels.
+- Triple appears only when a confirmed occupancy profile of at least three positions enables Additional and the Supplier rate shape supports that position. Maximum occupancy alone does not add the column.
 
 ## Responsive and accessibility gate
 
