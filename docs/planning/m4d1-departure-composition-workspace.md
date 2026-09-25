@@ -20,7 +20,7 @@
 
 **Slice 2C:** [M4D.1 Slice 2C — Cruise service connection](m4d1-slice2c-cruise-service-connection.md) is **Shipped 2026-09-23** (merge `b35a4f6`). It is the sole shipped authority for Stop E.
 
-**Slice 2D:** [M4D.1 Slice 2D — Cruise Client terms and scenario review](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) is **Accepted 2026-09-24** and not shipped. It is the sole authority for Stops F–G. Implementation base `b35a4f6`. Later slices remain unauthorized until named.
+**Slice 2D:** [M4D.1 Slice 2D — Cruise Client terms and scenario review](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) is **Shipped 2026-09-24** (merge `dc272a3`, PR #154). It is the sole shipped authority for Stops F–G. Later slices remain unauthorized until named.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -973,7 +973,7 @@ Typed composite commands may extract reusable generic `*_already_locked!` helper
 - Typed route under `/departures/:departure_id/arrangements/:arrangement_id/cruise/service-connection`
 - Option rate key and Arrangement Item claim, with claim reassignment rejected in PostgreSQL
 
-**Accepted Slice 2D** (sole Stops F–G authority: [Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md); not shipped; implementation base [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6)):
+**Shipped Slice 2D** (sole Stops F–G authority: [Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md); merge [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3), PR #154):
 
 - `CreateCruiseClientTermSchedule`, `UpdateCruiseClientTermSchedule`, and `RemoveCruiseClientTermSchedule`
 - Read adapters: `DetectCruiseClientTermShape`, `CompileCruiseClientTermBandSet`, `CompileCruiseClientTermsWorkspace`, `CompileCruiseScenarioReview`, `SupplierCostComponentCopyFingerprint`, and `CompareSupplierCostCopyProvenance`
@@ -1129,7 +1129,7 @@ Remediates Stop point C detector reopen:
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 
-**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is shipped separately. Slice 2D is Accepted separately. Next unauthorized boundary: Slice 3.
+**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is shipped separately. Slice 2D is shipped separately (merge `dc272a3`, PR #154). Next unauthorized boundary: Slice 3.
 
 Ship Stop point D:
 
@@ -1151,7 +1151,7 @@ Ship Stop point D:
 
 #### Slice 2C — Connect Cruise, categories, and choices
 
-**Shipped 2026-09-23.** Sole Stop E authority: [M4D.1 Slice 2C](m4d1-slice2c-cruise-service-connection.md). Ship commit / merge tip [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6) (PR #153). Implementation base [`df16a71`](https://github.com/tswarren/DepartureDesk/commit/df16a71) (PR #152). Slice 2D is Accepted separately.
+**Shipped 2026-09-23.** Sole Stop E authority: [M4D.1 Slice 2C](m4d1-slice2c-cruise-service-connection.md). Ship commit / merge tip [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6) (PR #153). Implementation base [`df16a71`](https://github.com/tswarren/DepartureDesk/commit/df16a71) (PR #152). Slice 2D is shipped separately (merge `dc272a3`, PR #154).
 
 Ship Stop point E plus the durable choice-rate key:
 
@@ -1167,7 +1167,7 @@ Ship Stop point E plus the durable choice-rate key:
 
 #### Slice 2D — Client term compiler and scenario Review
 
-**Accepted 2026-09-24.** Sole Stops F–G authority: [M4D.1 Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md). Implementation base [`b35a4f6`](https://github.com/tswarren/DepartureDesk/commit/b35a4f6). Not shipped. Deliveries 2D-A, 2D-B, and 2D-C remain unshipped until each merges green. Next unauthorized boundary: Slice 3.
+**Shipped 2026-09-24.** Sole Stops F–G authority: [M4D.1 Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md). Merge [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154). Deliveries 2D-A, 2D-B, and 2D-C merged with that ship. Next unauthorized boundary: Slice 3.
 
 The accepted plan ships Stop points F–G: category-scoped Client terms whose bands follow confirmed Supplier occupancy profiles, an ordinary Agency fee row, zero-or-one Supplier-copy provenance with a frozen mapping snapshot, review of enabled Single/Double/Triple scenarios, known/pending arithmetic, provenance and unsupported-band findings that do not block publication, and the null category-option price-effect amendment.
 
