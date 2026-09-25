@@ -72,10 +72,7 @@ export default class extends Controller {
 
   initNameStaffAuthored() {
     if (!this.hasDescriptionTarget) return false
-
-    const attr = this.descriptionTarget.dataset.staffAuthored
-    if (attr === "true") return true
-    if (attr === "false") return false
+    if (this.descriptionTarget.dataset.staffAuthored === "true") return true
 
     return this.descriptionIsStaffAuthoredFor(
       this.hasTemplateTarget ? this.templateTarget.value : ""
@@ -104,26 +101,53 @@ export default class extends Controller {
 
     const previous = this.lastTemplate
     this.lastTemplate = template
-    if (previous !== null && !this.nameStaffAuthored && this.hasDescriptionTarget) {
-      this.nameStaffAuthored = this.descriptionIsStaffAuthoredFor(previous)
-      if (this.nameStaffAuthored) this.descriptionTarget.dataset.staffAuthored = "true"
-    }
+    this.captureStaffAuthoredName(previous)
 
     if (template === "initial_deposit") {
       this.amountShapeTarget.value = "quantity_times_rate"
       if (this.hasQuantityBasisTarget) this.quantityBasisTarget.value = "capacity_pool_units"
-      if (!this.nameStaffAuthored && this.hasDescriptionTarget) {
-        this.descriptionTarget.value = "Initial deposit"
-      }
+      this.applyGeneratedName("Initial deposit")
     } else if (template === "final_deposit") {
       this.amountShapeTarget.value = "cumulative_target"
       if (this.hasQuantityBasisTarget) this.quantityBasisTarget.value = "capacity_pool_units"
-      if (!this.nameStaffAuthored && this.hasDescriptionTarget) {
-        this.descriptionTarget.value = "Final deposit"
-      }
-    } else if (!this.nameStaffAuthored && this.hasDescriptionTarget) {
-      this.descriptionTarget.value = ""
+      this.applyGeneratedName("Final deposit")
+    } else {
+      this.clearGeneratedName(previous)
     }
+  }
+
+  captureStaffAuthoredName(previousTemplate) {
+    if (this.nameStaffAuthored || !this.hasDescriptionTarget) return
+
+    const current = (this.descriptionTarget.value || "").trim()
+    if (!current) return
+
+    const previousGenerated = previousTemplate == null ? null : this.generatedNameFor(previousTemplate)
+    const nextGenerated = this.generatedNameFor(this.hasTemplateTarget ? this.templateTarget.value : "")
+    if (current === previousGenerated || current === nextGenerated) return
+
+    this.nameStaffAuthored = true
+    this.descriptionTarget.dataset.staffAuthored = "true"
+  }
+
+  applyGeneratedName(generated) {
+    if (!this.hasDescriptionTarget || this.nameStaffAuthored) return
+
+    this.descriptionTarget.value = generated
+  }
+
+  clearGeneratedName(previousTemplate) {
+    if (!this.hasDescriptionTarget || this.nameStaffAuthored) return
+
+    const current = (this.descriptionTarget.value || "").trim()
+    const previousGenerated = previousTemplate == null ? null : this.generatedNameFor(previousTemplate)
+    if (current && current !== previousGenerated) {
+      this.nameStaffAuthored = true
+      this.descriptionTarget.dataset.staffAuthored = "true"
+      return
+    }
+
+    this.descriptionTarget.value = ""
   }
 
   updateAmount() {

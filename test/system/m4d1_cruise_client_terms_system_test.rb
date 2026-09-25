@@ -236,6 +236,7 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     fill_in "Cruise fare first", with: "900.00"
     fill_in "Cruise fare second", with: "900.00"
     click_button "Save Client terms"
+    assert_text "Client terms created."
     visit departure_arrangement_cruise_client_terms_path(@departure, arrangement, editor: "edit", option_id: ocean_option.id)
     assert_field "Cruise fare first", with: "1931.00"
     assert_equal 1, ServiceOffer.where(intended_arrangement_item_id: item.id).count

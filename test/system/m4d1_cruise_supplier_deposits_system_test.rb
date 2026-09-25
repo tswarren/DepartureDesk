@@ -132,11 +132,13 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     select "Final deposit", from: "Template"
     assert_field "Name", with: "Final deposit"
     click_on "Cancel"
+    wait_for_turbo
 
     click_on "Add deposit"
+    wait_for_turbo
     select "Other deposit", from: "Template"
     fill_in "Name", with: "Custom group hold"
-    find_field("Name").execute_script("this.dispatchEvent(new Event('input', { bubbles: true }))")
+    assert_field "Name", with: "Custom group hold"
     select "Initial deposit", from: "Template"
     assert_field "Name", with: "Custom group hold"
     select "Fixed amount", from: "Amount"
