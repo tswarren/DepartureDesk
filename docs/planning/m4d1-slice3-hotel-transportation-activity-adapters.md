@@ -1,10 +1,14 @@
 # M4D.1 Slice 3 — Hotel, Transportation, Activity, and Mixed-DMC Adapters
 
-**Status:** Superseded by [M4D.1 Slice 3](../m4d1-slice3-hotel-transportation-activity-adapters.md). Historical draft. Not implementation authority.
+**Status:** Accepted 2026-09-24. Sole authority for M4D.1 Slice 3. Not shipped. Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 4, later M4D.1 slices, M4E, and M5 remain unauthorized until named. Do not mark Slice 3 Shipped until 3A, 3B, 3C, and 3D merge green.
+
+**Supersedes:** [md41-slice3-hotel-transport-etc-adapters-draft.md](drafts/md41-slice3-hotel-transport-etc-adapters-draft.md). That note is not implementation authority.
+
+**Implementation base:** Slice 2D merge [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3).
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially the global interaction contract, Supplier area, Service connection, Slice 3 delivery boundary, and rollout rules.
 
-**Prerequisite:** M4D.1 Slice 2D must be Shipped on a green `main` before Slice 3 implementation begins. Acceptance may proceed before that merge, but the implementation base must be pinned to the eventual Slice 2D ship commit or a later green descendant.
+**Prerequisite:** M4D.1 Slice 2D is merged at `dc272a3`. Slice 3 implementation uses that pin. Slice 2D remains Accepted until its own ship note is updated. Slice 3 stays Accepted until 3A–3D merge green.
 
 **Outcome:** Staff can establish Hotel, Transportation, and Activity/Meal/Excursion Supplier services through typed adapters, then connect each Supplier Item to an appropriate Client Service without understanding the underlying M3/M4 graph.
 
@@ -306,7 +310,11 @@ The connection command must:
 * reject governing IDs or incompatible graphs;
 * preserve the selected Arrangement version pin on later updates.
 
-Whether Slice 3 generalizes `ConnectCruiseServiceOffer` or adds a new generic command is an Accept-time code-inspection decision. The accepted contract must name the exact public commands and must not leave example names.
+Code inspection of `ConnectCruiseServiceOffer` shows it requires `DetectCruiseArrangementShape`, one Cruise Item, and cabin resources, and it writes `service_offer.cruise_connection_saved`. Slice 3 leaves that command unchanged.
+
+Hotel, Transportation, and Activity connect through `ConnectTypedItemService`. Family commands `ConnectHotelServiceOffer`, `ConnectTransportationServiceOffer`, and `ConnectActivityServiceOffer` delegate to it. It reuses `OfferCommandSupport` and the existing `intended_arrangement_item_id` claim. `TypedItemClaim` holds the shared availability check. Cruise connection wording stays on the Cruise command.
+
+The connection audit for these families is the existing `service_offer.updated` action. Details carry the connection status. Typed Item setup writes `supplier_arrangement.typed_item_setup`.
 
 ---
 
@@ -401,32 +409,29 @@ Prove:
 
 ## 8. Routes and services
 
-Exact names are locked only after inspecting the shipped Slice 2D base.
-
-The accepted plan must name:
-
-* Hotel workspace routes and controller;
-* Transportation workspace routes and controller;
-* Activity workspace routes and controller;
-* mixed-DMC Item workspace route and controller;
-* family shape detectors;
-* family workspace compilers;
-* family create/update orchestration commands;
-* Item connection command;
-* any shared support module;
-* exact existing M3/M4 commands invoked underneath.
-
-Preferred route topology remains nested under the exact Supplier Arrangement and Item:
+Routes nest beside Cruise under the Supplier Arrangement:
 
 ```text
 /departures/:departure_id/arrangements/:arrangement_id/hotel
 /departures/:departure_id/arrangements/:arrangement_id/transportation
 /departures/:departure_id/arrangements/:arrangement_id/activities
-/departures/:departure_id/arrangements/:arrangement_id/items/:item_id/...
 /departures/:departure_id/arrangements/:arrangement_id/dmc-items
 ```
 
-These paths are provisional. Accept must reconcile them with the shipped Cruise and Arrangement topology and name the final routes exactly.
+New Arrangement entry also lives under Composition suppliers: `hotels`, `transportation`, and `activities`.
+
+| Workspace | Controller | Detector | Compiler |
+| --- | --- | --- | --- |
+| Hotel | `HotelStaysController` | `DetectHotelStayShape` | `CompileHotelStayWorkspace` |
+| Transportation | `TransportationSegmentsController` | `DetectTransportationShape` | `CompileTransportationWorkspace` |
+| Activity, Meal, Excursion | `ActivityOfferingsController` | `DetectActivityOfferingShape` | `CompileActivityWorkspace` |
+| Mixed DMC Items | `DmcItemsController` | per-row family detectors | `CompileDmcItemTable` |
+
+Family commands: `CreateHotelStaySetup`, `AddHotelRoomCategory`, `RecordHotelSupplierComponent`, `RecordHotelMilestone`, `RecordHotelDeposit`, `ConnectHotelServiceOffer`, `CreateTransportationSegment`, `RecordTransportationSupplierComponent`, `ConnectTransportationServiceOffer`, `CreateActivityOffering`, `RecordActivitySupplierComponent`, `RecordActivityMilestone`, `ConnectActivityServiceOffer`.
+
+Shared support, extracted from Hotel and Transportation: `TypedItemWrite`, `TypedItemClaim`, `ConnectTypedItemService`, `RecordTypedSupplierComponent`, `RecordTypedMilestone`. Family rules stay in the family commands. The shared modules do not branch on a list of family names.
+
+Underneath, those commands call shipped builders and `CreateSupplierCostSetup`, `CreateSupplierCostComponent`, `UpdateSupplierCostComponent`, `CreateSupplierDeadlineDefinition`, `CreateSupplierDepositRequirementDefinition`, capacity pair classification and pool builders when a room quantity is supplied, and `OfferCommandSupport` bindings. They do not reimplement capacity, cost, or commitment logic.
 
 ---
 
@@ -593,36 +598,17 @@ After all four deliveries merge green:
 
 ---
 
-## 12. Decisions required before Accept
+## 12. Decisions locked at Accept
 
-1. **Slice boundary:** Confirm that Slice 3 ends at Supplier setup plus Service connection and does not add specialized Client-pricing matrices.
-   **Recommendation:** Yes.
-
-2. **Transportation granularity:** Are Smith transfer segments separate Client Services by default?
-   **Recommendation:** Yes; permit an explicit combined service only when Staff choose it and the source graph is compatible.
-
-3. **Hotel choices:** Are room categories Client choices only when Clients actually select them?
-   **Recommendation:** Yes.
-
-4. **Capacity:** May an adapter omit Resources or Pools when capacity is not applicable?
-   **Recommendation:** Yes; never fabricate graph layers.
-
-5. **Activity minimum:** Is the minimum a Supplier cost/commitment fact rather than capacity or enrollment?
-   **Recommendation:** Yes.
-
-6. **Optional Activity placement:** Does Slice 3 merely create/connect the optional Service, leaving Package placement to shipped generic Package controls or Slice 4?
-   **Recommendation:** Yes.
-
-7. **DMC meaning:** Is DMC only a heterogeneous Arrangement and Item workspace?
-   **Recommendation:** Yes; no DMC model.
-
-8. **Connection implementation:** Can the shipped Cruise claim/connection support be generalized safely, or should Slice 3 add a generic Item connection command and leave Cruise unchanged?
-   **Must be resolved by code inspection before Accept.**
-
-9. **Audit actions:** Does one generic Item-adapter save action suffice, or are family-specific actions required for operational clarity?
-   **Recommendation:** One bounded generic Supplier Item setup action plus the existing Service connection action, unless shipped audit conventions require otherwise.
-
-10. **Exact commands and routes:** Name them after inspecting the green Slice 2D base. No “for example” names remain in the Accepted contract.
+1. Slice 3 ends at Supplier setup plus Service connection. No Hotel, Transportation, or Activity Client-price matrices, and no automatic copy of Supplier amounts into Client prices.
+2. One Client-recognizable experience is one Service Offer. Smith transfers are three Services. Staff may combine Items only through an explicit choice the detector can reconstruct.
+3. Room categories become Client choices only when Clients select among them. Operational categories stay Supplier Resources.
+4. Omit Resources and Pools when capacity does not apply. A contractual minimum is an M3C cost fact, not a Pool and not enrollment.
+5. Slice 3 creates or connects the optional Activity Service. Package placement stays with shipped Package controls or Slice 4.
+6. A DMC is a heterogeneous Arrangement plus an Item table. No DMC model.
+7. `ConnectCruiseServiceOffer` stays Cruise-shaped. Non-cruise connection is `ConnectTypedItemService`.
+8. One generic audit action, `supplier_arrangement.typed_item_setup`, plus the existing `service_offer.updated` connection audit.
+9. Command and route names are the names in §8.
 
 ---
 

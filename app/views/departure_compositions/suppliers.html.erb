@@ -7,6 +7,9 @@
       <h2 id="current-supplier-planning-heading" class="dd-section-title">Current Supplier planning</h2>
       <nav class="dd-inline-actions" aria-label="Supplier planning actions">
         <%= link_to "Set up a Cruise", new_departure_composition_suppliers_cruise_path(@departure), class: "dd-button" %>
+        <%= link_to "Set up a Hotel", new_departure_composition_suppliers_hotel_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Set up Transportation", new_departure_composition_suppliers_transportation_path(@departure), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Set up an Activity", new_departure_composition_suppliers_activity_path(@departure), class: "dd-button dd-button--quiet" %>
         <%= link_to "Add Arrangement", new_departure_arrangement_path(@departure), class: "dd-button dd-button--quiet" %>
         <%= link_to "Supplier planning", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
       </nav>
@@ -22,9 +25,23 @@
             <li>
               <%= arrangement.name.presence || "Arrangement" %>
               · <%= arrangement.status.to_s.humanize %>
+              <% categories = arrangement.versions.flat_map { |version| version.arrangement_item_definitions.map(&:category) }.uniq %>
               <% if shape&.compatible? %>
                 · <%= link_to "Open Cruise setup", departure_arrangement_cruise_path(@departure, arrangement) %>
-              <% else %>
+              <% end %>
+              <% if categories.include?("lodging") %>
+                · <%= link_to "Open Hotel setup", departure_arrangement_hotel_path(@departure, arrangement) %>
+              <% end %>
+              <% if categories.include?("ground_transportation") %>
+                · <%= link_to "Open Transportation setup", departure_arrangement_transportation_path(@departure, arrangement) %>
+              <% end %>
+              <% if (categories & %w[activity_attraction dining]).any? %>
+                · <%= link_to "Open Activity setup", departure_arrangement_activities_path(@departure, arrangement) %>
+              <% end %>
+              <% if categories.many? %>
+                · <%= link_to "Open DMC items", departure_arrangement_dmc_items_path(@departure, arrangement) %>
+              <% end %>
+              <% if categories.empty? && !shape&.compatible? %>
                 · <%= link_to "Open advanced Arrangement", departure_arrangement_path(@departure, arrangement) %>
               <% end %>
             </li>

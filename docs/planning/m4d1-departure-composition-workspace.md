@@ -1175,14 +1175,9 @@ The accepted plan ships Stop points F–G: category-scoped Client terms whose ba
 
 ### Slice 3 — Typed adapter generalization
 
-Ship:
+**Accepted 2026-09-24.** Sole authority: [M4D.1 Slice 3](m4d1-slice3-hotel-transportation-activity-adapters.md). Implementation base [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3). Not shipped. Deliveries 3A, 3B, 3C, and 3D remain unshipped until each merges green. Next unauthorized boundary after Slice 3 ships: Slice 4.
 
-- Hotel adapter;
-- Transportation adapter;
-- Activity/Meal/Excursion adapter;
-- mixed-DMC Item table;
-- common connect-each-Item bridge;
-- shared adapter support library only where at least two adapters prove the abstraction.
+The accepted plan ships Hotel, Transportation, and Activity/Meal/Excursion adapters, a mixed-DMC Item table, and `ConnectTypedItemService`. `ConnectCruiseServiceOffer` stays unchanged. Shared support is limited to behavior Hotel and Transportation both use.
 
 **Exit:** no Cruise-specific persistence or evaluator is required to set up the other service families.
 

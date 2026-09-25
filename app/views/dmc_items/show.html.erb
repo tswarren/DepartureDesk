@@ -1,0 +1,51 @@
+<% content_for :title, "DMC items · #{@supplier_arrangement.name} · DepartureDesk" %>
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">DMC items</p>
+    <h1 class="dd-page-title"><%= @supplier_arrangement.name %></h1>
+  </div>
+</header>
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @rows.empty? %>
+      <p>Not started.</p>
+    <% else %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <caption>Arrangement items</caption>
+          <thead>
+            <tr>
+              <th>Name</th><th>Family</th><th>Schedule</th><th>Capacity</th>
+              <th>Supplier cost</th><th>Deadline</th><th>Connection</th><th>Next action</th><th>Advanced</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @rows.each do |row| %>
+              <tr>
+                <td><%= row[:name] %></td>
+                <td><%= row[:family] %></td>
+                <td><%= row[:schedule] %></td>
+                <td><%= row[:capacity] %></td>
+                <td><%= row[:supplier_cost] && number_to_currency(row[:supplier_cost] / 100.0) %></td>
+                <td><%= row[:deadline] %></td>
+                <td><%= row[:connection] %></td>
+                <td>
+                  <% if row[:category] == "lodging" %>
+                    <%= link_to row[:next_action], departure_arrangement_hotel_path(@departure, @supplier_arrangement) %>
+                  <% elsif row[:category] == "ground_transportation" %>
+                    <%= link_to row[:next_action], departure_arrangement_transportation_path(@departure, @supplier_arrangement) %>
+                  <% elsif %w[activity_attraction dining].include?(row[:category]) %>
+                    <%= link_to row[:next_action], departure_arrangement_activities_path(@departure, @supplier_arrangement) %>
+                  <% else %>
+                    <%= row[:next_action] %>
+                  <% end %>
+                </td>
+                <td><%= link_to "Advanced", departure_arrangement_path(@departure, @supplier_arrangement) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </div>
+</article>

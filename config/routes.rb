@@ -155,6 +155,9 @@ Rails.application.routes.draw do
       resources :services, only: %i[new create], controller: "composition_services"
       namespace :suppliers do
         resources :cruises, only: %i[new create], controller: "/composition_cruises"
+        resources :hotels, only: %i[new create], controller: "/composition_family_setups"
+        resources :transportation, only: %i[new create], controller: "/composition_family_setups"
+        resources :activities, only: %i[new create], controller: "/composition_family_setups"
       end
     end
     resource :builder, only: %i[show], controller: "departure_builders"
@@ -181,6 +184,24 @@ Rails.application.routes.draw do
       collection do
         get :search
       end
+      resource :hotel, only: :show, controller: "hotel_stays" do
+        post :supplier_component
+        post :milestone
+        post :deposit
+        post :service_connection
+        post :room_category
+      end
+      resource :transportation, only: :show, controller: "transportation_segments" do
+        post :segment
+        post :supplier_component
+        post :service_connection
+      end
+      resource :activities, only: :show, controller: "activity_offerings" do
+        post :supplier_component
+        post :milestone
+        post :service_connection
+      end
+      resource :dmc_items, path: "dmc-items", only: :show, controller: "dmc_items"
       resource :cruise, only: :show, controller: "cruise_arrangements" do
         post :successor
         resource :sailing, only: %i[edit update], controller: "cruise_sailings"

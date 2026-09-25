@@ -1,0 +1,139 @@
+<% content_for :title, "Hotel setup · #{@supplier_arrangement.name} · DepartureDesk" %>
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Hotel setup</p>
+    <h1 class="dd-page-title"><%= @supplier_arrangement.name %></h1>
+    <p class="dd-page-description"><%= @departure.name %></p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Advanced Supplier planning", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel" id="hotel-workspace">
+  <div class="dd-panel-body dd-stack">
+    <% if @form_error.present? %>
+      <div id="form-error-summary" class="dd-form-error-summary" role="alert" tabindex="-1">
+        <h2 class="dd-form-error-summary__title">Please fix the following:</h2>
+        <ul><li><%= @form_error %></li></ul>
+      </div>
+    <% end %>
+
+    <% if @shape.advanced? %>
+      <p>This Arrangement uses an advanced structure. Hotel setup will not change it.</p>
+      <p><%= link_to "Open advanced Supplier planning", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-link" %></p>
+    <% elsif @shape.empty? %>
+      <p>Not started.</p>
+    <% else %>
+      <% occurrence = @shape.occurrence_definition %>
+      <section aria-labelledby="hotel-stay-heading">
+        <h2 id="hotel-stay-heading" class="dd-section-title">Stay</h2>
+        <p><%= occurrence.starts_on %> to <%= occurrence.ends_on %> · <%= occurrence.time_zone %></p>
+      </section>
+      <section aria-labelledby="hotel-cost-heading">
+        <h2 id="hotel-cost-heading" class="dd-section-title">Supplier cost</h2>
+        <% if @workspace[:components].empty? %>
+          <p>Not started.</p>
+        <% else %>
+          <ul>
+            <% @workspace[:components].each do |component| %>
+              <li><%= component[:label] %> <% if component[:amount] %><%= number_to_currency(component[:amount] / 100.0) %><% end %></li>
+            <% end %>
+          </ul>
+        <% end %>
+      </section>
+      <section aria-labelledby="hotel-deadline-heading">
+        <h2 id="hotel-deadline-heading" class="dd-section-title">Deadlines and deposit</h2>
+        <ul>
+          <% @workspace[:milestones].each do |milestone| %>
+            <li><%= milestone[:description] %> · <%= milestone[:date] %></li>
+          <% end %>
+          <% @workspace[:deposits].each do |deposit| %>
+            <li><%= deposit[:description] %> · <%= deposit[:percentage] %>% · <%= deposit[:date] %></li>
+          <% end %>
+        </ul>
+      </section>
+      <section aria-labelledby="hotel-connection-heading">
+        <h2 id="hotel-connection-heading" class="dd-section-title">Client service</h2>
+        <p><%= @workspace[:connection][:status] %><% if @workspace[:connection][:name] %> · <%= @workspace[:connection][:name] %><% end %></p>
+      </section>
+    <% end %>
+
+    <% if @editor.blank? && !@shape.advanced? %>
+      <nav class="dd-inline-actions" aria-label="Hotel editors">
+        <%= link_to "Add Supplier cost", departure_arrangement_hotel_path(@departure, @supplier_arrangement, editor: "component"), class: "dd-button" %>
+        <%= link_to "Add deadline", departure_arrangement_hotel_path(@departure, @supplier_arrangement, editor: "milestone"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Add deposit", departure_arrangement_hotel_path(@departure, @supplier_arrangement, editor: "deposit"), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Connect service", departure_arrangement_hotel_path(@departure, @supplier_arrangement, editor: "connection"), class: "dd-button dd-button--quiet" %>
+      </nav>
+    <% end %>
+
+    <% if @editor.present? && @shape.item %>
+      <% submitted = (@submitted || ActionController::Parameters.new).to_unsafe_h %>
+      <% form_url = case @editor
+           when "milestone" then milestone_departure_arrangement_hotel_path(@departure, @supplier_arrangement)
+           when "deposit" then deposit_departure_arrangement_hotel_path(@departure, @supplier_arrangement)
+           when "connection" then service_connection_departure_arrangement_hotel_path(@departure, @supplier_arrangement)
+           else supplier_component_departure_arrangement_hotel_path(@departure, @supplier_arrangement)
+           end %>
+      <%= form_with url: form_url, method: :post, class: "dd-form dd-stack", data: { turbo: false } do %>
+        <%= hidden_field_tag :editor, @editor %>
+        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+        <%= hidden_field_tag :arrangement_item_id, @shape.item.id %>
+        <%= hidden_field_tag :version_lock_version, @shape.version.lock_version %>
+        <% if @editor == "component" %>
+          <div class="dd-field-group">
+            <label class="dd-label" for="label">Label</label>
+            <input id="label" name="label" class="dd-field" value="<%= submitted["label"] %>">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="amount">Amount</label>
+            <input id="amount" name="amount" class="dd-field" value="<%= submitted["amount"] %>">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="shape">Shape</label>
+            <select id="shape" name="shape" class="dd-field">
+              <% RecordHotelSupplierComponent::SHAPES.each_key do |shape| %>
+                <option value="<%= shape %>" <%= "selected" if submitted["shape"] == shape %>><%= shape.humanize %></option>
+              <% end %>
+            </select>
+          </div>
+        <% elsif @editor == "milestone" %>
+          <div class="dd-field-group">
+            <label class="dd-label" for="template">Template</label>
+            <select id="template" name="template" class="dd-field">
+              <option value="option_date">Option date</option>
+              <option value="rooming_list">Rooming list</option>
+              <option value="final_payment">Final payment</option>
+            </select>
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="date">Date</label>
+            <input id="date" name="date" type="date" class="dd-field" value="<%= submitted["date"] %>">
+          </div>
+        <% elsif @editor == "deposit" %>
+          <div class="dd-field-group">
+            <label class="dd-label" for="percentage">Percentage</label>
+            <input id="percentage" name="percentage" class="dd-field" value="<%= submitted["percentage"] %>">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="date">Date</label>
+            <input id="date" name="date" type="date" class="dd-field" value="<%= submitted["date"] %>">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="description">Description</label>
+            <input id="description" name="description" class="dd-field" value="<%= submitted["description"] %>">
+          </div>
+        <% else %>
+          <div class="dd-field-group">
+            <label class="dd-label" for="title">Service title</label>
+            <input id="title" name="title" class="dd-field" value="<%= submitted["title"].presence || @shape.item_definition.name %>">
+          </div>
+          <%= hidden_field_tag :mode, "new" %>
+          <%= hidden_field_tag :arrangement_lock_version, @shape.version.lock_version %>
+        <% end %>
+        <%= submit_tag "Save", class: "dd-button" %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

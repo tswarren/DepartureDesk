@@ -1,0 +1,74 @@
+<% content_for :title, "Transportation setup · #{@supplier_arrangement.name} · DepartureDesk" %>
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Transportation setup</p>
+    <h1 class="dd-page-title"><%= @supplier_arrangement.name %></h1>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Advanced Supplier planning", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+<article class="dd-panel">
+  <div class="dd-panel-body dd-stack">
+    <% if @form_error.present? %>
+      <div id="form-error-summary" class="dd-form-error-summary" role="alert" tabindex="-1">
+        <h2 class="dd-form-error-summary__title">Please fix the following:</h2>
+        <ul><li><%= @form_error %></li></ul>
+      </div>
+    <% end %>
+    <% if @workspace[:segments].empty? %>
+      <p>Not started.</p>
+    <% else %>
+      <table class="dd-table">
+        <caption>Transportation segments</caption>
+        <thead><tr><th>Name</th><th>Date</th><th>Pickup</th><th>Drop-off</th><th>Seats</th><th>Supplier cost</th><th>Connection</th></tr></thead>
+        <tbody>
+          <% @workspace[:segments].each do |segment| %>
+            <tr>
+              <td><%= segment[:name] %></td>
+              <td><%= segment[:date] %></td>
+              <td><%= segment[:pickup] %></td>
+              <td><%= segment[:dropoff] %></td>
+              <td><%= segment[:seats] %></td>
+              <td><%= segment[:amount] && number_to_currency(segment[:amount] / 100.0) %></td>
+              <td><%= segment[:connection] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+    <% if @editor.blank? %>
+      <%= link_to "Add segment", departure_arrangement_transportation_path(@departure, @supplier_arrangement, editor: "segment"), class: "dd-button" %>
+    <% else %>
+      <% submitted = (@submitted || ActionController::Parameters.new).to_unsafe_h %>
+      <%= form_with url: segment_departure_arrangement_transportation_path(@departure, @supplier_arrangement), method: :post, class: "dd-form dd-stack", data: { turbo: false } do %>
+        <%= hidden_field_tag :editor, "segment" %>
+        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+        <%= hidden_field_tag :version_lock_version, @shape.version&.lock_version %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="name">Segment name</label>
+          <input id="name" name="name" class="dd-field" value="<%= submitted["name"] %>">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="pickup">Pickup</label>
+          <input id="pickup" name="pickup" class="dd-field" value="<%= submitted["pickup"] %>">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="dropoff">Drop-off</label>
+          <input id="dropoff" name="dropoff" class="dd-field" value="<%= submitted["dropoff"] %>">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="starts_on">Date</label>
+          <input id="starts_on" name="starts_on" type="date" class="dd-field" value="<%= submitted["starts_on"] %>">
+        </div>
+        <%= hidden_field_tag :ends_on, submitted["ends_on"].presence || submitted["starts_on"] %>
+        <%= hidden_field_tag :time_zone, @departure.time_zone %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="seat_count">Seats</label>
+          <input id="seat_count" name="seat_count" class="dd-field" value="<%= submitted["seat_count"] %>">
+        </div>
+        <%= submit_tag "Save segment", class: "dd-button" %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

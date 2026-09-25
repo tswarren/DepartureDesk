@@ -219,6 +219,15 @@ Authority: [Slice 2D](../planning/m4d1-slice2d-cruise-client-terms-and-scenario-
 - The matrix may scroll horizontally inside a labeled region. The page itself must not overflow at 375, 768, 1280, or 1400 pixels.
 - Triple appears only when a confirmed occupancy profile of at least three positions enables Additional and the Supplier rate shape supports that position. Maximum occupancy alone does not add the column.
 
+## Hotel, Transportation, Activity, and DMC workspaces (M4D.1 Slice 3)
+
+Authority: [Slice 3](../planning/m4d1-slice3-hotel-transportation-activity-adapters.md) (Accepted; not shipped).
+
+- Routes: `/departures/:departure_id/arrangements/:arrangement_id/hotel`, `.../transportation`, `.../activities`, and `.../dmc-items`. Every action requires `manage_departures` and responds not found otherwise.
+- The default page is a summary. One editor opens from an explicit action. Success redirects `303` to the summary. Invalid saves render `422`, preserve submitted fields, and focus `#form-error-summary`.
+- Hotel summarizes the stay, room categories, Supplier cost, deadlines, deposit, and Client-service connection. Transportation lists each segment. Activity lists each offering. The DMC table lists name, family, schedule, capacity, Supplier cost, deadline, connection, next action, and Advanced.
+- The page itself must not overflow at 375, 768, 1280, or 1400 pixels.
+
 ## Responsive and accessibility gate
 
 Every changed surface must be checked at 375px, 768px, reference desktop width, and 1280px. Verify skip link, landmarks, headings, visible focus, complete keyboard order, drawer focus containment/restoration, accessible names, validation associations, reflow, and no hover-only action.

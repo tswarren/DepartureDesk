@@ -39,7 +39,7 @@ Recommended refinement sequence after shipped 2A.2R2:
 5. **Slice 2B-UX-R — Contributor replace and closure** ([Shipped](../../m4d1-slice2buxr-contributor-replace-and-closure.md))
 6. **Slice 2C — Service connection, categories, and Client choices** ([Shipped](../../m4d1-slice2c-cruise-service-connection.md))
 7. **Slice 2D — Client-term compilation and scenario Review** ([Accepted](../../m4d1-slice2d-cruise-client-terms-and-scenario-review.md))
-8. **Slice 3 — Adapter generalization**
+8. **Slice 3 — Adapter generalization** ([Accepted](../../m4d1-slice3-hotel-transportation-activity-adapters.md); not shipped; implementation base `dc272a3`)
 9. **Slice 4 — Vineyard proof**
 10. **Slice 5 — Broader Client terms and Review refinement**
 

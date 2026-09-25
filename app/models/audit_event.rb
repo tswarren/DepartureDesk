@@ -83,6 +83,7 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.resource_removed
     supplier_arrangement.resources_reordered
     supplier_arrangement.item_setup_created
+    supplier_arrangement.typed_item_setup
     supplier_arrangement.capacity_applicability_updated
     supplier_arrangement.capacity_pair_classified
     supplier_arrangement.capacity_pairs_bulk_classified
