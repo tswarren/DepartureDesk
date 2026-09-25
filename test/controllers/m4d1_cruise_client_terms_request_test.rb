@@ -26,10 +26,53 @@ class M4d1CruiseClientTermsRequestTest < ActionDispatch::IntegrationTest
     ).call
   end
 
+  test "the cruise overview links a connected service to client pricing" do
+    sign_in_as @staff
+    get departure_arrangement_cruise_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "a[href=?]", departure_arrangement_cruise_client_terms_path(@departure, @arrangement), text: "Open client pricing"
+  end
+
   test "viewer is not found" do
     sign_in_as @viewer
     get departure_arrangement_cruise_client_terms_path(@departure, @arrangement)
     assert_response :not_found
+  end
+
+  test "preview accepts the form token on its own address" do
+    sign_in_as @staff
+    offer = ServiceOffer.find_by!(intended_arrangement_item_id: @item.id)
+    option = offer.editable_draft_version.choice_options.sole
+    with_forgery_protection do
+      get departure_arrangement_cruise_client_terms_path(@departure, @arrangement, editor: "edit", option_id: option.id)
+      assert_response :success
+      token = css_select("#cruise-client-terms-form input[name='authenticity_token']").first["value"]
+      post preview_departure_arrangement_cruise_client_terms_path(@departure, @arrangement), params: {
+        authenticity_token: token,
+        option_id: option.id,
+        rows: { cruise_fare: { label: "Cruise fare", first: "10.00", second: "10.00" } }
+      }
+      assert_response :success
+    end
+  end
+
+  test "preview from an existing editor accepts patch" do
+    sign_in_as @staff
+    offer = ServiceOffer.find_by!(intended_arrangement_item_id: @item.id)
+    option = offer.editable_draft_version.choice_options.sole
+    post departure_arrangement_cruise_client_terms_path(@departure, @arrangement), params: {
+      option_id: option.id,
+      version_lock_version: offer.editable_draft_version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      rows: { cruise_fare: { label: "Cruise fare", first: "10.00", second: "10.00" } }
+    }
+    assert_response :see_other
+    patch preview_departure_arrangement_cruise_client_terms_path(@departure, @arrangement), params: {
+      option_id: option.id,
+      rows: { cruise_fare: { label: "Cruise fare", first: "12.00", second: "10.00" } }
+    }
+    assert_response :success
+    assert_match "12.00", response.body
   end
 
   test "preview and supplier copy review do not write" do
@@ -131,5 +174,13 @@ class M4d1CruiseClientTermsRequestTest < ActionDispatch::IntegrationTest
       version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid
     ).call.record.resource
     [ arrangement, version.reload, sailing.record.item, resource ]
+  end
+
+  def with_forgery_protection
+    previous = ActionController::Base.allow_forgery_protection
+    ActionController::Base.allow_forgery_protection = true
+    yield
+  ensure
+    ActionController::Base.allow_forgery_protection = previous
   end
 end

@@ -175,6 +175,11 @@
             <%= link_to "Open client service",
                   departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement),
                   class: "dd-link" %>
+            <% if @connection_workspace.status == :connected %>
+              <%= link_to "Open client pricing",
+                    departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement),
+                    class: "dd-link" %>
+            <% end %>
           </p>
         <% end %>
       </section>

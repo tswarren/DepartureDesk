@@ -46,7 +46,9 @@
     <% end %>
 
     <%= form_with url: departure_arrangement_cruise_client_terms_path(@departure, @supplier_arrangement),
-          method: creating ? :post : :patch, html: { id: "cruise-client-terms-form" }, data: { turbo: false } do %>
+          method: creating ? :post : :patch,
+          authenticity_token: form_authenticity_token,
+          html: { id: "cruise-client-terms-form" }, data: { turbo: false } do %>
       <%= hidden_field_tag :option_id, option.id %>
       <%= hidden_field_tag :version_lock_version, version.lock_version %>
       <%= hidden_field_tag :arrangement_lock_version, category[:binding].supplier_arrangement_version.lock_version %>
