@@ -1129,7 +1129,7 @@ Remediates Stop point C detector reopen:
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 
-**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is shipped separately. Slice 2D is shipped separately (merge `dc272a3`, PR #154). Next unauthorized boundary: Slice 3.
+**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is shipped separately. Slice 2D is shipped separately (merge `dc272a3`, PR #154). Next unauthorized boundary: Slice 3R.
 
 Ship Stop point D:
 
@@ -1167,24 +1167,23 @@ Ship Stop point E plus the durable choice-rate key:
 
 #### Slice 2D — Client term compiler and scenario Review
 
-**Shipped 2026-09-24.** Sole Stops F–G authority: [M4D.1 Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md). Merge [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154). Deliveries 2D-A, 2D-B, and 2D-C merged with that ship. Next unauthorized boundary: Slice 3.
+**Shipped 2026-09-24.** Sole Stops F–G authority: [M4D.1 Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md). Merge [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154). Deliveries 2D-A, 2D-B, and 2D-C merged with that ship. Next unauthorized boundary: Slice 3R.
 
 The accepted plan ships Stop points F–G: category-scoped Client terms whose bands follow confirmed Supplier occupancy profiles, an ordinary Agency fee row, zero-or-one Supplier-copy provenance with a frozen mapping snapshot, review of enabled Single/Double/Triple scenarios, known/pending arithmetic, provenance and unsupported-band findings that do not block publication, and the null category-option price-effect amendment.
 
 **Exit:** Staff can explain both Supplier cost and Client revenue for O1 without equating them, and Review gives one actionable next step.
 
-### Slice 3 — Typed adapter generalization
+### Slice 3 — Non-Cruise adapter boundary
 
-Ship:
+The generalized adapter approach is not implementation authority. This section does not authorize a Hotel adapter, a Transportation adapter, an Activity, Meal, or Excursion adapter, a mixed-DMC Item table, a common connect-each-Item bridge, or a shared adapter library.
 
-- Hotel adapter;
-- Transportation adapter;
-- Activity/Meal/Excursion adapter;
-- mixed-DMC Item table;
-- common connect-each-Item bridge;
-- shared adapter support library only where at least two adapters prove the abstraction.
+The discovery draft [Hotel, Transportation, Activity, and mixed-DMC adapters](drafts/md41-slice3-hotel-transport-etc-adapters-draft.md) is discovery history. `main` never contained an accepted Slice 3 contract.
 
-**Exit:** no Cruise-specific persistence or evaluator is required to set up the other service families.
+Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence. They are not an implementation source.
+
+**Next decision:** M4D.1 Slice 3R, not yet accepted. It decides the layer boundary and delivery order. It does not authorize adapter code.
+
+**Exit:** Slice 3R is accepted before any non-Cruise adapter work is named.
 
 ### Slice 4 — Vineyard proof
 
