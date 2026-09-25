@@ -1,6 +1,6 @@
 # M4D.1 Slice 3 — Hotel, Transportation, Activity, and Mixed-DMC Adapters
 
-**Status:** Discovery history. Not implementation authority. `main` never accepted this draft. Successor: M4D.1 Slice 3R, which is not yet accepted.
+**Status:** Superseded by [M4D.1 Slice 3R](../m4d1-slice3r-non-cruise-adapter-boundary.md). Discovery history. Not implementation authority. `main` never accepted this draft.
 
 **Prototype:** Unmerged branch `m4d1-slice3-hotel-transport-activity` (PR #156) explored this approach. That branch is prototype evidence and is not an implementation source.
 
@@ -490,7 +490,7 @@ Ship:
 
 **Exit:** One DMC Arrangement can contain heterogeneous Items without a DMC aggregate, mega-form, or Cruise-specific persistence.
 
-This draft was never accepted on `main`. Slice 3R is the successor decision and is not yet accepted.
+This draft was never accepted on `main`. It is superseded by [M4D.1 Slice 3R](../m4d1-slice3r-non-cruise-adapter-boundary.md).
 
 ---
 

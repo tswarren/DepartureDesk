@@ -1,6 +1,6 @@
 # M4D.1 Slice 2D — Cruise Client Terms and Scenario Review
 
-**Status:** Shipped 2026-09-24. Sole shipped authority for M4D.1 Slice 2D (Stops F–G). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 3, later M4D.1 slices, M4E, and M5 remain unauthorized until named.
+**Status:** Shipped 2026-09-24. Sole shipped authority for M4D.1 Slice 2D (Stops F–G). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. [Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md) is the accepted layer and delivery-order decision and authorizes no adapter code. The next unauthorized boundary is the Hotel walkthrough. M4E and M5 remain unauthorized until named.
 
 **Ship commit:** [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154). Deliveries 2D-A, 2D-B, and 2D-C merged with that ship.
 
@@ -788,7 +788,7 @@ This promotion already amends the parent sections listed in §15. Later implemen
 - §14.2 stores four provenance fields, including the mapping snapshot. Comparison uses the current Supplier component plus that frozen snapshot.
 - §14.3 allows one Supplier component to seed several Client cells. Each Client component still has at most one source.
 - §19.1 names `CreateCruiseClientTermSchedule`, `UpdateCruiseClientTermSchedule`, and `RemoveCruiseClientTermSchedule`.
-- §21 marks Slice 2D Shipped at `dc272a3` (PR #154). The next unauthorized boundary is Slice 3.
+- §21 marks Slice 2D Shipped at `dc272a3` (PR #154). [Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md) is the next accepted decision and authorizes the Hotel walkthrough only.
 
 ---
 

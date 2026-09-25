@@ -1,6 +1,6 @@
 # M4D.1 — Departure Composition Workspace
 
-**Status:** Accepted 2026-09-21. Implementation authority for the Departure Composition Workspace milestone and its sub-slices (1, 2A–2D, 3, 4, 5). Not authority for M4E, M5, source-document storage, proposal share, notifications, or money ledgers. Do not implement a sub-slice until that sub-slice’s accepted plan (or this parent’s named slice section used as exact authority) names the work.
+**Status:** Accepted 2026-09-21. Implementation authority for the Departure Composition Workspace milestone and shipped Cruise sub-slices. [Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md) is the accepted layer and delivery-order decision and is not adapter implementation authority. Not authority for M4E, M5, source-document storage, proposal share, notifications, or money ledgers. Do not implement a sub-slice until that sub-slice’s accepted plan names the work.
 
 **Slice 1:** [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) is **Shipped 2026-09-22**. It provides the five-area Composition shell, Service Map, readiness mapping, and `/builder` compatibility redirect.
 
@@ -20,7 +20,9 @@
 
 **Slice 2C:** [M4D.1 Slice 2C — Cruise service connection](m4d1-slice2c-cruise-service-connection.md) is **Shipped 2026-09-23** (merge `b35a4f6`). It is the sole shipped authority for Stop E.
 
-**Slice 2D:** [M4D.1 Slice 2D — Cruise Client terms and scenario review](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) is **Shipped 2026-09-24** (merge `dc272a3`, PR #154). It is the sole shipped authority for Stops F–G. Later slices remain unauthorized until named.
+**Slice 2D:** [M4D.1 Slice 2D — Cruise Client terms and scenario review](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) is **Shipped 2026-09-24** (merge `dc272a3`, PR #154). It is the sole shipped authority for Stops F–G.
+
+**Slice 3R:** [M4D.1 Slice 3R — Non-Cruise adapter boundary](m4d1-slice3r-non-cruise-adapter-boundary.md) is **Accepted 2026-09-25** for the layer boundary and delivery order only. It authorizes no adapter code. The next unauthorized boundary is the Hotel walkthrough. Accepting that walkthrough still does not authorize code.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -1129,7 +1131,7 @@ Remediates Stop point C detector reopen:
 
 #### Slice 2B — Deposits, deadlines, and activation-safe editing
 
-**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is shipped separately. Slice 2D is shipped separately (merge `dc272a3`, PR #154). Next unauthorized boundary: Slice 3R.
+**Shipped.** Sole typed Stop D domain authority (workspace remediation shipped [Slice 2B-UX](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md); contributor-replace closure [Slice 2B-UX-R](m4d1-slice2buxr-contributor-replace-and-closure.md)): [M4D.1 Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md). Accept package base [`b66d88b`](https://github.com/tswarren/DepartureDesk/commit/b66d88b). **2B-A, 2B-B, and 2B-C delivered.** Domain Path B economics are shipped under Slice 2B-R; rate-shape detector under Slice 2A.2R3. Slice 2C is shipped separately. Slice 2D is shipped separately (merge `dc272a3`, PR #154). Next unauthorized boundary: the Hotel walkthrough. That walkthrough does not authorize code.
 
 Ship Stop point D:
 
@@ -1167,23 +1169,23 @@ Ship Stop point E plus the durable choice-rate key:
 
 #### Slice 2D — Client term compiler and scenario Review
 
-**Shipped 2026-09-24.** Sole Stops F–G authority: [M4D.1 Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md). Merge [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154). Deliveries 2D-A, 2D-B, and 2D-C merged with that ship. Next unauthorized boundary: Slice 3R.
+**Shipped 2026-09-24.** Sole Stops F–G authority: [M4D.1 Slice 2D](m4d1-slice2d-cruise-client-terms-and-scenario-review.md). Merge [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154). Deliveries 2D-A, 2D-B, and 2D-C merged with that ship. Next unauthorized boundary: the Hotel walkthrough. That walkthrough does not authorize code.
 
 The accepted plan ships Stop points F–G: category-scoped Client terms whose bands follow confirmed Supplier occupancy profiles, an ordinary Agency fee row, zero-or-one Supplier-copy provenance with a frozen mapping snapshot, review of enabled Single/Double/Triple scenarios, known/pending arithmetic, provenance and unsupported-band findings that do not block publication, and the null category-option price-effect amendment.
 
 **Exit:** Staff can explain both Supplier cost and Client revenue for O1 without equating them, and Review gives one actionable next step.
 
-### Slice 3 — Non-Cruise adapter boundary
+### Slice 3R — Non-Cruise adapter boundary
 
-The generalized adapter approach is not implementation authority. This section does not authorize a Hotel adapter, a Transportation adapter, an Activity, Meal, or Excursion adapter, a mixed-DMC Item table, a common connect-each-Item bridge, or a shared adapter library.
+**Accepted 2026-09-25.** Sole authority for the layer boundary and delivery order: [M4D.1 Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md). This acceptance authorizes no adapter code and no vertical contract.
 
-The discovery draft [Hotel, Transportation, Activity, and mixed-DMC adapters](drafts/md41-slice3-hotel-transport-etc-adapters-draft.md) is discovery history. `main` never contained an accepted Slice 3 contract.
+The generalized adapter approach is not implementation authority. The discovery draft [Hotel, Transportation, Activity, and mixed-DMC adapters](drafts/md41-slice3-hotel-transport-etc-adapters-draft.md) is superseded by Slice 3R. `main` never contained an accepted generalized Slice 3 contract.
 
 Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence. They are not an implementation source.
 
-**Next decision:** M4D.1 Slice 3R, not yet accepted. It decides the layer boundary and delivery order. It does not authorize adapter code.
+**Exit:** preparation of the Hotel walkthrough only. Hotel implementation remains prohibited until both that walkthrough and a separate Slice 3A implementation plan are accepted.
 
-**Exit:** Slice 3R is accepted before any non-Cruise adapter work is named.
+**Next unauthorized boundary:** the Hotel walkthrough.
 
 ### Slice 4 — Vineyard proof
 
