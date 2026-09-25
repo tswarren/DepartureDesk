@@ -198,7 +198,7 @@ Rails.application.routes.draw do
           controller: "cruise_service_connections"
         resource :client_terms, path: "client-terms", only: %i[show create update destroy],
           controller: "cruise_client_terms" do
-          post :preview
+          match :preview, via: %i[post patch]
         end
         resource :deposits_and_deadlines, path: "deposits-and-deadlines", only: :show,
           controller: "cruise_deposits_and_deadlines" do
