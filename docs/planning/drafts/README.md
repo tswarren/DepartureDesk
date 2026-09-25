@@ -1,25 +1,28 @@
 # Planning drafts
 
-## Historical note
+Place new draft slice plans or amendments here until they are Accepted and moved into `docs/planning/` or `docs/adr/`. Files in this directory are not implementation authority.
 
-The M3E package was Accepted and promoted on 2026-09-18:
+Where the product stands is the [planning index](../README.md).
 
-- [ADR 0013](../../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md)
-- [M3E plan](../m3e-supplier-operational-control.md)
-- [M3E decision register](../m3e-decision-register.md)
+## Open drafts
 
-The M4 package was Accepted and promoted on 2026-09-20:
+- [M4E — Offers and pricing acceptance and hardening](DepartureDesk-M4E-acceptance-and-hardening-draft.md). Not implementation authority until an accepted M4E plan names the work.
+- [M4D.1 later-slice discovery sequence](composition-workspace/proposed-slices.md). Discovery sequencing only.
 
-- [ADR 0014](../../adr/0014-client-offers-publication-and-supply-compatibility.md)
-- [M4 parent](../m4-offers-and-pricing.md)
-- [M4.0](../m40-task-flow-and-contract.md)
+## History
 
-[M4A](../m4a-service-definitions-and-sources.md) was Accepted and shipped on 2026-09-20. [M4B](../m4b-client-pricing-and-anonymous-preview.md) was Accepted and shipped on 2026-09-20. [M4C](../m4c-packages-choices-and-client-terms.md) was Accepted and shipped on 2026-09-20. [M4D](../m4d-publication-and-live-feasibility.md) was Accepted and shipped on 2026-09-21. [M4D.0](../m4d0-narrow-group-departure-builder.md) and [M4D.0R](../m4d0r-builder-interface-remediation.md) were shipped on 2026-09-21. [M4D.1](../m4d1-departure-composition-workspace.md) was Accepted on 2026-09-21. [M4D.1 Slice 1](../m4d1-slice1-workspace-foundation.md) was shipped on 2026-09-22 (Composition primary Staff chrome). [M4D.1 Slice 2A.1](../m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) was shipped on 2026-09-22. [M4D.1 Slice 2A.2](../m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) was shipped on 2026-09-22. [M4D.1 Slice 2A.2R](../m4d1-slice2a2r-cruise-supplier-rate-matrix.md) was shipped on 2026-09-22. [M4D.1 Slice 2A.2R2](../m4d1-slice2a2r2-cruise-rate-matrix-interaction.md) was shipped on 2026-09-22. [M4D.1 Slice 2D](../m4d1-slice2d-cruise-client-terms-and-scenario-review.md) was shipped on 2026-09-24 (merge `dc272a3`, PR #154). The Slice 2D proposal remains a historical note. Remaining drafts:
+Superseded proposals and stubs that point at a shipped or accepted contract. Do not implement from them.
 
-- [M4E](DepartureDesk-M4E-acceptance-and-hardening-draft.md)
-- [M4D.0 streamlined discovery backlog](DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) (not implementation authority)
-- [Narrow builder stub](DepartureDesk-M4D0-narrow-group-departure-builder-draft.md) (points at the accepted plan)
-- [Composition workspace](composition-workspace/README.md) (stubs → Accepted M4D.1 / shipped Slice 1 / shipped Slice 2A.1–2A.2R3 / shipped 2B-R; Accepted 2B; proposed later slices discovery-only)
-- [Group-departure wizard notes stub](DepartureDesk-group-departure-wizard.md) (points at M4D.1)
+- [Composition workspace stubs](composition-workspace/README.md).
+- [Slice 3 adapter draft](md41-slice3-hotel-transport-etc-adapters-draft.md). Superseded by [Slice 3R](../m4d1-slice3r-non-cruise-adapter-boundary.md).
+- [Slice 2D proposal](M4D1-Slice2D-Cruise-Client-Terms-and-Scenario-Review-Proposed.md).
+- [Slice 2C draft](slice2c.md) and [Slice 2C decision notes](slice2c-proposed-decisions.md).
+- [Slice 2B-UX draft pointer](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md).
+- [Cruise rate-matrix addendum](M4D1-Slice2A2-Cruise-Rate-Matrix-Addendum.md).
+- [Cruise Supplier rate workspace wireframe](DepartureDesk-Cruise-Supplier-Rate-Workspace-Wireframe.md). Layout notes under shipped Slice 2A.2R2.
+- [M4D.0 streamlined discovery backlog](DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md).
+- [M4D.0 narrow builder stub](DepartureDesk-M4D0-narrow-group-departure-builder-draft.md).
+- [M4D.0R remediation brief](DepartureDesk-M4D0-builder-interface-remediation-brief.md).
+- [Group-departure wizard notes](DepartureDesk-group-departure-wizard.md).
 
-Place new draft slice plans or amendments here until they are Accepted and moved into the canonical `docs/planning/` or `docs/adr/` trees.
+Promoted contracts now live in `docs/planning/` and `docs/adr/`.

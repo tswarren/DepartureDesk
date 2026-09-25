@@ -5,13 +5,20 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   TURBO_CLICK_ATTEMPTS = 3
 
   if SystemTestBrowser.available?
-    driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1400 ]
+    driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1400 ] do |options|
+      chromium = %w[/usr/bin/chromium /usr/bin/chromium-browser].find { |path| File.executable?(path) }
+      next unless chromium
+
+      options.binary = chromium
+      options.add_argument("--no-sandbox")
+      options.add_argument("--disable-dev-shm-usage")
+    end
     Capybara.default_max_wait_time = 5
   else
     driven_by :rack_test
 
     setup do
-      skip "System tests require Chrome and run in GitHub CI. The local Docker image does not include a browser."
+      skip "System tests require Chromium or Chrome. The development image includes Chromium; rebuild it with docker compose build if this skip still appears."
     end
   end
 
