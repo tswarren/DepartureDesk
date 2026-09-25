@@ -18,7 +18,7 @@ CI.run do
     step "Tests: System", "bin/rails test:system"
   else
     step "Tests: System",
-      %(echo "Skipping system tests; Chrome is not available in the local Docker image.")
+      %(echo "Skipping system tests; Chromium or Chrome is not installed.")
   end
 
   step "Tests: Seeds", "env RAILS_ENV=test bin/rails db:seed:replant"

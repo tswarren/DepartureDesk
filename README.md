@@ -314,13 +314,13 @@ Run one test file:
 ./dev/rails-docker bin/rails test test/models/agency_test.rb
 ```
 
-System tests require Chrome. They run in GitHub CI. The local Docker image
-does not include a browser, so `bin/ci` and `bin/rails test:system` skip
-them there. To force an attempt:
+System tests run in Chromium inside the development image, and in GitHub CI:
 
 ```bash
-FORCE_SYSTEM_TESTS=1 ./dev/rails-docker bin/rails test:system
+./dev/rails-docker bin/rails test:system
 ```
+
+Rebuild the image with `docker compose build` if that command reports that Chromium is not installed.
 
 Rails loads fixtures before test methods. Fixture values must satisfy database limits and constraints; a bad fixture can cause every otherwise unrelated test to error during setup.
 

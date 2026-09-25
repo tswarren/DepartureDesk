@@ -20,6 +20,7 @@ x-app: &app
     QUEUE_DATABASE_NAME: departure_desk_development_queue
     TEST_QUEUE_DATABASE_NAME: departure_desk_test_queue
     RAILS_MAX_THREADS: 5
+  shm_size: "1gb"
   depends_on:
     db:
       condition: service_healthy

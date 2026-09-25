@@ -44,6 +44,15 @@ WORKDIR /app
 COPY Gemfile Gemfile.lock* ./
 RUN bundle install
 
+# Local system tests use this browser. Google Chrome publishes no arm64 package,
+# and this image is built for the host architecture, including Apple Silicon.
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+      chromium \
+      chromium-driver \
+      fonts-liberation && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY . .
 RUN chown -R "${APP_USER}:${APP_USER}" /app /bundle
 
