@@ -206,7 +206,7 @@ Authority: [Slice 2C](../planning/m4d1-slice2c-cruise-service-connection.md) (Sh
 
 ## Cruise Client terms workspace (M4D.1 Slice 2D)
 
-Authority: [Slice 2D](../planning/m4d1-slice2d-cruise-client-terms-and-scenario-review.md) (Accepted; not shipped).
+Authority: [Slice 2D](../planning/m4d1-slice2d-cruise-client-terms-and-scenario-review.md) (Shipped 2026-09-24; merge `dc272a3`, PR #154).
 
 - Route: `/departures/:departure_id/arrangements/:arrangement_id/cruise/client-terms`. Every action, including show, requires `manage_departures` and responds not found when that permission is absent.
 - Page order: summary, then one category editor. The summary is the default. The editor opens only from an explicit category action. Success redirects `303` to the summary without that query. Failed saves render `422`, preserve the matrix, and focus `#form-error-summary`.
