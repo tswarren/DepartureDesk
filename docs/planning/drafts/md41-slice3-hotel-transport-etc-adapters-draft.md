@@ -1,10 +1,12 @@
 # M4D.1 Slice 3 — Hotel, Transportation, Activity, and Mixed-DMC Adapters
 
-**Status:** Draft. Not implementation authority until accepted.
+**Status:** Discovery history. Not implementation authority. `main` never accepted this draft. Successor: M4D.1 Slice 3R, which is not yet accepted.
 
-**Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially the global interaction contract, Supplier area, Service connection, Slice 3 delivery boundary, and rollout rules.
+**Prototype:** Unmerged branch `m4d1-slice3-hotel-transport-activity` (PR #156) explored this approach. That branch is prototype evidence and is not an implementation source.
 
-**Prerequisite:** M4D.1 Slice 2D must be Shipped on a green `main` before Slice 3 implementation begins. Acceptance may proceed before that merge, but the implementation base must be pinned to the eventual Slice 2D ship commit or a later green descendant.
+**Parent authority:** [M4D.1 — Departure Composition Workspace](../m4d1-departure-composition-workspace.md). The generalized adapter approach in this draft is not the Slice 3 delivery boundary.
+
+**Prerequisite:** Slice 2D shipped at `dc272a3` (PR #154). The earlier prerequisite, which treated Slice 2D as still unshipped, is retired with this draft.
 
 **Outcome:** Staff can establish Hotel, Transportation, and Activity/Meal/Excursion Supplier services through typed adapters, then connect each Supplier Item to an appropriate Client Service without understanding the underlying M3/M4 graph.
 
@@ -488,7 +490,7 @@ Ship:
 
 **Exit:** One DMC Arrangement can contain heterogeneous Items without a DMC aggregate, mega-form, or Cruise-specific persistence.
 
-The overall Slice 3 remains Accepted and not Shipped until 3A–3D merge green and ship documentation pins the final `main` commit.
+This draft was never accepted on `main`. Slice 3R is the successor decision and is not yet accepted.
 
 ---
 
@@ -622,7 +624,7 @@ After all four deliveries merge green:
 9. **Audit actions:** Does one generic Item-adapter save action suffice, or are family-specific actions required for operational clarity?
    **Recommendation:** One bounded generic Supplier Item setup action plus the existing Service connection action, unless shipped audit conventions require otherwise.
 
-10. **Exact commands and routes:** Name them after inspecting the green Slice 2D base. No “for example” names remain in the Accepted contract.
+10. **Exact commands and routes:** Name them in a later accepted vertical plan after inspecting the shipped Slice 2D base. No “for example” names belong in that plan.
 
 ---
 
