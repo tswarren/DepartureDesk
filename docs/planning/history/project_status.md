@@ -1,3 +1,5 @@
+**Status:** Superseded. Planning history only. Not implementation authority. Current standing is the [planning index](../README.md).
+
 Yes—but I would call it a **boundary correction**, not a rollback.
 
 We should remove Client pricing, Package placement, and Client terms from the definition of a Supplier-family adapter. We should **not** delete the shipped M4 pricing/Package models or discard the Cruise work that will still be useful later.

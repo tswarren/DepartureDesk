@@ -1,3 +1,7 @@
+**Status:** Superseded. Not canonical. Do not implement from this draft.
+
+The Hotel canonical draft is [Hilton Fort Lauderdale Marina 2027](../fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md). This walkthrough keeps an earlier simplified stay and Client-layer decisions that Slice 3A does not own: Client Service connection, Standard and Deluxe Client choices, `hotel_room:` keys, and optional-add-on treatment. [Slice 3R](../m4d1-slice3r-non-cruise-adapter-boundary.md) leaves this file as discarded history. The body below is unchanged.
+
 For Hotel, I would design one stable **Hotel workspace per Arrangement Item**, with focused editors opening from it. The workspace should answer four questions immediately:
 
 1. What stay did we contract?

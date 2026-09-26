@@ -1,3 +1,5 @@
+**Status:** Superseded. Planning history only. Not implementation authority. Current standing is the [planning index](../README.md).
+
 # M4D.1 — Current State and Next Steps
 
 ## Where we are

@@ -1179,7 +1179,7 @@ The accepted plan ships Stop points F–G: category-scoped Client terms whose ba
 
 **Accepted 2026-09-25.** Sole authority for the layer boundary and delivery order: [M4D.1 Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md). This acceptance authorizes no adapter code and no vertical contract.
 
-The generalized adapter approach is not implementation authority. The discovery draft [Hotel, Transportation, Activity, and mixed-DMC adapters](drafts/md41-slice3-hotel-transport-etc-adapters-draft.md) is superseded by Slice 3R. `main` never contained an accepted generalized Slice 3 contract.
+The generalized adapter approach is not implementation authority. The discovery draft [Hotel, Transportation, Activity, and mixed-DMC adapters](history/md41-slice3-hotel-transport-etc-adapters-draft.md) is superseded by Slice 3R. `main` never contained an accepted generalized Slice 3 contract.
 
 Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence. They are not an implementation source.
 

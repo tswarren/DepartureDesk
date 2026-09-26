@@ -10,7 +10,7 @@ M1, M2, and M3 are complete. M4 is accepted and shipped through M4D.0. The Cruis
 
 ## Now
 
-The next document is the Hotel walkthrough. It has not been started. Accepting that walkthrough still does not authorize code. Hotel implementation remains prohibited until the walkthrough and a separate Slice 3A implementation plan are accepted. Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence and are not an implementation source.
+The next unauthorized boundary is the Hotel walkthrough. It has not been started. Accepting that walkthrough still does not authorize code. Hotel implementation remains prohibited until the walkthrough and a separate Slice 3A implementation plan are accepted. Supplier Composition fixtures are indexed in [fixtures/README.md](fixtures/README.md). Those fixtures are Draft and do not authorize the walkthrough. Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence and are not an implementation source.
 
 ## Milestones
 
