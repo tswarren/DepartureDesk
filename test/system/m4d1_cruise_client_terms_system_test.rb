@@ -301,7 +301,7 @@ class M4d1CruiseClientTermsSystemTest < ApplicationSystemTestCase
     fill_in "Cruise fare additional", with: "406.00"
     fill_in "Cruise fare first", with: "1624.00"
     fill_in "Cruise fare second", with: "1624.00"
-    click_button "Save Client terms"
+    click_button_and_expect "Save Client terms", text: "Client terms created."
     SetCruiseSupplierOccupancyPlan.new(
       agency: @agency, actor: @staff, arrangement: arrangement, resource: ocean,
       expected_cabins: { double: 1 }, version_lock_version: version.reload.lock_version
