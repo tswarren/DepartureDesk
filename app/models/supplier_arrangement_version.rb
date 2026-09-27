@@ -39,6 +39,7 @@ class SupplierArrangementVersion < ApplicationRecord
   has_many :supplier_planning_milestone_occurrences, dependent: :restrict_with_exception
   has_one :supplier_arrangement_activation, dependent: :restrict_with_exception
   has_many :supplier_confirmations, dependent: :restrict_with_exception
+  has_many :supplier_arrangement_commercial_benefit_definitions, dependent: :restrict_with_exception
   has_many :supplier_commitments, dependent: :restrict_with_exception
   has_many :supplier_reservation_revisions, dependent: :restrict_with_exception
   has_many :supplier_reservation_scopes, dependent: :restrict_with_exception

@@ -380,6 +380,23 @@ module ArrangementCommandSupport
     }
   end
 
+  def cruise_sailing_occurrence_attributes(attrs, departure)
+    normalize_occurrence_attributes(attrs, departure).merge(
+      departure_port_name: normalize_optional_port_name(attrs[:departure_port_name]),
+      return_port_name: normalize_optional_port_name(attrs[:return_port_name])
+    )
+  end
+
+  def normalize_optional_port_name(value)
+    text = value.to_s.strip
+    return nil if text.blank?
+    if text.length > ServiceOccurrenceDefinition::PORT_NAME_LIMIT
+      raise AgencyCommand::Error.new("Port name is too long.", code: :invalid)
+    end
+
+    text
+  end
+
   def normalize_occurrence_attributes(attrs, departure)
     attrs = attrs.to_h.with_indifferent_access
     starts_on = parse_date(attrs[:starts_on], "Start date")

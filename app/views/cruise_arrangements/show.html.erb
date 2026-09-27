@@ -27,9 +27,18 @@
             <p class="dd-page-description">
               Ship <%= @shape.summary["ship_name"] %>
               · <%= @shape.summary["sailing_name"] %>
+              <% if @shape.summary["departure_port_name"].present? %>
+                · Departs <%= @shape.summary["departure_port_name"] %>
+              <% end %>
+              <% if @shape.summary["return_port_name"].present? %>
+                · Returns <%= @shape.summary["return_port_name"] %>
+              <% end %>
               · <%= @shape.summary["starts_on"] %>–<%= @shape.summary["ends_on"] %>
               · <%= @shape.summary["time_zone"] %>
             </p>
+            <% if @shape.summary["itinerary_notes"].present? %>
+              <p class="dd-page-description">Itinerary notes: <%= @shape.summary["itinerary_notes"] %></p>
+            <% end %>
           </div>
           <div class="dd-inline-actions">
             <% if @editable %>
@@ -47,6 +56,8 @@
           </div>
         </header>
       </section>
+
+      <%= render "cruise_arrangements/commercial_benefits" %>
 
       <section aria-labelledby="cruise-cabin-categories-heading">
         <header class="dd-panel-header" style="padding: 0; border: 0;">

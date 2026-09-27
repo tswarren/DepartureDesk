@@ -48,7 +48,7 @@ class CreateCruiseSailingSetup < AgencyCommand
 
       departure = lock_departure_for!(@departure)
       ensure_departure_accepts_new_planning!(departure)
-      occurrence_attrs = normalize_occurrence_attributes(@occurrence_attributes, departure)
+      occurrence_attrs = cruise_sailing_occurrence_attributes(@occurrence_attributes, departure)
       ensure_active_effective_provider!(occurrence_provider || item_provider || contractor)
 
       payload = {

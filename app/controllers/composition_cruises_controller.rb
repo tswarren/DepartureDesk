@@ -71,7 +71,10 @@ class CompositionCruisesController < ApplicationController
       name: params.dig(:occurrence, :name),
       starts_on: params.dig(:occurrence, :starts_on),
       ends_on: params.dig(:occurrence, :ends_on),
-      time_zone: params.dig(:occurrence, :time_zone).presence || @departure.time_zone
+      time_zone: params.dig(:occurrence, :time_zone).presence || @departure.time_zone,
+      departure_port_name: params.dig(:occurrence, :departure_port_name),
+      return_port_name: params.dig(:occurrence, :return_port_name),
+      description: params.dig(:occurrence, :description)
     }
   end
 
@@ -89,7 +92,7 @@ class CompositionCruisesController < ApplicationController
 
   def occurrence_params
     params.fetch(:occurrence, ActionController::Parameters.new).permit(
-      :name, :starts_on, :ends_on, :time_zone
+      :name, :starts_on, :ends_on, :time_zone, :departure_port_name, :return_port_name, :description
     )
   end
 

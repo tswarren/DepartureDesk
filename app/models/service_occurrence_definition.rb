@@ -3,6 +3,7 @@ class ServiceOccurrenceDefinition < ApplicationRecord
   include DraftVersionDefinition
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
+  PORT_NAME_LIMIT = 160
 
   belongs_to :agency
   belongs_to :departure
@@ -17,10 +18,12 @@ class ServiceOccurrenceDefinition < ApplicationRecord
     :supplier_arrangement_version_id, :arrangement_item_id, :service_occurrence_id
 
   normalizes :name, with: ->(value) { value.to_s.strip }
-  normalizes :description, :time_zone, with: ->(value) { value.to_s.strip.presence }
+  normalizes :description, :time_zone, :departure_port_name, :return_port_name,
+    with: ->(value) { value.to_s.strip.presence }
 
   validates :name, presence: true, length: { maximum: NAME_LIMIT }
   validates :description, length: { maximum: DESCRIPTION_LIMIT }, allow_nil: true
+  validates :departure_port_name, :return_port_name, length: { maximum: PORT_NAME_LIMIT }, allow_nil: true
   validates :starts_on, :ends_on, :time_zone, presence: true
   validate :date_range_is_ordered
   validate :local_times_are_paired

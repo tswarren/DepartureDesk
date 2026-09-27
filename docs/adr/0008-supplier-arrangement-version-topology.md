@@ -48,7 +48,7 @@ Version numbers are positive, monotonic within the Arrangement, assigned when ea
 
 An Occurrence and a Resource each belong immutably to one Item. A Resource represents a contracted category, class, or planned unit and may participate in capacity for multiple Occurrences of that Item. It is not an individual cabin, room, seat, or Traveler assignment.
 
-Service Occurrence current operational lifecycle (`planned` or `cancelled`) lives on the stable Occurrence identity, not on a versioned definition. Cancelling an Occurrence must not mutate an activated commercial definition and must not require a commercial successor version. Definition rows hold name, description, schedule, zone, and provider override only.
+Service Occurrence current operational lifecycle (`planned` or `cancelled`) lives on the stable Occurrence identity, not on a versioned definition. Cancelling an Occurrence must not mutate an activated commercial definition and must not require a commercial successor version. Definition rows hold name, description, schedule, zone, provider override, and the optional departure and return port names.
 
 ### Draft removal and retained history
 

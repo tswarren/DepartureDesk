@@ -74,7 +74,10 @@ class CruiseSailingsController < ApplicationController
       name: @shape.occurrence_definition.name,
       starts_on: @shape.occurrence_definition.starts_on,
       ends_on: @shape.occurrence_definition.ends_on,
-      time_zone: @shape.occurrence_definition.time_zone
+      time_zone: @shape.occurrence_definition.time_zone,
+      departure_port_name: @shape.occurrence_definition.departure_port_name,
+      return_port_name: @shape.occurrence_definition.return_port_name,
+      description: @shape.occurrence_definition.description
     }
   end
 
@@ -96,7 +99,7 @@ class CruiseSailingsController < ApplicationController
 
   def occurrence_params
     params.fetch(:occurrence, ActionController::Parameters.new).permit(
-      :name, :starts_on, :ends_on, :time_zone
+      :name, :starts_on, :ends_on, :time_zone, :departure_port_name, :return_port_name, :description
     )
   end
 end

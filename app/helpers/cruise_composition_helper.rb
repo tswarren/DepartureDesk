@@ -58,6 +58,34 @@ module CruiseCompositionHelper
     CruiseDepositsAndDeadlinesLanguage.amount_label_for(definition, currency:)
   end
 
+  def cruise_benefit_label(term_type)
+    SupplierArrangementCommercialBenefitDefinition.label_for(term_type)
+  end
+
+  def cruise_benefit_recorded_label
+    SupplierArrangementCommercialBenefitDefinition::RECORDED_LABEL
+  end
+
+  def cruise_benefit_revision_sentence(version, definition)
+    confirmed = version.supplier_confirmations.any?
+    if version.draft? && !confirmed && definition.copied_from && cruise_benefit_wording_differs?(definition)
+      "Proposed amendment awaiting confirmation. This is not the governing agreement."
+    elsif version.draft? && !confirmed
+      "Draft wording for this version. The group agreement is not Supplier-confirmed."
+    elsif version.activated?
+      "Frozen wording for this governing version."
+    elsif confirmed
+      "Recorded wording for this Supplier-confirmed revision."
+    else
+      "Recorded wording for this version."
+    end
+  end
+
+  def cruise_benefit_wording_differs?(definition)
+    source = definition.copied_from
+    definition.body != source.body || definition.source_citation != source.source_citation
+  end
+
   def cruise_definition_status_badge(status_label)
     modifier = CruiseDepositsAndDeadlinesLanguage.status_badge_modifier(status_label)
     tag.span(status_label, class: "dd-badge dd-badge--#{modifier}")

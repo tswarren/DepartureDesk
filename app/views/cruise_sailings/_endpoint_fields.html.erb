@@ -1,0 +1,18 @@
+<div class="dd-field-group">
+  <label class="dd-label" for="occurrence_departure_port_name">Departure port</label>
+  <input id="occurrence_departure_port_name" name="occurrence[departure_port_name]" class="dd-field"
+    maxlength="160" value="<%= occurrence[:departure_port_name] %>">
+  <p class="dd-field-hint">Optional. Leave blank when the port is not named.</p>
+</div>
+
+<div class="dd-field-group">
+  <label class="dd-label" for="occurrence_return_port_name">Return port</label>
+  <input id="occurrence_return_port_name" name="occurrence[return_port_name]" class="dd-field"
+    maxlength="160" value="<%= occurrence[:return_port_name] %>">
+</div>
+
+<div class="dd-field-group">
+  <label class="dd-label" for="occurrence_description">Itinerary notes</label>
+  <textarea id="occurrence_description" name="occurrence[description]" class="dd-field" maxlength="2000" rows="4"><%= occurrence[:description] %></textarea>
+  <p class="dd-field-hint">Optional notes for this sailing. This is not a port-by-port schedule.</p>
+</div>
