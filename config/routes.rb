@@ -184,6 +184,8 @@ Rails.application.routes.draw do
       resource :cruise, only: :show, controller: "cruise_arrangements" do
         post :successor
         resource :sailing, only: %i[edit update], controller: "cruise_sailings"
+        resources :commercial_benefits, only: %i[create update],
+          param: :term_type, controller: "cruise_commercial_benefits"
         resources :cabin_categories, path: "cabin-categories",
           param: :resource_id, only: %i[new create edit update],
           controller: "cruise_cabin_categories" do

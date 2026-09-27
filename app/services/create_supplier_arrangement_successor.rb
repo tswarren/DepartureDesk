@@ -91,6 +91,7 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
       supplier_cost_occupancy_profiles supplier_commitment_trigger_definitions
       supplier_deadline_definitions
       supplier_deposit_requirement_definitions
+      supplier_arrangement_commercial_benefit_definitions
     ].each { |association| version.public_send(association).order(:id).lock.load }
     SupplierCostComponentBase.where(supplier_arrangement_version_id: version.id).order(:id).lock.load
     SupplierCostOccupancyProfilePosition.where(
@@ -152,6 +153,10 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
     copy_triggers!(from, to, sources, definitions, components)
     copy_deadlines!(from, to, sources, definitions, components)
     copy_deposits!(from, to, sources, definitions, components)
+    copy_family(
+      from.supplier_arrangement_commercial_benefit_definitions,
+      to.supplier_arrangement_commercial_benefit_definitions
+    )
 
     # These maps are intentionally built even where stable identity means no FK remap.
     # Their construction proves each retained structural definition was copied once.

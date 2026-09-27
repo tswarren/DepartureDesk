@@ -170,6 +170,9 @@ class DetectCruiseArrangementShape
       "starts_on" => occurrence_definition.starts_on.iso8601,
       "ends_on" => occurrence_definition.ends_on.iso8601,
       "time_zone" => occurrence_definition.time_zone,
+      "departure_port_name" => occurrence_definition.departure_port_name,
+      "return_port_name" => occurrence_definition.return_port_name,
+      "itinerary_notes" => occurrence_definition.description,
       "cabin_category_count" => cabin_category_count,
       "version_status" => item_definition.supplier_arrangement_version.status
     }

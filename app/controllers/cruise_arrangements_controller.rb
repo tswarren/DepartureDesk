@@ -4,7 +4,7 @@ class CruiseArrangementsController < ApplicationController
   include SupplierArrangementAccess
 
   before_action :require_departure_view!
-  before_action :require_departure_management!
+  before_action :require_departure_management!, except: :show
   before_action :set_departure
   before_action :set_supplier_arrangement
 
@@ -14,12 +14,15 @@ class CruiseArrangementsController < ApplicationController
       arrangement: @supplier_arrangement
     ).call
     @supplier_arrangement_version = @shape.version
-    @editable = @supplier_arrangement_version&.draft?
+    @can_manage = Current.agency_user.permitted?(:manage_departures)
+    @editable = @supplier_arrangement_version&.draft? && @can_manage
     @can_create_successor =
+      @can_manage &&
       @departure.active? &&
       @supplier_arrangement.active? &&
       @supplier_arrangement_version&.activated? &&
       @supplier_arrangement.versions.none? { |version| version.draft? }
+    @commercial_benefits = commercial_benefit_definitions
 
     return unless @shape.compatible?
 
@@ -60,6 +63,15 @@ class CruiseArrangementsController < ApplicationController
   end
 
   private
+
+  def commercial_benefit_definitions
+    return [] unless @shape.compatible? && @supplier_arrangement_version
+
+    @supplier_arrangement_version.supplier_arrangement_commercial_benefit_definitions
+      .includes(:copied_from)
+      .order(:term_type)
+      .to_a
+  end
 
   def assign_cabin_categories
     version = @shape.version

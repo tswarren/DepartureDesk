@@ -52,10 +52,16 @@ class UpdateCruiseSailingSetup < AgencyCommand
         capacity_management: item_definition.capacity_management,
         default_service_provider_id: item_definition.default_service_provider_id
       )
-      occurrence_attrs = normalize_occurrence_attributes(
+      occurrence_attrs = cruise_sailing_occurrence_attributes(
         @occurrence_attributes.merge(
           description: @occurrence_attributes.fetch(
             :description, occurrence_definition.description
+          ),
+          departure_port_name: @occurrence_attributes.fetch(
+            :departure_port_name, occurrence_definition.departure_port_name
+          ),
+          return_port_name: @occurrence_attributes.fetch(
+            :return_port_name, occurrence_definition.return_port_name
           ),
           starts_at_local: @occurrence_attributes.fetch(
             :starts_at_local, occurrence_definition.starts_at_local

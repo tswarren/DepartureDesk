@@ -531,6 +531,29 @@ $$;
 
 
 --
+-- Name: reject_commercial_benefit_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_commercial_benefit_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+    OR NEW.supplier_arrangement_commercial_benefit_id IS DISTINCT FROM OLD.supplier_arrangement_commercial_benefit_id
+    OR NEW.term_type IS DISTINCT FROM OLD.term_type
+    OR NEW.copied_from_id IS DISTINCT FROM OLD.copied_from_id
+  THEN
+    RAISE EXCEPTION 'commercial benefit definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_deadline_commitment_line_owner_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3412,10 +3435,14 @@ CREATE TABLE public.service_occurrence_definitions (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     copied_from_id uuid,
+    departure_port_name character varying(160),
+    return_port_name character varying(160),
     CONSTRAINT service_occurrence_definitions_date_order CHECK ((starts_on <= ends_on)),
+    CONSTRAINT service_occurrence_definitions_departure_port_name CHECK (((departure_port_name IS NULL) OR ((btrim((departure_port_name)::text) <> ''::text) AND (char_length((departure_port_name)::text) <= 160)))),
     CONSTRAINT service_occurrence_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
     CONSTRAINT service_occurrence_definitions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT service_occurrence_definitions_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
+    CONSTRAINT service_occurrence_definitions_return_port_name CHECK (((return_port_name IS NULL) OR ((btrim((return_port_name)::text) <> ''::text) AND (char_length((return_port_name)::text) <= 160)))),
     CONSTRAINT service_occurrence_definitions_time_zone CHECK (((time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text))),
     CONSTRAINT service_occurrence_definitions_times_paired CHECK (((starts_at_local IS NULL) = (ends_at_local IS NULL)))
 );
@@ -3952,6 +3979,45 @@ CREATE TABLE public.supplier_arrangement_activations (
     CONSTRAINT arrangement_activations_coverage_fingerprint CHECK (((btrim((coverage_fingerprint)::text) <> ''::text) AND (char_length((coverage_fingerprint)::text) <= 128))),
     CONSTRAINT arrangement_activations_kind CHECK (((activation_kind)::text = ANY (ARRAY[('first'::character varying)::text, ('successor'::character varying)::text]))),
     CONSTRAINT arrangement_activations_predecessor_shape CHECK (((((activation_kind)::text = 'first'::text) AND (predecessor_version_id IS NULL) AND (predecessor_activation_id IS NULL)) OR (((activation_kind)::text = 'successor'::text) AND (predecessor_version_id IS NOT NULL) AND (predecessor_activation_id IS NOT NULL))))
+);
+
+
+--
+-- Name: supplier_arrangement_commercial_benefit_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangement_commercial_benefit_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid CONSTRAINT supplier_arrangement_commercial_benefit_defi_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_arrangement_commercial_benefit_d_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_arrangement_commerci_supplier_arrangement_id_not_null1 NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_arrangement_commer_supplier_arrangement_versi_not_null NOT NULL,
+    supplier_arrangement_commercial_benefit_id uuid CONSTRAINT supplier_arrangement_commer_supplier_arrangement_comme_not_null NOT NULL,
+    term_type character varying CONSTRAINT supplier_arrangement_commercial_benefit_defi_term_type_not_null NOT NULL,
+    body character varying(4000) CONSTRAINT supplier_arrangement_commercial_benefit_definitio_body_not_null NOT NULL,
+    source_citation character varying(160),
+    copied_from_id uuid,
+    lock_version integer DEFAULT 0 CONSTRAINT supplier_arrangement_commercial_benefit_d_lock_version_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_arrangement_commercial_benefit_def_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_arrangement_commercial_benefit_def_updated_at_not_null NOT NULL,
+    CONSTRAINT commercial_benefit_defs_body CHECK (((btrim((body)::text) <> ''::text) AND (char_length((body)::text) <= 4000))),
+    CONSTRAINT commercial_benefit_defs_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT commercial_benefit_defs_source_citation CHECK (((source_citation IS NULL) OR ((btrim((source_citation)::text) <> ''::text) AND (char_length((source_citation)::text) <= 160)))),
+    CONSTRAINT commercial_benefit_defs_term_type CHECK (((term_type)::text = ANY ((ARRAY['tour_conductor_credit'::character varying, 'group_amenity_program'::character varying])::text[])))
+);
+
+
+--
+-- Name: supplier_arrangement_commercial_benefits; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangement_commercial_benefits (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_arrangement_commercia_supplier_arrangement_id_not_null NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
 );
 
 
@@ -5109,7 +5175,7 @@ CREATE TABLE public.supplier_deposit_requirement_definitions (
     CONSTRAINT deposit_definitions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT deposit_definitions_position_positive CHECK (("position" > 0)),
     CONSTRAINT deposit_definitions_precision CHECK ((("precision")::text = ANY (ARRAY[('date_only'::character varying)::text, ('local_date_time'::character varying)::text]))),
-    CONSTRAINT deposit_definitions_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY ((ARRAY['resource_units'::character varying, 'traveler_positions'::character varying, 'explicit'::character varying, 'capacity_pool_units'::character varying])::text[])))),
+    CONSTRAINT deposit_definitions_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY (ARRAY[('resource_units'::character varying)::text, ('traveler_positions'::character varying)::text, ('explicit'::character varying)::text, ('capacity_pool_units'::character varying)::text])))),
     CONSTRAINT deposit_definitions_rounding_scope CHECK (((rounding_scope IS NULL) OR ((rounding_scope)::text = ANY (ARRAY[('aggregate'::character varying)::text, ('per_source'::character varying)::text])))),
     CONSTRAINT deposit_definitions_rule_shape CHECK (((rule_shape)::text = ANY (ARRAY[('fixed_date'::character varying)::text, ('fixed_local_datetime'::character varying)::text, ('days_before_departure'::character varying)::text, ('days_after_departure'::character varying)::text, ('hours_before_departure'::character varying)::text, ('hours_after_departure'::character varying)::text, ('earlier_of'::character varying)::text, ('later_of'::character varying)::text]))),
     CONSTRAINT deposit_definitions_time_zone CHECK (((btrim((time_zone)::text) <> ''::text) AND (char_length((time_zone)::text) <= 64)))
@@ -6302,6 +6368,22 @@ ALTER TABLE ONLY public.supplier_arrangement_activation_cost_selections
 
 ALTER TABLE ONLY public.supplier_arrangement_activations
     ADD CONSTRAINT supplier_arrangement_activations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_arrangement_commercial_benefit_definitions supplier_arrangement_commercial_benefit_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_commercial_benefit_definitions
+    ADD CONSTRAINT supplier_arrangement_commercial_benefit_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_arrangement_commercial_benefits supplier_arrangement_commercial_benefits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_commercial_benefits
+    ADD CONSTRAINT supplier_arrangement_commercial_benefits_pkey PRIMARY KEY (id);
 
 
 --
@@ -8105,6 +8187,41 @@ CREATE UNIQUE INDEX index_cmt_reopen_on_id_departure_agency ON public.supplier_c
 --
 
 CREATE UNIQUE INDEX index_command_idempotency_on_agency_command_key ON public.agency_command_idempotency_keys USING btree (agency_id, command_name, idempotency_key);
+
+
+--
+-- Name: index_commercial_benefit_defs_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commercial_benefit_defs_on_id_agency ON public.supplier_arrangement_commercial_benefit_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_commercial_benefit_defs_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commercial_benefit_defs_on_lineage_owner ON public.supplier_arrangement_commercial_benefit_definitions USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_commercial_benefit_defs_on_version_and_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commercial_benefit_defs_on_version_and_type ON public.supplier_arrangement_commercial_benefit_definitions USING btree (supplier_arrangement_version_id, term_type);
+
+
+--
+-- Name: index_commercial_benefits_on_full_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commercial_benefits_on_full_owner ON public.supplier_arrangement_commercial_benefits USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_commercial_benefits_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_commercial_benefits_on_id_agency ON public.supplier_arrangement_commercial_benefits USING btree (id, agency_id);
 
 
 --
@@ -11566,6 +11683,20 @@ CREATE TRIGGER clients_reject_identity_change BEFORE UPDATE ON public.clients FO
 
 
 --
+-- Name: supplier_arrangement_commercial_benefit_definitions commercial_benefit_definitions_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER commercial_benefit_definitions_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_arrangement_commercial_benefit_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_arrangement_commercial_benefit_definitions commercial_benefit_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER commercial_benefit_definitions_reject_owner_change BEFORE UPDATE ON public.supplier_arrangement_commercial_benefit_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_commercial_benefit_definition_owner_change();
+
+
+--
 -- Name: departures departures_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13293,6 +13424,38 @@ ALTER TABLE ONLY public.clients
 
 
 --
+-- Name: supplier_arrangement_commercial_benefit_definitions commercial_benefit_defs_benefit_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_commercial_benefit_definitions
+    ADD CONSTRAINT commercial_benefit_defs_benefit_fk FOREIGN KEY (supplier_arrangement_commercial_benefit_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_commercial_benefits(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_commercial_benefit_definitions commercial_benefit_defs_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_commercial_benefit_definitions
+    ADD CONSTRAINT commercial_benefit_defs_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_commercial_benefit_definitions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_commercial_benefit_definitions commercial_benefit_defs_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_commercial_benefit_definitions
+    ADD CONSTRAINT commercial_benefit_defs_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_commercial_benefits commercial_benefits_arrangement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_commercial_benefits
+    ADD CONSTRAINT commercial_benefits_arrangement_fk FOREIGN KEY (supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangements(id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_commitment_dispositions commitment_dispositions_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -14805,6 +14968,14 @@ ALTER TABLE ONLY public.clients
 
 
 --
+-- Name: supplier_arrangement_commercial_benefit_definitions fk_rails_9b3ed85d10; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_commercial_benefit_definitions
+    ADD CONSTRAINT fk_rails_9b3ed85d10 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: agency_users fk_rails_9b56937ae8; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -14866,6 +15037,14 @@ ALTER TABLE ONLY public.supplier_contact_phone_numbers
 
 ALTER TABLE ONLY public.package_client_cancellation_policies
     ADD CONSTRAINT fk_rails_a9753b6f28 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_arrangement_commercial_benefits fk_rails_a9aa2fe9e9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_commercial_benefits
+    ADD CONSTRAINT fk_rails_a9aa2fe9e9 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -16603,6 +16782,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260926220000'),
 ('20260924180000'),
 ('20260923190000'),
 ('20260923010000'),

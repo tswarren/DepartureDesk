@@ -1,0 +1,55 @@
+<section aria-labelledby="cruise-commercial-benefits-heading" id="commercial-benefits">
+  <header class="dd-panel-header" style="padding: 0; border: 0;">
+    <div>
+      <h2 id="cruise-commercial-benefits-heading" class="dd-section-title">Commercial benefits</h2>
+      <p class="dd-page-description">
+        Normal commission stays in Supplier rates.
+        <%= cruise_benefit_recorded_label %>
+      </p>
+    </div>
+  </header>
+
+  <% saved = Array(@commercial_benefits).index_by(&:term_type) %>
+  <% SupplierArrangementCommercialBenefitDefinition::TERM_TYPES.each do |term_type| %>
+    <% definition = saved[term_type] %>
+    <article class="dd-stack" id="commercial-benefit-<%= term_type.dasherize %>">
+      <h3 class="dd-section-title"><%= cruise_benefit_label(term_type) %></h3>
+      <% if definition %>
+        <% if definition.source_citation.present? %>
+          <p>Source: <%= definition.source_citation %></p>
+        <% end %>
+        <p><%= definition.body %></p>
+        <p><%= cruise_benefit_recorded_label %></p>
+        <p><%= cruise_benefit_revision_sentence(@supplier_arrangement_version, definition) %></p>
+      <% else %>
+        <p>No <%= cruise_benefit_label(term_type).downcase %> recorded.</p>
+      <% end %>
+
+      <% if @editable %>
+        <%= form_with url: definition ?
+              departure_arrangement_cruise_commercial_benefit_path(@departure, @supplier_arrangement, term_type) :
+              departure_arrangement_cruise_commercial_benefits_path(@departure, @supplier_arrangement),
+            method: definition ? :patch : :post,
+            class: "dd-form dd-stack" do %>
+          <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <%= hidden_field_tag "commercial_benefit[term_type]", term_type %>
+          <% if definition %>
+            <%= hidden_field_tag :definition_lock_version, definition.lock_version %>
+          <% end %>
+          <div class="dd-field-group">
+            <label class="dd-label" for="benefit_citation_<%= term_type %>">Source citation</label>
+            <input id="benefit_citation_<%= term_type %>" name="commercial_benefit[source_citation]" class="dd-field"
+              maxlength="160" value="<%= definition&.source_citation %>">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="benefit_body_<%= term_type %>">Wording</label>
+            <textarea id="benefit_body_<%= term_type %>" name="commercial_benefit[body]" class="dd-field"
+              maxlength="4000" rows="5" required><%= definition&.body %></textarea>
+          </div>
+          <%= submit_tag definition ? "Save #{cruise_benefit_label(term_type)}" : "Add #{cruise_benefit_label(term_type)}", class: "dd-button" %>
+        <% end %>
+      <% end %>
+    </article>
+  <% end %>
+</section>
