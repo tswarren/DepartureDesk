@@ -4,7 +4,7 @@ This register is the index of business fixtures used to plan Supplier Compositio
 
 **Status words:** Draft, Approved, Superseded. Approved is unused. Every scenario below is Draft. A Draft fixture does not authorize an implementation slice.
 
-Shipped Cruise slices keep their own contracts. This register does not reopen them. No unaccepted slice may rely on a Draft fixture.
+Shipped Cruise slices keep their own contracts. This register does not reopen them. No unaccepted slice may rely on a Draft fixture. An accepted slice may cite a Draft fixture only for the facts that slice names. That citation does not Approve the fixture.
 
 Behavior coverage is [the proof matrix](supplier-composition-proof-matrix.md).
 
@@ -19,7 +19,7 @@ Behavior coverage is [the proof matrix](supplier-composition-proof-matrix.md).
 | Proves | Controlled cabin inventory, occupancy-position Supplier components, and a cumulative initial deposit across cabin pools. |
 | Supersedes | Earlier Celebrity Beyond fixture facts, illustrative amounts, and proof assumptions that conflict with this file. |
 | Unresolved | The O1 Single discount does not explain the stated vacation total. The DI third-passenger stated gross does not follow the displayed base and NCCF. Both stay visible until a later source correction. |
-| Slices that may rely on it | None for new implementation. Shipped Cruise slices are not reopened by this draft. |
+| Slices that may rely on it | The accepted [Sailing ports and commercial benefits](../m4d1-cruise-ports-and-commercial-benefits.md) slice may cite blank ports, optional itinerary notes, benefit wording, the optional citation, and Departure operating currency. That citation does not Approve this fixture and does not authorize deposits, deadlines, Offer Design, or the rest of the Cruise rework. |
 
 ## Hilton Fort Lauderdale Marina
 

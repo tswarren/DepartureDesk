@@ -1,6 +1,6 @@
 # M4D.1 — Departure Composition Workspace
 
-**Status:** Accepted 2026-09-21. Implementation authority for the Departure Composition Workspace milestone and shipped Cruise sub-slices. [Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md) is the accepted layer and delivery-order decision and is not adapter implementation authority. Not authority for M4E, M5, source-document storage, proposal share, notifications, or money ledgers. Do not implement a sub-slice until that sub-slice’s accepted plan names the work.
+**Status:** Accepted 2026-09-21. Implementation authority for the Departure Composition Workspace milestone and shipped Cruise sub-slices. [Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md) is the next authorized implementation. [Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md) is the accepted layer and delivery-order decision and is not adapter implementation authority. Not authority for M4E, M5, source-document storage, proposal share, notifications, or money ledgers. Do not implement a sub-slice until that sub-slice’s accepted plan names the work.
 
 **Slice 1:** [M4D.1 Slice 1 — Workspace foundation](m4d1-slice1-workspace-foundation.md) is **Shipped 2026-09-22**. It provides the five-area Composition shell, Service Map, readiness mapping, and `/builder` compatibility redirect.
 
@@ -22,7 +22,9 @@
 
 **Slice 2D:** [M4D.1 Slice 2D — Cruise Client terms and scenario review](m4d1-slice2d-cruise-client-terms-and-scenario-review.md) is **Shipped 2026-09-24** (merge `dc272a3`, PR #154). It is the sole shipped authority for Stops F–G.
 
-**Slice 3R:** [M4D.1 Slice 3R — Non-Cruise adapter boundary](m4d1-slice3r-non-cruise-adapter-boundary.md) is **Accepted 2026-09-25** for the layer boundary and delivery order only. It authorizes no adapter code. The next unauthorized boundary is the Hotel walkthrough. Accepting that walkthrough still does not authorize code.
+**Ports and commercial benefits:** [M4D.1 — Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md) is **Accepted 2026-09-26** and is not shipped. It is the next authorized implementation. It authorizes optional departure and return ports, itinerary notes, and versioned tour-conductor and GAP terms only.
+
+**Slice 3R:** [M4D.1 Slice 3R — Non-Cruise adapter boundary](m4d1-slice3r-non-cruise-adapter-boundary.md) is **Accepted 2026-09-25** for the layer boundary and delivery order only. It authorizes no adapter code. The next unauthorized non-Cruise boundary is the Hotel walkthrough. Accepting that walkthrough still does not authorize code.
 
 **Staff UI:** Composition (`/departures/:id/composition`) is the primary Staff chrome for draft and active Departures with `manage_departures`. [M4D.0R](m4d0r-builder-interface-remediation.md) is retained as historical interim authority. `GET /departures/:id/builder` redirects with mapped `work_on` → outcome and validated `package_id`.
 
@@ -1185,7 +1187,7 @@ Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype
 
 **Exit:** preparation of the Hotel walkthrough only. Hotel implementation remains prohibited until both that walkthrough and a separate Slice 3A implementation plan are accepted.
 
-**Next unauthorized boundary:** the Hotel walkthrough.
+**Next authorized implementation:** [Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md). **Next unauthorized non-Cruise boundary:** the Hotel walkthrough.
 
 ### Slice 4 — Vineyard proof
 
