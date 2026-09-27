@@ -6,6 +6,7 @@ Where the product stands is the [planning index](../README.md).
 
 ## Open drafts
 
+- [Hilton Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough-draft.md). Draft workflow proposal grounded in the single registered [Hilton fixture](../fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md); no Hotel code is authorized.
 - [M4E — Offers and pricing acceptance and hardening](DepartureDesk-M4E-acceptance-and-hardening-draft.md). Not implementation authority until an accepted M4E plan names the work.
 - [M4D.1 later-slice discovery sequence](composition-workspace/proposed-slices.md). Discovery sequencing only.
 
