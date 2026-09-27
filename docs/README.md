@@ -38,6 +38,7 @@ Every normative or planning document should state its status near the top. Histo
 | [`planning/commercial-domain-decision-register.md`](planning/commercial-domain-decision-register.md) | Detailed commercial and financial rules. |
 | [`planning/roadmap.md`](planning/roadmap.md) | Milestone order and entry/exit gates. |
 | [`planning/drafts/README.md`](planning/drafts/README.md) | Open drafts and history. Not implementation authority. |
+| [`planning/fixtures/README.md`](planning/fixtures/README.md) | Supplier Composition fixture register. Draft fixtures do not authorize implementation. |
 | [`operations/`](operations/) | Executable operational and production guidance. |
 | [`ui/`](ui/) | Current visual and interaction contracts. |
 | [`palette.md`](palette.md) | Harbor & Waypoint brand palette. |

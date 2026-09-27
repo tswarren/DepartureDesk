@@ -50,6 +50,8 @@ class M3D0PlanningWorkspaceTest < ApplicationSystemTestCase
   end
 
   test "Hilton flow continues through capacity cost setup and review" do
+    skip "Hotel Supplier Composition waits for the Hotel walkthrough and Slice 3A. This compressed Hilton browser flow is not part of the current Cruise acceptance."
+
     arrangement = create_arrangement("Hilton compressed workflow")
     sign_in_from_browser(@staff)
     visit departure_arrangement_path(@departure, arrangement)

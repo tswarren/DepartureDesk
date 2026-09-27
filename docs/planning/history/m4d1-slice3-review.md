@@ -1,3 +1,5 @@
+**Status:** Superseded. Planning history only. Not implementation authority. Current standing is the [planning index](../README.md).
+
 Below is how I would explain the concern to the developers. The key is to make clear that Slice 3 did not merely miss some buttons: it chose the wrong implementation boundary.
 
 ## Slice 3 review: why this implementation misses the intended outcome

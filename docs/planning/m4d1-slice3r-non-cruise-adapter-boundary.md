@@ -6,7 +6,7 @@
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md).
 
-**Supersedes:** [Hotel, Transportation, Activity, and mixed-DMC adapter draft](drafts/md41-slice3-hotel-transport-etc-adapters-draft.md). That draft is discovery history. `main` never accepted it.
+**Supersedes:** [Hotel, Transportation, Activity, and mixed-DMC adapter draft](history/md41-slice3-hotel-transport-etc-adapters-draft.md). That draft is discovery history. `main` never accepted it.
 
 **Implementation prerequisite:** Slice 2D shipped at [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154).
 
@@ -63,7 +63,7 @@ The later Hotel contract owns Supplier Composition only. It does not own Client 
 
 Whether a Service Offer handoff exists is decided in the Hotel walkthrough, not here. If that walkthrough retains a handoff, the saved summary may say only that the Hotel Item is connected and that pricing and Package placement remain unconfigured in Offer Design.
 
-Room quantities, rates, and the Hilton dates are not locked here. They belong in the Hotel walkthrough, and they must be labeled there as accepted illustrative fixture facts rather than facts taken from the original Smith source.
+Room quantities, rates, and the Hilton dates are not locked here. The Hotel walkthrough takes them from the [Hilton Fort Lauderdale Marina fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md). That fixture classifies them as the Hotel agreement. The walkthrough must not revive the superseded illustrative stay.
 
 ## 6. What is no longer implementation authority
 

@@ -14,7 +14,9 @@ Where the product stands is the [planning index](../README.md).
 Superseded proposals and stubs that point at a shipped or accepted contract. Do not implement from them.
 
 - [Composition workspace stubs](composition-workspace/README.md).
-- [Slice 3 adapter draft](md41-slice3-hotel-transport-etc-adapters-draft.md). Superseded by [Slice 3R](../m4d1-slice3r-non-cruise-adapter-boundary.md).
+- [Slice 3 adapter draft](../history/md41-slice3-hotel-transport-etc-adapters-draft.md). Moved to planning history. Superseded by [Slice 3R](../m4d1-slice3r-non-cruise-adapter-boundary.md).
+- [Slice 3 review](../history/m4d1-slice3-review.md) and the earlier planning essays in [planning history](../history/README.md). Not implementation authority.
+- [Discarded Hilton walkthrough](../history/m4d1-slice3-a-hotel.md). Moved to planning history. Superseded by the [Hilton Fort Lauderdale Marina fixture](../fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md).
 - [Slice 2D proposal](M4D1-Slice2D-Cruise-Client-Terms-and-Scenario-Review-Proposed.md).
 - [Slice 2C draft](slice2c.md) and [Slice 2C decision notes](slice2c-proposed-decisions.md).
 - [Slice 2B-UX draft pointer](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md).

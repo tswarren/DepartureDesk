@@ -6,11 +6,11 @@ This page is the slice-level status index. A slice's own header remains the auth
 
 ## Where we stand
 
-M1, M2, and M3 are complete. M4 is accepted and shipped through M4D.0. The Cruise vertical of M4D.1 is shipped through Slice 2D. [Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md) is accepted for the layer boundary and delivery order only.
+M1, M2, and M3 are complete. M4 is accepted and shipped through M4D.0. The Cruise vertical of M4D.1 is shipped through Slice 2D. [Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md) is accepted and is the next authorized implementation. [Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md) is accepted for the layer boundary and delivery order only.
 
 ## Now
 
-The next document is the Hotel walkthrough. It has not been started. Accepting that walkthrough still does not authorize code. Hotel implementation remains prohibited until the walkthrough and a separate Slice 3A implementation plan are accepted. Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence and are not an implementation source.
+The next authorized implementation is [Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md). It is accepted and not shipped. The next unauthorized non-Cruise boundary is the Hotel walkthrough. It has not been started. Accepting that walkthrough still does not authorize code. Hotel implementation remains prohibited until the walkthrough and a separate Slice 3A implementation plan are accepted. Supplier Composition fixtures are indexed in [fixtures/README.md](fixtures/README.md). Those fixtures are Draft and do not authorize the walkthrough. Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence and are not an implementation source.
 
 ## Milestones
 
@@ -36,6 +36,7 @@ Parent: [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-w
 - **Slice 2B — Shipped.** [Deposits, deadlines, and activation-safe editing](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md), [deposit semantics](m4d1-slice2br-cruise-deposit-semantics-amendment.md), [workspace remediation](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md), and [contributor replace](m4d1-slice2buxr-contributor-replace-and-closure.md).
 - **Slice 2C — Shipped.** [Cruise service connection](m4d1-slice2c-cruise-service-connection.md).
 - **Slice 2D — Shipped.** [Cruise Client terms and scenario review](m4d1-slice2d-cruise-client-terms-and-scenario-review.md).
+- **Ports and commercial benefits — Accepted, not shipped.** [Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md). Next authorized implementation. Optional ports, itinerary notes, and versioned tour-conductor and GAP terms only.
 - **Slice 3R — Accepted.** [Non-Cruise adapter boundary](m4d1-slice3r-non-cruise-adapter-boundary.md). Authorizes the Hotel walkthrough only.
 
 ## Product authority

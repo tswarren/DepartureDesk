@@ -1,3 +1,5 @@
+**Status:** Superseded. Planning history only. Not implementation authority. Current standing is the [planning index](../README.md).
+
 Yes. The main problem is that the documents currently mix four different jobs:
 
 1. describing what the product means;
