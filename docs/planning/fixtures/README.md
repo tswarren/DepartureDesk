@@ -27,12 +27,13 @@ Behavior coverage is [the proof matrix](supplier-composition-proof-matrix.md).
 | --- | --- |
 | Canonical file | [hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md](hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) |
 | Status | Draft |
-| Facts | Hotel agreement facts for the Smith Family Reunion pre-cruise stay. This is the only Hotel canonical draft. |
+| Facts | Provisional Hilton agreement scenario for the Smith Family Reunion stay. This registered file is the only Hotel canonical Draft; its source-dependent amounts, dates, waiver eligibility, and deposit terms remain unverified. |
 | Layer | Supplier Composition. |
 | Proves | Nightly room blocks that vary by date, occupancy-position room rates, percentage deposits on contracted room revenue, draft/governing/successor behavior, and a second Hotel Item under the same Arrangement. |
 | Supersedes | The discarded Hilton walkthrough and its simplified stay. |
-| Unresolved | Contract signature date, Hotel confirmation number, and whether unused Group deposits are refundable after reconciliation. The refund conflict blocks activation until written Hotel confirmation. |
-| Slices that may rely on it | None until this fixture is Approved and an accepted slice plan names it. |
+| Unresolved | Signature date, Hotel group number, refundability and permitted deposit application, deposit payer/return recipient, post-stay settlement date, cutoff-release effect on nightly minimums, eligibility for the Destination Fee waiver, and source checks of its $150 amount/unit and the October 3–4 dates. Written Hotel clarification of the deposit conflict blocks activation. |
+| Walkthrough | [Hilton Staff journey](../drafts/m4d1-hilton-hotel-staff-walkthrough-draft.md) is Draft and may be accepted as workflow authority without Approving these unverified facts. It chooses no Hotel Client Service connection in Supplier Composition. |
+| Slices that may rely on it | None until this fixture is Approved and an accepted slice plan names the facts it uses. |
 
 ## ABC Motorcoach
 
