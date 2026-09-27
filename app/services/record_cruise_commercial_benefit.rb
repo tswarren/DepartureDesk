@@ -30,9 +30,14 @@ class RecordCruiseCommercialBenefit < AgencyCommand
       lock_authorized_arrangement_agency!
       departure, arrangement, version = lock_departure_arrangement_version!(@arrangement)
       ensure_editable_version!(departure, arrangement, version)
-      ensure_current_lock_version!(version, @version_lock_version)
       ensure_cruise_shape!(arrangement, version)
 
+      payload = payload_for(version, body, citation)
+      if (replay = replay_matching_command!(payload))
+        return replay
+      end
+
+      ensure_current_lock_version!(version, @version_lock_version)
       definition = version.supplier_arrangement_commercial_benefit_definitions
         .lock.find_by(term_type: @term_type)
       if definition
@@ -40,29 +45,24 @@ class RecordCruiseCommercialBenefit < AgencyCommand
         ensure_confirmed_wording_unchanged!(version, definition, body, citation)
       end
 
-      idempotent_create!(
-        command_name: COMMAND_NAME,
-        idempotency_key: @idempotency_key,
-        payload: payload_for(version, body, citation),
-        result_class: SupplierArrangementCommercialBenefitDefinition
-      ) do
-        changed = definition.nil? || definition.body != body || definition.source_citation != citation
-        record = persist!(arrangement, version, definition, body, citation)
-        if changed
-          audit!(
-            agency: @agency,
-            action: "supplier_arrangement.updated",
-            subject: arrangement,
-            actor: @actor,
-            details: {
-              "supplier_arrangement_id" => arrangement.id,
-              "supplier_arrangement_version_id" => version.id,
-              "changed_fields" => [ "commercial_benefit.#{@term_type}" ]
-            }
-          )
-        end
-        record
+      changed = definition.nil? || definition.body != body || definition.source_citation != citation
+      record = persist!(arrangement, version, definition, body, citation)
+      if changed
+        bump_version!(version)
+        audit!(
+          agency: @agency,
+          action: "supplier_arrangement.updated",
+          subject: arrangement,
+          actor: @actor,
+          details: {
+            "supplier_arrangement_id" => arrangement.id,
+            "supplier_arrangement_version_id" => version.id,
+            "changed_fields" => [ "commercial_benefit.#{@term_type}" ]
+          }
+        )
       end
+      claim_command!(payload, record)
+      Result.new(status: :created, record: record)
     end
   rescue ActiveRecord::RecordInvalid => error
     command_error_from(error)
@@ -155,6 +155,39 @@ class RecordCruiseCommercialBenefit < AgencyCommand
       agency: @agency,
       departure: arrangement.departure
     )
+  end
+
+  def replay_matching_command!(payload)
+    key = normalize_idempotency_key(@idempotency_key)
+    digest = payload_digest(payload)
+    lock_idempotency_slot!(COMMAND_NAME, key)
+    existing = AgencyCommandIdempotencyKey.where(
+      agency: @agency,
+      command_name: COMMAND_NAME,
+      idempotency_key: key
+    ).lock.first
+    return nil unless existing
+    unless existing.payload_digest == digest
+      raise Error.new("That idempotency key was already used for different input.", code: :conflict)
+    end
+
+    Result.new(
+      status: :replayed,
+      record: SupplierArrangementCommercialBenefitDefinition.find(existing.result_record_id)
+    )
+  end
+
+  def claim_command!(payload, record)
+    AgencyCommandIdempotencyKey.create!(
+      agency: @agency,
+      command_name: COMMAND_NAME,
+      idempotency_key: normalize_idempotency_key(@idempotency_key),
+      payload_digest: payload_digest(payload),
+      result_record_type: SupplierArrangementCommercialBenefitDefinition.name,
+      result_record_id: record.id
+    )
+  rescue ActiveRecord::RecordNotUnique
+    raise Error.new("That idempotency key was already used for different input.", code: :conflict)
   end
 
   def payload_for(version, body, citation)

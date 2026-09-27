@@ -3,6 +3,7 @@
 require "test_helper"
 
 class CruisePortsAndCommercialBenefitsTest < ActiveSupport::TestCase
+  include CruiseCompositionHelper
   setup do
     @agency = agencies(:harbor)
     @actor = agency_users(:harbor_staff)
@@ -244,6 +245,133 @@ class CruisePortsAndCommercialBenefitsTest < ActiveSupport::TestCase
     assert_equal "activated", arrangement.governing_version.status
   end
 
+  test "a benefit change advances the version lock and rejects stale activation and edits" do
+    arrangement = create_sailing.record.arrangement
+    version = arrangement.versions.sole
+    occurrence = version.service_occurrence_definitions.sole
+    activate_departure!
+    submitted_lock = version.lock_version
+    arrangement_lock = arrangement.lock_version
+
+    saved = record_benefit(arrangement, version, "tour_conductor_credit", body: TOUR_BODY)
+    assert version.reload.lock_version > submitted_lock
+
+    activation_error = assert_raises(AgencyCommand::Error) do
+      ActivateSupplierArrangementVersion.new(
+        agency: @agency, actor: @actor, arrangement: arrangement, version: version,
+        arrangement_lock_version: arrangement_lock,
+        version_lock_version: submitted_lock,
+        idempotency_key: SecureRandom.uuid,
+        evidence_attributes: confirmation_evidence,
+        cost_source_coverage_acknowledged: true,
+        provisional_costs_acknowledged: true,
+        commitment_trigger_coverage_acknowledged: true
+      ).call
+    end
+    sailing_error = assert_raises(AgencyCommand::Error) do
+      update_sailing(arrangement, version, occurrence, description: "Late note",
+        version_lock_version: submitted_lock)
+    end
+    benefit_error = assert_raises(AgencyCommand::Error) do
+      record_benefit(
+        arrangement, version, "tour_conductor_credit",
+        body: "#{TOUR_BODY} Amended.",
+        definition: saved.record,
+        version_lock_version: submitted_lock
+      )
+    end
+
+    assert_equal :conflict, activation_error.code
+    assert_equal :conflict, sailing_error.code
+    assert_equal :conflict, benefit_error.code
+    assert_equal "draft", version.reload.status
+    assert_equal TOUR_BODY, saved.record.reload.body
+  end
+
+  test "a successful benefit save replays before stale locks are checked" do
+    arrangement = create_sailing.record.arrangement
+    version = arrangement.versions.sole
+    submitted_lock = version.lock_version
+    create_key = "benefit-replay-create"
+
+    created = record_benefit(
+      arrangement, version, "tour_conductor_credit", body: TOUR_BODY,
+      version_lock_version: submitted_lock, idempotency_key: create_key
+    )
+    lock_after_create = version.reload.lock_version
+    replayed_create = record_benefit(
+      arrangement, version, "tour_conductor_credit", body: TOUR_BODY,
+      version_lock_version: submitted_lock, definition_lock_version: nil,
+      idempotency_key: create_key
+    )
+    assert_equal :replayed, replayed_create.status
+    assert_equal created.record.id, replayed_create.record.id
+    assert_equal lock_after_create, version.reload.lock_version
+    assert_equal 1, version.supplier_arrangement_commercial_benefit_definitions.count
+
+    update_key = "benefit-replay-update"
+    update_lock = version.lock_version
+    definition_lock = created.record.lock_version
+    revised_body = "#{TOUR_BODY} Reviewed."
+    updated = record_benefit(
+      arrangement, version, "tour_conductor_credit", body: revised_body,
+      definition: created.record, version_lock_version: update_lock,
+      definition_lock_version: definition_lock, idempotency_key: update_key
+    )
+    lock_after_update = version.reload.lock_version
+    replayed_update = record_benefit(
+      arrangement, version, "tour_conductor_credit", body: revised_body,
+      version_lock_version: update_lock, definition_lock_version: definition_lock,
+      idempotency_key: update_key
+    )
+    assert_equal :created, updated.status
+    assert_equal :replayed, replayed_update.status
+    assert_equal updated.record.id, replayed_update.record.id
+    assert_equal revised_body, replayed_update.record.body
+    assert_equal lock_after_update, version.reload.lock_version
+    assert_equal 2, AuditEvent.where(
+      action: "supplier_arrangement.updated", subject_id: arrangement.id
+    ).count
+  end
+
+  test "a confirmed successor is not labeled as awaiting confirmation" do
+    arrangement = create_sailing.record.arrangement
+    version = arrangement.versions.sole
+    tour = record_benefit(arrangement, version, "tour_conductor_credit", body: TOUR_BODY)
+    assert_equal "Draft wording for this version. The group agreement is not Supplier-confirmed.",
+      cruise_benefit_revision_sentence(version.reload, tour.record)
+
+    activate_cruise!(arrangement)
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency, actor: @actor, arrangement: arrangement.reload,
+      arrangement_lock_version: arrangement.lock_version,
+      version_lock_version: arrangement.governing_version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    copied = successor.supplier_arrangement_commercial_benefit_definitions
+      .find_by!(term_type: "tour_conductor_credit")
+    amended = record_benefit(
+      arrangement, successor, "tour_conductor_credit",
+      body: "#{TOUR_BODY} Proposed change.", definition: copied
+    ).record
+
+    assert_equal "Proposed amendment awaiting confirmation. This is not the governing agreement.",
+      cruise_benefit_revision_sentence(successor.reload, amended)
+
+    SupplierConfirmation.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: arrangement,
+      supplier_arrangement_version: successor, confirming_supplier: @contractor,
+      evidence_kind: "supplier_confirmation", evidence_on: Date.current, channel: "portal",
+      reference_note: "Supplier approved the amendment",
+      confirmed_without_identifier_reason: "Supplier did not issue one",
+      actor: @actor, recorded_at: Time.current
+    )
+    assert_equal "Recorded wording for this Supplier-confirmed revision.",
+      cruise_benefit_revision_sentence(successor.reload, amended.reload)
+    assert_equal "Frozen wording for this governing version.",
+      cruise_benefit_revision_sentence(arrangement.governing_version, tour.record.reload)
+  end
+
   test "another agency cannot record a commercial benefit" do
     arrangement = create_sailing.record.arrangement
     version = arrangement.versions.sole
@@ -309,7 +437,7 @@ class CruisePortsAndCommercialBenefitsTest < ActiveSupport::TestCase
     }
   end
 
-  def update_sailing(arrangement, version, definition, **occurrence)
+  def update_sailing(arrangement, version, definition, version_lock_version: nil, **occurrence)
     item_definition = version.arrangement_item_definitions.sole
     UpdateCruiseSailingSetup.new(
       agency: @agency, actor: @actor, arrangement: arrangement,
@@ -320,21 +448,39 @@ class CruisePortsAndCommercialBenefitsTest < ActiveSupport::TestCase
         time_zone: definition.time_zone
       }.merge(occurrence),
       arrangement_lock_version: arrangement.reload.lock_version,
-      version_lock_version: version.reload.lock_version,
+      version_lock_version: version_lock_version || version.reload.lock_version,
       item_lock_version: item_definition.lock_version,
       occurrence_lock_version: definition.reload.lock_version,
       idempotency_key: SecureRandom.uuid
     ).call
   end
 
-  def record_benefit(arrangement, version, term_type, body:, citation: CITATION, definition: nil)
+  def record_benefit(arrangement, version, term_type, body:, citation: CITATION, definition: nil,
+    version_lock_version: nil, definition_lock_version: nil, idempotency_key: SecureRandom.uuid)
     RecordCruiseCommercialBenefit.new(
       agency: @agency, actor: @actor, arrangement: arrangement,
       term_type: term_type, body: body, source_citation: citation,
-      version_lock_version: version.reload.lock_version,
-      definition_lock_version: definition&.reload&.lock_version,
-      idempotency_key: SecureRandom.uuid
+      version_lock_version: version_lock_version || version.reload.lock_version,
+      definition_lock_version: definition_lock_version || definition&.reload&.lock_version,
+      idempotency_key: idempotency_key
     ).call
+  end
+
+  def activate_departure!
+    @departure.update!(
+      status: "active",
+      departure_reference: @departure.departure_reference.presence ||
+        "D-#{SecureRandom.random_number(900_000) + 100_000}",
+      first_activated_at: @departure.first_activated_at || Time.current
+    )
+  end
+
+  def confirmation_evidence
+    {
+      evidence_kind: "supplier_confirmation", evidence_on: Date.current, channel: "portal",
+      reference_note: "Supplier approved exact terms",
+      confirmed_without_identifier_reason: "Supplier did not issue one"
+    }
   end
 
   def activate_cruise!(arrangement)

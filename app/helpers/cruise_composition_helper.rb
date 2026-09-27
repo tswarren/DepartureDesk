@@ -67,12 +67,15 @@ module CruiseCompositionHelper
   end
 
   def cruise_benefit_revision_sentence(version, definition)
-    if version.draft? && definition.copied_from && cruise_benefit_wording_differs?(definition)
+    confirmed = version.supplier_confirmations.any?
+    if version.draft? && !confirmed && definition.copied_from && cruise_benefit_wording_differs?(definition)
       "Proposed amendment awaiting confirmation. This is not the governing agreement."
-    elsif version.draft? && version.supplier_confirmations.none?
+    elsif version.draft? && !confirmed
       "Draft wording for this version. The group agreement is not Supplier-confirmed."
     elsif version.activated?
       "Frozen wording for this governing version."
+    elsif confirmed
+      "Recorded wording for this Supplier-confirmed revision."
     else
       "Recorded wording for this version."
     end
