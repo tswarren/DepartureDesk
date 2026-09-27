@@ -2,7 +2,7 @@
 
 This register is the index of business fixtures used to plan Supplier Composition. A fixture records facts and the behavior those facts must prove. It is not an implementation plan and it does not authorize code.
 
-**Status words:** Draft, Approved, Superseded. Approved is unused. Every scenario below is Draft. A Draft fixture does not authorize an implementation slice.
+**Status words:** Draft, Approved, Superseded. Hilton Fort Lauderdale Marina is Approved. The other scenarios remain Draft. A Draft fixture does not authorize an implementation slice. An Approved fixture still does not authorize code until an accepted slice plan names the facts it uses.
 
 Shipped Cruise slices keep their own contracts. This register does not reopen them. No unaccepted slice may rely on a Draft fixture. An accepted slice may cite a Draft fixture only for the facts that slice names. That citation does not Approve the fixture.
 
@@ -26,14 +26,14 @@ Behavior coverage is [the proof matrix](supplier-composition-proof-matrix.md).
 | Field | Value |
 | --- | --- |
 | Canonical file | [hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md](hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) |
-| Status | Draft |
-| Facts | Provisional Hilton agreement scenario for the Smith Family Reunion stay. This registered file is the only Hotel canonical Draft; its source-dependent amounts, dates, waiver eligibility, and deposit terms remain unverified. |
+| Status | Approved 2026-09-27 |
+| Facts | Hilton agreement scenario for the Smith Family Reunion stay. This registered file is the only Hotel canonical fixture. Its commercial terms are the Approved scenario decisions. |
 | Layer | Supplier Composition. |
 | Proves | Nightly room blocks that vary by date, occupancy-position room rates, percentage deposits on contracted room revenue, draft/governing/successor behavior, and a second Hotel Item under the same Arrangement. |
 | Supersedes | The discarded Hilton walkthrough and its simplified stay. |
-| Unresolved | Signature date, Hotel group number, refundability and permitted deposit application, deposit payer/return recipient, post-stay settlement date, cutoff-release effect on nightly minimums, eligibility for the Destination Fee waiver, and source checks of its $150 amount/unit and the October 3–4 dates. Written Hotel clarification of the deposit conflict blocks activation. |
-| Walkthrough | [Hilton Staff journey](../drafts/m4d1-hilton-hotel-staff-walkthrough-draft.md) is Draft and may be accepted as workflow authority without Approving these unverified facts. It chooses no Hotel Client Service connection in Supplier Composition. |
-| Slices that may rely on it | None until this fixture is Approved and an accepted slice plan names the facts it uses. |
+| Unresolved | Contract/signature date and Hotel group or confirmation number. Both stay blank. |
+| Walkthrough | [Hilton Staff journey](../m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27. It chooses no Hotel Client Service connection in Supplier Composition. |
+| Slices that may rely on it | An accepted Slice 3A plan may name these facts. Approval does not authorize Hotel code. |
 
 ## ABC Motorcoach
 
