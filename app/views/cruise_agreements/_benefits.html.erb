@@ -1,0 +1,52 @@
+<section class="dd-panel dd-agreement-section" aria-labelledby="commercial-benefits">
+  <header class="dd-panel-header">
+    <%= cruise_marked_heading(:h2, "commercial-benefits", "Commercial benefits", class: "dd-agreement-heading") %>
+  </header>
+  <div class="dd-panel-body">
+    <p class="dd-agreement-description">Agreement benefits are recorded for reference. DepartureDesk does not calculate earned entitlements.</p>
+    <p class="dd-agreement-description">Normal commission stays in Supplier rates.</p>
+
+    <% SupplierArrangementCommercialBenefitDefinition::TERM_TYPES.each do |term_type| %>
+      <% definition = Array(@commercial_benefits).find { |benefit| benefit.term_type == term_type } %>
+      <% focus_key = "benefit-#{term_type}" %>
+      <% source_key = "benefit-source-#{term_type}" %>
+      <div class="dd-agreement-row" id="commercial-benefit-<%= term_type.dasherize %>">
+        <% if cruise_agreement_focused?(focus_key) && @editable %>
+          <%= cruise_marked_heading(:h3, focus_key, cruise_benefit_label(term_type), class: "dd-agreement-row-heading") %>
+          <%= render "cruise_agreements/benefit_form", definition: definition, term_type: term_type, focus_key: focus_key, manage_source: false %>
+        <% elsif cruise_agreement_focused?(source_key) && @editable && definition&.source_citation.present? %>
+          <%= cruise_marked_heading(:h3, focus_key, cruise_benefit_label(term_type), class: "dd-agreement-row-heading") %>
+          <%= render "cruise_agreements/benefit_form", definition: definition, term_type: term_type, focus_key: source_key, manage_source: true %>
+        <% elsif definition %>
+          <div class="dd-agreement-row-head">
+            <%= cruise_marked_heading(:h3, focus_key, cruise_benefit_label(term_type), class: "dd-agreement-row-heading") %>
+            <%= cruise_status_badge("Recorded", :neutral) %>
+          </div>
+          <div class="dd-reference-text dd-agreement-row-prose"><%= formatted_reference_text(definition.body) %></div>
+          <p class="dd-agreement-meta"><%= cruise_benefit_revision_sentence(@supplier_arrangement_version, definition) %></p>
+          <% if definition.source_citation.present? %>
+            <p class="dd-agreement-meta">Source information recorded</p>
+          <% end %>
+          <% if @editable %>
+            <div class="dd-agreement-row-actions">
+              <%= cruise_row_link "Edit", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: focus_key) %>
+              <% if definition.source_citation.present? %>
+                <%= cruise_forward_link "Manage source", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: source_key) %>
+              <% end %>
+            </div>
+          <% end %>
+        <% else %>
+          <div class="dd-agreement-row-head">
+            <%= cruise_marked_heading(:h3, focus_key, cruise_benefit_label(term_type), class: "dd-agreement-row-heading") %>
+            <%= cruise_status_badge("Not recorded", :neutral) %>
+            <% if @editable %>
+              <div class="dd-agreement-row-actions">
+                <%= cruise_row_link "Add", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: focus_key) %>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</section>

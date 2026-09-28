@@ -1,6 +1,6 @@
 # Cruise Composition UX
 
-**Status:** Accepted 2026-09-28. UX-1, the read-only overview, and UX-2, establish supply, are accepted. UX-3, establish economics, is the authorized implementation slice. UX-4 through UX-7 are specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
+**Status:** Accepted 2026-09-28. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. UX-4, record requirements, is the authorized implementation slice. UX-5 through UX-7 are specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md). Domain authority remains the accepted [Cruise rework](m4d1-cruise-rework.md). This plan changes presentation and orchestration only.
 
@@ -66,17 +66,25 @@ Record contracted rates copies the estimate, leaves the estimate unchanged, and 
 
 Proof: a new editor shows the three default profiles and four default rows, and does not start with Every Traveler or Every Cabin. Staff can add a component and a profile. Not provided yet has no commission fields and does not show commission as $0. Dollar amount shows one amount per profile. Percentage shows one Commissionable control per component and one rate per profile. Base fare and a commissionable negative Discount at 15% produce the expected commission, and NCCF and Taxes can stay noncommissionable. Single, Double, and Triple come from the existing preview. Record contracted rates keeps the estimate and does not mark the copy ready. A per-profile commissionability split opens Advanced. The page does not overflow at 375px and 1280px.
 
+## UX-4 — Record requirements
+
+**Authorized.** One read-first Supplier agreement page with four sections, in order: Agreement, Deposits & deadlines, Commercial benefits, and Other Supplier terms. Add, Edit, or Correct opens one focused editor. Every write stays on the existing agreement, deposit, deadline, benefit, or term command. There is no combined save and no second requirement record.
+
+The page reads as four section panels, then rows inside each panel. Later capacity stays its own panel. Confirmed is the success status. Recorded and Not recorded stay neutral, because a missing optional term is not an error. Add, Edit, and Correct are row actions. Remove is the danger action on a cancellation step. Open deposits and deadlines, Review in Advanced, and Manage source are forward links.
+
+Initial deposit, hard stop, and final payment are the recognized requirements. They do not mean every Cruise has exactly those three. Any other existing requirement stays visible as **Additional Supplier requirement — Review in Advanced**. The simplified page does not hide, rewrite, or delete it. The deposits and deadlines page remains, including its activation review. A deposit or deadline save from this page may send the closed token `return_to=agreement`. Any other value keeps the deposits-page redirect. The controller chooses the returned item from the record it saved. It does not accept a redirect URL.
+
+The initial deposit stores the per-cabin rate and the due date. The displayed total is the existing deposit evaluator reading current proposed opening quantities. UX-4 does not copy that quantity or total onto the deposit. Group creation plus 30 days is only a suggested due date. A saved due date is not rewritten when the suggestion changes. Hard stop is one deadline plus its existing description, within 500 characters. Saving or displaying it does not release inventory. Final payment is one date. A save that does not show an existing deadline description resubmits that description.
+
+Allocated-cabin amount and attributable credit stay structured, with the Departure operating currency. A blank credit is rejected and is not stored as zero. UX-4 does not turn those amounts into current exposure. Cancellation add, edit, and remove each load the authoritative ladder and submit the complete resulting list through `RecordCruiseAgreementTerms`. List position addresses a step only during that edit. Remove asks for confirmation. An omitted cancellation argument leaves the ladder unchanged. An explicit empty list deletes every cancellation step, leaves other term types unchanged, and records idempotency and replay on the Supplier Arrangement version. Do not invent a placeholder step.
+
+Commercial-benefit Add and Edit ask for wording only. When the request omits source citation, the controller resubmits the stored citation. When a citation already exists, **Manage source** can replace or clear it. Do not invent a citation. Missing optional benefits and terms read **Not recorded**. Commission stays on Supplier rates. Reference wording is rendered with `commonmarker` and an allowlisted sanitizer over the existing text column. Reopening an editor shows the stored source. Same-terms capacity increase and the supplemental block stay on this page, outside the four sections, until UX-6.
+
+Proof: request and service tests cover omitted-citation preservation, Manage source replacement and clearing, the complete cancellation ladder including an explicit empty clear and unchanged omitted cancellation, rejection of a blank allocated credit, preservation of an omitted deadline description, deposit evaluation from the current opening quantity, the closed return token, and visibility of an unrecognized requirement. A browser test covers the four sections, focused editing, the canonical `$50.00 × 24 = $1,200.00` deposit, the July 9, 2027 hard stop, the August 8, 2027 final payment, the `$500.00` and `$50.00` allocated-cabin amounts, cancellation add, edit, and confirmed remove, sanitized reference wording, Advanced, the transitional controls, and no horizontal overflow at 375px and 1280px.
+
 ## Later slices
 
 These slices are specified so the journey stays coherent. Do not implement them under this acceptance.
-
-### UX-4 — Record requirements
-
-Presets recognize and produce the accepted Cruise shapes: initial deposit, hard stop, and final payment. They do not mean every Cruise has exactly those three. An unrecognized existing requirement stays visible as an additional requirement and opens through Other or Advanced. The simplified page never deletes, rewrites, or hides it.
-
-Initial deposit still uses structural `initial_deposit` recognition, shows group creation plus 30 days as a suggestion, and does not rewrite a saved due date. Hard stop records the date and the Staff sentence. It does not release inventory.
-
-Known term rows edit through the existing term and commercial-benefit commands. Anything the checklist does not understand appears as “Additional Supplier term — Review in Advanced.” Missing optional terms read “Not recorded.”
 
 ### UX-5 — Review and activate
 

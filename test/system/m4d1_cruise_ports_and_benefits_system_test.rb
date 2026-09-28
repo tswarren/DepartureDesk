@@ -47,26 +47,24 @@ class M4d1CruisePortsAndBenefitsSystemTest < ApplicationSystemTestCase
     click_link "Review terms"
     assert_text "Commercial benefits"
     assert_text "Normal commission stays in Supplier rates."
-    assert_text "Terms recorded; entitlement not calculated."
+    assert_text "Agreement benefits are recorded for reference. DepartureDesk does not calculate earned entitlements."
 
     within "#commercial-benefit-tour-conductor-credit" do
-      fill_in "Source citation", with: "July 2025 Celebrity Groups brochure"
-      fill_in "Wording", with: "1 cruise-only credit per 16 qualifying full-tariff guests."
-      click_button "Add Tour-conductor credit"
+      click_link "Add"
     end
+    fill_in "Wording", with: "1 cruise-only credit per 16 qualifying full-tariff guests."
+    click_button "Add Tour-conductor credit"
     assert_text "Commercial benefit saved."
-    click_link "Review terms"
     assert_text "Draft wording for this version. The group agreement is not Supplier-confirmed."
 
     within "#commercial-benefit-group-amenity-program" do
-      fill_in "Source citation", with: "July 2025 Celebrity Groups brochure"
-      fill_in "Wording", with: "Four group points, not five per traveler."
-      click_button "Add Group Amenity Program"
+      click_link "Add"
     end
+    fill_in "Wording", with: "Four group points, not five per traveler."
+    click_button "Add Group Amenity Program"
     assert_text "Commercial benefit saved."
-    click_link "Review terms"
     assert_text "Four group points, not five per traveler."
-    assert_text "Terms recorded; entitlement not calculated."
+    assert_text "Agreement benefits are recorded for reference. DepartureDesk does not calculate earned entitlements."
   end
 
   private

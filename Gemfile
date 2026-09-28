@@ -40,6 +40,9 @@ gem "thruster", require: false
 # Use Money-rails for currency calculations [https://github.com/RubyMoney/money-rails]
 gem "money-rails", "~> 3.0"
 
+# UX-4 renders authored Supplier wording. Store the source text; sanitize the HTML.
+gem "commonmarker"
+
 # Phase 2B directory: phone parsing and ISO country reference data.
 # Call Phonelib only through PhoneNumberNormalizer. Use ISO3166::Country, not a global Country constant.
 # The countries gem's currency data is not an accounting authority; ADR 0001 remains money-rails.

@@ -1187,7 +1187,7 @@ Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype
 
 **Exit:** the Hotel walkthrough is Accepted 2026-09-27. Hotel implementation remains prohibited until a separate Slice 3A implementation plan is accepted.
 
-**Next authorized Cruise implementation:** [Cruise Composition UX](m4d1-cruise-composition-ux.md) UX-3, establish economics. UX-1, the read-only overview, and UX-2, establish supply, are accepted. The [Cruise rework](m4d1-cruise-rework.md) domain slices 1–5 and 7 are implemented. UX-4 through UX-7 are specified and not authorized. **Next unauthorized non-Cruise boundary:** a Slice 3A Hotel implementation plan. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted, and the [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. Neither authorizes Hotel code.
+**Next authorized Cruise implementation:** [Cruise Composition UX](m4d1-cruise-composition-ux.md) UX-4, record requirements. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. The [Cruise rework](m4d1-cruise-rework.md) domain slices 1–5 and 7 are implemented. UX-5 through UX-7 are specified and not authorized. **Next unauthorized non-Cruise boundary:** a Slice 3A Hotel implementation plan. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted, and the [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. Neither authorizes Hotel code.
 
 ### Slice 4 — Vineyard proof
 

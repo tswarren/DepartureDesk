@@ -1,7 +1,6 @@
 <% confirmation = @agreement_confirmation %>
 <% ship_name = @shape.summary["ship_name"].presence || @supplier_arrangement.name %>
 <% content_for :title, "Supplier agreement · #{ship_name} · DepartureDesk" %>
-<% confirmed = confirmation&.confirmed? %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
@@ -14,83 +13,10 @@
   </div>
 </header>
 
-<article class="dd-panel">
-  <div class="dd-panel-body dd-stack">
-    <section class="dd-stack" aria-labelledby="cruise-agreement-task-heading">
-      <h2 id="cruise-agreement-task-heading" class="dd-section-title">Record Supplier agreement</h2>
-
-      <% if confirmed %>
-        <p>
-          Confirmed
-          · Group <%= confirmation.group_reference %>
-          · Contract date <%= confirmation.contract_date %>
-          <% if confirmation.group_creation_date.present? %>
-            · Group created <%= confirmation.group_creation_date %>
-          <% end %>
-        </p>
-        <% if confirmation.note.present? %>
-          <p><%= confirmation.note %></p>
-        <% end %>
-        <% if confirmation.deposit_treatment.present? %>
-          <p>Deposit treatment: <%= confirmation.deposit_treatment %></p>
-        <% end %>
-        <% if confirmation.corrects_id.present? %>
-          <p>This confirmation corrects an earlier confirmation, which stays in history.</p>
-        <% end %>
-      <% elsif confirmation %>
-        <p>Provisional. Supplier group number and contract date can still be omitted.</p>
-        <% if confirmation.group_creation_date.present? %>
-          <p>
-            Group created <%= confirmation.group_creation_date %>.
-            Suggested initial deposit due <%= CruiseInitialDepositDueDate.suggested_on(confirmation.group_creation_date) %>.
-          </p>
-        <% end %>
-      <% else %>
-        <p>The Supplier agreement has not been confirmed. Group creation date is required. Supplier group number and contract date can wait until confirmation.</p>
-      <% end %>
-
-      <% if @editable && @supplier_arrangement_version %>
-        <%= form_with url: (confirmed ? correct_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement) : confirm_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)),
-              method: :post, class: "dd-stack", html: { id: "cruise-agreement-confirm" } do %>
-          <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
-          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
-          <div class="dd-field">
-            <label class="dd-label" for="agreement_group_creation_date_confirm">Group creation date</label>
-            <%= date_field_tag :group_creation_date, confirmation&.group_creation_date,
-                  id: "agreement_group_creation_date_confirm", class: "dd-input", required: true %>
-          </div>
-          <div class="dd-field">
-            <label class="dd-label" for="agreement_group_reference">Supplier group number</label>
-            <%= text_field_tag :group_reference, confirmation&.group_reference,
-                  id: "agreement_group_reference", class: "dd-input", required: true %>
-          </div>
-          <div class="dd-field">
-            <label class="dd-label" for="agreement_contract_date">Contract date</label>
-            <%= date_field_tag :contract_date, confirmation&.contract_date,
-                  id: "agreement_contract_date", class: "dd-input", required: true %>
-          </div>
-          <div class="dd-field">
-            <label class="dd-label" for="agreement_note">Note</label>
-            <%= text_field_tag :note, confirmation&.note, id: "agreement_note", class: "dd-input" %>
-          </div>
-          <div class="dd-field">
-            <label class="dd-label" for="agreement_deposit_treatment">Deposit treatment for a supplemental block</label>
-            <%= text_field_tag :deposit_treatment, confirmation&.deposit_treatment, id: "agreement_deposit_treatment", class: "dd-input" %>
-          </div>
-          <div class="dd-form-actions">
-            <% unless confirmed %>
-              <%= submit_tag "Save for later",
-                    formaction: provisional_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
-                    formnovalidate: true,
-                    class: "dd-button dd-button--quiet" %>
-            <% end %>
-            <%= submit_tag(confirmed ? "Correct confirmation" : "Confirm Supplier agreement", class: "dd-button") %>
-          </div>
-        <% end %>
-      <% end %>
-    </section>
-
-    <%= render "cruise_arrangements/commercial_benefits" %>
-    <%= render "cruise_arrangements/agreement" %>
-  </div>
-</article>
+<div class="dd-cruise-agreement-review">
+  <%= render "cruise_agreements/identity", confirmation: confirmation %>
+  <%= render "cruise_agreements/requirements" %>
+  <%= render "cruise_agreements/benefits" %>
+  <%= render "cruise_agreements/terms" %>
+  <%= render "cruise_agreements/later_capacity" %>
+</div>

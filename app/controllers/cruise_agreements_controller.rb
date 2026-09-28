@@ -2,6 +2,7 @@
 
 class CruiseAgreementsController < ApplicationController
   include SupplierArrangementAccess
+  include CruiseAgreementReview
 
   before_action :require_departure_view!
   before_action :require_departure_management!, except: :show
@@ -9,31 +10,7 @@ class CruiseAgreementsController < ApplicationController
   before_action :set_supplier_arrangement
 
   def show
-    @shape = DetectCruiseArrangementShape.new(
-      agency: Current.agency,
-      arrangement: @supplier_arrangement
-    ).call
-    @supplier_arrangement_version = @shape.version
-    @can_manage = Current.agency_user.permitted?(:manage_departures)
-    @editable = @supplier_arrangement_version&.draft? && @can_manage
-    @can_create_successor =
-      @can_manage &&
-      @departure.active? &&
-      @supplier_arrangement.active? &&
-      @supplier_arrangement_version&.activated? &&
-      @supplier_arrangement.versions.none? { |version| version.draft? }
-    @commercial_benefits = if @shape.compatible? && @supplier_arrangement_version
-      @supplier_arrangement_version.supplier_arrangement_commercial_benefit_definitions
-        .includes(:copied_from)
-        .order(:term_type)
-        .to_a
-    else
-      []
-    end
-    version = @supplier_arrangement_version
-    @agreement_confirmation = version&.supplier_arrangement_cruise_agreement_confirmations&.find_by(current: true)
-    @agreement_terms = version&.supplier_arrangement_cruise_term_definitions&.order(:term_type, :position)&.to_a || []
-    @same_terms_pool_id = version&.capacity_pool_definitions&.order(:position, :id)&.pick(:capacity_pool_id)
+    assign_cruise_agreement_review!
   end
 
   def provisional
@@ -49,19 +26,7 @@ class CruiseAgreementsController < ApplicationController
   end
 
   def terms
-    amount = money_minor(params[:allocated_amount])
-    credit = money_minor(params[:allocated_credit])
-    allocated = if amount || params[:allocated_body].present?
-      {
-        amount_minor_units: amount,
-        credit_minor_units: credit || 0,
-        currency: @departure.operating_currency,
-        body: params[:allocated_body]
-      }
-    end
-    steps = if params[:cancellation_body].present? || params[:cancellation_days].present?
-      [ { days_before_departure: params[:cancellation_days], body: params[:cancellation_body] } ]
-    end
+    allocated, card, steps = term_arguments
     RecordCruiseAgreementTerms.new(
       agency: Current.agency,
       actor: Current.agency_user,
@@ -69,14 +34,15 @@ class CruiseAgreementsController < ApplicationController
       version_lock_version: params.require(:version_lock_version),
       idempotency_key: params.require(:idempotency_key),
       allocated_cabin_deposit: allocated,
-      card_restrictions: params[:card_restrictions],
+      card_restrictions: card,
       cancellation_steps: steps
     ).call
-    redirect_to cruise_path, notice: "Readable terms recorded. Charges are not calculated."
+    redirect_to agreement_page_path(highlight: term_highlight),
+      notice: "Supplier terms recorded. Charges are not calculated."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to agreement_path, alert: error.message
+    render_agreement_review_error(error, focus: term_error_focus)
   end
 
   def same_terms_increase
@@ -135,11 +101,11 @@ class CruiseAgreementsController < ApplicationController
       note: params[:note],
       deposit_treatment: params[:deposit_treatment]
     ).call
-    redirect_to cruise_path, notice: "Cruise agreement recorded."
+    redirect_to agreement_page_path(highlight: "agreement"), notice: "Cruise agreement recorded."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to agreement_path, alert: error.message
+    render_agreement_review_error(error, focus: "agreement")
   end
 
   def cruise_path
@@ -148,6 +114,56 @@ class CruiseAgreementsController < ApplicationController
 
   def agreement_path
     departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
+  end
+
+  def term_arguments
+    case params[:term_scope].to_s
+    when "allocated"
+      [
+        {
+          amount_minor_units: money_minor(params[:allocated_amount]),
+          credit_minor_units: money_minor(params[:allocated_credit]),
+          currency: @departure.operating_currency,
+          body: params[:allocated_body]
+        },
+        nil,
+        nil
+      ]
+    when "card"
+      [ nil, params[:card_restrictions], nil ]
+    when "cancellation"
+      [ nil, nil, cancellation_steps_argument ]
+    else
+      raise AgencyCommand::Error.new("Enter a Cruise term to record.", code: :invalid)
+    end
+  end
+
+  def cancellation_steps_argument
+    rows = params[:cancellation_steps]
+    return [] if rows.blank?
+
+    list = rows.is_a?(ActionController::Parameters) ? rows.values : Array(rows)
+    list.map do |step|
+      values = step.respond_to?(:permit) ? step.permit(:days_before_departure, :body) : step
+      values.to_h.slice("days_before_departure", "body", :days_before_departure, :body)
+    end
+  end
+
+  def term_highlight
+    case params[:term_scope].to_s
+    when "allocated" then "term-allocated"
+    when "card" then "term-card"
+    else "term-cancellation"
+    end
+  end
+
+  def term_error_focus
+    case params[:term_scope].to_s
+    when "allocated" then "term-allocated"
+    when "card" then "term-card"
+    when "cancellation" then params[:cancellation_editor].presence || "cancellation-new"
+    else "terms"
+    end
   end
 
   def money_minor(display)

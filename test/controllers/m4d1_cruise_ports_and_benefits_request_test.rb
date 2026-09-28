@@ -43,7 +43,7 @@ class M4d1CruisePortsAndBenefitsRequestTest < ActionDispatch::IntegrationTest
     get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
     assert_response :success
     assert_match "Commercial benefits", response.body
-    assert_match "Terms recorded; entitlement not calculated.", response.body
+    assert_match "Agreement benefits are recorded for reference. DepartureDesk does not calculate earned entitlements.", response.body
     assert_match "1 cruise-only credit per 16 qualifying guests.", response.body
     assert_no_match "Add Tour-conductor credit", response.body
     assert_no_match "Save Tour-conductor credit", response.body

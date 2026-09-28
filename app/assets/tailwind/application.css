@@ -2553,4 +2553,182 @@
       display: table-cell;
     }
   }
+
+  .dd-cruise-agreement-review {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dd-agreement-section .dd-panel-header {
+    flex-wrap: wrap;
+  }
+
+  .dd-agreement-section .dd-panel-body {
+    padding: 0.85rem 1rem 1rem;
+  }
+
+  .dd-agreement-section .dd-panel-footer {
+    justify-content: flex-end;
+  }
+
+  .dd-agreement-heading {
+    margin: 0;
+    color: var(--dd-navy);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .dd-agreement-row-heading {
+    margin: 0;
+    color: var(--dd-navy);
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .dd-agreement-description {
+    margin: 0 0 0.35rem;
+    max-width: 75ch;
+    color: var(--dd-text-muted);
+    font-size: 13px;
+  }
+
+  .dd-agreement-secondary {
+    margin: 0.15rem 0 0;
+    color: var(--dd-text-muted);
+    font-size: 12px;
+  }
+
+  .dd-agreement-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.45rem 1rem;
+    border-top: 1px solid var(--dd-border);
+    padding: 0.85rem 0;
+  }
+
+  .dd-agreement-row-head {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.85rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dd-agreement-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+  }
+
+  .dd-agreement-row-head .dd-agreement-row-actions {
+    margin-left: auto;
+  }
+
+  .dd-agreement-meta {
+    margin: 0;
+    min-width: 0;
+    color: var(--dd-text);
+  }
+
+  .dd-agreement-row-prose {
+    flex: 1 1 100%;
+  }
+
+  .dd-agreement-note {
+    margin-top: 0.9rem;
+  }
+
+  .dd-agreement-note .dd-reference-text {
+    margin-top: 0.3rem;
+  }
+
+  .dd-agreement-inline-form {
+    display: inline-flex;
+    margin: 0;
+  }
+
+  .dd-forward-link {
+    color: var(--dd-action);
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .dd-forward-link::after {
+    content: " →";
+  }
+
+  .dd-forward-link:hover {
+    color: var(--dd-action-hover);
+    text-decoration: underline;
+  }
+
+  .dd-agreement-amounts {
+    display: flex;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.75rem;
+    margin: 0.15rem 0 0;
+  }
+
+  .dd-agreement-amount {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin: 0;
+    color: var(--dd-text-muted);
+    font-size: 12px;
+  }
+
+  .dd-agreement-figure {
+    color: var(--dd-navy);
+    font-size: 1.25rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .dd-agreement-ladder {
+    flex: 1 1 100%;
+    margin: 0.35rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dd-agreement-ladder > li {
+    padding: 0.75rem 0 0.75rem 1rem;
+    border-top: 1px solid var(--dd-border);
+  }
+
+  .dd-agreement-threshold {
+    margin: 0 0 0.25rem;
+    color: var(--dd-navy);
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .dd-reference-text {
+    max-width: 75ch;
+  }
+
+  .dd-reference-text :where(p, ul, ol) {
+    margin-block: 0.35rem;
+  }
+
+  .dd-reference-text :where(ul, ol) {
+    padding-inline-start: 1.25rem;
+  }
+
+  .dd-reference-text a {
+    text-decoration: underline;
+  }
 }

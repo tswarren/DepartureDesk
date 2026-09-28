@@ -124,6 +124,49 @@ class CruiseReworkTest < ActiveSupport::TestCase
     assert_equal [ 90, 30 ], terms.select(&:cancellation_step?).map(&:days_before_departure)
   end
 
+  test "an explicit empty cancellation list clears only the ladder" do
+    record_readable_terms!
+    allocated = @version.supplier_arrangement_cruise_term_definitions.find_by!(term_type: "allocated_cabin_deposit")
+    card = @version.supplier_arrangement_cruise_term_definitions.find_by!(term_type: "card_restrictions")
+    key = SecureRandom.uuid
+    cleared = RecordCruiseAgreementTerms.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: key,
+      cancellation_steps: []
+    ).call
+
+    assert_equal :created, cleared.status
+    assert_equal @version, cleared.record
+    assert_empty @version.supplier_arrangement_cruise_term_definitions.where(term_type: "cancellation_step")
+    assert allocated.reload.persisted?
+    assert card.reload.persisted?
+
+    replay = RecordCruiseAgreementTerms.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: key,
+      cancellation_steps: []
+    ).call
+    assert_equal :replayed, replay.status
+    assert_equal @version, replay.record
+
+    RecordCruiseAgreementTerms.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      card_restrictions: card.body
+    ).call
+    assert_empty @version.supplier_arrangement_cruise_term_definitions.where(term_type: "cancellation_step")
+    assert_equal card.body, card.reload.body
+  end
+
   test "a successor copies readable terms and leaves the confirmation behind" do
     record_readable_terms!
     prepare_original_activation!

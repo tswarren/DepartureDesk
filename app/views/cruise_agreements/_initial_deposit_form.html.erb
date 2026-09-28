@@ -1,0 +1,42 @@
+<% posted = cruise_posted_deposit if cruise_agreement_focused?(definition ? "deposit-#{definition.id}" : "deposit-new-initial") %>
+<% currency = @departure.operating_currency %>
+<% rate_value = posted&.dig(:rate_amount).presence || (definition ? cruise_minor_amount_field(definition.rate_minor_units, definition.currency) : nil) %>
+<% date_value = posted&.dig(:fixed_date).presence || (definition ? cruise_fixed_due_date(definition) : nil) %>
+<% pool_ids = posted&.dig(:capacity_pool_ids).presence || cruise_deposit_pool_ids(definition) %>
+<% if @form_error.present? %>
+  <p id="form-error-summary" role="alert" data-controller="form-error-summary"><%= @form_error %></p>
+<% end %>
+<% if (suggested = cruise_suggested_deposit_due_on) %>
+  <p>Suggested due date: <%= cruise_calendar_date(suggested) %>. Based on group creation date + 30 days. Saving a due date keeps the date you enter.</p>
+<% end %>
+<%= form_with url: definition ?
+      departure_arrangement_cruise_deposits_and_deadlines_deposit_path(@departure, @supplier_arrangement, definition) :
+      departure_arrangement_cruise_deposits_and_deadlines_deposits_path(@departure, @supplier_arrangement),
+    method: definition ? :patch : :post, class: "dd-stack", html: { id: "cruise-initial-deposit-form" } do %>
+  <%= hidden_field_tag :return_to, CruiseAgreementReview::AGREEMENT_RETURN_TOKEN %>
+  <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+  <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+  <% if definition %>
+    <%= hidden_field_tag :lock_version, definition.lock_version %>
+    <%= hidden_field_tag "cruise_deposit[description]", definition.description %>
+  <% end %>
+  <%= hidden_field_tag "cruise_deposit[template]", "initial_deposit" %>
+  <%= hidden_field_tag "cruise_deposit[amount_shape]", "quantity_times_rate" %>
+  <%= hidden_field_tag "cruise_deposit[quantity_basis]", "capacity_pool_units" %>
+  <%= hidden_field_tag "cruise_deposit[rule_shape]", "fixed_date" %>
+  <% Array(pool_ids).each do |pool_id| %>
+    <%= hidden_field_tag "cruise_deposit[capacity_pool_ids][]", pool_id, id: nil %>
+  <% end %>
+  <div class="dd-field">
+    <label class="dd-label" for="initial_deposit_rate">Amount per opening cabin (<%= currency %>)</label>
+    <%= text_field_tag "cruise_deposit[rate_amount]", rate_value, id: "initial_deposit_rate", class: "dd-input", required: true %>
+  </div>
+  <div class="dd-field">
+    <label class="dd-label" for="initial_deposit_due">Due date</label>
+    <%= date_field_tag "cruise_deposit[fixed_date]", date_value, id: "initial_deposit_due", class: "dd-input", required: true %>
+  </div>
+  <div class="dd-form-actions">
+    <%= submit_tag definition ? "Save Initial Deposit" : "Add Initial Deposit", class: "dd-button" %>
+    <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "deposits-and-deadlines"), class: "dd-button dd-button--quiet" %>
+  </div>
+<% end %>
