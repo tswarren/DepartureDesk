@@ -183,7 +183,7 @@ Rails.application.routes.draw do
       end
       resource :cruise, only: :show, controller: "cruise_arrangements" do
         post :successor
-        resource :agreement, only: [], controller: "cruise_agreements" do
+        resource :agreement, only: :show, controller: "cruise_agreements" do
           post :provisional
           post :confirm
           post :correct

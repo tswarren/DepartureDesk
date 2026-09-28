@@ -40,7 +40,7 @@ class M4d1CruisePortsAndBenefitsRequestTest < ActionDispatch::IntegrationTest
     ).call
 
     sign_in_as @viewer
-    get departure_arrangement_cruise_path(@departure, @arrangement)
+    get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
     assert_response :success
     assert_match "Commercial benefits", response.body
     assert_match "Terms recorded; entitlement not calculated.", response.body

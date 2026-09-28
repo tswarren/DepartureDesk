@@ -33,13 +33,16 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     select "America/New_York", from: "Time zone"
     click_button "Save sailing and continue"
 
-    assert_selector "#cruise-workspace"
-    assert_text "Celebrity Beyond"
+    assert_selector "h1.dd-page-title", exact_text: "Celebrity Beyond"
     assert_text "Western Caribbean"
+    assert_text "Draft"
+    assert_selector "ol.dd-journey-strip .dd-journey-step", count: 5
+    assert_text "Agreement and requirements"
+    assert_no_text "Commercial benefits"
+    assert_no_field "Group creation date"
+    assert_selector "#cruise-workspace"
     assert_text "Add cabin categories"
-    assert_text "Agreement"
     assert_text "Not recorded"
-    assert_text "Requirements"
     assert_text "Activation"
     assert_text "Not ready"
     [ 375, 768, 1280, 1400 ].each do |width|
@@ -52,7 +55,9 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     assert_no_text "Supplier Resource"
     assert_no_text "Capacity Pool"
 
-    click_link "Add a cabin category"
+    within "#cruise-recommended-next" do
+      click_link "Add cabin categories"
+    end
     fill_in "Supplier category code", with: "O1"
     fill_in "Category name", with: "Prime Oceanview"
     fill_in "Maximum occupancy", with: "3"

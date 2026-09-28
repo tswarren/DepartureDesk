@@ -59,7 +59,7 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
 
   test "staff confirms the agreement and records contracted rates from the cruise workspace" do
     sign_in_from_browser(@staff)
-    visit departure_arrangement_cruise_path(@departure, @arrangement)
+    visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
 
     fill_in "Group reference", with: "1119999"
     fill_in "Contract date", with: "2026-09-13"
@@ -102,7 +102,7 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     click_on "Activate arrangement"
     assert_text "Arrangement activated."
 
-    visit departure_arrangement_cruise_path(@departure, @arrangement)
+    visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
     fill_in "Additional cabins", with: "4"
     fill_in "Deposit per additional cabin (USD)", with: "50.00"
     fill_in "Evidence date", with: Date.current.iso8601
@@ -112,12 +112,14 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     requirement = SupplierArrangementCruiseCapacityDepositRequirement.order(:created_at).last
     assert_equal 20_000, requirement.amount_minor_units
 
+    visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
     fill_in "Maximum occupancy", with: "3"
     fill_in "Opening quantity", with: "4"
     click_on "Add supplemental O1 block"
     assert_text "Supplemental O1 block added on a new successor."
     assert_text "Supplemental O1 block"
 
+    visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
     successor = @arrangement.versions.find_by!(status: "draft")
     assert_equal @version.id, @arrangement.reload.governing_version_id
     fill_in "Group reference", with: "1119999"

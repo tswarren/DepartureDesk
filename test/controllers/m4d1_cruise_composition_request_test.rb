@@ -39,7 +39,10 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-workspace"
     assert_match "Celebrity Beyond", response.body
     assert_match "Western Caribbean", response.body
-    assert_select "a", text: "Add a cabin category"
+    assert_select "a", text: "Add cabin categories"
+    assert_select "ol.dd-journey-strip .dd-journey-step", count: 5
+    assert_no_match(/name="group_creation_date"/, response.body)
+    assert_no_match("Commercial benefits", response.body)
     assert_no_match(/\bItem\b|\bOccurrence\b|\bResource\b|\bPool\b/, response.body)
   end
 

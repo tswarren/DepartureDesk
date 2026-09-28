@@ -4,9 +4,37 @@ class CruiseAgreementsController < ApplicationController
   include SupplierArrangementAccess
 
   before_action :require_departure_view!
-  before_action :require_departure_management!
+  before_action :require_departure_management!, except: :show
   before_action :set_departure
   before_action :set_supplier_arrangement
+
+  def show
+    @shape = DetectCruiseArrangementShape.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement
+    ).call
+    @supplier_arrangement_version = @shape.version
+    @can_manage = Current.agency_user.permitted?(:manage_departures)
+    @editable = @supplier_arrangement_version&.draft? && @can_manage
+    @can_create_successor =
+      @can_manage &&
+      @departure.active? &&
+      @supplier_arrangement.active? &&
+      @supplier_arrangement_version&.activated? &&
+      @supplier_arrangement.versions.none? { |version| version.draft? }
+    @commercial_benefits = if @shape.compatible? && @supplier_arrangement_version
+      @supplier_arrangement_version.supplier_arrangement_commercial_benefit_definitions
+        .includes(:copied_from)
+        .order(:term_type)
+        .to_a
+    else
+      []
+    end
+    version = @supplier_arrangement_version
+    @agreement_confirmation = version&.supplier_arrangement_cruise_agreement_confirmations&.find_by(current: true)
+    @agreement_terms = version&.supplier_arrangement_cruise_term_definitions&.order(:term_type, :position)&.to_a || []
+    @same_terms_pool_id = version&.capacity_pool_definitions&.order(:position, :id)&.pick(:capacity_pool_id)
+  end
 
   def provisional
     record_agreement("save_provisional")
@@ -48,7 +76,7 @@ class CruiseAgreementsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to cruise_path, alert: error.message
+    redirect_to agreement_path, alert: error.message
   end
 
   def same_terms_increase
@@ -70,7 +98,7 @@ class CruiseAgreementsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to cruise_path, alert: error.message
+    redirect_to agreement_path, alert: error.message
   end
 
   def supplemental_block
@@ -88,7 +116,7 @@ class CruiseAgreementsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to cruise_path, alert: error.message
+    redirect_to agreement_path, alert: error.message
   end
 
   private
@@ -111,11 +139,15 @@ class CruiseAgreementsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to cruise_path, alert: error.message
+    redirect_to agreement_path, alert: error.message
   end
 
   def cruise_path
     departure_arrangement_cruise_path(@departure, @supplier_arrangement)
+  end
+
+  def agreement_path
+    departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
   end
 
   def money_minor(display)

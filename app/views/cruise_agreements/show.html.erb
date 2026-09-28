@@ -1,0 +1,21 @@
+<% content_for :title, "Supplier agreement · #{@shape.summary["ship_name"].presence || @supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Cruise setup</p>
+    <h1 class="dd-page-title">Supplier agreement</h1>
+    <p class="dd-page-description">
+      <%= @shape.summary["ship_name"].presence || @supplier_arrangement.name %>
+    </p>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to Cruise", departure_arrangement_cruise_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body dd-stack">
+    <%= render "cruise_arrangements/commercial_benefits" %>
+    <%= render "cruise_arrangements/agreement" %>
+  </div>
+</article>

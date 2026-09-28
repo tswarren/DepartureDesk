@@ -21,12 +21,34 @@ module CruiseCompositionHelper
         )
       end
     when :record_agreement
-      "#cruise-agreement-record"
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
     when :record_initial_deposit, :record_hard_stop, :record_final_payment
       departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement)
     when :resolve_blocker, :review_activation
       departure_arrangement_activation_path(@departure, @supplier_arrangement)
     end
+  end
+
+  def cruise_sailing_date_range(occurrence)
+    return nil if occurrence.nil?
+
+    start_on = occurrence.starts_on
+    end_on = occurrence.ends_on
+    if start_on.year == end_on.year && start_on.month == end_on.month
+      "#{start_on.strftime("%b %-d")}–#{end_on.strftime("%-d, %Y")}"
+    elsif start_on.year == end_on.year
+      "#{start_on.strftime("%b %-d")}–#{end_on.strftime("%b %-d, %Y")}"
+    else
+      "#{start_on.strftime("%b %-d, %Y")}–#{end_on.strftime("%b %-d, %Y")}"
+    end
+  end
+
+  def cruise_agreement_requirements_status(summary)
+    agreement = summary.sections.find { |section| section.key == "agreement" }
+    requirements = summary.sections.find { |section| section.key == "requirements" }
+    return requirements.status_label if agreement.status_label.start_with?("Confirmed")
+
+    agreement.status_label
   end
 
   def cruise_rate_posture_label(posture)

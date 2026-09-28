@@ -36,7 +36,7 @@ class CruiseCommercialBenefitsController < ApplicationController
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+    redirect_to departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
       alert: error.message
   end
 

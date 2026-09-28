@@ -36,11 +36,11 @@ An incompatible Cruise shape still opens Advanced Supplier planning and does not
 
 ## UX-1 — Orient
 
-**Authorized.** Replace the stacked body of the Cruise show page with a read-only hub on the current Cruise route. Existing edit links may keep opening today's forms. Agreement, term, and later-capacity writes that have no separate page yet stay reachable from this page.
+**Authorized.** The Cruise overview contains no normal-path data-entry forms. It renders journey status, the recommended next action, compact read summaries, and links. Existing editors stay reachable at their current routes, including the agreement page that hosts the current agreement and term forms, and are not embedded in the overview.
 
-The hub shows sailing, cabins, rates, agreement, requirements, terms, and activation, plus `recommended_next_action`. Client service stays linked and is not a step in the strip. The generic activation page stays in place.
+The hub shows a five-step strip — sailing, cabin categories, Supplier rates, agreement and requirements, activation — plus `recommended_next_action` and summary cards. Supplier terms are a card, not a strip step. Client service stays a small handoff and is not a journey step. The generic activation page stays in place.
 
-Proof: the compiler tests cover the recommendation groups and prove every readiness blocker is retained while one recommendation is chosen. A browser test opens a new Cruise, sees the cabin-category recommendation, then after a category exists sees the rates recommendation, with agreement, requirements, and activation visible as their own statuses. Check the overview at 375, 768, 1280, and 1400.
+Proof: the compiler tests cover the recommendation groups and prove every readiness blocker is retained while one recommendation is chosen. A browser test opens a new Cruise, sees the ship-name title, the five-step strip, and the cabin-category recommendation, with no agreement or commercial-benefit editor on that page. After a category exists, the recommendation moves to Supplier rates. Check the overview at 375, 768, 1280, and 1400.
 
 ## Later slices
 
