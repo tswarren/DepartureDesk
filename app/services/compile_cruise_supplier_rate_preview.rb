@@ -13,17 +13,19 @@ class CompileCruiseSupplierRatePreview
     :forecast_mix_total_minor_units, :reasons
   )
 
-  def initialize(agency:, arrangement:, resource:, version: nil, illustration_occupants: nil)
+  def initialize(agency:, arrangement:, resource:, version: nil, illustration_occupants: nil, stage: nil)
     @agency = agency
     @arrangement = arrangement
     @resource = resource
     @version = version
+    @stage = stage
     @illustration_occupants = Array(illustration_occupants).map { |label| label.to_s.strip.presence }.compact
   end
 
   def call
     shape = DetectCruiseSupplierRateShape.new(
-      agency: @agency, arrangement: @arrangement, resource: @resource, version: @version
+      agency: @agency, arrangement: @arrangement, resource: @resource, version: @version,
+      stage: @stage
     ).call
 
     unless shape.compatible?

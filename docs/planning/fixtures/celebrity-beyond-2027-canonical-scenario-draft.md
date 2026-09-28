@@ -2,7 +2,7 @@
 
 ## 1. Status and authority
 
-**Status:** Draft. Not implementation authority.
+**Status:** Approved 2026-09-27. Canonical Celebrity Beyond facts for the accepted Cruise rework. Approval does not authorize Hotel code. The changed-terms amendment date and supplemental rate amounts stay test-only.
 
 When accepted, this scenario supersedes every earlier Celebrity Beyond fixture fact, amount, walkthrough value, and proof assumption that conflicts with it. Earlier documents may remain as implementation history, but they must not supply facts that this scenario defines differently.
 
@@ -80,11 +80,11 @@ The Supplier group agreement has a lifecycle distinct from Arrangement activatio
 - Before Supplier confirmation, the Arrangement may remain provisional. The Supplier group reference and contract date may be absent or edited while provisional.
 - For this canonical scenario, the Supplier group reference is `1119999`.
 - Supplier confirmation requires the group reference and contract date and records the confirming Staff actor and time.
-- A confirmation note and supporting agreement document are optional.
-- Confirmation applies to the whole agreement revision, not to an individual cabin category.
-- Supplier confirmation may be recorded before Staff finish transcribing contracted rates.
+- A confirmation note is optional. This scenario introduces no agreement document.
+- Confirmation covers the Supplier agreement scope represented by that exact Arrangement version, not one cabin category.
+- Staff may complete contracted-rate transcription for Resources already in that confirmed scope without another confirmation. Adding a Resource or otherwise changing that scope requires a successor and its own confirmation.
 - Supplier confirmation does not itself activate the Arrangement.
-- After confirmation, the confirmed Supplier group reference and contract date cannot be changed by ordinary edit. A factual correction preserves the earlier confirmation values and records the correction explicitly.
+- After confirmation, the confirmed Supplier group reference and contract date cannot be changed by ordinary edit. An explicit correction makes the corrected value current and keeps the original confirmation in history.
 - A later amendment with materially changed Supplier terms receives its own agreement/amendment date and Supplier confirmation. It does not rewrite the original contract date or confirmation.
 
 ### Proposed Arrangement name
@@ -333,7 +333,7 @@ For MVP, general marketing support is informational. Any GAP-funded Marketing Fu
 ### 8.1 Initial group deposit
 
 - Group creation date: September 13, 2026.
-- Due date: October 13, 2026, thirty days after group creation.
+- Due date: October 13, 2026, thirty days after group creation. Once that due date is saved, changing the group creation date does not rewrite it. The mismatch is shown for Staff review and explicit correction or rescheduling.
 - Rate: $50 per unallocated stateroom held in the Deposit Program.
 - Authoritative quantity: opening quantities from the selected E3, O1, and DI cabin Pools.
 - Calculation: `(8 + 8 + 8) × $50 = $1,200`.
@@ -343,7 +343,7 @@ This is a `quantity × rate` requirement, not a cumulative-target definition. Th
 
 The `$1,200` requirement is a historical snapshot of the initial opening block. A later capacity increase does not recalculate or mutate it.
 
-When Supplier capacity is later increased, Staff must explicitly record whether the additional capacity carries another initial blocked-stateroom deposit requirement.
+No later Supplier capacity inherits an initial-deposit treatment implicitly. The same-terms proof records an explicit supplemental requirement. The differently priced block prescribes no deposit amount or formula.
 
 For the same-terms proof in Section 11, Celebrity adds four O1 staterooms and confirms that the same `$50` initial-deposit treatment applies. DepartureDesk therefore records a separate supplemental requirement:
 
@@ -351,7 +351,7 @@ For the same-terms proof in Section 11, Celebrity adds four O1 staterooms and co
 
 The `$200` requirement traces to the later capacity increase. The original `$1,200` requirement remains unchanged.
 
-If a future Supplier capacity increase does not require another initial deposit, Staff records that explicit outcome and its required evidence rather than silently assuming `$0` or modifying the opening requirement.
+This scenario does not add a generic yes/no supplemental-deposit feature. A changed-terms successor cannot govern until any applicable deposit treatment for that successor is recorded explicitly.
 
 ### 8.2 Full allocated-stateroom deposit policy
 
@@ -366,7 +366,7 @@ This is allocation-sensitive booking policy. Keep it readable and structured on 
 
 | Requirement | Date | Operational effect |
 | --- | --- | --- |
-| Name and fully deposit allocated staterooms, or release remaining inventory | July 9, 2027 | Satisfy booking-specific name/deposit rules and release unsold inventory |
+| Name and fully deposit allocated staterooms, or release remaining inventory | July 9, 2027 | Staff action. Reaching the date does not release inventory or post money |
 | Final payment | August 8, 2027 | Pay the final balance for the seven-night sailing |
 
 For MVP, the Hard Stop is one combined actionable Arrangement-level Deadline:
@@ -375,7 +375,7 @@ For MVP, the Hard Stop is one combined actionable Arrangement-level Deadline:
 > July 9, 2027  
 > Full deposit: $500 per allocated stateroom. Credit the initial $50 where attributable.
 
-Do not create separate Arrangement-level deadlines for legal names, full deposit, and inventory release. Recording `names_assigned_to_supplier` is evidence that an operational event occurred, not a second contractual deadline.
+Do not create separate Arrangement-level deadlines for legal names, full deposit, and inventory release. Reaching or passing July 9 does not release capacity or post money. A resulting inventory release is a separate evidenced capacity disposition. Recording `names_assigned_to_supplier` is evidence that an operational event occurred, not a second contractual deadline.
 
 The brochure does not establish an October 7 rooming-list deadline. That earlier fixture fact is superseded.
 
@@ -402,7 +402,7 @@ For this seven-night sailing, cancellation charges apply per person:
 
 Taxes and fees are excluded from the percentage base. Where the brochure’s footnote applies, the charge is the calculated percentage or deposit amount, whichever is greater. This booking-level ladder is not the same as releasing unallocated inventory at the Hard Stop.
 
-Retain it as structured informational policy or an Advanced term. Do not calculate cancellation fees, refunds, or Client credits before Reservation and accounting authority exists.
+Retain the ladder as structured informational agreement data on the versioned Arrangement. It does not share a policy engine with the `$500` rule or the card restrictions. Do not calculate cancellation fees, refunds, or Client credits.
 
 ## 10. Expected Supplier Composition summary
 
@@ -508,7 +508,7 @@ The changed rates require:
 - confirmation of the amended whole Supplier agreement; and
 - successful Cruise activation gates before the successor can govern.
 
-The original agreement confirmation and original contract date remain historical facts. The amendment records its own date and confirmation.
+The successor remains in Supplier group `1119999`. The original September 13, 2026 contract date stays historical. The proof uses a test-provided amendment date. The successor requires its own Supplier confirmation. The fixture prescribes no deposit amount or formula for this block.
 
 The governing Arrangement remains in force while this successor is only proposed.
 

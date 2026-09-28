@@ -1,0 +1,176 @@
+<% confirmation = @agreement_confirmation %>
+<section class="dd-stack" aria-labelledby="cruise-agreement-confirmation-heading">
+  <h2 id="cruise-agreement-confirmation-heading" class="dd-section-title">Supplier agreement</h2>
+  <% if confirmation&.confirmed? %>
+    <p>
+      Confirmed
+      · Group <%= confirmation.group_reference %>
+      · Contract date <%= confirmation.contract_date %>
+      <% if confirmation.group_creation_date.present? %>
+        · Group created <%= confirmation.group_creation_date %>
+      <% end %>
+    </p>
+    <% if confirmation.note.present? %>
+      <p><%= confirmation.note %></p>
+    <% end %>
+    <% if confirmation.deposit_treatment.present? %>
+      <p>Deposit treatment: <%= confirmation.deposit_treatment %></p>
+    <% end %>
+    <% if confirmation.corrects_id.present? %>
+      <p>This confirmation corrects an earlier confirmation, which stays in history.</p>
+    <% end %>
+  <% elsif confirmation %>
+    <p>Provisional. Group reference and contract date can still be omitted.</p>
+    <% if confirmation.group_creation_date.present? %>
+      <p>
+        Group created <%= confirmation.group_creation_date %>.
+        Suggested initial deposit due <%= CruiseInitialDepositDueDate.suggested_on(confirmation.group_creation_date) %>.
+      </p>
+    <% end %>
+  <% else %>
+    <p>Provisional agreement details can be saved before confirmation.</p>
+  <% end %>
+
+  <% if @editable %>
+    <%= form_with url: provisional_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
+          method: :post, class: "dd-stack" do %>
+      <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+      <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+      <div class="dd-field">
+        <label class="dd-label" for="agreement_group_creation_date">Group creation date</label>
+        <%= date_field_tag :group_creation_date, confirmation&.group_creation_date, id: "agreement_group_creation_date", class: "dd-input" %>
+      </div>
+      <% if confirmation.nil? || confirmation.provisional? %>
+        <%= submit_tag "Save provisional agreement", class: "dd-button dd-button--quiet" %>
+      <% end %>
+    <% end %>
+
+    <%= form_with url: confirm_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
+          method: :post, class: "dd-stack", html: { id: "cruise-agreement-confirm" } do %>
+      <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+      <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+      <div class="dd-field">
+        <label class="dd-label" for="agreement_group_creation_date_confirm">Group creation date</label>
+        <%= date_field_tag :group_creation_date, confirmation&.group_creation_date,
+              id: "agreement_group_creation_date_confirm", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="agreement_group_reference">Group reference</label>
+        <%= text_field_tag :group_reference, confirmation&.group_reference, id: "agreement_group_reference", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="agreement_contract_date">Contract date</label>
+        <%= date_field_tag :contract_date, confirmation&.contract_date, id: "agreement_contract_date", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="agreement_note">Note</label>
+        <%= text_field_tag :note, confirmation&.note, id: "agreement_note", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="agreement_deposit_treatment">Deposit treatment for a supplemental block</label>
+        <%= text_field_tag :deposit_treatment, confirmation&.deposit_treatment, id: "agreement_deposit_treatment", class: "dd-input" %>
+      </div>
+      <% if confirmation&.confirmed? %>
+        <%= submit_tag "Correct confirmation", class: "dd-button", formaction: correct_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement) %>
+      <% else %>
+        <%= submit_tag "Confirm agreement", class: "dd-button" %>
+      <% end %>
+    <% end %>
+
+    <h3 class="dd-section-title">Readable terms</h3>
+    <p><%= SupplierArrangementCruiseTermDefinition::RECORDED_LABEL %></p>
+    <%= form_with url: terms_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
+          method: :post, class: "dd-stack", html: { id: "cruise-agreement-terms" } do %>
+      <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+      <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+      <div class="dd-field">
+        <label class="dd-label" for="allocated_amount">Allocated cabin amount (<%= @departure.operating_currency %>)</label>
+        <%= text_field_tag :allocated_amount, nil, id: "allocated_amount", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="allocated_credit">Attributable credit (<%= @departure.operating_currency %>)</label>
+        <%= text_field_tag :allocated_credit, nil, id: "allocated_credit", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="allocated_body">Allocated cabin wording</label>
+        <%= text_field_tag :allocated_body, nil, id: "allocated_body", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="card_restrictions">Card restrictions</label>
+        <%= text_field_tag :card_restrictions, nil, id: "card_restrictions", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="cancellation_days">Cancellation days before departure</label>
+        <%= number_field_tag :cancellation_days, nil, id: "cancellation_days", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="cancellation_body">Cancellation wording</label>
+        <%= text_field_tag :cancellation_body, nil, id: "cancellation_body", class: "dd-input" %>
+      </div>
+      <%= submit_tag "Record readable terms", class: "dd-button dd-button--quiet" %>
+    <% end %>
+  <% end %>
+
+  <% if @agreement_terms.present? %>
+    <ul>
+      <% @agreement_terms.each do |term| %>
+        <li>
+          <%= SupplierArrangementCruiseTermDefinition.label_for(term.term_type) %>:
+          <%= term.body %>
+          <% if term.allocated_cabin_deposit? %>
+            · <%= Money.new(term.amount_minor_units, term.currency).format %>
+            with <%= Money.new(term.credit_minor_units, term.currency).format %> credit
+          <% elsif term.cancellation_step? %>
+            · <%= term.days_before_departure %> days before departure
+          <% end %>
+          · <%= SupplierArrangementCruiseTermDefinition::RECORDED_LABEL %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <% if @can_manage && @supplier_arrangement_version&.activated? && @same_terms_pool_id.present? %>
+    <h3 class="dd-section-title">Same-terms capacity increase</h3>
+    <%= form_with url: same_terms_increase_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
+          method: :post, class: "dd-stack", html: { id: "cruise-same-terms-increase" } do %>
+      <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+      <%= hidden_field_tag :capacity_pool_id, @same_terms_pool_id %>
+      <div class="dd-field">
+        <label class="dd-label" for="increase_quantity">Additional cabins</label>
+        <%= number_field_tag :quantity, nil, id: "increase_quantity", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="increase_rate">Deposit per additional cabin (<%= @departure.operating_currency %>)</label>
+        <%= text_field_tag :rate_amount, nil, id: "increase_rate", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="increase_evidence_on">Evidence date</label>
+        <%= date_field_tag :evidence_on, nil, id: "increase_evidence_on", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="increase_evidence_note">Evidence note</label>
+        <%= text_field_tag :evidence_reference_note, nil, id: "increase_evidence_note", class: "dd-input" %>
+      </div>
+      <%= submit_tag "Record same-terms increase", class: "dd-button" %>
+    <% end %>
+  <% end %>
+
+  <% if @can_create_successor %>
+    <h3 class="dd-section-title">Supplemental block</h3>
+    <%= form_with url: supplemental_block_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
+          method: :post, class: "dd-stack", html: { id: "cruise-supplemental-block" } do %>
+      <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+      <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+      <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+      <div class="dd-field">
+        <label class="dd-label" for="supplemental_occupancy">Maximum occupancy</label>
+        <%= number_field_tag :maximum_occupancy, nil, id: "supplemental_occupancy", class: "dd-input" %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="supplemental_quantity">Opening quantity</label>
+        <%= number_field_tag :opening_quantity, nil, id: "supplemental_quantity", class: "dd-input" %>
+      </div>
+      <%= submit_tag "Add supplemental O1 block", class: "dd-button" %>
+    <% end %>
+  <% end %>
+</section>

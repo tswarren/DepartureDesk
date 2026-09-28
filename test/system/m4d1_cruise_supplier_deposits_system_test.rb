@@ -92,34 +92,7 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     assert_checked_field "V1 · pool"
     click_on "Cancel"
 
-    click_on "Add deposit"
-    select "Final deposit", from: "Template"
-    select "Cumulative amount per retained cabin", from: "Amount"
-    fill_in "Rate per unit (USD)", with: "500"
-    check "O1 · pool"
-    check "V1 · pool"
-    check "Initial deposit"
-    select "Earlier of…", from: "Timing rule"
-    within "#cruise-deposit-arm1" do
-      find("select").select("Names assigned to Supplier")
-    end
-    within "#cruise-deposit-arm2" do
-      find("select").select("Fixed date")
-      date_field = find("input[type='date']", visible: true)
-      date_field.execute_script(<<~JS, "2027-03-11")
-        this.value = arguments[0];
-        this.dispatchEvent(new Event("input", { bubbles: true }));
-        this.dispatchEvent(new Event("change", { bubbles: true }));
-      JS
-    end
-    assert_text(/Earlier of/i)
-    assert_text "$10,800.00", wait: 5
-    click_on "Save deposit"
-    assert_text "Deposit requirement saved"
-    assert_text "Final deposit"
-    assert_selector "#cruise-deposit-summaries .dd-definition-card", text: /Final/
-    assert_text(/per retained cabin, less credited earlier deposits/i)
-    assert_no_text "Fixed amount"
+    assert_no_text "Cumulative amount per retained cabin"
   end
 
   test "template change updates generated name and preserves staff-authored name" do
@@ -129,8 +102,8 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     click_on "Add deposit"
     select "Initial deposit", from: "Template"
     assert_field "Name", with: "Initial deposit"
-    select "Final deposit", from: "Template"
-    assert_field "Name", with: "Final deposit"
+    select "Other deposit", from: "Template"
+    assert_field "Name", with: ""
     click_on "Cancel"
     wait_for_turbo
 
@@ -290,16 +263,13 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     assert_text "Deposit requirement saved"
 
     click_on "Add deposit"
-    select "Final deposit", from: "Template"
-    fill_in "Rate per unit (USD)", with: "500"
-    check "O1 · pool"
-    check "Initial deposit"
-    select "Fixed date", from: "Timing rule"
-    fill_deposit_date "Date", "2027-03-11"
+    select "Other deposit", from: "Template"
+    fill_in "Name", with: "Additional hold"
     select "Fixed amount", from: "Amount"
     assert_selector "[data-cruise-deposit-editor-target='contributorGroup'][hidden]", visible: :all
-    assert_selector "input[name='cruise_deposit[contributor_definition_ids][]'][disabled]", visible: :all
     fill_in "Fixed amount (USD)", with: "100"
+    select "Fixed date", from: "Timing rule"
+    fill_deposit_date "Date", "2027-03-11"
     select "Entire Cruise Arrangement", from: "Coverage scope"
     click_on "Save deposit"
     assert_text "Deposit requirement saved"

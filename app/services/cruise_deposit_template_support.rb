@@ -54,8 +54,10 @@ module CruiseDepositTemplateSupport
 
   module_function
 
+  PRESENTED_TEMPLATE_KEYS = %w[initial_deposit other_deposit].freeze
+
   def template_options
-    TEMPLATES.map { |key, spec| [ spec.fetch(:label), key ] }
+    PRESENTED_TEMPLATE_KEYS.map { |key| [ TEMPLATES.fetch(key).fetch(:label), key ] }
   end
 
   def template_spec(template_key)

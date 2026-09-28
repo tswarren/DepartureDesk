@@ -1,6 +1,6 @@
 # M4D.1 Slice 2B — Cruise Deposits, Deadlines, and Activation-Safe Editing
 
-**Status:** Shipped 2026-09-23. Sole shipped authority for typed Cruise Stop point D (Supplier deposits, deadlines, activation consequences, and successor-safe editing). **2B-A, 2B-B, and 2B-C delivered.** Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 2C+, Client connection beyond Stop D, and M4E remain unauthorized until named.
+**Status:** Shipped 2026-09-23. Sole shipped authority for typed Cruise Stop point D (Supplier deposits, deadlines, activation consequences, and successor-safe editing). **2B-A, 2B-B, and 2B-C delivered.** The Celebrity `$500 × retained cabins` final tranche and October 7 rooming-list deadline in this plan are superseded for that sailing by the accepted Cruise rework. Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. Slice 2C+, Client connection beyond Stop D, and M4E remain unauthorized until named.
 
 **Parent authority:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md), especially §§11–12, §19, and §21.
 

@@ -210,6 +210,7 @@ class CruiseDepositsAndDeadlinesActivationPreviewTest < ActiveSupport::TestCase
       position: 1
     )
 
+    satisfy_cruise_activation_gate!(agency: @agency, actor: @staff, arrangement: @arrangement, version: @version)
     ActivateSupplierArrangementVersion.new(
       agency: @agency,
       actor: @staff,

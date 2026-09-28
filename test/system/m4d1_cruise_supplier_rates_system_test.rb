@@ -254,6 +254,21 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     page.current_window.resize_to(1400, 900) if page&.current_window
   end
 
+  test "staff records contracted rates without changing the estimate" do
+    sign_in_from_browser(@staff)
+    visit_rates_page
+    fill_in "Base Fare · First/Second", with: "1624.00"
+    select "Not provided yet", from: "Commission method"
+    click_on "Save Supplier terms"
+    assert_text "Supplier rates saved"
+
+    click_on "Record contracted rates"
+    assert_text "Contracted rates recorded. The estimate is unchanged."
+    assert_text "Contracted"
+    click_on "Estimate"
+    assert_field "Base Fare · First/Second", with: "1624.00"
+  end
+
   private
 
   def visit_rates_page

@@ -2,6 +2,7 @@
 
 - Status: Accepted. Implemented by shipped [M3C](../planning/m3c-cost-terms-and-forecasts.md). Arrangement activation and effective contracted terms remain M3D.
 - Date: 2026-09-17
+- Amended: 2026-09-27. Estimate and contracted definitions remain distinct siblings. Recording contracted Cruise rates copies an estimate into a new contracted definition and does not change the estimate's stage. A changed-cost supplemental Cruise block uses its own Resource-scoped cost source. This amendment adds no Pool-scoped cost definitions.
 - Decision owners: DepartureDesk maintainers
 
 ## Context

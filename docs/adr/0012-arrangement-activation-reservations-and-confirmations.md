@@ -8,6 +8,7 @@
 - Prerequisite: [M3D.0](../planning/m3d0-planning-workspace-compression.md) must be Accepted and shipped before any production activation, Reservation, confirmation, effective-capacity, or commitment-opening implementation. There is no waiver.
 - Implementing slice: [M3D](../planning/m3d-activation-reservations-confirmations.md)
 - Supersession 2026-09-18: [ADR 0013](0013-supplier-operational-commitments-deadlines-exposure-and-ending.md) supersedes “manual opening” / unrestricted commitment-opening language and the M3D “every unresolved commitment row blocks ordinary inactivation” rule for post-M3E behavior. M3E openings are source-shaped and definition-driven; ordinary inactivation blocks only commitments whose current event-derived state is open. Historical decision text below is retained.
+- Amended 2026-09-27: Cruise agreement confirmation is a separate exact-version fact. It requires a Supplier group reference and contract date, records actor and time, and may include an optional note. It adds no document association. It does not manufacture a Reservation confirmation. Cruise activation requires that confirmation plus ready contracted rates for Resources already in the confirmed scope. Generic non-Cruise activation with a ready estimate is unchanged.
 
 
 ## Context

@@ -2,6 +2,7 @@
 
 - Status: Accepted. Implemented by shipped [M3B](../planning/m3b-supplier-capacity.md). Arrangement activation and Staff-facing effective-capacity controls remain M3D.
 - Date: 2026-09-16
+- Amended: 2026-09-27. An evidenced increase under unchanged governing terms is a capacity event on the existing Pool. Inventory with different rates, deposit treatment, or release terms uses a successor and a distinct Resource, Pool, and rate source. Passing a deadline does not itself release capacity.
 - Decision owners: DepartureDesk maintainers
 
 ## Context

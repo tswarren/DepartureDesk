@@ -81,6 +81,29 @@
         <p><%= link_to "Open advanced cost planning", @advanced_path, class: "dd-button dd-button-secondary" %></p>
       </section>
     <% else %>
+      <% if @editable && @rate_shape.source %>
+        <% rate_definitions = @rate_shape.source.supplier_cost_definitions %>
+        <% if rate_definitions.any?(&:estimate?) && rate_definitions.none?(&:contracted?) %>
+          <%= form_with url: record_contracted_departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
+                method: :post, class: "dd-inline-actions" do %>
+            <%= hidden_field_tag :version_lock_version, @cruise_shape.version.lock_version %>
+            <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+            <%= submit_tag "Record contracted rates", class: "dd-button" %>
+          <% end %>
+          <p class="dd-help">This copies the estimate into contracted rates and leaves the estimate unchanged.</p>
+        <% elsif rate_definitions.any?(&:estimate?) && rate_definitions.any?(&:contracted?) %>
+          <nav class="dd-inline-actions" aria-label="Supplier rate stage">
+            <%= link_to "Estimate",
+                  departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource, stage: "estimate"),
+                  class: "dd-button dd-button--quiet",
+                  aria: { current: (@form_stage.to_s == "estimate" ? "page" : nil) } %>
+            <%= link_to "Contracted",
+                  departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource, stage: "contracted"),
+                  class: "dd-button dd-button--quiet",
+                  aria: { current: (@form_stage.to_s == "contracted" ? "page" : nil) } %>
+          </nav>
+        <% end %>
+      <% end %>
       <% if @editable %>
         <%= form_with url: departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
               method: (@rate_shape.empty? ? :post : :patch),
@@ -116,7 +139,7 @@
             <% else %>
               <%= hidden_field_tag :stage, @form_stage %>
               <p id="stage" class="dd-help"><%= @form_stage.to_s.humanize %></p>
-              <p class="dd-help">Stage is fixed after the schedule is first saved.</p>
+              <p class="dd-help">This stage stays in place. Record contracted rates to add the other stage.</p>
             <% end %>
           </div>
 
@@ -397,6 +420,7 @@
           <%= form_with url: forecast_readiness_departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
                 method: :post, class: "dd-stack", html: { id: "cruise-rate-forecast-ready" } do %>
             <%= hidden_field_tag :definition_lock_version, @rate_shape.definition.lock_version %>
+            <%= hidden_field_tag :stage, @form_stage %>
             <div class="dd-field">
               <label class="dd-label" for="readiness_provenance">Readiness provenance</label>
               <%= text_field_tag :readiness_provenance, nil, id: "readiness_provenance", class: "dd-input" %>

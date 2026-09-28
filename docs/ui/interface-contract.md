@@ -219,6 +219,17 @@ Authority: [Slice 2D](../planning/m4d1-slice2d-cruise-client-terms-and-scenario-
 - The matrix may scroll horizontally inside a labeled region. The page itself must not overflow at 375, 768, 1280, or 1400 pixels.
 - Triple appears only when a confirmed occupancy profile of at least three positions enables Additional and the Supplier rate shape supports that position. Maximum occupancy alone does not add the column.
 
+## Cruise agreement rework
+
+Authority: [Cruise rework](../planning/m4d1-cruise-rework.md).
+
+- Supplier rates keep estimate and contracted as separate stages. **Record contracted rates** copies the estimate onto a contracted sibling and leaves the estimate unchanged. The copy stays working until Staff marks that stage forecast-ready.
+- Cruise setup shows Supplier agreement confirmation: group reference, contract date, actor, time, and an optional note. There is no document field. A confirmed value changes only through **Correct confirmation**, which keeps the earlier confirmation.
+- Deposit and deadline templates offered on the Cruise workspace are the opening quantity deposit, Hard stop, and Final payment. The `$500` allocated-cabin rule, card restrictions, and cancellation ladder are readable terms. They do not calculate charges.
+- A saved deposit due date stays in place when the group creation date changes. The deposits workspace says when the saved date and the suggested date differ.
+- After activation, **Record same-terms increase** adds evidenced capacity and an explicit deposit for that increase. **Add supplemental O1 block** opens a successor with Supplier code O1 and the label Supplemental O1 block. That successor needs its own confirmation, ready contracted rates, and a written deposit treatment before activation.
+- A same-terms increase or a supplemental block does not change an existing Client choice.
+
 ## Responsive and accessibility gate
 
 Every changed surface must be checked at 375px, 768px, reference desktop width, and 1280px. Verify skip link, landmarks, headings, visible focus, complete keyboard order, drawer focus containment/restoration, accessible names, validation associations, reflow, and no hover-only action.

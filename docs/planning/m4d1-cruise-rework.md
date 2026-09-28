@@ -1,10 +1,10 @@
 # DepartureDesk Cruise rework — decision and delivery plan
 
-**Status:** Draft for review, 2026-09-27. This document is not implementation authority.
+**Status:** Accepted 2026-09-27. Slices 1–5 and 7 are implemented. Slice 6 document storage stays deferred. Not authority for Hotel, document storage, or a general policy engine.
 
-Optional departure and return ports, itinerary notes, and commercial-benefit terms are accepted in [Sailing ports and commercial benefits](../m4d1-cruise-ports-and-commercial-benefits.md). This draft does not reopen them.
+Optional departure and return ports, itinerary notes, and commercial-benefit terms are accepted in [Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md). This plan does not reopen them.
 
-**Base:** M4D.1 Cruise slices 2A–2D are shipped; Slice 3R governs the separate non-Cruise sequence. The [Celebrity Beyond 2027 fixture](../fixtures/celebrity-beyond-2027-canonical-scenario-draft.md) remains Draft until accepted. The detailed delivery contract is [Cruise Remediation — Supplier Agreement, Contracted Rates, Deposits, and Amendments](DepartureDesk-cruise-remediation/dpearturedesk-cruise-remediation-supplier-agreement-etc.md). The fixture, that remediation, and this decision draft must agree before implementing changed semantics.
+**Base:** M4D.1 Cruise slices 2A–2D are shipped; Slice 3R governs the separate non-Cruise sequence. The [Celebrity Beyond 2027 fixture](fixtures/celebrity-beyond-2027-canonical-scenario-draft.md) is Approved. The detailed delivery notes are [Cruise Remediation — Supplier Agreement, Contracted Rates, Deposits, and Amendments](drafts/DepartureDesk-cruise-remediation/dpearturedesk-cruise-remediation-supplier-agreement-etc.md), aligned to this plan. Where they differ, this plan governs.
 
 This remediation stays at the Cruise MVP boundary. It does not add booking or accounting behavior, a general policy engine, Cruise-specific document storage, or another supplemental-deposit case.
 

@@ -2,6 +2,7 @@
 
 - Status: Accepted. Not implementation authority.
 - Date: 2026-09-16
+- Amended: 2026-09-27. The accepted Cruise rework adds an exact-version Supplier agreement confirmation distinct from Reservation confirmation. A governing confirmed version may coexist with an unconfirmed successor. Confirmation facts are immutable. An explicit correction supersedes the previous confirmation without erasing it. An amendment has its own date and does not rewrite the original contract date. Activation does not rewrite prior activated definitions or confirmation history.
 - Decision owners: DepartureDesk maintainers
 
 ## Context

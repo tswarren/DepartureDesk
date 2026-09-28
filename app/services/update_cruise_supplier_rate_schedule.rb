@@ -53,7 +53,8 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
 
         source = lock_source!(version, source)
         shape = DetectCruiseSupplierRateShape.new(
-          agency: @agency, arrangement: arrangement, resource: resource, version: version
+          agency: @agency, arrangement: arrangement, resource: resource, version: version,
+          stage: @stage
         ).call
         unless shape.compatible? && !shape.empty?
           raise Error.new(
@@ -61,7 +62,24 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
           )
         end
 
-        definition = lock_definition!(source, shape.definition)
+        definition = shape.definition
+        if @stage.present?
+          stage = @stage.to_s
+          unless SupplierCostDefinition::STAGES.include?(stage)
+            raise Error.new("Choose estimate or contracted.", code: :invalid)
+          end
+          if definition.nil? || definition.stage != stage
+            kept = definition&.stage || source.supplier_cost_definitions.order(:stage).pick(:stage)
+            raise Error.new(
+              "Terms stage cannot be changed after Supplier rates are saved. " \
+              "Keep #{kept.to_s.humanize.downcase}, or open advanced cost planning for a new definition.",
+              code: :invalid
+            )
+          end
+        end
+        raise Error.new("Add Supplier rates before updating them.", code: :invalid_state) unless definition
+
+        definition = lock_definition!(source, definition)
         ensure_current_lock_version!(version, @version_lock_version)
         ensure_current_lock_version!(definition, @definition_lock_version)
 
@@ -76,20 +94,6 @@ class UpdateCruiseSupplierRateSchedule < AgencyCommand
         currency = definition.currency
         matrix = build_matrix_from_inputs(currency)
         resolve_matrix_participant_categories!(matrix, version: version, item: item)
-
-        if @stage.present?
-          stage = @stage.to_s
-          unless SupplierCostDefinition::STAGES.include?(stage)
-            raise Error.new("Choose estimate or contracted.", code: :invalid)
-          end
-          if definition.stage != stage
-            raise Error.new(
-              "Terms stage cannot be changed after Supplier rates are saved. " \
-              "Keep #{definition.stage.humanize.downcase}, or open advanced cost planning for a new definition.",
-              code: :invalid
-            )
-          end
-        end
 
         if !@notes.nil?
           source.update!(

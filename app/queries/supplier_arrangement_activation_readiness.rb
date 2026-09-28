@@ -19,6 +19,7 @@ class SupplierArrangementActivationReadiness
     structure_readiness
     capacity_readiness
     cost_readiness
+    cruise_agreement_readiness
     trigger_readiness
     Result.new(version: @version, blockers: @blockers.freeze, cost_selections: @cost_selections.freeze)
   rescue ActiveRecord::RecordNotFound
@@ -207,6 +208,43 @@ class SupplierArrangementActivationReadiness
       end
       @cost_selections << [ source, selection ]
     end
+  end
+
+  def cruise_agreement_readiness
+    items = @version.arrangement_item_definitions.to_a
+    return unless items.any? { |item| item.category == "cruise" }
+
+    confirmation = @version.supplier_arrangement_cruise_agreement_confirmations.find_by(current: true, status: "confirmed")
+    unless confirmation
+      block(:structure, :cruise_agreement_unconfirmed, "cruise_agreement",
+        "Confirm the Cruise supplier agreement before activation.")
+    end
+
+    occurrence = @version.service_occurrence_definitions.order(:id).first
+    @version.supplier_resource_definitions.each do |resource_definition|
+      source = @version.supplier_cost_sources.find_by(
+        arrangement_item_id: resource_definition.arrangement_item_id,
+        service_occurrence_id: occurrence&.service_occurrence_id,
+        supplier_resource_id: resource_definition.supplier_resource_id
+      )
+      ready = source&.supplier_cost_definitions&.any? { |definition| definition.contracted? && definition.forecast_ready? }
+      next if ready
+
+      code = resource_definition.supplier_code.presence || resource_definition.name
+      block(:cost, :cruise_contracted_rates_missing, "resources.#{resource_definition.id}",
+        "Cabin #{code} needs ready contracted Supplier rates.")
+    end
+
+    predecessor = @version.copied_from
+    return unless predecessor && confirmation&.deposit_treatment.blank?
+
+    predecessor_resource_ids = predecessor.supplier_resource_definitions.map(&:supplier_resource_id)
+    return unless @version.supplier_resource_definitions.any? { |definition|
+      predecessor_resource_ids.exclude?(definition.supplier_resource_id)
+    }
+
+    block(:structure, :cruise_deposit_treatment_missing, "cruise_agreement",
+      "Record the deposit treatment for this supplemental block before activation.")
   end
 
   def trigger_readiness

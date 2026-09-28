@@ -2,7 +2,7 @@
 
 This register is the index of business fixtures used to plan Supplier Composition. A fixture records facts and the behavior those facts must prove. It is not an implementation plan and it does not authorize code.
 
-**Status words:** Draft, Approved, Superseded. Hilton Fort Lauderdale Marina is Approved. The other scenarios remain Draft. A Draft fixture does not authorize an implementation slice. An Approved fixture still does not authorize code until an accepted slice plan names the facts it uses.
+**Status words:** Draft, Approved, Superseded. Hilton Fort Lauderdale Marina and Celebrity Beyond are Approved. The other scenarios remain Draft. A Draft fixture does not authorize an implementation slice. An Approved fixture still does not authorize code until an accepted slice plan names the facts it uses.
 
 Shipped Cruise slices keep their own contracts. This register does not reopen them. No unaccepted slice may rely on a Draft fixture. An accepted slice may cite a Draft fixture only for the facts that slice names. That citation does not Approve the fixture.
 
@@ -13,13 +13,13 @@ Behavior coverage is [the proof matrix](supplier-composition-proof-matrix.md).
 | Field | Value |
 | --- | --- |
 | Canonical file | [celebrity-beyond-2027-canonical-scenario-draft.md](celebrity-beyond-2027-canonical-scenario-draft.md) |
-| Status | Draft |
-| Facts | Source-qualified July 2025 Celebrity Groups brochure, plus the agency's 15% commission rule. Client totals in that source are illustrative. |
+| Status | Approved 2026-09-27 |
+| Facts | Source-qualified July 2025 Celebrity Groups brochure, plus the agency's 15% commission rule. Client totals in that source are illustrative. Opening deposit is `$50 × 24 = $1,200`. The `$500` allocated-cabin rule does not materialize an Arrangement-wide tranche. |
 | Layer | Supplier Composition. Shipped Cruise Offer Design is recorded only as an exclusion. |
-| Proves | Controlled cabin inventory, occupancy-position Supplier components, and a cumulative initial deposit across cabin pools. |
-| Supersedes | Earlier Celebrity Beyond fixture facts, illustrative amounts, and proof assumptions that conflict with this file. |
-| Unresolved | The O1 Single discount does not explain the stated vacation total. The DI third-passenger stated gross does not follow the displayed base and NCCF. Both stay visible until a later source correction. |
-| Slices that may rely on it | The accepted [Sailing ports and commercial benefits](../m4d1-cruise-ports-and-commercial-benefits.md) slice may cite blank ports, optional itinerary notes, benefit wording, the optional citation, and Departure operating currency. That citation does not Approve this fixture and does not authorize deposits, deadlines, Offer Design, or the rest of the Cruise rework. |
+| Proves | Controlled cabin inventory, occupancy-position Supplier components, a quantity-derived opening deposit, and the Cruise rework proof. |
+| Supersedes | Earlier Celebrity Beyond fixture facts, illustrative amounts, and proof assumptions that conflict with this file, including the Arrangement-wide `$500 × retained` final tranche and the October 7 rooming-list deadline. |
+| Unresolved | Changed-terms amendment date and supplemental rate amounts stay test-only. |
+| Slices that may rely on it | The accepted Cruise rework may name these facts. Ports and commercial benefits may cite blank ports, optional itinerary notes, and benefit wording. |
 
 ## Hilton Fort Lauderdale Marina
 

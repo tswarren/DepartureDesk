@@ -554,6 +554,49 @@ $$;
 
 
 --
+-- Name: reject_cruise_agreement_confirmation_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_cruise_agreement_confirmation_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+    OR NEW.corrects_id IS DISTINCT FROM OLD.corrects_id
+  THEN
+    RAISE EXCEPTION 'cruise agreement confirmation owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_cruise_term_definition_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_cruise_term_definition_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.departure_id IS DISTINCT FROM OLD.departure_id
+    OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+    OR NEW.supplier_arrangement_version_id IS DISTINCT FROM OLD.supplier_arrangement_version_id
+    OR NEW.term_type IS DISTINCT FROM OLD.term_type
+    OR NEW.copied_from_id IS DISTINCT FROM OLD.copied_from_id
+  THEN
+    RAISE EXCEPTION 'cruise term definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_deadline_commitment_line_owner_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -4022,6 +4065,90 @@ CREATE TABLE public.supplier_arrangement_commercial_benefits (
 
 
 --
+-- Name: supplier_arrangement_cruise_agreement_confirmations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangement_cruise_agreement_confirmations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid CONSTRAINT supplier_arrangement_cruise_agreement_confir_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_arrangement_cruise_agreement_con_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_arrangement_cruise_ag_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_arrangement_cruise_supplier_arrangement_versi_not_null NOT NULL,
+    group_creation_date date,
+    group_reference character varying(80),
+    contract_date date,
+    note character varying(2000),
+    deposit_treatment character varying(2000),
+    status character varying CONSTRAINT supplier_arrangement_cruise_agreement_confirmat_status_not_null NOT NULL,
+    current boolean DEFAULT true CONSTRAINT supplier_arrangement_cruise_agreement_confirma_current_not_null NOT NULL,
+    confirmed_at timestamp with time zone,
+    confirmed_by_id uuid,
+    corrects_id uuid,
+    lock_version integer DEFAULT 0 CONSTRAINT supplier_arrangement_cruise_agreement_con_lock_version_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_arrangement_cruise_agreement_confi_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_arrangement_cruise_agreement_confi_updated_at_not_null NOT NULL,
+    CONSTRAINT cruise_agreement_confirmations_deposit_treatment CHECK (((deposit_treatment IS NULL) OR ((btrim((deposit_treatment)::text) <> ''::text) AND (char_length((deposit_treatment)::text) <= 2000)))),
+    CONSTRAINT cruise_agreement_confirmations_group_reference CHECK (((group_reference IS NULL) OR ((btrim((group_reference)::text) <> ''::text) AND (char_length((group_reference)::text) <= 80)))),
+    CONSTRAINT cruise_agreement_confirmations_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT cruise_agreement_confirmations_note CHECK (((note IS NULL) OR ((btrim((note)::text) <> ''::text) AND (char_length((note)::text) <= 2000)))),
+    CONSTRAINT cruise_agreement_confirmations_status CHECK (((status)::text = ANY ((ARRAY['provisional'::character varying, 'confirmed'::character varying])::text[]))),
+    CONSTRAINT cruise_agreement_confirmations_status_shape CHECK (((((status)::text = 'provisional'::text) AND (confirmed_at IS NULL) AND (confirmed_by_id IS NULL)) OR (((status)::text = 'confirmed'::text) AND (confirmed_at IS NOT NULL) AND (confirmed_by_id IS NOT NULL) AND (group_reference IS NOT NULL) AND (contract_date IS NOT NULL))))
+);
+
+
+--
+-- Name: supplier_arrangement_cruise_capacity_deposit_requirements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangement_cruise_capacity_deposit_requirements (
+    id uuid DEFAULT uuidv7() CONSTRAINT supplier_arrangement_cruise_capacity_deposit_requir_id_not_null NOT NULL,
+    agency_id uuid CONSTRAINT supplier_arrangement_cruise_capacity_deposit_agency_id_not_null NOT NULL,
+    departure_id uuid CONSTRAINT supplier_arrangement_cruise_capacity_depo_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_arrangement_cruise_ca_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_arrangement_cruis_supplier_arrangement_versi_not_null2 NOT NULL,
+    capacity_pool_id uuid CONSTRAINT supplier_arrangement_cruise_capacity__capacity_pool_id_not_null NOT NULL,
+    capacity_event_id uuid CONSTRAINT supplier_arrangement_cruise_capacity_capacity_event_id_not_null NOT NULL,
+    quantity integer CONSTRAINT supplier_arrangement_cruise_capacity_deposit__quantity_not_null NOT NULL,
+    rate_minor_units bigint CONSTRAINT supplier_arrangement_cruise_capacity__rate_minor_units_not_null NOT NULL,
+    amount_minor_units bigint CONSTRAINT supplier_arrangement_cruise_capacit_amount_minor_units_not_null NOT NULL,
+    currency character varying(3) CONSTRAINT supplier_arrangement_cruise_capacity_deposit__currency_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_arrangement_cruise_capacity_deposi_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_arrangement_cruise_capacity_deposi_updated_at_not_null NOT NULL,
+    CONSTRAINT cruise_capacity_deposit_requirements_amount CHECK (((quantity > 0) AND (rate_minor_units >= 0) AND (amount_minor_units = (quantity * rate_minor_units)))),
+    CONSTRAINT cruise_capacity_deposit_requirements_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text))
+);
+
+
+--
+-- Name: supplier_arrangement_cruise_term_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangement_cruise_term_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid CONSTRAINT supplier_arrangement_cruise_term_definiti_departure_id_not_null NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_arrangement_cruise_te_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_arrangement_cruis_supplier_arrangement_versi_not_null1 NOT NULL,
+    term_type character varying NOT NULL,
+    "position" integer NOT NULL,
+    body character varying(4000) NOT NULL,
+    amount_minor_units bigint,
+    credit_minor_units bigint,
+    currency character varying(3),
+    days_before_departure integer,
+    copied_from_id uuid,
+    lock_version integer DEFAULT 0 CONSTRAINT supplier_arrangement_cruise_term_definiti_lock_version_not_null NOT NULL,
+    created_at timestamp(6) with time zone CONSTRAINT supplier_arrangement_cruise_term_definition_created_at_not_null NOT NULL,
+    updated_at timestamp(6) with time zone CONSTRAINT supplier_arrangement_cruise_term_definition_updated_at_not_null NOT NULL,
+    CONSTRAINT cruise_term_definitions_body CHECK (((btrim((body)::text) <> ''::text) AND (char_length((body)::text) <= 4000))),
+    CONSTRAINT cruise_term_definitions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT cruise_term_definitions_position CHECK (("position" > 0)),
+    CONSTRAINT cruise_term_definitions_shape CHECK (((((term_type)::text = 'allocated_cabin_deposit'::text) AND ("position" = 1) AND (amount_minor_units > 0) AND (credit_minor_units >= 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (days_before_departure IS NULL)) OR (((term_type)::text = 'card_restrictions'::text) AND ("position" = 1) AND (amount_minor_units IS NULL) AND (credit_minor_units IS NULL) AND (currency IS NULL) AND (days_before_departure IS NULL)) OR (((term_type)::text = 'cancellation_step'::text) AND (days_before_departure >= 0) AND (amount_minor_units IS NULL) AND (credit_minor_units IS NULL) AND (currency IS NULL)))),
+    CONSTRAINT cruise_term_definitions_term_type CHECK (((term_type)::text = ANY ((ARRAY['allocated_cabin_deposit'::character varying, 'card_restrictions'::character varying, 'cancellation_step'::character varying])::text[])))
+);
+
+
+--
 -- Name: supplier_arrangement_ending_previews; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -6387,6 +6514,30 @@ ALTER TABLE ONLY public.supplier_arrangement_commercial_benefits
 
 
 --
+-- Name: supplier_arrangement_cruise_agreement_confirmations supplier_arrangement_cruise_agreement_confirmations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_agreement_confirmations
+    ADD CONSTRAINT supplier_arrangement_cruise_agreement_confirmations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_arrangement_cruise_capacity_deposit_requirements supplier_arrangement_cruise_capacity_deposit_requirements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_capacity_deposit_requirements
+    ADD CONSTRAINT supplier_arrangement_cruise_capacity_deposit_requirements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_arrangement_cruise_term_definitions supplier_arrangement_cruise_term_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_term_definitions
+    ADD CONSTRAINT supplier_arrangement_cruise_term_definitions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_arrangement_ending_previews supplier_arrangement_ending_previews_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8509,6 +8660,48 @@ CREATE UNIQUE INDEX index_confirmation_response_links_on_pair ON public.supplier
 --
 
 CREATE UNIQUE INDEX index_confirmation_scope_links_on_pair ON public.supplier_confirmation_reservation_scope_links USING btree (supplier_confirmation_id, supplier_reservation_scope_id);
+
+
+--
+-- Name: index_cruise_agreement_confirmations_on_lineage; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cruise_agreement_confirmations_on_lineage ON public.supplier_arrangement_cruise_agreement_confirmations USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_cruise_agreement_confirmations_one_current; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cruise_agreement_confirmations_one_current ON public.supplier_arrangement_cruise_agreement_confirmations USING btree (supplier_arrangement_version_id) WHERE current;
+
+
+--
+-- Name: index_cruise_capacity_deposit_requirements_on_event; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cruise_capacity_deposit_requirements_on_event ON public.supplier_arrangement_cruise_capacity_deposit_requirements USING btree (capacity_event_id);
+
+
+--
+-- Name: index_cruise_term_definitions_cancellation_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cruise_term_definitions_cancellation_position ON public.supplier_arrangement_cruise_term_definitions USING btree (supplier_arrangement_version_id, "position") WHERE ((term_type)::text = 'cancellation_step'::text);
+
+
+--
+-- Name: index_cruise_term_definitions_on_lineage; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cruise_term_definitions_on_lineage ON public.supplier_arrangement_cruise_term_definitions USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_cruise_term_definitions_one_readable_term; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cruise_term_definitions_one_readable_term ON public.supplier_arrangement_cruise_term_definitions USING btree (supplier_arrangement_version_id, term_type) WHERE ((term_type)::text = ANY ((ARRAY['allocated_cabin_deposit'::character varying, 'card_restrictions'::character varying])::text[]));
 
 
 --
@@ -11431,10 +11624,10 @@ CREATE UNIQUE INDEX supplier_cost_sources_lineage_owner_idx ON public.supplier_c
 
 
 --
--- Name: supplier_resource_defs_supplier_code_unique; Type: INDEX; Schema: public; Owner: -
+-- Name: supplier_resource_defs_code_and_name_unique; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX supplier_resource_defs_supplier_code_unique ON public.supplier_resource_definitions USING btree (supplier_arrangement_version_id, arrangement_item_id, lower(btrim((supplier_code)::text))) WHERE (supplier_code IS NOT NULL);
+CREATE UNIQUE INDEX supplier_resource_defs_code_and_name_unique ON public.supplier_resource_definitions USING btree (supplier_arrangement_version_id, arrangement_item_id, lower(btrim((supplier_code)::text)), lower(btrim((name)::text))) WHERE (supplier_code IS NOT NULL);
 
 
 --
@@ -11694,6 +11887,34 @@ CREATE TRIGGER commercial_benefit_definitions_reject_non_draft BEFORE INSERT OR 
 --
 
 CREATE TRIGGER commercial_benefit_definitions_reject_owner_change BEFORE UPDATE ON public.supplier_arrangement_commercial_benefit_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_commercial_benefit_definition_owner_change();
+
+
+--
+-- Name: supplier_arrangement_cruise_agreement_confirmations cruise_agreement_confirmations_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER cruise_agreement_confirmations_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_arrangement_cruise_agreement_confirmations FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_arrangement_cruise_agreement_confirmations cruise_agreement_confirmations_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER cruise_agreement_confirmations_reject_owner_change BEFORE UPDATE ON public.supplier_arrangement_cruise_agreement_confirmations FOR EACH ROW EXECUTE FUNCTION public.reject_cruise_agreement_confirmation_owner_change();
+
+
+--
+-- Name: supplier_arrangement_cruise_term_definitions cruise_term_definitions_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER cruise_term_definitions_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_arrangement_cruise_term_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_arrangement_cruise_term_definitions cruise_term_definitions_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER cruise_term_definitions_reject_owner_change BEFORE UPDATE ON public.supplier_arrangement_cruise_term_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_cruise_term_definition_owner_change();
 
 
 --
@@ -13893,6 +14114,70 @@ ALTER TABLE ONLY public.supplier_confirmation_reservation_scope_links
 
 ALTER TABLE ONLY public.supplier_confirmation_reservation_scope_links
     ADD CONSTRAINT confirmation_scope_links_scope_fk FOREIGN KEY (supplier_reservation_scope_id, supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_reservation_scopes(id, supplier_reservation_revision_id, supplier_reservation_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_cruise_agreement_confirmations cruise_agreement_confirmations_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_agreement_confirmations
+    ADD CONSTRAINT cruise_agreement_confirmations_actor_fk FOREIGN KEY (confirmed_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_cruise_agreement_confirmations cruise_agreement_confirmations_corrects_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_agreement_confirmations
+    ADD CONSTRAINT cruise_agreement_confirmations_corrects_fk FOREIGN KEY (corrects_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_cruise_agreement_confirmations(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_cruise_agreement_confirmations cruise_agreement_confirmations_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_agreement_confirmations
+    ADD CONSTRAINT cruise_agreement_confirmations_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_cruise_capacity_deposit_requirements cruise_capacity_deposit_requirements_event_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_capacity_deposit_requirements
+    ADD CONSTRAINT cruise_capacity_deposit_requirements_event_fk FOREIGN KEY (capacity_event_id, agency_id) REFERENCES public.capacity_events(id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_cruise_capacity_deposit_requirements cruise_capacity_deposit_requirements_pool_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_capacity_deposit_requirements
+    ADD CONSTRAINT cruise_capacity_deposit_requirements_pool_fk FOREIGN KEY (capacity_pool_id, agency_id) REFERENCES public.capacity_pools(id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_cruise_capacity_deposit_requirements cruise_capacity_deposit_requirements_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_capacity_deposit_requirements
+    ADD CONSTRAINT cruise_capacity_deposit_requirements_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_cruise_term_definitions cruise_term_definitions_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_term_definitions
+    ADD CONSTRAINT cruise_term_definitions_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_cruise_term_definitions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_arrangement_cruise_term_definitions cruise_term_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangement_cruise_term_definitions
+    ADD CONSTRAINT cruise_term_definitions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -16782,6 +17067,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260928010000'),
 ('20260926220000'),
 ('20260924180000'),
 ('20260923190000'),

@@ -23,6 +23,7 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
     assign_coverage_options
     assign_contributor_options
     assign_activation_preview if @editable
+    assign_deposit_due_mismatch
   end
 
   def activation_preview
@@ -220,6 +221,15 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
         "pool"
       ].compact.join(" · ")
       [ label, definition.capacity_pool_id ]
+    }
+  end
+
+  def assign_deposit_due_mismatch
+    version = @cruise_shape.version
+    confirmation = version&.supplier_arrangement_cruise_agreement_confirmations&.find_by(current: true)
+    creation_date = confirmation&.group_creation_date
+    @deposit_due_mismatch = CruiseInitialDepositDueDate.saved_fixed_dates(version).any? { |saved_on|
+      CruiseInitialDepositDueDate.mismatch?(saved_on: saved_on, group_creation_date: creation_date)
     }
   end
 

@@ -596,6 +596,52 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
     }
   end
 
+  test "recording contracted rates copies the estimate and leaves it working" do
+    create_smith_rates!
+    estimate = current_definition
+    estimate_amounts = estimate.supplier_cost_components.order(:position, :id).pluck(:amount_minor_units, :label)
+    estimate_updated_at = estimate.updated_at
+
+    result = RecordCruiseContractedRates.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      resource: @resource,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: "record-contracted-o1"
+    ).call
+
+    assert_equal :created, result.status
+    contracted = result.record
+    assert_equal "contracted", contracted.stage
+    assert_equal "working", contracted.status
+    assert_nil contracted.forecast_ready_at
+    assert_equal estimate.id, contracted.copied_from_id
+    assert_equal estimate_amounts,
+      contracted.supplier_cost_components.order(:position, :id).pluck(:amount_minor_units, :label)
+
+    estimate.reload
+    assert_equal "estimate", estimate.stage
+    assert_equal estimate_amounts, estimate.supplier_cost_components.order(:position, :id).pluck(:amount_minor_units, :label)
+    assert_equal estimate_updated_at, estimate.updated_at
+
+    selected = DetectCruiseSupplierRateShape.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource, stage: "contracted"
+    ).call
+    assert_equal contracted.id, selected.definition.id
+
+    replay = RecordCruiseContractedRates.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      resource: @resource,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: "record-contracted-o1"
+    ).call
+    assert_equal :replayed, replay.status
+    assert_equal 1, @version.supplier_cost_definitions.where(stage: "contracted").count
+  end
+
   def create_smith_rates!
     CreateCruiseSupplierRateSchedule.new(**create_args).call
     @version.reload
