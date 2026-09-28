@@ -288,10 +288,53 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     assert_text "Supplier rates saved"
     assert_text "$237.45"
 
+    percentage = expected_commission_components.sole
+    assert_equal "percentage", percentage.calculation_kind
+    assert_in_delta 0.15, percentage.rate.to_f, 0.0001
+    percentage_bases = percentage.supplier_cost_component_bases.includes(:base_component).order(:position, :id).map { |link|
+      [ link.direction, link.base_component.label ]
+    }
+    assert_includes percentage_bases, [ "add", "Base Fare" ]
+    assert_includes percentage_bases, [ "subtract", "Discount" ]
+
+    select "Dollar amount", from: "Commission method"
+    fill_in "Commission · First/Second", with: "25.00"
+    dismiss_confirm { click_on "Save Supplier terms" }
+    assert_no_text "Supplier rates updated"
+    unchanged = expected_commission_components.sole
+    assert_equal percentage.id, unchanged.id
+    assert_equal "percentage", unchanged.calculation_kind
+    assert_in_delta 0.15, unchanged.rate.to_f, 0.0001
+    assert_equal percentage_bases, unchanged.supplier_cost_component_bases.includes(:base_component).order(:position, :id).map { |link|
+      [ link.direction, link.base_component.label ]
+    }
+
+    visit_rates_page
+    assert_equal "percentage", selected_commission_method
+    assert_field "Commission rate · First/Second", with: "15"
+    assert_checked_field "Commissionable · Base Fare"
+    assert_checked_field "Commissionable · Discount"
+
     select "Dollar amount", from: "Commission method"
     fill_in "Commission · First/Second", with: "25.00"
     accept_confirm { click_on "Save Supplier terms" }
     assert_text "Supplier rates updated"
+    dollar_commissions = expected_commission_components
+    assert dollar_commissions.all? { |component|
+      component.calculation_kind == "unit_rate" && component.rate.nil? && component.supplier_cost_component_bases.none?
+    }
+    assert_equal [ 2_500 ], dollar_commissions.map(&:amount_minor_units)
+    assert_nil SupplierCostComponent.find_by(id: percentage.id)
+
+    visit_rates_page
+    assert_equal "dollar", selected_commission_method
+    assert_field "Commission · First/Second", with: "25.00"
+    assert_no_field "Commission rate · First/Second"
+    assert_no_field "Commissionable · Base Fare"
+    reopened = expected_commission_components
+    assert reopened.all? { |component|
+      component.calculation_kind == "unit_rate" && component.supplier_cost_component_bases.none?
+    }
   ensure
     page.current_window.resize_to(1400, 900) if page&.current_window
   end
@@ -360,5 +403,13 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
       agency: @agency, arrangement: @arrangement, resource: @resource
     ).call
     shape.definition
+  end
+
+  def expected_commission_components
+    current_definition.supplier_cost_components.where(economic_role: "expected_commission").order(:position, :id)
+  end
+
+  def selected_commission_method
+    find_field("Commission method").value
   end
 end
