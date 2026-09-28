@@ -92,6 +92,7 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
       supplier_deadline_definitions
       supplier_deposit_requirement_definitions
       supplier_arrangement_commercial_benefit_definitions
+      supplier_arrangement_cruise_term_definitions
     ].each { |association| version.public_send(association).order(:id).lock.load }
     SupplierCostComponentBase.where(supplier_arrangement_version_id: version.id).order(:id).lock.load
     SupplierCostOccupancyProfilePosition.where(
@@ -156,6 +157,10 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
     copy_family(
       from.supplier_arrangement_commercial_benefit_definitions,
       to.supplier_arrangement_commercial_benefit_definitions
+    )
+    copy_family(
+      from.supplier_arrangement_cruise_term_definitions,
+      to.supplier_arrangement_cruise_term_definitions
     )
 
     # These maps are intentionally built even where stable identity means no FK remap.

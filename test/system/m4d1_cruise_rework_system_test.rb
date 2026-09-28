@@ -121,6 +121,7 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     successor = @arrangement.versions.find_by!(status: "draft")
     assert_equal @version.id, @arrangement.reload.governing_version_id
     fill_in "Group reference", with: "1119999"
+    fill_in "agreement_group_creation_date_confirm", with: "2026-09-13"
     fill_in "Contract date", with: "2026-10-20"
     fill_in "Deposit treatment for a supplemental block", with: "No additional initial deposit for this block."
     click_on "Confirm agreement"

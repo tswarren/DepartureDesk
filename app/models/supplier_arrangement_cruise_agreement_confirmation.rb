@@ -23,6 +23,7 @@ class SupplierArrangementCruiseAgreementConfirmation < ApplicationRecord
   normalizes :note, with: ->(value) { value.to_s.strip.presence }
   normalizes :deposit_treatment, with: ->(value) { value.to_s.strip.presence }
 
+  validates :group_creation_date, presence: true
   validates :group_reference, length: { maximum: REFERENCE_LIMIT }, allow_nil: true
   validates :note, :deposit_treatment, length: { maximum: NOTE_LIMIT }, allow_nil: true
   validate :confirmed_fields_match_status

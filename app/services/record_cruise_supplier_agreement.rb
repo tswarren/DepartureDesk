@@ -83,6 +83,7 @@ class RecordCruiseSupplierAgreement < AgencyCommand
     treatment = @deposit_treatment.to_s.strip.presence
     creation_date = parse_date(@group_creation_date, "Group creation date")
     contract_date = parse_date(@contract_date, "Contract date")
+    raise Error.new("Enter the group creation date.", code: :invalid) if creation_date.blank?
     if @intent != "save_provisional"
       raise Error.new("Enter the group reference.", code: :invalid) if reference.blank?
       raise Error.new("Enter the contract date.", code: :invalid) if contract_date.blank?

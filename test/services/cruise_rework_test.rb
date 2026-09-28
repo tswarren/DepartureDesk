@@ -124,6 +124,60 @@ class CruiseReworkTest < ActiveSupport::TestCase
     assert_equal [ 90, 30 ], terms.select(&:cancellation_step?).map(&:days_before_departure)
   end
 
+  test "a successor copies readable terms and leaves the confirmation behind" do
+    record_readable_terms!
+    prepare_original_activation!
+    activate_departure!
+    authorize_pool!(@version, @pool)
+    activate_original!
+
+    predecessor = @arrangement.reload.governing_version
+    original_terms = predecessor.supplier_arrangement_cruise_term_definitions.order(:term_type, :position).to_a
+    assert_equal %w[allocated_cabin_deposit cancellation_step cancellation_step card_restrictions],
+      original_terms.map(&:term_type)
+
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: predecessor.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    copied = successor.supplier_arrangement_cruise_term_definitions.order(:term_type, :position).to_a
+    assert_equal original_terms.map(&:term_type), copied.map(&:term_type)
+    assert_equal original_terms.map(&:body), copied.map(&:body)
+    assert_equal original_terms.map(&:id), copied.map(&:copied_from_id)
+    assert_empty original_terms.map(&:id) & copied.map(&:id)
+    assert_empty successor.supplier_arrangement_cruise_agreement_confirmations
+    assert predecessor.supplier_arrangement_cruise_agreement_confirmations.exists?(current: true, status: "confirmed")
+  end
+
+  test "provisional and confirmed agreements require a group creation date" do
+    provisional = assert_raises(AgencyCommand::Error) do
+      RecordCruiseSupplierAgreement.new(
+        **agreement_args("save_provisional").merge(group_creation_date: nil, group_reference: nil, contract_date: nil)
+      ).call
+    end
+    assert_equal :invalid, provisional.code
+    assert_match(/group creation date/i, provisional.message)
+
+    confirmed = assert_raises(AgencyCommand::Error) do
+      RecordCruiseSupplierAgreement.new(**agreement_args("confirm").merge(group_creation_date: nil)).call
+    end
+    assert_equal :invalid, confirmed.code
+
+    saved = confirm!
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierArrangementCruiseAgreementConfirmation.transaction(requires_new: true) do
+        saved.update_columns(group_creation_date: nil)
+      end
+    end
+    assert_match(/cruise_agreement_confirmations_status_shape/i, error.message)
+    assert_equal Date.new(2026, 9, 13), saved.reload.group_creation_date
+  end
+
   test "a saved deposit due date stays put when the group creation date changes" do
     assert_equal Date.new(2026, 10, 13), CruiseInitialDepositDueDate.suggested_on(Date.new(2026, 9, 13))
     assert CruiseInitialDepositDueDate.mismatch?(
@@ -134,6 +188,21 @@ class CruiseReworkTest < ActiveSupport::TestCase
       saved_on: Date.new(2026, 10, 13),
       group_creation_date: Date.new(2026, 9, 13)
     )
+  end
+
+  test "deposit due mismatch compares only the initial cruise deposit" do
+    confirm!
+    create_initial_deposit!(date: "2026-10-13")
+    create_other_deposit!(date: "2026-09-01", description: "Earlier hold")
+    create_other_deposit!(date: "2026-12-01", description: "Later hold")
+
+    assert_equal [ Date.new(2026, 10, 13) ], CruiseInitialDepositDueDate.initial_deposit_due_dates(@version.reload)
+    assert_not initial_deposit_mismatches?
+
+    initial = @version.supplier_deposit_requirement_definitions.find_by!(description: "Initial deposit")
+    initial.update!(rule_parameters: { "date" => "2026-10-20" })
+    assert_equal [ Date.new(2026, 10, 20) ], CruiseInitialDepositDueDate.initial_deposit_due_dates(@version.reload)
+    assert initial_deposit_mismatches?
   end
 
   test "same-terms increase records 200 dollars and leaves the original deposit" do
@@ -232,6 +301,7 @@ class CruiseReworkTest < ActiveSupport::TestCase
       idempotency_key: SecureRandom.uuid,
       group_reference: "1119999",
       contract_date: "2026-10-20",
+      group_creation_date: "2026-09-13",
       deposit_treatment: "No additional initial deposit for this block."
     ).call
     satisfy_cruise_activation_gate!(
@@ -284,6 +354,83 @@ class CruiseReworkTest < ActiveSupport::TestCase
       group_reference: "1119999",
       contract_date: "2026-09-13",
       group_creation_date: "2026-09-13"
+    }
+  end
+
+  def record_readable_terms!
+    RecordCruiseAgreementTerms.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      allocated_cabin_deposit: {
+        amount_minor_units: 50_000,
+        credit_minor_units: 5_000,
+        currency: "USD",
+        body: "$500 per allocated stateroom with a $50 credit"
+      },
+      card_restrictions: "Final payment is not accepted on the restricted cards.",
+      cancellation_steps: [
+        { days_before_departure: 90, body: "Deposit retained" },
+        { days_before_departure: 30, body: "Fare retained" }
+      ]
+    ).call
+  end
+
+  def create_initial_deposit!(date:)
+    pool_definition = @version.capacity_pool_definitions.find_by!(capacity_pool: @pool)
+    CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @actor,
+      version: @version,
+      attributes: {
+        description: "Initial deposit",
+        amount_shape: "quantity_times_rate",
+        currency: "USD",
+        rate_minor_units: 5_000,
+        quantity_basis: "capacity_pool_units",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => date },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        coverage_links: [ {
+          capacity_pool_id: @pool.id,
+          arrangement_item_id: pool_definition.arrangement_item_id,
+          service_occurrence_id: pool_definition.service_occurrence_id,
+          supplier_resource_id: pool_definition.supplier_resource_id
+        } ]
+      },
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+  end
+
+  def create_other_deposit!(date:, description:)
+    CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @actor,
+      version: @version,
+      attributes: {
+        description: description,
+        amount_shape: "fixed_amount",
+        fixed_amount_minor_units: 10_000,
+        currency: "USD",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => date },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        coverage_links: [ { arrangement_item_id: @item.id } ]
+      },
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+  end
+
+  def initial_deposit_mismatches?
+    creation_date = @version.supplier_arrangement_cruise_agreement_confirmations.find_by!(current: true).group_creation_date
+    CruiseInitialDepositDueDate.initial_deposit_due_dates(@version).any? { |saved_on|
+      CruiseInitialDepositDueDate.mismatch?(saved_on: saved_on, group_creation_date: creation_date)
     }
   end
 

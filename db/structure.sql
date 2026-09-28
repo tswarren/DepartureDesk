@@ -4092,7 +4092,7 @@ CREATE TABLE public.supplier_arrangement_cruise_agreement_confirmations (
     CONSTRAINT cruise_agreement_confirmations_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT cruise_agreement_confirmations_note CHECK (((note IS NULL) OR ((btrim((note)::text) <> ''::text) AND (char_length((note)::text) <= 2000)))),
     CONSTRAINT cruise_agreement_confirmations_status CHECK (((status)::text = ANY ((ARRAY['provisional'::character varying, 'confirmed'::character varying])::text[]))),
-    CONSTRAINT cruise_agreement_confirmations_status_shape CHECK (((((status)::text = 'provisional'::text) AND (confirmed_at IS NULL) AND (confirmed_by_id IS NULL)) OR (((status)::text = 'confirmed'::text) AND (confirmed_at IS NOT NULL) AND (confirmed_by_id IS NOT NULL) AND (group_reference IS NOT NULL) AND (contract_date IS NOT NULL))))
+    CONSTRAINT cruise_agreement_confirmations_status_shape CHECK (((((status)::text = 'provisional'::text) AND (group_creation_date IS NOT NULL) AND (confirmed_at IS NULL) AND (confirmed_by_id IS NULL)) OR (((status)::text = 'confirmed'::text) AND (group_creation_date IS NOT NULL) AND (confirmed_at IS NOT NULL) AND (confirmed_by_id IS NOT NULL) AND (group_reference IS NOT NULL) AND (contract_date IS NOT NULL))))
 );
 
 
@@ -17067,6 +17067,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260928020000'),
 ('20260928010000'),
 ('20260926220000'),
 ('20260924180000'),

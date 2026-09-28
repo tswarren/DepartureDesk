@@ -228,7 +228,7 @@ class CruiseDepositsAndDeadlinesController < ApplicationController
     version = @cruise_shape.version
     confirmation = version&.supplier_arrangement_cruise_agreement_confirmations&.find_by(current: true)
     creation_date = confirmation&.group_creation_date
-    @deposit_due_mismatch = CruiseInitialDepositDueDate.saved_fixed_dates(version).any? { |saved_on|
+    @deposit_due_mismatch = CruiseInitialDepositDueDate.initial_deposit_due_dates(version).any? { |saved_on|
       CruiseInitialDepositDueDate.mismatch?(saved_on: saved_on, group_creation_date: creation_date)
     }
   end
