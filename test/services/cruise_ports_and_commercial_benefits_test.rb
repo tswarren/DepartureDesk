@@ -257,6 +257,7 @@ class CruisePortsAndCommercialBenefitsTest < ActiveSupport::TestCase
     assert version.reload.lock_version > submitted_lock
 
     activation_error = assert_raises(AgencyCommand::Error) do
+      satisfy_cruise_activation_gate!(agency: @agency, actor: @actor, arrangement: arrangement, version: version)
       ActivateSupplierArrangementVersion.new(
         agency: @agency, actor: @actor, arrangement: arrangement, version: version,
         arrangement_lock_version: arrangement_lock,
@@ -520,6 +521,7 @@ class CruisePortsAndCommercialBenefitsTest < ActiveSupport::TestCase
       trigger_kind: "arrangement_confirmation", authority_shape: "fixed_quantity",
       description: "Guaranteed sailing", fixed_quantity: 8, quantity_basis: "resource_units", position: 1
     )
+    satisfy_cruise_activation_gate!(agency: @agency, actor: @actor, arrangement: arrangement, version: version)
     ActivateSupplierArrangementVersion.new(
       agency: @agency, actor: @actor, arrangement: arrangement, version: version.reload,
       arrangement_lock_version: arrangement.reload.lock_version,

@@ -25,6 +25,9 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
       supplier_arrangement_activations
       supplier_arrangement_commercial_benefit_definitions
       supplier_arrangement_commercial_benefits
+      supplier_arrangement_cruise_agreement_confirmations
+      supplier_arrangement_cruise_capacity_deposit_requirements
+      supplier_arrangement_cruise_term_definitions
       supplier_arrangement_ending_previews
       supplier_arrangement_endings
       supplier_arrangement_versions

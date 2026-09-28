@@ -200,6 +200,12 @@
     </header>
 
     <div class="dd-panel-body dd-stack">
+      <% if @deposit_due_mismatch %>
+        <p role="status" id="cruise-deposit-due-mismatch">
+          A saved deposit due date does not match the date suggested from the group creation date.
+          The saved due date is unchanged.
+        </p>
+      <% end %>
       <% if @workspace.deposit_rows.any? %>
         <ul class="dd-definition-grid" id="cruise-deposit-summaries">
           <% @workspace.deposit_rows.each do |row| %>

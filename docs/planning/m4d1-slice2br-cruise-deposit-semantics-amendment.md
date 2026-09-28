@@ -1,6 +1,6 @@
 # M4D.1 Slice 2B-R — Cruise Deposit Semantics Amendment (M3E)
 
-**Status:** Shipped 2026-09-22. Sole shipped authority for generic M3E capacity-sourced deposit quantities and source-aware cumulative targets. Not authority for typed Cruise UI ([Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) is Accepted separately).
+**Status:** Shipped 2026-09-22. Sole shipped authority for generic M3E capacity-sourced deposit quantities and source-aware cumulative targets. The Celebrity `$500 × retained cabins` example in this plan is superseded for that sailing by the accepted Cruise rework. The generic cumulative-target mechanism remains. Not authority for typed Cruise UI ([Slice 2B](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) is Accepted separately).
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md) Stop point D / Slice 2B sequencing.
 

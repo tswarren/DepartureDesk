@@ -157,16 +157,20 @@ class CruiseSailingAndCabinInventoryTest < ActiveSupport::TestCase
     ).count
   end
 
-  test "supplier_code is unique case-insensitively within version and item" do
+  test "supplier code may repeat when the cabin name differs" do
     arrangement = create_sailing.record.arrangement
     version = arrangement.versions.sole
     create_cabin(arrangement, version, code: "O1", key: "cabin-unique-1")
+    create_cabin(arrangement, version.reload, code: "o1", key: "cabin-unique-2", name: "Supplemental O1 block")
+
+    assert_equal 2, version.supplier_resource_definitions.where("lower(supplier_code) = ?", "o1").count
 
     error = assert_raises(AgencyCommand::Error) do
-      create_cabin(arrangement, version.reload, code: "o1", key: "cabin-unique-2", name: "Other")
+      create_cabin(
+        arrangement, version.reload, code: "O1", key: "cabin-unique-3", name: "Prime Oceanview"
+      )
     end
     assert_equal :invalid, error.code
-    assert_equal 1, version.supplier_resource_definitions.where.not(supplier_code: nil).count
   end
 
   test "partial evidence is rejected while blank evidence remains optional" do
@@ -532,6 +536,7 @@ class CruiseSailingAndCabinInventoryTest < ActiveSupport::TestCase
       quantity_basis: "resource_units",
       position: 1
     )
+    satisfy_cruise_activation_gate!(agency: @agency, actor: @actor, arrangement: arrangement, version: version)
     ActivateSupplierArrangementVersion.new(
       agency: @agency,
       actor: @actor,

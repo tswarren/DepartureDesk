@@ -10,7 +10,7 @@ M1, M2, and M3 are complete. M4 is accepted and shipped through M4D.0. The Cruis
 
 ## Now
 
-[Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md) shipped in PR #162. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27, and the [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. The next unauthorized non-Cruise boundary is a Slice 3A implementation plan. Hotel implementation remains prohibited until that plan is accepted. Supplier Composition fixtures are indexed in [fixtures/README.md](fixtures/README.md). Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence and are not an implementation source.
+[Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md) shipped in PR #162. The [Cruise rework](m4d1-cruise-rework.md) is Accepted 2026-09-27. Its contracted-rate, agreement-confirmation, deposit and deadline, later-capacity, and Offer Design slices are implemented. Slice 6 document storage stays deferred. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27, and the [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. The next unauthorized non-Cruise boundary is a Slice 3A implementation plan. Hotel implementation remains prohibited until that plan is accepted. Supplier Composition fixtures are indexed in [fixtures/README.md](fixtures/README.md). Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence and are not an implementation source.
 
 ## Milestones
 
@@ -38,6 +38,7 @@ Parent: [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-w
 - **Slice 2D — Shipped.** [Cruise Client terms and scenario review](m4d1-slice2d-cruise-client-terms-and-scenario-review.md).
 - **Ports and commercial benefits — Shipped.** [Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md). Optional ports, itinerary notes, and versioned tour-conductor and GAP terms only.
 - **Slice 3R — Accepted.** [Non-Cruise adapter boundary](m4d1-slice3r-non-cruise-adapter-boundary.md). Layer boundary and delivery order only.
+- **Cruise rework — Accepted 2026-09-27, slices 1–5 and 7 implemented.** [Supplier agreement, contracted rates, deposits, and amendments](m4d1-cruise-rework.md). Slice 6 document storage stays deferred. Not Hotel code.
 - **Hotel Staff walkthrough — Accepted 2026-09-27.** [Hilton journey](m4d1-hilton-hotel-staff-walkthrough.md), with the Approved [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md). Authorizes a Slice 3A plan, not Hotel code.
 
 ## Product authority

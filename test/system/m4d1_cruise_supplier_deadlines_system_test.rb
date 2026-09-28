@@ -89,13 +89,13 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     assert_text "Final payment"
 
     click_on "Add deadline"
-    select "Rooming list", from: "Template"
-    assert_no_selector :field, "Kind", visible: true
+    select "Hard stop", from: "Template"
+    assert_text "does not release inventory"
     select "Fixed date", from: "Timing rule"
-    fill_deadline_date "Fixed date", "2027-10-07"
+    fill_deadline_date "Fixed date", "2027-07-09"
     click_on "Save deadline"
     assert_text "Deadline saved"
-    assert_text "Rooming list due"
+    assert_text "Due on 2027-07-09"
 
     click_on "Add deadline"
     select "Other Supplier deadline", from: "Template"
@@ -113,7 +113,7 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     assert_equal "form-error-summary", page.evaluate_script("document.activeElement && document.activeElement.id")
     assert_text "Option or release date"
     assert_text "Final payment"
-    assert_text "Rooming list due"
+    assert_text "Due on 2027-07-09"
   end
 
   test "staff removes a draft deadline with confirmation naming the definition" do
@@ -121,17 +121,17 @@ class M4d1CruiseSupplierDeadlinesSystemTest < ApplicationSystemTestCase
     visit_deadlines_workspace
 
     click_on "Add deadline"
-    select "Rooming list", from: "Template"
+    select "Hard stop", from: "Template"
     select "Fixed date", from: "Timing rule"
-    fill_deadline_date "Fixed date", "2027-10-07"
+    fill_deadline_date "Fixed date", "2027-07-09"
     click_on "Save deadline"
     assert_text "Deadline saved"
 
-    accept_confirm(/Remove Rooming list due/i) do
+    accept_confirm(/Remove Option or release date/i) do
       click_on "Remove"
     end
     assert_text "Deadline removed"
-    assert_no_text "Rooming list due"
+    assert_no_text "Due on 2027-07-09"
   end
 
   test "editor reveals only applicable controls for coverage and composite timing" do

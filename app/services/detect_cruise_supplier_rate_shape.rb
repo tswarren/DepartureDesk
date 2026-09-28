@@ -20,11 +20,12 @@ class DetectCruiseSupplierRateShape
     :projected_matrix
   )
 
-  def initialize(agency:, arrangement:, resource:, version: nil)
+  def initialize(agency:, arrangement:, resource:, version: nil, stage: nil)
     @agency = agency
     @arrangement = arrangement
     @resource = resource
     @version = version
+    @stage = stage
   end
 
   def call
@@ -168,9 +169,12 @@ class DetectCruiseSupplierRateShape
   end
 
   def preferred_definition(definitions)
-    definitions.find { |d| d.working? } ||
-      definitions.find { |d| d.forecast_ready? } ||
-      definitions.first
+    requested = @stage.to_s.presence
+    if requested && SupplierCostDefinition::STAGES.include?(requested)
+      return definitions.find { |definition| definition.stage == requested }
+    end
+
+    definitions.find(&:estimate?) || definitions.first
   end
 
   def components_for(definition)

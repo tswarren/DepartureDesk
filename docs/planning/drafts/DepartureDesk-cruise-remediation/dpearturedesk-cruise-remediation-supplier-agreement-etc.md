@@ -1,7 +1,6 @@
 # DepartureDesk Cruise Remediation — Supplier Agreement, Contracted Rates, Deposits, and Amendments
 
-**Status:** Draft for acceptance  
-**Date:** 2026-09-27
+**Status:** Aligned 2026-09-27 with the accepted Cruise rework decision plan. Detailed delivery notes. Where this file previously required an optional confirmation document, one shared policy engine, or a generic yes/no supplemental-deposit feature, the accepted decision plan governs.
 
 This plan replaces the current Cruise rework draft as the proposed implementation authority once **Gate 0** is complete and this document is marked Accepted.
 
@@ -119,10 +118,11 @@ For Cruise:
 - the Supplier group reference may be entered provisionally;
 - Supplier confirmation requires the Supplier group reference and contract date;
 - confirmation records actor and time;
-- confirmation note and supporting document are optional;
-- confirmation applies to the whole Supplier agreement revision, not an individual cabin category;
-- confirmation may occur before all contracted rates have been transcribed;
-- Cruise activation requires both agreement confirmation and complete ready contracted rates for every covered cabin category.
+- a confirmation note is optional; this remediation adds no agreement document;
+- confirmation covers the Supplier agreement scope of that exact Arrangement version;
+- Staff may complete contracted-rate transcription for Resources already in that scope without another confirmation;
+- adding a Resource or otherwise changing that scope requires a successor and its own confirmation;
+- Cruise activation requires both agreement confirmation and ready contracted rates for every cabin Resource in that scope.
 
 Preserve the existing generic non-Cruise activation contract. A non-Cruise Arrangement that is otherwise valid may continue to activate using a ready estimate where existing M3 authority permits it.
 
@@ -293,8 +293,9 @@ The persisted confirmation must identify at least:
 - contract/agreement date;
 - `confirmed_at`;
 - `confirmed_by`;
-- optional Staff note; and
-- optional supporting-document reference when generic document support exists.
+- optional Staff note.
+
+This remediation adds no document identifier.
 
 The confirmation represents:
 
@@ -328,7 +329,7 @@ A factual correction uses an explicit correction/supersession path that preserve
 
 ## R1.5 Confirmation may precede rate completion
 
-Staff may record Supplier confirmation before all contracted rates are ready.
+Staff may record Supplier confirmation before contracted rates are ready for Resources already inside that confirmed scope. Adding a Resource is not transcription of an existing Resource.
 
 This is intentional.
 
@@ -427,19 +428,16 @@ Remove the Celebrity-specific Arrangement-wide:
 
 final-deposit tranche.
 
-Replace it with a constrained, versioned **Supplier agreement policy** describing the booking-dependent cabin requirement.
-
-For Celebrity, the policy must be capable of expressing, in readable structured form:
+Record the `$500` allocated-stateroom rule, its credit and timing, and the card restrictions as readable versioned agreement data. Record the cancellation ladder as its own structured informational data on the same version. Do not introduce a shared policy engine.
 
 - `$500 total Supplier deposit per allocated stateroom`;
 - an attributable portion of the initial group deposit may count toward that total;
 - legal-name/allocation timing affects when the requirement becomes applicable;
 - shorter Supplier option periods may accelerate the requirement;
-- the July 9 Hard Stop bounds the remaining inventory decision;
-- applicable card restrictions; and
-- the sourced cancellation ladder.
+- the July 9 Hard Stop bounds the remaining inventory decision; and
+- applicable card restrictions.
 
-The policy is associated with the governing Supplier agreement revision and follows draft/copy/freeze/version behavior consistent with other versioned Supplier terms.
+The `$500` rule and the cancellation ladder are separate versioned terms on the agreement revision. They follow draft, copy, and freeze with that version. They do not share a policy engine.
 
 The policy is deliberately **nonmaterializing** in this remediation.
 
@@ -547,19 +545,13 @@ It does not create a new Resource merely to represent a second Supplier conversa
 
 A same-terms capacity increase never mutates the original `$1,200` opening-block requirement.
 
-The workflow must explicitly ask whether the added Supplier capacity carries an additional initial blocked-cabin deposit requirement.
-
-If **yes**, create a new supplemental quantity-derived Supplier requirement tied only to the capacity increase.
+No later Supplier capacity inherits an initial-deposit treatment implicitly. The canonical same-terms `+4` O1 case records `$50 × 4 = $200` and leaves `$1,200` unchanged. The changed-terms fixture prescribes no deposit amount or formula. Any applicable treatment must be recorded explicitly before that successor can govern. Do not add a reusable yes/no supplemental-deposit framework.
 
 Example:
 
 `4 additional cabins × $50 = $200`
 
-The new requirement must trace to the capacity event/additional quantity rather than recalculating the opening snapshot.
-
-If **no**, Staff record that no supplemental initial deposit applies, with the evidence/reason required by the accepted operational-control contract.
-
-There is no implicit default that changes historical money.
+The `$200` requirement traces to the capacity event rather than recalculating the opening snapshot. There is no implicit default that changes historical money.
 
 ## R3.3 Changed Supplier terms require a successor
 

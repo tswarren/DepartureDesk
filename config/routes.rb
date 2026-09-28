@@ -183,6 +183,14 @@ Rails.application.routes.draw do
       end
       resource :cruise, only: :show, controller: "cruise_arrangements" do
         post :successor
+        resource :agreement, only: [], controller: "cruise_agreements" do
+          post :provisional
+          post :confirm
+          post :correct
+          post :terms
+          post :same_terms_increase
+          post :supplemental_block
+        end
         resource :sailing, only: %i[edit update], controller: "cruise_sailings"
         resources :commercial_benefits, only: %i[create update],
           param: :term_type, controller: "cruise_commercial_benefits"
@@ -194,6 +202,7 @@ Rails.application.routes.draw do
             put :occupancy_plan
             post :forecast_readiness
             post :preview
+            post :record_contracted
           end
         end
         resource :service_connection, path: "service-connection", only: %i[show create update],

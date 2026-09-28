@@ -5,7 +5,7 @@ class MarkCruiseSupplierRateScheduleForecastReady < AgencyCommand
   include CruiseSupplierRateBuilders
 
   def initialize(agency:, actor:, arrangement:, resource:, definition_lock_version:,
-    readiness_provenance: nil, confirm_omissions: false)
+    readiness_provenance: nil, confirm_omissions: false, stage: nil)
     @agency = agency
     @actor = actor
     @arrangement = arrangement
@@ -13,6 +13,7 @@ class MarkCruiseSupplierRateScheduleForecastReady < AgencyCommand
     @definition_lock_version = definition_lock_version
     @readiness_provenance = readiness_provenance
     @confirm_omissions = confirm_omissions
+    @stage = stage
   end
 
   def call
@@ -26,7 +27,7 @@ class MarkCruiseSupplierRateScheduleForecastReady < AgencyCommand
       end
 
       shape = DetectCruiseSupplierRateShape.new(
-        agency: @agency, arrangement: @arrangement, resource: @resource
+        agency: @agency, arrangement: @arrangement, resource: @resource, stage: @stage
       ).call
       unless shape.compatible? && shape.definition
         raise Error.new("These Supplier terms need advanced cost planning.", code: :invalid_state)

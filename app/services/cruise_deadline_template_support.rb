@@ -4,6 +4,18 @@ module CruiseDeadlineTemplateSupport
   FINAL_PAYMENT_LABEL = "Final payment"
 
   TEMPLATES = {
+    "hard_stop" => {
+      label: "Hard stop",
+      deadline_type: "option_or_release_date",
+      default_kind: "actionable",
+      kind_fixed: true,
+      default_other_label: nil,
+      label_editable: false,
+      default_commitment_description:
+        "Review retained cabins and release any unretained block by the option date",
+      action_explanation:
+        "On activation, opens one actionable Supplier commitment. Reaching the date does not release inventory or post money."
+    },
     "option_or_release" => {
       label: "Option/release decision",
       deadline_type: "option_or_release_date",
@@ -70,8 +82,10 @@ module CruiseDeadlineTemplateSupport
 
   module_function
 
+  PRESENTED_TEMPLATE_KEYS = %w[hard_stop final_payment option_or_release other].freeze
+
   def template_options
-    TEMPLATES.map { |key, spec| [ spec.fetch(:label), key ] }
+    PRESENTED_TEMPLATE_KEYS.map { |key| [ TEMPLATES.fetch(key).fetch(:label), key ] }
   end
 
   def template_spec(template_key)

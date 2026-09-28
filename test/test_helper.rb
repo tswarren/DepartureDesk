@@ -8,6 +8,7 @@ require_relative "support/capacity_graph_helper"
 require_relative "support/capacity_activated_graph_helper"
 require_relative "support/m3c_cost_scenario_helper"
 require_relative "support/m3f_scenario_helper"
+require_relative "support/cruise_activation_gate_helper"
 
 module ActiveSupport
   class TestCase
@@ -24,5 +25,6 @@ module ActiveSupport
     include CapacityGraphHelper
     include CapacityActivatedGraphHelper
     include M3CCostScenarioHelper
+    include CruiseActivationGateHelper
   end
 end

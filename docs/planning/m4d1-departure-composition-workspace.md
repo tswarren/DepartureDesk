@@ -1187,7 +1187,7 @@ Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype
 
 **Exit:** the Hotel walkthrough is Accepted 2026-09-27. Hotel implementation remains prohibited until a separate Slice 3A implementation plan is accepted.
 
-**Next unauthorized non-Cruise boundary:** a Slice 3A Hotel implementation plan. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted, and the [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. Neither authorizes Hotel code.
+**Next authorized Cruise implementation:** the accepted [Cruise rework](m4d1-cruise-rework.md). **Next unauthorized non-Cruise boundary:** a Slice 3A Hotel implementation plan. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted, and the [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. Neither authorizes Hotel code.
 
 ### Slice 4 — Vineyard proof
 

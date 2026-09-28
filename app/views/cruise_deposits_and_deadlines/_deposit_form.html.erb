@@ -88,8 +88,7 @@ end %>
       <%= f.select :amount_shape,
             [
               [ "Fixed amount", "fixed_amount" ],
-              [ "Amount × quantity", "quantity_times_rate" ],
-              [ "Cumulative amount per retained cabin", "cumulative_target" ]
+              [ "Amount × quantity", "quantity_times_rate" ]
             ],
             { include_blank: "Choose amount", selected: form[:amount_shape] },
             class: "dd-input",
@@ -205,7 +204,7 @@ end %>
           </label>
         <% end %>
         <% if Array(@contributor_options).empty? %>
-          <p class="dd-help">Add an initial capacity-pool deposit before a final cumulative deposit.</p>
+          <p class="dd-help">Add the opening deposit for the initially blocked cabins. A later increase is recorded separately.</p>
         <% end %>
       </div>
     </fieldset>

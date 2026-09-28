@@ -9,11 +9,31 @@ class CruiseSupplierRatesController < ApplicationController
   before_action :set_supplier_arrangement
   before_action :require_compatible_cruise_shape!
   before_action :set_cabin_category
-  before_action :require_editable_draft!, only: %i[create update occupancy_plan forecast_readiness preview]
+  before_action :require_editable_draft!, only: %i[create update occupancy_plan forecast_readiness preview record_contracted]
   before_action :assign_rate_shape_for_preview, only: :preview
   before_action :assign_rate_workspace, except: %i[preview]
 
   def show
+  end
+
+  def record_contracted
+    RecordCruiseContractedRates.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      arrangement: @supplier_arrangement,
+      resource: @supplier_resource,
+      version_lock_version: params.require(:version_lock_version),
+      idempotency_key: params.require(:idempotency_key)
+    ).call
+    redirect_to departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @supplier_arrangement, @supplier_resource, stage: "contracted"
+    ), notice: "Contracted rates recorded. The estimate is unchanged."
+  rescue AgencyCommand::Error => error
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    redirect_to departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @supplier_arrangement, @supplier_resource, stage: "estimate"
+    ), alert: error.message
   end
 
   def preview
@@ -149,10 +169,11 @@ class CruiseSupplierRatesController < ApplicationController
       resource: @supplier_resource,
       definition_lock_version: params.require(:definition_lock_version),
       readiness_provenance: params[:readiness_provenance],
-      confirm_omissions: params[:confirm_omissions]
+      confirm_omissions: params[:confirm_omissions],
+      stage: params[:stage]
     ).call
     redirect_to departure_arrangement_cruise_cabin_category_supplier_rates_path(
-      @departure, @supplier_arrangement, @supplier_resource
+      @departure, @supplier_arrangement, @supplier_resource, stage: params[:stage]
     ), notice: "Supplier rates marked forecast-ready."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
@@ -169,7 +190,8 @@ class CruiseSupplierRatesController < ApplicationController
       agency: Current.agency,
       arrangement: @supplier_arrangement,
       resource: @supplier_resource,
-      version: @cruise_shape.version
+      version: @cruise_shape.version,
+      stage: params[:stage]
     ).call
   end
 
@@ -211,13 +233,15 @@ class CruiseSupplierRatesController < ApplicationController
       agency: Current.agency,
       arrangement: @supplier_arrangement,
       resource: @supplier_resource,
-      version: @cruise_shape.version
+      version: @cruise_shape.version,
+      stage: params[:stage]
     ).call
     @preview = CompileCruiseSupplierRatePreview.new(
       agency: Current.agency,
       arrangement: @supplier_arrangement,
       resource: @supplier_resource,
-      version: @cruise_shape.version
+      version: @cruise_shape.version,
+      stage: params[:stage]
     ).call
     @editable = @cruise_shape.version&.draft?
     @item = @rate_shape.item || @cruise_shape.item

@@ -24,7 +24,7 @@ class SupplierResourceDefinition < ApplicationRecord
   validates :description, length: { maximum: DESCRIPTION_LIMIT }, allow_nil: true
   validates :supplier_code, length: { maximum: SUPPLIER_CODE_LIMIT }, allow_nil: true,
     uniqueness: {
-      scope: [ :supplier_arrangement_version_id, :arrangement_item_id ],
+      scope: [ :supplier_arrangement_version_id, :arrangement_item_id, :name ],
       case_sensitive: false,
       allow_nil: true
     }
