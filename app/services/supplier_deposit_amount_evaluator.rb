@@ -153,7 +153,11 @@ class SupplierDepositAmountEvaluator
         }
       }
     when "capacity_pool_units"
-      evaluate_capacity_pool_rate(rate, quantity_phase: opening_phase)
+      evaluate_capacity_pool_rate(
+        rate,
+        quantity_phase: opening_phase,
+        exclude_nonnumeric_opening: true
+      )
     when "traveler_positions"
       raise IncompleteCalculation, "Traveler position deposit quantities are not supported yet"
     else
@@ -177,10 +181,11 @@ class SupplierDepositAmountEvaluator
     @arrangement.versions.where.not(status: "draft").exists?
   end
 
-  OPENING_QUANTITY_PHASES = %i[proposed_opening provisional_retained established_opening].freeze
-
-  def evaluate_capacity_pool_rate(rate, quantity_phase:)
-    sources, excluded = capacity_pool_resolution(quantity_phase:)
+  def evaluate_capacity_pool_rate(rate, quantity_phase:, exclude_nonnumeric_opening: false)
+    sources, excluded = capacity_pool_resolution(
+      quantity_phase:,
+      exclude_nonnumeric_opening:
+    )
     if sources.empty?
       if excluded.any?
         return {
@@ -237,10 +242,10 @@ class SupplierDepositAmountEvaluator
   end
 
   def capacity_pool_sources(quantity_phase:)
-    capacity_pool_resolution(quantity_phase:).first
+    capacity_pool_resolution(quantity_phase:, exclude_nonnumeric_opening: false).first
   end
 
-  def capacity_pool_resolution(quantity_phase:)
+  def capacity_pool_resolution(quantity_phase:, exclude_nonnumeric_opening:)
     links = coverage_link_rows
     raise IncompleteCalculation, "Deposit coverage is required for capacity-pool quantities" if links.empty?
 
@@ -248,7 +253,7 @@ class SupplierDepositAmountEvaluator
     excluded = []
     links.each do |link|
       pool = resolve_capacity_pool(link)
-      if opening_quantity_phase?(quantity_phase) && !pool.numeric_inventory?
+      if exclude_nonnumeric_opening && !pool.numeric_inventory?
         excluded << {
           "capacity_pool_id" => pool.id,
           "supplier_resource_id" => pool.supplier_resource_id,
@@ -269,10 +274,6 @@ class SupplierDepositAmountEvaluator
       }
     end
     [ sources, excluded ]
-  end
-
-  def opening_quantity_phase?(quantity_phase)
-    OPENING_QUANTITY_PHASES.include?(quantity_phase)
   end
 
   def resolve_capacity_pool(link)

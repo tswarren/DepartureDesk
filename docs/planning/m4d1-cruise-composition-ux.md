@@ -84,7 +84,7 @@ Proof: request and service tests cover omitted-citation preservation, the comple
 
 ### UX-4.5 — Numeric capacity evaluation
 
-Opening-quantity deposit evaluation counts `block` and `allotment` pools only. On request and externally managed pools stay in the coverage and are omitted from the sum. A missing number on a numeric pool is still incomplete. When every covered pool is nonnumeric, the result is quantity not tracked: no `$0` tranche, no deposit commitment, and no activation or attention blocker. A mixed deposit keeps the numeric total and says the omitted cabins are not included. The retained quantity used by a cumulative target is unchanged. No inventory mode, pool quantity, rate, agreement, or deposit definition is rewritten.
+Opening-quantity deposit evaluation counts `block` and `allotment` pools only. On request and externally managed pools stay in the coverage and are omitted from the sum. A missing number on a numeric pool is still incomplete. When every covered pool is nonnumeric, the result is quantity not tracked: no `$0` tranche, no deposit commitment, and no activation or attention blocker. A mixed deposit keeps the numeric total and says the omitted cabins are not included. That omission applies only to the opening-quantity path (`proposed_opening` and `established_opening`). A quantity-derived cumulative target keeps its existing `provisional_retained` and `retained` evaluation. No inventory mode, pool quantity, rate, agreement, or deposit definition is rewritten.
 
 ## Later slices
 

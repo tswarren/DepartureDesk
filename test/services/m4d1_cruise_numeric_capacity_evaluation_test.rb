@@ -109,6 +109,99 @@ class M4d1CruiseNumericCapacityEvaluationTest < ActiveSupport::TestCase
     )
   end
 
+  test "a quantity-derived cumulative target still evaluates provisional retained quantity" do
+    setup = create_sailing!
+    blocked = add_cabin!(setup, name: "Prime Oceanview", code: "O1", inventory_mode: "block", quantity: 8)
+    requested = add_cabin!(setup, name: "Concierge", code: "C1", inventory_mode: "on_request")
+    initial = create_deposit!(setup, pools: [ blocked ], rate_minor_units: 5_000)
+    numeric_final = create_deposit!(
+      setup,
+      pools: [ blocked ],
+      rate_minor_units: 50_000,
+      amount_shape: "cumulative_target",
+      contributor_definition_ids: [ initial.id ]
+    )
+
+    numeric = SupplierDepositAmountEvaluator.call(
+      definition: numeric_final,
+      version: setup[:version].reload,
+      arrangement: setup[:arrangement],
+      mode: :preview
+    )
+
+    assert_equal "provisional_retained", numeric.dig(:inputs, "quantity_phase")
+    assert_equal 360_000, numeric[:amount_minor_units]
+    assert_equal 8, numeric.dig(:inputs, "sources").sole["retained_quantity"]
+
+    mixed_final = create_deposit!(
+      setup,
+      pools: [ blocked, requested ],
+      rate_minor_units: 50_000,
+      amount_shape: "cumulative_target",
+      contributor_definition_ids: [ initial.id ]
+    )
+    error = assert_raises(SupplierDepositAmountEvaluator::IncompleteCalculation) do
+      SupplierDepositAmountEvaluator.call(
+        definition: mixed_final,
+        version: setup[:version].reload,
+        arrangement: setup[:arrangement],
+        mode: :preview
+      )
+    end
+
+    assert_match(/Proposed opening quantity is incomplete/i, error.message)
+    assert_nil setup[:version].capacity_pool_definitions.find_by!(
+      capacity_pool_id: requested.id
+    ).proposed_opening_quantity
+  end
+
+  test "opening evaluation follows the numeric cabins when an on request cabin is also covered" do
+    setup = create_sailing!
+    first = add_cabin!(setup, name: "Prime Oceanview", code: "O1", inventory_mode: "block", quantity: 8)
+    second = add_cabin!(setup, name: "Interior", code: "I1", inventory_mode: "block", quantity: 8)
+    requested = add_cabin!(setup, name: "Concierge", code: "C1", inventory_mode: "on_request")
+    deposit = create_deposit!(
+      setup,
+      pools: [ first, second, requested ],
+      rate_minor_units: 5_000
+    )
+
+    evaluated = SupplierDepositAmountEvaluator.call(
+      definition: deposit,
+      version: setup[:version].reload,
+      arrangement: setup[:arrangement],
+      mode: :preview
+    )
+
+    assert_equal 80_000, evaluated[:amount_minor_units]
+    assert_equal 16, evaluated.dig(:inputs, "quantity")
+    assert_equal [ requested.id ], evaluated.dig(:inputs, "excluded_pools").map { |row| row["capacity_pool_id"] }
+
+    definition = setup[:version].capacity_pool_definitions.find_by!(capacity_pool_id: second.id)
+    UpdateCapacityPool.new(
+      agency: @agency,
+      actor: @staff,
+      definition: definition,
+      lock_version: definition.lock_version,
+      attributes: { proposed_opening_quantity: 16 }
+    ).call
+
+    revised = SupplierDepositAmountEvaluator.call(
+      definition: deposit.reload,
+      version: setup[:version].reload,
+      arrangement: setup[:arrangement],
+      mode: :preview
+    )
+
+    assert_equal 120_000, revised[:amount_minor_units]
+    assert_equal 24, revised.dig(:inputs, "quantity")
+    assert_equal 5_000, deposit.rate_minor_units
+    assert_equal "2027-10-13", deposit.rule_parameters["date"]
+    assert_nil setup[:version].capacity_pool_definitions.find_by!(
+      capacity_pool_id: requested.id
+    ).proposed_opening_quantity
+  end
+
   private
 
   def create_sailing!
@@ -172,15 +265,15 @@ class M4d1CruiseNumericCapacityEvaluationTest < ActiveSupport::TestCase
     result.record.pool
   end
 
-  def create_deposit!(setup, pools:, rate_minor_units:)
+  def create_deposit!(setup, pools:, rate_minor_units:, amount_shape: "quantity_times_rate", contributor_definition_ids: [])
     version = setup[:version].reload
     CreateSupplierDepositRequirementDefinition.new(
       agency: @agency,
       actor: @staff,
       version: version,
       attributes: {
-        description: "Initial deposit",
-        amount_shape: "quantity_times_rate",
+        description: amount_shape == "cumulative_target" ? "Final deposit" : "Initial deposit",
+        amount_shape: amount_shape,
         quantity_basis: "capacity_pool_units",
         rate_minor_units: rate_minor_units,
         currency: "USD",
@@ -188,7 +281,8 @@ class M4d1CruiseNumericCapacityEvaluationTest < ActiveSupport::TestCase
         rule_parameters: { "date" => "2027-10-13" },
         precision: "date_only",
         time_zone: "America/New_York",
-        coverage_links: pools.map { |pool| pool_coverage(version, pool) }
+        coverage_links: pools.map { |pool| pool_coverage(version, pool) },
+        contributor_definition_ids: contributor_definition_ids
       },
       version_lock_version: version.lock_version,
       idempotency_key: SecureRandom.uuid
