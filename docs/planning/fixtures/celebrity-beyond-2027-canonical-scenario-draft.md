@@ -6,7 +6,7 @@
 
 When accepted, this scenario supersedes every earlier Celebrity Beyond fixture fact, amount, walkthrough value, and proof assumption that conflicts with it. Earlier documents may remain as implementation history, but they must not supply facts that this scenario defines differently.
 
-Shipped Cruise slices retain their own authority. This scenario validates those workflows against one canonical fixture; it does not silently amend them.
+This scenario defines the canonical Celebrity Beyond facts used to prove the accepted Cruise workflow. It does not independently amend architecture or shipped behavior. Where the accepted **Cruise Remediation — Supplier Agreement, Contracted Rates, Deposits, and Amendments** plan expressly supersedes Cruise-specific behavior from the shipped M4D.1 Cruise slices, that remediation plan governs the behavior and this scenario supplies its canonical proof facts. Generic M3/M4 behavior not expressly amended by that plan retains its existing authority.
 
 The MVP representation is:
 
@@ -25,9 +25,16 @@ This is the canonical proof scenario for:
 - a Cruise Arrangement with three cabin categories and controlled opening inventory;
 - additive occupancy-position Supplier economics;
 - commission on commissionable fare only;
+- estimated Supplier rates preserved separately from contracted Supplier rates;
+- whole-agreement Supplier confirmation independently from rate transcription and activation;
+- Cruise activation gated by Supplier confirmation and ready contracted rates;
 - a quantity-derived initial group deposit across selected cabin Pools;
 - actionable deadlines separated from booking-dependent policy;
-- a one-time proposed Arrangement name that Staff may override; and
+- a one-time proposed Arrangement name that Staff may override;
+- same-terms capacity increases distinguished from supplemental inventory with materially different Supplier terms;
+- explicit supplemental-deposit treatment for later capacity;
+- truthful duplicate Supplier category codes distinguished by internal block identity;
+- Supplier-side capacity changes isolated from published Client choices until explicit Offer Design review; and
 - the shipped Cruise Offer Design handoff without implying Package placement or a Client booking.
 
 ## 3. Source classification and evidence
@@ -55,12 +62,30 @@ Booking-dependent rules remain visible as contract policy but do not materialize
 | Ship | Celebrity Beyond |
 | Itinerary | 7-Night Eastern Caribbean |
 | Sailing | November 6–13, 2027 |
+| Group creation date | September 13, 2026 |
+| Contract date | September 13, 2026 |
 | Supplier group reference | 1119999 |
 | Departure operating currency | USD, displayed on the Arrangement |
 | Departure port | Not named; the canonical proof leaves it blank |
 | Return port | Not named; the canonical proof leaves it blank |
 | Itinerary notes | Optional; this scenario does not require them |
 | Time zone | America/New_York |
+
+### 4.1 Group agreement status
+
+The Supplier group agreement has a lifecycle distinct from Arrangement activation.
+
+- **Group creation date:** September 13, 2026.
+- **Contract date:** September 13, 2026.
+- Before Supplier confirmation, the Arrangement may remain provisional. The Supplier group reference and contract date may be absent or edited while provisional.
+- For this canonical scenario, the Supplier group reference is `1119999`.
+- Supplier confirmation requires the group reference and contract date and records the confirming Staff actor and time.
+- A confirmation note and supporting agreement document are optional.
+- Confirmation applies to the whole agreement revision, not to an individual cabin category.
+- Supplier confirmation may be recorded before Staff finish transcribing contracted rates.
+- Supplier confirmation does not itself activate the Arrangement.
+- After confirmation, the confirmed Supplier group reference and contract date cannot be changed by ordinary edit. A factual correction preserves the earlier confirmation values and records the correction explicitly.
+- A later amendment with materially changed Supplier terms receives its own agreement/amendment date and Supplier confirmation. It does not rewrite the original contract date or confirmation.
 
 ### Proposed Arrangement name
 
@@ -76,21 +101,65 @@ The Supplier group reference is stored separately from the Arrangement name. Amo
 
 ## 5. Supplier Arrangement topology and lifecycle
 
-Staff creates or opens one Cruise Arrangement for this sailing. All cabin Resources, inventory, Supplier costs, deposits, deadlines, and policy summaries belong to that Arrangement and its versioned graph.
+Staff creates or opens one Cruise Arrangement for this sailing. Cabin Resources, inventory, Supplier costs, deposits, deadlines, agreement terms, and policy summaries belong to that Arrangement and its versioned graph.
 
-Before activation, Staff can independently edit draft cabin inventory, Supplier cost components, Deposit Requirement definitions, and Deadline definitions. An invalid save preserves entered values and leaves valid siblings unchanged.
+Before activation, Staff can independently edit the supported draft sections. An invalid save preserves entered values for correction and leaves valid siblings unchanged.
+
+### 5.1 Supplier rate stages
+
+Supplier estimates and contracted Supplier rates are distinct definitions.
+
+Staff may first record an **estimated** rate definition for each cabin Resource.
+
+When the Supplier agreement supplies contracted rates, Staff uses **Record contracted rates**. DepartureDesk copies the estimated cells into a separate contracted definition for review. The estimated definition remains unchanged and retains its original stage and history.
+
+The copied contracted definition is not automatically ready. Staff review and correct it and explicitly make it ready through the accepted cost-definition readiness path.
+
+For supported Cruise activation, the applicable contracted definition—not an estimated definition—must be ready for every cabin Resource covered by the agreement revision.
+
+### 5.2 Supplier agreement confirmation
+
+Supplier agreement confirmation is independent from rate transcription.
+
+Staff may mark the whole agreement revision Supplier-confirmed once the required confirmation facts exist even if some contracted rates remain incomplete.
+
+The workspace therefore may truthfully show:
+
+> **Supplier confirmed · Contracted rates incomplete**
+
+Confirmation does not mean the Arrangement is activated, money has been paid, or a Client offer exists.
+
+### 5.3 Activation
 
 Activation preview is write-free. It shows:
 
+- Supplier agreement confirmation status;
+- contracted-rate readiness for each covered cabin Resource;
 - the three cabin Pools and authoritative opening quantities;
 - the initial-deposit derivation;
 - the allocation-sensitive full-deposit policy without inventing an Arrangement-wide obligation;
 - the combined Hard Stop action;
 - the final-payment action;
-- informational payment and cancellation policies; and
-- any missing fact that prevents activation.
+- informational payment, cancellation, and commercial-benefit terms; and
+- every missing fact that prevents activation.
 
-Activation uses the accepted Arrangement activation path. Governing definitions become read-only. Later planning changes occur on a successor draft and preserve stable identities wherever the shipped copy rules require them.
+This Cruise Arrangement cannot activate until:
+
+1. the exact agreement revision is Supplier-confirmed;
+2. every covered cabin Resource has its required ready contracted Supplier rates;
+3. required inventory and Supplier-planning facts are valid; and
+4. the existing generic activation invariants pass.
+
+This Cruise-specific gate does not change accepted non-Cruise activation behavior.
+
+After activation, the exact governing definitions and confirmation history remain immutable according to the accepted versioning contracts.
+
+Later planning follows one of two paths:
+
+- **same governing terms:** record an evidenced capacity change on the existing Pool; or
+- **materially different Supplier terms:** prepare a successor Arrangement/version with distinct Supplier inventory and rate authority.
+
+The governing Arrangement remains authoritative while a successor is proposed.
 
 ## 6. Cabin Resources and capacity
 
@@ -195,11 +264,30 @@ The source presentation is normalized into an additive occupancy-band model. Mon
 - Illustrative agency profit is expected commission plus agency surcharge.
 - Reopening a supported schedule preserves category, occupancy-band, component, and stored-value identities.
 
-### 7.5 Normal agency commission
+### 7.5 Estimated and contracted rate-stage proof
+
+The monetary values in Sections 7.1–7.3 are the canonical Supplier economics used to prove the typed Cruise rate workflow.
+
+The canonical proof begins with those values recorded as estimated Supplier rates.
+
+Staff then uses **Record contracted rates** for each cabin Resource. DepartureDesk creates a separate contracted definition initialized from the estimate.
+
+For proof purposes:
+
+- the estimated definition remains stored and unchanged;
+- the contracted definition has its own identity and stage;
+- Staff may correct the contracted definition without changing the estimate;
+- the contracted definition must be explicitly made ready;
+- activation and the applicable Supplier forecast use the ready contracted definition; and
+- reopening either stage selects the exact requested definition rather than an arbitrary working definition.
+
+The canonical values do not require the estimate and contracted definitions to differ numerically. Their distinct identities, stages, provenance, and readiness are what this scenario proves.
+
+### 7.6 Normal agency commission
 
 The agency’s normal 15% booking commission exists independently of GAP and is not purchased with amenity points. It applies only to commissionable cruise fare under the rule above.
 
-### 7.6 Tour-conductor credit
+### 7.7 Tour-conductor credit
 
 - One cruise-only TC credit is earned per sixteen full-tariff guests, based on double occupancy.
 - First- and second-position full-tariff guests qualify; third and fourth passengers do not.
@@ -210,7 +298,7 @@ The agency’s normal 15% booking commission exists independently of GAP and is 
 
 TC qualification, valuation, and redemption remain separate from this recorded term. DepartureDesk stores the Staff summary and an optional source citation. The review label is **Terms recorded; entitlement not calculated.** It does not store `projected`, `earned`, `applied`, or `forfeited`, and it does not create a Supplier Payment, Client credit, or negative Supplier cost.
 
-### 7.7 Group Amenity Program
+### 7.8 Group Amenity Program
 
 This Deposit Program group receives a standard entitlement of **four group GAP points**, not five points per traveler.
 
@@ -225,7 +313,7 @@ DepartureDesk stores this as one group-level agreement term. The review label is
 
 Staff may finish transcribing a term onto the agreement revision that was already agreed. Changing wording or citation already recorded for a Supplier-confirmed revision is an amendment and needs confirmation of that amendment. The screen shows which revision the wording represents. An empty Commercial benefits section does not block activation.
 
-### 7.8 Marketing support
+### 7.9 Marketing support
 
 General marketing support consists of access to Celebrity’s Group Sales Kit and Supplier review of promotional materials. Promotional materials require Celebrity approval and must identify the ship’s registry.
 
@@ -252,6 +340,18 @@ For MVP, general marketing support is informational. Any GAP-funded Marketing Fu
 - Coverage: the whole Cruise Arrangement, with quantity derived from the selected Pools.
 
 This is a `quantity × rate` requirement, not a cumulative-target definition. The summary must show the quantity source and calculation, not merely `$1,200`.
+
+The `$1,200` requirement is a historical snapshot of the initial opening block. A later capacity increase does not recalculate or mutate it.
+
+When Supplier capacity is later increased, Staff must explicitly record whether the additional capacity carries another initial blocked-stateroom deposit requirement.
+
+For the same-terms proof in Section 11, Celebrity adds four O1 staterooms and confirms that the same `$50` initial-deposit treatment applies. DepartureDesk therefore records a separate supplemental requirement:
+
+`4 additional O1 staterooms × $50 = $200`
+
+The `$200` requirement traces to the later capacity increase. The original `$1,200` requirement remains unchanged.
+
+If a future Supplier capacity increase does not require another initial deposit, Staff records that explicit outcome and its required evidence rather than silently assuming `$0` or modifying the opening requirement.
 
 ### 8.2 Full allocated-stateroom deposit policy
 
@@ -309,6 +409,7 @@ Retain it as structured informational policy or an Advanced term. Do not calcula
 ```text
 Celebrity Cruises — Celebrity Beyond — 7-Night Eastern Caribbean — Nov 6–13, 2027
 Supplier group reference 1119999 · USD (Departure operating currency)
+Contract date September 13, 2026
 
 Cabins
 E3 · 8 initially blocked · Maximum 3 guests
@@ -334,9 +435,86 @@ Tour-conductor credit · Terms recorded; entitlement not calculated
 Group amenities · Terms recorded; entitlement not calculated
 ```
 
-## 11. Shipped Cruise Offer Design handoff
+## 11. Later capacity and agreement amendments
 
-This section describes already-shipped Cruise behavior. It is not Supplier Composition authority and is not a template for Hotel Slice 3A.
+The canonical scenario includes two later-inventory proofs. They establish that Supplier category code, internal Resource identity, capacity identity, and Supplier cost authority are separate concepts.
+
+### 11.1 Same-terms O1 increase
+
+After the original Arrangement is governing, Celebrity adds four Prime Oceanview staterooms under the same governing:
+
+- Supplier category;
+- contracted rates;
+- deposit treatment;
+- release terms; and
+- other material agreement terms.
+
+Staff records an evidenced `+4` capacity event on the existing O1 Pool.
+
+The result is:
+
+```text
+O1 — Prime Oceanview
+Original opening quantity: 8
+Later capacity increase: +4
+Current Supplier capacity: 12
+Supplier category code: O1
+Contracted rate source: unchanged
+```
+
+This does not create another O1 Resource or another contracted rate source.
+
+The original `$1,200` opening-deposit requirement remains unchanged.
+
+For this canonical proof, the four added staterooms carry the same `$50` initial-deposit treatment. DepartureDesk records a separate:
+
+`4 × $50 = $200`
+
+supplemental Supplier requirement tied to the capacity increase.
+
+Supplier capacity becoming available does not itself change a published Client choice, Client price, source pin, or published selectable quantity.
+
+### 11.2 Differently priced supplemental O1 block
+
+The canonical amendment proof then considers four additional Prime Oceanview staterooms offered under materially different Supplier rates.
+
+Because the rates differ, these staterooms do **not** increase the existing O1 Pool.
+
+Staff prepares a successor Arrangement/version containing:
+
+- a new Cruise cabin Resource;
+- a new cabin Pool;
+- a new exact-context Supplier rate source; and
+- a distinct Staff-visible internal block label.
+
+The real Celebrity category code remains:
+
+`O1`
+
+DepartureDesk does not invent a Supplier code such as `O1-2`.
+
+For the canonical proof, use the internal block label:
+
+> **Supplemental O1 block**
+
+The original Resource and supplemental Resource therefore have distinct durable DepartureDesk identities even though both truthfully carry Supplier category code `O1`.
+
+The supplemental block's exact different rate amounts are **not established by this canonical fixture**. Browser/domain proof may use explicitly labeled test-only changed values where necessary to exercise the changed-terms path, but those values must not be presented as canonical Celebrity economics.
+
+The changed rates require:
+
+- the successor graph;
+- separate contracted-rate authority for the supplemental Resource;
+- confirmation of the amended whole Supplier agreement; and
+- successful Cruise activation gates before the successor can govern.
+
+The original agreement confirmation and original contract date remain historical facts. The amendment records its own date and confirmation.
+
+The governing Arrangement remains in force while this successor is only proposed.
+
+## 12. Shipped Cruise Offer Design handoff
+
+This section describes already-shipped Cruise behavior except where the accepted Cruise remediation plan expressly changes the treatment of later Supplier capacity. It is not Supplier Composition authority and is not a template for Hotel Slice 3A.
 
 Staff may connect the Cruise Arrangement Item to one Cruise Service Offer. The connection pins the selected Arrangement version and exposes one choice per cabin category:
 
@@ -364,38 +542,78 @@ The calculation is additive:
 
 If Staff copies a Supplier component into Client terms, the Client cell retains provenance to that exact Supplier component. Later Supplier edits may mark the copy changed but do not silently change the Client amount.
 
-## 12. Required browser proof
+### 12.1 Later Supplier capacity
+
+Later Supplier inventory remains Supplier-side until Staff explicitly reviews its Client presentation.
+
+A same-terms increase to the O1 Supplier Pool does not silently:
+
+- increase a published Client choice's selectable quantity;
+- change its Client price;
+- change its source pin; or
+- republish it.
+
+A differently priced supplemental O1 Resource likewise does not silently join the existing O1 Client choice.
+
+Where truthful, Staff may explicitly create a separate draft Client option for the supplemental block, with its own source binding and reviewed Client pricing.
+
+This scenario does not authorize one Client O1 choice to consume interchangeably from both O1 Supplier Pools. Multiple Supplier Pools behind one Client choice remain outside the accepted contract until an alternative-source/selection model is separately accepted.
+
+## 13. Required browser proof
 
 One browser-level scenario begins at Departure Composition and proves that Staff can:
 
 1. Create or open the exact Celebrity Beyond Cruise Arrangement.
 2. See the proposed composed name, edit it if desired, and confirm later fact edits do not silently rename the Arrangement.
-3. Store Supplier group reference `1119999` separately from the name. Amounts display the Departure operating currency, USD. The Arrangement has no independently editable currency.
-4. Attach or reference one shared Arrangement-level evidence source without duplicating evidence on every initial cabin category.
-5. Create E3, O1, and DI with maximum occupancy 3 and opening Pool quantity 8 each.
-6. Enter Base fare, NCCF, Discount, and Taxes/fees for First/Second, Third, and Single-occupancy adjustment bands.
-7. Reopen the schedule with the same category, band, component, and record identities.
-8. Review Single as an additive profile rather than a complete stored Single total.
-9. Confirm O1 Double commission is $289.95, calculated on the combined profile and rounded once.
-10. Confirm agency surcharge is $100 for Single, $100 for Double, and $150 for Triple.
-11. Create the typed initial group deposit and see `(8 + 8 + 8) × $50 = $1,200` with its Pool-derived quantity source.
-12. Create the combined Hard Stop and final-payment Deadline without inventing separate legal-name, rooming-list, or Arrangement-wide full-deposit deadlines.
-13. Read the allocation-sensitive $500 deposit rule and payment/cancellation policies without materializing false operational occurrences.
-14. Preview activation without writes, correct any missing fact, and activate through the accepted path.
-15. Connect one Cruise Service Offer, explicitly select all three categories, and retain stored choice and rate-key identities on reopen.
-16. Review illustrative Single, Double, and Triple prices clearly separated from Supplier facts, Package placement, and Client booking.
+3. Save the provisional agreement with the September 13, 2026 group creation date before Supplier confirmation.
+4. Store Supplier group reference `1119999` separately from the Arrangement name.
+5. Store the September 13, 2026 contract date separately from the group creation date even though the two canonical dates are equal.
+6. Display USD from the Departure operating currency without an independently editable Arrangement currency.
+7. Create E3, O1, and DI with maximum occupancy 3 and opening Pool quantity 8 each.
+8. Enter the canonical Supplier economics as estimated rates.
+9. Reopen the estimated schedules with the same category, occupancy-band, component, and stored-value identities.
+10. Use **Record contracted rates** and prove the estimated definitions remain unchanged.
+11. Review the separate contracted definitions and make them ready.
+12. Review Single as an additive profile rather than a complete stored Single total.
+13. Confirm O1 Double commission is `$289.95`, calculated on the combined profile and rounded once.
+14. Record the whole Supplier agreement confirmation using group reference `1119999`, contract date September 13, 2026, Staff actor, and confirmation time.
+15. Prove Supplier confirmation can exist while a contracted rate remains incomplete.
+16. Prove activation is blocked while any required contracted rate is not ready.
+17. Prove ordinary edit cannot change the confirmed group reference or contract date.
+18. Create the typed initial group deposit and see `(8 + 8 + 8) × $50 = $1,200` with its Pool-derived quantity source.
+19. Create the July 9, 2027 combined Hard Stop and August 8, 2027 final-payment Deadline without inventing separate legal-name, rooming-list, or Arrangement-wide full-deposit deadlines.
+20. Read the allocation-sensitive `$500` deposit rule and payment/cancellation policies without materializing false booking-level occurrences.
+21. Review normal commission separately from Tour Conductor and GAP terms labeled **Terms recorded; entitlement not calculated.**
+22. Preview activation without writes and see both Supplier-confirmation and contracted-rate readiness.
+23. Activate the exact reviewed Arrangement/version only after both requirements pass.
+24. Reopen the governing version and prove its activated definitions and confirmation history remain stable.
+25. Add four same-terms O1 staterooms as an evidenced capacity event on the existing Pool.
+26. Prove the existing O1 Resource and contracted rate source remain authoritative.
+27. Record the separate `4 × $50 = $200` supplemental initial-deposit requirement and prove the original `$1,200` requirement does not change.
+28. Prove the Supplier capacity increase does not silently change the existing published O1 Client choice, Client price, source pin, or selectable quantity.
+29. Prepare a successor with four additional differently priced O1 staterooms.
+30. Prove the supplemental inventory has a new Resource, Pool, and exact-context rate source while retaining truthful Supplier category code `O1`.
+31. Display the distinct internal block label **Supplemental O1 block** rather than inventing another Supplier category code.
+32. Record/review contracted rates for the supplemental Resource.
+33. Confirm the amended whole Supplier agreement and prove the original confirmation remains historical.
+34. Prove the successor cannot activate until its own confirmation and contracted-rate gates pass.
+35. Enter Offer Design explicitly and prove the supplemental O1 block has not silently joined the existing published O1 choice.
+36. Where the test presents the supplemental block to Clients, create a separate draft option through the normal explicit Client-offer workflow.
 
 The proof also requires:
 
 - failed component saves do not alter siblings;
-- failed deposit or deadline saves do not alter rates or sibling definitions;
+- failed confirmation saves do not alter rates, capacity, deposits, or deadlines;
+- failed deposit, policy, or deadline saves do not alter rates or sibling definitions;
+- command replay does not duplicate contracted definitions, confirmations, capacity events, or Supplier requirements;
 - unsupported graphs remain readable and link to Advanced without rewrite;
-- draft, governing, and successor states are distinguishable;
+- draft, governing, and proposed-successor states are distinguishable;
 - a Viewer cannot mutate the workspace;
-- no second Service Offer is created during reopen or edit; and
-- edit and remove actions submit stable IDs rather than labels, positions, `.first`, or `.last`.
+- exact-version confirmation from the governing Arrangement does not satisfy an unconfirmed successor;
+- no second Service Offer is created during ordinary reopen or edit; and
+- edit/remove actions submit stable IDs rather than labels, positions, `.first`, or `.last`.
 
-## 13. Explicit exclusions
+## 14. Explicit exclusions
 
 This scenario does not establish:
 
@@ -406,21 +624,37 @@ This scenario does not establish:
 - guest-card attribution;
 - Supplier payments, refunds, invoices, obligations, or paid status;
 - calculated cancellation charges or Client credits;
-- a separate rooming-list deadline; or
-- automatic GAP fulfillment or TC-credit application.
+- a separate rooming-list deadline;
+- automatic GAP fulfillment or TC-credit application;
+- independent departure-port and return-port time-zone authority;
+- Cruise-specific agreement-document storage;
+- automatic contract extraction;
+- booking-level materialization of the `$500` allocated-stateroom policy;
+- automatic additional-deposit assumptions for future capacity changes;
+- calculated Tour Conductor qualification, accrual, redemption, or application;
+- calculated GAP allocation, fulfillment, redemption, or purchased-point accounting;
+- one Client choice consuming capacity from multiple Supplier Pools; or
+- automatic changes to published Client availability when Supplier capacity changes.
 
-## 14. Superseded facts
+## 15. Superseded facts
 
 The following earlier fixture assumptions are expressly superseded:
 
 - category code `E1`; the canonical code is `E3`;
 - treating the Single column as a complete Single price rather than an additive adjustment;
 - the old O1 Single and DI Third discrepancy exceptions and their stated totals;
-- the old O1, DI, and E3 Client-price tables that conflict with Section 11;
+- the old O1, DI, and E3 Client-price tables that conflict with Section 12;
 - commission rounded independently per occupancy band; commission is calculated on the combined profile and rounded once;
 - an Arrangement-wide March 11 cumulative deposit deadline;
 - a separate October 7 rooming-list deadline;
 - five GAP points per traveler;
 - mandatory duplicate evidence on every initial cabin category;
-- silently recomputing the Arrangement name after creation; and
+- silently recomputing the Arrangement name after creation;
+- treating an estimated Cruise rate definition as sufficient for activation after contracted Supplier terms are available;
+- treating Supplier agreement confirmation and Arrangement activation as the same transition;
+- changing confirmed Supplier group reference or contract date by ordinary edit;
+- recalculating the original `$1,200` initial-deposit requirement when later capacity is added;
+- representing differently priced supplemental cabins as additional quantity on the original Pool;
+- inventing a new Supplier category code to distinguish two real Supplier blocks that both use `O1`;
+- allowing later Supplier capacity to silently alter an already published Client choice, Client price, source pin, or selectable quantity; and
 - any other Celebrity Beyond fixture fact that conflicts with this scenario.

@@ -10,7 +10,7 @@
 
 **Implementation prerequisite:** Slice 2D shipped at [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154).
 
-**Next unauthorized boundary:** the Hotel walkthrough. Accepting that walkthrough still does not authorize code. A separate short Slice 3A implementation plan must be accepted before Hotel implementation begins.
+**Next unauthorized boundary:** a Slice 3A Hotel implementation plan. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27, and the [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. Hotel implementation remains prohibited until that Slice 3A plan is accepted.
 
 **Prototype:** Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 remain prototype evidence. They are not an implementation source.
 
@@ -38,7 +38,7 @@ Supplier terms are not Client terms. A Supplier adapter may be ready for activat
 
 After this contract:
 
-1. Draft and accept a new Hotel walkthrough. Do not revise the discarded Hilton draft on the prototype branch.
+1. The Hotel walkthrough is Accepted 2026-09-27. Do not revise the discarded Hilton draft on the prototype branch.
 2. Draft and accept a short Slice 3A implementation plan derived from that walkthrough.
 3. Implement Hotel Supplier Composition.
 4. Draft and accept a Transportation walkthrough and its implementation plan.
@@ -61,9 +61,9 @@ That extraction may not be a branch on a growing list of family names, and it ma
 
 The later Hotel contract owns Supplier Composition only. It does not own Client pricing, Package placement, Client Trip selection, or a requirement to create Client choices.
 
-Whether a Service Offer handoff exists is decided in the Hotel walkthrough, not here. If that walkthrough retains a handoff, the saved summary may say only that the Hotel Item is connected and that pricing and Package placement remain unconfigured in Offer Design.
+The Accepted Hotel walkthrough has no Client Service connection. Slice 3A must not add a quiet “connected, pricing unconfigured” state. A later separately accepted Offer Design contract may revisit a handoff.
 
-Room quantities, rates, and the Hilton dates are not locked here. The Hotel walkthrough takes them from the [Hilton Fort Lauderdale Marina fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md). That fixture classifies them as the Hotel agreement. The walkthrough must not revive the superseded illustrative stay.
+Room quantities, rates, and the Hilton dates are the Approved [Hilton Fort Lauderdale Marina fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md). The walkthrough must not revive the superseded illustrative stay.
 
 ## 6. What is no longer implementation authority
 
@@ -71,6 +71,6 @@ The generalized Slice 3 approach is not implementation authority. That includes 
 
 ## 7. Exit
 
-This slice is complete when this decision is accepted. Its exit authorizes preparation of the Hotel walkthrough only.
+This slice is complete. The Hotel walkthrough is Accepted 2026-09-27. Its exit authorizes drafting a Slice 3A plan only.
 
-Hotel implementation remains prohibited until both the Hotel walkthrough and the derived Slice 3A implementation plan are separately accepted.
+Hotel implementation remains prohibited until that Slice 3A implementation plan is accepted.

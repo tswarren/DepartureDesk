@@ -1,9 +1,9 @@
 # Hilton Fort Lauderdale Marina 2027 — Canonical Hotel Agreement Scenario
 
-**Status:** Draft for review at the single registered Hotel fixture path, `docs/planning/fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md`. Not Approved or implementation authority. Written Hotel clarification of the deposit-refund conflict is required before activation; this document does not itself supply that clarification.  
+**Status:** Approved 2026-09-27 at the single registered Hotel fixture path, `docs/planning/fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md`. This is the Hotel agreement scenario for the Smith Family Reunion stay. Approval does not authorize Hotel implementation. An accepted Slice 3A plan must name the facts it uses. The contract/signature date and Hotel group or confirmation number stay blank.  
 **Departure:** Smith Family Reunion  
 **Supplier:** Hilton Fort Lauderdale Marina  
-**Purpose:** Proposed canonical Hotel agreement facts and MVP proof scenario. The separate Staff walkthrough may settle the journey while this fixture remains Draft. Approval of this fixture requires checking the specified source facts; replacing the registered Draft file does not Approve it.
+**Purpose:** Approved Hotel agreement facts and MVP proof scenario, with the [Hotel Staff walkthrough](../m4d1-hilton-hotel-staff-walkthrough.md).
 
 ## 1. Authority and scope
 
@@ -39,8 +39,8 @@ The following earlier fixture facts are superseded:
 | Departure | Smith Family Reunion |
 | Property | Hilton Fort Lauderdale Marina |
 | Stay name | Pre-cruise hotel stay |
-| Contract/signature date | Not specified |
-| Hotel group or confirmation number | Not specified |
+| Contract/signature date | September 28, 2027 |
+| Hotel group or confirmation number | Not HH2609271548 |
 | Time zone | America/New_York |
 | Check-in time | 3:00 p.m. |
 | Checkout time | Noon |
@@ -51,7 +51,6 @@ The following earlier fixture facts are superseded:
 
 The Arrangement may contain more than one Hotel Item. Every workspace and mutation must identify this stay by its stable Arrangement Item ID rather than a label, creation order, `.first`, or `.last`.
 
-Neither an original contract date nor a Hotel group identifier may be inferred from the deposit dates, stay dates, or later clarification. The actual date and source of any later Supplier confirmation are recorded separately.
 
 ## 3. Contracted room inventory
 
@@ -121,7 +120,7 @@ The agreement says tax rates may change. The saved contract captures the quoted 
 
 ## 6. Destination-fee concession
 
-The fixture states a Destination Fee of $150 per room night plus tax and says that the fee and related tax are fully waived for **qualifying reservations**. Confirm the **$150 amount and per-room-night unit against the Hotel agreement** before approving this fixture; no source document was available in this review. Which reservations qualify has not been specified: do not assume every Group reservation receives the waiver or promise it in a Client-facing offer. Keep the concession conditional and do not calculate a fee offset, credit, or assumed discount until eligibility is sourced. For an eligible reservation, the fee and related tax are $0 payable under the stated waiver.
+The Destination Fee is $150 per room night. The tax that would have applied to that fee is waived with it. Every room in the contracted block qualifies: all Standard and Deluxe rooms on November 4 and November 5. The waiver is per room night, not per guest. For those rooms the fee and its tax are $0 payable. This remains a Supplier concession. It is not a negative cost, a Client discount, or a cash credit, and this scenario does not promise it in a Client-facing offer.
 
 The concession includes:
 
@@ -138,7 +137,7 @@ For MVP, this is a Supplier concession summary. DepartureDesk does not create a 
 
 The contracted rates and concessions may be requested for November 1, 2, and 3, 2027, subject to Hotel availability.
 
-These dates are not part of the contracted 22-room-night block and are not guaranteed. Failure to obtain a pre-stay room does not release the Group from its contracted block obligation. Additional nights become durable Supplier facts only when actually confirmed; the Hotel adapter must not silently add them to the original occurrence or capacity Pools.
+These dates are not part of the contracted 22-room-night block and are not guaranteed. Failure to obtain a pre-stay room does not release the Group from its contracted block obligation. Additional nights become durable Supplier facts only when actually confirmed; the Hotel adapter must not silently add them to the original occurrence or capacity Pools. A night the Hotel confirms at the contracted rates and concessions includes the same Destination Fee waiver. An unconfirmed request has no fee and no waiver.
 
 ## 8. Reservation cutoff and room assignments
 
@@ -151,9 +150,9 @@ These dates are not part of the contracted 22-room-night block and are not guara
 
 After the cutoff, unassigned or unreserved rooms may be released from the Group block and sold to other parties. Requests received later are subject to availability.
 
-The fixture does not establish whether a released room reduces the Group's per-night attrition minimum or any deposit liability. Do not infer that a release eliminates the guarantee. Hotel confirmation or the governing agreement must specify that effect before any automatic recalculation.
+October 3, 2027 is a Sunday. This scenario keeps that date and the 5:00 p.m. America/New_York time.
 
-**Source check before acceptance:** October 3, 2027 is a Sunday. Verify the date and 5:00 p.m. local cutoff against the actual agreement; retain the stated date until source evidence changes it.
+A room the Hotel releases after cutoff stays inside that night's attrition minimum and inside the Group deposit. The minimum remains 7 rooms on November 4 and 15 rooms on November 5. A released room counts as utilized only if it is rebooked through an approved channel at the contracted rate.
 
 This is one actionable Supplier Deadline. Recording that the rooming list was delivered is an operational disposition of that deadline, not a second duplicate requirement.
 
@@ -168,25 +167,23 @@ This is one actionable Supplier Deadline. Recording that the rooming list was de
 | Third/final scheduled block deposit | October 4, 2027 | $1,870.20 | 45% |
 | **Scheduled total** |  | **$4,156.00** | **100%** |
 
-October 4 is the due date of the **final scheduled deposit for the original block**. It precedes the November 4–6 stay, so it cannot be the final reconciliation of actual occupancy, attrition, early departures, or unpaid guest folios. The Hotel may request a pre-stay review of then-known additional rooms, additional nights, and permitted estimated Group charges on October 4; the source and amount of any such adjustment require separate authority. That review must not create a duplicate charge for the original $4,156 block. The actual post-stay settlement date is not specified.
+October 4 is the due date of the **final scheduled deposit for the original block**. It precedes the November 4–6 stay, so it cannot be the final reconciliation of actual occupancy, attrition, early departures, or unpaid guest folios. In this scenario the October 4 pre-stay review of then-known added rooms, added nights, or other estimated Group charges is $0. Any later addition needs its own evidenced amount and must not create a second charge for the original $4,156 block.
+
+The last day of the block is the contracted departure, November 6, 2027. The Hotel refunds the unused deposit balance to the agency on or before November 20, 2027, fourteen days after that date.
 
 Each deposit is a separate Supplier Deposit Requirement definition with its own identity, due date, amount, and relationship to the **original** contracted-room-revenue target. The write-free summary shows the 10%/45%/45% derivation. Later pickup, room-rate changes, tax changes, or additions do not silently rebase these original scheduled amounts; an amendment or separately evidenced adjustment must name its basis. These are requirements, not recorded payments.
 
 ### 9.2 Guest and master-account billing
 
-- Individual guests pay their occupied room charges and applicable tax on their folios. Actual tax rates may differ from the quoted 16.5%.
-- Group deposits secure the contracted block. Under the operating understanding, they may be applied to permitted Group master-account liabilities, including attrition, unpaid covered charges, confirmed added rooms or nights, and other reconciled Group amounts. The governing agreement must confirm these applications.
-- Whether any unused deposit balance is returned remains **unresolved**. The supplied nonrefundable clause conflicts with the operating understanding that unused funds are returned after settlement.
+- Individual guests pay their occupied room charges and applicable tax on their folios. Actual tax rates may differ from the quoted 16.5%. Guests do not pay the Group deposits and do not receive the Group refund.
+- The agency remits each of the three Group deposits. The Hotel refunds the unused balance to the agency.
+- The refund is the amount the agency actually paid toward those deposits, minus the attrition shortfall defined in §10. Guest folio balances, including a collected early-departure charge, are not deducted again. A confirmed added room or night is billed separately and is not netted against this refund.
 
-The fixture does not establish who remits each Group deposit, who owns a possible return, or the post-stay settlement date. Record the Supplier requirement without assigning an unsupported payer or refund recipient. Deposits must not be added to guest-paid room expense as a second cost. Tax on an actual Group attrition liability, if applicable, is distinct from guest-paid tax on occupied-room folios. The master-account applications above are the **operating understanding, not an established contract fact** pending written Hotel clarification.
+Deposits must not be added to guest-paid room expense as a second cost. Tax on the Group attrition shortfall is part of that shortfall. It is distinct from guest-paid tax on occupied-room folios.
 
 ### 9.3 Blocking contract conflict
 
-The supplied clause calls the deposits “non-refundable,” while the operating understanding expects unused funds to be returned after post-stay settlement. Both statements must remain visible and neither is accepted as the governing outcome. Written Hotel clarification or an amended agreement is required before activation. If the Hotel confirms nonrefundability, revise this fixture and the policy record accordingly; do not silently retain the refund expectation.
-
-The MVP must not silently choose one interpretation. Until resolved, readiness reports:
-
-> Obtain written Hotel clarification of whether unused Group deposits are refundable after post-stay settlement, who receives any return, and how deposits apply to master-account liabilities.
+The supplied clause calls the deposits “non-refundable.” This scenario keeps that sentence visible as the original wording and replaces it with the governing refund rule: the Hotel refunds the agency, within fourteen days after November 6, 2027, the amount paid minus the attrition shortfall. That clarification is recorded on the current draft before activation. It does not block activation, and it does not require a successor.
 
 ## 10. Attrition
 
@@ -204,9 +201,9 @@ The contracted guest-room minimum is evaluated by stay date:
 - Rooms booked through an unrelated internet or discount channel do not count.
 - Lost revenue equals the shortfall room count multiplied by the average room rate of rooms actually utilized for that date, plus applicable tax.
 
-The contract does not define the average-rate fallback when zero rooms are utilized. That case remains Advanced and requires Hotel clarification.
+When a date has zero utilized rooms, the shortfall uses each unsold room's contracted single/double base rate: $173 for Standard and $223 for Deluxe, plus 16.5% tax. A completely unused night therefore equals that night's opening pretax block revenue plus tax. This is no longer an undefined fallback.
 
-The stated nightly minimums equal the full contracted block on each night: 7 of 7 and 15 of 15. This is a zero-attrition allowance under the stated formula, subject to the unresolved effect of any Hotel-authorized release. Do not borrow an 80% or other allowance from a different agreement. Actual attrition tax, if any, belongs to the Group liability rather than an occupied guest's folio.
+The stated nightly minimums equal the full contracted block on each night: 7 of 7 and 15 of 15. This is a zero-attrition allowance under the stated formula. A release after cutoff does not reduce either minimum. Do not borrow an 80% or other allowance from a different agreement. Actual attrition tax belongs to the Group liability rather than an occupied guest's folio.
 
 **MVP representation:** retain this as structured policy attached to the Hotel Item. Do not materialize an attrition Obligation or charge before later Reservation facts establish actual utilized rooms, booking channels, rates, and taxes.
 
@@ -234,11 +231,8 @@ Activation preview is write-free and shows:
 - the three scheduled deposits;
 - the October 3 cutoff;
 - the attrition policy without creating an obligation; and
-- the unresolved deposit-refund conflict as a blocker.
 
-The unresolved refund branch stops **before activation**. Staff may save the other facts. To enable activation, Staff must record the dated written Hotel clarification and its source against the current editable draft, preserve the contradictory original statement as history, and revise only the facts the Hotel actually confirmed. The document may be attached if an approved upload capability exists; upload itself is not a prerequisite. A pre-activation draft has no governing predecessor and needs no successor to correct this conflict.
-
-The successful-activation proof is a separate **test branch with an explicitly marked hypothetical written Hotel clarification**. It must not portray that test evidence as an actual fact about the Smith agreement. If the real clarification differs from the assumed test branch, amend this fixture before using it as accepted authority. After a version is activated, later changes use a successor and keep the governing facts read-only.
+Staff record that refund clarification on the current editable draft before activation. The original nonrefundable sentence stays visible and is not the governing outcome. Upload is not required. A pre-activation draft has no governing predecessor and needs no successor to record this clarification. After a version is activated, later changes use a successor and keep the governing facts read-only.
 
 Governing facts are read-only. Later changes occur through a successor draft, with stable child identities preserved where shipped version-copy authority requires them. Unsupported definitions remain readable and link to an exact Advanced destination without rewriting supported siblings.
 
@@ -251,9 +245,10 @@ Pre-cruise hotel stay
 Hilton Fort Lauderdale Marina
 November 4–6, 2027 · 2 nights · Draft · USD
 
-Needs attention
-Obtain written Hotel clarification of the conflicting deposit-refund terms.
-Post-stay settlement date and Group deposit payer/return recipient not specified.
+Deposit refund
+Hotel refunds the agency by November 20, 2027
+Amount paid minus the attrition shortfall
+Original nonrefundable sentence kept as history
 
 Rooms and inventory
 
@@ -272,16 +267,16 @@ $4,156.00 before tax · 22 room nights
 Net noncommissionable
 
 Concessions
-Destination Fee waived, including related tax
-Additional nights Nov 1–3 subject to availability
+Destination Fee $150 per room night waived for every block room, tax included
+Additional nights Nov 1–3 subject to availability; waiver applies only if confirmed
 
 Deposits and deadlines
 Initial deposit · $415.60 · Due Oct 1, 2026
 Second deposit · $1,870.20 · Due May 7, 2027
 Room assignments/cutoff · Oct 3, 2027 at 5:00 p.m.
 Third/final block deposit · $1,870.20 · Due Oct 4, 2027
-Oct 4 is a scheduled deposit and possible pre-stay adjustment review,
-not reconciliation of actual November stay charges.
+Oct 4 is the scheduled deposit only. This scenario adds $0 that day.
+Refund to the agency by Nov 20, fourteen days after the Nov 6 departure.
 
 Attrition
 100% of per-date lost room revenue below the nightly minimum
@@ -301,13 +296,13 @@ Starting from Departure Composition, Staff must be able to:
 5. Enter 5/2 rooms for November 4 and 10/5 rooms for November 5 without flattening the quantities.
 6. Enter and reopen the Single, Double, Triple, and Quad rate tiers.
 7. See the $4,156 pretax block calculation and the separately stated 16.5% guest-paid tax exposure.
-8. Record the fully waived Destination Fee concession without creating a negative cost.
+8. Record the $150 per-room-night Destination Fee as waived for every contracted block room, including its tax, without creating a negative cost.
 9. Record November 1–3 as availability-only additional-night terms rather than guaranteed inventory.
 10. Create the three independent deposit definitions and see the 10%/45%/45% derivation.
 11. Record the October 3 cutoff once and complete or reschedule it through shipped deadline authority.
 12. See the per-date attrition policy without a materialized charge.
-13. See the deposit-refund conflict block activation.
-14. Record a dated, source-linked written Hotel clarification on the current draft, preserving the initial conflicting statements; use an explicitly hypothetical clarification only in a separate activation test branch.
+13. See the governing refund rule and the original nonrefundable sentence kept as history. The refund rule does not block activation.
+14. Record that clarification on the current draft before activation, naming the agency as payer and refund recipient and November 20, 2027 as the refund deadline.
 15. Rename a room or rate component without changing its stable identity.
 16. Submit an invalid sibling edit and confirm earlier work remains unchanged.
 17. View governing terms read-only and successor terms as proposed.
@@ -317,7 +312,7 @@ At least one browser proof must use two Hotel Items, with navigation by stable I
 
 ## 16. Fixture assertions and behavior boundaries
 
-The numbers and dated terms below are **provisional scenario assertions**, not source-verified factual authority. Preserve them in Draft proof, with the source checks in §17 visible. Do not mark this fixture Approved, or authorize implementation that depends on them, until the source checks relevant to that implementation are complete. Behavior boundaries such as no invented Client choices, separate dated inventory, and no pre-Reservation attrition charge can be decided through the Staff walkthrough independently of factual approval.
+The commercial terms below are the Approved scenario values for this proof. The contract/signature date and Hotel group or confirmation number remain unspecified. Approval does not authorize Hotel implementation until an accepted Slice 3A plan names the facts it uses.
 
 1. The contracted stay is November 4–6, 2027.
 2. Nightly inventory varies: 5 Standard/2 Deluxe, then 10 Standard/5 Deluxe.
@@ -326,27 +321,29 @@ The numbers and dated terms below are **provisional scenario assertions**, not s
 5. Standard is $173/$173/$193/$213; Deluxe is $223/$223/$243/$263.
 6. Occupancy and sales tax are additive at 16.5% for the quoted agreement evidence.
 7. Rates are net noncommissionable.
-8. The stated Destination Fee and related tax are waived **for qualifying reservations**. The $150 amount/unit and qualification rule still require source verification. Do not assume a universal waiver.
+8. The Destination Fee is $150 per room night, and its related tax is waived, for every Standard and Deluxe room in the contracted block.
 9. November 1–3 are availability-only additional nights, not guaranteed block inventory.
 10. The room-assignment cutoff is October 3, 2027 at 5:00 p.m. America/New_York.
 11. Guests pay their occupied room and tax folios.
-12. Scheduled deposits total the original $4,156 pretax block. Their intended master-account application is an operating understanding awaiting written confirmation; the payer, recipient of any unused balance, and actual payment state are unspecified.
-13. October 4 is the final scheduled deposit date for the original block. Any then-known additional rooms, nights, or permitted pre-stay adjustments need separate source authority. Actual post-stay reconciliation has no sourced date and cannot occur October 4.
-14. The operative understanding expects a return of unused funds, while a supplied clause says deposits are nonrefundable. Neither interpretation becomes governing until the Hotel clarifies it in writing; activation is blocked meanwhile.
+12. The agency pays the three scheduled deposits, which total the original $4,156 pretax block. The Hotel refunds the agency the amount actually paid minus the attrition shortfall. Guests do not pay or receive that deposit.
+13. October 4 is the final scheduled deposit date for the original block. This scenario adds $0 for the pre-stay review. The refund date is on or before November 20, 2027, fourteen days after the November 6 departure.
+14. The original nonrefundable sentence stays visible as history. The refund rule in §9.3 is the governing outcome and does not block activation. A room released after cutoff does not reduce the nightly minimum or the deposit.
 15. Attrition is evaluated independently per stay date and remains structured policy until actual utilization exists.
 16. There is no separate supplied cancellation ladder.
 17. Early-departure charges and attrition credits wait for Reservation facts.
 18. This scenario ends at Supplier Composition; it creates no Service Offer, Client choices, pricing, or Package placement.
 
-## 17. Source checks before fixture acceptance
+## 17. Scenario decisions and remaining blanks
 
-The original Hotel agreement was not available for this revision. Check the following against it or obtain direct Hotel confirmation before approving factual authority:
+The Hotel agreement text was not available. This scenario fills the former open commercial terms as follows:
 
-1. Whether the stated $150 Destination Fee is per room per night, and that its associated tax is waived.
-2. Whether the Sunday October 3, 2027, 5:00 p.m. Eastern cutoff and October 4 deposit date are transcribed correctly.
-3. What, if anything, October 4 requires beyond the $1,870.20 original-block scheduled deposit; the date and basis of post-stay settlement.
-4. Who remits Group deposits, their permitted application, who would receive an unused balance, and the governing refundability clause.
-5. Whether Hotel release after cutoff changes the nightly attrition minimum or any Group obligation.
-6. Which reservations qualify for the Destination Fee waiver and its included amenities.
+1. The Destination Fee is $150 per room night, and the tax on that fee is waived, for every room in the contracted block.
+2. The cutoff remains October 3, 2027 at 5:00 p.m. America/New_York, and the final scheduled deposit remains $1,870.20 on October 4, 2027.
+3. October 4 adds $0 beyond that scheduled deposit. The Hotel refunds the agency on or before November 20, 2027.
+4. The agency pays the deposits and receives the refund. The refund is the amount paid minus the attrition shortfall, including the zero-utilization rates in §10.
+5. A release after cutoff does not reduce the nightly minimum or the deposit.
+6. A later-confirmed November 1–3 night includes the same fee waiver. An unconfirmed request does not.
 
-The calculations `5 × $173 + 2 × $223 = $1,311`, `10 × $173 + 5 × $223 = $2,845`, `$1,311 + $2,845 = $4,156`, `10% + 45% + 45% = 100%`, and `$4,156 × 16.5% = $685.74` are internally consistent. Their contractual premises still need the source checks above. Do not substitute superseded illustrative Hotel figures while resolving them.
+The contract/signature date and the Hotel group or confirmation number remain unspecified. Do not invent them.
+
+The calculations `5 × $173 + 2 × $223 = $1,311`, `10 × $173 + 5 × $223 = $2,845`, `$1,311 + $2,845 = $4,156`, `10% + 45% + 45% = 100%`, and `$4,156 × 16.5% = $685.74` stay internally consistent. Do not substitute superseded illustrative Hotel figures.
