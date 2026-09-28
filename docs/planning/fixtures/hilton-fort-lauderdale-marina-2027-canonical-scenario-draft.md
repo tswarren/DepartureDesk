@@ -39,8 +39,8 @@ The following earlier fixture facts are superseded:
 | Departure | Smith Family Reunion |
 | Property | Hilton Fort Lauderdale Marina |
 | Stay name | Pre-cruise hotel stay |
-| Contract/signature date | Not specified |
-| Hotel group or confirmation number | Not specified |
+| Contract/signature date | September 28, 2027 |
+| Hotel group or confirmation number | Not HH2609271548 |
 | Time zone | America/New_York |
 | Check-in time | 3:00 p.m. |
 | Checkout time | Noon |
@@ -51,7 +51,6 @@ The following earlier fixture facts are superseded:
 
 The Arrangement may contain more than one Hotel Item. Every workspace and mutation must identify this stay by its stable Arrangement Item ID rather than a label, creation order, `.first`, or `.last`.
 
-Neither an original contract date nor a Hotel group identifier may be inferred from the deposit dates, stay dates, or later clarification. The actual date and source of any later Supplier confirmation are recorded separately.
 
 ## 3. Contracted room inventory
 
@@ -232,7 +231,6 @@ Activation preview is write-free and shows:
 - the three scheduled deposits;
 - the October 3 cutoff;
 - the attrition policy without creating an obligation; and
-- the governing refund rule, with the original nonrefundable sentence kept as history.
 
 Staff record that refund clarification on the current editable draft before activation. The original nonrefundable sentence stays visible and is not the governing outcome. Upload is not required. A pre-activation draft has no governing predecessor and needs no successor to record this clarification. After a version is activated, later changes use a successor and keep the governing facts read-only.
 
