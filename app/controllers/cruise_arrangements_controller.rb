@@ -32,16 +32,11 @@ class CruiseArrangementsController < ApplicationController
       arrangement: @supplier_arrangement,
       shape: @shape
     ).call
-    assign_cabin_categories
-    assign_rate_rows
-    @recommended_action =
-      if @shape.cabin_category_count.zero?
-        "Add a cabin category"
-      elsif @rate_rows.any? { |row| row[:summary][:action] == "add" }
-        "Add Supplier rates for a cabin category"
-      else
-        "Continue Supplier rates, or add another cabin category"
-      end
+    @summary = CompileCruiseCompositionSummary.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      shape: @shape
+    ).call
   end
 
   def successor
@@ -86,49 +81,4 @@ class CruiseArrangementsController < ApplicationController
       .to_a
   end
 
-  def assign_cabin_categories
-    version = @shape.version
-    resource_definitions = version.supplier_resource_definitions
-      .includes(:supplier_resource)
-      .order(:position, :id)
-      .to_a
-    pool_definitions = version.capacity_pool_definitions
-      .includes(:capacity_pool)
-      .index_by(&:supplier_resource_id)
-
-    @cabin_categories = resource_definitions.map do |resource_definition|
-      {
-        resource: resource_definition.supplier_resource,
-        resource_definition: resource_definition,
-        pool_definition: pool_definitions[resource_definition.supplier_resource_id],
-        pool: pool_definitions[resource_definition.supplier_resource_id]&.capacity_pool
-      }
-    end
-  end
-
-  def assign_rate_rows
-    @rate_rows = @cabin_categories.map do |row|
-      shape = DetectCruiseSupplierRateShape.new(
-        agency: Current.agency,
-        arrangement: @supplier_arrangement,
-        resource: row[:resource],
-        version: @shape.version
-      ).call
-      preview = if shape.compatible? && !shape.empty?
-        CompileCruiseSupplierRatePreview.new(
-          agency: Current.agency,
-          arrangement: @supplier_arrangement,
-          resource: row[:resource],
-          version: @shape.version
-        ).call
-      end
-      {
-        resource: row[:resource],
-        resource_definition: row[:resource_definition],
-        shape: shape,
-        summary: shape.summary,
-        preview: preview
-      }
-    end
-  end
 end

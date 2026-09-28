@@ -36,6 +36,17 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     assert_selector "#cruise-workspace"
     assert_text "Celebrity Beyond"
     assert_text "Western Caribbean"
+    assert_text "Add cabin categories"
+    assert_text "Agreement"
+    assert_text "Not recorded"
+    assert_text "Requirements"
+    assert_text "Activation"
+    assert_text "Not ready"
+    [ 375, 768, 1280, 1400 ].each do |width|
+      resize_window(width, 900)
+      assert_selector "#cruise-recommended-next"
+      assert_no_page_overflow
+    end
     assert_no_text "Arrangement Item"
     assert_no_text "Service Occurrence"
     assert_no_text "Supplier Resource"
@@ -50,6 +61,7 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     click_button "Save category"
 
     assert_selector "#cruise-workspace"
+    assert_text "Enter Supplier rates"
     assert_text "O1"
     assert_text "Prime Oceanview"
     assert_text "sleeps up to 3"

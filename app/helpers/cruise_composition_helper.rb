@@ -8,6 +8,38 @@ module CruiseCompositionHelper
     "externally_managed" => "Managed in Supplier system"
   }.freeze
 
+  def cruise_recommended_next_path(action)
+    case action.key
+    when :add_cabins
+      new_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement)
+    when :add_rates, :review_contracted_rates
+      if action.advanced
+        departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @shape.item)
+      else
+        departure_arrangement_cruise_cabin_category_supplier_rates_path(
+          @departure, @supplier_arrangement, action.resource_id
+        )
+      end
+    when :record_agreement
+      "#cruise-agreement-record"
+    when :record_initial_deposit, :record_hard_stop, :record_final_payment
+      departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement)
+    when :resolve_blocker, :review_activation
+      departure_arrangement_activation_path(@departure, @supplier_arrangement)
+    end
+  end
+
+  def cruise_rate_posture_label(posture)
+    {
+      missing: "Not entered",
+      estimated: "Estimated",
+      contracted_working: "Contracted, not ready",
+      contracted_ready: "Contracted",
+      working: "In progress",
+      unsupported: "Advanced"
+    }.fetch(posture, posture.to_s.tr("_", " "))
+  end
+
   def cruise_inventory_mode_label(mode)
     CRUISE_INVENTORY_MODE_LABELS.fetch(mode.to_s) { mode.to_s.tr("_", " ").titleize }
   end
