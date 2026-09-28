@@ -134,7 +134,7 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
     assert_empty @version.supplier_arrangement_cruise_term_definitions.where(term_type: "cancellation_step")
   end
 
-  test "an omitted citation is preserved and manage source can replace or clear it" do
+  test "an omitted citation is preserved and the agreement page does not edit it" do
     sign_in_as @staff
     RecordCruiseCommercialBenefit.new(
       agency: @agency,
@@ -157,30 +157,10 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
     assert_equal "July 2025 brochure", benefit.reload.source_citation
     assert_equal "1 credit per 16 full-tariff guests.", benefit.body
 
-    patch departure_arrangement_cruise_commercial_benefit_path(@departure, @arrangement, "tour_conductor_credit"), params: {
-      version_lock_version: @version.reload.lock_version,
-      definition_lock_version: benefit.reload.lock_version,
-      idempotency_key: SecureRandom.uuid,
-      benefit_editor: "benefit-source-tour_conductor_credit",
-      commercial_benefit: {
-        term_type: "tour_conductor_credit",
-        body: benefit.body,
-        source_citation: "Corrected brochure"
-      }
-    }
-    assert_equal "Corrected brochure", benefit.reload.source_citation
-
-    patch departure_arrangement_cruise_commercial_benefit_path(@departure, @arrangement, "tour_conductor_credit"), params: {
-      version_lock_version: @version.reload.lock_version,
-      definition_lock_version: benefit.reload.lock_version,
-      idempotency_key: SecureRandom.uuid,
-      commercial_benefit: {
-        term_type: "tour_conductor_credit",
-        body: benefit.body,
-        source_citation: ""
-      }
-    }
-    assert_nil benefit.reload.source_citation
+    get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
+    assert_match "Source information recorded", response.body
+    assert_no_match "Manage source", response.body
+    assert_no_match "Source citation", response.body
   end
 
   test "agreement deadline saves preserve an omitted description and only agreement is a return token" do

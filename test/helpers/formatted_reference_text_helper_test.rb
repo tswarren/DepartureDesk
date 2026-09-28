@@ -14,13 +14,12 @@ class FormattedReferenceTextHelperTest < ActionView::TestCase
     assert_predicate html, :html_safe?
   end
 
-  test "sanitizes unsafe html and reopening uses the stored source" do
+  test "sanitizes unsafe html" do
     source = "Keep **this**\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))"
     html = formatted_reference_text(source)
 
     assert_not_includes html, "<script>"
     assert_not_includes html, "javascript:"
     assert_includes html, "<strong>this</strong>"
-    assert_equal source, source
   end
 end

@@ -14,23 +14,13 @@
   <% if definition %>
     <%= hidden_field_tag :definition_lock_version, definition.lock_version %>
   <% end %>
-  <% if manage_source %>
-    <div class="dd-field-group">
-      <label class="dd-label" for="benefit_citation_<%= term_type %>">Source citation</label>
-      <input id="benefit_citation_<%= term_type %>" name="commercial_benefit[source_citation]" class="dd-field"
-        maxlength="160" value="<%= posted&.key?(:source_citation) ? posted[:source_citation] : definition&.source_citation %>">
-      <p class="dd-help">Clearing this field removes the stored source citation.</p>
-    </div>
-    <%= hidden_field_tag "commercial_benefit[body]", definition.body %>
-  <% else %>
-    <div class="dd-field-group">
-      <label class="dd-label" for="benefit_body_<%= term_type %>">Wording</label>
-      <textarea id="benefit_body_<%= term_type %>" name="commercial_benefit[body]" class="dd-field"
-        maxlength="4000" rows="5" required><%= body_value %></textarea>
-    </div>
-  <% end %>
+  <div class="dd-field-group">
+    <label class="dd-label" for="benefit_body_<%= term_type %>">Wording</label>
+    <textarea id="benefit_body_<%= term_type %>" name="commercial_benefit[body]" class="dd-field"
+      maxlength="4000" rows="5" required><%= body_value %></textarea>
+  </div>
   <div class="dd-form-actions">
-    <%= submit_tag(manage_source ? "Save source" : (definition ? "Save #{cruise_benefit_label(term_type)}" : "Add #{cruise_benefit_label(term_type)}"), class: "dd-button") %>
+    <%= submit_tag(definition ? "Save #{cruise_benefit_label(term_type)}" : "Add #{cruise_benefit_label(term_type)}", class: "dd-button") %>
     <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "commercial-benefits"), class: "dd-button dd-button--quiet" %>
   </div>
 <% end %>
