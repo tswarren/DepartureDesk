@@ -1,6 +1,6 @@
 # Cruise Composition UX
 
-**Status:** Accepted 2026-09-28. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. UX-4, record requirements, is the authorized implementation slice. UX-5 through UX-7 are specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
+**Status:** Accepted 2026-09-28. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. UX-4, record requirements, is implemented. UX-4.5, numeric capacity evaluation, is the authorized fix. UX-5 through UX-7 are specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md). Domain authority remains the accepted [Cruise rework](m4d1-cruise-rework.md). This plan changes presentation and orchestration only.
 
@@ -81,6 +81,10 @@ Allocated-cabin amount and attributable credit stay structured, with the Departu
 Commercial-benefit Add and Edit ask for wording only. When the request omits source citation, the controller resubmits the stored citation. A stored citation is shown as source information already recorded. UX-4 does not offer a way to replace or clear it. Do not invent a citation. Missing optional benefits and terms read **Not recorded**. Commission stays on Supplier rates. Reference wording is rendered with `commonmarker` and an allowlisted sanitizer over the existing text column. Reopening an editor shows the stored source. Same-terms capacity increase and the supplemental block stay on this page, outside the four sections, until UX-6.
 
 Proof: request and service tests cover omitted-citation preservation, the complete cancellation ladder including an explicit empty clear and unchanged omitted cancellation, rejection of a blank allocated credit, preservation of an omitted deadline description, deposit evaluation from the current opening quantity, the closed return token, and visibility of an unrecognized requirement. A browser test covers the four sections, focused editing, the canonical `$50.00 × 24 = $1,200.00` deposit, the July 9, 2027 hard stop, the August 8, 2027 final payment, the `$500.00` and `$50.00` allocated-cabin amounts, cancellation add, edit, and confirmed remove, sanitized reference wording, Advanced, the transitional controls, and no horizontal overflow at 375px and 1280px.
+
+### UX-4.5 — Numeric capacity evaluation
+
+Opening-quantity deposit evaluation counts `block` and `allotment` pools only. On request and externally managed pools stay in the coverage and are omitted from the sum. A missing number on a numeric pool is still incomplete. When every covered pool is nonnumeric, the result is quantity not tracked: no `$0` tranche, no deposit commitment, and no activation or attention blocker. A mixed deposit keeps the numeric total and says the omitted cabins are not included. The retained quantity used by a cumulative target is unchanged. No inventory mode, pool quantity, rate, agreement, or deposit definition is rewritten.
 
 ## Later slices
 

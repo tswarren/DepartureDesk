@@ -216,6 +216,7 @@ class PreviewCruiseDepositsAndDeadlinesActivation
     blocker = nil
     due_sentence = nil
     elapsed = false
+    quantity_not_tracked = false
 
     begin
       evaluated_amount = SupplierDepositAmountEvaluator.call(
@@ -225,10 +226,15 @@ class PreviewCruiseDepositsAndDeadlinesActivation
         mode: :preview,
         at: @at
       )
-      amount_sentence = Money.new(
-        evaluated_amount[:amount_minor_units],
-        definition.currency.presence || departure.operating_currency
-      ).format
+      quantity_not_tracked = evaluated_amount[:quantity_not_tracked]
+      amount_sentence = if quantity_not_tracked
+        "Quantity not tracked"
+      else
+        Money.new(
+          evaluated_amount[:amount_minor_units],
+          definition.currency.presence || departure.operating_currency
+        ).format
+      end
     rescue SupplierDepositAmountEvaluator::IncompleteCalculation => error
       pending_reasons = [ error.message ]
       blocker = error.message
@@ -255,7 +261,7 @@ class PreviewCruiseDepositsAndDeadlinesActivation
       pending_reasons << error.message unless pending_reasons.include?(error.message)
     end
 
-    will_open = reconciler.nil? || !reconciler.skip_open?(definition)
+    will_open = !quantity_not_tracked && (reconciler.nil? || !reconciler.skip_open?(definition))
     corrective_path = nil
     corrective_label = nil
     if blocker.present?

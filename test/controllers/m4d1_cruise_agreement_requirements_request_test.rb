@@ -217,6 +217,29 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
 
   test "the initial deposit total follows current opening quantity and an extra requirement stays visible" do
     sign_in_as @staff
+    on_request = CreateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource_attributes: {
+        name: "Concierge on request",
+        supplier_code: "C1",
+        maximum_occupancy: 2
+      },
+      pool_attributes: {
+        inventory_mode: "on_request",
+        evidence_kind: "contract",
+        evidence_on: Date.current,
+        evidence_reference_note: "On request cabin"
+      },
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    on_request_definition = @version.reload.capacity_pool_definitions.find_by!(
+      capacity_pool_id: on_request.record.pool.id
+    )
+    assert_nil on_request_definition.proposed_opening_quantity
+
     post departure_arrangement_cruise_deposits_and_deadlines_deposits_path(@departure, @arrangement), params: {
       return_to: "agreement",
       version_lock_version: @version.lock_version,
@@ -228,7 +251,7 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
         rate_amount: "50.00",
         rule_shape: "fixed_date",
         fixed_date: "2026-10-13",
-        capacity_pool_ids: @pools.map(&:id)
+        capacity_pool_ids: @pools.map(&:id) + [ on_request.record.pool.id ]
       }
     }
     deposit = @version.supplier_deposit_requirement_definitions.order(:position).last
@@ -239,6 +262,8 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
     assert_nil deposit.explicit_quantity
     follow_redirect!
     assert_match "$50.00 per opening cabin × 24 cabins = $1,200.00", response.body
+    assert_match "On request and externally managed cabins are not included.", response.body
+    assert_nil on_request_definition.reload.proposed_opening_quantity
 
     @version.capacity_pool_definitions.find_by!(capacity_pool_id: @pools.last.id).update!(proposed_opening_quantity: 10)
     get departure_arrangement_cruise_agreement_path(@departure, @arrangement)

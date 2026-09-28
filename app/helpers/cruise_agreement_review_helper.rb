@@ -56,11 +56,17 @@ module CruiseAgreementReviewHelper
       arrangement: @supplier_arrangement,
       mode: :preview
     )
+    return "Quantity not tracked" if evaluated[:quantity_not_tracked]
+
     currency = definition.currency
     quantity = evaluated.dig(:inputs, "quantity")
     rate = Money.new(definition.rate_minor_units, currency).format
     total = Money.new(evaluated.fetch(:amount_minor_units), currency).format
-    "#{rate} per opening cabin × #{quantity} #{'cabin'.pluralize(quantity)} = #{total}"
+    sentence = "#{rate} per opening cabin × #{quantity} #{'cabin'.pluralize(quantity)} = #{total}"
+    excluded = Array(evaluated.dig(:inputs, "excluded_pools"))
+    return sentence if excluded.empty?
+
+    "#{sentence}. On request and externally managed cabins are not included."
   rescue SupplierDepositAmountEvaluator::IncompleteCalculation
     nil
   end

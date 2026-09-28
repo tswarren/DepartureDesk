@@ -177,8 +177,30 @@ class SupplierDepositAmountEvaluator
     @arrangement.versions.where.not(status: "draft").exists?
   end
 
+  OPENING_QUANTITY_PHASES = %i[proposed_opening provisional_retained established_opening].freeze
+
   def evaluate_capacity_pool_rate(rate, quantity_phase:)
-    sources = capacity_pool_sources(quantity_phase:)
+    sources, excluded = capacity_pool_resolution(quantity_phase:)
+    if sources.empty?
+      if excluded.any?
+        return {
+          quantity_not_tracked: true,
+          amount_minor_units: nil,
+          components: [],
+          inputs: {
+            "amount_shape" => "quantity_times_rate",
+            "quantity_basis" => "capacity_pool_units",
+            "quantity_phase" => quantity_phase.to_s,
+            "quantity_tracked" => false,
+            "rate_minor_units" => rate,
+            "excluded_pools" => excluded
+          }
+        }
+      end
+
+      raise IncompleteCalculation, "Capacity-pool quantity must be positive"
+    end
+
     total_quantity = sources.sum { |row| row.fetch(:quantity) }
     raise IncompleteCalculation, "Capacity-pool quantity must be positive" unless total_quantity.positive?
 
@@ -198,6 +220,7 @@ class SupplierDepositAmountEvaluator
       }
     end
     {
+      quantity_not_tracked: false,
       amount_minor_units: amount,
       components:,
       inputs: {
@@ -205,20 +228,38 @@ class SupplierDepositAmountEvaluator
         "quantity" => total_quantity,
         "quantity_basis" => "capacity_pool_units",
         "quantity_phase" => quantity_phase.to_s,
+        "quantity_tracked" => true,
         "rate_minor_units" => rate,
-        "sources" => components
+        "sources" => components,
+        "excluded_pools" => excluded
       }
     }
   end
 
   def capacity_pool_sources(quantity_phase:)
+    capacity_pool_resolution(quantity_phase:).first
+  end
+
+  def capacity_pool_resolution(quantity_phase:)
     links = coverage_link_rows
     raise IncompleteCalculation, "Deposit coverage is required for capacity-pool quantities" if links.empty?
 
-    links.map do |link|
+    sources = []
+    excluded = []
+    links.each do |link|
       pool = resolve_capacity_pool(link)
+      if opening_quantity_phase?(quantity_phase) && !pool.numeric_inventory?
+        excluded << {
+          "capacity_pool_id" => pool.id,
+          "supplier_resource_id" => pool.supplier_resource_id,
+          "inventory_mode" => pool.inventory_mode,
+          "reason" => "quantity_not_tracked"
+        }
+        next
+      end
+
       quantity, meta = quantity_for_pool(pool, quantity_phase:)
-      {
+      sources << {
         capacity_pool_id: pool.id,
         supplier_resource_id: pool.supplier_resource_id,
         quantity:,
@@ -227,6 +268,11 @@ class SupplierDepositAmountEvaluator
         capacity_event_id: meta[:capacity_event_id]
       }
     end
+    [ sources, excluded ]
+  end
+
+  def opening_quantity_phase?(quantity_phase)
+    OPENING_QUANTITY_PHASES.include?(quantity_phase)
   end
 
   def resolve_capacity_pool(link)

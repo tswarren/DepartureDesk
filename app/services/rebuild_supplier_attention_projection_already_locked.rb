@@ -244,11 +244,13 @@ class RebuildSupplierAttentionProjectionAlreadyLocked
   end
 
   def deposit_incomplete_message(definition, version)
-    SupplierDepositAmountEvaluator.call(
+    evaluated = SupplierDepositAmountEvaluator.call(
       definition:,
       arrangement: @arrangement,
       version:
     )
+    return nil if evaluated[:quantity_not_tracked]
+
     "Deposit Requirement has not materialized"
   rescue SupplierDepositAmountEvaluator::IncompleteCalculation => error
     error.message.to_s.truncate(240)
