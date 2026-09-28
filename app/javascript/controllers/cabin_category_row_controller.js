@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = [ "inventory", "quantity" ]
+  static targets = [ "inventory", "quantity", "dash" ]
 
   connect() {
     this.toggle()
@@ -10,8 +10,7 @@ export default class extends Controller {
   toggle() {
     const numeric = this.inventoryTarget.value === "block"
     this.quantityTarget.hidden = !numeric
-    this.quantityTarget.querySelectorAll("input").forEach((input) => {
-      input.disabled = !numeric
-    })
+    this.quantityTarget.disabled = !numeric
+    this.dashTarget.hidden = numeric
   }
 }

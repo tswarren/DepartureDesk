@@ -95,9 +95,13 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_match "O1 could not be saved", response.body
-    assert_includes response.body, keys[1]
-    assert_includes response.body, keys[2]
+    assert_equal [ "O1", "DI" ], input_values("rows[][supplier_code]")
+    assert_equal [ "Prime Oceanview", "Deluxe Inside Stateroom" ], input_values("rows[][name]")
+    assert_equal [ "3", "3" ], input_values("rows[][maximum_occupancy]")
+    assert_equal [ "8", "8" ], input_values("rows[][proposed_opening_quantity]")
+    assert_equal [ keys[1], keys[2] ], input_values("rows[][idempotency_key]")
     assert_not_includes response.body, keys[0]
+    assert_not_includes input_values("rows[][name]"), "Edge Stateroom with Veranda"
     assert_equal [ "E3" ], cabin_codes(arrangement)
 
     lock = css_select("input[name='version_lock_version']").first["value"]
@@ -110,6 +114,25 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_equal [ "E3", "O1", "DI" ], cabin_codes(arrangement)
     follow_redirect!
     assert_match "3 · 24 cabins", response.body
+  end
+
+  test "repeated supplier codes save when the cabin names differ" do
+    sign_in_as @staff
+    arrangement = create_cruise_sailing.record.arrangement
+    version = arrangement.versions.sole
+
+    post departure_arrangement_cruise_cabin_categories_path(@departure, arrangement), params: {
+      version_lock_version: version.lock_version,
+      rows: [
+        cabin_row("O1", "Prime Oceanview", SecureRandom.uuid),
+        cabin_row("O1", "Supplemental O1 block", SecureRandom.uuid)
+      ]
+    }
+
+    assert_redirected_to departure_arrangement_cruise_path(@departure, arrangement)
+    assert_equal [ "O1", "O1" ], cabin_codes(arrangement)
+    names = arrangement.versions.find_by!(status: "draft").supplier_resource_definitions.order(:position, :id).pluck(:name)
+    assert_equal [ "Prime Oceanview", "Supplemental O1 block" ], names
   end
 
   test "cross-agency cruise routes return not found" do
@@ -387,6 +410,10 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
       inventory_mode: "block",
       proposed_opening_quantity: 8
     }
+  end
+
+  def input_values(name)
+    css_select("tbody input[name='#{name}']").filter_map { |input| input["value"].presence }
   end
 
   def cabin_codes(arrangement)

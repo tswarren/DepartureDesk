@@ -116,7 +116,6 @@ class SaveCruiseCabinCategoryBatch
 
   def validation_messages(rows)
     messages = []
-    seen_codes = {}
     rows.each_with_index do |row, index|
       label = row.label || "Row #{index + 1}"
       messages << "#{label} needs a category name." if row.name.to_s.strip.blank?
@@ -129,11 +128,6 @@ class SaveCruiseCabinCategoryBatch
       if row.maximum_occupancy.to_s.strip.present? && !positive_integer?(row.maximum_occupancy)
         messages << "#{label} needs a whole number for how many people it sleeps."
       end
-      code = row.supplier_code.to_s.strip
-      next if code.blank?
-
-      messages << "#{code} is entered more than once." if seen_codes[code]
-      seen_codes[code] = true
     end
     messages
   end

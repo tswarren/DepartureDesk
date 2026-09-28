@@ -10,8 +10,6 @@ export default class extends Controller {
     const index = this.rowsTarget.querySelectorAll("[data-controller='cabin-category-row']").length + 1
     const key = crypto.randomUUID()
     row.querySelector("[data-cabin-key]").value = key
-    const legend = row.querySelector("legend")
-    if (legend) legend.textContent = `Category ${index}`
     row.querySelectorAll("[id]").forEach((element) => {
       const nextId = `${element.id}_${index}`
       const label = row.querySelector(`label[for="${element.id}"]`)
@@ -19,5 +17,10 @@ export default class extends Controller {
       if (label) label.htmlFor = nextId
     })
     this.rowsTarget.appendChild(fragment)
+  }
+
+  remove(event) {
+    event.preventDefault()
+    event.target.closest("tr")?.remove()
   }
 }

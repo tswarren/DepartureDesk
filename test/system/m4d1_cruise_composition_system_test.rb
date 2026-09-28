@@ -60,7 +60,7 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     end
     within "#cabin-row-0" do
       fill_in "Code", with: "O1"
-      fill_in "Category", with: "Prime Oceanview"
+      fill_in "Cabin category", with: "Prime Oceanview"
       fill_in "Sleeps", with: "3"
       fill_in "Cabins", with: "8"
     end
@@ -108,6 +108,13 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     within "#cruise-recommended-next" do
       click_link "Add cabin categories"
     end
+    resize_window(1280, 900)
+    assert_selector "table.dd-cabin-table thead", count: 1, visible: :visible
+    assert_selector "table.dd-cabin-table tbody tr", count: 3
+    resize_window(375, 900)
+    assert_selector "table.dd-cabin-table thead", visible: :hidden
+    assert_no_page_overflow
+    resize_window(1280, 900)
     [
       [ "0", "E3", "Edge Stateroom with Veranda" ],
       [ "1", "O1", "Prime Oceanview" ],
@@ -115,7 +122,7 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     ].each do |index, code, name|
       within "#cabin-row-#{index}" do
         fill_in "Code", with: code
-        fill_in "Category", with: name
+        fill_in "Cabin category", with: name
         fill_in "Sleeps", with: "3"
         fill_in "Cabins", with: "8"
       end

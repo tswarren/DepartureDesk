@@ -23,10 +23,24 @@
         </div>
       <% end %>
 
-      <div class="dd-cabin-batch" data-cabin-category-batch-target="rows">
-        <% @cabin_rows.each_with_index do |row, index| %>
-          <%= render "cruise_cabin_categories/row", row: row, index: index %>
-        <% end %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-cabin-table">
+          <thead>
+            <tr>
+              <th scope="col">Code</th>
+              <th scope="col">Cabin category</th>
+              <th scope="col">Sleeps</th>
+              <th scope="col">Inventory</th>
+              <th scope="col">Cabins</th>
+              <th scope="col"><span class="dd-visually-hidden">Remove</span></th>
+            </tr>
+          </thead>
+          <tbody data-cabin-category-batch-target="rows">
+            <% @cabin_rows.each_with_index do |row, index| %>
+              <%= render "cruise_cabin_categories/row", row: row, index: index %>
+            <% end %>
+          </tbody>
+        </table>
       </div>
 
       <template data-cabin-category-batch-target="template">
