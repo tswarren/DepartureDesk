@@ -1,6 +1,6 @@
 # Cruise Composition UX
 
-**Status:** Accepted 2026-09-28. UX-1, the read-only overview, is the only authorized implementation slice. UX-2 through UX-7 are specified here and are not authorized until the UX-1 overview has been reviewed at 375, 768, 1280, and 1400 pixels and that review shows the hierarchy reduces cognitive load. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
+**Status:** Accepted 2026-09-28. UX-1, the read-only overview, is accepted. UX-2, establish supply, is the authorized implementation slice. UX-3 through UX-7 are specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md). Domain authority remains the accepted [Cruise rework](m4d1-cruise-rework.md). This plan changes presentation and orchestration only.
 
@@ -42,15 +42,17 @@ The hub shows a five-step strip — sailing, cabin categories, Supplier rates, a
 
 Proof: the compiler tests cover the recommendation groups and prove every readiness blocker is retained while one recommendation is chosen. A browser test opens a new Cruise, sees the ship-name title, the five-step strip, and the cabin-category recommendation, with no agreement or commercial-benefit editor on that page. After a category exists, the recommendation moves to Supplier rates. Check the overview at 375, 768, 1280, and 1400.
 
+## UX-2 — Establish supply
+
+**Authorized.** Focused sailing, agreement, and cabin pages. Sailing stays the current sailing editor. Agreement uses the existing provisional, confirm, and correct commands. Group creation date stays required. Group number and contract date stay optional until confirm. Correction does not show internal confirmation fields.
+
+Cabin entry is a batch form in front of `CreateCruiseCabinCategorySetup`. Each row is an independent command invocation. Do not add a batch domain command. The form validates every row locally before the first command. If a later command fails, keep the categories already created, redisplay only the unresolved rows and the error, and do not create duplicates on retry. Each submitted row keeps its idempotency key across redisplay and retry. Labels are Fixed block, On request, and Externally managed.
+
+Proof: Staff enters E3, O1, and DI as 8 cabins each in one save and returns to `3 · 24 cabins`. Submit E3, O1, and DI. Cause O1 to fail after E3 succeeds. E3 remains persisted; O1 and DI remain populated on the form; the error identifies O1; retry after correction creates O1 and DI without duplicating E3; the overview ultimately reports `3 · 24 cabins`.
+
 ## Later slices
 
 These slices are specified so the journey stays coherent. Do not implement them under this acceptance.
-
-### UX-2 — Establish supply
-
-Focused sailing, agreement, and cabin pages. Sailing stays the current sailing editor. Agreement uses the existing provisional, confirm, and correct commands. Group creation date stays required. Group number and contract date stay optional until confirm. Correction does not show internal confirmation fields.
-
-Cabin entry is a batch form in front of `CreateCruiseCabinCategorySetup`. Each row is an independent command invocation. Do not add a batch domain command. The form validates every row locally before submit. If a later command fails, keep the categories already created, redisplay the unresolved rows and the error, and do not create duplicates on retry. Labels are Fixed block, On request, and Externally managed. The happy-path proof is E3, O1, and DI saved as 8 cabins each, returning to `3 · 24 cabins`. A failed-row proof is required, and it is not the primary proof.
 
 ### UX-3 — Establish economics
 

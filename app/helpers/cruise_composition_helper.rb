@@ -70,6 +70,14 @@ module CruiseCompositionHelper
     CRUISE_INVENTORY_MODE_LABELS.map { |value, label| [ label, value ] }
   end
 
+  def cruise_cabin_batch_inventory_options
+    [
+      [ "Fixed block", "block" ],
+      [ "On request", "on_request" ],
+      [ "Externally managed", "externally_managed" ]
+    ]
+  end
+
   def cruise_version_status_label(version)
     return "No version" if version.nil?
 

@@ -12,42 +12,29 @@ class CruiseCabinCategoriesController < ApplicationController
   before_action :set_cabin_category, only: %i[edit update]
 
   def new
-    @resource_attributes = resource_defaults
-    @pool_attributes = pool_defaults
-    @idempotency_key = SecureRandom.uuid
-    @return_intent = params[:return_intent].to_s
+    @cabin_rows = Array.new(3) { SaveCruiseCabinCategoryBatch.blank_row }
+    @version_lock_version = @supplier_arrangement_version.lock_version
   end
 
   def create
-    @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
-    @resource_attributes = resource_params.to_h
-    @pool_attributes = pool_create_params.to_h
-    @return_intent = params[:return_intent].to_s.presence || commit_return_intent
-
-    CreateCruiseCabinCategorySetup.new(
+    result = SaveCruiseCabinCategoryBatch.new(
       agency: Current.agency,
       actor: Current.agency_user,
       arrangement: @supplier_arrangement,
-      resource_attributes: @resource_attributes,
-      pool_attributes: @pool_attributes,
-      version_lock_version: params.require(:version_lock_version),
-      idempotency_key: @idempotency_key
+      rows: cabin_row_params,
+      version_lock_version: params.require(:version_lock_version)
     ).call
 
-    if @return_intent == "add_another"
-      redirect_to new_departure_arrangement_cruise_cabin_category_path(
-        @departure, @supplier_arrangement
-      ), notice: "Cabin category saved. Add another when ready."
-    else
+    if result.saved?
       redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
-        notice: "Cabin category saved."
+        notice: cabin_save_notice(result.saved_count)
+    else
+      @cabin_rows = result.unresolved_rows
+      @version_lock_version = result.version_lock_version
+      @form_error = result.error_message
+      flash.now[:alert] = result.error_message
+      render :new, status: :unprocessable_entity
     end
-  rescue AgencyCommand::Error => error
-    raise ActiveRecord::RecordNotFound if error.code == :not_found
-
-    @form_error = error.message
-    flash.now[:alert] = error.message
-    render :new, status: :unprocessable_entity
   end
 
   def edit
@@ -134,39 +121,22 @@ class CruiseCabinCategoriesController < ApplicationController
     )
   end
 
-  def resource_defaults
-    {
-      name: params.dig(:resource, :name),
-      supplier_code: params.dig(:resource, :supplier_code),
-      maximum_occupancy: params.dig(:resource, :maximum_occupancy)
-    }
+  def cabin_row_params
+    Array(params[:rows]).map do |row|
+      row.permit(
+        :idempotency_key, :supplier_code, :name, :maximum_occupancy,
+        :inventory_mode, :proposed_opening_quantity
+      ).to_h
+    end
   end
 
-  def pool_defaults
-    {
-      inventory_mode: params.dig(:pool, :inventory_mode).presence || "block",
-      proposed_opening_quantity: params.dig(:pool, :proposed_opening_quantity),
-      notes: params.dig(:pool, :notes),
-      evidence_kind: params.dig(:pool, :evidence_kind),
-      evidence_on: params.dig(:pool, :evidence_on),
-      evidence_reference_note: params.dig(:pool, :evidence_reference_note),
-      evidence_external_reference: params.dig(:pool, :evidence_external_reference),
-      override: params.dig(:pool, :override),
-      override_reason: params.dig(:pool, :override_reason)
-    }
+  def cabin_save_notice(count)
+    count == 1 ? "Cabin category saved." : "#{count} cabin categories saved."
   end
 
   def resource_params
     params.fetch(:resource, ActionController::Parameters.new).permit(
       :name, :supplier_code, :maximum_occupancy
-    )
-  end
-
-  def pool_create_params
-    params.fetch(:pool, ActionController::Parameters.new).permit(
-      :inventory_mode, :proposed_opening_quantity, :notes,
-      :evidence_kind, :evidence_on, :evidence_reference_note, :evidence_external_reference,
-      :override, :override_reason
     )
   end
 
@@ -178,10 +148,4 @@ class CruiseCabinCategoriesController < ApplicationController
     )
   end
 
-  def commit_return_intent
-    case params[:commit].to_s
-    when /add another/i then "add_another"
-    else "workspace"
-    end
-  end
 end

@@ -52,18 +52,17 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     version = arrangement.versions.sole
 
     post departure_arrangement_cruise_cabin_categories_path(@departure, arrangement), params: {
-      idempotency_key: SecureRandom.uuid,
       version_lock_version: version.lock_version,
-      resource: {
-        name: "Prime Oceanview",
-        supplier_code: "O1",
-        maximum_occupancy: 3
-      },
-      pool: {
-        inventory_mode: "block",
-        proposed_opening_quantity: 8
-      },
-      commit: "Save category"
+      rows: [
+        {
+          idempotency_key: SecureRandom.uuid,
+          name: "Prime Oceanview",
+          supplier_code: "O1",
+          maximum_occupancy: 3,
+          inventory_mode: "block",
+          proposed_opening_quantity: 8
+        }
+      ]
     }
 
     assert_redirected_to departure_arrangement_cruise_path(@departure, arrangement)
@@ -74,6 +73,43 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_match "sleeps up to 3", response.body
     assert_match "8 cabins", response.body
     assert_match "Fixed block", response.body
+  end
+
+  test "a failed cabin row keeps earlier categories and retries without duplicating them" do
+    sign_in_as @staff
+    arrangement = create_cruise_sailing.record.arrangement
+    version = arrangement.versions.sole
+    keys = Array.new(3) { SecureRandom.uuid }
+    rows = [
+      cabin_row("E3", "Edge Stateroom with Veranda", keys[0]),
+      cabin_row("O1", "Prime Oceanview", keys[1]),
+      cabin_row("DI", "Deluxe Inside Stateroom", keys[2])
+    ]
+
+    with_o1_command_failure do
+      post departure_arrangement_cruise_cabin_categories_path(@departure, arrangement), params: {
+        version_lock_version: version.lock_version,
+        rows: rows
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_match "O1 could not be saved", response.body
+    assert_includes response.body, keys[1]
+    assert_includes response.body, keys[2]
+    assert_not_includes response.body, keys[0]
+    assert_equal [ "E3" ], cabin_codes(arrangement)
+
+    lock = css_select("input[name='version_lock_version']").first["value"]
+    post departure_arrangement_cruise_cabin_categories_path(@departure, arrangement), params: {
+      version_lock_version: lock,
+      rows: [ rows[1], rows[2] ]
+    }
+
+    assert_redirected_to departure_arrangement_cruise_path(@departure, arrangement)
+    assert_equal [ "E3", "O1", "DI" ], cabin_codes(arrangement)
+    follow_redirect!
+    assert_match "3 · 24 cabins", response.body
   end
 
   test "cross-agency cruise routes return not found" do
@@ -341,6 +377,41 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def cabin_row(code, name, key)
+    {
+      idempotency_key: key,
+      supplier_code: code,
+      name: name,
+      maximum_occupancy: 3,
+      inventory_mode: "block",
+      proposed_opening_quantity: 8
+    }
+  end
+
+  def cabin_codes(arrangement)
+    arrangement.reload.versions.find_by!(status: "draft")
+      .supplier_resource_definitions.order(:position, :id).pluck(:supplier_code)
+  end
+
+  def with_o1_command_failure
+    original = CreateCruiseCabinCategorySetup.method(:new)
+    failed = false
+    CreateCruiseCabinCategorySetup.define_singleton_method(:new) do |**kwargs|
+      command = original.call(**kwargs)
+      code = kwargs[:resource_attributes].to_h.with_indifferent_access[:supplier_code]
+      if code == "O1" && !failed
+        failed = true
+        command.define_singleton_method(:call) do
+          raise AgencyCommand::Error.new("Supplier rejected this category.", code: :invalid)
+        end
+      end
+      command
+    end
+    yield
+  ensure
+    CreateCruiseCabinCategorySetup.define_singleton_method(:new, original)
+  end
 
   def create_cruise_sailing
     CreateCruiseSailingSetup.new(

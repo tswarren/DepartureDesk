@@ -61,10 +61,10 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
 
-    fill_in "Group reference", with: "1119999"
+    fill_in "Supplier group number", with: "1119999"
     fill_in "Contract date", with: "2026-09-13"
     fill_in "agreement_group_creation_date_confirm", with: "2026-09-13"
-    click_on "Confirm agreement"
+    click_on "Confirm Supplier agreement"
     assert_text "Cruise agreement recorded."
     assert_text "Group 1119999"
 
@@ -122,11 +122,11 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
     successor = @arrangement.versions.find_by!(status: "draft")
     assert_equal @version.id, @arrangement.reload.governing_version_id
-    fill_in "Group reference", with: "1119999"
+    fill_in "Supplier group number", with: "1119999"
     fill_in "agreement_group_creation_date_confirm", with: "2026-09-13"
     fill_in "Contract date", with: "2026-10-20"
     fill_in "Deposit treatment for a supplemental block", with: "No additional initial deposit for this block."
-    click_on "Confirm agreement"
+    click_on "Confirm Supplier agreement"
     assert_text "Cruise agreement recorded."
 
     visit departure_arrangement_activation_path(@departure, @arrangement)

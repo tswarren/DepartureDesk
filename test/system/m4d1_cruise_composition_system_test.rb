@@ -58,12 +58,13 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     within "#cruise-recommended-next" do
       click_link "Add cabin categories"
     end
-    fill_in "Supplier category code", with: "O1"
-    fill_in "Category name", with: "Prime Oceanview"
-    fill_in "Maximum occupancy", with: "3"
-    select "Fixed block / held cabins", from: "Inventory treatment"
-    fill_in "Cabin quantity", with: "8"
-    click_button "Save category"
+    within "#cabin-row-0" do
+      fill_in "Code", with: "O1"
+      fill_in "Category", with: "Prime Oceanview"
+      fill_in "Sleeps", with: "3"
+      fill_in "Cabins", with: "8"
+    end
+    click_button "Save cabin categories"
 
     assert_selector "#cruise-workspace"
     assert_text "Enter Supplier rates"
@@ -80,6 +81,52 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     visit departure_arrangement_path(@departure, arrangement)
     assert_text "Celebrity Beyond"
     assert_text "Prime Oceanview"
+  end
+
+  test "staff saves three cabin categories in one save" do
+    sign_in_from_browser(@staff)
+    sailing = CreateCruiseSailingSetup.new(
+      agency: @agency,
+      actor: @staff,
+      departure: @departure,
+      arrangement_attributes: {
+        name: "Celebrity group agreement",
+        contracting_supplier_id: @contractor.id
+      },
+      item_attributes: { name: "Celebrity Beyond" },
+      occurrence_attributes: {
+        name: "Eastern Caribbean",
+        starts_on: "2027-11-06",
+        ends_on: "2027-11-13",
+        time_zone: "America/New_York"
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call
+    arrangement = sailing.record.arrangement
+
+    visit departure_arrangement_cruise_path(@departure, arrangement)
+    within "#cruise-recommended-next" do
+      click_link "Add cabin categories"
+    end
+    [
+      [ "0", "E3", "Edge Stateroom with Veranda" ],
+      [ "1", "O1", "Prime Oceanview" ],
+      [ "2", "DI", "Deluxe Inside Stateroom" ]
+    ].each do |index, code, name|
+      within "#cabin-row-#{index}" do
+        fill_in "Code", with: code
+        fill_in "Category", with: name
+        fill_in "Sleeps", with: "3"
+        fill_in "Cabins", with: "8"
+      end
+    end
+    click_button "Save cabin categories"
+
+    assert_text "3 cabin categories saved."
+    assert_text "3 · 24 cabins"
+    assert_text "E3"
+    assert_text "O1"
+    assert_text "DI"
   end
 
   private

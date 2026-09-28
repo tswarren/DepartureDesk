@@ -22,9 +22,6 @@ class CruiseArrangementsController < ApplicationController
       @supplier_arrangement.active? &&
       @supplier_arrangement_version&.activated? &&
       @supplier_arrangement.versions.none? { |version| version.draft? }
-    @commercial_benefits = commercial_benefit_definitions
-    assign_agreement!
-
     return unless @shape.compatible?
 
     @connection_workspace = CompileCruiseServiceConnectionWorkspace.new(
@@ -56,29 +53,6 @@ class CruiseArrangementsController < ApplicationController
 
     redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
       alert: error.message
-  end
-
-  private
-
-  def assign_agreement!
-    version = @supplier_arrangement_version
-    @agreement_confirmation = nil
-    @agreement_terms = []
-    @same_terms_pool_id = nil
-    return unless version
-
-    @agreement_confirmation = version.supplier_arrangement_cruise_agreement_confirmations.find_by(current: true)
-    @agreement_terms = version.supplier_arrangement_cruise_term_definitions.order(:term_type, :position).to_a
-    @same_terms_pool_id = version.capacity_pool_definitions.order(:position, :id).pick(:capacity_pool_id)
-  end
-
-  def commercial_benefit_definitions
-    return [] unless @shape.compatible? && @supplier_arrangement_version
-
-    @supplier_arrangement_version.supplier_arrangement_commercial_benefit_definitions
-      .includes(:copied_from)
-      .order(:term_type)
-      .to_a
   end
 
 end

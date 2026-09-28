@@ -801,6 +801,34 @@
     }
   }
 
+  .dd-cabin-batch {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .dd-cabin-row {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: minmax(0, 1fr);
+    margin: 0;
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-md);
+    background: var(--dd-surface);
+    padding: 0.75rem;
+  }
+
+  .dd-cabin-row legend {
+    grid-column: 1 / -1;
+    padding: 0;
+  }
+
+  @media (min-width: 768px) {
+    .dd-cabin-row {
+      grid-template-columns: 6rem minmax(0, 1.5fr) 6rem minmax(8rem, 1fr) 6rem;
+      align-items: end;
+    }
+  }
+
   .dd-panel--compact .dd-panel-header {
     min-height: 2.75rem;
     padding: 0.6rem 0.85rem;

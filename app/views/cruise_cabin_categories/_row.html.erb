@@ -1,0 +1,40 @@
+<% numeric = row.inventory_mode.to_s == "block" %>
+<fieldset class="dd-cabin-row" id="cabin-row-<%= index %>" data-controller="cabin-category-row">
+  <legend class="dd-label">Category <%= index.is_a?(Integer) ? index + 1 : index %></legend>
+  <%= hidden_field_tag "rows[][idempotency_key]", row.idempotency_key, id: "cabin_key_#{index}", data: { cabin_key: true } %>
+
+  <div class="dd-field-group">
+    <label class="dd-label" for="cabin_code_<%= index %>">Code</label>
+    <input id="cabin_code_<%= index %>" name="rows[][supplier_code]" class="dd-field" maxlength="80"
+      value="<%= row.supplier_code %>">
+  </div>
+
+  <div class="dd-field-group">
+    <label class="dd-label" for="cabin_name_<%= index %>">Category</label>
+    <input id="cabin_name_<%= index %>" name="rows[][name]" class="dd-field" maxlength="160"
+      value="<%= row.name %>">
+  </div>
+
+  <div class="dd-field-group">
+    <label class="dd-label" for="cabin_occupancy_<%= index %>">Sleeps</label>
+    <input id="cabin_occupancy_<%= index %>" name="rows[][maximum_occupancy]" type="number" min="1" step="1" class="dd-field"
+      value="<%= row.maximum_occupancy %>">
+  </div>
+
+  <div class="dd-field-group">
+    <label class="dd-label" for="cabin_inventory_<%= index %>">Inventory</label>
+    <select id="cabin_inventory_<%= index %>" name="rows[][inventory_mode]" class="dd-field"
+      data-cabin-category-row-target="inventory"
+      data-action="change->cabin-category-row#toggle">
+      <% cruise_cabin_batch_inventory_options.each do |label, value| %>
+        <option value="<%= value %>" <%= "selected" if row.inventory_mode.to_s == value %>><%= label %></option>
+      <% end %>
+    </select>
+  </div>
+
+  <div class="dd-field-group" data-cabin-category-row-target="quantity" <%= "hidden" unless numeric %>>
+    <label class="dd-label" for="cabin_quantity_<%= index %>">Cabins</label>
+    <input id="cabin_quantity_<%= index %>" name="rows[][proposed_opening_quantity]" type="number" min="1" step="1" class="dd-field"
+      value="<%= row.proposed_opening_quantity %>" <%= "disabled" unless numeric %>>
+  </div>
+</fieldset>

@@ -40,7 +40,8 @@
 <% if @shape.compatible? %>
   <% summary = @summary %>
   <% recommendation = summary.recommended_next_action %>
-  <% agreement = summary.sections.find { |section| section.key == "agreement" } %>
+      <% cabins = summary.sections.find { |section| section.key == "cabins" } %>
+      <% agreement = summary.sections.find { |section| section.key == "agreement" } %>
   <% requirements = summary.sections.find { |section| section.key == "requirements" } %>
   <% terms = summary.sections.find { |section| section.key == "terms" } %>
   <% strip = [
@@ -112,6 +113,7 @@
       <section id="cruise-cabins" class="dd-panel" aria-labelledby="cruise-cabins-heading">
         <div class="dd-panel-body dd-stack">
           <h2 id="cruise-cabins-heading" class="dd-section-title">Cabin categories</h2>
+          <p><%= cabins.detail %></p>
           <% if summary.cabin_rows.empty? %>
             <p>No categories yet.</p>
           <% else %>
