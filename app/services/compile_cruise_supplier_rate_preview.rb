@@ -7,10 +7,14 @@ class CompileCruiseSupplierRatePreview
     :key, :label, :supported, :gross_minor_units, :commission_minor_units,
     :net_minor_units, :commission_state, :net_state, :complete
   )
+  ProfileCommission = Data.define(
+    :key, :label, :commissionable_minor_units, :expected_commission_minor_units,
+    :basis_recorded
+  )
   Result = Data.define(
     :compatible?, :empty?, :advanced?, :definition, :source, :currency,
     :stage, :status, :commission_method, :pending_fields, :illustrations,
-    :forecast_mix_total_minor_units, :reasons
+    :forecast_mix_total_minor_units, :reasons, :profile_commissions
   )
 
   def initialize(agency:, arrangement:, resource:, version: nil, illustration_occupants: nil, stage: nil)
@@ -34,7 +38,7 @@ class CompileCruiseSupplierRatePreview
         definition: shape.definition, source: shape.source,
         currency: nil, stage: nil, status: nil, commission_method: nil,
         pending_fields: [], illustrations: [], forecast_mix_total_minor_units: nil,
-        reasons: shape.reasons
+        reasons: shape.reasons, profile_commissions: []
       )
     end
 
@@ -47,7 +51,7 @@ class CompileCruiseSupplierRatePreview
         pending_fields: %w[matrix commission],
         illustrations: empty_illustrations(shape.resource_definition),
         forecast_mix_total_minor_units: nil,
-        reasons: []
+        reasons: [], profile_commissions: []
       )
     end
 
@@ -74,11 +78,100 @@ class CompileCruiseSupplierRatePreview
       commission_method: commission_method, pending_fields: pending,
       illustrations: illustrations,
       forecast_mix_total_minor_units: mix_total,
-      reasons: []
+      reasons: [],
+      profile_commissions: profile_commissions_for(definition, shape)
     )
   end
 
   private
+
+  def profile_commissions_for(definition, shape)
+    commissions = definition.supplier_cost_components.select { |component|
+      component.economic_role == "expected_commission"
+    }
+    return [] if commissions.empty?
+
+    profiles = Array(shape.projected_matrix[:profile_details])
+    categories = categories_by_id_for(shape)
+    if commissions.all? { |component| component.calculation_kind == "unit_rate" }
+      amounts = {}
+      commissions.each do |component|
+        profile_key = profile_key_for_component(component, categories_by_id: categories)
+        next unless profile_key
+
+        amounts[profile_key.to_s] = component.amount_minor_units
+      end
+      return profiles.map { |profile|
+        key = profile[:key].to_s
+        ProfileCommission.new(
+          key: key,
+          label: rate_profile_label(profile),
+          commissionable_minor_units: nil,
+          expected_commission_minor_units: amounts[key],
+          basis_recorded: false
+        )
+      }
+    end
+
+    return [] unless commissions.all? { |component| component.calculation_kind == "percentage" }
+
+    by_profile = {}
+    commissions.each do |component|
+      sums = Hash.new(0)
+      component.supplier_cost_component_bases.each do |link|
+        base = link.base_component
+        next unless base&.amount_minor_units
+
+        profile_key = profile_key_for_component(base, categories_by_id: categories)
+        next unless profile_key
+
+        sign = link.direction == "subtract" ? -1 : 1
+        sums[profile_key.to_s] += sign * base.amount_minor_units
+      end
+      sums.each do |profile_key, monetary|
+        expected = if monetary.negative?
+          nil
+        else
+          (BigDecimal(monetary.to_s) * component.rate).round(0, BigDecimal::ROUND_HALF_UP).to_i
+        end
+        by_profile[profile_key] = { commissionable: monetary, expected: expected }
+      end
+    end
+
+    profiles.map { |profile|
+      key = profile[:key].to_s
+      row = by_profile[key]
+      ProfileCommission.new(
+        key: key,
+        label: rate_profile_label(profile),
+        commissionable_minor_units: row&.fetch(:commissionable),
+        expected_commission_minor_units: row&.fetch(:expected),
+        basis_recorded: true
+      )
+    }
+  end
+
+  def categories_by_id_for(shape)
+    return {} if shape.version.nil? || shape.item.nil?
+
+    shape.version.supplier_cost_participant_categories
+      .where(arrangement_item_id: shape.item.id)
+      .index_by(&:id)
+  end
+
+  def rate_profile_label(profile)
+    family = profile[:family].to_sym
+    spec = PROFILE_FAMILIES[family]
+    label = if family == :bounded_positions
+      from = profile[:occupancy_position_from]
+      to = profile[:occupancy_position_to]
+      to.present? ? "Positions #{from}–#{to}" : "Position #{from}+"
+    else
+      spec&.fetch(:label) || profile[:key].to_s
+    end
+    category = profile[:category].presence
+    category ? "#{label} · #{category}" : label
+  end
 
   def pending_fields(definition)
     fields = []

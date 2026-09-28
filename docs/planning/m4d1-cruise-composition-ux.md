@@ -1,6 +1,6 @@
 # Cruise Composition UX
 
-**Status:** Accepted 2026-09-28. UX-1, the read-only overview, is accepted. UX-2, establish supply, is the authorized implementation slice. UX-3 through UX-7 are specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
+**Status:** Accepted 2026-09-28. UX-1, the read-only overview, and UX-2, establish supply, are accepted. UX-3, establish economics, is the authorized implementation slice. UX-4 through UX-7 are specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md). Domain authority remains the accepted [Cruise rework](m4d1-cruise-rework.md). This plan changes presentation and orchestration only.
 
@@ -50,17 +50,25 @@ Cabin entry is one collection form in front of `CreateCruiseCabinCategorySetup`.
 
 Proof: Staff enters E3, O1, and DI as 8 cabins each in one save and returns to `3 · 24 cabins`. At 1280px the editor shows one column header and the category rows. At 375px that header is not shown. Submit E3, O1, and DI. Cause O1 to fail after E3 succeeds. E3 remains persisted and its inputs leave the form. O1 and DI remain populated, including their submitted values and idempotency keys. The error identifies O1. Retry after correction creates O1 and DI without duplicating E3. The overview ultimately reports `3 · 24 cabins`.
 
+## UX-3 — Establish economics
+
+**Authorized.** One category and one stage on the current Supplier-rates route. UX-3 adapts that tabular editor. It does not replace it with a fixed Cruise rate form, and it does not add Cruise-specific rate or commission records.
+
+A new definition starts with **1st/2nd**, **Additional**, and **Single Supplement**, and with Base fare, NCCF, Discount, and Taxes. Those are defaults. Staff can add another supported rate profile, including Every Traveler and Every Cabin, and can add or remove an extra component. The four default rows stay on the table. A blank cell means pending. Legacy term conversion may still place NCCF and taxes on Every Traveler; that path is not the new-editor default.
+
+Commission method sits at the top of the editor. The choices stay **Not provided yet**, **Dollar amount**, and **Percentage**. Not provided yet shows no commission inputs, and the preview says expected commission is not recorded. Dollar amount adds a commission amount on each profile and no Commissionable control. Percentage adds one **Commissionable** control per component, shared across the displayed profiles, and a commission rate on each profile. A checked credit, including a negative Discount, subtracts from the basis. When every profile has the same percentage, the save keeps the existing shared commission and its single rounding boundary. When the percentages differ, the save uses the existing per-profile commissions.
+
+A definition whose commissionable components differ by profile is not edited here. `DetectCruiseSupplierRateShape` sends it to Advanced Supplier planning. The editor does not flatten it. Changing the commission method on a definition that already has commission asks for confirmation before save. The existing command performs the replacement.
+
+Single, Double, and Triple totals stay on the existing preview. Percentage schedules also show the commissionable amount and expected commission for each displayed profile from that same evaluation, using the persisted bases and rate. Dollar commission shows the entered expected commission and does not invent a basis. The browser displays those results.
+
+Record contracted rates copies the estimate, leaves the estimate unchanged, and does not mark the copy ready. Explicit zero commission stays the forecast-ready acknowledgment that omitted commission means no expected commission. It is not a fourth method on a working estimate.
+
+Proof: a new editor shows the three default profiles and four default rows, and does not start with Every Traveler or Every Cabin. Staff can add a component and a profile. Not provided yet has no commission fields and does not show commission as $0. Dollar amount shows one amount per profile. Percentage shows one Commissionable control per component and one rate per profile. Base fare and a commissionable negative Discount at 15% produce the expected commission, and NCCF and Taxes can stay noncommissionable. Single, Double, and Triple come from the existing preview. Record contracted rates keeps the estimate and does not mark the copy ready. A per-profile commissionability split opens Advanced. The page does not overflow at 375px and 1280px.
+
 ## Later slices
 
 These slices are specified so the journey stays coherent. Do not implement them under this acceptance.
-
-### UX-3 — Establish economics
-
-One category and one stage on the current Supplier-rates route. For the supported canonical Cruise rate shape, the form presents base fare, NCCF, discount, and taxes across first/second, third, and single. Those are the fixture's components, not a redefinition of every Cruise price. The form translates that shape into the existing Supplier rate commands. The adapter still builds occupancy profiles.
-
-`DetectCruiseSupplierRateShape` decides whether the form may edit. A definition it cannot represent losslessly opens Advanced Supplier planning and is not partially edited. The simple commission control edits only the supported commission basis. An unusual percentage basis is not flattened.
-
-Show Single, Double, and Triple totals and expected commission from the existing preview. Record contracted rates leaves the estimate unchanged.
 
 ### UX-4 — Record requirements
 

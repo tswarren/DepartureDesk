@@ -95,8 +95,8 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
         commission: {
           method: "percentage",
           percentage: "10",
-          add_cells: %w[base_fare:first_second base_fare:additional],
-          subtract_cells: %w[discount:first_second]
+          add_cells: %w[base_fare:first_second base_fare:additional base_fare:single_supplement],
+          subtract_cells: %w[discount:first_second discount:additional]
         }
       )
     ).call
@@ -109,7 +109,7 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
         commission: {
           method: "percentage",
           percentage: "10",
-          add_cells: %w[base_fare:first_second base_fare:additional],
+          add_cells: %w[base_fare:first_second base_fare:additional base_fare:single_supplement],
           subtract_cells: []
         }
       )
@@ -367,6 +367,7 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
         ],
         subtract_cells: [
           CruiseSupplierRateSupport.cell_key(:discount, adult_first),
+          CruiseSupplierRateSupport.cell_key(:discount, child_additional),
           CruiseSupplierRateSupport.cell_key(:discount, :single_supplement)
         ],
         rates: {
@@ -385,13 +386,6 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
     commissions = definition.supplier_cost_components.where(economic_role: "expected_commission")
     assert_equal 3, commissions.count
     assert commissions.all? { |c| c.calculation_kind == "percentage" }
-
-    child_discount = definition.supplier_cost_components.find_by!(
-      label: "Discount",
-      occupancy_position_from: 3
-    )
-    refute commissions.flat_map { |c| c.supplier_cost_component_bases.map(&:base_component_id) }
-      .include?(child_discount.id)
 
     preview = CompileCruiseSupplierRatePreview.new(
       agency: @agency, arrangement: @arrangement, resource: @resource

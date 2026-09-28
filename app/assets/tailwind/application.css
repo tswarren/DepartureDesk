@@ -2476,6 +2476,35 @@
     }
   }
 
+  .dd-cruise-rate-editor,
+  .dd-cruise-rate-editor .dd-panel-body,
+  #cruise-supplier-rate-terms {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dd-cruise-rate-editor {
+    overflow-x: clip;
+  }
+
+  .dd-cruise-rate-editor .dd-panel-body > *,
+  #cruise-supplier-rate-terms > *,
+  #cruise-supplier-rate-terms section,
+  #cruise-supplier-rate-terms fieldset {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dd-cruise-rate-editor .dd-table-wrap {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
   .dd-cruise-rate-narrow {
     display: none;
   }

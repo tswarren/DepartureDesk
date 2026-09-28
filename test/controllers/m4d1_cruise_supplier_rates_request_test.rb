@@ -29,7 +29,10 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-supplier-rate-terms"
     assert_select "button", text: "Add rate profile"
     assert_select "button", text: "Add component"
-    assert_match(/Use the same commission rate for every profile/, response.body)
+    assert_no_match(/Use the same commission rate for every profile/, response.body)
+    form = css_select("#cruise-supplier-rate-terms").first
+    state = JSON.parse(form["data-cruise-rate-matrix-initial-state-value"])
+    assert_equal %w[first_second additional single_supplement], state["profiles"].map { |profile| profile["key"] }
     assert_select ".dd-cruise-rate-narrow"
     assert_no_match(/\bquantity_basis\b|\bSupplierCost\b/, response.body)
 
@@ -78,7 +81,95 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_response :success
     assert_match(/\$3,862\.00|386200/, response.body)
-    assert_match(/commission pending/i, response.body)
+    assert_match(/Expected commission is not recorded/, response.body)
+    assert_no_match(/\$0\.00/, response.body)
+  end
+
+  test "percentage commission preview reports the profile basis and a shared rate stays one component" do
+    sign_in_as @staff
+
+    post preview_departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: canonical_percentage_params, headers: { "Accept" => "application/json" }
+    assert_response :success
+    body = JSON.parse(response.body)
+    first_second = body.fetch("profile_commissions").find { |row| row["key"] == "first_second" }
+    assert_equal "$1,583.00", first_second["commissionable"]
+    assert_equal "$237.45", first_second["expected_commission"]
+    assert body["illustrations"].any?
+    assert body["illustrations"].none? { |row| row["commission"] == "$0.00" }
+
+    post departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: canonical_percentage_params.merge(idempotency_key: SecureRandom.uuid)
+    assert_response :redirect
+    definition = DetectCruiseSupplierRateShape.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource
+    ).call.definition
+    commissions = definition.supplier_cost_components.where(economic_role: "expected_commission")
+    assert_equal 1, commissions.count
+    assert_equal "percentage", commissions.first.calculation_kind
+    assert_in_delta 0.15, commissions.first.rate.to_f, 0.0001
+  end
+
+  test "dollar commission preview shows the entered amount without a basis" do
+    sign_in_as @staff
+
+    post preview_departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: {
+      version_lock_version: @version.lock_version,
+      stage: "estimate",
+      profiles: {
+        "0" => { family: "first_second", key: "first_second" },
+        "1" => { family: "additional", key: "additional" }
+      },
+      cells: { "base_fare:first_second" => "100.00" },
+      commission: {
+        method: "dollar",
+        amounts: { "first_second" => "25.00", "additional" => "10.00" }
+      }
+    }, headers: { "Accept" => "application/json" }
+    assert_response :success
+    body = JSON.parse(response.body)
+    first_second = body.fetch("profile_commissions").find { |row| row["key"] == "first_second" }
+    assert_equal false, first_second["basis_recorded"]
+    assert_nil first_second["commissionable"]
+    assert_equal "$25.00", first_second["expected_commission"]
+  end
+
+  test "a commission basis that differs by profile opens advanced planning" do
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource: @resource,
+      profiles: [
+        { family: "first_second", key: "first_second" },
+        { family: "additional", key: "additional" }
+      ],
+      cells: {
+        "base_fare:first_second" => "100.00",
+        "base_fare:additional" => "40.00"
+      },
+      commission: {
+        method: "percentage",
+        percentage: "15",
+        add_cells: %w[base_fare:first_second]
+      },
+      stage: "estimate",
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    sign_in_as @staff
+    get departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    )
+    assert_response :success
+    assert_match(/Commissionable components differ by rate profile/, response.body)
+    assert_select "#cruise-supplier-rate-terms", count: 0
+    assert_select "a", text: "Open advanced cost planning"
   end
 
   test "cross-agency supplier rates return not found" do
@@ -122,6 +213,36 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def canonical_percentage_params
+    {
+      version_lock_version: @version.lock_version,
+      stage: "estimate",
+      profiles: {
+        "0" => { family: "first_second", key: "first_second" },
+        "1" => { family: "additional", key: "additional" },
+        "2" => { family: "single_supplement", key: "single_supplement" }
+      },
+      cells: {
+        "base_fare:first_second" => "2533.00",
+        "base_fare:additional" => "10.00",
+        "base_fare:single_supplement" => "2533.00",
+        "nccf:first_second" => "320.00",
+        "nccf:single_supplement" => "320.00",
+        "discount:first_second" => "950.00",
+        "discount:single_supplement" => "950.00",
+        "taxes_fees:first_second" => "134.26",
+        "taxes_fees:single_supplement" => "134.26"
+      },
+      commission: {
+        method: "percentage",
+        shared: "1",
+        percentage: "15",
+        add_cells: %w[base_fare:first_second base_fare:additional base_fare:single_supplement],
+        subtract_cells: %w[discount:first_second discount:single_supplement]
+      }
+    }
+  end
 
   def create_cruise_with_cabin
     provider = create_capacity_supplier(@agency, "Celebrity Ship Ops")

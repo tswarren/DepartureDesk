@@ -32,7 +32,7 @@ class CruiseSupplierRateShapeDetectorRemediationTest < ActiveSupport::TestCase
           percentage: "10",
           shared: true,
           add_cells: %w[base_fare:first_second base_fare:additional base_fare:single_supplement],
-          subtract_cells: %w[discount:first_second]
+          subtract_cells: %w[discount:first_second discount:additional]
         }
       )
     ).call
@@ -114,7 +114,10 @@ class CruiseSupplierRateShapeDetectorRemediationTest < ActiveSupport::TestCase
           method: "percentage",
           percentage: "10",
           shared: true,
-          add_cells: %w[base_fare:first_second port_fee:first_second port_fee_2:first_second],
+          add_cells: %w[
+            base_fare:first_second base_fare:additional base_fare:single_supplement
+            port_fee:first_second port_fee_2:first_second
+          ],
           subtract_cells: []
         }
       )
@@ -244,8 +247,8 @@ class CruiseSupplierRateShapeDetectorRemediationTest < ActiveSupport::TestCase
           method: "percentage",
           percentage: "10",
           shared: true,
-          add_cells: %w[base_fare:first_second base_fare:additional],
-          subtract_cells: %w[discount:first_second]
+          add_cells: %w[base_fare:first_second base_fare:additional base_fare:single_supplement],
+          subtract_cells: %w[discount:first_second discount:additional]
         }
       )
     ).call

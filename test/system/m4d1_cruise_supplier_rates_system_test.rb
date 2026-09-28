@@ -63,15 +63,16 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     fill_in "Base Fare · First/Second", with: "1624.00"
     fill_in "Base Fare · Additional", with: "406.00"
     fill_in "Base Fare · Single Supplement", with: "1624.00"
-    fill_in "NCCF · Every Traveler", with: "320.00"
+    fill_in "NCCF · First/Second", with: "320.00"
     fill_in "Discount · First/Second", with: "150.00"
     fill_in "Discount · Additional", with: "37.50"
-    fill_in "Taxes & Fees · Every Traveler", with: "137.00"
+    fill_in "Taxes & Fees · First/Second", with: "137.00"
     select "Not provided yet", from: "Commission method"
     click_on "Save Supplier terms"
 
     assert_text "Supplier rates saved"
-    assert_text "commission pending"
+    assert_text "Expected commission is not recorded"
+    assert_no_text "$0.00"
     assert_no_text "quantity_basis"
     assert_no_text "SupplierCostComponent"
   end
@@ -98,9 +99,10 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit_rates_page
 
-    within "#cruise-supplier-rate-terms" do
-      assert_text "Every Cabin"
+    within ".dd-cruise-rate-matrix thead" do
+      assert_no_text "Every Cabin"
     end
+    add_rate_profile(family: "Every Cabin")
     fill_in "Base Fare · Every Cabin", with: "50.00"
     select "Not provided yet", from: "Commission method"
     click_on "Save Supplier terms"
@@ -170,7 +172,7 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     visit_rates_page
 
     fill_in "Base Fare · First/Second", with: "1624.00"
-    fill_in "NCCF · Every Traveler", with: "100.00"
+    fill_in "NCCF · First/Second", with: "100.00"
     select "Not provided yet", from: "Commission method"
 
     within "[data-cruise-rate-matrix-target='illustrations']" do
@@ -185,11 +187,10 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit_rates_page
 
-    # Strip starters we will replace with Adult-scoped and Child columns.
-    remove_profile_named("Every Cabin")
     edit_profile_category(named: "First/Second", category: "Adult")
     edit_profile_category(named: "Additional", category: "Adult")
     add_rate_profile(family: "Additional", category: "Child")
+    add_rate_profile(family: "Every Traveler")
 
     choose "Scope the category-free profile to Adult" if has_field?("Scope the category-free profile to Adult", wait: 1)
 
@@ -205,22 +206,17 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     fill_in "Discount · Single Supplement", with: "40.00"
 
     select "Percentage", from: "Commission method"
-    check "Use the same commission rate for every profile"
-    fill_in "Shared commission percentage", with: "10"
-
-    assert_selector "[data-cruise-rate-matrix-target='commissionTreatments']", visible: true, wait: 5
-    within "[data-cruise-rate-matrix-target='commissionTreatments']" do
-      assert_selector "input[type='checkbox']", wait: 2
-      all("input[type='checkbox']").each do |box|
-        check(box[:id]) unless box.checked?
-      end
+    [
+      "First/Second · Adult",
+      "Additional · Adult",
+      "Additional · Child",
+      "Every Traveler",
+      "Single Supplement"
+    ].each do |profile|
+      fill_in "Commission rate · #{profile}", with: "10"
     end
-
-    # Child discount should be Ignore
-    within "[data-cruise-rate-matrix-target='commissionTreatments']" do
-      row = find("tr", text: /Discount.*Additional · Child/)
-      uncheck(row.find("input[type='checkbox']")[:id])
-    end
+    check "Commissionable · Base Fare"
+    check "Commissionable · Discount"
 
     assert_text "Anonymous occupants by position", wait: 5
     select "Child", from: "Position 2"
@@ -250,6 +246,52 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
       assert_select.select "Positions 4–5 · Child"
     end
     assert_field "Base Fare · Positions 4–5 · Child"
+  ensure
+    page.current_window.resize_to(1400, 900) if page&.current_window
+  end
+
+  test "staff enters canonical commission from the rate table" do
+    sign_in_from_browser(@staff)
+    visit_rates_page
+    page.current_window.resize_to(1280, 900)
+
+    within ".dd-cruise-rate-matrix thead" do
+      assert_text(/First\/Second/i)
+      assert_text(/Additional/i)
+      assert_text(/Single Supplement/i)
+      assert_no_text(/Every Traveler/i)
+      assert_no_text(/Every Cabin/i)
+    end
+    assert_no_page_overflow
+
+    fill_in "Base Fare · First/Second", with: "2533.00"
+    fill_in "Discount · First/Second", with: "950.00"
+    fill_in "NCCF · First/Second", with: "320.00"
+    fill_in "Taxes & Fees · First/Second", with: "134.26"
+    select "Percentage", from: "Commission method"
+    fill_in "Commission rate · First/Second", with: "15"
+    fill_in "Commission rate · Additional", with: "15"
+    fill_in "Commission rate · Single Supplement", with: "15"
+    check "Commissionable · Base Fare"
+    check "Commissionable · Discount"
+
+    within "[data-cruise-rate-matrix-target='illustrations']" do
+      assert_text "$1,583.00", wait: 5
+      assert_text "$237.45", wait: 5
+      assert_no_text "$0.00"
+    end
+
+    page.current_window.resize_to(375, 900)
+    assert_no_page_overflow
+    page.current_window.resize_to(1280, 900)
+    click_on "Save Supplier terms"
+    assert_text "Supplier rates saved"
+    assert_text "$237.45"
+
+    select "Dollar amount", from: "Commission method"
+    fill_in "Commission · First/Second", with: "25.00"
+    accept_confirm { click_on "Save Supplier terms" }
+    assert_text "Supplier rates updated"
   ensure
     page.current_window.resize_to(1400, 900) if page&.current_window
   end
