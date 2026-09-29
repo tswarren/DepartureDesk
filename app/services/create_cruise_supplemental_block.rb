@@ -78,7 +78,11 @@ class CreateCruiseSupplementalBlock < AgencyCommand
   def supplemental_identity(arrangement)
     return [ SUPPLIER_CODE, LABEL ] if @supplier_resource_id.blank?
 
-    predecessor = arrangement.versions.find_by!(status: "activated")
+    predecessor = arrangement.versions.find_by!(id: arrangement.governing_version_id)
+    unless predecessor.activated?
+      raise Error.new("The governing Supplier terms are not active.", code: :invalid_state)
+    end
+
     definition = predecessor.supplier_resource_definitions.find_by(supplier_resource_id: @supplier_resource_id)
     unless definition
       raise Error.new("Choose a cabin category on the active version.", code: :not_found)

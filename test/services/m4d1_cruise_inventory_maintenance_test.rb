@@ -151,6 +151,61 @@ class M4d1CruiseInventoryMaintenanceTest < ActiveSupport::TestCase
     assert_not_equal cabin.record.resource.id, definition.supplier_resource_id
   end
 
+  test "changed terms requires the selected category on the governing version" do
+    activate_original!
+    successor = create_supplemental!
+    draft_only = successor.supplier_resource_definitions.find_by!(name: "Supplemental O1 block")
+    governing = @arrangement.reload.governing_version
+
+    assert governing.activated?
+    assert_not governing.supplier_resource_definitions.exists?(supplier_resource_id: draft_only.supplier_resource_id)
+
+    error = assert_raises(AgencyCommand::Error) do
+      CreateCruiseSupplementalBlock.new(
+        agency: @agency,
+        actor: @actor,
+        arrangement: @arrangement,
+        arrangement_lock_version: @arrangement.lock_version,
+        version_lock_version: governing.lock_version,
+        idempotency_key: SecureRandom.uuid,
+        maximum_occupancy: 3,
+        opening_quantity: 4,
+        supplier_resource_id: draft_only.supplier_resource_id
+      ).call
+    end
+
+    assert_equal :not_found, error.code
+    assert_equal "Choose a cabin category on the active version.", error.message
+    assert_equal [ successor.id ], @arrangement.versions.where(status: "draft").pluck(:id)
+    assert_equal 1, successor.reload.supplier_resource_definitions.where(name: "Supplemental O1 block").count
+  end
+
+  test "changed terms does not take a category from a non-governing activated version" do
+    activate_original!
+    successor = create_supplemental!
+    @arrangement.update!(governing_version_id: successor.id)
+
+    error = assert_raises(AgencyCommand::Error) do
+      CreateCruiseSupplementalBlock.new(
+        agency: @agency,
+        actor: @actor,
+        arrangement: @arrangement,
+        arrangement_lock_version: @arrangement.reload.lock_version,
+        version_lock_version: successor.lock_version,
+        idempotency_key: SecureRandom.uuid,
+        maximum_occupancy: 3,
+        opening_quantity: 4,
+        supplier_resource_id: @resource.id
+      ).call
+    end
+
+    assert_equal :invalid_state, error.code
+    assert_equal "The governing Supplier terms are not active.", error.message
+    assert @arrangement.versions.find_by!(status: "activated").supplier_resource_definitions.exists?(
+      supplier_resource_id: @resource.id
+    )
+  end
+
   test "a connected client service is unchanged by the supplemental block and by activating it" do
     activate_original!
     offer = ConnectCruiseServiceOffer.new(
