@@ -1,0 +1,50 @@
+<% content_for :title, "Changed terms · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Cruise setup</p>
+    <h1 class="dd-page-title">Add a supplemental block</h1>
+    <%= render "cruise_arrangements/version_context", version: @governing_version %>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to Change inventory", departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<% if @command_error.present? %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1">
+    <p><%= @command_error %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body dd-stack">
+    <p>A draft successor will be created. Active Version <%= @governing_version.version_number %> remains in effect until that draft is completed and activated.</p>
+    <p>Choose the cabin category whose Supplier terms changed. The new block keeps that Supplier code and is named Supplemental {code} block. It does not record opening evidence, Supplier rates, agreement confirmation, or deposit treatment.</p>
+    <% if @category_options.empty? %>
+      <p>No cabin category with a Supplier code is available.</p>
+    <% else %>
+      <%= form_with url: changed_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+            method: :post, class: "dd-form dd-stack", html: { id: "cruise-supplemental-block" } do %>
+        <%= hidden_field_tag :arrangement_lock_version, params[:arrangement_lock_version].presence || @supplier_arrangement.lock_version %>
+        <%= hidden_field_tag :version_lock_version, params[:version_lock_version].presence || @governing_version.lock_version %>
+        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+        <div class="dd-field">
+          <label class="dd-label" for="supplemental_category">Cabin category</label>
+          <%= select_tag :supplier_resource_id,
+                options_for_select(@category_options, @selected_category_id),
+                id: "supplemental_category", class: "dd-input" %>
+        </div>
+        <div class="dd-field">
+          <label class="dd-label" for="supplemental_occupancy">Maximum occupancy</label>
+          <%= number_field_tag :maximum_occupancy, params[:maximum_occupancy], id: "supplemental_occupancy", class: "dd-input", min: 1 %>
+        </div>
+        <div class="dd-field">
+          <label class="dd-label" for="supplemental_quantity">Opening quantity</label>
+          <%= number_field_tag :opening_quantity, params[:opening_quantity], id: "supplemental_quantity", class: "dd-input", min: 1 %>
+        </div>
+        <%= button_tag "Add supplemental block", class: "dd-button" %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

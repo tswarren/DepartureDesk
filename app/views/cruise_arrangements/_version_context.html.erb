@@ -1,0 +1,9 @@
+<% context = cruise_version_context(version) %>
+<% if context %>
+  <p class="dd-page-description" id="cruise-version-context">
+    <strong><%= context[:title] %></strong>
+    <% if context[:detail].present? %>
+      <span><%= context[:detail] %></span>
+    <% end %>
+  </p>
+<% end %>

@@ -102,20 +102,24 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     click_on "Activate arrangement"
     assert_text "Arrangement activated."
 
-    visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
+    visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
+    click_on "No — same terms"
     fill_in "Additional cabins", with: "4"
     fill_in "Deposit per additional cabin (USD)", with: "50.00"
     fill_in "Evidence date", with: Date.current.iso8601
     fill_in "Evidence note", with: "Supplier added four O1 cabins"
-    click_on "Record same-terms increase"
-    assert_text "Same-terms capacity increase recorded."
+    click_on "Review this increase"
+    assert_text "$50.00 × 4 = $200.00"
+    click_on "Record capacity increase"
+    assert_text "Current active capacity is"
     requirement = SupplierArrangementCruiseCapacityDepositRequirement.order(:created_at).last
     assert_equal 20_000, requirement.amount_minor_units
 
-    visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
+    visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
+    click_on "Yes — terms changed"
     fill_in "Maximum occupancy", with: "3"
     fill_in "Opening quantity", with: "4"
-    click_on "Add supplemental O1 block"
+    click_on "Add supplemental block"
     assert_text "Supplemental O1 block added on a new successor."
     assert_text "Supplemental O1 block"
 

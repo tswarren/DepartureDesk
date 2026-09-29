@@ -18,12 +18,6 @@ module CruiseAgreementReview
     @supplier_arrangement_version = @shape.version
     @can_manage = Current.agency_user.permitted?(:manage_departures)
     @editable = @supplier_arrangement_version&.draft? && @can_manage
-    @can_create_successor =
-      @can_manage &&
-      @departure.active? &&
-      @supplier_arrangement.active? &&
-      @supplier_arrangement_version&.activated? &&
-      @supplier_arrangement.versions.none? { |version| version.draft? }
     version = @supplier_arrangement_version
     @commercial_benefits = if @shape.compatible? && version
       version.supplier_arrangement_commercial_benefit_definitions
@@ -35,7 +29,6 @@ module CruiseAgreementReview
     end
     @agreement_confirmation = version&.supplier_arrangement_cruise_agreement_confirmations&.find_by(current: true)
     @agreement_terms = version&.supplier_arrangement_cruise_term_definitions&.order(:term_type, :position)&.to_a || []
-    @same_terms_pool_id = version&.capacity_pool_definitions&.order(:position, :id)&.pick(:capacity_pool_id)
     @cabin_pool_ids = version&.capacity_pool_definitions&.order(:position, :id)&.map(&:capacity_pool_id) || []
     @requirements_workspace = if @shape.compatible? && version
       CompileCruiseDepositsAndDeadlinesWorkspace.new(

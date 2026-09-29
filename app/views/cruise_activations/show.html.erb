@@ -6,6 +6,10 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Cruise</p>
     <h1 class="dd-page-title">Review activation</h1>
+    <%= render "cruise_arrangements/version_context", version: @supplier_arrangement_version %>
+    <% if @supplier_arrangement_version&.draft? && @supplier_arrangement_version.copied_from_id.present? %>
+      <p>Activating Draft Version <%= @supplier_arrangement_version.version_number %>. Active Version <%= @supplier_arrangement_version.copied_from.version_number %> remains in effect until activation succeeds.</p>
+    <% end %>
     <p class="dd-page-description">
       <%= sailing[:supplier_name] %>
       · <%= sailing[:ship_name] %>
@@ -278,13 +282,13 @@
             <%= label_tag "confirmation_confirmed_without_identifier_reason", "Reason no Supplier identifier was issued", class: "dd-label" %>
             <%= text_area_tag "confirmation[confirmed_without_identifier_reason]", params.dig(:confirmation, :confirmed_without_identifier_reason), id: "confirmation_confirmed_without_identifier_reason", maxlength: 500 %>
           </div>
-          <details>
+          <details <%= "open".html_safe if @command_form&.errors&.any? { |error| %w[display_value identifier_type issuer_context other_type_label].include?(error.attribute.to_s) } %>>
             <summary>Add a Supplier-issued identifier</summary>
             <div class="dd-field-group">
               <%= label_tag "identifier_identifier_type", "Identifier type", class: "dd-label" %>
               <%= select_tag "identifier[identifier_type]",
-                    options_for_select(SupplierIssuedIdentifier::IDENTIFIER_TYPES.map { |kind| [ kind.humanize, kind ] }, params.dig(:identifier, :identifier_type)),
-                    include_blank: "No identifier", id: "identifier_identifier_type" %>
+                    options_for_select([[ "No identifier", "" ]] + SupplierIssuedIdentifier::IDENTIFIER_TYPES.map { |kind| [ kind.humanize, kind ] }, params.dig(:identifier, :identifier_type)),
+                    id: "identifier_identifier_type" %>
             </div>
             <div class="dd-field-group">
               <%= label_tag "identifier_other_type_label", "Other identifier label", class: "dd-label" %>
@@ -293,6 +297,9 @@
             <div class="dd-field-group">
               <%= label_tag "identifier_issuer_context", "Issuer context", class: "dd-label" %>
               <%= text_field_tag "identifier[issuer_context]", params.dig(:identifier, :issuer_context), id: "identifier_issuer_context", maxlength: 80 %>
+              <% if @command_form&.errors&.[](:issuer_context)&.any? %>
+                <p class="dd-field-error" id="identifier_issuer_context_error"><%= @command_form.errors[:issuer_context].to_sentence %></p>
+              <% end %>
             </div>
             <div class="dd-field-group">
               <%= label_tag "confirmation_display_value", "Identifier", class: "dd-label" %>

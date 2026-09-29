@@ -45,46 +45,6 @@ class CruiseAgreementsController < ApplicationController
     render_agreement_review_error(error, focus: term_error_focus)
   end
 
-  def same_terms_increase
-    RecordCruiseSameTermsCapacityIncrease.new(
-      agency: Current.agency,
-      actor: Current.agency_user,
-      arrangement: @supplier_arrangement,
-      pool_id: params.require(:capacity_pool_id),
-      quantity: params[:quantity],
-      rate_minor_units: money_minor(params[:rate_amount]),
-      evidence: {
-        evidence_kind: "supplier_confirmation",
-        evidence_on: params[:evidence_on],
-        evidence_reference_note: params[:evidence_reference_note]
-      },
-      idempotency_key: params.require(:idempotency_key)
-    ).call
-    redirect_to cruise_path, notice: "Same-terms capacity increase recorded."
-  rescue AgencyCommand::Error => error
-    raise ActiveRecord::RecordNotFound if error.code == :not_found
-
-    redirect_to agreement_path, alert: error.message
-  end
-
-  def supplemental_block
-    CreateCruiseSupplementalBlock.new(
-      agency: Current.agency,
-      actor: Current.agency_user,
-      arrangement: @supplier_arrangement,
-      arrangement_lock_version: params.require(:arrangement_lock_version),
-      version_lock_version: params.require(:version_lock_version),
-      idempotency_key: params.require(:idempotency_key),
-      maximum_occupancy: params[:maximum_occupancy],
-      opening_quantity: params[:opening_quantity]
-    ).call
-    redirect_to cruise_path, notice: "Supplemental O1 block added on a new successor."
-  rescue AgencyCommand::Error => error
-    raise ActiveRecord::RecordNotFound if error.code == :not_found
-
-    redirect_to agreement_path, alert: error.message
-  end
-
   private
 
   def record_agreement(intent)
@@ -106,14 +66,6 @@ class CruiseAgreementsController < ApplicationController
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
     render_agreement_review_error(error, focus: "agreement")
-  end
-
-  def cruise_path
-    departure_arrangement_cruise_path(@departure, @supplier_arrangement)
-  end
-
-  def agreement_path
-    departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
   end
 
   def term_arguments

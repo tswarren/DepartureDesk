@@ -13,13 +13,19 @@
         <% if contractor&.inactive? %> (Inactive)<% end %>
         · <%= cruise_sailing_date_range(@shape.occurrence_definition) %>
         · <%= @shape.summary["sailing_name"] %>
-        · <%= cruise_version_status_label(@supplier_arrangement_version) %>
       <% else %>
         <%= @departure.name %>
         · <%= contractor ? supplier_option_label(contractor) : "Supplier not set" %>
-        · <%= cruise_version_status_label(@supplier_arrangement_version) %>
       <% end %>
     </p>
+    <%= render "cruise_arrangements/version_context", version: @supplier_arrangement_version %>
+    <% if @supplier_arrangement_version&.draft? && @supplier_arrangement_version.copied_from_id.present? %>
+      <p>
+        <%= link_to "View active version",
+              departure_arrangement_cruise_active_version_path(@departure, @supplier_arrangement),
+              class: "dd-link" %>
+      </p>
+    <% end %>
   </div>
   <div class="dd-page-actions">
     <%= link_to "Back to Suppliers", suppliers_departure_composition_path(@departure), class: "dd-button dd-button--quiet" %>
@@ -126,8 +132,22 @@
                   <% end %>
                   · <%= row.inventory_label %>
                   · <%= row.quantity_label %>
+                  <% if row.opening_quantity_label.present? %>
+                    · <%= row.opening_quantity_label %>
+                  <% end %>
                   <% if @editable && row.inventory_label != "Inventory not configured" %>
                     · <%= link_to "Edit", edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, row.resource_id), class: "dd-link" %>
+                  <% end %>
+                  <% if @editable && row.removable %>
+                    · <%= button_to "Remove",
+                          departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, row.resource_id),
+                          method: :delete,
+                          class: "dd-row-action dd-row-action--text",
+                          form: {
+                            class: "dd-inline-form dd-inline-form--text",
+                            data: { turbo_confirm: "Remove this cabin category from the draft?" }
+                          },
+                          params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
                   <% end %>
                 </li>
               <% end %>
@@ -135,6 +155,11 @@
           <% end %>
           <% if @editable %>
             <%= link_to "Add cabin categories", new_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+          <% end %>
+          <% if @can_manage && @supplier_arrangement.governing_version&.activated? %>
+            <%= link_to "Change inventory",
+                  departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+                  class: "dd-button dd-button--quiet" %>
           <% end %>
         </div>
       </section>
@@ -200,6 +225,22 @@
       </section>
     </div>
 
+    <% if summary.maintenance_steps.any? %>
+      <section id="cruise-maintenance" class="dd-panel" aria-labelledby="cruise-maintenance-heading">
+        <div class="dd-panel-body dd-stack">
+          <h2 id="cruise-maintenance-heading" class="dd-section-title">Next steps</h2>
+          <ul>
+            <% summary.maintenance_steps.each do |step| %>
+              <li>
+                <%= step.message %>
+                <%= link_to "Open", cruise_maintenance_step_path(step), class: "dd-link" %>
+              </li>
+            <% end %>
+          </ul>
+        </div>
+      </section>
+    <% end %>
+
     <section id="cruise-activation" class="dd-panel" aria-labelledby="cruise-activation-heading">
       <div class="dd-panel-body dd-stack">
         <h2 id="cruise-activation-heading" class="dd-section-title">Activation</h2>
@@ -213,6 +254,9 @@
         <h2 id="cruise-client-heading" class="dd-section-title">Client service</h2>
         <% if @connection_workspace %>
           <p><%= cruise_connection_status_label(@connection_workspace.status) %></p>
+          <% if @connection_workspace.status == :connected && @supplier_arrangement_version&.draft? && @supplier_arrangement_version.copied_from_id.present? %>
+            <p>Supplier inventory has changed. Client offering has not been changed automatically. This draft is not available to Clients.</p>
+          <% end %>
           <% if @connection_workspace.status == :connected && @connection_workspace.definition %>
             <p><%= @connection_workspace.definition.client_title %></p>
           <% elsif @connection_workspace.status == :decide_later && @connection_workspace.definition %>

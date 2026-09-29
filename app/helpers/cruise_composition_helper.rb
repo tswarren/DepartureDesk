@@ -89,6 +89,46 @@ module CruiseCompositionHelper
     end
   end
 
+  def cruise_version_context(version)
+    return if version.nil?
+
+    if version.activated?
+      {
+        title: "Active · Version #{version.version_number}",
+        detail: "These Supplier terms are in effect."
+      }
+    elsif version.draft? && version.copied_from_id.present?
+      {
+        title: "Draft · Version #{version.version_number}",
+        detail: "Proposed changes. Version #{version.copied_from&.version_number} remains active."
+      }
+    elsif version.draft?
+      {
+        title: "Draft · Version #{version.version_number}",
+        detail: nil
+      }
+    end
+  end
+
+  def cruise_maintenance_step_path(step)
+    case step.code
+    when :opening_authority_incomplete
+      if step.resource_id.present?
+        edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, step.resource_id)
+      else
+        departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins")
+      end
+    when :cruise_contracted_rates_missing
+      if step.resource_id.present?
+        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, step.resource_id)
+      else
+        departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates")
+      end
+    when :cruise_agreement_unconfirmed, :cruise_deposit_treatment_missing
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
+    end
+  end
+
   def cruise_typed_cabin_pool?(pool, pool_definition)
     CruiseCabinCategorySupport.typed_cabin_pool?(pool, pool_definition)
   end

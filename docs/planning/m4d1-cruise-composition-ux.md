@@ -1,6 +1,6 @@
 # Cruise Composition UX
 
-**Status:** Accepted 2026-09-28. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. UX-4, record requirements, and UX-4.5, numeric capacity evaluation, are accepted. UX-5, review and activate, is the authorized slice. UX-6 and UX-7 are specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
+**Status:** Accepted 2026-09-28. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. UX-4, record requirements, and UX-4.5, numeric capacity evaluation, are accepted. UX-5, review and activate, is implemented. UX-6, maintain active and proposed Cruise supply, is the authorized slice. UX-7 is specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md). Domain authority remains the accepted [Cruise rework](m4d1-cruise-rework.md). This plan changes presentation and orchestration only.
 
@@ -102,15 +102,21 @@ The UX-5 draft in `docs/planning/drafts/cruise-remediation-ux/` is exploration. 
 
 ## Later slices
 
-UX-6 and UX-7 are specified and not authorized.
+UX-6, maintain active and proposed Cruise supply, is the authorized slice. UX-7 is specified and not authorized.
 
 ### UX-6 — Maintain
 
-On an active Cruise, “Change inventory” asks whether Supplier terms changed. Same terms uses the existing same-terms increase. Changed terms uses the existing supplemental block, then that successor's own confirmation, contracted rates, and deposit treatment. The original initial deposit is not rewritten. Advanced planning can still reach the generic successor command.
+On an active Cruise, Change inventory asks whether Supplier terms changed. The answer is not stored. Same terms posts `RecordCruiseSameTermsCapacityIncrease` against the activated governing version. Changed terms posts `CreateCruiseSupplementalBlock` for the cabin category Staff select. The new block keeps that Supplier code. The successor then uses the existing opening-evidence, agreement-confirmation, contracted-rate, and deposit-treatment gates. The original opening quantity and Initial Deposit are not rewritten. On an activated numeric Pool, current cabin quantity is the Pool projection. On a successor, a Pool that already exists on the governing version is carried from active terms. A new supplemental Pool shows its proposed opening quantity. Those figures are not added into one active total.
+
+The normal Cruise workspace stays on the draft when a successor exists. View active version opens one read-only snapshot of the governing version, resolved on the server. It does not add a version-context parameter to cabin, rate, agreement, deposits-and-deadlines, or activation routes. The snapshot does not link into those editors or into activation review. The only mutation from the snapshot is the labeled same-terms action.
+
+A Supplier inventory change does not alter an existing Client service. Advanced Supplier planning remains available.
+
+The UX-6 draft in `docs/planning/drafts/cruise-remediation-ux/` is exploration. It is not implementation authority. Where it differs from this section, this section governs.
 
 ### UX-7 — Cleanup
 
-Remove superseded normal-path forms. Update the Cruise agreement section of the interface contract. Finish responsive and accessibility coverage. Keep Advanced reachable.
+Complete the Cruise interface-contract review after the UX-6 maintenance and version-context updates, remove any remaining superseded normal-path descriptions, and finish responsive and accessibility coverage. Keep Advanced reachable.
 
 ## Out of scope
 

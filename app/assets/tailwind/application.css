@@ -1251,6 +1251,11 @@
     flex: 0 0 2.25rem;
   }
 
+  .dd-row-action--text {
+    font-size: inherit;
+    line-height: inherit;
+  }
+
   .dd-row-action:hover {
     color: var(--dd-action-hover);
     text-decoration: underline;
@@ -1490,6 +1495,10 @@
     align-items: center;
     margin: 0;
     padding: 0;
+  }
+
+  .dd-inline-form--text {
+    display: inline-flex;
   }
 
   .dd-preferred-mark {

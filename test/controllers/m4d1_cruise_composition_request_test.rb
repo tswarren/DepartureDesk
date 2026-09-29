@@ -135,6 +135,28 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_equal [ "Prime Oceanview", "Supplemental O1 block" ], names
   end
 
+  test "draft cabin summary offers remove beside edit" do
+    sign_in_as @staff
+    arrangement = create_cruise_sailing.record.arrangement
+    version = arrangement.versions.sole
+    cabin = create_cabin_via_http_helper(arrangement, version)
+
+    get departure_arrangement_cruise_path(@departure, arrangement)
+    assert_response :success
+    item = css_select("li").find { |node| node.text.include?("Prime Oceanview") }
+    assert_match "Edit", item.text
+    assert_select item, "button", text: "Remove"
+
+    delete departure_arrangement_cruise_cabin_category_path(@departure, arrangement, cabin.record.resource),
+      params: { version_lock_version: version.reload.lock_version }
+
+    assert_redirected_to departure_arrangement_cruise_path(@departure, arrangement)
+    assert_empty arrangement.supplier_resources.reload
+    follow_redirect!
+    assert_match "Cabin category removed.", response.body
+    assert_no_match "Prime Oceanview", response.body
+  end
+
   test "cross-agency cruise routes return not found" do
     other = agencies(:cove)
     foreign_departure = create_capacity_departure(other, name: "Foreign Cruise")

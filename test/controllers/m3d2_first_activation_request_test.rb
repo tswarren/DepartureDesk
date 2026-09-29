@@ -69,6 +69,34 @@ class M3d2FirstActivationRequestTest < ActionDispatch::IntegrationTest
     assert_equal "active", @arrangement.reload.status
   end
 
+  test "an identifier value without issuer context is reported once on issuer context" do
+    sign_in_as @staff
+    post departure_arrangement_activation_path(@departure, @arrangement), params: {
+      idempotency_key: SecureRandom.uuid,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: @version.lock_version,
+      cost_source_coverage_acknowledged: "1",
+      commitment_trigger_coverage_acknowledged: "1",
+      confirmation: {
+        evidence_kind: "supplier_confirmation",
+        evidence_on: Date.current.iso8601,
+        channel: "portal",
+        reference_note: "Supplier confirmed exact version"
+      },
+      identifier: {
+        identifier_type: "group_number",
+        display_value: "1119999"
+      }
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "#form-error-summary li", count: 1
+    assert_select "#form-error-summary", text: /Enter the issuer context for this Supplier identifier/
+    assert_select "input#confirmation_display_value[value=?]", "1119999"
+    assert_select "details[open]"
+    assert_equal "draft", @version.reload.status
+  end
+
   test "viewer sees the checklist without mutation controls and cross-Agency path is not found" do
     sign_in_as @viewer
     get departure_arrangement_activation_path(@departure, @arrangement)

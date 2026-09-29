@@ -56,6 +56,7 @@ class CompileCruiseCompositionSummaryTest < ActiveSupport::TestCase
     assert_equal :add_rates, summary.recommended_next_action.key
     assert_match(/O1/, summary.recommended_next_action.detail)
     assert_equal "1 · 8 cabins", summary.sections.find { |section| section.key == "cabins" }.detail
+    assert summary.cabin_rows.sole.removable
   end
 
   test "estimated rates recommend the agreement while every blocker stays listed" do

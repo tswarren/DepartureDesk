@@ -60,6 +60,7 @@
 
     <header class="dd-stack">
       <h1 class="dd-page-title">Supplier rates</h1>
+      <%= render "cruise_arrangements/version_context", version: @resource_definition.supplier_arrangement_version %>
       <p>
         <%= @resource_definition.supplier_code.presence || @resource_definition.name %>
         · Maximum occupancy <%= @resource_definition.maximum_occupancy.presence || "not set" %>

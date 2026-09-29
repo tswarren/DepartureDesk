@@ -13,9 +13,9 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Cruise Supplier planning</p>
     <h1 class="dd-page-title">Deposits and deadlines</h1>
+    <%= render "cruise_arrangements/version_context", version: @supplier_arrangement_version %>
     <p class="dd-page-description">
       <%= @supplier_arrangement.name %>
-      · <%= cruise_version_status_label(@supplier_arrangement_version) %>
       · <%= @departure.operating_currency %>
     </p>
   </div>

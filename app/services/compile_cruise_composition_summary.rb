@@ -4,16 +4,24 @@ class CompileCruiseCompositionSummary
   Section = Data.define(:key, :title, :status_label, :detail)
   CabinRow = Data.define(
     :resource_id, :code, :name, :occupancy_label, :inventory_label, :quantity_label,
-    :quantity, :rate_posture, :advanced_rates
+    :quantity, :opening_quantity_label, :carried, :rate_posture, :advanced_rates, :removable
   )
+  MaintenanceStep = Data.define(:code, :message, :resource_id)
   RequirementRow = Data.define(:key, :label, :detail)
   TermRow = Data.define(:key, :label, :status_label, :recorded, :advanced)
   BlockerRow = Data.define(:code, :message, :path, :cruise_coded)
   RecommendedNextAction = Data.define(:key, :label, :detail, :resource_id, :blocker_code, :advanced)
   Activation = Data.define(:ready, :status_label, :detail, :blockers)
   Result = Data.define(
-    :sections, :recommended_next_action, :cabin_rows, :requirement_rows, :term_rows, :activation
+    :sections, :recommended_next_action, :cabin_rows, :requirement_rows, :term_rows, :activation,
+    :maintenance_steps
   )
+  MAINTENANCE_CODES = %i[
+    opening_authority_incomplete
+    cruise_agreement_unconfirmed
+    cruise_contracted_rates_missing
+    cruise_deposit_treatment_missing
+  ].freeze
 
   CRUISE_BLOCKER_PRIORITY = %i[
     cruise_agreement_unconfirmed
@@ -74,7 +82,8 @@ class CompileCruiseCompositionSummary
       cabin_rows: @cabin_rows,
       requirement_rows: @requirement_rows,
       term_rows: @term_rows,
-      activation: @activation
+      activation: @activation,
+      maintenance_steps: maintenance_steps(version)
     )
   end
 
@@ -100,6 +109,7 @@ class CompileCruiseCompositionSummary
 
   def cabin_rows(version)
     pool_definitions = version.capacity_pool_definitions.includes(:capacity_pool).index_by(&:supplier_resource_id)
+    carried_ids = carried_pool_ids(version)
     version.supplier_resource_definitions.includes(:supplier_resource).order(:position, :id).map do |definition|
       pool_definition = pool_definitions[definition.supplier_resource_id]
       pool = pool_definition&.capacity_pool
@@ -110,17 +120,21 @@ class CompileCruiseCompositionSummary
         version: version
       ).call
       posture, advanced = rate_posture(shape)
-      quantity = cabin_quantity(pool, pool_definition)
+      carried = carried_ids.include?(pool&.id)
+      quantity = cabin_quantity(pool, pool_definition, version, carried: carried)
       CabinRow.new(
         resource_id: definition.supplier_resource_id,
         code: definition.supplier_code.presence,
         name: definition.name,
         occupancy_label: occupancy_label(definition.maximum_occupancy),
         inventory_label: inventory_label(pool, pool_definition),
-        quantity_label: quantity_label(pool, pool_definition, quantity),
+        quantity_label: quantity_label(pool, pool_definition, quantity, carried: carried, activated: version.activated?),
         quantity: quantity,
+        opening_quantity_label: opening_quantity_label(pool, pool_definition, version),
+        carried: carried,
         rate_posture: posture,
-        advanced_rates: advanced
+        advanced_rates: advanced,
+        removable: RemoveCruiseCabinCategory.possible?(version: version, resource: definition.supplier_resource)
       )
     end
   end
@@ -141,12 +155,23 @@ class CompileCruiseCompositionSummary
     end
   end
 
-  def cabin_quantity(pool, pool_definition)
+  def cabin_quantity(pool, pool_definition, version, carried:)
     return nil unless CruiseCabinCategorySupport.typed_cabin_pool?(pool, pool_definition)
     return nil unless pool.numeric_inventory?
+    return nil if carried
 
-    quantity = pool_definition.proposed_opening_quantity
-    quantity if quantity.present?
+    if version.activated?
+      pool.capacity_projection&.current_supplier_capacity
+    else
+      quantity = pool_definition.proposed_opening_quantity
+      quantity if quantity.present?
+    end
+  end
+
+  def carried_pool_ids(version)
+    return [] unless version.draft? && version.copied_from_id.present?
+
+    version.copied_from.capacity_pool_definitions.pluck(:capacity_pool_id)
   end
 
   def occupancy_label(maximum)
@@ -161,12 +186,50 @@ class CompileCruiseCompositionSummary
     INVENTORY_LABELS.fetch(pool.inventory_mode, pool.inventory_mode.to_s.tr("_", " "))
   end
 
-  def quantity_label(pool, pool_definition, quantity)
+  def quantity_label(pool, pool_definition, quantity, carried:, activated:)
     return "Quantity not tracked" unless CruiseCabinCategorySupport.typed_cabin_pool?(pool, pool_definition)
     return "Quantity not tracked" unless pool.numeric_inventory?
+    return "Carried from active terms" if carried
     return "Cabin quantity not set" if quantity.blank?
 
-    "#{quantity} #{"cabin".pluralize(quantity)}"
+    label = "#{quantity} #{"cabin".pluralize(quantity)}"
+    activated ? "Current active capacity: #{label}" : label
+  end
+
+  def opening_quantity_label(pool, pool_definition, version)
+    return nil unless version.activated?
+    return nil unless CruiseCabinCategorySupport.typed_cabin_pool?(pool, pool_definition)
+    return nil unless pool.numeric_inventory?
+
+    quantity = pool_definition.proposed_opening_quantity
+    return nil if quantity.blank?
+
+    "Original opening quantity: #{quantity} #{"cabin".pluralize(quantity)}"
+  end
+
+  def maintenance_steps(version)
+    return [] unless version.draft? && version.copied_from_id.present?
+
+    MAINTENANCE_CODES.filter_map do |code|
+      @blockers.select { |blocker| blocker.code == code }.map do |blocker|
+        MaintenanceStep.new(
+          code: code,
+          message: blocker.message,
+          resource_id: maintenance_resource_id(version, blocker)
+        )
+      end
+    end.flatten
+  end
+
+  def maintenance_resource_id(version, blocker)
+    case blocker.code
+    when :cruise_contracted_rates_missing
+      definition_id = blocker.path.to_s.delete_prefix("resources.")
+      version.supplier_resource_definitions.find_by(id: definition_id)&.supplier_resource_id
+    when :opening_authority_incomplete
+      definition_id = blocker.path.to_s.split(".pools.").last
+      version.capacity_pool_definitions.find_by(id: definition_id)&.supplier_resource_id
+    end
   end
 
   def requirement_rows

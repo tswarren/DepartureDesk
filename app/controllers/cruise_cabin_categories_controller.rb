@@ -10,6 +10,7 @@ class CruiseCabinCategoriesController < ApplicationController
   before_action :require_compatible_cruise_shape!
   before_action :require_editable_draft!
   before_action :set_cabin_category, only: %i[edit update]
+  before_action :set_removable_category, only: :destroy
 
   def new
     @cabin_rows = Array.new(3) { SaveCruiseCabinCategoryBatch.blank_row }
@@ -84,6 +85,24 @@ class CruiseCabinCategoriesController < ApplicationController
     render :edit, status: :unprocessable_entity
   end
 
+  def destroy
+    RemoveCruiseCabinCategory.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      arrangement: @supplier_arrangement,
+      resource: @supplier_resource,
+      version_lock_version: params.require(:version_lock_version)
+    ).call
+
+    redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+      notice: "Cabin category removed."
+  rescue AgencyCommand::Error => error
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+      alert: error.message
+  end
+
   private
 
   def require_compatible_cruise_shape!
@@ -103,6 +122,10 @@ class CruiseCabinCategoriesController < ApplicationController
 
     redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
       alert: "Create a successor draft before editing cabin categories."
+  end
+
+  def set_removable_category
+    @supplier_resource = @shape.item.supplier_resources.find(params[:resource_id])
   end
 
   def set_cabin_category

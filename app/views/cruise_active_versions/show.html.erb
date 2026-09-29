@@ -1,0 +1,79 @@
+<% ship_name = @shape.summary["ship_name"].presence || @supplier_arrangement.name %>
+<% sailing = @summary.sections.find { |section| section.key == "sailing" } %>
+<% agreement = @summary.sections.find { |section| section.key == "agreement" } %>
+<% content_for :title, "Active version · #{ship_name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Cruise setup</p>
+    <h1 class="dd-page-title">Active version</h1>
+    <%= render "cruise_arrangements/version_context", version: @supplier_arrangement_version %>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to(@draft_version ? "Back to Draft Version #{@draft_version.version_number}" : "Back to Cruise overview",
+          departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+          class: "dd-button dd-button--quiet") %>
+  </div>
+</header>
+
+<article class="dd-stack" id="cruise-active-snapshot">
+  <% if @draft_version %>
+    <section class="dd-panel">
+      <div class="dd-panel-body">
+        <p>Draft Version <%= @draft_version.version_number %> is in progress. These active terms stay in effect.</p>
+      </div>
+    </section>
+  <% end %>
+
+  <section class="dd-panel" aria-labelledby="active-sailing-heading">
+    <div class="dd-panel-body dd-stack">
+      <h2 id="active-sailing-heading" class="dd-section-title">Sailing</h2>
+      <p><%= sailing&.detail %></p>
+    </div>
+  </section>
+
+  <section class="dd-panel" aria-labelledby="active-agreement-heading">
+    <div class="dd-panel-body dd-stack">
+      <h2 id="active-agreement-heading" class="dd-section-title">Agreement</h2>
+      <p><%= agreement&.status_label %>. <%= agreement&.detail %></p>
+    </div>
+  </section>
+
+  <section class="dd-panel" aria-labelledby="active-cabins-heading">
+    <div class="dd-panel-body dd-stack">
+      <h2 id="active-cabins-heading" class="dd-section-title">Cabin inventory</h2>
+      <ul class="dd-stack">
+        <% @summary.cabin_rows.each do |row| %>
+          <li>
+            <strong><%= [ row.code, row.name ].compact_blank.join(" · ") %></strong>
+            · <%= row.inventory_label %>
+            · <%= row.quantity_label %>
+            <% if row.opening_quantity_label.present? %>
+              · <%= row.opening_quantity_label %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+      <% if @can_manage %>
+        <%= link_to "Change active inventory under existing terms",
+              same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+              class: "dd-button" %>
+      <% end %>
+    </div>
+  </section>
+
+  <section class="dd-panel" aria-labelledby="active-requirements-heading">
+    <div class="dd-panel-body dd-stack">
+      <h2 id="active-requirements-heading" class="dd-section-title">Requirements</h2>
+      <% if @summary.requirement_rows.any? %>
+        <ul>
+          <% @summary.requirement_rows.each do |row| %>
+            <li><%= row.label %><% if row.detail.present? %>: <%= row.detail %><% end %></li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p>No requirements recorded.</p>
+      <% end %>
+    </div>
+  </section>
+</article>

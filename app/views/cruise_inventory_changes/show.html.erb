@@ -1,0 +1,38 @@
+<% content_for :title, "Change inventory · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Cruise setup</p>
+    <h1 class="dd-page-title">Change inventory</h1>
+    <%= render "cruise_arrangements/version_context", version: @governing_version %>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Back to Cruise", departure_arrangement_cruise_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+  </div>
+</header>
+
+<article class="dd-panel" id="cruise-change-inventory">
+  <div class="dd-panel-body dd-stack">
+    <% if @successor %>
+      <p>
+        <strong>Draft · Version <%= @successor.version_number %></strong>
+        is in progress. Active Version <%= @governing_version.version_number %> remains in effect.
+      </p>
+      <p>Another supplemental block is not available while that draft exists.</p>
+      <%= link_to "Change active inventory under existing terms",
+            same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+            class: "dd-button" %>
+    <% else %>
+      <h2 class="dd-section-title">Did the Supplier terms change?</h2>
+      <p>This answer is not stored. You can leave without choosing.</p>
+      <p>
+        <%= link_to "No — same terms",
+              same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+              class: "dd-button" %>
+        <%= link_to "Yes — terms changed",
+              changed_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+              class: "dd-button dd-button--secondary" %>
+      </p>
+    <% end %>
+  </div>
+</article>

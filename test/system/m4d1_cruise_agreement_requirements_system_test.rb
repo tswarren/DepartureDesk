@@ -273,9 +273,11 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
 
     sign_in_from_browser(@staff)
     visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
-    assert_selector "h2", text: "Later capacity"
-    assert_button "Record same-terms increase"
-    assert_button "Add supplemental O1 block"
+    assert_no_selector "h2", text: "Later capacity"
+    assert_no_button "Record same-terms increase"
+    assert_no_button "Add supplemental O1 block"
+    assert_selector "h2", text: "Change inventory"
+    assert_link "Change inventory"
     assert_selector "h2", text: "Agreement"
   end
 

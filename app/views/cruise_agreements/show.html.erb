@@ -6,6 +6,7 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Cruise setup</p>
     <h1 class="dd-page-title">Supplier agreement</h1>
+    <%= render "cruise_arrangements/version_context", version: @supplier_arrangement_version %>
     <p class="dd-page-description"><%= ship_name %></p>
   </div>
   <div class="dd-page-actions">
@@ -18,5 +19,16 @@
   <%= render "cruise_agreements/requirements" %>
   <%= render "cruise_agreements/benefits" %>
   <%= render "cruise_agreements/terms" %>
-  <%= render "cruise_agreements/later_capacity" %>
+  <% if @can_manage && @supplier_arrangement.governing_version&.activated? %>
+    <section class="dd-panel dd-agreement-section" id="cruise-change-inventory" aria-labelledby="change-inventory">
+      <header class="dd-panel-header">
+        <h2 id="change-inventory" class="dd-agreement-heading">Change inventory</h2>
+      </header>
+      <div class="dd-panel-body">
+        <%= link_to "Change inventory",
+              departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+              class: "dd-link" %>
+      </div>
+    </section>
+  <% end %>
 </div>

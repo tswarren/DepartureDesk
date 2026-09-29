@@ -239,23 +239,26 @@
           **dd_tag_field_options(@command_form, :confirmed_without_identifier_reason, id: "confirmation_confirmed_without_identifier_reason", maxlength: 500) %>
       </div>
 
-      <details <%= "open".html_safe if @command_form&.errors&.any? { |e| e.attribute.to_s.start_with?("display_value", "identifier") } %>>
+      <details <%= "open".html_safe if @command_form&.errors&.any? { |e| %w[display_value identifier_type issuer_context other_type_label].include?(e.attribute.to_s) } %>>
         <summary>Add a Supplier-issued identifier</summary>
         <div class="dd-field-group">
           <%= label_tag "identifier_identifier_type", "Identifier type", class: "dd-label" %>
           <%= select_tag "identifier[identifier_type]",
-            options_for_select(SupplierIssuedIdentifier::IDENTIFIER_TYPES.map { |kind| [kind.humanize, kind] }, params.dig(:identifier, :identifier_type)),
-            **dd_tag_field_options(@command_form, :identifier_type, id: "identifier_identifier_type", include_blank: "No identifier") %>
+            options_for_select([["No identifier", ""]] + SupplierIssuedIdentifier::IDENTIFIER_TYPES.map { |kind| [kind.humanize, kind] }, params.dig(:identifier, :identifier_type)),
+            **dd_tag_field_options(@command_form, :identifier_type, id: "identifier_identifier_type") %>
+          <%= dd_tag_field_error(@command_form, :identifier_type) %>
         </div>
         <div class="dd-field-group">
           <%= label_tag "identifier_other_type_label", "Other identifier label", class: "dd-label" %>
           <%= text_field_tag "identifier[other_type_label]", params.dig(:identifier, :other_type_label),
             **dd_tag_field_options(@command_form, :other_type_label, id: "identifier_other_type_label", maxlength: 80) %>
+          <%= dd_tag_field_error(@command_form, :other_type_label) %>
         </div>
         <div class="dd-field-group">
           <%= label_tag "identifier_issuer_context", "Issuer context", class: "dd-label" %>
           <%= text_field_tag "identifier[issuer_context]", params.dig(:identifier, :issuer_context),
             **dd_tag_field_options(@command_form, :issuer_context, id: "identifier_issuer_context", maxlength: 80) %>
+          <%= dd_tag_field_error(@command_form, :issuer_context) %>
         </div>
         <div class="dd-field-group">
           <%= label_tag "confirmation_display_value", "Identifier", class: "dd-label" %>
