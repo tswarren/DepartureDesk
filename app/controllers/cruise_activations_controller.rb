@@ -12,20 +12,21 @@ class CruiseActivationsController < ApplicationController
   def show
     @review = compile_review
     @idempotency_key = SecureRandom.uuid
-    load_confirmation_choices
+    prepare_review_form
   end
 
   def create
     @review = compile_review
     @idempotency_key = params[:idempotency_key]
-    load_confirmation_choices
+    prepare_review_form
     unless post_allowed?
       refuse_cruise_post("This Cruise review cannot activate these terms. Use Advanced Supplier planning.")
       return
     end
 
-    unless elapsed_set_unchanged?
-      refuse_cruise_post("A Supplier requirement elapsed after this review was opened. Review it before activating.")
+    if @review.elapsed.any? && !elapsed_review_matches?
+      params.delete(:elapsed_deadlines_acknowledged)
+      refuse_cruise_post(elapsed_review_message)
       return
     end
 
@@ -52,7 +53,7 @@ class CruiseActivationsController < ApplicationController
       notice: result.status == :replayed ? "Cruise supplier arrangement was already activated." : "Cruise supplier arrangement activated."
   rescue AgencyCommand::DuplicateReviewRequired => error
     @review = compile_review
-    load_confirmation_choices
+    prepare_review_form
     @idempotency_key = params[:idempotency_key]
     @acknowledgement_token = error.token
     @duplicate_candidates = error.candidates
@@ -63,7 +64,7 @@ class CruiseActivationsController < ApplicationController
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
     @review = compile_review
-    load_confirmation_choices
+    prepare_review_form
     @idempotency_key = params[:idempotency_key]
     @command_form = CommandForm.new(param_key: "confirmation")
     @command_form.add_command_error(error)
@@ -86,14 +87,50 @@ class CruiseActivationsController < ApplicationController
       @review.triggers_completely_represented?
   end
 
-  def elapsed_set_unchanged?
-    shown = Array(params[:elapsed_definition_ids]).map(&:to_s).sort
-    current = @review.elapsed.map { |row| row.definition_id.to_s }.sort
-    shown == current
+  def prepare_review_form
+    load_confirmation_choices
+    assign_elapsed_review_token
+  end
+
+  def assign_elapsed_review_token
+    return if @review.elapsed.empty?
+
+    @elapsed_review_token = CruiseElapsedReviewToken.issue(
+      agency_id: Current.agency.id,
+      arrangement_version_id: @supplier_arrangement_version.id,
+      elapsed_definition_ids: @review.elapsed.map(&:definition_id)
+    )
+  end
+
+  def elapsed_review_matches?
+    payload = CruiseElapsedReviewToken.read(params[:elapsed_review_token])
+    return false if payload.blank?
+
+    payload["agency_id"].to_s == Current.agency.id.to_s &&
+      payload["arrangement_version_id"].to_s == @supplier_arrangement_version.id.to_s &&
+      Array(payload["elapsed_definition_ids"]).map(&:to_s).sort == current_elapsed_definition_ids
+  end
+
+  def elapsed_review_message
+    payload = CruiseElapsedReviewToken.read(params[:elapsed_review_token])
+    reviewed_this_version = payload.present? &&
+      payload["agency_id"].to_s == Current.agency.id.to_s &&
+      payload["arrangement_version_id"].to_s == @supplier_arrangement_version.id.to_s
+    if reviewed_this_version
+      "A Supplier requirement elapsed after this review was opened. Review it before activating."
+    else
+      "This elapsed acknowledgment does not match the requirements on this review."
+    end
+  end
+
+  def current_elapsed_definition_ids
+    @review.elapsed.map { |row| row.definition_id.to_s }.sort
   end
 
   def elapsed_acknowledged?
-    @review.elapsed.any? && params[:elapsed_deadlines_acknowledged] == "1"
+    @review.elapsed.any? &&
+      params[:elapsed_deadlines_acknowledged] == "1" &&
+      elapsed_review_matches?
   end
 
   def refuse_cruise_post(message)

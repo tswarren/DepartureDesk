@@ -194,8 +194,8 @@
       <%= hidden_field_tag :idempotency_key, @idempotency_key %>
       <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
       <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
-      <% @review.elapsed.each do |row| %>
-        <%= hidden_field_tag "elapsed_definition_ids[]", row.definition_id %>
+      <% if @elapsed_review_token.present? %>
+        <%= hidden_field_tag :elapsed_review_token, @elapsed_review_token %>
       <% end %>
       <% if @acknowledgement_token.present? %>
         <%= hidden_field_tag :duplicate_acknowledgement_token, @acknowledgement_token %>

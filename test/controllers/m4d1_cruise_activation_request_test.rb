@@ -158,31 +158,81 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
 
     post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params
     assert_response :unprocessable_entity
+    assert_match "does not match the requirements on this review", response.body
+    assert_match "already past due", response.body
+    assert @version.reload.draft?
+  end
+
+  test "a signed elapsed review is rejected when another requirement elapses" do
+    create_elapsed_deadline!
+    sign_in_as @staff
+    get departure_arrangement_cruise_activation_path(@departure, @arrangement)
+    token = elapsed_review_token_from_response
+    assert token.present?
+
+    create_elapsed_deadline!(date: "2020-02-01")
+    post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params(
+      elapsed_review_token: token,
+      elapsed_deadlines_acknowledged: "1"
+    )
+    assert_response :unprocessable_entity
     assert_match "elapsed after this review was opened", response.body
+    assert_match "already past due", response.body
     assert @version.reload.draft?
   end
 
   test "elapsed acknowledgment is submitted only from the checkbox" do
     create_elapsed_deadline!
     sign_in_as @staff
-    review = CompileCruiseActivationReview.new(
-      agency: @agency, arrangement: @arrangement, version: @version.reload
-    ).call
-    assert review.elapsed.any?
+    get departure_arrangement_cruise_activation_path(@departure, @arrangement)
+    token = elapsed_review_token_from_response
+    assert token.present?
 
     post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params(
-      elapsed_definition_ids: review.elapsed.map(&:definition_id)
+      elapsed_review_token: token
     )
     assert_response :unprocessable_entity
     assert_match "already-elapsed", response.body
     assert @version.reload.draft?
 
     post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params(
-      elapsed_definition_ids: review.elapsed.map(&:definition_id),
+      elapsed_review_token: token,
       elapsed_deadlines_acknowledged: "1"
     )
     assert_redirected_to departure_arrangement_cruise_activation_path(@departure, @arrangement)
     assert @version.reload.activated?
+  end
+
+  test "a forged elapsed acknowledgment does not activate" do
+    create_elapsed_deadline!
+    sign_in_as @staff
+    review = CompileCruiseActivationReview.new(
+      agency: @agency, arrangement: @arrangement, version: @version.reload
+    ).call
+    assert_no_difference "SupplierArrangementActivation.count" do
+      post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params(
+        elapsed_deadlines_acknowledged: "1"
+      )
+    end
+    assert_response :unprocessable_entity
+    assert_match "does not match the requirements on this review", response.body
+    assert_no_match "already-elapsed", response.body
+    assert @version.reload.draft?
+
+    other_version_token = CruiseElapsedReviewToken.issue(
+      agency_id: @agency.id,
+      arrangement_version_id: SecureRandom.uuid,
+      elapsed_definition_ids: review.elapsed.map(&:definition_id)
+    )
+    assert_no_difference "SupplierArrangementActivation.count" do
+      post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params(
+        elapsed_review_token: other_version_token,
+        elapsed_deadlines_acknowledged: "1"
+      )
+    end
+    assert_response :unprocessable_entity
+    assert_match "does not match the requirements on this review", response.body
+    assert @version.reload.draft?
   end
 
   test "a stale lock does not activate" do
@@ -236,7 +286,11 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     singleton.remove_method :new_without_activation_capture
   end
 
-  def create_elapsed_deadline!
+  def elapsed_review_token_from_response
+    css_select("input[name='elapsed_review_token']").first&.[]("value")
+  end
+
+  def create_elapsed_deadline!(date: "2020-01-01")
     CreateSupplierDeadlineDefinition.new(
       agency: @agency,
       actor: @staff,
@@ -245,7 +299,7 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
         deadline_type: "option_or_release_date",
         kind: "actionable",
         rule_shape: "fixed_date",
-        rule_parameters: { "date" => "2020-01-01" },
+        rule_parameters: { "date" => date },
         precision: "date_only",
         time_zone: "America/New_York",
         cardinality: "one_shared",
