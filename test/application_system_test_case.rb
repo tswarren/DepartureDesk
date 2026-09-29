@@ -12,6 +12,9 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       options.binary = chromium
       options.add_argument("--no-sandbox")
       options.add_argument("--disable-dev-shm-usage")
+      options.add_argument("--disable-background-timer-throttling")
+      options.add_argument("--disable-renderer-backgrounding")
+      options.add_argument("--disable-backgrounding-occluded-windows")
     end
     Capybara.default_max_wait_time = 5
   else

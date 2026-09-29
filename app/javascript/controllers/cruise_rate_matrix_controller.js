@@ -83,8 +83,7 @@ export default class extends Controller {
   }
 
   disconnect() {
-    if (this.previewTimer) window.clearTimeout(this.previewTimer)
-    if (this.previewAbort) this.previewAbort.abort()
+    this.stopPreview()
   }
 
   buildState(raw) {
@@ -646,6 +645,7 @@ export default class extends Controller {
   }
 
   confirmMethodReplacement(event) {
+    this.stopPreview()
     const persisted = this.persistedCommissionMethod || "not_provided"
     if (persisted === "not_provided") return
     if (this.state.commission.method === persisted) return
@@ -1352,10 +1352,19 @@ export default class extends Controller {
     this.previewTimer = window.setTimeout(() => this.fetchPreview(), PREVIEW_DEBOUNCE_MS)
   }
 
+  stopPreview() {
+    if (this.previewTimer) window.clearTimeout(this.previewTimer)
+    this.previewTimer = null
+    if (this.previewAbort) this.previewAbort.abort()
+    this.previewAbort = null
+  }
+
   async fetchPreview() {
     if (!this.previewUrlValue) return
+    this.previewTimer = null
     if (this.previewAbort) this.previewAbort.abort()
-    this.previewAbort = new AbortController()
+    const abort = new AbortController()
+    this.previewAbort = abort
 
     const form = this.element.closest("form") || this.element.querySelector("form")
     const payload = new FormData()
@@ -1390,12 +1399,13 @@ export default class extends Controller {
         },
         body: payload,
         credentials: "same-origin",
-        signal: this.previewAbort.signal
+        signal: abort.signal
       })
       const data = await response.json()
+      if (this.previewAbort !== abort) return
       this.renderIllustrations(data)
     } catch (error) {
-      if (error.name === "AbortError") return
+      if (error.name === "AbortError" || this.previewAbort !== abort) return
       if (this.hasIllustrationsTarget) {
         this.illustrationsTarget.innerHTML = `<p class="dd-help" role="status">Illustration preview unavailable.</p>`
       }

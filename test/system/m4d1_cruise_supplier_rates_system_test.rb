@@ -275,9 +275,9 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     check "Commissionable · Base Fare"
     check "Commissionable · Discount"
 
+    assert_selector "[data-cruise-rate-matrix-target='illustrations']", text: "$1,583.00", wait: 15
     within "[data-cruise-rate-matrix-target='illustrations']" do
-      assert_text "$1,583.00", wait: 5
-      assert_text "$237.45", wait: 5
+      assert_text "$237.45"
       assert_no_text "$0.00"
     end
 
