@@ -170,5 +170,4 @@ class CruiseCabinCategoriesController < ApplicationController
       :override, :override_reason
     )
   end
-
 end

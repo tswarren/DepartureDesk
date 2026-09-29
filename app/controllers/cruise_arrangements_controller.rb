@@ -54,5 +54,4 @@ class CruiseArrangementsController < ApplicationController
     redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
       alert: error.message
   end
-
 end
