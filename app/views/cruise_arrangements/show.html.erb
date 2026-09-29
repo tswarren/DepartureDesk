@@ -204,7 +204,7 @@
       <div class="dd-panel-body dd-stack">
         <h2 id="cruise-activation-heading" class="dd-section-title">Activation</h2>
         <p><%= summary.activation.status_label %>. <%= summary.activation.detail %></p>
-        <%= link_to "Review activation", departure_arrangement_activation_path(@departure, @supplier_arrangement), class: "dd-link" %>
+        <%= link_to "Review activation", departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement), class: "dd-link" %>
       </div>
     </section>
 

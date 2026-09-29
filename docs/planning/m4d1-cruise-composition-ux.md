@@ -1,6 +1,6 @@
 # Cruise Composition UX
 
-**Status:** Accepted 2026-09-28. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. UX-4, record requirements, is implemented. UX-4.5, numeric capacity evaluation, is the authorized fix. UX-5 through UX-7 are specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
+**Status:** Accepted 2026-09-28. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. UX-4, record requirements, and UX-4.5, numeric capacity evaluation, are accepted. UX-5, review and activate, is the authorized slice. UX-6 and UX-7 are specified and not authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md). Domain authority remains the accepted [Cruise rework](m4d1-cruise-rework.md). This plan changes presentation and orchestration only.
 
@@ -86,13 +86,23 @@ Proof: request and service tests cover omitted-citation preservation, the comple
 
 Opening-quantity deposit evaluation counts `block` and `allotment` pools only. On request and externally managed pools stay in the coverage and are omitted from the sum. A missing number on a numeric pool is still incomplete. When every covered pool is nonnumeric, the result is quantity not tracked: no `$0` tranche, no deposit commitment, and no activation or attention blocker. A mixed deposit keeps the numeric total and says the omitted cabins are not included. That omission applies only to the opening-quantity path (`proposed_opening` and `established_opening`). A quantity-derived cumulative target keeps its existing `provisional_retained` and `retained` evaluation. No inventory mode, pool quantity, rate, agreement, or deposit definition is rewritten.
 
-## Later slices
-
-These slices are specified so the journey stays coherent. Do not implement them under this acceptance.
-
 ### UX-5 — Review and activate
 
-Plain-language activation review. The button remains the existing activation command. Blockers are the readiness result, in Cruise language. An estimate is a blocker, not an acknowledgment. After activation, offer the existing Client-service connection. Do not build Offer Design.
+Plain-language activation review. The button remains `ActivateSupplierArrangementVersion`. Blockers come from `SupplierArrangementActivationReadiness`, in Cruise language. An estimate is not an acknowledgment. After activation, offer the existing Client-service connection. Do not build Offer Design.
+
+Cruise post eligible means authoritative `SupplierArrangementActivationReadiness` has no blockers, no selected cost definition is an estimate, and the review contains no unsupported activation input or consequence that requires Advanced Supplier planning. `CompileCruiseActivationReview` does not define a second domain-readiness predicate. The additional checks determine only whether the Cruise-specific orchestration can safely represent the existing activation contract. The compiler result is `cruise_post_allowed?`. Readiness can still be ready when a selected cost is an estimate, and activation then requires `provisional_costs_acknowledged`. The Cruise page refuses to post that shape. Advanced remains the place that can acknowledge an estimate. A cabin with no ready contracted rate is already `cruise_contracted_rates_missing`.
+
+Translate known `SupplierArrangementActivationReadiness::Blocker` codes. `path` is not a route. `opening_authority_incomplete` is a missing opening quantity or incomplete opening evidence. `cruise_deposit_treatment_missing` returns to the agreement page. Unlisted codes stay visible and go to Advanced.
+
+The Cruise post sets `cost_source_coverage_acknowledged` and `commitment_trigger_coverage_acknowledged` only when `CompileCruiseActivationReview` has completely represented the authoritative selected cost-source set and confirmation-trigger set on the page. An empty trigger set is still completely represented and may therefore be acknowledged. Any unsupported or unrepresented source or trigger shape disables the Cruise post and routes Staff to Advanced. Do not submit `provisional_costs_acknowledged` as an estimate bypass.
+
+The Cruise post does not require an Initial Deposit, Hard Stop, or Final Payment. Readiness does not. Show the stored Hard Stop description and the existing deposit evaluation. Do not hardcode Celebrity wording or a consequence the command will not produce.
+
+The UX-5 draft in `docs/planning/drafts/cruise-remediation-ux/` is exploration. It is not implementation authority. Where it differs from this section, this section governs.
+
+## Later slices
+
+UX-6 and UX-7 are specified and not authorized.
 
 ### UX-6 — Maintain
 
