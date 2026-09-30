@@ -37,6 +37,7 @@ class SupplierCostDefinition < ApplicationRecord
   validate :currency_is_known_and_matches_departure
   validate :zero_cost_reason_matches_mode
   validate :readiness_fields_match_status
+  validate :noncommissionable_excludes_expected_commission, if: :noncommissionable?
 
   private
 
@@ -55,6 +56,12 @@ class SupplierCostDefinition < ApplicationRecord
     elsif zero_cost_reason.present?
       errors.add(:zero_cost_reason, "must be blank for a calculated definition")
     end
+  end
+
+  def noncommissionable_excludes_expected_commission
+    return unless supplier_cost_components.exists?(economic_role: "expected_commission")
+
+    errors.add(:commission_treatment, "cannot be noncommissionable while an expected commission component exists")
   end
 
   def readiness_fields_match_status

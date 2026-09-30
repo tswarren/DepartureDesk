@@ -42,8 +42,17 @@ class SupplierCostComponent < ApplicationRecord
     numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
   validates :rate, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :minimum_quantity, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
+  validate :expected_commission_matches_commission_treatment, if: :expected_commission?
 
   def currency
     supplier_cost_definition&.currency
+  end
+
+  private
+
+  def expected_commission_matches_commission_treatment
+    return unless supplier_cost_definition&.noncommissionable?
+
+    errors.add(:economic_role, "cannot be expected commission on a noncommissionable definition")
   end
 end
