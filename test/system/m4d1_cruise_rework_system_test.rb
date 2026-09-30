@@ -103,7 +103,7 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     assert_text "Arrangement activated."
 
     visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
-    click_on "No — same terms"
+    click_on "Add cabins"
     fill_in "Additional cabins", with: "4"
     fill_in "Deposit per additional cabin (USD)", with: "50.00"
     fill_in "Evidence date", with: Date.current.iso8601
@@ -116,10 +116,10 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     assert_equal 20_000, requirement.amount_minor_units
 
     visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
-    click_on "Yes — terms changed"
+    click_on "Propose changed terms"
     fill_in "Maximum occupancy", with: "3"
-    fill_in "Opening quantity", with: "4"
-    click_on "Add supplemental block"
+    fill_in "Cabins proposed", with: "4"
+    click_on "Propose changed terms"
     assert_text "Supplemental O1 block added on a new successor."
     assert_text "Supplemental O1 block"
 

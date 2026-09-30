@@ -23,6 +23,8 @@ class CruiseActiveVersionsController < ApplicationController
       arrangement: @supplier_arrangement,
       shape: @shape
     ).call
+    @activation = SupplierArrangementActivation.includes(:actor, supplier_confirmation: :supplier_issued_identifiers)
+      .find_by(agency: Current.agency, supplier_arrangement_version: @supplier_arrangement_version)
     @draft_version = @supplier_arrangement.versions.find_by(status: "draft")
     @can_manage = Current.agency_user.permitted?(:manage_departures)
   end

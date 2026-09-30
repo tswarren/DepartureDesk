@@ -1,6 +1,6 @@
 # UX-7 — Cruise Supplier Workspace Consolidation
 
-**Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is implemented. UX-7.4, Agreement, is implemented. UX-7.5, Review & activate, is implemented. UX-7.6, Inventory maintenance and Active snapshot polish, is the next authorized slice. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.  
+**Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is implemented. UX-7.4, Agreement, is implemented. UX-7.5, Review & activate, is implemented. UX-7.6, Inventory maintenance and Active snapshot polish, is implemented. UX-7.7, closure, is the next authorized slice. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.  
 **Parent:** [Cruise Composition UX](m4d1-cruise-composition-ux.md).  
 **Implementation baseline:** `fe01ed2b1b395e047d3c27ed466c6e5c444e340d`  
 **Depends on:** Cruise rework behavior, and UX-1 through UX-6 behavior at that baseline.  
@@ -511,7 +511,7 @@ Implemented. Shared shell, the activation status matrix, four-area checklist, ca
 
 ### UX-7.6 — Active snapshot and inventory polish
 
-Presentation only, on top of the pinned UX-6 behavior: Active snapshot, same-terms maintenance through `RecordCruiseSameTermsCapacityIncrease`, changed-terms successor inventory from Cabin inventory, Active and Draft navigation, carried versus proposed quantities, and removal of any remaining transitional inventory entry points outside Cabin inventory and the snapshot exception. No new inventory semantics.
+Implemented. Presentation only, on top of the pinned UX-6 behavior: Active snapshot, same-terms maintenance through `RecordCruiseSameTermsCapacityIncrease`, changed-terms successor inventory from Cabin inventory, Active and Draft navigation, carried versus proposed quantities, and removal of any remaining transitional inventory entry points outside Cabin inventory and the snapshot exception. No new inventory semantics. When a successor draft exists, the governing Active snapshot stays **Active**, shows that governing version, and has no activation control.
 
 ### UX-7.7 — Closure
 

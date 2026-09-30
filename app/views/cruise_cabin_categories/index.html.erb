@@ -76,6 +76,9 @@
                     <td>
                       <span class="dd-visually-hidden dd-cabin-field-label">Quantity</span>
                       <%= cruise_cabin_inventory_quantity(row, @workspace) %>
+                      <% if row.current_capacity_label.present? %>
+                        <span class="dd-field-hint"><%= row.current_capacity_label %></span>
+                      <% end %>
                       <% if row.opening_quantity_label.present? %>
                         <span class="dd-field-hint"><%= row.opening_quantity_label %></span>
                       <% end %>

@@ -1,35 +1,37 @@
 <% ship_name = @shape.summary["ship_name"].presence || @supplier_arrangement.name %>
 <% sailing = @summary.sections.find { |section| section.key == "sailing" } %>
-<% agreement = @summary.sections.find { |section| section.key == "agreement" } %>
-<% content_for :title, "Active version · #{ship_name} · DepartureDesk" %>
+<% content_for :title, "Active Supplier terms · #{ship_name} · DepartureDesk" %>
 
-<%= render "cruise_setup/shell", page_title: "Active version", version: @supplier_arrangement_version %>
+<%= render "cruise_setup/shell", page_title: "Active Supplier terms", version: @supplier_arrangement_version %>
 
 <article class="dd-stack" id="cruise-active-snapshot">
-  <% if @draft_version %>
-    <section class="dd-panel">
-      <div class="dd-panel-body">
+  <section class="dd-panel" aria-labelledby="active-terms-heading">
+    <div class="dd-panel-body dd-stack">
+      <h2 id="active-terms-heading" class="dd-section-title">Active · Version <%= @supplier_arrangement_version.version_number %></h2>
+      <p>These Supplier terms currently govern.</p>
+      <% if @activation %>
+        <p>Version <%= @supplier_arrangement_version.version_number %> became governing on <%= cruise_activation_recorded_on(@activation) %>.</p>
+        <p>Activated by <%= @activation.actor.display_name %>.</p>
+        <% identifier = cruise_activation_identifier(@activation) %>
+        <% if identifier.present? %>
+          <p>Supplier-issued identifier <%= identifier %></p>
+        <% end %>
+      <% end %>
+      <% if @draft_version %>
         <p>
-          Draft Version <%= @draft_version.version_number %> is in progress. These active terms stay in effect.
-          <%= link_to "Back to Draft Version #{@draft_version.version_number}",
+          A proposed successor exists.
+          <%= link_to "View proposed Version #{@draft_version.version_number}",
                 departure_arrangement_cruise_path(@departure, @supplier_arrangement),
                 class: "dd-link" %>
         </p>
-      </div>
-    </section>
-  <% end %>
+      <% end %>
+    </div>
+  </section>
 
   <section class="dd-panel" aria-labelledby="active-sailing-heading">
     <div class="dd-panel-body dd-stack">
       <h2 id="active-sailing-heading" class="dd-section-title">Sailing</h2>
       <p><%= sailing&.detail %></p>
-    </div>
-  </section>
-
-  <section class="dd-panel" aria-labelledby="active-agreement-heading">
-    <div class="dd-panel-body dd-stack">
-      <h2 id="active-agreement-heading" class="dd-section-title">Agreement</h2>
-      <p><%= agreement&.status_label %>. <%= agreement&.detail %></p>
     </div>
   </section>
 
@@ -49,24 +51,9 @@
         <% end %>
       </ul>
       <% if @can_manage %>
-        <%= link_to "Change active inventory under existing terms",
+        <%= link_to "Add cabins under same Supplier terms",
               same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
               class: "dd-button" %>
-      <% end %>
-    </div>
-  </section>
-
-  <section class="dd-panel" aria-labelledby="active-requirements-heading">
-    <div class="dd-panel-body dd-stack">
-      <h2 id="active-requirements-heading" class="dd-section-title">Requirements</h2>
-      <% if @summary.requirement_rows.any? %>
-        <ul>
-          <% @summary.requirement_rows.each do |row| %>
-            <li><%= row.label %><% if row.detail.present? %>: <%= row.detail %><% end %></li>
-          <% end %>
-        </ul>
-      <% else %>
-        <p>No requirements recorded.</p>
       <% end %>
     </div>
   </section>

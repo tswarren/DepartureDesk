@@ -135,6 +135,7 @@ class CompileCruiseCabinInventoryWorkspaceTest < ActiveSupport::TestCase
     assert workspace.successor
     assert row.carried
     assert_equal "Carried from active terms", row.quantity_label
+    assert_equal "Current Supplier capacity: 8 cabins", row.current_capacity_label
     assert_nil row.quantity
     assert_nil workspace.tracked_cabin_count
     assert_nil workspace.quantity_meaning
@@ -161,6 +162,7 @@ class CompileCruiseCabinInventoryWorkspaceTest < ActiveSupport::TestCase
     supplemental = workspace.rows.reject(&:carried).sole
 
     assert_equal "Carried from active terms", carried.quantity_label
+    assert_equal "Current Supplier capacity: 8 cabins", carried.current_capacity_label
     assert_nil carried.quantity
     assert_equal "4 cabins", supplemental.quantity_label
     assert_equal 4, supplemental.quantity

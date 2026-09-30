@@ -41,7 +41,7 @@ class CruiseInventoryChangesController < ApplicationController
       idempotency_key: params.require(:idempotency_key),
       effective_on: params[:effective_on].presence
     ).call
-    redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+    redirect_to departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
       notice: same_terms_notice(result.record)
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
@@ -82,7 +82,7 @@ class CruiseInventoryChangesController < ApplicationController
     definition = created.record.version.supplier_resource_definitions.find_by!(
       supplier_resource_id: created.record.resource.id
     )
-    redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+    redirect_to departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
       notice: [ "#{definition.name} added on a new successor.", client_offering_sentence ].compact.join(" ")
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
@@ -115,6 +115,7 @@ class CruiseInventoryChangesController < ApplicationController
     @governing_version = governing_version!
     @successor = draft_successor
     @pool_options = eligible_pool_options(@governing_version)
+    @pool_capacities = pool_capacities(@governing_version)
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     @selected_pool_id = params[:capacity_pool_id].presence || @pool_options.first&.last
   end
@@ -132,6 +133,21 @@ class CruiseInventoryChangesController < ApplicationController
       next if code.blank?
 
       [ [ code, definition.name ].compact_blank.join(" · "), definition.supplier_resource_id ]
+    end
+  end
+
+  def pool_capacities(version)
+    resources = version.supplier_resource_definitions.index_by(&:supplier_resource_id)
+    version.capacity_pool_definitions.includes(capacity_pool: :capacity_projection).order(:position, :id).filter_map do |definition|
+      pool = definition.capacity_pool
+      next unless pool.numeric_inventory?
+
+      resource = resources[definition.supplier_resource_id]
+      label = [ resource&.supplier_code, resource&.name ].compact_blank.join(" · ")
+      capacity = pool.capacity_projection&.current_supplier_capacity
+      next if capacity.nil?
+
+      { label: label.presence || "Cabin block", capacity: capacity }
     end
   end
 

@@ -78,7 +78,8 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     sign_in_as @staff
     get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
     assert_response :success
-    assert_match "Changes Active Version #{@version.version_number}", response.body
+    assert_match "Active Version #{@version.version_number}", response.body
+    assert_match "Current Supplier capacity 8 cabins", response.body
     increase_form = css_select("#cruise-same-terms-increase").inner_html
     assert_no_match "projection_lock_version", increase_form
     assert_no_match "arrangement_lock_version", increase_form
@@ -105,14 +106,14 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
       post same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
         params: increase_params(rate_amount: "0", quantity: "4", idempotency_key: "zero-rate")
     end
-    assert_redirected_to departure_arrangement_cruise_path(@departure, @arrangement)
+    assert_redirected_to departure_arrangement_cruise_cabin_categories_path(@departure, @arrangement)
     assert_equal 0, SupplierArrangementCruiseCapacityDepositRequirement.order(:created_at).last.amount_minor_units
 
     assert_no_difference "SupplierArrangementCruiseCapacityDepositRequirement.count" do
       post same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
         params: increase_params(idempotency_key: "four-cabins")
     end
-    assert_redirected_to departure_arrangement_cruise_path(@departure, @arrangement)
+    assert_redirected_to departure_arrangement_cruise_cabin_categories_path(@departure, @arrangement)
 
     post same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
       params: increase_params(idempotency_key: "four-cabins", quantity: "1")
@@ -164,12 +165,15 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     assert_select "#cruise-setup-nav"
     assert_select "#cruise-active-snapshot a[href=?]",
       departure_arrangement_cruise_agreement_path(@departure, @arrangement), count: 0
-    assert_match "Draft Version #{successor.version_number} is in progress", response.body
+    assert_match "Active · Version #{@version.version_number}", response.body
+    assert_match "These Supplier terms currently govern.", response.body
+    assert_match "View proposed Version #{successor.version_number}", response.body
     assert_no_match "Supplemental O1 block", response.body
-    assert_select "a", text: "Review & activate"
+    assert_no_match "Activate Supplier terms", response.body
     assert_select "a", text: "Open deposits and deadlines", count: 0
     assert_select "a", text: "Edit", count: 0
-    assert_select "a", text: "Change active inventory under existing terms", count: 1
+    assert_select "a", text: "Add cabins under same Supplier terms", count: 1
+    assert_select "a", text: "Propose changed terms", count: 0
   end
 
   test "same terms while a draft exists changes the live projection and leaves the carried definition" do
@@ -180,9 +184,22 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     successor = @arrangement.versions.find_by!(status: "draft")
     carried = successor.capacity_pool_definitions.find_by!(capacity_pool: @pool)
 
-    post same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
-      params: increase_params(idempotency_key: "carried-increase")
-    assert_redirected_to departure_arrangement_cruise_path(@departure, @arrangement)
+    get departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
+    assert_response :success
+    assert_match "This changes the governing Active inventory, not the proposed Draft.", response.body
+    assert_match "Proposed Version #{successor.version_number} already exists.", response.body
+    assert_select "a", text: "Open Cabin inventory"
+    assert_select "a", text: "Propose changed terms", count: 0
+
+    get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
+    assert_match "Active Version #{@version.version_number}", response.body
+    assert_match "not proposed Draft Version #{successor.version_number}", response.body
+
+    assert_no_difference "SupplierArrangementVersion.count" do
+      post same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+        params: increase_params(idempotency_key: "carried-increase")
+    end
+    assert_redirected_to departure_arrangement_cruise_cabin_categories_path(@departure, @arrangement)
     assert_equal 12, @pool.reload.capacity_projection.current_supplier_capacity
     assert_equal 8, carried.reload.proposed_opening_quantity
     follow_redirect!
@@ -197,10 +214,53 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     )
     activate_original!
     sign_in_as @staff
+    get departure_arrangement_cruise_active_version_path(@departure, @arrangement)
+    assert_match "Quantity not tracked", response.body
+    assert_no_match "0 cabins", response.body
+
     get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
     assert_select "option", text: /O1/
     assert_select "option[value=?]", allotment.id
     assert_select "option[value=?]", on_request.id, count: 0
+  end
+
+  test "changed terms for another category stays proposed and off the active snapshot" do
+    cabin = add_cabin!("DI", "Deluxe Inside", "block", 8)
+    satisfy_cruise_activation_gate!(
+      agency: @agency, actor: @staff, arrangement: @arrangement, version: @version.reload
+    )
+    activate_original!
+    sign_in_as @staff
+    offers = ServiceOffer.count
+    post changed_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+      params: supplemental_params(supplier_resource_id: cabin.record.resource.id, idempotency_key: "supplemental-di")
+    follow_redirect!
+    assert_match "Supplemental DI block", response.body
+    assert_match "Proposed · 4 cabins", response.body
+    assert_match "Carried from active terms", response.body
+    assert_match "Current Supplier capacity:", response.body
+    assert_no_match "DI-2", response.body
+    assert_no_match "12 cabins", response.body
+    assert_equal offers, ServiceOffer.count
+
+    get departure_arrangement_cruise_active_version_path(@departure, @arrangement)
+    assert_match "Active · Version #{@version.version_number}", response.body
+    assert_no_match "Supplemental DI block", response.body
+    assert_no_match "Proposed · 4 cabins", response.body
+  end
+
+  test "a viewer can read governing terms and cannot change inventory" do
+    activate_original!
+    sign_in_as agency_users(:harbor_viewer)
+    get departure_arrangement_cruise_active_version_path(@departure, @arrangement)
+    assert_response :success
+    assert_match "Active · Version #{@version.version_number}", response.body
+    assert_select "a", text: "Add cabins under same Supplier terms", count: 0
+
+    post same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+      params: increase_params
+    assert_redirected_to root_path
+    assert_equal 8, @pool.reload.capacity_projection.current_supplier_capacity
   end
 
   private

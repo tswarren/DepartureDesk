@@ -1,6 +1,6 @@
 <% content_for :title, "Same terms · #{@supplier_arrangement.name} · DepartureDesk" %>
 
-<%= render "cruise_setup/shell", current: :cabins, page_title: "Change active inventory under existing terms", version: @governing_version %>
+<%= render "cruise_setup/shell", current: :cabins, page_title: "Add cabins under same Supplier terms", version: @governing_version %>
 <p>
   <%= link_to "Back to Change inventory", departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement), class: "dd-link" %>
 </p>
@@ -13,11 +13,17 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body dd-stack">
-    <p><strong>Changes Active Version <%= @governing_version.version_number %></strong></p>
+    <p><strong>Active Version <%= @governing_version.version_number %></strong></p>
+    <p>Add cabins to the governing Supplier terms. The change becomes part of current Supplier capacity and does not create a new Supplier-terms version.</p>
     <% if @successor %>
-      <p>This updates the live capacity of the active Supplier block. It does not edit Draft Version <%= @successor.version_number %>’s definitions.</p>
-    <% else %>
-      <p>This updates the live capacity of the active Supplier block. The original Initial Deposit will not change.</p>
+      <p>This changes the governing Active inventory, not proposed Draft Version <%= @successor.version_number %>.</p>
+    <% end %>
+    <% if @pool_capacities.any? %>
+      <ul id="cruise-same-terms-capacity">
+        <% @pool_capacities.each do |row| %>
+          <li><%= row[:label] %>: Current Supplier capacity <%= row[:capacity] %> <%= "cabin".pluralize(row[:capacity]) %></li>
+        <% end %>
+      </ul>
     <% end %>
 
     <% if @pool_options.empty? %>

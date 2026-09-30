@@ -111,7 +111,7 @@ class M4d1CruiseInventoryMaintenanceSystemTest < ApplicationSystemTestCase
     resize_window(1280, 900)
     sign_in_from_browser(@staff)
     visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
-    click_on "No — same terms"
+    click_on "Add cabins"
     fill_in "Additional cabins", with: "4"
     fill_in "Deposit per additional cabin (USD)", with: "50.00"
     fill_in_html_date "Evidence date", with: Date.current.iso8601
@@ -124,7 +124,6 @@ class M4d1CruiseInventoryMaintenanceSystemTest < ApplicationSystemTestCase
     assert_text "Current active capacity is 12 cabins."
     assert_text "Increase deposit $200.00."
     assert_text "Original opening quantity remains 8."
-    click_link "Open Cabin inventory"
     assert_text "Current active capacity: 12 cabins"
     assert_text "Original opening quantity: 8 cabins"
     assert_equal 8, @version.capacity_pool_definitions.find_by!(capacity_pool: @pool).proposed_opening_quantity
@@ -132,7 +131,7 @@ class M4d1CruiseInventoryMaintenanceSystemTest < ApplicationSystemTestCase
     assert_equal 12, @pool.reload.capacity_projection.current_supplier_capacity
 
     resize_window(375, 800)
-    visit departure_arrangement_cruise_path(@departure, @arrangement)
+    visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
     assert_no_page_overflow
     visit same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
     assert_no_page_overflow
@@ -165,31 +164,29 @@ class M4d1CruiseInventoryMaintenanceSystemTest < ApplicationSystemTestCase
     resize_window(1280, 900)
     sign_in_from_browser(@staff)
     visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
-    click_on "Yes — terms changed"
+    click_on "Propose changed terms"
     fill_in "Maximum occupancy", with: "3"
-    fill_in "Opening quantity", with: "4"
-    click_on "Add supplemental block"
+    fill_in "Cabins proposed", with: "4"
+    click_on "Propose changed terms"
 
     assert_text "Draft · Version 2"
     assert_text "Proposed changes to Active Version 1"
-    assert_text "opening evidence is incomplete."
-    assert_selector "#cruise-step-agreement .dd-journey-step__status", text: "Not started"
-    assert_no_text "Confirm the Cruise supplier agreement before activation."
-    assert_text "needs ready contracted Supplier rates."
-    assert_text "Record the deposit treatment for this supplemental block before activation."
+    assert_text "Carried from active terms"
+    assert_text "Proposed · 4 cabins"
     assert_text "Supplier inventory has changed. Client offering has not been changed automatically."
     click_on "View active version"
     assert_selector ".dd-cruise-version-badge", text: "Active"
-    assert_no_text "These Supplier terms are in effect."
-    assert_text "Draft Version 2 is in progress."
+    assert_text "Active · Version 1"
+    assert_text "These Supplier terms currently govern."
+    assert_no_text "Supplemental O1 block"
     assert_no_link "Review activation"
     assert_no_link "Open deposits and deadlines"
-    click_on "Back to Draft Version 2"
+    click_on "View proposed Version 2"
     assert_text "Draft · Version 2"
     assert_equal before, client_snapshot(offer.reload)
 
     resize_window(375, 800)
-    visit departure_arrangement_cruise_path(@departure, @arrangement)
+    visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
     assert_no_page_overflow
     visit departure_arrangement_cruise_active_version_path(@departure, @arrangement)
     assert_no_page_overflow

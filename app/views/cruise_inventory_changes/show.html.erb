@@ -2,28 +2,34 @@
 
 <%= render "cruise_setup/shell", current: :cabins, page_title: "Change inventory", version: @governing_version %>
 
-<article class="dd-panel" id="cruise-change-inventory">
-  <div class="dd-panel-body dd-stack">
-    <% if @successor %>
-      <p>
-        <strong>Draft · Version <%= @successor.version_number %></strong>
-        is in progress. Active Version <%= @governing_version.version_number %> remains in effect.
-      </p>
-      <p>Another supplemental block is not available while that draft exists.</p>
-      <%= link_to "Change active inventory under existing terms",
+<article class="dd-stack" id="cruise-change-inventory">
+  <section class="dd-panel">
+    <div class="dd-panel-body dd-stack">
+      <h2 class="dd-section-title">Same Supplier terms</h2>
+      <p>Add cabins to the governing Supplier terms. The change becomes part of current Supplier capacity and does not create a new Supplier-terms version.</p>
+      <% if @successor %>
+        <p>This changes the governing Active inventory, not the proposed Draft.</p>
+      <% end %>
+      <%= link_to "Add cabins",
             same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
             class: "dd-button" %>
-    <% else %>
-      <h2 class="dd-section-title">Did the Supplier terms change?</h2>
-      <p>This answer is not stored. You can leave without choosing.</p>
-      <p>
-        <%= link_to "No — same terms",
-              same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
-              class: "dd-button" %>
-        <%= link_to "Yes — terms changed",
+    </div>
+  </section>
+
+  <section class="dd-panel">
+    <div class="dd-panel-body dd-stack">
+      <h2 class="dd-section-title">Changed Supplier terms</h2>
+      <p>Record additional cabins that have different Supplier terms. DepartureDesk keeps the current Active terms in effect and records the changed inventory as proposed terms.</p>
+      <% if @successor %>
+        <p>Proposed Version <%= @successor.version_number %> already exists. Another proposed block is not available.</p>
+        <%= link_to "Open Cabin inventory",
+              departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
+              class: "dd-button dd-button--secondary" %>
+      <% else %>
+        <%= link_to "Propose changed terms",
               changed_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
               class: "dd-button dd-button--secondary" %>
-      </p>
-    <% end %>
-  </div>
+      <% end %>
+    </div>
+  </section>
 </article>

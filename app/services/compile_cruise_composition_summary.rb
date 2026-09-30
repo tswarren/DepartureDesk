@@ -4,7 +4,8 @@ class CompileCruiseCompositionSummary
   Section = Data.define(:key, :title, :status_label, :detail)
   CabinRow = Data.define(
     :resource_id, :code, :name, :occupancy_label, :inventory_label, :quantity_label,
-    :quantity, :opening_quantity_label, :carried, :rate_posture, :advanced_rates, :removable
+    :quantity, :opening_quantity_label, :current_capacity_label, :carried, :rate_posture,
+    :advanced_rates, :removable
   )
   MaintenanceStep = Data.define(:code, :message, :resource_id)
   RequirementRow = Data.define(:key, :label, :detail)
@@ -118,6 +119,7 @@ class CompileCruiseCompositionSummary
         quantity_label: nil,
         quantity: nil,
         opening_quantity_label: nil,
+        current_capacity_label: nil,
         carried: false,
         rate_posture: posture,
         advanced_rates: advanced,
@@ -170,6 +172,7 @@ class CompileCruiseCompositionSummary
         quantity_label: quantity_label(pool, pool_definition, quantity, carried: carried, activated: version.activated?),
         quantity: quantity,
         opening_quantity_label: opening_quantity_label(pool, pool_definition, version),
+        current_capacity_label: current_capacity_label(pool, pool_definition, carried: carried),
         carried: carried,
         rate_posture: posture,
         advanced_rates: advanced,
@@ -233,6 +236,17 @@ class CompileCruiseCompositionSummary
 
     label = "#{quantity} #{"cabin".pluralize(quantity)}"
     activated ? "Current active capacity: #{label}" : label
+  end
+
+  def current_capacity_label(pool, pool_definition, carried:)
+    return nil unless carried
+    return nil unless CruiseCabinCategorySupport.typed_cabin_pool?(pool, pool_definition)
+    return nil unless pool.numeric_inventory?
+
+    capacity = pool.capacity_projection&.current_supplier_capacity
+    return nil if capacity.nil?
+
+    "Current Supplier capacity: #{capacity} #{"cabin".pluralize(capacity)}"
   end
 
   def opening_quantity_label(pool, pool_definition, version)

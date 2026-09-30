@@ -591,7 +591,7 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".dd-cruise-version-badge", text: "Active"
     assert_select "#cruise-setup-nav"
-    assert_select "a", text: "Change active inventory under existing terms"
+    assert_select "a", text: "Add cabins under same Supplier terms"
   end
 
   test "attention lists an unconfirmed agreement and incomplete opening together" do
@@ -713,7 +713,7 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
       same_terms_departure_arrangement_cruise_inventory_change_path(@departure, active_arrangement), count: 0
 
     get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, active_arrangement)
-    assert_match "Changes Active Version #{active_version.version_number}", response.body
+    assert_match "Active Version #{active_version.version_number}", response.body
 
     resource = active_arrangement.supplier_resources.sole
     assert_no_difference "ServiceOffer.count" do
@@ -738,7 +738,7 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_no_match(/1[0-9] cabins/, response.body)
 
     get departure_arrangement_cruise_active_version_path(@departure, active_arrangement)
-    assert_select "a", text: "Change active inventory under existing terms", count: 1
+    assert_select "a", text: "Add cabins under same Supplier terms", count: 1
     assert_select "a", text: "Yes — terms changed", count: 0
     assert_select "a", text: "Changed terms", count: 0
   end

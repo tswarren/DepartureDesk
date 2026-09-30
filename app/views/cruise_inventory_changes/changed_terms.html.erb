@@ -1,6 +1,6 @@
 <% content_for :title, "Changed terms · #{@supplier_arrangement.name} · DepartureDesk" %>
 
-<%= render "cruise_setup/shell", current: :cabins, page_title: "Add a supplemental block", version: @governing_version %>
+<%= render "cruise_setup/shell", current: :cabins, page_title: "Propose cabins with changed Supplier terms", version: @governing_version %>
 <p>
   <%= link_to "Back to Change inventory", departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement), class: "dd-link" %>
 </p>
@@ -13,7 +13,7 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body dd-stack">
-    <p>A draft successor will be created. Active Version <%= @governing_version.version_number %> remains in effect until that draft is completed and activated.</p>
+    <p>Active Version <%= @governing_version.version_number %> remains in effect.</p>
     <p>Choose the cabin category whose Supplier terms changed. The new block keeps that Supplier code and is named Supplemental {code} block. It does not record opening evidence, Supplier rates, agreement confirmation, or deposit treatment.</p>
     <% if @category_options.empty? %>
       <p>No cabin category with a Supplier code is available.</p>
@@ -34,10 +34,10 @@
           <%= number_field_tag :maximum_occupancy, params[:maximum_occupancy], id: "supplemental_occupancy", class: "dd-input", min: 1 %>
         </div>
         <div class="dd-field">
-          <label class="dd-label" for="supplemental_quantity">Opening quantity</label>
+          <label class="dd-label" for="supplemental_quantity">Cabins proposed</label>
           <%= number_field_tag :opening_quantity, params[:opening_quantity], id: "supplemental_quantity", class: "dd-input", min: 1 %>
         </div>
-        <%= button_tag "Add supplemental block", class: "dd-button" %>
+        <%= button_tag "Propose changed terms", class: "dd-button" %>
       <% end %>
     <% end %>
   </div>
