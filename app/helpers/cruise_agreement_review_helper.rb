@@ -56,7 +56,7 @@ module CruiseAgreementReviewHelper
       arrangement: @supplier_arrangement,
       mode: :preview
     )
-    return "No opening quantity applies" if evaluated[:quantity_not_tracked]
+    return "No applicable numeric opening quantity" if evaluated[:quantity_not_tracked]
 
     currency = definition.currency
     quantity = evaluated.dig(:inputs, "quantity")
@@ -66,7 +66,9 @@ module CruiseAgreementReviewHelper
     excluded = Array(evaluated.dig(:inputs, "excluded_pools"))
     return sentence if excluded.empty?
 
-    "#{sentence}. On request and externally managed cabins are not included."
+    count = excluded.size
+    tracked = "#{count} #{'selected category'.pluralize(count)} #{count == 1 ? 'has' : 'have'} quantity not tracked"
+    "#{sentence}. #{tracked}."
   rescue SupplierDepositAmountEvaluator::IncompleteCalculation
     nil
   end

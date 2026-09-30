@@ -134,6 +134,74 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
     assert_empty @version.supplier_arrangement_cruise_term_definitions.where(term_type: "cancellation_step")
   end
 
+  test "focused cancellation forms keep the other steps when one step changes" do
+    sign_in_as @staff
+    post terms_departure_arrangement_cruise_agreement_path(@departure, @arrangement), params: {
+      term_scope: "cancellation",
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      cancellation_steps: [
+        { days_before_departure: "120", body: "First step stays." },
+        { days_before_departure: "90", body: "Second step changes." }
+      ]
+    }
+    assert_response :redirect
+
+    get departure_arrangement_cruise_agreement_path(@departure, @arrangement, focus: "cancellation-edit-2")
+    assert_response :success
+    assert_select "input[type=hidden][name='cancellation_steps[][days_before_departure]'][value='120']"
+    assert_select "input[type=hidden][name='cancellation_steps[][body]'][value=?]", "First step stays."
+    assert_select "textarea[name='cancellation_steps[][body]']", text: "Second step changes."
+
+    post terms_departure_arrangement_cruise_agreement_path(@departure, @arrangement), params: {
+      term_scope: "cancellation",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      cancellation_steps: [
+        { days_before_departure: "120", body: "First step stays." },
+        { days_before_departure: "90", body: "Second step revised." }
+      ]
+    }
+    assert_equal [ "First step stays.", "Second step revised." ], cancellation_bodies
+
+    get departure_arrangement_cruise_agreement_path(@departure, @arrangement, focus: "cancellation-new")
+    assert_select "input[type=hidden][name='cancellation_steps[][body]'][value=?]", "First step stays."
+    assert_select "input[type=hidden][name='cancellation_steps[][body]'][value=?]", "Second step revised."
+
+    post terms_departure_arrangement_cruise_agreement_path(@departure, @arrangement), params: {
+      term_scope: "cancellation",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      cancellation_steps: [
+        { days_before_departure: "120", body: "First step stays." },
+        { days_before_departure: "90", body: "Second step revised." },
+        { days_before_departure: "60", body: "Third step added." }
+      ]
+    }
+    assert_equal [ 120, 90, 60 ], cancellation_days
+    assert_equal [ "First step stays.", "Second step revised.", "Third step added." ], cancellation_bodies
+
+    get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
+    removal = css_select("form.dd-agreement-inline-form").find { |form|
+      form.css("input[name='cancellation_steps[][days_before_departure]']").map { |field| field["value"] } == [ "120", "60" ]
+    }
+    assert removal
+    assert_equal [ "First step stays.", "Third step added." ],
+      removal.css("input[name='cancellation_steps[][body]']").map { |field| field["value"] }
+
+    post terms_departure_arrangement_cruise_agreement_path(@departure, @arrangement), params: {
+      term_scope: "cancellation",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      cancellation_steps: [
+        { days_before_departure: "120", body: "First step stays." },
+        { days_before_departure: "60", body: "Third step added." }
+      ]
+    }
+    assert_equal [ 120, 60 ], cancellation_days
+    assert_equal [ "First step stays.", "Third step added." ], cancellation_bodies
+  end
+
   test "an omitted citation is preserved and the agreement page does not edit it" do
     sign_in_as @staff
     RecordCruiseCommercialBenefit.new(
@@ -262,12 +330,13 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
     assert_nil deposit.explicit_quantity
     follow_redirect!
     assert_match "$50.00 per opening cabin × 24 cabins = $1,200.00", response.body
-    assert_match "On request and externally managed cabins are not included.", response.body
+    assert_match "1 selected category has quantity not tracked.", response.body
     assert_nil on_request_definition.reload.proposed_opening_quantity
 
     @version.capacity_pool_definitions.find_by!(capacity_pool_id: @pools.last.id).update!(proposed_opening_quantity: 10)
     get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
     assert_match "$50.00 per opening cabin × 26 cabins = $1,300.00", response.body
+    assert_match "1 selected category has quantity not tracked.", response.body
     assert_equal 5_000, deposit.reload.rate_minor_units
     assert_equal "2026-10-13", deposit.rule_parameters["date"]
 
@@ -370,9 +439,19 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
     }
     deposit = @version.supplier_deposit_requirement_definitions.order(:position).last
     follow_redirect!
-    assert_match "No opening quantity applies", response.body
+    assert_match "No applicable numeric opening quantity", response.body
     assert_no_match "$0", response.body
     assert_equal 5_000, deposit.rate_minor_units
     assert_nil deposit.explicit_quantity
+  end
+
+  private
+
+  def cancellation_bodies
+    @version.supplier_arrangement_cruise_term_definitions.where(term_type: "cancellation_step").order(:position).map(&:body)
+  end
+
+  def cancellation_days
+    @version.supplier_arrangement_cruise_term_definitions.where(term_type: "cancellation_step").order(:position).map(&:days_before_departure)
   end
 end

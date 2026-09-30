@@ -184,23 +184,28 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
     assert_text "120 days before departure"
     assert_text "90 days before departure"
     within "ol.dd-agreement-ladder" do
-      assert_link "Edit"
-      assert_button "Remove"
+      items = all("li").map(&:text)
+      assert_match(/120 days before departure/, items.first)
+      assert_match(/Deposit becomes non-refundable/, items.first)
+      assert_match(/90 days before departure/, items.last)
+      all("a", text: "Edit").last.click
     end
-
-    within "ol.dd-agreement-ladder" do
-      first(:link, "Edit").click
-    end
-    fill_in "Policy wording", with: "Deposit stays non-refundable."
+    fill_in "Policy wording", with: "Penalties revised."
     click_on "Save step"
-    assert_text "Deposit stays non-refundable."
-    assert_text "Additional penalties apply."
+    within "ol.dd-agreement-ladder" do
+      items = all("li").map(&:text)
+      assert_match(/Deposit becomes non-refundable/, items.first)
+      assert_match(/Penalties revised/, items.last)
+    end
 
     accept_confirm do
       within("ol.dd-agreement-ladder") { first(:button, "Remove").click }
     end
-    assert_no_text "Deposit stays non-refundable."
-    assert_text "Additional penalties apply."
+    within "ol.dd-agreement-ladder" do
+      assert_no_text "Deposit becomes non-refundable."
+      assert_text "90 days before departure"
+      assert_text "Penalties revised."
+    end
 
     accept_confirm do
       click_on "Remove"
