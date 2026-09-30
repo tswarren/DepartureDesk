@@ -21,6 +21,6 @@
   </div>
   <div class="dd-form-actions">
     <%= submit_tag(definition ? "Save #{cruise_benefit_label(term_type)}" : "Add #{cruise_benefit_label(term_type)}", class: "dd-button") %>
-    <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "commercial-benefits"), class: "dd-button dd-button--quiet" %>
+    <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "benefits"), class: "dd-button dd-button--quiet" %>
   </div>
 <% end %>

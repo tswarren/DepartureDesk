@@ -21,9 +21,13 @@ module CruiseCompositionHelper
         )
       end
     when :record_agreement
-      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
-    when :record_initial_deposit, :record_hard_stop, :record_final_payment
-      departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement)
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "agreement")
+    when :record_initial_deposit
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "deposit-new-initial")
+    when :record_hard_stop
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "deadline-new-hard-stop")
+    when :record_final_payment
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "deadline-new-final-payment")
     when :resolve_blocker, :review_activation
       departure_arrangement_activation_path(@departure, @supplier_arrangement)
     end
@@ -121,7 +125,7 @@ module CruiseCompositionHelper
     when :cruise_contracted_rates_missing
       cruise_supplier_rate_corrective_path(step.resource_id)
     when :cruise_agreement_unconfirmed, :cruise_deposit_treatment_missing
-      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "agreement")
     end
   end
 
@@ -312,7 +316,11 @@ module CruiseCompositionHelper
         departure_arrangement_path(@departure, @supplier_arrangement)
       end
     when :agreement
-      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
+      options = {}
+      if item.code.in?(%i[cruise_agreement_unconfirmed cruise_deposit_treatment_missing])
+        options[:focus] = "agreement"
+      end
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, **options)
     when :activation
       departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement)
     when :advanced_planning

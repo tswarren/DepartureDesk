@@ -61,24 +61,28 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
     end
   end
 
-  test "staff reviews requirements in four sections and records the canonical deposit and deadlines" do
+  test "staff reviews the agreement in five sections and records the canonical deposit and deadlines" do
     sign_in_from_browser(@staff)
     visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
     assert_selector "h2", text: "Agreement"
-    assert_selector "h2", text: "Deposits & deadlines"
-    assert_selector "h2", text: "Commercial benefits"
-    assert_selector "h2", text: "Other Supplier terms"
+    assert_selector "h2", text: "Deposits"
+    assert_selector "h2", text: "Deadlines"
+    assert_selector "h2", text: "Benefits"
+    assert_selector "h2", text: "Policies"
+    assert_no_link "Open deposits and deadlines"
+    assert_no_link "Change inventory"
     within("section[aria-labelledby='agreement']") do
       assert_selector "h2", text: "Agreement"
-      assert_no_selector "h2", text: "Deposits & deadlines"
+      assert_no_selector "h2", text: "Deposits"
     end
-    within("section[aria-labelledby='deposits-and-deadlines']") do
-      assert_no_selector "h2", text: "Commercial benefits"
+    within("section[aria-labelledby='deposits']") do
+      assert_no_selector "h2", text: "Deadlines"
     end
     headings = all("h2").map(&:text)
-    assert_operator headings.index("Agreement"), :<, headings.index("Deposits & deadlines")
-    assert_operator headings.index("Deposits & deadlines"), :<, headings.index("Commercial benefits")
-    assert_operator headings.index("Commercial benefits"), :<, headings.index("Other Supplier terms")
+    assert_operator headings.index("Agreement"), :<, headings.index("Deposits")
+    assert_operator headings.index("Deposits"), :<, headings.index("Deadlines")
+    assert_operator headings.index("Deadlines"), :<, headings.index("Benefits")
+    assert_operator headings.index("Benefits"), :<, headings.index("Policies")
 
     fill_in "Supplier group number", with: "1119999"
     fill_in_html_date "Contract date", "2026-09-13"
@@ -110,7 +114,7 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
     assert_field "Due date", with: "2026-10-20"
     fill_in_html_date "Due date", "2026-10-13"
     click_on "Save Initial Deposit"
-    within("section[aria-labelledby='deposits-and-deadlines']") do
+    within("section[aria-labelledby='deposits']") do
       assert_text "Due October 13, 2026"
       assert_text "$50.00 per opening cabin × 24 cabins = $1,200.00"
     end
@@ -152,7 +156,7 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
     fill_in "Attributable initial-deposit credit (USD)", with: "50.00"
     fill_in "Policy details", with: "Applies to allocated staterooms.\n\n**Not** current exposure."
     click_on "Add allocated cabin deposit"
-    within("section[aria-labelledby='other-supplier-terms']") do
+    within("section[aria-labelledby='deposits']") do
       assert_text "$500.00"
       assert_text "Amount per allocated cabin"
       assert_text "$50.00"
@@ -217,7 +221,7 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
     assert_field "Wording", with: "1 credit per 16 guests.\n\n<script>alert(1)</script>"
   end
 
-  test "activated cruises still show the transitional capacity controls" do
+  test "activated agreement does not offer inventory changes" do
     RecordCruiseSupplierAgreement.new(
       agency: @agency,
       actor: @staff,
@@ -276,9 +280,11 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
     assert_no_selector "h2", text: "Later capacity"
     assert_no_button "Record same-terms increase"
     assert_no_button "Add supplemental O1 block"
-    assert_selector "h2", text: "Change inventory"
-    assert_link "Change inventory"
+    assert_no_link "Change inventory"
     assert_selector "h2", text: "Agreement"
+
+    visit departure_arrangement_cruise_cabin_categories_path(@departure, @arrangement)
+    assert_link "Change inventory"
   end
 
   test "an unrecognized requirement links to advanced planning" do

@@ -45,7 +45,7 @@ class M4d1CruisePortsAndBenefitsSystemTest < ApplicationSystemTestCase
     assert_text "Itinerary notes: Sea day after leaving port"
 
     click_link "Open agreement"
-    assert_text "Commercial benefits"
+    assert_selector "h2", text: "Benefits"
     assert_text "Normal commission stays in Supplier rates."
     assert_text "Agreement benefits are recorded for reference. DepartureDesk does not calculate earned entitlements."
 

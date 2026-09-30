@@ -286,4 +286,93 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
     assert_match "Additional Supplier requirement — Review in Advanced", response.body
     assert_match "Rooming list", response.body
   end
+
+  test "provisional identity keeps group creation and contract dates distinct" do
+    sign_in_as @staff
+    RecordCruiseSupplierAgreement.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      intent: "save_provisional",
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      group_reference: "1119999",
+      group_creation_date: "2026-09-01"
+    ).call
+
+    get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
+    assert_response :success
+    assert_match "Group 1119999", response.body
+    assert_match "Group creation date", response.body
+    assert_match "September 1, 2026", response.body
+    assert_no_match(/Contract date/, response.body)
+    assert_select "#cruise-step-agreement .dd-journey-step__status", text: "Needs attention"
+  end
+
+  test "correcting a confirmation keeps the earlier group number in history" do
+    sign_in_as @staff
+    RecordCruiseSupplierAgreement.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      intent: "confirm",
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      group_reference: "1119999",
+      group_creation_date: "2026-09-01",
+      contract_date: "2026-09-13"
+    ).call
+    RecordCruiseSupplierAgreement.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      intent: "correct",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      group_reference: "1119998",
+      group_creation_date: "2026-09-01",
+      contract_date: "2026-09-13"
+    ).call
+
+    get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "summary", text: "View history"
+    assert_match "Group 1119998", response.body
+    assert_match "Group 1119999", response.body
+    assert_equal "1119999", @version.supplier_arrangement_cruise_agreement_confirmations.find_by!(current: false).group_reference
+  end
+
+  test "an all-nonnumeric initial deposit does not evaluate to zero" do
+    sign_in_as @staff
+    cabin = CreateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource_attributes: { name: "On request", supplier_code: "RQ", maximum_occupancy: 2 },
+      pool_attributes: { inventory_mode: "on_request" },
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    post departure_arrangement_cruise_deposits_and_deadlines_deposits_path(@departure, @arrangement), params: {
+      return_to: "agreement",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      cruise_deposit: {
+        template: "initial_deposit",
+        amount_shape: "quantity_times_rate",
+        quantity_basis: "capacity_pool_units",
+        rate_amount: "50.00",
+        rule_shape: "fixed_date",
+        fixed_date: "2026-10-13",
+        capacity_pool_ids: [ cabin.record.pool.id ]
+      }
+    }
+    deposit = @version.supplier_deposit_requirement_definitions.order(:position).last
+    follow_redirect!
+    assert_match "No opening quantity applies", response.body
+    assert_no_match "$0", response.body
+    assert_equal 5_000, deposit.rate_minor_units
+    assert_nil deposit.explicit_quantity
+  end
 end

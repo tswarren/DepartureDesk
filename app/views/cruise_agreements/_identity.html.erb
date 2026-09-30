@@ -11,56 +11,14 @@
   </header>
   <div class="dd-panel-body">
     <% if confirmed && !editing %>
-      <dl class="dd-fact-grid">
-        <div>
-          <dt>Contracting supplier</dt>
-          <dd><%= @supplier_arrangement.contracting_supplier.display_name_for_directory %></dd>
-        </div>
-        <div>
-          <dt>Supplier group number</dt>
-          <dd>Group <%= confirmation.group_reference %></dd>
-        </div>
-        <% if confirmation.group_creation_date.present? %>
-          <div>
-            <dt>Group creation date</dt>
-            <dd><%= cruise_calendar_date(confirmation.group_creation_date) %></dd>
-          </div>
-        <% end %>
-        <div>
-          <dt>Contract date</dt>
-          <dd><%= cruise_calendar_date(confirmation.contract_date) %></dd>
-        </div>
-      </dl>
-      <% if confirmation.note.present? %>
-        <div class="dd-agreement-note">
-          <h3 class="dd-agreement-row-heading">Notes</h3>
-          <div class="dd-reference-text"><%= formatted_reference_text(confirmation.note) %></div>
-        </div>
-      <% end %>
-      <% if confirmation.deposit_treatment.present? %>
-        <div class="dd-agreement-note">
-          <h3 class="dd-agreement-row-heading">Deposit treatment for a supplemental block</h3>
-          <div class="dd-reference-text"><%= formatted_reference_text(confirmation.deposit_treatment) %></div>
-        </div>
-      <% end %>
-      <% if confirmation.corrects_id.present? %>
-        <p class="dd-agreement-description">This confirmation corrects an earlier confirmation, which stays in history.</p>
-      <% end %>
+      <%= render "cruise_agreements/identity_summary", confirmation: confirmation %>
       <% if @editable %>
         <div class="dd-agreement-row-actions">
           <%= cruise_row_link "Correct", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "agreement") %>
         </div>
       <% end %>
     <% elsif confirmation && !confirmed && !editing %>
-      <p class="dd-agreement-description">Supplier group number and contract date can still be omitted.</p>
-      <% if confirmation.group_creation_date.present? %>
-        <dl class="dd-fact-grid">
-          <div>
-            <dt>Group creation date</dt>
-            <dd><%= cruise_calendar_date(confirmation.group_creation_date) %></dd>
-          </div>
-        </dl>
-      <% end %>
+      <%= render "cruise_agreements/identity_summary", confirmation: confirmation %>
       <% if @editable %>
         <div class="dd-agreement-row-actions">
           <%= cruise_row_link "Edit", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "agreement") %>

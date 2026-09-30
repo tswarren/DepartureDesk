@@ -67,6 +67,26 @@ class CompileCruiseSetupNavigationTest < ActiveSupport::TestCase
     assert_not_includes codes, :cruise_contracted_rates_missing
   end
 
+  test "a confirmed agreement stays complete when the initial deposit is not recorded" do
+    add_cabin!
+    RecordCruiseSupplierAgreement.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: @arrangement,
+      intent: "confirm",
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      group_reference: "1119999",
+      group_creation_date: "2026-09-01",
+      contract_date: "2026-09-13"
+    ).call
+
+    navigation = compile
+
+    assert_equal "Complete", status_for(navigation, :agreement)
+    assert_not_includes navigation.attention_items.map(&:code), :cruise_deposit_treatment_missing
+  end
+
   test "a ready estimate is not an attention item" do
     add_cabin!
     add_estimate!

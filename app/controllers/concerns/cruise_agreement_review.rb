@@ -27,7 +27,9 @@ module CruiseAgreementReview
     else
       []
     end
-    @agreement_confirmation = version&.supplier_arrangement_cruise_agreement_confirmations&.find_by(current: true)
+    @agreement_confirmation = version&.supplier_arrangement_cruise_agreement_confirmations
+      &.includes(:confirmed_by)
+      &.find_by(current: true)
     @agreement_terms = version&.supplier_arrangement_cruise_term_definitions&.order(:term_type, :position)&.to_a || []
     @cabin_pool_ids = version&.capacity_pool_definitions&.order(:position, :id)&.map(&:capacity_pool_id) || []
     @requirements_workspace = if @shape.compatible? && version

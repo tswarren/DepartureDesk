@@ -1,56 +1,11 @@
-<% allocated = cruise_term("allocated_cabin_deposit") %>
 <% card = cruise_term("card_restrictions") %>
 <% steps = cruise_cancellation_steps %>
-<section class="dd-panel dd-agreement-section" aria-labelledby="other-supplier-terms">
+<section class="dd-panel dd-agreement-section" aria-labelledby="policies">
   <header class="dd-panel-header">
-    <%= cruise_marked_heading(:h2, "other-supplier-terms", "Other Supplier terms", class: "dd-agreement-heading") %>
+    <%= cruise_marked_heading(:h2, "policies", "Policies", class: "dd-agreement-heading") %>
   </header>
   <div class="dd-panel-body">
-    <p class="dd-agreement-description">Reference terms are recorded for Staff use. DepartureDesk does not currently calculate their effects.</p>
-
-    <div class="dd-agreement-row">
-      <% if cruise_agreement_focused?("term-allocated") && @editable %>
-        <%= cruise_marked_heading(:h3, "term-allocated", "Allocated cabin deposit", class: "dd-agreement-row-heading") %>
-        <p class="dd-agreement-secondary">Agreement policy · Not currently calculated</p>
-        <%= render "cruise_agreements/allocated_form", term: allocated %>
-      <% elsif allocated %>
-        <div class="dd-agreement-row-head">
-          <div>
-            <%= cruise_marked_heading(:h3, "term-allocated", "Allocated cabin deposit", class: "dd-agreement-row-heading") %>
-            <p class="dd-agreement-secondary">Agreement policy · Not currently calculated</p>
-          </div>
-        </div>
-        <div class="dd-agreement-amounts">
-          <p class="dd-agreement-amount">
-            <span class="dd-agreement-figure"><%= Money.new(allocated.amount_minor_units, allocated.currency).format %></span>
-            Amount per allocated cabin
-          </p>
-          <p class="dd-agreement-amount">
-            <span class="dd-agreement-figure"><%= Money.new(allocated.credit_minor_units, allocated.currency).format %></span>
-            Attributable initial-deposit credit
-          </p>
-        </div>
-        <div class="dd-reference-text dd-agreement-row-prose"><%= formatted_reference_text(allocated.body) %></div>
-        <% if @editable %>
-          <div class="dd-agreement-row-actions">
-            <%= cruise_row_link "Edit", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "term-allocated") %>
-          </div>
-        <% end %>
-      <% else %>
-        <div class="dd-agreement-row-head">
-          <div>
-            <%= cruise_marked_heading(:h3, "term-allocated", "Allocated cabin deposit", class: "dd-agreement-row-heading") %>
-            <p class="dd-agreement-secondary">Agreement policy · Not currently calculated</p>
-          </div>
-          <%= cruise_status_badge("Not recorded", :neutral) %>
-          <% if @editable %>
-            <div class="dd-agreement-row-actions">
-              <%= cruise_row_link "Add", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "term-allocated") %>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
-    </div>
+    <p class="dd-agreement-description">These are recorded Supplier terms. DepartureDesk does not process payments or apply the cancellation ladder.</p>
 
     <div class="dd-agreement-row">
       <% if cruise_agreement_focused?("term-card") && @editable %>
@@ -59,6 +14,7 @@
       <% elsif card %>
         <div class="dd-agreement-row-head">
           <%= cruise_marked_heading(:h3, "term-card", "Payment restrictions", class: "dd-agreement-row-heading") %>
+          <%= cruise_status_badge("Recorded", :neutral) %>
         </div>
         <div class="dd-reference-text dd-agreement-row-prose"><%= formatted_reference_text(card.body) %></div>
         <% if @editable %>

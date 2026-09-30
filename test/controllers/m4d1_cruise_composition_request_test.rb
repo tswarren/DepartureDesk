@@ -546,7 +546,9 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     get departure_arrangement_cruise_agreement_path(@departure, arrangement)
     assert_response :success
     assert_select "#cruise-step-agreement[aria-current=page]"
-    assert_select "a", text: "Open deposits and deadlines"
+    assert_select "a", text: "Open deposits and deadlines", count: 0
+    assert_select "h2", text: "Deposits"
+    assert_select "h2", text: "Policies"
 
     get departure_arrangement_cruise_activation_path(@departure, arrangement)
     assert_response :success

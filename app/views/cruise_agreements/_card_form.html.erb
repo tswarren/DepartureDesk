@@ -13,6 +13,6 @@
   </div>
   <div class="dd-form-actions">
     <%= submit_tag term ? "Save payment restrictions" : "Add payment restrictions", class: "dd-button" %>
-    <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "other-supplier-terms"), class: "dd-button dd-button--quiet" %>
+    <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "policies"), class: "dd-button dd-button--quiet" %>
   </div>
 <% end %>

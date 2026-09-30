@@ -1,6 +1,6 @@
 # UX-7 — Cruise Supplier Workspace Consolidation
 
-**Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is implemented. UX-7.4, Agreement, is the next authorized slice. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.  
+**Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is implemented. UX-7.4, Agreement, is implemented. UX-7.5, Review & activate, is the next authorized slice. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.  
 **Parent:** [Cruise Composition UX](m4d1-cruise-composition-ux.md).  
 **Implementation baseline:** `fe01ed2b1b395e047d3c27ed466c6e5c444e340d`  
 **Depends on:** Cruise rework behavior, and UX-1 through UX-6 behavior at that baseline.  
@@ -502,7 +502,7 @@ Implemented. Cruise-level rates workspace, illustrative scenario totals, the exi
 
 ### UX-7.4 — Agreement
 
-Shared shell and the five sections, live deposit evaluation, cancellation ladder, agreement reference, removal of Change inventory, removal of normal deposits-and-deadlines navigation, and Agreement corrective targets. Write endpoints stay.
+Implemented. Shared shell and the five sections, live deposit evaluation, cancellation ladder, agreement reference, removal of Change inventory, removal of normal deposits-and-deadlines navigation, and Agreement corrective targets. Write endpoints stay.
 
 ### UX-7.5 — Review & activate
 

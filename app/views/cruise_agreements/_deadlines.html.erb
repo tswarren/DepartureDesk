@@ -1,67 +1,17 @@
-<section class="dd-panel dd-agreement-section" aria-labelledby="deposits-and-deadlines">
+<section class="dd-panel dd-agreement-section" aria-labelledby="deadlines">
   <header class="dd-panel-header">
-    <%= cruise_marked_heading(:h2, "deposits-and-deadlines", "Deposits & deadlines", class: "dd-agreement-heading") %>
+    <%= cruise_marked_heading(:h2, "deadlines", "Deadlines", class: "dd-agreement-heading") %>
   </header>
   <div class="dd-panel-body">
-    <p class="dd-agreement-description">Recording a Supplier requirement does not record that the Agency has satisfied it.</p>
+    <p class="dd-agreement-description">Saving a deadline records the Supplier date. It does not release inventory.</p>
 
     <% workspace = @requirements_workspace %>
     <% if workspace&.compatible? %>
-      <% deposit_rows = workspace.deposit_rows %>
-      <% deadline_rows = workspace.deadline_rows %>
-      <% initial_rows = deposit_rows.select { |row| cruise_preset_initial_deposit?(row) } %>
-      <% hard_stop_rows = deadline_rows.select { |row| cruise_preset_deadline?(row, "option_or_release") } %>
-      <% final_rows = deadline_rows.select { |row| cruise_preset_deadline?(row, "final_payment") } %>
-      <% additional_rows = deposit_rows.reject { |row| cruise_preset_initial_deposit?(row) } +
-        deadline_rows.reject { |row| cruise_preset_deadline?(row, "option_or_release") || cruise_preset_deadline?(row, "final_payment") } %>
-
-      <% if initial_rows.empty? %>
-        <div class="dd-agreement-row" id="deposit-new-initial">
-          <% if cruise_agreement_focused?("deposit-new-initial") %>
-            <%= cruise_marked_heading(:h3, "initial-deposit", "Initial Deposit", class: "dd-agreement-row-heading") %>
-            <%= render "cruise_agreements/initial_deposit_form", definition: nil %>
-          <% else %>
-            <div class="dd-agreement-row-head">
-              <%= cruise_marked_heading(:h3, "initial-deposit", "Initial Deposit", class: "dd-agreement-row-heading") %>
-              <%= cruise_status_badge("Not recorded", :neutral) %>
-              <% suggested = cruise_suggested_deposit_due_on %>
-              <% if suggested %>
-                <p class="dd-agreement-meta">Suggested due date: <%= cruise_calendar_date(suggested) %>. Based on group creation date + 30 days.</p>
-              <% end %>
-              <% if @editable %>
-                <div class="dd-agreement-row-actions">
-                  <%= cruise_row_link "Add", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "deposit-new-initial") %>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
-        </div>
-      <% else %>
-        <% initial_rows.each do |row| %>
-          <% definition = row.definition %>
-          <% focus_key = "deposit-#{definition.id}" %>
-          <div class="dd-agreement-row">
-            <% if cruise_agreement_focused?(focus_key) %>
-              <%= cruise_marked_heading(:h3, focus_key, "Initial Deposit", class: "dd-agreement-row-heading") %>
-              <%= render "cruise_agreements/initial_deposit_form", definition: definition %>
-            <% else %>
-              <div class="dd-agreement-row-head">
-                <%= cruise_marked_heading(:h3, focus_key, "Initial Deposit", class: "dd-agreement-row-heading") %>
-                <% if (due = cruise_fixed_due_date(definition)) %>
-                  <p class="dd-agreement-meta">Due <%= cruise_calendar_date(due) %></p>
-                <% end %>
-                <% sentence = cruise_opening_deposit_sentence(definition) %>
-                <p class="dd-agreement-meta"><%= sentence.presence || "#{cruise_minor_amount_field(definition.rate_minor_units, definition.currency)} per opening cabin" %></p>
-                <% if @editable %>
-                  <div class="dd-agreement-row-actions">
-                    <%= cruise_row_link "Edit", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: focus_key) %>
-                  </div>
-                <% end %>
-              </div>
-            <% end %>
-          </div>
-        <% end %>
-      <% end %>
+      <% hard_stop_rows = workspace.deadline_rows.select { |row| cruise_preset_deadline?(row, "option_or_release") } %>
+      <% final_rows = workspace.deadline_rows.select { |row| cruise_preset_deadline?(row, "final_payment") } %>
+      <% additional_rows = workspace.deadline_rows.reject { |row|
+        cruise_preset_deadline?(row, "option_or_release") || cruise_preset_deadline?(row, "final_payment")
+      } %>
 
       <% if hard_stop_rows.empty? %>
         <div class="dd-agreement-row" id="deadline-new-hard-stop">
@@ -157,6 +107,7 @@
         <div class="dd-agreement-row" id="requirement-<%= row.definition.id %>">
           <div class="dd-agreement-row-head">
             <h3 class="dd-agreement-row-heading"><%= row.display_label %></h3>
+            <%= cruise_status_badge("Advanced", :neutral) %>
             <% if row.timing_sentence.present? %>
               <p class="dd-agreement-meta"><%= row.timing_sentence %></p>
             <% end %>
@@ -167,13 +118,8 @@
         </div>
       <% end %>
     <% else %>
-      <p class="dd-agreement-description">Additional Supplier requirement — Review in Advanced</p>
+      <p class="dd-agreement-description">This deadline structure is Advanced.</p>
       <p><%= cruise_forward_link "Review in Advanced", departure_arrangement_path(@departure, @supplier_arrangement) %></p>
     <% end %>
   </div>
-  <% if workspace&.compatible? %>
-    <footer class="dd-panel-footer">
-      <%= cruise_forward_link "Open deposits and deadlines", departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement) %>
-    </footer>
-  <% end %>
 </section>

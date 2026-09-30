@@ -56,7 +56,7 @@ module CruiseAgreementReviewHelper
       arrangement: @supplier_arrangement,
       mode: :preview
     )
-    return "Quantity not tracked" if evaluated[:quantity_not_tracked]
+    return "No opening quantity applies" if evaluated[:quantity_not_tracked]
 
     currency = definition.currency
     quantity = evaluated.dig(:inputs, "quantity")
@@ -96,6 +96,33 @@ module CruiseAgreementReviewHelper
   def cruise_status_badge(label, tone)
     tone = "neutral" unless %w[success neutral].include?(tone.to_s)
     tag.span(label, class: "dd-badge dd-badge--#{tone}")
+  end
+
+  def cruise_confirmation_recorded_on(confirmation)
+    confirmation.confirmed_at.in_time_zone(confirmation.agency.default_timezone).strftime("%B %-d, %Y")
+  end
+
+  def cruise_agreement_prior_confirmations(confirmation)
+    return [] if confirmation.nil? || @supplier_arrangement_version.nil?
+
+    @supplier_arrangement_version.supplier_arrangement_cruise_agreement_confirmations
+      .where(current: false)
+      .includes(:confirmed_by)
+      .order(created_at: :desc)
+      .to_a
+  end
+
+  def cruise_supplemental_deposit_treatment_pending?(confirmation)
+    return false unless confirmation&.confirmed? && confirmation.deposit_treatment.blank?
+
+    version = @supplier_arrangement_version
+    predecessor = version&.copied_from
+    return false unless predecessor
+
+    predecessor_ids = predecessor.supplier_resource_definitions.map(&:supplier_resource_id)
+    version.supplier_resource_definitions.any? { |definition|
+      predecessor_ids.exclude?(definition.supplier_resource_id)
+    }
   end
 
   def cruise_row_link(label, path)

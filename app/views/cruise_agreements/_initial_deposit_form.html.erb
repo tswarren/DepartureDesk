@@ -37,6 +37,6 @@
   </div>
   <div class="dd-form-actions">
     <%= submit_tag definition ? "Save Initial Deposit" : "Add Initial Deposit", class: "dd-button" %>
-    <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "deposits-and-deadlines"), class: "dd-button dd-button--quiet" %>
+    <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "deposits"), class: "dd-button dd-button--quiet" %>
   </div>
 <% end %>
