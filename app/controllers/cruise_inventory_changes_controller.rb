@@ -117,10 +117,12 @@ class CruiseInventoryChangesController < ApplicationController
     @pool_options = eligible_pool_options(@governing_version)
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
     requested_pool_id = params[:capacity_pool_id].presence
-    @selected_pool_id = if @pool_options.any? { |_label, id| id == requested_pool_id }
+    @selected_pool_id = if requested_pool_id.blank?
+      @pool_options.first&.last
+    elsif @pool_options.any? { |_label, id| id == requested_pool_id }
       requested_pool_id
     else
-      @pool_options.first&.last
+      raise ActiveRecord::RecordNotFound
     end
     @selected_pool_context = selected_pool_context(@governing_version, @selected_pool_id)
   end

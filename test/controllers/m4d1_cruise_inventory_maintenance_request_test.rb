@@ -202,6 +202,33 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     assert_equal inside.record.pool.id, css_select("#cruise-same-terms-increase input[name=capacity_pool_id]").first["value"]
   end
 
+  test "an explicit ineligible pool is not replaced by the first cabin" do
+    on_request = add_cabin!("R1", "On request", "on_request", nil).record.pool
+    satisfy_cruise_activation_gate!(
+      agency: @agency, actor: @staff, arrangement: @arrangement, version: @version.reload
+    )
+    activate_original!
+    sign_in_as @staff
+
+    get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+      params: { capacity_pool_id: on_request.id }
+    assert_response :not_found
+
+    get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+      params: { capacity_pool_id: SecureRandom.uuid }
+    assert_response :not_found
+
+    assert_no_difference -> { @pool.reload.capacity_projection.current_supplier_capacity } do
+      post same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+        params: increase_params(capacity_pool_id: on_request.id, commit: "Review this increase", idempotency_key: "review-on-request")
+      assert_response :not_found
+
+      post same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+        params: increase_params(capacity_pool_id: SecureRandom.uuid, idempotency_key: "record-missing-pool")
+      assert_response :not_found
+    end
+  end
+
   test "an arbitrary version parameter cannot retarget governing inventory" do
     activate_original!
     sign_in_as @staff
