@@ -381,8 +381,14 @@ module CruiseCompositionHelper
     return "No cabin categories yet." if workspace.category_count.zero?
 
     parts = [ "#{workspace.category_count} #{'category'.pluralize(workspace.category_count)}" ]
-    if workspace.numeric_total
-      parts << "#{workspace.numeric_total} #{'cabin'.pluralize(workspace.numeric_total)}"
+    if workspace.tracked_cabin_count
+      cabins = "#{workspace.tracked_cabin_count} #{'cabin'.pluralize(workspace.tracked_cabin_count)}"
+      cabins = "#{workspace.tracked_cabin_count} tracked #{'cabin'.pluralize(workspace.tracked_cabin_count)}" if workspace.untracked_category_count.positive?
+      parts << cabins
+    end
+    if workspace.untracked_category_count.positive?
+      count = workspace.untracked_category_count
+      parts << "#{count} #{'quantity'.pluralize(count)} not tracked"
     end
     posture = []
     posture << "#{workspace.carried_count} carried from active terms" if workspace.carried_count.positive?

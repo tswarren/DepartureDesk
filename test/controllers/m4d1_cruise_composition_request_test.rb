@@ -690,6 +690,8 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
       edit_departure_arrangement_cruise_cabin_category_path(
         @departure, arrangement, oceanview.supplier_resource_id
       )
+    assert_match "2 categories · 8 tracked cabins · 1 quantity not tracked", response.body
+    assert_select "#cruise-cabin-table th", text: "Opening authority"
     assert_match "Quantity not tracked", response.body
     assert_select "a", text: /Not entered|Estimated|Contracted/
 

@@ -6,8 +6,8 @@
 class CompileCruiseCabinInventoryWorkspace
   AttentionItem = Data.define(:code, :message, :resource_id)
   Result = Data.define(
-    :advanced?, :category_count, :numeric_total, :quantity_meaning,
-    :carried_count, :proposed_count, :successor, :rows, :attention_items
+    :advanced?, :category_count, :tracked_cabin_count, :untracked_category_count,
+    :quantity_meaning, :carried_count, :proposed_count, :successor, :rows, :attention_items
   )
 
   def initialize(agency:, arrangement:, shape:, rows: nil, readiness: nil)
@@ -36,8 +36,8 @@ class CompileCruiseCabinInventoryWorkspace
     else
       0
     end
-    total = numeric_total(rows)
-    meaning = if total.nil?
+    tracked = tracked_cabin_count(rows)
+    meaning = if tracked.nil?
       nil
     elsif version&.activated?
       :active_capacity
@@ -48,7 +48,8 @@ class CompileCruiseCabinInventoryWorkspace
     Result.new(
       advanced?: false,
       category_count: rows.size,
-      numeric_total: total,
+      tracked_cabin_count: tracked,
+      untracked_category_count: untracked_category_count(rows),
       quantity_meaning: meaning,
       carried_count: carried_count,
       proposed_count: proposed_count,
@@ -64,7 +65,8 @@ class CompileCruiseCabinInventoryWorkspace
     Result.new(
       advanced?: advanced,
       category_count: 0,
-      numeric_total: nil,
+      tracked_cabin_count: nil,
+      untracked_category_count: 0,
       quantity_meaning: nil,
       carried_count: 0,
       proposed_count: 0,
@@ -74,7 +76,7 @@ class CompileCruiseCabinInventoryWorkspace
     )
   end
 
-  def numeric_total(rows)
+  def tracked_cabin_count(rows)
     return nil if rows.any?(&:carried)
 
     numeric = rows.select { |row| tracked_quantity?(row) }
@@ -82,6 +84,10 @@ class CompileCruiseCabinInventoryWorkspace
     return nil if numeric.any? { |row| row.quantity.nil? }
 
     numeric.sum { |row| row.quantity.to_i }
+  end
+
+  def untracked_category_count(rows)
+    rows.count { |row| row.quantity_label == "Quantity not tracked" }
   end
 
   def tracked_quantity?(row)
