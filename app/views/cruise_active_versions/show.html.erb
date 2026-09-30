@@ -3,24 +3,18 @@
 <% agreement = @summary.sections.find { |section| section.key == "agreement" } %>
 <% content_for :title, "Active version · #{ship_name} · DepartureDesk" %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Cruise setup</p>
-    <h1 class="dd-page-title">Active version</h1>
-    <%= render "cruise_arrangements/version_context", version: @supplier_arrangement_version %>
-  </div>
-  <div class="dd-page-actions">
-    <%= link_to(@draft_version ? "Back to Draft Version #{@draft_version.version_number}" : "Back to Cruise overview",
-          departure_arrangement_cruise_path(@departure, @supplier_arrangement),
-          class: "dd-button dd-button--quiet") %>
-  </div>
-</header>
+<%= render "cruise_setup/shell", page_title: "Active version", version: @supplier_arrangement_version %>
 
 <article class="dd-stack" id="cruise-active-snapshot">
   <% if @draft_version %>
     <section class="dd-panel">
       <div class="dd-panel-body">
-        <p>Draft Version <%= @draft_version.version_number %> is in progress. These active terms stay in effect.</p>
+        <p>
+          Draft Version <%= @draft_version.version_number %> is in progress. These active terms stay in effect.
+          <%= link_to "Back to Draft Version #{@draft_version.version_number}",
+                departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+                class: "dd-link" %>
+        </p>
       </div>
     </section>
   <% end %>

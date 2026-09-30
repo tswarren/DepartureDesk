@@ -79,8 +79,9 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
     assert_response :success
     assert_match "Changes Active Version #{@version.version_number}", response.body
-    assert_no_match "projection_lock_version", response.body
-    assert_no_match "arrangement_lock_version", response.body
+    increase_form = css_select("#cruise-same-terms-increase").inner_html
+    assert_no_match "projection_lock_version", increase_form
+    assert_no_match "arrangement_lock_version", increase_form
 
     assert_no_difference "SupplierArrangementCruiseCapacityDepositRequirement.count" do
       post same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
@@ -132,7 +133,7 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     pool_definition = successor.capacity_pool_definitions.find_by!(supplier_resource_id: supplemental.supplier_resource_id)
 
     assert_match "Draft · Version #{successor.version_number}", response.body
-    assert_match "Proposed changes. Version #{@version.version_number} remains active.", response.body
+    assert_match "Proposed changes to Active Version #{@version.version_number}", response.body
     assert_nil pool_definition.evidence_kind
     assert_nil pool_definition.evidence_on
     assert_nil pool_definition.evidence_reference_note
@@ -158,14 +159,15 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     get departure_arrangement_cruise_active_version_path(@departure, @arrangement),
       params: { version_id: successor.id }
     assert_response :success
-    assert_match "Active · Version #{@version.version_number}", response.body
-    assert_match "These Supplier terms are in effect.", response.body
+    assert_select ".dd-cruise-version-badge", text: "Active"
+    assert_select "#cruise-setup-nav"
+    assert_select "#cruise-active-snapshot a[href=?]",
+      departure_arrangement_cruise_agreement_path(@departure, @arrangement), count: 0
     assert_match "Draft Version #{successor.version_number} is in progress", response.body
     assert_no_match "Supplemental O1 block", response.body
-    assert_select "a", text: "Review activation", count: 0
+    assert_select "a", text: "Review & activate"
     assert_select "a", text: "Open deposits and deadlines", count: 0
     assert_select "a", text: "Edit", count: 0
-    assert_select "a[href=?]", departure_arrangement_cruise_agreement_path(@departure, @arrangement), count: 0
     assert_select "a", text: "Change active inventory under existing terms", count: 1
   end
 

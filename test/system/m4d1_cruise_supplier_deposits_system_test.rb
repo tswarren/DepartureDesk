@@ -279,8 +279,7 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
   private
 
   def visit_deposits_workspace
-    visit departure_arrangement_cruise_path(@departure, @arrangement)
-    click_on "Open deposits and deadlines"
+    visit departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_selector "#cruise-deposits-and-deadlines"
   end
 

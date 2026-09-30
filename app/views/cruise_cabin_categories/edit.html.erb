@@ -5,14 +5,7 @@
 <% numeric_inventory = @pool.numeric_inventory? %>
 <% can_manage_override = Current.agency_user.permitted?(:override_supplier_planning_terms) %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Cruise setup</p>
-    <h1 class="dd-page-title">Edit cabin category</h1>
-    <%= render "cruise_arrangements/version_context", version: @supplier_arrangement_version %>
-    <p class="dd-page-description"><%= @supplier_arrangement.name %></p>
-  </div>
-</header>
+<%= render "cruise_setup/shell", current: :cabins, page_title: "Edit cabin category" %>
 
 <article class="dd-panel">
   <div class="dd-panel-body">

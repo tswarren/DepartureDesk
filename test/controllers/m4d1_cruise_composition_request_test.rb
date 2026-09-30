@@ -421,7 +421,223 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_operator queries.size, :<, 40, "expected bounded suppliers queries, got #{queries.size}"
   end
 
+  test "shared navigation keeps viewer destinations on pages that role can open" do
+    arrangement = create_cruise_sailing.record.arrangement
+    version = arrangement.versions.sole
+    cabin = create_cabin_via_http_helper(arrangement, version)
+    resource = cabin.record.resource
+    sign_in_as agency_users(:harbor_viewer)
+
+    get departure_arrangement_cruise_path(@departure, arrangement)
+    assert_response :success
+    assert_nav_labels
+    assert_select "a#cruise-step-sailing[href=?]",
+      departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-sailing")
+    assert_select "a#cruise-step-cabins[href=?]",
+      departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-cabins")
+    assert_select "a#cruise-step-rates[href=?]",
+      departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-rates")
+    assert_select "a#cruise-step-agreement[href=?]",
+      departure_arrangement_cruise_agreement_path(@departure, arrangement)
+    assert_select "a#cruise-step-review[href=?]",
+      departure_arrangement_cruise_activation_path(@departure, arrangement)
+    assert_select "a[href=?]",
+      edit_departure_arrangement_cruise_sailing_path(@departure, arrangement), count: 0
+    assert_select "a[href=?]",
+      edit_departure_arrangement_cruise_cabin_category_path(@departure, arrangement, resource), count: 0
+    assert_select "a[href=?]",
+      departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, arrangement, resource), count: 0
+    assert_select "a", text: "Edit", count: 0
+    assert_select "a", text: "Add Supplier rates", count: 0
+    assert_select "a", text: "Add cabin categories", count: 0
+    assert_select "#cruise-review-activate"
+    assert_select "button", text: "Create successor draft", count: 0
+
+    get departure_arrangement_cruise_agreement_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-setup-nav"
+    get departure_arrangement_cruise_activation_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-setup-nav"
+    get edit_departure_arrangement_cruise_sailing_path(@departure, arrangement)
+    assert_response :redirect
+    get departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, arrangement, resource)
+    assert_response :redirect
+  end
+
+  test "staff overview links editors and keeps cabin and rate navigation on the summary cards" do
+    sign_in_as @staff
+    arrangement = create_cruise_sailing.record.arrangement
+    version = arrangement.versions.sole
+    cabin = create_cabin_via_http_helper(arrangement, version)
+    resource = cabin.record.resource
+
+    get departure_arrangement_cruise_path(@departure, arrangement)
+    assert_response :success
+    assert_nav_labels
+    assert_select ".dd-cruise-version-badge", text: "Draft"
+    assert_select ".dd-cruise-version-badge", text: /Version/, count: 0
+    assert_select "a#cruise-step-sailing[href=?]",
+      edit_departure_arrangement_cruise_sailing_path(@departure, arrangement)
+    assert_select "a#cruise-step-cabins[href=?]",
+      departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-cabins")
+    assert_select "a#cruise-step-rates[href=?]",
+      departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-rates")
+    assert_select "#cruise-step-agreement .dd-journey-step__status", text: "Not started"
+    assert_select "#cruise-attention", text: /Confirm the Cruise supplier agreement/, count: 0
+    assert_select "#cruise-review-activate[href=?]",
+      departure_arrangement_cruise_activation_path(@departure, arrangement)
+    assert_select "#cruise-cabins a", text: "Edit"
+    assert_select "#cruise-rates a", text: "Add Supplier rates"
+    assert_select "a", text: "Add cabin categories"
+    assert_select "#cruise-client"
+    assert_select "#cruise-recommended-next", count: 0
+    assert_select "#cruise-maintenance", count: 0
+    assert_select "#cruise-activation", count: 0
+    assert_select "#cruise-requirements", count: 0
+    assert_select "summary", text: "More actions"
+    assert_select "button", text: "Create successor draft", count: 0
+
+    get edit_departure_arrangement_cruise_sailing_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-setup-nav"
+    assert_select "#cruise-step-sailing[aria-current=page]"
+    assert_select "form[action=?]", departure_arrangement_cruise_sailing_path(@departure, arrangement)
+    assert_select "a", text: "Back to Cruise"
+
+    get new_departure_arrangement_cruise_cabin_category_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-step-cabins[aria-current=page]"
+    assert_select "form[action=?]", departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
+
+    get departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, arrangement, resource)
+    assert_response :success
+    assert_select "#cruise-step-rates[aria-current=page]"
+    assert_select "form[action=?]",
+      departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, arrangement, resource)
+
+    get departure_arrangement_cruise_agreement_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-step-agreement[aria-current=page]"
+    assert_select "a", text: "Open deposits and deadlines"
+
+    get departure_arrangement_cruise_activation_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-step-review[aria-current=page]"
+    assert_select "a[href=?]", departure_arrangement_cruise_agreement_path(@departure, arrangement)
+  end
+
+  test "version headings distinguish a draft, the active terms, and a successor" do
+    sign_in_as @staff
+    arrangement, version, = activate_cruise_with_cabin!
+
+    get departure_arrangement_cruise_path(@departure, arrangement)
+    assert_response :success
+    assert_select ".dd-cruise-version-badge", text: "Active"
+    assert_select "#cruise-step-review .dd-journey-step__status", text: "Active"
+    assert_select "button", text: "Create successor draft"
+
+    get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-setup-nav"
+    assert_select "form[action=?]", same_terms_departure_arrangement_cruise_inventory_change_path(@departure, arrangement)
+
+    get changed_terms_departure_arrangement_cruise_inventory_change_path(@departure, arrangement)
+    assert_response :success
+    assert_select "form[action=?]", changed_terms_departure_arrangement_cruise_inventory_change_path(@departure, arrangement)
+
+    post successor_departure_arrangement_cruise_path(@departure, arrangement), params: {
+      arrangement_lock_version: arrangement.reload.lock_version,
+      version_lock_version: version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    }
+    follow_redirect!
+    assert_select ".dd-cruise-version-badge", text: "Draft · Version 2"
+    assert_match "Proposed changes to Active Version 1", response.body
+    assert_select "a", text: "View active version"
+    assert_select "#cruise-step-review .dd-journey-step__status", text: "Active", count: 0
+    assert_select "button", text: "Create successor draft", count: 0
+
+    get departure_arrangement_cruise_active_version_path(@departure, arrangement)
+    assert_response :success
+    assert_select ".dd-cruise-version-badge", text: "Active"
+    assert_select "#cruise-setup-nav"
+    assert_select "a", text: "Change active inventory under existing terms"
+  end
+
+  test "attention lists an unconfirmed agreement and incomplete opening together" do
+    sign_in_as @staff
+    arrangement = create_cruise_sailing.record.arrangement
+    version = arrangement.versions.sole
+    CreateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement,
+      resource_attributes: { name: "Prime Oceanview", supplier_code: "O1", maximum_occupancy: 3 },
+      pool_attributes: { inventory_mode: "block", proposed_opening_quantity: 8 },
+      version_lock_version: version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    RecordCruiseSupplierAgreement.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement,
+      intent: "save_provisional",
+      version_lock_version: version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      group_creation_date: "2026-09-13"
+    ).call
+
+    get departure_arrangement_cruise_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-attention", text: /Confirm the Cruise supplier agreement/
+    assert_select "#cruise-attention", text: /opening cabin quantity|opening evidence/
+    assert_select "#cruise-step-agreement .dd-journey-step__status", text: "Needs attention"
+  end
+
+  test "a ready estimate stays off the attention list while activation stays reachable" do
+    sign_in_as @staff
+    arrangement = create_cruise_sailing.record.arrangement
+    version = arrangement.versions.sole
+    cabin = create_cabin_via_http_helper(arrangement, version)
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement,
+      resource: cabin.record.resource,
+      terms: {
+        first_second_fare: "1624.00",
+        additional_fare: "406.00",
+        single_supplement: "1624.00",
+        nccf: "320.00",
+        first_second_discount: "150.00",
+        additional_discount: "37.50",
+        taxes_fees: "137.00"
+      },
+      commission: { method: "not_provided" },
+      stage: "estimate",
+      version_lock_version: version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    get departure_arrangement_cruise_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-step-rates .dd-journey-step__status", text: "Needs attention"
+    assert_select "#cruise-attention", text: /needs ready contracted Supplier rates/, count: 0
+    assert_select "#cruise-step-agreement .dd-journey-step__status", text: "Not started"
+    assert_select "#cruise-review-activate[href=?]",
+      departure_arrangement_cruise_activation_path(@departure, arrangement)
+  end
+
   private
+
+  def assert_nav_labels
+    assert_select "#cruise-setup-nav .dd-journey-step__title", text: "Sailing"
+    assert_select "#cruise-setup-nav .dd-journey-step__title", text: "Cabin inventory"
+    assert_select "#cruise-setup-nav .dd-journey-step__title", text: "Supplier rates"
+    assert_select "#cruise-setup-nav .dd-journey-step__title", text: "Agreement"
+    assert_select "#cruise-setup-nav .dd-journey-step__title", text: "Review & activate"
+  end
 
   def cabin_row(code, name, key)
     {

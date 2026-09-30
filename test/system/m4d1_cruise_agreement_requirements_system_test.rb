@@ -179,12 +179,12 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
     click_on "Save step"
     assert_text "120 days before departure"
     assert_text "90 days before departure"
-    within "ol" do
+    within "ol.dd-agreement-ladder" do
       assert_link "Edit"
       assert_button "Remove"
     end
 
-    within "ol" do
+    within "ol.dd-agreement-ladder" do
       first(:link, "Edit").click
     end
     fill_in "Policy wording", with: "Deposit stays non-refundable."
@@ -193,7 +193,7 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
     assert_text "Additional penalties apply."
 
     accept_confirm do
-      within("ol") { first(:button, "Remove").click }
+      within("ol.dd-agreement-ladder") { first(:button, "Remove").click }
     end
     assert_no_text "Deposit stays non-refundable."
     assert_text "Additional penalties apply."

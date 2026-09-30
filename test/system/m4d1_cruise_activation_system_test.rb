@@ -63,7 +63,7 @@ class M4d1CruiseActivationSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     resize_window(1280)
     visit departure_arrangement_cruise_path(@departure, @arrangement)
-    click_on "Review activation"
+    click_on "Review & activate"
     assert_text "does not have an opening cabin quantity"
     assert_no_button "Activate Cruise supplier arrangement"
     assert_no_page_overflow

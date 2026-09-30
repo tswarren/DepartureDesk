@@ -1,0 +1,75 @@
+<% presented = cruise_setup_presented_version(local_assigns[:version]) %>
+<% navigation = cruise_setup_navigation(version: presented) %>
+<% badge = cruise_setup_version_badge(presented) %>
+<% successor_note = cruise_setup_successor_note(presented) %>
+<% subtitle = cruise_setup_subtitle(presented) %>
+<% current_key = local_assigns[:current].to_s %>
+<% overview = local_assigns[:overview] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Cruise setup</p>
+    <div class="dd-cruise-title-row">
+      <h1 class="dd-page-title"><%= cruise_setup_title(local_assigns[:page_title]) %></h1>
+      <% if badge.present? %>
+        <p class="dd-cruise-version-badge"><%= badge %></p>
+      <% end %>
+    </div>
+    <% if successor_note.present? %>
+      <p class="dd-page-description"><%= successor_note %></p>
+      <p>
+        <%= link_to "View active version",
+              departure_arrangement_cruise_active_version_path(@departure, @supplier_arrangement),
+              class: "dd-link" %>
+      </p>
+    <% end %>
+    <% if subtitle.any? %>
+      <p class="dd-page-description"><%= subtitle.join(" · ") %></p>
+    <% end %>
+  </div>
+  <div class="dd-page-actions">
+    <%= link_to "Review & activate",
+          departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement),
+          class: "dd-button",
+          id: "cruise-review-activate" %>
+    <details class="dd-disclosure">
+      <summary>More actions</summary>
+      <div class="dd-disclosure-body dd-stack">
+        <%= link_to "Advanced Supplier planning",
+              departure_arrangement_path(@departure, @supplier_arrangement),
+              class: "dd-link" %>
+        <% if cruise_setup_successor_allowed?(presented) %>
+          <%= button_to "Create successor draft",
+                successor_departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+                method: :post,
+                class: "dd-button dd-button--quiet",
+                params: {
+                  arrangement_lock_version: @supplier_arrangement.lock_version,
+                  version_lock_version: presented.lock_version,
+                  idempotency_key: SecureRandom.uuid
+                } %>
+        <% end %>
+      </div>
+    </details>
+    <% if overview %>
+      <%= link_to "Return to Suppliers", suppliers_departure_composition_path(@departure), class: "dd-button dd-button--quiet" %>
+    <% else %>
+      <%= link_to "Back to Cruise", departure_arrangement_cruise_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+    <% end %>
+  </div>
+</header>
+
+<nav aria-label="Cruise setup" id="cruise-setup-nav">
+  <ol class="dd-journey-strip">
+    <% navigation.areas.each do |area| %>
+      <li>
+        <% link_options = { class: "dd-journey-step", id: "cruise-step-#{area.key}" } %>
+        <% link_options[:aria] = { current: "page" } if area.key.to_s == current_key %>
+        <%= link_to cruise_setup_area_path(area, presented), link_options do %>
+          <span class="dd-journey-step__title"><%= area.label %></span>
+          <span class="dd-journey-step__status"><%= area.status %></span>
+        <% end %>
+      </li>
+    <% end %>
+  </ol>
+</nav>

@@ -746,6 +746,29 @@
     gap: 1rem;
   }
 
+  .dd-cruise-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.75rem;
+    min-width: 0;
+  }
+
+  .dd-cruise-title-row .dd-page-title {
+    min-width: 0;
+  }
+
+  .dd-cruise-version-badge {
+    margin: 0;
+    color: var(--dd-text-muted);
+    font-weight: 700;
+  }
+
+  #cruise-setup-nav {
+    margin-bottom: 1.5rem;
+    min-width: 0;
+  }
+
   .dd-journey-strip {
     display: grid;
     gap: 0.5rem;

@@ -45,10 +45,12 @@ class CompileCruiseActivationReview
     :unsupported_reasons
   )
 
-  def initialize(agency:, arrangement:, version: nil)
+  def initialize(agency:, arrangement:, version: nil, presentation: true, readiness: nil)
     @agency = agency
     @arrangement = arrangement
     @requested_version = version
+    @presentation = presentation
+    @supplied_readiness = readiness
   end
 
   def call
@@ -60,7 +62,7 @@ class CompileCruiseActivationReview
     version = shape.version
     return incompatible_result(shape) if version.nil?
 
-    readiness = SupplierArrangementActivationReadiness.new(
+    readiness = supplied_readiness_for(version) || SupplierArrangementActivationReadiness.new(
       agency: @agency,
       arrangement: @arrangement,
       version: version
@@ -79,7 +81,12 @@ class CompileCruiseActivationReview
       unsupported << "A confirmation trigger cannot be represented on this Cruise review."
     end
 
-    consequences = consequences_for(version, unsupported)
+    consequences = if @presentation
+      consequences_for(version, unsupported)
+    else
+      flag_unexplained_pools(version, unsupported)
+      []
+    end
     blockers = blocker_rows_for(readiness, version)
     estimate_selected = readiness.cost_selections.any? { |_source, definition| definition.estimate? }
 
@@ -94,14 +101,14 @@ class CompileCruiseActivationReview
       cost_sources_completely_represented?: cost_rows.all?(&:represented?),
       triggers_completely_represented?: triggers.all?(&:represented?),
       blockers: blockers,
-      cabins: cabin_rows_for(version, shape),
+      cabins: @presentation ? cabin_rows_for(version, shape) : [],
       cost_rows: cost_rows,
       triggers: triggers,
-      requirements: requirement_rows_for(version),
+      requirements: @presentation ? requirement_rows_for(version) : [],
       consequences: consequences,
-      elapsed: elapsed_rows_for(version),
-      sailing: sailing_facts(shape, version),
-      agreement: agreement_facts(version),
+      elapsed: @presentation ? elapsed_rows_for(version) : [],
+      sailing: @presentation ? sailing_facts(shape, version) : {},
+      agreement: @presentation ? agreement_facts(version) : {},
       unsupported_reasons: unsupported.uniq
     )
   end
@@ -306,15 +313,30 @@ class CompileCruiseActivationReview
     end
   end
 
+  def supplied_readiness_for(version)
+    readiness = @supplied_readiness
+    return nil if readiness.nil? || readiness.version&.id != version&.id
+
+    readiness
+  end
+
+  def flag_unexplained_pools(version, unsupported)
+    version.capacity_pool_definitions.includes(:capacity_pool).each do |definition|
+      next if definition.capacity_pool
+
+      unsupported << "A cabin pool cannot be explained on this Cruise review."
+    end
+  end
+
   def consequences_for(version, unsupported)
     sentences = []
+    flag_unexplained_pools(version, unsupported)
     version.capacity_pool_definitions.includes(:capacity_pool, :supplier_resource).order(:position, :id).each do |definition|
       pool = definition.capacity_pool
+      next if pool.nil?
+
       label = cabin_label(resource_definition_for(version, definition.supplier_resource_id))
-      if pool.nil?
-        unsupported << "A cabin pool cannot be explained on this Cruise review."
-        next
-      elsif !pool.numeric_inventory?
+      if !pool.numeric_inventory?
         sentences << "#{label} stays #{inventory_label(pool).downcase}. Quantity is not tracked."
       elsif pool.capacity_events.exists?
         sentences << "#{label} capacity will be carried."

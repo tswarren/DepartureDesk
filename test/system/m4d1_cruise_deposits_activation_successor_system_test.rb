@@ -154,6 +154,7 @@ class M4d1CruiseDepositsActivationSuccessorSystemTest < ApplicationSystemTestCas
     sign_in_from_browser(@staff)
     visit_deposits_workspace
     click_on "Create successor draft"
+    assert_text "Successor draft"
     visit_deposits_workspace
 
     assert_text "Proposed successor terms"
@@ -178,8 +179,7 @@ class M4d1CruiseDepositsActivationSuccessorSystemTest < ApplicationSystemTestCas
   private
 
   def visit_deposits_workspace
-    visit departure_arrangement_cruise_path(@departure, @arrangement)
-    click_on "Open deposits and deadlines"
+    visit departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_selector "#cruise-deposits-and-deadlines"
   end
 

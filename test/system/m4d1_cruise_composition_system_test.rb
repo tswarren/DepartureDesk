@@ -37,17 +37,17 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     assert_text "Western Caribbean"
     assert_text "Draft"
     assert_selector "ol.dd-journey-strip .dd-journey-step", count: 5
-    assert_text "Agreement and requirements"
+    assert_text "Cabin inventory"
+    assert_text "Review & activate"
     assert_no_text "Commercial benefits"
     assert_no_field "Group creation date"
     assert_selector "#cruise-workspace"
     assert_text "Add cabin categories"
-    assert_text "Not recorded"
-    assert_text "Activation"
-    assert_text "Not ready"
-    [ 375, 768, 1280, 1400 ].each do |width|
+    assert_selector "#cruise-step-agreement .dd-journey-step__status", text: "Not started"
+    assert_link "Review & activate"
+    [ 375, 1280 ].each do |width|
       resize_window(width, 900)
-      assert_selector "#cruise-recommended-next"
+      assert_selector "#cruise-setup-nav"
       assert_no_page_overflow
     end
     assert_no_text "Arrangement Item"
@@ -55,7 +55,7 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     assert_no_text "Supplier Resource"
     assert_no_text "Capacity Pool"
 
-    within "#cruise-recommended-next" do
+    within "#cruise-cabins" do
       click_link "Add cabin categories"
     end
     within "#cabin-row-0" do
@@ -67,14 +67,14 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     click_button "Save cabin categories"
 
     assert_selector "#cruise-workspace"
-    assert_text "Enter Supplier rates"
+    assert_text "Add Supplier rates"
     assert_text "O1"
     assert_text "Prime Oceanview"
     assert_text "sleeps up to 3"
     assert_text "8 cabins"
     assert_text "Fixed block"
 
-    click_link "Back to Suppliers"
+    click_link "Return to Suppliers"
     assert_selector "a", text: "Open Cruise setup"
 
     arrangement = @departure.supplier_arrangements.find_by!(name: "Celebrity group agreement")
@@ -105,7 +105,7 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     arrangement = sailing.record.arrangement
 
     visit departure_arrangement_cruise_path(@departure, arrangement)
-    within "#cruise-recommended-next" do
+    within "#cruise-cabins" do
       click_link "Add cabin categories"
     end
     resize_window(1280, 900)

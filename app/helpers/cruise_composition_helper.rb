@@ -192,4 +192,171 @@ module CruiseCompositionHelper
     modifier = CruiseDepositsAndDeadlinesLanguage.status_badge_modifier(status_label)
     tag.span(status_label, class: "dd-badge dd-badge--#{modifier}")
   end
+
+  def cruise_setup_navigation(version: nil)
+    presented = cruise_setup_presented_version(version)
+    @cruise_setup_navigations ||= {}
+    @cruise_setup_navigations[presented&.id] ||= CompileCruiseSetupNavigation.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      shape: cruise_setup_shape_for(presented),
+      summary: cruise_setup_summary_for(presented)
+    ).call
+  end
+
+  def cruise_setup_presented_version(version)
+    return version if version
+    return @supplier_arrangement_version if @supplier_arrangement_version
+    return @cruise_shape.version if @cruise_shape&.version
+    return @shape.version if @shape&.version
+
+    cruise_setup_detected_shape.version
+  end
+
+  def cruise_setup_version_badge(version)
+    return if version.nil?
+    return "Draft · Version #{version.version_number}" if version.draft? && version.copied_from_id.present?
+    return "Draft" if version.draft?
+    return "Active" if version.activated?
+
+    nil
+  end
+
+  def cruise_setup_successor_note(version)
+    return unless version&.draft? && version.copied_from_id.present?
+
+    active_number = version.copied_from&.version_number
+    "Proposed changes to Active Version #{active_number}"
+  end
+
+  def cruise_setup_title(page_title)
+    return page_title if page_title.present?
+
+    shape = cruise_setup_shape_for(cruise_setup_presented_version(nil))
+    if shape.compatible?
+      shape.summary["ship_name"].presence || @supplier_arrangement.name
+    else
+      @supplier_arrangement.name
+    end
+  end
+
+  def cruise_setup_subtitle(version)
+    shape = cruise_setup_shape_for(version)
+    contractor = @supplier_arrangement.contracting_supplier
+    return [ @departure.name, contractor ? supplier_option_label(contractor) : "Supplier not set" ] unless shape.compatible?
+
+    parts = []
+    if contractor
+      name = contractor.display_name_for_directory
+      name = "#{name} (Inactive)" if contractor.inactive?
+      parts << name
+      parts << contractor.supplier_reference
+    end
+    duration = cruise_setup_duration(shape.occurrence_definition)
+    parts << duration if duration
+    date_range = cruise_sailing_date_range(shape.occurrence_definition)
+    parts << date_range if date_range
+    parts << shape.summary["sailing_name"].presence
+    parts.compact
+  end
+
+  def cruise_setup_duration(occurrence)
+    return if occurrence.nil? || occurrence.starts_on.blank? || occurrence.ends_on.blank?
+
+    days = (occurrence.ends_on - occurrence.starts_on).to_i
+    return if days <= 0
+
+    "#{days} #{"day".pluralize(days)}"
+  end
+
+  def cruise_setup_successor_allowed?(version)
+    return false unless Current.agency_user.permitted?(:manage_departures)
+    return false unless @departure.active? && @supplier_arrangement.active?
+    return false unless version&.activated?
+
+    @supplier_arrangement.versions.none?(&:draft?)
+  end
+
+  def cruise_setup_area_path(area, version)
+    case area.key
+    when :sailing
+      if version&.draft? && Current.agency_user.permitted?(:manage_departures)
+        edit_departure_arrangement_cruise_sailing_path(@departure, @supplier_arrangement)
+      else
+        departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-sailing")
+      end
+    when :cabins
+      departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins")
+    when :rates
+      departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates")
+    when :agreement
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
+    when :review
+      departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement)
+    end
+  end
+
+  def cruise_setup_attention_path(item, version)
+    case item.destination
+    when :cabin_editor
+      if item.resource_id.present? && version&.draft? && Current.agency_user.permitted?(:manage_departures)
+        edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, item.resource_id)
+      else
+        departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins")
+      end
+    when :cabin_card
+      departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins")
+    when :supplier_rates
+      if item.resource_id.present? && Current.agency_user.permitted?(:manage_departures)
+        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, item.resource_id)
+      else
+        departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates")
+      end
+    when :advanced_costs
+      item_record = cruise_setup_shape_for(version).item
+      if item_record && Current.agency_user.permitted?(:manage_departures)
+        departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, item_record)
+      else
+        departure_arrangement_path(@departure, @supplier_arrangement)
+      end
+    when :agreement
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
+    when :activation
+      departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement)
+    when :advanced_planning
+      departure_arrangement_path(@departure, @supplier_arrangement)
+    end
+  end
+
+  def cruise_setup_shape_for(version)
+    @cruise_setup_shapes ||= {}
+    @cruise_setup_shapes[version&.id] ||= begin
+      existing = @shape || @cruise_shape
+      if existing&.version&.id == version&.id
+        existing
+      elsif version.nil? && existing
+        existing
+      else
+        DetectCruiseArrangementShape.new(
+          agency: Current.agency,
+          arrangement: @supplier_arrangement,
+          version: version
+        ).call
+      end
+    end
+  end
+
+  def cruise_setup_summary_for(version)
+    shape = cruise_setup_shape_for(version)
+    return @summary if @summary && @shape&.version&.id == shape.version&.id
+
+    nil
+  end
+
+  def cruise_setup_detected_shape
+    @shape || @cruise_shape || DetectCruiseArrangementShape.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement
+    ).call
+  end
 end

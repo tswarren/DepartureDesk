@@ -14,7 +14,7 @@ class CompileCruiseCompositionSummary
   Activation = Data.define(:ready, :status_label, :detail, :blockers)
   Result = Data.define(
     :sections, :recommended_next_action, :cabin_rows, :requirement_rows, :term_rows, :activation,
-    :maintenance_steps
+    :maintenance_steps, :activation_readiness
   )
   MAINTENANCE_CODES = %i[
     opening_authority_incomplete
@@ -83,8 +83,39 @@ class CompileCruiseCompositionSummary
       requirement_rows: @requirement_rows,
       term_rows: @term_rows,
       activation: @activation,
-      maintenance_steps: maintenance_steps(version)
+      maintenance_steps: maintenance_steps(version),
+      activation_readiness: readiness
     )
+  end
+
+  # Rate posture for Cruise setup navigation. Skips card quantities and removal checks.
+  def navigation_cabin_rows
+    version = @shape.version
+    return [] if version.nil?
+
+    version.supplier_resource_definitions.includes(:supplier_resource).order(:position, :id).map do |definition|
+      shape = DetectCruiseSupplierRateShape.new(
+        agency: @agency,
+        arrangement: @arrangement,
+        resource: definition.supplier_resource,
+        version: version
+      ).call
+      posture, advanced = rate_posture(shape)
+      CabinRow.new(
+        resource_id: definition.supplier_resource_id,
+        code: definition.supplier_code.presence,
+        name: definition.name,
+        occupancy_label: nil,
+        inventory_label: nil,
+        quantity_label: nil,
+        quantity: nil,
+        opening_quantity_label: nil,
+        carried: false,
+        rate_posture: posture,
+        advanced_rates: advanced,
+        removable: false
+      )
+    end
   end
 
   def self.presentation_blocker(blockers, resource_definitions: [])

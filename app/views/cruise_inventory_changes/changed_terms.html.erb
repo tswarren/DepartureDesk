@@ -1,15 +1,9 @@
 <% content_for :title, "Changed terms · #{@supplier_arrangement.name} · DepartureDesk" %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Cruise setup</p>
-    <h1 class="dd-page-title">Add a supplemental block</h1>
-    <%= render "cruise_arrangements/version_context", version: @governing_version %>
-  </div>
-  <div class="dd-page-actions">
-    <%= link_to "Back to Change inventory", departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
-  </div>
-</header>
+<%= render "cruise_setup/shell", current: :cabins, page_title: "Add a supplemental block", version: @governing_version %>
+<p>
+  <%= link_to "Back to Change inventory", departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement), class: "dd-link" %>
+</p>
 
 <% if @command_error.present? %>
   <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1">

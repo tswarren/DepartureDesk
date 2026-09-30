@@ -1,6 +1,6 @@
 # UX-7 — Cruise Supplier Workspace Consolidation
 
-**Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is the authorized slice. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.  
+**Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is the next authorized slice. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.  
 **Parent:** [Cruise Composition UX](m4d1-cruise-composition-ux.md).  
 **Implementation baseline:** `fe01ed2b1b395e047d3c27ed466c6e5c444e340d`  
 **Depends on:** Cruise rework behavior, and UX-1 through UX-6 behavior at that baseline.  
@@ -490,7 +490,7 @@ Review & activate: blocked GET hides the form; corrective links match shipped wo
 
 ### UX-7.1 — Shell and Overview
 
-Shared header, Cruise setup navigation, version context, status labels mapped from the UX-7.0 fact list, derived attention, four Overview summaries, Client-offering handoff. Existing corrective destinations stay until the owning slice ships. Do not add placeholder workspace routes.
+Implemented. Shared header, Cruise setup navigation, version context, status labels mapped from the UX-7.0 fact list, derived attention, four Overview summaries, Client-offering handoff. Existing corrective destinations stay until the owning slice ships. Do not add placeholder workspace routes.
 
 ### UX-7.2 — Cabin inventory
 

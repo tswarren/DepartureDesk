@@ -4,13 +4,7 @@
 <% occurrence = (@occurrence_attributes || {}).with_indifferent_access %>
 <% contractor = @supplier_arrangement.contracting_supplier %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Cruise setup</p>
-    <h1 class="dd-page-title">Edit sailing</h1>
-    <p class="dd-page-description"><%= @supplier_arrangement.name %></p>
-  </div>
-</header>
+<%= render "cruise_setup/shell", current: :sailing, page_title: "Edit sailing" %>
 
 <article class="dd-panel">
   <div class="dd-panel-body">

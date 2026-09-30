@@ -50,17 +50,11 @@
   }
 %>
 
+<%= render "cruise_setup/shell", current: :rates, page_title: "Supplier rates", version: @resource_definition.supplier_arrangement_version %>
+
 <article class="dd-panel dd-cruise-rate-editor" id="cruise-supplier-rates">
   <div class="dd-panel-body dd-stack">
-    <p>
-      <%= link_to "Back to Cruise workspace",
-            departure_arrangement_cruise_path(@departure, @supplier_arrangement),
-            class: "dd-link" %>
-    </p>
-
     <header class="dd-stack">
-      <h1 class="dd-page-title">Supplier rates</h1>
-      <%= render "cruise_arrangements/version_context", version: @resource_definition.supplier_arrangement_version %>
       <p>
         <%= @resource_definition.supplier_code.presence || @resource_definition.name %>
         · Maximum occupancy <%= @resource_definition.maximum_occupancy.presence || "not set" %>
