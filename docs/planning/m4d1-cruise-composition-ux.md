@@ -1,6 +1,6 @@
 # Cruise Composition UX
 
-**Status:** Accepted 2026-09-28. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. UX-4, record requirements, and UX-4.5, numeric capacity evaluation, are accepted. UX-5, review and activate, is implemented. UX-6, maintain active and proposed Cruise supply, is implemented at `fe01ed2`. [UX-7](m4d1-cruise-composition-ux7.md), Cruise Supplier workspace consolidation, is Accepted 2026-09-29. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is the next authorized slice. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
+**Status:** Accepted 2026-09-28. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. UX-4, record requirements, and UX-4.5, numeric capacity evaluation, are accepted. UX-5, review and activate, is implemented. UX-6, maintain active and proposed Cruise supply, is implemented at `fe01ed2`. [UX-7](m4d1-cruise-composition-ux7.md), Cruise Supplier workspace consolidation, is Accepted 2026-09-29. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is the next authorized slice. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md). Domain authority remains the accepted [Cruise rework](m4d1-cruise-rework.md). This plan changes presentation and orchestration only.
 
@@ -102,7 +102,7 @@ The UX-5 draft in `docs/planning/drafts/cruise-remediation-ux/` is exploration. 
 
 ## Later slices
 
-UX-6, maintain active and proposed Cruise supply, is implemented at `fe01ed2`. [UX-7](m4d1-cruise-composition-ux7.md), Cruise Supplier workspace consolidation, is Accepted 2026-09-29. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is the next authorized slice.
+UX-6, maintain active and proposed Cruise supply, is implemented at `fe01ed2`. [UX-7](m4d1-cruise-composition-ux7.md), Cruise Supplier workspace consolidation, is Accepted 2026-09-29. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is the next authorized slice.
 
 ### UX-6 — Maintain
 
@@ -116,7 +116,7 @@ The UX-6 draft in `docs/planning/drafts/cruise-remediation-ux/` is exploration. 
 
 ### UX-7 — Cruise Supplier workspace consolidation
 
-Accepted 2026-09-29 in [UX-7](m4d1-cruise-composition-ux7.md). UX-7.0, the authority and baseline gate, is satisfied by that acceptance. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is the next authorized slice. The implementation baseline is `fe01ed2b1b395e047d3c27ed466c6e5c444e340d`.
+Accepted 2026-09-29 in [UX-7](m4d1-cruise-composition-ux7.md). UX-7.0, the authority and baseline gate, is satisfied by that acceptance. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is the next authorized slice. The implementation baseline is `fe01ed2b1b395e047d3c27ed466c6e5c444e340d`.
 
 UX-7 consolidates Cruise Supplier setup into an Overview hub and five workspaces: Sailing, Cabin inventory, Supplier rates, Agreement, and Review & activate. It reorganizes presentation. It does not change inventory, rate, agreement, readiness, activation, or authorization, and it does not add a workflow record, agreement-document storage, or a Marketing Fund benefit. Interface-contract reconciliation, responsive and accessibility proof, and removal of superseded presentation are UX-7.7.
 

@@ -88,6 +88,14 @@ class CompileCruiseCompositionSummary
     )
   end
 
+  # Full cabin rows shared with Cabin inventory. Includes quantity, opening, carried, and rate posture.
+  def cabin_inventory_rows
+    version = @shape.version
+    return [] if version.nil?
+
+    cabin_rows(version)
+  end
+
   # Rate posture for Cruise setup navigation. Skips card quantities and removal checks.
   def navigation_cabin_rows
     version = @shape.version

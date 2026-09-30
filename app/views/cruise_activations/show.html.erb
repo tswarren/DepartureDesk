@@ -127,7 +127,7 @@
               <% case blocker.destination %>
               <% when :cabin_categories %>
                 <%= link_to "Review cabin categories",
-                      blocker.resource_id.present? ? edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, blocker.resource_id) : departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins") %>
+                      cruise_cabin_corrective_path(blocker.resource_id, @supplier_arrangement_version) %>
               <% when :supplier_rates %>
                 <%= link_to "Review Supplier rates",
                       blocker.resource_id.present? ? departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, blocker.resource_id) : departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates") %>

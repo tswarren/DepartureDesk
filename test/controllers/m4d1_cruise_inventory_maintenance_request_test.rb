@@ -185,7 +185,7 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     assert_equal 12, @pool.reload.capacity_projection.current_supplier_capacity
     assert_equal 8, carried.reload.proposed_opening_quantity
     follow_redirect!
-    assert_match "Carried from active terms", response.body
+    assert_match "carried from active terms", response.body
   end
 
   test "only numeric governing pools are eligible for a same-terms increase" do

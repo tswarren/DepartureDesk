@@ -8,9 +8,19 @@ class CruiseCabinCategoriesController < ApplicationController
   before_action :set_departure
   before_action :set_supplier_arrangement
   before_action :require_compatible_cruise_shape!
-  before_action :require_editable_draft!
+  before_action :require_editable_draft!, except: :index
   before_action :set_cabin_category, only: %i[edit update]
   before_action :set_removable_category, only: :destroy
+
+  def index
+    @workspace = CompileCruiseCabinInventoryWorkspace.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      shape: @shape
+    ).call
+    @editable = @supplier_arrangement_version&.draft?
+    @can_change_inventory = @supplier_arrangement.governing_version&.activated?
+  end
 
   def new
     @cabin_rows = Array.new(3) { SaveCruiseCabinCategoryBatch.blank_row }
@@ -27,7 +37,7 @@ class CruiseCabinCategoriesController < ApplicationController
     ).call
 
     if result.saved?
-      redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+      redirect_to departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
         notice: cabin_save_notice(result.saved_count)
     else
       @cabin_rows = result.unresolved_rows
@@ -75,7 +85,7 @@ class CruiseCabinCategoriesController < ApplicationController
       idempotency_key: @idempotency_key
     ).call
 
-    redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+    redirect_to departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
       notice: "Cabin category updated."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
@@ -94,12 +104,12 @@ class CruiseCabinCategoriesController < ApplicationController
       version_lock_version: params.require(:version_lock_version)
     ).call
 
-    redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+    redirect_to departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
       notice: "Cabin category removed."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+    redirect_to departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
       alert: error.message
   end
 
@@ -141,6 +151,10 @@ class CruiseCabinCategoriesController < ApplicationController
     )
     @pool_definition = @supplier_arrangement_version.capacity_pool_definitions.find_by!(
       capacity_pool: @pool
+    )
+    @removable = RemoveCruiseCabinCategory.possible?(
+      version: @supplier_arrangement_version,
+      resource: @supplier_resource
     )
   end
 

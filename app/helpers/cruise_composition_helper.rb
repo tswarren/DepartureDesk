@@ -286,7 +286,7 @@ module CruiseCompositionHelper
         departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-sailing")
       end
     when :cabins
-      departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins")
+      departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement)
     when :rates
       departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates")
     when :agreement
@@ -299,13 +299,9 @@ module CruiseCompositionHelper
   def cruise_setup_attention_path(item, version)
     case item.destination
     when :cabin_editor
-      if item.resource_id.present? && version&.draft? && Current.agency_user.permitted?(:manage_departures)
-        edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, item.resource_id)
-      else
-        departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins")
-      end
+      cruise_cabin_corrective_path(item.resource_id, version)
     when :cabin_card
-      departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins")
+      cruise_cabin_corrective_path(nil, version)
     when :supplier_rates
       if item.resource_id.present? && Current.agency_user.permitted?(:manage_departures)
         departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, item.resource_id)
@@ -351,6 +347,64 @@ module CruiseCompositionHelper
     return @summary if @summary && @shape&.version&.id == shape.version&.id
 
     nil
+  end
+
+  def cruise_setup_area_available?(area)
+    return Current.agency_user.permitted?(:manage_departures) if area.key == :cabins
+
+    true
+  end
+
+  def cruise_cabin_corrective_path(resource_id, version)
+    if Current.agency_user.permitted?(:manage_departures)
+      if resource_id.present? && version&.draft?
+        edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, resource_id)
+      else
+        departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement)
+      end
+    else
+      departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins")
+    end
+  end
+
+  def cruise_cabin_inventory_workspace(summary = nil)
+    CompileCruiseCabinInventoryWorkspace.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      shape: @shape || @cruise_shape,
+      rows: summary&.cabin_rows,
+      readiness: summary&.activation_readiness
+    ).call
+  end
+
+  def cruise_cabin_inventory_summary(workspace)
+    return "No cabin categories yet." if workspace.category_count.zero?
+
+    parts = [ "#{workspace.category_count} #{'category'.pluralize(workspace.category_count)}" ]
+    if workspace.numeric_total
+      parts << "#{workspace.numeric_total} #{'cabin'.pluralize(workspace.numeric_total)}"
+    end
+    posture = []
+    posture << "#{workspace.carried_count} carried from active terms" if workspace.carried_count.positive?
+    posture << "#{workspace.proposed_count} proposed" if workspace.proposed_count.positive?
+    parts << posture.join(" · ") if posture.any?
+    parts.join(" · ")
+  end
+
+  def cruise_cabin_inventory_quantity(row, workspace)
+    if workspace.successor && !row.carried && row.quantity.present?
+      "Proposed · #{row.quantity_label}"
+    else
+      row.quantity_label
+    end
+  end
+
+  def cruise_cabin_evidence_status(row, workspace)
+    if workspace.attention_items.any? { |item| item.resource_id == row.resource_id }
+      "Needs attention"
+    else
+      "Complete"
+    end
   end
 
   def cruise_setup_detected_shape

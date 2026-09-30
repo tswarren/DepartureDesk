@@ -4,11 +4,18 @@
 <% override_selected = ActiveModel::Type::Boolean.new.cast(pool_attrs[:override]) %>
 <% numeric_inventory = @pool.numeric_inventory? %>
 <% can_manage_override = Current.agency_user.permitted?(:override_supplier_planning_terms) %>
+<% category_label = [ resource[:supplier_code].presence, resource[:name].presence ].compact.join(" · ") %>
 
-<%= render "cruise_setup/shell", current: :cabins, page_title: "Edit cabin category" %>
+<%= render "cruise_setup/shell", current: :cabins, page_title: category_label.presence || "Cabin category" %>
+<p>
+  <%= link_to "Cabin inventory",
+        departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
+        class: "dd-link" %>
+  / <%= category_label %>
+</p>
 
 <article class="dd-panel">
-  <div class="dd-panel-body">
+  <div class="dd-panel-body dd-stack">
     <%= form_with url: departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, @supplier_resource),
       method: :patch,
       class: "dd-form dd-stack",
@@ -25,58 +32,38 @@
         </div>
       <% end %>
 
-      <dl class="dd-definition-list">
-        <div>
-          <dt>Inventory treatment</dt>
-          <dd><%= cruise_inventory_mode_label(@pool.inventory_mode) %></dd>
-        </div>
-        <div>
-          <dt>Measurement basis</dt>
-          <dd><%= capacity_measurement_basis_label(@pool.measurement_basis) %></dd>
-        </div>
-        <div>
-          <dt>Effective time zone</dt>
-          <dd><%= @pool.effective_time_zone %></dd>
-        </div>
-        <div>
-          <dt>Supplying Supplier</dt>
-          <dd><%= supplier_option_label(@pool.supplying_supplier) %></dd>
-        </div>
-      </dl>
-      <p class="dd-field-hint">
-        To change inventory treatment, measurement, time zone, or supplying Supplier, use advanced Supplier planning to remove and recreate the category.
-      </p>
-
-      <div class="dd-field-group">
-        <label class="dd-label" for="resource_supplier_code">Supplier category code</label>
-        <input id="resource_supplier_code" name="resource[supplier_code]" class="dd-field" maxlength="80"
-          value="<%= resource[:supplier_code] %>">
-      </div>
-
-      <div class="dd-field-group">
-        <label class="dd-label" for="resource_name">Category name</label>
-        <input id="resource_name" name="resource[name]" class="dd-field" required maxlength="160"
-          value="<%= resource[:name] %>">
-      </div>
-
-      <div class="dd-field-group">
-        <label class="dd-label" for="resource_maximum_occupancy">Maximum occupancy</label>
-        <input id="resource_maximum_occupancy" name="resource[maximum_occupancy]" type="number" min="1" step="1" class="dd-field"
-          value="<%= resource[:maximum_occupancy] %>">
-      </div>
-
-      <% if numeric_inventory %>
+      <fieldset class="dd-field-group">
+        <legend class="dd-label">Supplier category</legend>
         <div class="dd-field-group">
-          <label class="dd-label" for="pool_proposed_opening_quantity">Cabin quantity</label>
-          <input id="pool_proposed_opening_quantity" name="pool[proposed_opening_quantity]" type="number" min="1" step="1" class="dd-field"
-            value="<%= pool_attrs[:proposed_opening_quantity] %>">
+          <label class="dd-label" for="resource_supplier_code">Supplier code</label>
+          <input id="resource_supplier_code" name="resource[supplier_code]" class="dd-field" maxlength="80"
+            value="<%= resource[:supplier_code] %>">
         </div>
-      <% end %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="resource_name">Cabin category name</label>
+          <input id="resource_name" name="resource[name]" class="dd-field" required maxlength="160"
+            value="<%= resource[:name] %>">
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="resource_maximum_occupancy">Maximum occupancy</label>
+          <input id="resource_maximum_occupancy" name="resource[maximum_occupancy]" type="number" min="1" step="1" class="dd-field"
+            value="<%= resource[:maximum_occupancy] %>">
+        </div>
+      </fieldset>
 
-      <div class="dd-field-group">
-        <label class="dd-label" for="pool_notes">Notes</label>
-        <textarea id="pool_notes" name="pool[notes]" class="dd-field" maxlength="2000"><%= pool_attrs[:notes] %></textarea>
-      </div>
+      <fieldset class="dd-field-group">
+        <legend class="dd-label">Inventory</legend>
+        <p>Inventory treatment: <%= cruise_inventory_mode_label(@pool.inventory_mode) %></p>
+        <% if numeric_inventory %>
+          <div class="dd-field-group">
+            <label class="dd-label" for="pool_proposed_opening_quantity">Proposed opening quantity</label>
+            <input id="pool_proposed_opening_quantity" name="pool[proposed_opening_quantity]" type="number" min="1" step="1" class="dd-field"
+              value="<%= pool_attrs[:proposed_opening_quantity] %>">
+          </div>
+        <% else %>
+          <p>Quantity not tracked</p>
+        <% end %>
+      </fieldset>
 
       <% if override_selected && !can_manage_override %>
         <div class="dd-field-group" role="status">
@@ -132,10 +119,56 @@
         <% end %>
       <% end %>
 
+      <fieldset class="dd-field-group">
+        <legend class="dd-label">Notes</legend>
+        <div class="dd-field-group">
+          <label class="dd-label" for="pool_notes">Notes</label>
+          <textarea id="pool_notes" name="pool[notes]" class="dd-field" maxlength="2000"><%= pool_attrs[:notes] %></textarea>
+        </div>
+      </fieldset>
+
+      <section class="dd-stack" aria-labelledby="inventory-details-heading">
+        <h2 id="inventory-details-heading" class="dd-section-title">Inventory details</h2>
+        <dl class="dd-definition-list">
+          <div>
+            <dt>Measurement basis</dt>
+            <dd><%= capacity_measurement_basis_label(@pool.measurement_basis) %></dd>
+          </div>
+          <div>
+            <dt>Effective time zone</dt>
+            <dd><%= @pool.effective_time_zone %></dd>
+          </div>
+          <div>
+            <dt>Supplying Supplier</dt>
+            <dd><%= supplier_option_label(@pool.supplying_supplier) %></dd>
+          </div>
+        </dl>
+        <p class="dd-field-hint">
+          To change inventory treatment, measurement, time zone, or supplying Supplier, use advanced Supplier planning to remove and recreate the category.
+        </p>
+        <%= link_to "Advanced Supplier planning",
+              departure_arrangement_path(@departure, @supplier_arrangement),
+              class: "dd-link" %>
+      </section>
+
       <div class="dd-form-actions">
         <%= submit_tag "Save category", class: "dd-button" %>
-        <%= link_to "Cancel", departure_arrangement_cruise_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel",
+              departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
+              class: "dd-button dd-button--quiet" %>
       </div>
+    <% end %>
+
+    <% if @removable %>
+      <section class="dd-stack" aria-labelledby="remove-cabin-heading">
+        <h2 id="remove-cabin-heading" class="dd-section-title">Remove cabin category</h2>
+        <%= button_to "Remove cabin category",
+              departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, @supplier_resource),
+              method: :delete,
+              class: "dd-button dd-button--danger",
+              form: { data: { turbo_confirm: "Remove this cabin category from the draft?" } },
+              params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
+      </section>
     <% end %>
   </div>
 </article>

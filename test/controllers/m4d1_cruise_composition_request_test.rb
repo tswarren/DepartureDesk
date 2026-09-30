@@ -39,7 +39,8 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-workspace"
     assert_match "Celebrity Beyond", response.body
     assert_match "Western Caribbean", response.body
-    assert_select "a", text: "Add cabin categories"
+    assert_select "a", text: "Open Cabin inventory"
+    assert_select "a", text: "Add cabin categories", count: 0
     assert_select "ol.dd-journey-strip .dd-journey-step", count: 5
     assert_no_match(/name="group_creation_date"/, response.body)
     assert_no_match("Commercial benefits", response.body)
@@ -65,7 +66,7 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
       ]
     }
 
-    assert_redirected_to departure_arrangement_cruise_path(@departure, arrangement)
+    assert_redirected_to departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
     follow_redirect!
     assert_response :success
     assert_match "O1", response.body
@@ -73,6 +74,7 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_match "sleeps up to 3", response.body
     assert_match "8 cabins", response.body
     assert_match "Fixed block", response.body
+    assert_equal 0, ServiceOffer.where(departure: @departure).count
   end
 
   test "a failed cabin row keeps earlier categories and retries without duplicating them" do
@@ -110,10 +112,10 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
       rows: [ rows[1], rows[2] ]
     }
 
-    assert_redirected_to departure_arrangement_cruise_path(@departure, arrangement)
+    assert_redirected_to departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
     assert_equal [ "E3", "O1", "DI" ], cabin_codes(arrangement)
     follow_redirect!
-    assert_match "3 · 24 cabins", response.body
+    assert_match "3 categories · 24 cabins", response.body
   end
 
   test "repeated supplier codes save when the cabin names differ" do
@@ -129,13 +131,17 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
       ]
     }
 
-    assert_redirected_to departure_arrangement_cruise_path(@departure, arrangement)
+    assert_redirected_to departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
     assert_equal [ "O1", "O1" ], cabin_codes(arrangement)
     names = arrangement.versions.find_by!(status: "draft").supplier_resource_definitions.order(:position, :id).pluck(:name)
     assert_equal [ "Prime Oceanview", "Supplemental O1 block" ], names
+    follow_redirect!
+    assert_select "#cruise-cabin-table tbody tr", count: 2
+    assert_match "Prime Oceanview", response.body
+    assert_match "Supplemental O1 block", response.body
   end
 
-  test "draft cabin summary offers remove beside edit" do
+  test "focused cabin page removes a category and returns to cabin inventory" do
     sign_in_as @staff
     arrangement = create_cruise_sailing.record.arrangement
     version = arrangement.versions.sole
@@ -143,14 +149,20 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_cruise_path(@departure, arrangement)
     assert_response :success
-    item = css_select("li").find { |node| node.text.include?("Prime Oceanview") }
-    assert_match "Edit", item.text
-    assert_select item, "button", text: "Remove"
+    assert_select "#cruise-cabins a", text: "Edit", count: 0
+    assert_select "#cruise-cabins button", text: "Remove", count: 0
+    assert_select "#cruise-cabins a", text: "Add cabin categories", count: 0
+    assert_select "#cruise-cabins a", text: "Change inventory", count: 0
+
+    get edit_departure_arrangement_cruise_cabin_category_path(@departure, arrangement, cabin.record.resource)
+    assert_response :success
+    assert_select "button", text: "Remove cabin category"
+    assert_select "a", text: "Cabin inventory"
 
     delete departure_arrangement_cruise_cabin_category_path(@departure, arrangement, cabin.record.resource),
       params: { version_lock_version: version.reload.lock_version }
 
-    assert_redirected_to departure_arrangement_cruise_path(@departure, arrangement)
+    assert_redirected_to departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
     assert_empty arrangement.supplier_resources.reload
     follow_redirect!
     assert_match "Cabin category removed.", response.body
@@ -248,9 +260,14 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "#cruise-workspace"
     assert_select "a", text: "Edit sailing"
-    assert_select "a", text: "Edit"
+    assert_select "a", text: "Open Cabin inventory"
+    assert_match "carried from active terms", response.body
+
+    get departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
+    assert_response :success
     assert_match "O1", response.body
     assert_match "sleeps up to 3", response.body
+    assert_match "Carried from active terms", response.body
 
     draft = arrangement.versions.find_by!(status: "draft")
     copied = draft.supplier_resource_definitions.find_by!(
@@ -309,7 +326,7 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
       }
     }
 
-    assert_redirected_to departure_arrangement_cruise_path(@departure, arrangement)
+    assert_redirected_to departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
     pool_definition.reload
     resource_definition.reload
     assert_predicate pool_definition, :override?
@@ -430,11 +447,12 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_cruise_path(@departure, arrangement)
     assert_response :success
-    assert_nav_labels
+    assert_nav_labels(except: [ "Cabin inventory" ])
     assert_select "a#cruise-step-sailing[href=?]",
       departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-sailing")
-    assert_select "a#cruise-step-cabins[href=?]",
-      departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-cabins")
+    assert_select "a#cruise-step-cabins", count: 0
+    assert_select "a", text: "Open Cabin inventory", count: 0
+    assert_match "1 category · 8 cabins", response.body
     assert_select "a#cruise-step-rates[href=?]",
       departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-rates")
     assert_select "a#cruise-step-agreement[href=?]",
@@ -461,6 +479,8 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-setup-nav"
     get edit_departure_arrangement_cruise_sailing_path(@departure, arrangement)
     assert_response :redirect
+    get departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
+    assert_response :redirect
     get departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, arrangement, resource)
     assert_response :redirect
   end
@@ -480,16 +500,18 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_select "a#cruise-step-sailing[href=?]",
       edit_departure_arrangement_cruise_sailing_path(@departure, arrangement)
     assert_select "a#cruise-step-cabins[href=?]",
-      departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-cabins")
+      departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
     assert_select "a#cruise-step-rates[href=?]",
       departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-rates")
     assert_select "#cruise-step-agreement .dd-journey-step__status", text: "Not started"
     assert_select "#cruise-attention", text: /Confirm the Cruise supplier agreement/, count: 0
     assert_select "#cruise-review-activate[href=?]",
       departure_arrangement_cruise_activation_path(@departure, arrangement)
-    assert_select "#cruise-cabins a", text: "Edit"
+    assert_select "#cruise-cabins a", text: "Open Cabin inventory"
+    assert_select "#cruise-cabins a", text: "Edit", count: 0
+    assert_select "#cruise-cabins a", text: "Add cabin categories", count: 0
+    assert_select "#cruise-cabins a", text: "Change inventory", count: 0
     assert_select "#cruise-rates a", text: "Add Supplier rates"
-    assert_select "a", text: "Add cabin categories"
     assert_select "#cruise-client"
     assert_select "#cruise-recommended-next", count: 0
     assert_select "#cruise-maintenance", count: 0
@@ -629,14 +651,99 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
       departure_arrangement_cruise_activation_path(@departure, arrangement)
   end
 
+  test "cabin inventory landing shows attention, nonnumeric quantity, active capacity, and a successor split" do
+    sign_in_as @staff
+    arrangement = create_cruise_sailing.record.arrangement
+
+    get departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-step-cabins .dd-journey-step__status", text: "Not started"
+    assert_match "No cabin categories yet.", response.body
+    assert_select "a", text: "Add cabin categories"
+    assert_select "a", text: "Change inventory", count: 0
+
+    version = arrangement.versions.sole
+    CreateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement,
+      resource_attributes: { name: "Prime Oceanview", supplier_code: "O1", maximum_occupancy: 3 },
+      pool_attributes: { inventory_mode: "block", proposed_opening_quantity: 8 },
+      version_lock_version: version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    CreateCruiseCabinCategorySetup.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement,
+      resource_attributes: { name: "Concierge", supplier_code: "C1", maximum_occupancy: 2 },
+      pool_attributes: { inventory_mode: "on_request" },
+      version_lock_version: version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    get departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
+    assert_response :success
+    assert_select "#cruise-step-cabins .dd-journey-step__status", text: "Needs attention"
+    oceanview = arrangement.versions.sole.supplier_resource_definitions.find_by!(supplier_code: "O1")
+    assert_select "#cruise-cabin-attention a[href=?]",
+      edit_departure_arrangement_cruise_cabin_category_path(
+        @departure, arrangement, oceanview.supplier_resource_id
+      )
+    assert_match "Quantity not tracked", response.body
+    assert_select "a", text: /Not entered|Estimated|Contracted/
+
+    active_arrangement, active_version, = activate_cruise_with_cabin!
+    get departure_arrangement_cruise_cabin_categories_path(@departure, active_arrangement)
+    assert_response :success
+    assert_match "Current active capacity: 8 cabins", response.body
+    assert_match "Original opening quantity: 8 cabins", response.body
+    assert_select "a", text: "Prime Oceanview", count: 0
+    assert_select "a", text: "Change inventory"
+    assert_select "a[href=?]",
+      same_terms_departure_arrangement_cruise_inventory_change_path(@departure, active_arrangement), count: 0
+
+    get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, active_arrangement)
+    assert_match "Changes Active Version #{active_version.version_number}", response.body
+
+    resource = active_arrangement.supplier_resources.sole
+    assert_no_difference "ServiceOffer.count" do
+      CreateCruiseSupplementalBlock.new(
+        agency: @agency,
+        actor: @staff,
+        arrangement: active_arrangement,
+        arrangement_lock_version: active_arrangement.reload.lock_version,
+        version_lock_version: active_arrangement.governing_version.lock_version,
+        idempotency_key: SecureRandom.uuid,
+        maximum_occupancy: 3,
+        opening_quantity: 4,
+        supplier_resource_id: resource.id
+      ).call
+    end
+
+    get departure_arrangement_cruise_cabin_categories_path(@departure, active_arrangement)
+    assert_response :success
+    assert_match "Carried from active terms", response.body
+    assert_match "Proposed · 4 cabins", response.body
+    assert_match "Supplemental O1 block", response.body
+    assert_no_match(/1[0-9] cabins/, response.body)
+
+    get departure_arrangement_cruise_active_version_path(@departure, active_arrangement)
+    assert_select "a", text: "Change active inventory under existing terms", count: 1
+    assert_select "a", text: "Yes — terms changed", count: 0
+    assert_select "a", text: "Changed terms", count: 0
+  end
+
   private
 
-  def assert_nav_labels
-    assert_select "#cruise-setup-nav .dd-journey-step__title", text: "Sailing"
-    assert_select "#cruise-setup-nav .dd-journey-step__title", text: "Cabin inventory"
-    assert_select "#cruise-setup-nav .dd-journey-step__title", text: "Supplier rates"
-    assert_select "#cruise-setup-nav .dd-journey-step__title", text: "Agreement"
-    assert_select "#cruise-setup-nav .dd-journey-step__title", text: "Review & activate"
+  def assert_nav_labels(except: [])
+    [ "Sailing", "Cabin inventory", "Supplier rates", "Agreement", "Review & activate" ].each do |label|
+      if except.include?(label)
+        assert_select "#cruise-setup-nav .dd-journey-step__title", text: label, count: 0
+      else
+        assert_select "#cruise-setup-nav .dd-journey-step__title", text: label
+      end
+    end
   end
 
   def cabin_row(code, name, key)

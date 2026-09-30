@@ -124,6 +124,7 @@ class M4d1CruiseInventoryMaintenanceSystemTest < ApplicationSystemTestCase
     assert_text "Current active capacity is 12 cabins."
     assert_text "Increase deposit $200.00."
     assert_text "Original opening quantity remains 8."
+    click_link "Open Cabin inventory"
     assert_text "Current active capacity: 12 cabins"
     assert_text "Original opening quantity: 8 cabins"
     assert_equal 8, @version.capacity_pool_definitions.find_by!(capacity_pool: @pool).proposed_opening_quantity

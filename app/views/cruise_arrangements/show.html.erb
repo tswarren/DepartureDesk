@@ -5,7 +5,7 @@
 <% if @shape.compatible? %>
   <% summary = @summary %>
   <% agreement = summary.sections.find { |section| section.key == "agreement" } %>
-  <% cabins = summary.sections.find { |section| section.key == "cabins" } %>
+  <% cabin_workspace = cruise_cabin_inventory_workspace(summary) %>
   <% navigation = cruise_setup_navigation %>
   <article class="dd-stack" id="cruise-workspace">
     <% if navigation.attention_items.any? %>
@@ -52,44 +52,13 @@
       <section id="cruise-cabins" class="dd-panel" aria-labelledby="cruise-cabins-heading">
         <div class="dd-panel-body dd-stack">
           <h2 id="cruise-cabins-heading" class="dd-section-title">Cabin inventory</h2>
-          <p><%= cabins.detail %></p>
-          <% if summary.cabin_rows.any? %>
-            <ul class="dd-stack">
-              <% summary.cabin_rows.each do |row| %>
-                <li>
-                  <strong><%= [ row.code, row.name ].compact_blank.join(" · ") %></strong>
-                  <% if row.occupancy_label.present? %>
-                    · <%= row.occupancy_label %>
-                  <% end %>
-                  · <%= row.inventory_label %>
-                  · <%= row.quantity_label %>
-                  <% if row.opening_quantity_label.present? %>
-                    · <%= row.opening_quantity_label %>
-                  <% end %>
-                  <% if @editable && row.inventory_label != "Inventory not configured" %>
-                    · <%= link_to "Edit", edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, row.resource_id), class: "dd-link" %>
-                  <% end %>
-                  <% if @editable && row.removable %>
-                    · <%= button_to "Remove",
-                          departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, row.resource_id),
-                          method: :delete,
-                          class: "dd-row-action dd-row-action--text",
-                          form: {
-                            class: "dd-inline-form dd-inline-form--text",
-                            data: { turbo_confirm: "Remove this cabin category from the draft?" }
-                          },
-                          params: { version_lock_version: @supplier_arrangement_version.lock_version } %>
-                  <% end %>
-                </li>
-              <% end %>
-            </ul>
+          <p><%= cruise_cabin_inventory_summary(cabin_workspace) %></p>
+          <% if cabin_workspace.attention_items.any? %>
+            <p>Needs attention</p>
           <% end %>
-          <% if @editable %>
-            <%= link_to "Add cabin categories", new_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
-          <% end %>
-          <% if @can_manage && @supplier_arrangement.governing_version&.activated? %>
-            <%= link_to "Change inventory",
-                  departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+          <% if @can_manage && !cabin_workspace.advanced? %>
+            <%= link_to "Open Cabin inventory",
+                  departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
                   class: "dd-button dd-button--quiet" %>
           <% end %>
         </div>

@@ -62,6 +62,7 @@
 <nav aria-label="Cruise setup" id="cruise-setup-nav">
   <ol class="dd-journey-strip">
     <% navigation.areas.each do |area| %>
+      <% next unless cruise_setup_area_available?(area) %>
       <li>
         <% link_options = { class: "dd-journey-step", id: "cruise-step-#{area.key}" } %>
         <% link_options[:aria] = { current: "page" } if area.key.to_s == current_key %>

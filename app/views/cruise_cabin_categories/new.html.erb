@@ -1,6 +1,11 @@
 <% content_for :title, "Cabin categories · #{@supplier_arrangement.name} · DepartureDesk" %>
 
-<%= render "cruise_setup/shell", current: :cabins, page_title: "Cabin categories" %>
+<%= render "cruise_setup/shell", current: :cabins, page_title: "Add cabin categories" %>
+<p>
+  <%= link_to "Cabin inventory",
+        departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
+        class: "dd-link" %>
+</p>
 <p class="dd-page-description">Enter the cabin categories the Supplier is holding for this group.</p>
 
 <article class="dd-panel">
@@ -45,7 +50,9 @@
       <div class="dd-form-actions">
         <button type="button" class="dd-button dd-button--quiet" data-action="cabin-category-batch#add">Add category</button>
         <%= submit_tag "Save cabin categories", name: "commit", class: "dd-button" %>
-        <%= link_to "Cancel", departure_arrangement_cruise_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+        <%= link_to "Cancel",
+              departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
+              class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>
   </div>

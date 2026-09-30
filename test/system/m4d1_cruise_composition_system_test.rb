@@ -42,7 +42,8 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     assert_no_text "Commercial benefits"
     assert_no_field "Group creation date"
     assert_selector "#cruise-workspace"
-    assert_text "Add cabin categories"
+    assert_text "Open Cabin inventory"
+    assert_no_text "Add cabin categories"
     assert_selector "#cruise-step-agreement .dd-journey-step__status", text: "Not started"
     assert_link "Review & activate"
     [ 375, 1280 ].each do |width|
@@ -56,8 +57,9 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     assert_no_text "Capacity Pool"
 
     within "#cruise-cabins" do
-      click_link "Add cabin categories"
+      click_link "Open Cabin inventory"
     end
+    click_link "Add cabin categories"
     within "#cabin-row-0" do
       fill_in "Code", with: "O1"
       fill_in "Cabin category", with: "Prime Oceanview"
@@ -66,13 +68,14 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     end
     click_button "Save cabin categories"
 
-    assert_selector "#cruise-workspace"
-    assert_text "Add Supplier rates"
     assert_text "O1"
     assert_text "Prime Oceanview"
     assert_text "sleeps up to 3"
     assert_text "8 cabins"
     assert_text "Fixed block"
+    click_link "Back to Cruise"
+    assert_selector "#cruise-workspace"
+    assert_text "Add Supplier rates"
 
     click_link "Return to Suppliers"
     assert_selector "a", text: "Open Cruise setup"
@@ -106,8 +109,9 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
 
     visit departure_arrangement_cruise_path(@departure, arrangement)
     within "#cruise-cabins" do
-      click_link "Add cabin categories"
+      click_link "Open Cabin inventory"
     end
+    click_link "Add cabin categories"
     resize_window(1280, 900)
     assert_selector "table.dd-cabin-table thead", count: 1, visible: :visible
     assert_selector "table.dd-cabin-table tbody tr", count: 3
@@ -130,10 +134,14 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     click_button "Save cabin categories"
 
     assert_text "3 cabin categories saved."
-    assert_text "3 · 24 cabins"
+    assert_text "3 categories · 24 cabins"
     assert_text "E3"
     assert_text "O1"
     assert_text "DI"
+    [ 1280, 375 ].each do |width|
+      resize_window(width, 900)
+      assert_no_page_overflow
+    end
   end
 
   test "staff removes a draft cabin from the summary when removal can finish" do
@@ -187,24 +195,21 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
 
     visit departure_arrangement_cruise_path(@departure, arrangement)
     within "#cruise-cabins" do
-      within "li", text: "Prime Oceanview" do
-        assert_link "Edit"
-        assert_button "Remove"
-      end
-      within "li", text: "Deluxe Inside Stateroom" do
-        assert_link "Edit"
-        assert_no_button "Remove"
-      end
+      assert_no_link "Edit"
+      assert_no_button "Remove"
+      click_link "Open Cabin inventory"
     end
+    click_link "Deluxe Inside Stateroom"
+    assert_no_button "Remove cabin category"
+    find("#cruise-step-cabins").click
+    click_link "Prime Oceanview"
     [ 1280, 375 ].each do |width|
       resize_window(width, 900)
       assert_no_page_overflow
     end
 
-    within "#cruise-cabins li", text: "Prime Oceanview" do
-      accept_confirm "Remove this cabin category from the draft?" do
-        click_button "Remove"
-      end
+    accept_confirm "Remove this cabin category from the draft?" do
+      click_button "Remove cabin category"
     end
 
     assert_text "Cabin category removed."
