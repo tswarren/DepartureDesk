@@ -113,10 +113,7 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
       version_lock_version: lock_version, label: "Guest",
       idempotency_key: "hilton-guest"
     ).call.record
-    rates = {
-      standard => { base: 17_300, triple: 19_300, quad: 21_300 },
-      deluxe => { base: 22_300, triple: 24_300, quad: 26_300 }
-    }
+    rates = { standard => 17_300, deluxe => 22_300 }
     sources = openings.map do |(occurrence, resource), quantity|
       price_night!(item, occurrence, resource, guest, quantity, rates.fetch(resource))
     end
@@ -124,15 +121,19 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
     assumptions = @version.supplier_cost_usage_assumptions.where(arrangement_item: item)
     assert_equal [ 1 ], assumptions.map(&:expected_billable_nights).uniq
     assert_equal 0, @version.supplier_cost_components.where(economic_role: "expected_commission").count
-    doubles = @version.supplier_cost_components.where(occupancy_position_from: 1, occupancy_position_to: 2)
-    triples = @version.supplier_cost_components.where(occupancy_position_from: 3, occupancy_position_to: 3)
-    quads = @version.supplier_cost_components.where(occupancy_position_from: 4, occupancy_position_to: 4)
-    assert_equal [ 17_300, 17_300, 22_300, 22_300 ], doubles.order(:amount_minor_units).pluck(:amount_minor_units)
-    assert_equal [ 19_300, 19_300, 24_300, 24_300 ], triples.order(:amount_minor_units).pluck(:amount_minor_units)
-    assert_equal [ 21_300, 21_300, 26_300, 26_300 ], quads.order(:amount_minor_units).pluck(:amount_minor_units)
-    assert doubles.all?(&:occupancy_position_nights?)
-    assert triples.all?(&:occupancy_position_nights?)
-    assert quads.all?(&:occupancy_position_nights?)
+    bases = @version.supplier_cost_components.where(quantity_basis: "resource_nights")
+    increments = @version.supplier_cost_components.where(quantity_basis: "occupancy_position_nights")
+    assert_equal [ 17_300, 17_300, 22_300, 22_300 ], bases.order(:amount_minor_units).pluck(:amount_minor_units)
+    assert bases.all? { |component| component.occupancy_position_from.nil? && component.occupancy_position_to.nil? }
+    assert_equal [ 2_000 ] * 8, increments.order(:amount_minor_units).pluck(:amount_minor_units)
+    assert_equal [ 3, 3, 3, 3 ], increments.where(occupancy_position_from: 3, occupancy_position_to: 3).pluck(:occupancy_position_from)
+    assert_equal [ 4, 4, 4, 4 ], increments.where(occupancy_position_from: 4, occupancy_position_to: 4).pluck(:occupancy_position_from)
+    assert_empty @version.supplier_cost_components.where(amount_minor_units: [ 19_300, 21_300, 24_300, 26_300 ])
+
+    standard_night = source_for(sources, november_4, standard)
+    deluxe_night = source_for(sources, november_4, deluxe)
+    assert_equal [ 17_300, 17_300, 19_300, 21_300 ], (1..4).map { |count| room_occupancy_total(standard_night, count) }
+    assert_equal [ 22_300, 22_300, 24_300, 26_300 ], (1..4).map { |count| room_occupancy_total(deluxe_night, count) }
 
     forecast = evaluate
     assert_equal 415_600, forecast.totals.forecast_supplier_cost_minor_units
@@ -158,23 +159,11 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
     assert_equal "2027-10-03T17:00:00", deadline.rule_parameters["datetime"]
     assert_equal [ "datetime" ], deadline.rule_parameters.keys
 
-    confirmation = SupplierConfirmation.create!(
-      agency: @agency,
-      departure: @departure,
-      supplier_arrangement: @arrangement,
-      supplier_arrangement_version: @version,
-      confirming_supplier: @contractor,
-      actor: @admin,
-      evidence_kind: "supplier_confirmation",
-      evidence_on: Date.new(2026, 9, 28),
-      channel: "email",
-      reference_note: "Hilton confirmed the room block.",
-      confirmed_without_identifier_reason: "No hotel number was issued.",
-      recorded_at: Time.current
-    )
+    confirmation = confirm_supplier!(reference_note: "Hilton confirmed the room block.")
     assert_equal Date.new(2026, 9, 28), confirmation.evidence_on
     assert_equal "email", confirmation.channel
     assert_equal "No hotel number was issued.", confirmation.confirmed_without_identifier_reason
+    assert_equal 0, SupplierArrangementCruiseAgreementConfirmation.where(supplier_arrangement_id: confirmation.supplier_arrangement_id).count
     assert_equal 0, SupplierArrangementCruiseAgreementConfirmation.where(supplier_arrangement: @arrangement).count
     assert_not_includes SupplierConfirmation.column_names, "contract_date"
     assert_not_includes SupplierConfirmation.column_names, "group_reference"
@@ -244,24 +233,23 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
       assert_not_includes SupplierDeadlineDefinition.column_names, column
       assert_not_includes SupplierDepositRequirementDefinition.column_names, column
     end
-    assert_equal [ "datetime" ], deadline.rule_parameters.keys
+    probed_deadline = contrast_deadline
+    assert_equal [ "datetime" ], probed_deadline.rule_parameters.keys
+    assert_equal attrition_prose, probed_deadline.description
     assert_equal :string, SupplierDeadlineDefinition.columns_hash["description"].type
+    assert_equal [ "datetime" ], deadline.rule_parameters.keys
 
     %w[
       original_wording governing_clarification payer recipient refund_due_on
     ].each do |column|
       assert_not_includes SupplierConfirmation.column_names, column
     end
-    parsed = SupplierConfirmation.create!(
-      confirmation.attributes.except("id", "created_at", "updated_at").merge(
-        reference_note: refund_sentence,
-        recorded_at: Time.current
-      )
-    )
-    prose = confirmation.reload
-    assert_equal prose.attributes.except("id", "reference_note", "created_at", "updated_at", "recorded_at"),
-      parsed.attributes.except("id", "reference_note", "created_at", "updated_at", "recorded_at")
-    assert_not_equal refund_sentence, prose.reference_note
+    noted = confirm_supplier!(reference_note: refund_sentence)
+    assert_equal confirmation.evidence_on, noted.evidence_on
+    assert_equal confirmation.channel, noted.channel
+    assert_equal confirmation.confirmed_without_identifier_reason, noted.confirmed_without_identifier_reason
+    assert_equal "Hilton confirmed the room block.", confirmation.reference_note
+    assert_equal refund_sentence, noted.reference_note
     assert_equal :string, SupplierConfirmation.columns_hash["reference_note"].type
   end
 
@@ -271,6 +259,10 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
 
   def refund_sentence
     "Original wording: nonrefundable. Governing clarification: the Agency pays and the Agency receives any refund. Deadline November 20, 2027."
+  end
+
+  def attrition_prose
+    "Nightly minimums 7 and 15, 100% shortfall, and zero-utilization fallback of $173, $223, and 16.5%."
   end
 
   def typed_cost_state(source)
@@ -359,7 +351,7 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
     ).call.record
   end
 
-  def price_night!(item, occurrence, resource, guest, quantity, rates)
+  def price_night!(item, occurrence, resource, guest, quantity, base_minor_units)
     assumption = CreateSupplierCostUsageAssumption.new(
       agency: @agency, actor: @admin, arrangement_item: item,
       idempotency_key: SecureRandom.uuid,
@@ -372,7 +364,7 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
     CreateSupplierCostOccupancyProfile.new(
       agency: @agency, actor: @admin, assumption: assumption,
       assumption_lock_version: assumption.lock_version, idempotency_key: SecureRandom.uuid,
-      attributes: { label: "Double", resource_unit_count: quantity },
+      attributes: { label: "Contracted rooms", resource_unit_count: quantity },
       positions: [ { participant_category_id: guest.id } ]
     ).call
     source = CreateSupplierCostSource.new(
@@ -392,18 +384,20 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
       attributes: { stage: "contracted", mode: "calculated", currency: "USD", rounding_mode: "half_up" }
     ).call.record
     [
-      [ "Double", rates[:base], 1, 2 ],
-      [ "Triple", rates[:triple], 3, 3 ],
-      [ "Quad", rates[:quad], 4, 4 ]
-    ].each do |label, amount, from, to|
+      [ "Room night base", base_minor_units, "resource_nights", nil, nil ],
+      [ "Third occupant", 2_000, "occupancy_position_nights", 3, 3 ],
+      [ "Fourth occupant", 2_000, "occupancy_position_nights", 4, 4 ]
+    ].each do |label, amount, basis, from, to|
+      attributes = {
+        label: label, economic_role: "supplier_charge", calculation_kind: "unit_rate",
+        amount_minor_units: amount, quantity_basis: basis, pass_through: false
+      }
+      attributes[:occupancy_position_from] = from if from
+      attributes[:occupancy_position_to] = to if to
       CreateSupplierCostComponent.new(
         agency: @agency, actor: @admin, definition: definition.reload,
         definition_lock_version: definition.lock_version, idempotency_key: SecureRandom.uuid,
-        attributes: {
-          label: label, economic_role: "supplier_charge", calculation_kind: "unit_rate",
-          amount_minor_units: amount, quantity_basis: "occupancy_position_nights",
-          occupancy_position_from: from, occupancy_position_to: to, pass_through: false
-        }
+        attributes: attributes
       ).call
     end
     MarkCostDefinitionForecastReady.new(
@@ -441,16 +435,160 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
     end
   end
 
+  def source_for(sources, occurrence, resource)
+    sources.find do |source|
+      source.service_occurrence_id == occurrence.id && source.supplier_resource_id == resource.id
+    end
+  end
+
+  def room_occupancy_total(source, position_count)
+    profile = Struct.new(:id, :resource_unit_count).new("one-room-#{position_count}-#{source.id}", 1)
+    positions = Array.new(position_count) do |index|
+      EvaluateSupplierCostForecast::EphemeralPosition.new(
+        id: index + 1, occupancy_position: index + 1, participant_category_id: nil
+      )
+    end
+    usage = EvaluateSupplierCostForecast::EphemeralUsage.new(
+      id: "occupancy-#{position_count}-#{source.id}",
+      expected_persons: nil,
+      expected_resource_units: nil,
+      expected_billable_nights: 1
+    )
+    rows = EvaluateSupplierCostForecast.new(
+      agency: @agency, departure: @departure, arrangement: @arrangement
+    ).call_attributed_sources(
+      sources: [ source ],
+      usage: usage,
+      profiles: [ profile ],
+      positions_by_profile: { profile.id => positions }
+    )
+    rows.sole.totals.forecast_supplier_cost_minor_units
+  end
+
+  def confirm_supplier!(reference_note:)
+    departure = CreateDeparture.new(
+      agency: @agency, actor: @admin,
+      attributes: {
+        name: "Confirmation #{SecureRandom.hex(4)}",
+        starts_on: Date.new(2027, 11, 4),
+        ends_on: Date.new(2027, 11, 6),
+        time_zone: "America/New_York",
+        operating_currency: "USD",
+        responsible_office_id: @office.id,
+        responsible_agency_user_id: @admin.id
+      },
+      current_office: @office
+    ).call.record
+    ActivateDeparture.new(
+      agency: @agency, actor: @admin, departure: departure, lock_version: departure.lock_version
+    ).call
+    arrangement = CreateSupplierArrangement.new(
+      agency: @agency, actor: @admin, departure: departure,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        name: "Confirmation stay",
+        contracting_supplier_id: @contractor.id,
+        supplier_contact_id: @contact.id
+      }
+    ).call.record
+    version = arrangement.versions.sole
+    item = CreateArrangementItem.new(
+      agency: @agency, actor: @admin, arrangement: arrangement,
+      version_lock_version: version.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { name: "Stay", category: "lodging", default_service_provider_id: @contractor.id }
+    ).call.record
+    item_definition = version.arrangement_item_definitions.find_by!(arrangement_item: item)
+    SetItemCapacityManagement.new(
+      agency: @agency, actor: @admin, definition: item_definition,
+      capacity_management: "unmanaged", lock_version: item_definition.lock_version
+    ).call
+    CreateServiceOccurrence.new(
+      agency: @agency, actor: @admin, item: item,
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { name: "Stay", starts_on: "2027-11-04", ends_on: "2027-11-06" }
+    ).call
+    CreateSupplierResource.new(
+      agency: @agency, actor: @admin, item: item,
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: { name: "Room" }
+    ).call
+    source = CreateSupplierCostSource.new(
+      agency: @agency, actor: @admin, arrangement: arrangement,
+      version_lock_version: version.reload.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        arrangement_item_id: item.id, charging_supplier_id: @contractor.id, label: "Included stay"
+      }
+    ).call.record
+    definition = CreateSupplierCostDefinition.new(
+      agency: @agency, actor: @admin, source: source,
+      source_lock_version: source.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        stage: "contracted", mode: "zero_cost", currency: "USD", rounding_mode: "half_up",
+        zero_cost_reason: "Included in the hotel stay"
+      }
+    ).call.record
+    MarkCostDefinitionForecastReady.new(
+      agency: @agency, actor: @admin, definition: definition.reload,
+      lock_version: definition.lock_version, readiness_provenance: "Confirmation proof"
+    ).call
+    ActivateSupplierArrangementVersion.new(
+      agency: @agency, actor: @admin, arrangement: arrangement.reload, version: version.reload,
+      arrangement_lock_version: arrangement.lock_version,
+      version_lock_version: version.lock_version,
+      cost_source_coverage_acknowledged: true,
+      commitment_trigger_coverage_acknowledged: true,
+      evidence_attributes: {
+        evidence_kind: "supplier_confirmation",
+        evidence_on: Date.new(2026, 9, 28),
+        channel: "email",
+        reference_note: reference_note,
+        confirmed_without_identifier_reason: "No hotel number was issued."
+      },
+      idempotency_key: SecureRandom.uuid
+    ).call
+    SupplierConfirmation.find_by!(supplier_arrangement: arrangement)
+  end
+
+  def contrast_deadline
+    arrangement = CreateSupplierArrangement.new(
+      agency: @agency, actor: @admin, departure: @departure,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        name: "Attrition contrast",
+        contracting_supplier_id: @contractor.id,
+        supplier_contact_id: @contact.id
+      }
+    ).call.record
+    version = arrangement.versions.sole
+    CreateSupplierDeadlineDefinition.new(
+      agency: @agency, actor: @admin, version: version,
+      version_lock_version: version.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        deadline_type: "rooming_list_due",
+        kind: "actionable",
+        rule_shape: "fixed_local_datetime",
+        rule_parameters: {
+          "datetime" => "2027-10-03T17:00:00",
+          "nightly_minimums" => [ 7, 15 ],
+          "shortfall_consequence" => "100%",
+          "zero_utilization" => { "standard" => 17_300, "deluxe" => 22_300, "tax_rate" => "16.5%" }
+        },
+        precision: "local_date_time",
+        time_zone: "America/New_York",
+        cardinality: "one_shared",
+        description: attrition_prose,
+        coverage_links: [],
+        commitment_lines: []
+      }
+    ).call.record
+  end
+
   def create_deposits!
     [
-      [ 41_560, "2026-10-01", { "date" => "2026-10-01", "shares" => [ 10, 45, 45 ] } ],
-      [ 187_020, "2027-05-07", {
-        "date" => "2027-05-07",
-        "nightly_totals_minor_units" => [ 131_100, 284_500 ],
-        "basis_minor_units" => 415_600
-      } ],
-      [ 187_020, "2027-10-04", { "date" => "2027-10-04" } ]
-    ].each do |amount, _date, parameters|
+      [ 41_560, "2026-10-01" ],
+      [ 187_020, "2027-05-07" ],
+      [ 187_020, "2027-10-04" ]
+    ].each do |amount, date|
       CreateSupplierDepositRequirementDefinition.new(
         agency: @agency, actor: @admin, version: @version.reload,
         version_lock_version: lock_version, idempotency_key: SecureRandom.uuid,
@@ -459,7 +597,7 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
           fixed_amount_minor_units: amount,
           currency: "USD",
           rule_shape: "fixed_date",
-          rule_parameters: parameters,
+          rule_parameters: { "date" => date },
           precision: "date_only",
           time_zone: "America/New_York",
           coverage_links: [],
@@ -478,16 +616,10 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
         deadline_type: "rooming_list_due",
         kind: "actionable",
         rule_shape: "fixed_local_datetime",
-        rule_parameters: {
-          "datetime" => "2027-10-03T17:00:00",
-          "nightly_minimums" => [ 7, 15 ],
-          "shortfall_consequence" => "100%",
-          "zero_utilization" => { "standard" => 17_300, "deluxe" => 22_300, "tax_rate" => "16.5%" }
-        },
+        rule_parameters: { "datetime" => "2027-10-03T17:00:00" },
         precision: "local_date_time",
         time_zone: "America/New_York",
         cardinality: "one_shared",
-        description: "Nightly minimums 7 and 15, 100% shortfall, and zero-utilization fallback.",
         coverage_links: [ { arrangement_item_id: item.id } ],
         commitment_lines: []
       }
