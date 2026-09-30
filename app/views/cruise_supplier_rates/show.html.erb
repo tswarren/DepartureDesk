@@ -4,7 +4,7 @@
   family_options = CruiseSupplierRateSupport::PROFILE_FAMILIES.map { |key, spec|
     [spec.fetch(:label), key.to_s]
   }
-  starter_keys = %w[first_second additional every_traveler every_cabin single_supplement]
+  starter_keys = %w[first_second additional single_supplement]
   profiles = (@form_profiles || []).map { |p| p.with_indifferent_access }
   if profiles.empty?
     profiles = starter_keys.map { |key|
@@ -50,16 +50,18 @@
   }
 %>
 
-<article class="dd-panel" id="cruise-supplier-rates">
-  <div class="dd-panel-body dd-stack">
-    <p>
-      <%= link_to "Back to Cruise workspace",
-            departure_arrangement_cruise_path(@departure, @supplier_arrangement),
-            class: "dd-link" %>
-    </p>
+<%= render "cruise_setup/shell", current: :rates, page_title: "Supplier rates", version: @resource_definition.supplier_arrangement_version %>
+<p>
+  <%= link_to "Supplier rates",
+        departure_arrangement_cruise_supplier_rates_path(@departure, @supplier_arrangement),
+        class: "dd-link" %>
+  / <%= @resource_definition.supplier_code.presence || @resource_definition.name %>
+  · <%= @resource_definition.name %>
+</p>
 
+<article class="dd-panel dd-cruise-rate-editor" id="cruise-supplier-rates">
+  <div class="dd-panel-body dd-stack">
     <header class="dd-stack">
-      <h1 class="dd-page-title">Supplier rates</h1>
       <p>
         <%= @resource_definition.supplier_code.presence || @resource_definition.name %>
         · Maximum occupancy <%= @resource_definition.maximum_occupancy.presence || "not set" %>
@@ -81,6 +83,12 @@
         <p><%= link_to "Open advanced cost planning", @advanced_path, class: "dd-button dd-button-secondary" %></p>
       </section>
     <% else %>
+      <p id="cruise-rate-stage-status">
+        <% definition = @rate_shape.definition %>
+        <% if definition&.contracted? %>Contracted<% elsif definition&.estimate? %>Estimate<% else %>—<% end %>
+        ·
+        <% if definition&.forecast_ready? %>Ready<% elsif definition %>Needs review<% else %>Not recorded<% end %>
+      </p>
       <% if @editable && @rate_shape.source %>
         <% rate_definitions = @rate_shape.source.supplier_cost_definitions %>
         <% if rate_definitions.any?(&:estimate?) && rate_definitions.none?(&:contracted?) %>
@@ -88,9 +96,9 @@
                 method: :post, class: "dd-inline-actions" do %>
             <%= hidden_field_tag :version_lock_version, @cruise_shape.version.lock_version %>
             <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
-            <%= submit_tag "Record contracted rates", class: "dd-button" %>
+            <%= submit_tag "Record contracted rates from Estimate", class: "dd-button" %>
           <% end %>
-          <p class="dd-help">This copies the estimate into contracted rates and leaves the estimate unchanged.</p>
+          <p class="dd-help">This creates a separate Contracted rate schedule from the current Estimate. The Estimate remains unchanged. Review the Contracted rates before marking them ready.</p>
         <% elsif rate_definitions.any?(&:estimate?) && rate_definitions.any?(&:contracted?) %>
           <nav class="dd-inline-actions" aria-label="Supplier rate stage">
             <%= link_to "Estimate",
@@ -112,6 +120,7 @@
                 id: "cruise-supplier-rate-terms",
                 data: {
                   controller: "cruise-rate-matrix",
+                  action: "submit->cruise-rate-matrix#confirmMethodReplacement",
                   cruise_rate_matrix_currency_value: (@operating_currency || @departure.operating_currency),
                   cruise_rate_matrix_preview_url_value: @preview_path,
                   cruise_rate_matrix_max_occupancy_value: @resource_definition.maximum_occupancy.to_i,
@@ -142,6 +151,23 @@
               <p class="dd-help">This stage stays in place. Record contracted rates to add the other stage.</p>
             <% end %>
           </div>
+
+          <fieldset class="dd-stack">
+            <legend class="dd-label">How is expected commission stated?</legend>
+            <div class="dd-field">
+              <label class="dd-label" for="commission_method">Commission method</label>
+              <select id="commission_method" class="dd-input"
+                      data-cruise-rate-matrix-target="commissionMethod"
+                      data-action="change->cruise-rate-matrix#selectCommissionMethod">
+                <option value="not_provided" <%= "selected" if (commission[:method] || "not_provided") == "not_provided" %>>Not provided yet</option>
+                <option value="dollar" <%= "selected" if commission[:method].to_s == "dollar" %>>Dollar amount</option>
+                <option value="percentage" <%= "selected" if commission[:method].to_s == "percentage" %>>Percentage</option>
+              </select>
+            </div>
+            <p class="dd-help" data-cruise-rate-matrix-target="commissionNotProvided">
+              Expected commission stays not recorded until a method is chosen. It is not treated as $0.
+            </p>
+          </fieldset>
 
           <section class="dd-stack" aria-labelledby="rate-terms-heading">
             <h2 id="rate-terms-heading" class="dd-section-title">Supplier rate schedule</h2>
@@ -274,57 +300,39 @@
             </div>
           </section>
 
-          <fieldset class="dd-stack">
-            <legend class="dd-label">How is expected commission stated?</legend>
-            <div class="dd-field">
-              <label class="dd-label" for="commission_method">Commission method</label>
-              <select id="commission_method" class="dd-input"
-                      data-cruise-rate-matrix-target="commissionMethod"
-                      data-action="change->cruise-rate-matrix#selectCommissionMethod">
-                <option value="not_provided" <%= "selected" if (commission[:method] || "not_provided") == "not_provided" %>>Not provided yet</option>
-                <option value="dollar" <%= "selected" if commission[:method].to_s == "dollar" %>>Dollar amount</option>
-                <option value="percentage" <%= "selected" if commission[:method].to_s == "percentage" %>>Percentage</option>
-              </select>
-            </div>
-
-            <p class="dd-help" data-cruise-rate-matrix-target="commissionNotProvided">
-              Expected commission will remain pending on illustrations until a method is chosen.
-            </p>
-
-            <div class="dd-cruise-rate-commission-panel dd-stack"
-                 data-cruise-rate-matrix-target="commissionPercentagePanel" hidden>
-              <label>
-                <input type="checkbox" data-cruise-rate-matrix-target="commissionSharedField"
-                       data-action="change->cruise-rate-matrix#commissionSharedChanged"
-                       <%= "checked" if commission.fetch(:shared, true) != false %>>
-                Use the same commission rate for every profile
-              </label>
-              <div class="dd-field">
-                <label class="dd-label" for="commission_percentage">Shared commission percentage</label>
-                <input type="text" id="commission_percentage" class="dd-input" inputmode="decimal"
-                       data-cruise-rate-matrix-target="commissionPercentageField"
-                       data-action="input->cruise-rate-matrix#commissionPercentageInput"
-                       value="<%= commission[:percentage] %>">
-              </div>
-              <div class="dd-stack" data-cruise-rate-matrix-target="commissionRates"></div>
-              <div data-cruise-rate-matrix-target="commissionTreatments"></div>
-              <p class="dd-help">
-                Shared percentage uses one commission component and one rounding boundary.
-                Uncheck to round each profile independently.
-              </p>
-            </div>
-
-            <div class="dd-cruise-rate-commission-panel dd-stack"
-                 data-cruise-rate-matrix-target="commissionDollarPanel" hidden>
-              <p class="dd-label">Dollar commission by profile</p>
-              <div data-cruise-rate-matrix-target="commissionAmounts"></div>
-            </div>
-          </fieldset>
-
           <section class="dd-stack" aria-labelledby="rate-illustrations-heading">
             <h2 id="rate-illustrations-heading" class="dd-section-title">Per-cabin illustrations</h2>
             <div data-cruise-rate-matrix-target="occupantEditor"></div>
             <div data-cruise-rate-matrix-target="illustrations">
+              <% if @preview.commission_method == "not_provided" %>
+                <p>Expected commission is not recorded.</p>
+              <% elsif @preview.profile_commissions.any? %>
+                <div class="dd-table-wrap">
+                  <table class="dd-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Rate profile</th>
+                        <% if @preview.profile_commissions.any?(&:basis_recorded) %>
+                          <th scope="col">Commissionable amount</th>
+                        <% end %>
+                        <th scope="col">Expected commission</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% currency = @preview.currency || @departure.operating_currency %>
+                      <% @preview.profile_commissions.each do |row| %>
+                        <tr>
+                          <td><%= row.label %></td>
+                          <% if row.basis_recorded %>
+                            <td><%= row.commissionable_minor_units ? Money.new(row.commissionable_minor_units, currency).format : "—" %></td>
+                          <% end %>
+                          <td><%= row.expected_commission_minor_units ? Money.new(row.expected_commission_minor_units, currency).format : "Not recorded" %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% end %>
               <% if @preview.illustrations.any? %>
                 <ul>
                   <% @preview.illustrations.each do |row| %>
@@ -335,7 +343,7 @@
                       <% else %>
                         gross pending
                       <% end %>
-                      · commission <%= row.commission_state %>
+                      · commission <%= row.commission_state == "pending" ? "not recorded" : row.commission_state %>
                       · net <%= row.net_state == "shown" && row.net_minor_units ? Money.new(row.net_minor_units, @preview.currency || @departure.operating_currency).format : row.net_state %>
                     </li>
                   <% end %>
@@ -382,7 +390,8 @@
       <% end %>
 
       <section class="dd-stack" aria-labelledby="occupancy-plan-heading">
-        <h2 id="occupancy-plan-heading" class="dd-section-title">Occupancy planning</h2>
+        <h2 id="occupancy-plan-heading" class="dd-section-title">Forecast occupancy</h2>
+        <p>Used to forecast Supplier cost for this cabin category. It does not assign travelers or reserve cabins.</p>
         <p>Per-cabin illustrations above do not assert an expected sales mix. Enter expected cabin counts only when known.</p>
         <% if @editable %>
           <%= form_with url: occupancy_plan_departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),

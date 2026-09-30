@@ -1,0 +1,123 @@
+<% content_for :title, "Cabin inventory · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<%= render "cruise_setup/shell", current: :cabins, page_title: "Cabin inventory" %>
+
+<article class="dd-stack" id="cruise-cabin-inventory">
+  <% if @workspace.advanced? %>
+    <section class="dd-panel" id="cruise-cabin-advanced">
+      <div class="dd-panel-body dd-stack">
+        <h2 class="dd-section-title">Advanced</h2>
+        <p>This cabin inventory cannot be summarized without discarding information.</p>
+        <%= link_to "Advanced Supplier planning",
+              departure_arrangement_path(@departure, @supplier_arrangement),
+              class: "dd-button dd-button--quiet" %>
+      </div>
+    </section>
+  <% else %>
+    <section class="dd-panel">
+      <div class="dd-panel-body dd-stack">
+        <p id="cruise-cabin-summary"><%= cruise_cabin_inventory_summary(@workspace) %></p>
+        <% if @workspace.attention_items.any? %>
+          <section id="cruise-cabin-attention" aria-labelledby="cruise-cabin-attention-heading">
+            <h2 id="cruise-cabin-attention-heading" class="dd-section-title">Needs attention</h2>
+            <ul>
+              <% @workspace.attention_items.each do |item| %>
+                <li>
+                  <%= item.message %>
+                  <% if item.resource_id.present? && @editable %>
+                    <%= link_to "Open",
+                          edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, item.resource_id),
+                          class: "dd-link" %>
+                  <% end %>
+                </li>
+              <% end %>
+            </ul>
+          </section>
+        <% end %>
+        <% if @workspace.rows.any? %>
+          <div class="dd-table-wrap">
+            <table class="dd-table dd-cabin-table" id="cruise-cabin-table">
+              <thead>
+                <tr>
+                  <th scope="col">Code</th>
+                  <th scope="col">Cabin category</th>
+                  <th scope="col">Max occupancy</th>
+                  <th scope="col">Inventory</th>
+                  <th scope="col">Quantity</th>
+                  <th scope="col">Rates</th>
+                  <th scope="col">Opening authority</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @workspace.rows.each do |row| %>
+                  <tr>
+                    <td>
+                      <span class="dd-visually-hidden dd-cabin-field-label">Code</span>
+                      <%= row.code.presence || "—" %>
+                    </td>
+                    <td>
+                      <span class="dd-visually-hidden dd-cabin-field-label">Cabin category</span>
+                      <% if @editable %>
+                        <%= link_to row.name,
+                              edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, row.resource_id),
+                              class: "dd-link" %>
+                      <% else %>
+                        <%= row.name %>
+                      <% end %>
+                    </td>
+                    <td>
+                      <span class="dd-visually-hidden dd-cabin-field-label">Max occupancy</span>
+                      <%= row.occupancy_label.presence || "—" %>
+                    </td>
+                    <td>
+                      <span class="dd-visually-hidden dd-cabin-field-label">Inventory</span>
+                      <%= row.inventory_label %>
+                    </td>
+                    <td>
+                      <span class="dd-visually-hidden dd-cabin-field-label">Quantity</span>
+                      <%= cruise_cabin_inventory_quantity(row, @workspace) %>
+                      <% if row.current_capacity_label.present? %>
+                        <span class="dd-field-hint"><%= row.current_capacity_label %></span>
+                      <% end %>
+                      <% if row.opening_quantity_label.present? %>
+                        <span class="dd-field-hint"><%= row.opening_quantity_label %></span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <span class="dd-visually-hidden dd-cabin-field-label">Rates</span>
+                      <% if row.advanced_rates %>
+                        <%= link_to "Advanced",
+                              departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @shape.item),
+                              class: "dd-link" %>
+                      <% else %>
+                        <%= link_to cruise_rate_posture_label(row.rate_posture),
+                              departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row.resource_id),
+                              class: "dd-link" %>
+                      <% end %>
+                    </td>
+                    <td>
+                      <span class="dd-visually-hidden dd-cabin-field-label">Opening authority</span>
+                      <%= cruise_cabin_evidence_status(row, @workspace) %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+        <div class="dd-form-actions">
+          <% if @editable %>
+            <%= link_to "Add cabin categories",
+                  new_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement),
+                  class: "dd-button" %>
+          <% end %>
+          <% if @can_change_inventory %>
+            <%= link_to "Change inventory",
+                  departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+                  class: "dd-button dd-button--quiet" %>
+          <% end %>
+        </div>
+      </div>
+    </section>
+  <% end %>
+</article>

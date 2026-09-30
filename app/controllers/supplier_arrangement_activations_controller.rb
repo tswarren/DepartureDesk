@@ -52,9 +52,6 @@ class SupplierArrangementActivationsController < ApplicationController
     @idempotency_key = params[:idempotency_key]
     @command_form = CommandForm.new(param_key: "confirmation")
     @command_form.add_command_error(error)
-    if error.message.to_s.downcase.include?("identifier")
-      @command_form.add_message(:display_value, error.message)
-    end
     render :show, status: :unprocessable_entity
   end
 

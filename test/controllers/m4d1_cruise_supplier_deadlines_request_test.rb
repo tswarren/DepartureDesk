@@ -23,7 +23,12 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_cruise_path(@departure, @arrangement)
     assert_response :success
-    assert_select "a", text: "Open deposits and deadlines"
+    assert_select "a", text: "Open deposits and deadlines", count: 0
+
+    get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "a", text: "Open deposits and deadlines", count: 0
+    assert_select "h2", text: "Deadlines"
 
     get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_response :success

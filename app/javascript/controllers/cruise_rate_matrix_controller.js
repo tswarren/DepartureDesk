@@ -19,8 +19,6 @@ const FAMILIES = {
 const DEFAULT_PROFILES = [
   { key: "first_second", family: "first_second", category: null, occupancy_position_from: 1, occupancy_position_to: 2 },
   { key: "additional", family: "additional", category: null, occupancy_position_from: 3, occupancy_position_to: null },
-  { key: "every_traveler", family: "every_traveler", category: null, occupancy_position_from: null, occupancy_position_to: null },
-  { key: "every_cabin", family: "every_cabin", category: null, occupancy_position_from: null, occupancy_position_to: null },
   { key: "single_supplement", family: "single_supplement", category: null, occupancy_position_from: null, occupancy_position_to: null }
 ]
 
@@ -77,13 +75,15 @@ export default class extends Controller {
     this.previewTimer = null
     this.previewAbort = null
     this.state = this.buildState(this.initialStateValue)
+    this.persistedCommissionMethod = this.state.commission.method
+    this.methodReplacementConfirmed = false
+    this.applyCommissionBases()
     this.renderAll()
     this.schedulePreview()
   }
 
   disconnect() {
-    if (this.previewTimer) window.clearTimeout(this.previewTimer)
-    if (this.previewAbort) this.previewAbort.abort()
+    this.stopPreview()
   }
 
   buildState(raw) {
@@ -110,18 +110,37 @@ export default class extends Controller {
       else treatments[cellKey] = "ignore"
     })
     const occupants = Array.isArray(source.occupants) ? [...source.occupants] : null
+    const commission = {
+      method: (commissionSource.method || "not_provided").toString(),
+      shared: commissionSource.shared !== false && commissionSource.shared !== "0",
+      percentage: (commissionSource.percentage || "").toString(),
+      amounts: { ...(commissionSource.amounts || {}) },
+      rates: { ...(commissionSource.rates || {}) }
+    }
+    if (commission.method === "percentage" && commission.shared && commission.percentage) {
+      profiles.forEach((profile) => {
+        commission.rates[profile.key] = commission.percentage
+      })
+    }
+    const rows = [
+      ...STATIC_ROWS,
+      ...customRows
+    ]
+    const commissionable = {}
+    rows.forEach((row) => {
+      const populated = profiles
+        .map((profile) => this.cellKey(row.key, profile.key))
+        .filter((key) => this.isPopulated(cells[key]))
+      const active = row.economic_role === "supplier_credit" ? "subtract" : "include"
+      commissionable[row.key] = populated.length > 0 && populated.every((key) => treatments[key] === active)
+    })
 
     return {
       profiles,
       customRows,
       cells,
-      commission: {
-        method: (commissionSource.method || "not_provided").toString(),
-        shared: commissionSource.shared !== false && commissionSource.shared !== "0",
-        percentage: (commissionSource.percentage || "").toString(),
-        amounts: { ...(commissionSource.amounts || {}) },
-        rates: { ...(commissionSource.rates || {}) }
-      },
+      commission,
+      commissionable,
       treatments,
       occupants
     }
@@ -578,6 +597,7 @@ export default class extends Controller {
     }
 
     this.state.customRows = this.state.customRows.filter((entry) => entry.key !== key)
+    delete this.state.commissionable[key]
     Object.keys(this.state.cells).forEach((cellKey) => {
       if (cellKey.startsWith(`${key}:`)) delete this.state.cells[cellKey]
     })
@@ -598,27 +618,62 @@ export default class extends Controller {
     const value = input.value
     if (this.isPopulated(value)) {
       this.state.cells[key] = value
-      if (!this.state.treatments[key]) {
-        const row = this.allRows().find((entry) => entry.key === rowKey)
-        this.state.treatments[key] = row?.economic_role === "supplier_credit" ? "subtract" : "include"
-      }
     } else {
       delete this.state.cells[key]
       delete this.state.treatments[key]
     }
     this.recalculateSubtotals()
     this.syncFormFields()
-    this.renderCommissionTreatments()
     this.schedulePreview()
   }
 
   selectCommissionMethod(event) {
-    const method = event.currentTarget.value
-    this.state.commission.method = method
+    this.state.commission.method = event.currentTarget.value
+    this.renderMatrix()
     this.renderCommissionPanels()
-    this.renderCommissionTreatments()
+    this.recalculateSubtotals()
     this.syncFormFields()
     this.schedulePreview()
+  }
+
+  setRowCommissionable(event) {
+    const rowKey = event.currentTarget.dataset.rowKey
+    if (!rowKey) return
+    this.state.commissionable[rowKey] = event.currentTarget.checked
+    this.syncFormFields()
+    this.schedulePreview()
+  }
+
+  confirmMethodReplacement(event) {
+    this.stopPreview()
+    const persisted = this.persistedCommissionMethod || "not_provided"
+    if (persisted === "not_provided") return
+    if (this.state.commission.method === persisted) return
+    if (this.methodReplacementConfirmed) return
+
+    const proceed = window.confirm(
+      "Saving replaces the recorded commission method. The previous commission terms will not stay on this definition."
+    )
+    if (!proceed) {
+      event.preventDefault()
+      return
+    }
+    this.methodReplacementConfirmed = true
+  }
+
+  applyCommissionBases() {
+    const treatments = {}
+    if (this.state.commission.method === "percentage") {
+      this.allRows().forEach((row) => {
+        if (!this.state.commissionable[row.key]) return
+        this.state.profiles.forEach((profile) => {
+          const key = this.cellKey(row.key, profile.key)
+          if (!this.isPopulated(this.state.cells[key])) return
+          treatments[key] = row.economic_role === "supplier_credit" ? "subtract" : "include"
+        })
+      })
+    }
+    this.state.treatments = treatments
   }
 
   commissionSharedChanged(event) {
@@ -836,9 +891,12 @@ export default class extends Controller {
   renderMatrix() {
     if (!this.hasMatrixHeadTarget || !this.hasMatrixBodyTarget) return
     const profiles = this.state.profiles
+    const method = this.state.commission.method || "not_provided"
+    const showCommissionable = method === "percentage"
     this.matrixHeadTarget.innerHTML = `
       <tr>
         <th scope="col">Component</th>
+        ${showCommissionable ? `<th scope="col">Commissionable</th>` : ""}
         ${profiles.map((profile) => `
           <th scope="col" data-profile-column="${this.escapeAttr(profile.key)}">
             ${this.escape(this.profileLabel(profile))}
@@ -890,7 +948,19 @@ export default class extends Controller {
         `
       }).join("")
 
-      return `<tr data-row-key="${this.escapeAttr(row.key)}"><th scope="row">${labelCell}</th>${cells}</tr>`
+      const commissionableCell = showCommissionable ? `
+        <td>
+          <input type="checkbox" id="commissionable_${this.escapeAttr(row.key)}"
+            data-row-key="${this.escapeAttr(row.key)}"
+            data-action="change->cruise-rate-matrix#setRowCommissionable"
+            ${this.state.commissionable[row.key] ? "checked" : ""}>
+          <label class="dd-visually-hidden" for="commissionable_${this.escapeAttr(row.key)}">
+            Commissionable · ${this.escape(row.label)}
+          </label>
+        </td>
+      ` : ""
+
+      return `<tr data-row-key="${this.escapeAttr(row.key)}"><th scope="row">${labelCell}</th>${commissionableCell}${cells}</tr>`
     }).join("")
 
     const subtotalCells = profiles.map((profile) => `
@@ -899,13 +969,72 @@ export default class extends Controller {
           data-profile="${this.escapeAttr(profile.key)}">—</td>
     `).join("")
 
+    const commissionRow = this.commissionEntryRow(method, profiles, showCommissionable)
+
     this.matrixBodyTarget.innerHTML = `
       ${bodyRows}
+      ${commissionRow}
       <tr data-cruise-rate-matrix-target="subtotalRow">
         <th scope="row">Known profile subtotal</th>
+        ${showCommissionable ? "<td></td>" : ""}
         ${subtotalCells}
       </tr>
     `
+    this.showActiveProfile()
+  }
+
+  commissionEntryRow(method, profiles, showCommissionable) {
+    if (method === "percentage") {
+      const inputs = profiles.map((profile) => {
+        const inputId = `commission_rate_${profile.key.replace(/[^a-zA-Z0-9]+/g, "_")}`
+        return `
+          <td data-profile-column="${this.escapeAttr(profile.key)}">
+            <label class="dd-visually-hidden" for="${this.escapeAttr(inputId)}">
+              Commission rate · ${this.escape(this.profileLabel(profile))}
+            </label>
+            <input type="text" class="dd-input" inputmode="decimal"
+              id="${this.escapeAttr(inputId)}"
+              value="${this.escapeAttr(this.state.commission.rates[profile.key] || "")}"
+              data-profile="${this.escapeAttr(profile.key)}"
+              data-action="input->cruise-rate-matrix#commissionRateInput">
+          </td>
+        `
+      }).join("")
+      return `
+        <tr>
+          <th scope="row">Commission rate</th>
+          ${showCommissionable ? "<td></td>" : ""}
+          ${inputs}
+        </tr>
+      `
+    }
+    if (method === "dollar") {
+      const inputs = profiles.map((profile) => {
+        const inputId = `commission_amount_${profile.key.replace(/[^a-zA-Z0-9]+/g, "_")}`
+        return `
+          <td data-profile-column="${this.escapeAttr(profile.key)}">
+            <label class="dd-visually-hidden" for="${this.escapeAttr(inputId)}">
+              Commission · ${this.escape(this.profileLabel(profile))}
+            </label>
+            <div class="dd-cruise-rate-cell">
+              <span aria-hidden="true">${this.escape(this.currencySymbolPrefix("supplier_charge"))}</span>
+              <input type="text" class="dd-input" inputmode="decimal"
+                id="${this.escapeAttr(inputId)}"
+                value="${this.escapeAttr(this.state.commission.amounts[profile.key] || "")}"
+                data-profile="${this.escapeAttr(profile.key)}"
+                data-action="input->cruise-rate-matrix#commissionAmountInput">
+            </div>
+          </td>
+        `
+      }).join("")
+      return `
+        <tr>
+          <th scope="row">Commission</th>
+          ${inputs}
+        </tr>
+      `
+    }
+    return ""
   }
 
   recalculateSubtotals() {
@@ -1136,6 +1265,7 @@ export default class extends Controller {
 
   syncFormFields() {
     if (!this.hasFormFieldsTarget) return
+    this.applyCommissionBases()
     const parts = []
 
     this.state.profiles.forEach((profile, index) => {
@@ -1164,11 +1294,12 @@ export default class extends Controller {
 
     // Visible cell inputs already carry names="cells[...]". Still mirror blanks out of
     // removed columns by clearing orphaned named fields via exclusive mirror for commission.
+    const submission = this.percentageSubmission()
     parts.push(this.hiddenInput("commission[method]", this.state.commission.method))
-    parts.push(this.hiddenInput("commission[shared]", this.state.commission.shared ? "1" : "0"))
+    parts.push(this.hiddenInput("commission[shared]", submission.shared ? "1" : "0"))
     if (this.state.commission.method === "percentage") {
-      if (this.state.commission.shared) {
-        parts.push(this.hiddenInput("commission[percentage]", this.state.commission.percentage || ""))
+      if (submission.shared) {
+        parts.push(this.hiddenInput("commission[percentage]", submission.percentage))
       } else {
         this.state.profiles.forEach((profile) => {
           parts.push(this.hiddenInput(
@@ -1196,6 +1327,19 @@ export default class extends Controller {
     this.formFieldsTarget.innerHTML = parts.join("")
   }
 
+  percentageSubmission() {
+    if (this.state.commission.method !== "percentage") {
+      return { shared: false, percentage: "" }
+    }
+    const rateValues = this.state.profiles.map((profile) => (
+      (this.state.commission.rates[profile.key] || "").toString().trim()
+    ))
+    const uniform = rateValues.length > 0 && rateValues.every((value) => value !== "" && value === rateValues[0])
+    this.state.commission.shared = uniform
+    this.state.commission.percentage = uniform ? rateValues[0] : ""
+    return { shared: uniform, percentage: this.state.commission.percentage }
+  }
+
   hiddenInput(name, value) {
     return `<input type="hidden" name="${this.escapeAttr(name)}" value="${this.escapeAttr(value ?? "")}">`
   }
@@ -1208,10 +1352,19 @@ export default class extends Controller {
     this.previewTimer = window.setTimeout(() => this.fetchPreview(), PREVIEW_DEBOUNCE_MS)
   }
 
+  stopPreview() {
+    if (this.previewTimer) window.clearTimeout(this.previewTimer)
+    this.previewTimer = null
+    if (this.previewAbort) this.previewAbort.abort()
+    this.previewAbort = null
+  }
+
   async fetchPreview() {
     if (!this.previewUrlValue) return
+    this.previewTimer = null
     if (this.previewAbort) this.previewAbort.abort()
-    this.previewAbort = new AbortController()
+    const abort = new AbortController()
+    this.previewAbort = abort
 
     const form = this.element.closest("form") || this.element.querySelector("form")
     const payload = new FormData()
@@ -1228,7 +1381,7 @@ export default class extends Controller {
       new FormData(form).forEach((value, key) => {
         if (contextKeys.has(key) || key.startsWith("profiles") ||
             key.startsWith("custom_rows") || key.startsWith("cells") ||
-            key.startsWith("commission") || key.startsWith("illustration_occupants")) {
+            key.startsWith("illustration_occupants")) {
           payload.append(key, value)
         }
       })
@@ -1246,12 +1399,13 @@ export default class extends Controller {
         },
         body: payload,
         credentials: "same-origin",
-        signal: this.previewAbort.signal
+        signal: abort.signal
       })
       const data = await response.json()
+      if (this.previewAbort !== abort) return
       this.renderIllustrations(data)
     } catch (error) {
-      if (error.name === "AbortError") return
+      if (error.name === "AbortError" || this.previewAbort !== abort) return
       if (this.hasIllustrationsTarget) {
         this.illustrationsTarget.innerHTML = `<p class="dd-help" role="status">Illustration preview unavailable.</p>`
       }
@@ -1279,11 +1433,23 @@ export default class extends Controller {
     Object.entries(this.state.cells).forEach(([key, value]) => {
       payload.set(`cells[${key}]`, value)
     })
-    payload.set("commission[method]", this.state.commission.method)
-    payload.set("commission[shared]", this.state.commission.shared ? "1" : "0")
-    if (this.state.commission.method === "percentage") {
-      if (this.state.commission.shared) {
-        payload.set("commission[percentage]", this.state.commission.percentage || "")
+    this.applyCommissionBases()
+    const submission = this.percentageSubmission()
+    const anyRate = this.state.profiles.some((profile) => (
+      (this.state.commission.rates[profile.key] || "").toString().trim() !== ""
+    ))
+    const anyAmount = this.state.profiles.some((profile) => (
+      (this.state.commission.amounts[profile.key] || "").toString().trim() !== ""
+    ))
+    const previewMethod = (
+      (this.state.commission.method === "percentage" && !anyRate) ||
+      (this.state.commission.method === "dollar" && !anyAmount)
+    ) ? "not_provided" : this.state.commission.method
+    payload.set("commission[method]", previewMethod)
+    payload.set("commission[shared]", submission.shared ? "1" : "0")
+    if (previewMethod === "percentage") {
+      if (submission.shared) {
+        payload.set("commission[percentage]", submission.percentage)
       } else {
         this.state.profiles.forEach((profile) => {
           payload.set(
@@ -1319,11 +1485,14 @@ export default class extends Controller {
       return
     }
     const rows = Array.isArray(data.illustrations) ? data.illustrations : []
-    if (rows.length === 0) {
+    if (rows.length === 0 && (!data.profile_commissions || data.profile_commissions.length === 0)) {
       this.illustrationsTarget.innerHTML = `<p class="dd-help">Enter amounts to see per-cabin illustrations.</p>`
       return
     }
-    this.illustrationsTarget.innerHTML = `
+    const commissionNote = data.commission_method === "not_provided"
+      ? `<p>Expected commission is not recorded.</p>`
+      : this.profileCommissionTable(data.profile_commissions || [])
+    const occupancy = rows.length === 0 ? "" : `
       <div class="dd-table-wrap">
         <table class="dd-table">
           <thead>
@@ -1339,14 +1508,52 @@ export default class extends Controller {
               <tr>
                 <td>${this.escape(row.label)}</td>
                 <td>${this.escape(row.gross || "Pending")}</td>
-                <td>${this.escape(row.commission || row.commission_state || "Pending")}</td>
+                <td>${this.escape(this.illustrationCommission(row))}</td>
                 <td>${this.escape(row.net || row.net_state || "Pending")}</td>
               </tr>
             `).join("")}
           </tbody>
         </table>
       </div>
+    `
+    this.illustrationsTarget.innerHTML = `
+      ${commissionNote}
+      ${occupancy}
       <p class="dd-help">Values update as rate or commission fields change. Server-calculated values govern on save.</p>
+    `
+  }
+
+  illustrationCommission(row) {
+    if (row.commission_state === "pending" || row.commission_state === "none") {
+      return row.commission_state === "none" ? "None" : "Not recorded"
+    }
+    return row.commission || "Not recorded"
+  }
+
+  profileCommissionTable(rows) {
+    if (!rows.length) return ""
+    const showBasis = rows.some((row) => row.basis_recorded)
+    return `
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th scope="col">Rate profile</th>
+              ${showBasis ? `<th scope="col">Commissionable amount</th>` : ""}
+              <th scope="col">Expected commission</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row) => `
+              <tr>
+                <td>${this.escape(row.label)}</td>
+                ${showBasis ? `<td>${this.escape(row.commissionable || "—")}</td>` : ""}
+                <td>${this.escape(row.expected_commission || "Not recorded")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
     `
   }
 

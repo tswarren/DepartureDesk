@@ -2,6 +2,7 @@
 
 class CruiseSupplierDepositsController < ApplicationController
   include SupplierArrangementAccess
+  include CruiseAgreementReview
 
   before_action :require_departure_view!
   before_action :require_departure_management!
@@ -21,10 +22,7 @@ class CruiseSupplierDepositsController < ApplicationController
       version_lock_version: params.require(:version_lock_version),
       idempotency_key: params.require(:idempotency_key)
     ).call
-    redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
-      @departure, @supplier_arrangement,
-      focus_deposit_id: result.record.id
-    ), notice: "Deposit requirement saved."
+    redirect_to saved_deposit_path(result.record), notice: "Deposit requirement saved."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
@@ -40,10 +38,7 @@ class CruiseSupplierDepositsController < ApplicationController
       attributes: candidate.attributes,
       lock_version: params.require(:lock_version)
     ).call
-    redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
-      @departure, @supplier_arrangement,
-      focus_deposit_id: result.record.id
-    ), notice: "Deposit requirement updated."
+    redirect_to saved_deposit_path(result.record), notice: "Deposit requirement updated."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
@@ -156,7 +151,7 @@ class CruiseSupplierDepositsController < ApplicationController
   end
 
   def normalize_candidate!
-    form = deposit_form_params.to_h.with_indifferent_access
+    form = preserved_deposit_form
     CruiseDepositCandidateNormalizer.call(
       template_key: form[:template].presence || "other_deposit",
       form: form,
@@ -168,6 +163,36 @@ class CruiseSupplierDepositsController < ApplicationController
     )
   end
 
+  def preserved_deposit_form
+    form = deposit_form_params.to_h.with_indifferent_access
+    return form unless agreement_return? && @definition
+
+    projected = CruiseDepositTemplateSupport.project_editor_fields(@definition)
+    form[:description] = projected[:description] unless deposit_form_params.key?(:description)
+    form[:capacity_pool_ids] = projected[:capacity_pool_ids] if Array(form[:capacity_pool_ids]).blank?
+    form[:amount_shape] = projected[:amount_shape] if form[:amount_shape].blank?
+    form[:quantity_basis] = projected[:quantity_basis] if form[:quantity_basis].blank?
+    if Array(form[:contributor_definition_ids]).blank?
+      form[:contributor_definition_ids] = projected[:contributor_definition_ids]
+    end
+    if form[:explicit_quantity].blank? && projected[:explicit_quantity].present?
+      form[:explicit_quantity] = projected[:explicit_quantity]
+    end
+    form
+  end
+
+  def saved_deposit_path(record)
+    return deposits_page_path(focus_deposit_id: record.id) unless agreement_return?
+
+    template = CruiseDepositTemplateSupport.recognize_template(record)
+    highlight = template == "initial_deposit" ? "deposit-#{record.id}" : "requirement-deposit-#{record.id}"
+    agreement_page_path(highlight: highlight)
+  end
+
+  def deposits_page_path(**query)
+    departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement, **query)
+  end
+
   def format_preview_amount(minor_units)
     return nil if minor_units.nil?
 
@@ -175,6 +200,18 @@ class CruiseSupplierDepositsController < ApplicationController
   end
 
   def render_workspace_with_error(error, deposit_editor:, editing_deposit_id: nil)
+    if agreement_return?
+      focus = if @definition
+        "deposit-#{@definition.id}"
+      elsif deposit_form_params[:template] == "initial_deposit"
+        "deposit-new-initial"
+      else
+        "deposits"
+      end
+      render_agreement_review_error(error, focus: focus)
+      return
+    end
+
     @form_error = error.message
     flash.now[:alert] = error.message
     @workspace = CompileCruiseDepositsAndDeadlinesWorkspace.new(

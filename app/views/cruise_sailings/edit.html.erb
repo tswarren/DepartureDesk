@@ -4,13 +4,7 @@
 <% occurrence = (@occurrence_attributes || {}).with_indifferent_access %>
 <% contractor = @supplier_arrangement.contracting_supplier %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Cruise setup</p>
-    <h1 class="dd-page-title">Edit sailing</h1>
-    <p class="dd-page-description"><%= @supplier_arrangement.name %></p>
-  </div>
-</header>
+<%= render "cruise_setup/shell", current: :sailing, page_title: "Edit sailing" %>
 
 <article class="dd-panel">
   <div class="dd-panel-body">
@@ -27,35 +21,6 @@
           <ul><li><%= @form_error %></li></ul>
         </div>
       <% end %>
-
-      <section aria-labelledby="cruise-agreement-heading" class="dd-stack">
-        <h2 id="cruise-agreement-heading" class="dd-section-title">Supplier agreement</h2>
-
-        <dl class="dd-definition-list">
-          <div>
-            <dt>Contracting Supplier</dt>
-            <dd><%= contractor ? supplier_option_label(contractor) : "—" %></dd>
-          </div>
-        </dl>
-
-        <div class="dd-field-group">
-          <label class="dd-label" for="arrangement_name">Arrangement name</label>
-          <input id="arrangement_name" name="arrangement[name]" class="dd-field" required maxlength="160"
-            value="<%= arrangement[:name] %>">
-        </div>
-
-        <div class="dd-field-group">
-          <label class="dd-label" for="arrangement_supplier_contact_id">Supplier contact</label>
-          <select id="arrangement_supplier_contact_id" name="arrangement[supplier_contact_id]" class="dd-field">
-            <option value="">No arrangement contact</option>
-            <% Current.agency.supplier_contacts.includes(:supplier).where(status: "active").order(:last_name, :first_name).each do |contact| %>
-              <option value="<%= contact.id %>" <%= "selected" if arrangement[:supplier_contact_id].to_s == contact.id.to_s %>>
-                <%= supplier_contact_option_label(contact) %>
-              </option>
-            <% end %>
-          </select>
-        </div>
-      </section>
 
       <section aria-labelledby="cruise-sailing-heading" class="dd-stack">
         <h2 id="cruise-sailing-heading" class="dd-section-title">Sailing</h2>
@@ -96,6 +61,35 @@
         </div>
 
         <%= render "cruise_sailings/endpoint_fields", occurrence: occurrence %>
+      </section>
+
+      <section aria-labelledby="cruise-arrangement-heading" class="dd-stack">
+        <h2 id="cruise-arrangement-heading" class="dd-section-title">Arrangement</h2>
+
+        <dl class="dd-definition-list">
+          <div>
+            <dt>Contracting Supplier</dt>
+            <dd><%= contractor ? supplier_option_label(contractor) : "—" %></dd>
+          </div>
+        </dl>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="arrangement_name">Arrangement name</label>
+          <input id="arrangement_name" name="arrangement[name]" class="dd-field" required maxlength="160"
+            value="<%= arrangement[:name] %>">
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="arrangement_supplier_contact_id">Supplier contact</label>
+          <select id="arrangement_supplier_contact_id" name="arrangement[supplier_contact_id]" class="dd-field">
+            <option value="">No arrangement contact</option>
+            <% Current.agency.supplier_contacts.includes(:supplier).where(status: "active").order(:last_name, :first_name).each do |contact| %>
+              <option value="<%= contact.id %>" <%= "selected" if arrangement[:supplier_contact_id].to_s == contact.id.to_s %>>
+                <%= supplier_contact_option_label(contact) %>
+              </option>
+            <% end %>
+          </select>
+        </div>
       </section>
 
       <div class="dd-form-actions">

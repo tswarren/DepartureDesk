@@ -34,6 +34,8 @@ class MaterializeSupplierDepositRequirementDefinitionsAlreadyLocked
       next if reconciler&.skip_open?(definition)
 
       result = materialize_definition!(definition)
+      next if result.nil?
+
       tranches << result[:tranche]
       commitments << result[:commitment]
       occurrences << result[:occurrence] if result[:occurrence]
@@ -96,6 +98,8 @@ class MaterializeSupplierDepositRequirementDefinitionsAlreadyLocked
     evaluated_amount = SupplierDepositAmountEvaluator.call(
       definition:, version: @version, arrangement: @arrangement, mode: :materialize
     )
+    return nil if evaluated_amount[:quantity_not_tracked]
+
     coverage_snapshot = definition.supplier_deposit_requirement_definition_coverage_links
       .order(:position, :id).map do |link|
       {

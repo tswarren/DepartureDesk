@@ -1,0 +1,29 @@
+<% currency = @departure.operating_currency %>
+<% amount_value = params.key?(:allocated_amount) ? params[:allocated_amount] : (term ? cruise_minor_amount_field(term.amount_minor_units, term.currency) : nil) %>
+<% credit_value = params.key?(:allocated_credit) ? params[:allocated_credit] : (term ? cruise_minor_amount_field(term.credit_minor_units, term.currency) : nil) %>
+<% body_value = params.key?(:allocated_body) ? params[:allocated_body] : term&.body %>
+<% if @form_error.present? %>
+  <p id="form-error-summary" role="alert" data-controller="form-error-summary"><%= @form_error %></p>
+<% end %>
+<%= form_with url: terms_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
+      method: :post, class: "dd-stack", html: { id: "cruise-allocated-cabin-form" } do %>
+  <%= hidden_field_tag :term_scope, "allocated" %>
+  <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+  <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+  <div class="dd-field">
+    <label class="dd-label" for="allocated_amount">Amount per allocated cabin (<%= currency %>)</label>
+    <%= text_field_tag :allocated_amount, amount_value, id: "allocated_amount", class: "dd-input", required: true %>
+  </div>
+  <div class="dd-field">
+    <label class="dd-label" for="allocated_credit">Attributable initial-deposit credit (<%= currency %>)</label>
+    <%= text_field_tag :allocated_credit, credit_value, id: "allocated_credit", class: "dd-input", required: true %>
+  </div>
+  <div class="dd-field">
+    <label class="dd-label" for="allocated_body">Policy details</label>
+    <%= text_area_tag :allocated_body, body_value, id: "allocated_body", class: "dd-input", rows: 5, maxlength: SupplierArrangementCruiseTermDefinition::BODY_LIMIT, required: true %>
+  </div>
+  <div class="dd-form-actions">
+    <%= submit_tag term ? "Save allocated cabin deposit" : "Add allocated cabin deposit", class: "dd-button" %>
+    <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "deposits"), class: "dd-button dd-button--quiet" %>
+  </div>
+<% end %>

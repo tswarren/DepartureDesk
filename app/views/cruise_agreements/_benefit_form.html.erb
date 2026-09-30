@@ -1,0 +1,26 @@
+<% posted = params[:commercial_benefit] if cruise_agreement_focused?(focus_key) %>
+<% body_value = posted&.dig(:body).presence || definition&.body %>
+<% if @form_error.present? %>
+  <p id="form-error-summary" role="alert" data-controller="form-error-summary"><%= @form_error %></p>
+<% end %>
+<%= form_with url: definition ?
+      departure_arrangement_cruise_commercial_benefit_path(@departure, @supplier_arrangement, term_type) :
+      departure_arrangement_cruise_commercial_benefits_path(@departure, @supplier_arrangement),
+    method: definition ? :patch : :post, class: "dd-form dd-stack" do %>
+  <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+  <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+  <%= hidden_field_tag :benefit_editor, focus_key %>
+  <%= hidden_field_tag "commercial_benefit[term_type]", term_type %>
+  <% if definition %>
+    <%= hidden_field_tag :definition_lock_version, definition.lock_version %>
+  <% end %>
+  <div class="dd-field-group">
+    <label class="dd-label" for="benefit_body_<%= term_type %>">Wording</label>
+    <textarea id="benefit_body_<%= term_type %>" name="commercial_benefit[body]" class="dd-field"
+      maxlength="4000" rows="5" required><%= body_value %></textarea>
+  </div>
+  <div class="dd-form-actions">
+    <%= submit_tag(definition ? "Save #{cruise_benefit_label(term_type)}" : "Add #{cruise_benefit_label(term_type)}", class: "dd-button") %>
+    <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "benefits"), class: "dd-button dd-button--quiet" %>
+  </div>
+<% end %>

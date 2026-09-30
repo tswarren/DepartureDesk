@@ -28,12 +28,7 @@ class RecordCruiseAgreementTerms < AgencyCommand
       departure, arrangement, version = lock_departure_arrangement_version!(@arrangement)
       ensure_draft_graph!(arrangement, version)
       ensure_departure_accepts_new_planning!(departure)
-      payload = {
-        supplier_arrangement_version_id: version.id,
-        allocated_cabin_deposit: @allocated_cabin_deposit,
-        card_restrictions: @card_restrictions.to_s.strip.presence,
-        cancellation_steps: normalized_steps
-      }
+      payload = terms_payload(version)
       if (replay = replay!(payload))
         return replay
       end
@@ -42,8 +37,18 @@ class RecordCruiseAgreementTerms < AgencyCommand
       records = []
       records << upsert_allocated!(arrangement, version) if @allocated_cabin_deposit.present?
       records << upsert_card!(arrangement, version) if @card_restrictions.present?
-      records.concat(replace_cancellation!(arrangement, version)) if @cancellation_steps.present?
-      raise Error.new("Enter a Cruise term to record.", code: :invalid) if records.empty?
+      cleared_cancellation = false
+      if replace_cancellation?
+        replaced = replace_cancellation!(arrangement, version)
+        if replaced
+          records.concat(replaced)
+        else
+          cleared_cancellation = true
+        end
+      end
+      if records.empty? && !cleared_cancellation
+        raise Error.new("Enter a Cruise term to record.", code: :invalid)
+      end
 
       bump_version!(version)
       audit!(
@@ -57,8 +62,9 @@ class RecordCruiseAgreementTerms < AgencyCommand
           "changed_fields" => [ "cruise_agreement_terms" ]
         }
       )
-      claim!(payload, records.first)
-      Result.new(status: :created, record: records.first)
+      result_record = records.first || version
+      claim!(payload, result_record)
+      Result.new(status: :created, record: result_record)
     end
   end
 
@@ -98,11 +104,31 @@ class RecordCruiseAgreementTerms < AgencyCommand
     })
   end
 
+  def terms_payload(version)
+    payload = {
+      supplier_arrangement_version_id: version.id,
+      allocated_cabin_deposit: @allocated_cabin_deposit,
+      card_restrictions: @card_restrictions.to_s.strip.presence,
+      cancellation_steps: normalized_steps
+    }
+    payload[:cancellation_clear] = true if explicit_cancellation_clear?
+    payload
+  end
+
+  # nil leaves the ladder unchanged. An explicit list, including [], replaces it.
+  def replace_cancellation?
+    !@cancellation_steps.nil?
+  end
+
+  def explicit_cancellation_clear?
+    replace_cancellation? && normalized_steps.empty?
+  end
+
   def replace_cancellation!(arrangement, version)
     steps = normalized_steps
-    raise Error.new("Enter at least one cancellation step.", code: :invalid) if steps.empty?
-
     version.supplier_arrangement_cruise_term_definitions.where(term_type: "cancellation_step").destroy_all
+    return nil if steps.empty?
+
     steps.each_with_index.map do |step, index|
       version.supplier_arrangement_cruise_term_definitions.create!(
         agency: @agency,
@@ -147,6 +173,17 @@ class RecordCruiseAgreementTerms < AgencyCommand
     )
   end
 
+  def replay_record(existing)
+    case existing.result_record_type
+    when SupplierArrangementVersion.name
+      @arrangement.versions.find(existing.result_record_id)
+    when SupplierArrangementCruiseTermDefinition.name
+      SupplierArrangementCruiseTermDefinition.find(existing.result_record_id)
+    else
+      raise Error.new("That idempotency key was already used for different input.", code: :conflict)
+    end
+  end
+
   def replay!(payload)
     key = normalize_idempotency_key(@idempotency_key)
     digest = payload_digest(payload)
@@ -159,10 +196,7 @@ class RecordCruiseAgreementTerms < AgencyCommand
       raise Error.new("That idempotency key was already used for different input.", code: :conflict)
     end
 
-    Result.new(
-      status: :replayed,
-      record: SupplierArrangementCruiseTermDefinition.find(existing.result_record_id)
-    )
+    Result.new(status: :replayed, record: replay_record(existing))
   end
 
   def claim!(payload, record)
@@ -171,7 +205,7 @@ class RecordCruiseAgreementTerms < AgencyCommand
       command_name: COMMAND_NAME,
       idempotency_key: normalize_idempotency_key(@idempotency_key),
       payload_digest: payload_digest(payload),
-      result_record_type: SupplierArrangementCruiseTermDefinition.name,
+      result_record_type: record.class.name,
       result_record_id: record.id
     )
   rescue ActiveRecord::RecordNotUnique

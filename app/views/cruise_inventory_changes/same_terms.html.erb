@@ -1,0 +1,83 @@
+<% content_for :title, "Same terms · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<%= render "cruise_setup/shell", current: :cabins, page_title: "Add cabins under same Supplier terms", version: @governing_version %>
+<p>
+  <%= link_to "Back to Change inventory", departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement), class: "dd-link" %>
+</p>
+
+<% if @command_error.present? || @preview_error.present? %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1">
+    <p><%= @command_error.presence || @preview_error %></p>
+  </div>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body dd-stack">
+    <p><strong>Active Version <%= @governing_version.version_number %></strong></p>
+    <p>Add cabins to the governing Supplier terms. The change becomes part of current Supplier capacity and does not create a new Supplier-terms version.</p>
+    <% if @successor %>
+      <p>This changes the governing Active inventory, not proposed Draft Version <%= @successor.version_number %>.</p>
+    <% end %>
+    <% if @pool_options.empty? %>
+      <p>No numeric cabin block is available for a same-terms increase.</p>
+    <% else %>
+      <%= form_with url: same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+            method: :get, class: "dd-form", html: { id: "cruise-same-terms-category" } do %>
+        <div class="dd-field">
+          <label class="dd-label" for="increase_pool">Cabin category</label>
+          <%= select_tag :capacity_pool_id,
+                options_for_select(@pool_options, @selected_pool_id),
+                id: "increase_pool", class: "dd-input",
+                onchange: "this.form.requestSubmit()" %>
+        </div>
+      <% end %>
+      <% if @selected_pool_context %>
+        <div id="cruise-same-terms-capacity">
+          <p><span class="dd-label">Cabin category</span> <%= @selected_pool_context[:label] %></p>
+          <% if @selected_pool_context[:current_capacity] %>
+            <p>
+              <span class="dd-label">Current Supplier capacity</span>
+              <%= @selected_pool_context[:current_capacity] %>
+              <%= "cabin".pluralize(@selected_pool_context[:current_capacity]) %>
+            </p>
+          <% end %>
+        </div>
+      <% end %>
+      <%= form_with url: same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
+            method: :post, class: "dd-form dd-stack", html: { id: "cruise-same-terms-increase" } do %>
+        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+        <%= hidden_field_tag :capacity_pool_id, @selected_pool_id %>
+        <div class="dd-field">
+          <label class="dd-label" for="increase_quantity">Additional cabins</label>
+          <%= number_field_tag :quantity, params[:quantity], id: "increase_quantity", class: "dd-input", min: 1 %>
+        </div>
+        <div class="dd-field">
+          <label class="dd-label" for="increase_rate">Deposit per additional cabin (<%= @departure.operating_currency %>)</label>
+          <%= text_field_tag :rate_amount, params[:rate_amount], id: "increase_rate", class: "dd-input" %>
+        </div>
+        <div class="dd-field">
+          <label class="dd-label" for="increase_effective_on">Effective date</label>
+          <%= date_field_tag :effective_on, params[:effective_on], id: "increase_effective_on", class: "dd-input" %>
+        </div>
+        <div class="dd-field">
+          <label class="dd-label" for="increase_evidence_on">Evidence date</label>
+          <%= date_field_tag :evidence_on, params[:evidence_on], id: "increase_evidence_on", class: "dd-input" %>
+        </div>
+        <div class="dd-field">
+          <label class="dd-label" for="increase_evidence_note">Evidence note</label>
+          <%= text_field_tag :evidence_reference_note, params[:evidence_reference_note], id: "increase_evidence_note", class: "dd-input" %>
+        </div>
+        <% if @preview %>
+          <p id="cruise-increase-deposit-preview">
+            <strong><%= @preview[:rate_label] %> × <%= @preview[:quantity] %> = <%= @preview[:total_label] %></strong>
+            The original Initial Deposit will not change.
+          </p>
+        <% end %>
+        <p class="dd-form-actions">
+          <%= button_tag "Review this increase", class: "dd-button dd-button--secondary", name: "commit", value: "Review this increase" %>
+          <%= button_tag "Record capacity increase", class: "dd-button", name: "commit", value: "Record capacity increase" %>
+        </p>
+      <% end %>
+    <% end %>
+  </div>
+</article>

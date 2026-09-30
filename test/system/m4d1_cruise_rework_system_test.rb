@@ -59,12 +59,12 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
 
   test "staff confirms the agreement and records contracted rates from the cruise workspace" do
     sign_in_from_browser(@staff)
-    visit departure_arrangement_cruise_path(@departure, @arrangement)
+    visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
 
-    fill_in "Group reference", with: "1119999"
+    fill_in "Supplier group number", with: "1119999"
     fill_in "Contract date", with: "2026-09-13"
     fill_in "agreement_group_creation_date_confirm", with: "2026-09-13"
-    click_on "Confirm agreement"
+    click_on "Confirm Supplier agreement"
     assert_text "Cruise agreement recorded."
     assert_text "Group 1119999"
 
@@ -75,7 +75,7 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     select "Not provided yet", from: "Commission method"
     click_on "Save Supplier terms"
     assert_text "Supplier rates saved"
-    click_on "Record contracted rates"
+    click_on "Record contracted rates from Estimate"
     assert_text "Contracted rates recorded. The estimate is unchanged."
     click_on "Estimate"
     assert_field "Base Fare · First/Second", with: "1624.00"
@@ -102,29 +102,35 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     click_on "Activate arrangement"
     assert_text "Arrangement activated."
 
-    visit departure_arrangement_cruise_path(@departure, @arrangement)
+    visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
+    click_on "Add cabins"
     fill_in "Additional cabins", with: "4"
     fill_in "Deposit per additional cabin (USD)", with: "50.00"
     fill_in "Evidence date", with: Date.current.iso8601
     fill_in "Evidence note", with: "Supplier added four O1 cabins"
-    click_on "Record same-terms increase"
-    assert_text "Same-terms capacity increase recorded."
+    click_on "Review this increase"
+    assert_text "$50.00 × 4 = $200.00"
+    click_on "Record capacity increase"
+    assert_text "Current active capacity is"
     requirement = SupplierArrangementCruiseCapacityDepositRequirement.order(:created_at).last
     assert_equal 20_000, requirement.amount_minor_units
 
+    visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
+    click_on "Propose changed terms"
     fill_in "Maximum occupancy", with: "3"
-    fill_in "Opening quantity", with: "4"
-    click_on "Add supplemental O1 block"
+    fill_in "Cabins proposed", with: "4"
+    click_on "Propose changed terms"
     assert_text "Supplemental O1 block added on a new successor."
     assert_text "Supplemental O1 block"
 
+    visit departure_arrangement_cruise_agreement_path(@departure, @arrangement)
     successor = @arrangement.versions.find_by!(status: "draft")
     assert_equal @version.id, @arrangement.reload.governing_version_id
-    fill_in "Group reference", with: "1119999"
+    fill_in "Supplier group number", with: "1119999"
     fill_in "agreement_group_creation_date_confirm", with: "2026-09-13"
     fill_in "Contract date", with: "2026-10-20"
     fill_in "Deposit treatment for a supplemental block", with: "No additional initial deposit for this block."
-    click_on "Confirm agreement"
+    click_on "Confirm Supplier agreement"
     assert_text "Cruise agreement recorded."
 
     visit departure_arrangement_activation_path(@departure, @arrangement)

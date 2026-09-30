@@ -1,0 +1,46 @@
+<% numeric = row.inventory_mode.to_s == "block" %>
+<tr id="cabin-row-<%= index %>" data-controller="cabin-category-row">
+  <td>
+    <%= hidden_field_tag "rows[][idempotency_key]", row.idempotency_key, id: "cabin_key_#{index}", data: { cabin_key: true } %>
+    <label class="dd-label dd-visually-hidden dd-cabin-field-label" for="cabin_code_<%= index %>">Code</label>
+    <input id="cabin_code_<%= index %>" name="rows[][supplier_code]" class="dd-field" maxlength="80"
+      value="<%= row.supplier_code %>">
+  </td>
+
+  <td>
+    <label class="dd-label dd-visually-hidden dd-cabin-field-label" for="cabin_name_<%= index %>">Cabin category</label>
+    <input id="cabin_name_<%= index %>" name="rows[][name]" class="dd-field" maxlength="160"
+      value="<%= row.name %>">
+  </td>
+
+  <td>
+    <label class="dd-label dd-visually-hidden dd-cabin-field-label" for="cabin_occupancy_<%= index %>">Sleeps</label>
+    <input id="cabin_occupancy_<%= index %>" name="rows[][maximum_occupancy]" type="number" min="1" step="1" class="dd-field"
+      value="<%= row.maximum_occupancy %>">
+  </td>
+
+  <td>
+    <label class="dd-label dd-visually-hidden dd-cabin-field-label" for="cabin_inventory_<%= index %>">Inventory</label>
+    <select id="cabin_inventory_<%= index %>" name="rows[][inventory_mode]" class="dd-field"
+      data-cabin-category-row-target="inventory"
+      data-action="change->cabin-category-row#toggle">
+      <% cruise_cabin_batch_inventory_options.each do |label, value| %>
+        <option value="<%= value %>" <%= "selected" if row.inventory_mode.to_s == value %>><%= label %></option>
+      <% end %>
+    </select>
+  </td>
+
+  <td>
+    <label class="dd-label dd-visually-hidden dd-cabin-field-label" for="cabin_quantity_<%= index %>">Cabins</label>
+    <span class="dd-cabin-dash" data-cabin-category-row-target="dash" <%= "hidden" if numeric %>>—</span>
+    <input id="cabin_quantity_<%= index %>" name="rows[][proposed_opening_quantity]" type="number" min="1" step="1" class="dd-field"
+      value="<%= row.proposed_opening_quantity %>"
+      data-cabin-category-row-target="quantity"
+      <%= "disabled" unless numeric %>
+      <%= "hidden" unless numeric %>>
+  </td>
+
+  <td>
+    <button type="button" class="dd-button dd-button--quiet" data-action="cabin-category-batch#remove">Remove</button>
+  </td>
+</tr>

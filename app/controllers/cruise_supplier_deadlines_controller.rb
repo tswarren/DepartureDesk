@@ -2,6 +2,7 @@
 
 class CruiseSupplierDeadlinesController < ApplicationController
   include SupplierArrangementAccess
+  include CruiseAgreementReview
 
   before_action :require_departure_view!
   before_action :require_departure_management!
@@ -21,10 +22,7 @@ class CruiseSupplierDeadlinesController < ApplicationController
       version_lock_version: params.require(:version_lock_version),
       idempotency_key: params.require(:idempotency_key)
     ).call
-    redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
-      @departure, @supplier_arrangement,
-      focus_deadline_id: result.record.id
-    ), notice: "Deadline saved."
+    redirect_to saved_deadline_path(result.record), notice: "Deadline saved."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
@@ -40,10 +38,7 @@ class CruiseSupplierDeadlinesController < ApplicationController
       attributes: attributes,
       lock_version: params.require(:lock_version)
     ).call
-    redirect_to departure_arrangement_cruise_deposits_and_deadlines_path(
-      @departure, @supplier_arrangement,
-      focus_deadline_id: result.record.id
-    ), notice: "Deadline updated."
+    redirect_to saved_deadline_path(result.record), notice: "Deadline updated."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
@@ -107,7 +102,7 @@ class CruiseSupplierDeadlinesController < ApplicationController
   end
 
   def compiled_attributes!
-    form = deadline_form_params.to_h.with_indifferent_access
+    form = preserved_deadline_form
     CruiseDeadlineTemplateSupport.compile_attributes(
       template_key: form[:template],
       kind: form[:kind],
@@ -126,7 +121,48 @@ class CruiseSupplierDeadlinesController < ApplicationController
     )
   end
 
+  def preserved_deadline_form
+    form = deadline_form_params.to_h.with_indifferent_access
+    return form unless agreement_return? && @definition
+
+    projected = CruiseDeadlineTemplateSupport.project_editor_fields(@definition)
+    form[:description] = projected[:description] unless deadline_form_params.key?(:description)
+    unless deadline_form_params.key?(:warning_lead_days)
+      form[:warning_lead_days] = projected[:warning_lead_days]
+    end
+    form[:kind] = projected[:kind] if form[:kind].blank?
+    coverage = projected[:coverage] || {}
+    form[:coverage_scope] = coverage[:scope] if form[:coverage_scope].blank?
+    form[:supplier_resource_id] = coverage[:supplier_resource_id] if form[:supplier_resource_id].blank?
+    form[:capacity_pool_id] = coverage[:capacity_pool_id] if form[:capacity_pool_id].blank?
+    form
+  end
+
+  def saved_deadline_path(record)
+    unless agreement_return?
+      return departure_arrangement_cruise_deposits_and_deadlines_path(
+        @departure, @supplier_arrangement, focus_deadline_id: record.id
+      )
+    end
+
+    agreement_page_path(highlight: "deadline-#{record.id}")
+  end
+
   def render_workspace_with_error(error, editor:, editing_id: nil)
+    if agreement_return?
+      focus = if @definition
+        "deadline-#{@definition.id}"
+      elsif deadline_form_params[:template].in?(%w[hard_stop option_or_release])
+        "deadline-new-hard-stop"
+      elsif deadline_form_params[:template] == "final_payment"
+        "deadline-new-final-payment"
+      else
+        "deadlines"
+      end
+      render_agreement_review_error(error, focus: focus)
+      return
+    end
+
     @form_error = error.message
     flash.now[:alert] = error.message
     @workspace = CompileCruiseDepositsAndDeadlinesWorkspace.new(

@@ -189,12 +189,10 @@ class DetectCruiseSupplierRateShape
 
   def empty_projected_matrix
     {
-      profiles: %w[first_second additional every_traveler every_cabin single_supplement],
+      profiles: %w[first_second additional single_supplement],
       profile_details: [
         { key: "first_second", family: "first_second", category: nil },
         { key: "additional", family: "additional", category: nil },
-        { key: "every_traveler", family: "every_traveler", category: nil },
-        { key: "every_cabin", family: "every_cabin", category: nil },
         { key: "single_supplement", family: "single_supplement", category: nil }
       ],
       custom_rows: [],
@@ -522,7 +520,42 @@ class DetectCruiseSupplierRateShape
     if percentage_commissions > 1
       reasons.concat(validate_profile_specific_percentage_topology(percentage_components, cell_key_by_component_id))
     end
+    reasons.concat(
+      validate_uniform_commissionable_rows(cell_key_by_component_id, percentage_components)
+    )
     reasons
+  end
+
+  # One Commissionable control per component cannot round-trip a row whose
+  # populated profiles disagree about whether that component is in the basis.
+  def validate_uniform_commissionable_rows(cell_key_by_component_id, percentage_components)
+    return [] if percentage_components.empty?
+
+    directions = {}
+    percentage_components.each do |component|
+      component.supplier_cost_component_bases.each do |link|
+        cell = cell_key_by_component_id[link.base_component_id]
+        next unless cell
+
+        directions[cell] = link.direction
+      end
+    end
+
+    by_row = Hash.new { |hash, key| hash[key] = [] }
+    cell_key_by_component_id.each_value do |cell|
+      row_key, _profile_key = CruiseSupplierRateSupport.parse_cell_key(cell)
+      by_row[row_key] << cell
+    end
+
+    by_row.each_value do |cells|
+      next if cells.size < 2
+
+      states = cells.map { |cell| directions[cell] }
+      next if states.uniq.size <= 1
+
+      return [ "Commissionable components differ by rate profile." ]
+    end
+    []
   end
 
   def validate_matrix_percentage_commission(component, all_components, categories_by_id, cell_key_by_component_id)

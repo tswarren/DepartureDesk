@@ -363,8 +363,19 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     normalized = display.downcase
     issuer = @identifier_attributes[:issuer_context].to_s.strip
     other_label = @identifier_attributes[:other_type_label].to_s.strip.presence
-    if display.blank? || issuer.blank? || ((type == "other") != other_label.present?)
-      raise Error.new("Enter a complete qualified Supplier identifier.", code: :invalid)
+    if display.blank?
+      raise Error.new("Enter the Supplier identifier.", code: :invalid)
+    end
+    if issuer.blank?
+      raise Error.new("Enter the issuer context for this Supplier identifier.", code: :invalid)
+    end
+    if (type == "other") != other_label.present?
+      message = if type == "other"
+        "Enter the other identifier label."
+      else
+        "Remove the other identifier label unless the type is other."
+      end
+      raise Error.new(message, code: :invalid)
     end
     lookup = SupplierIssuedIdentifierOwnerLookup.call(
       agency: @agency,

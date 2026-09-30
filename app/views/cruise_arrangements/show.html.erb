@@ -1,185 +1,103 @@
-<% content_for :title, "Cruise setup · #{@supplier_arrangement.name} · DepartureDesk" %>
-<% contractor = @supplier_arrangement.contracting_supplier %>
+<% content_for :title, "#{(@shape.compatible? ? @shape.summary["ship_name"].presence : nil) || @supplier_arrangement.name} · DepartureDesk" %>
 
-<header class="dd-page-header">
-  <div class="dd-page-heading">
-    <p class="dd-eyebrow">Cruise setup</p>
-    <h1 class="dd-page-title"><%= @supplier_arrangement.name %></h1>
-    <p class="dd-page-description">
-      <%= @departure.name %>
-      · <%= contractor ? supplier_option_label(contractor) : "Supplier not set" %>
-      · <%= cruise_version_status_label(@supplier_arrangement_version) %>
-    </p>
-  </div>
-  <div class="dd-page-actions">
-    <%= link_to "Back to Suppliers", suppliers_departure_composition_path(@departure), class: "dd-button dd-button--quiet" %>
-    <%= link_to "Advanced Supplier planning", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
-  </div>
-</header>
+<%= render "cruise_setup/shell", overview: true %>
 
 <% if @shape.compatible? %>
-  <article class="dd-panel" id="cruise-workspace">
-    <div class="dd-panel-body dd-stack">
-      <section aria-labelledby="cruise-agreement-sailing-heading">
-        <header class="dd-panel-header" style="padding: 0; border: 0;">
-          <div>
-            <h2 id="cruise-agreement-sailing-heading" class="dd-section-title">Agreement and sailing</h2>
-            <p class="dd-page-description">
-              Ship <%= @shape.summary["ship_name"] %>
-              · <%= @shape.summary["sailing_name"] %>
-              <% if @shape.summary["departure_port_name"].present? %>
-                · Departs <%= @shape.summary["departure_port_name"] %>
-              <% end %>
-              <% if @shape.summary["return_port_name"].present? %>
-                · Returns <%= @shape.summary["return_port_name"] %>
-              <% end %>
-              · <%= @shape.summary["starts_on"] %>–<%= @shape.summary["ends_on"] %>
-              · <%= @shape.summary["time_zone"] %>
-            </p>
-            <% if @shape.summary["itinerary_notes"].present? %>
-              <p class="dd-page-description">Itinerary notes: <%= @shape.summary["itinerary_notes"] %></p>
-            <% end %>
-          </div>
-          <div class="dd-inline-actions">
-            <% if @editable %>
-              <%= link_to "Edit sailing", edit_departure_arrangement_cruise_sailing_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
-            <% elsif @can_create_successor %>
-              <%= button_to "Create successor draft", successor_departure_arrangement_cruise_path(@departure, @supplier_arrangement),
-                method: :post,
-                params: {
-                  arrangement_lock_version: @supplier_arrangement.lock_version,
-                  version_lock_version: @supplier_arrangement_version.lock_version,
-                  idempotency_key: SecureRandom.uuid
-                },
-                class: "dd-button" %>
-            <% end %>
-          </div>
-        </header>
-      </section>
-
-      <%= render "cruise_arrangements/commercial_benefits" %>
-      <%= render "cruise_arrangements/agreement" %>
-
-      <section aria-labelledby="cruise-cabin-categories-heading">
-        <header class="dd-panel-header" style="padding: 0; border: 0;">
-          <div>
-            <h2 id="cruise-cabin-categories-heading" class="dd-section-title">Cabin categories</h2>
-            <p class="dd-page-description">
-              <%= pluralize(@shape.cabin_category_count, "cabin category") %>
-              · Recommended: <%= @recommended_action %>
-            </p>
-          </div>
-          <% if @editable %>
-            <div class="dd-inline-actions">
-              <%= link_to "Add a cabin category", new_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement), class: "dd-button" %>
-            </div>
-          <% end %>
-        </header>
-
-        <% if Array(@cabin_categories).blank? %>
-          <p>No cabin categories yet.</p>
-        <% else %>
-          <ul class="dd-stack">
-            <% @cabin_categories.each do |row| %>
-              <% definition = row[:resource_definition] %>
-              <% pool = row[:pool] %>
-              <% pool_definition = row[:pool_definition] %>
-              <% typed_pool = cruise_typed_cabin_pool?(pool, pool_definition) %>
-              <li>
-                <strong><%= [ definition.supplier_code, definition.name ].compact_blank.join(" · ") %></strong>
-                <% if definition.maximum_occupancy.present? %>
-                  · sleeps up to <%= definition.maximum_occupancy %>
-                <% end %>
-                <% if typed_pool %>
-                  · <%= cruise_inventory_mode_label(pool.inventory_mode) %>
-                  · <%= cruise_cabin_quantity_label(pool, pool_definition) %>
-                <% elsif pool.nil? %>
-                  · Inventory not configured — use advanced planning or recreate
-                <% end %>
-                <% if @editable && typed_pool %>
-                  · <%= link_to "Edit", edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, row[:resource]), class: "dd-link" %>
-                <% end %>
-              </li>
-            <% end %>
-          </ul>
-        <% end %>
-      </section>
-
-      <section aria-labelledby="cruise-rates-heading">
-        <h2 id="cruise-rates-heading" class="dd-section-title">Supplier rates</h2>
-        <% if @rate_rows.blank? %>
-          <p>Add a cabin category before entering Supplier rates.</p>
-        <% else %>
+  <% summary = @summary %>
+  <% agreement = summary.sections.find { |section| section.key == "agreement" } %>
+  <% cabin_workspace = cruise_cabin_inventory_workspace(summary) %>
+  <% navigation = cruise_setup_navigation %>
+  <article class="dd-stack" id="cruise-workspace">
+    <% if navigation.attention_items.any? %>
+      <section id="cruise-attention" class="dd-panel" aria-labelledby="cruise-attention-heading">
+        <div class="dd-panel-body dd-stack">
+          <h2 id="cruise-attention-heading" class="dd-section-title">Needs attention</h2>
           <ul>
-            <% @rate_rows.each do |row| %>
-              <% definition = row[:resource_definition] %>
-              <% summary = row[:summary] %>
+            <% navigation.attention_items.each do |item| %>
               <li>
-                <strong><%= definition.supplier_code.presence || definition.name %></strong>
-                — <%= definition.name %>
-                <% if summary[:stage] %>
-                  · <%= summary[:stage].humanize %>
-                <% end %>
-                <% if summary[:status] %>
-                  · <%= summary[:status].tr("_", " ") %>
-                <% end %>
-                <% if row[:preview]&.illustrations&.any? %>
-                  ·
-                  <%= row[:preview].illustrations.filter_map { |illustration|
-                        next unless illustration.gross_minor_units
-
-                        "#{illustration.label.split.first}: #{Money.new(illustration.gross_minor_units, row[:preview].currency).format}"
-                      }.join(", ") %>
-                <% end %>
-                ·
-                <% case summary[:action]
-                   when "add" %>
-                  <%= link_to "Add Supplier rates",
-                        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row[:resource]),
-                        class: "dd-link" %>
-                <% when "continue" %>
-                  <%= link_to "Continue Supplier rates",
-                        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row[:resource]),
-                        class: "dd-link" %>
-                <% when "review" %>
-                  <%= link_to "Review Supplier rates",
-                        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row[:resource]),
-                        class: "dd-link" %>
-                <% when "advanced" %>
-                  <%= link_to "Open advanced cost planning",
-                        departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @shape.item),
-                        class: "dd-link" %>
-                <% else %>
-                  <%= link_to "Open Supplier rates",
-                        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row[:resource]),
-                        class: "dd-link" %>
-                <% end %>
+                <%= item.message %>
+                <%= link_to "Open", cruise_setup_attention_path(item, @supplier_arrangement_version), class: "dd-link" %>
               </li>
             <% end %>
           </ul>
-        <% end %>
-        <% if @can_create_successor %>
-          <p>Activated terms need a successor draft before rate edits.</p>
-        <% end %>
+        </div>
+      </section>
+    <% end %>
+
+    <div class="dd-grid dd-cruise-cards">
+      <section id="cruise-sailing" class="dd-panel" aria-labelledby="cruise-sailing-heading">
+        <div class="dd-panel-body dd-stack">
+          <h2 id="cruise-sailing-heading" class="dd-section-title">Sailing</h2>
+          <p>
+            <%= @shape.summary["ship_name"] %>
+            · <%= @shape.summary["sailing_name"] %>
+            · <%= cruise_sailing_date_range(@shape.occurrence_definition) %>
+            · <%= @shape.summary["time_zone"] %>
+          </p>
+          <% if @shape.summary["departure_port_name"].present? %>
+            <p>Departs <%= @shape.summary["departure_port_name"] %></p>
+          <% end %>
+          <% if @shape.summary["return_port_name"].present? %>
+            <p>Returns <%= @shape.summary["return_port_name"] %></p>
+          <% end %>
+          <% if @shape.summary["itinerary_notes"].present? %>
+            <p>Itinerary notes: <%= @shape.summary["itinerary_notes"] %></p>
+          <% end %>
+          <% if @editable %>
+            <%= link_to "Edit sailing", edit_departure_arrangement_cruise_sailing_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
+          <% end %>
+        </div>
       </section>
 
-      <section aria-labelledby="cruise-deposits-heading">
-        <h2 id="cruise-deposits-heading" class="dd-section-title">Deposits and deadlines</h2>
-        <p>Record Supplier deadlines and deposit requirements for this Cruise.</p>
-        <p>
-          <%= link_to "Open deposits and deadlines",
-                departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @supplier_arrangement),
-                class: "dd-link" %>
-        </p>
+      <section id="cruise-cabins" class="dd-panel" aria-labelledby="cruise-cabins-heading">
+        <div class="dd-panel-body dd-stack">
+          <h2 id="cruise-cabins-heading" class="dd-section-title">Cabin inventory</h2>
+          <p><%= cruise_cabin_inventory_summary(cabin_workspace) %></p>
+          <% if cabin_workspace.attention_items.any? %>
+            <p>Needs attention</p>
+          <% end %>
+          <% if @can_manage && !cabin_workspace.advanced? %>
+            <%= link_to "Open Cabin inventory",
+                  departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement),
+                  class: "dd-button dd-button--quiet" %>
+          <% end %>
+        </div>
       </section>
 
-      <section aria-labelledby="cruise-client-heading">
+      <% rates_workspace = cruise_supplier_rates_workspace(summary) %>
+      <section id="cruise-rates" class="dd-panel" aria-labelledby="cruise-rates-heading">
+        <div class="dd-panel-body dd-stack">
+          <h2 id="cruise-rates-heading" class="dd-section-title">Supplier rates</h2>
+          <p><%= cruise_supplier_rates_summary(rates_workspace) %></p>
+          <% if @can_manage && !rates_workspace.advanced? %>
+            <%= link_to "Open Supplier rates",
+                  departure_arrangement_cruise_supplier_rates_path(@departure, @supplier_arrangement),
+                  class: "dd-button dd-button--quiet" %>
+          <% end %>
+        </div>
+      </section>
+
+      <section id="cruise-agreement" class="dd-panel" aria-labelledby="cruise-agreement-heading">
+        <div class="dd-panel-body dd-stack">
+          <h2 id="cruise-agreement-heading" class="dd-section-title">Agreement</h2>
+          <p><%= agreement.detail %></p>
+          <%= link_to "Open agreement",
+                departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
+                class: "dd-button dd-button--quiet" %>
+        </div>
+      </section>
+    </div>
+
+    <section id="cruise-client" class="dd-panel" aria-labelledby="cruise-client-heading">
+      <div class="dd-panel-body dd-stack">
         <h2 id="cruise-client-heading" class="dd-section-title">Client service</h2>
         <% if @connection_workspace %>
           <p><%= cruise_connection_status_label(@connection_workspace.status) %></p>
+          <% if @connection_workspace.status == :connected && @supplier_arrangement_version&.draft? && @supplier_arrangement_version.copied_from_id.present? %>
+            <p>Supplier inventory has changed. Client offering has not been changed automatically. This draft is not available to Clients.</p>
+          <% end %>
           <% if @connection_workspace.status == :connected && @connection_workspace.definition %>
             <p><%= @connection_workspace.definition.client_title %></p>
-            <p>Ready for category pricing</p>
           <% elsif @connection_workspace.status == :decide_later && @connection_workspace.definition %>
             <p><%= @connection_workspace.definition.client_title %></p>
           <% end %>
@@ -194,8 +112,8 @@
             <% end %>
           </p>
         <% end %>
-      </section>
-    </div>
+      </div>
+    </section>
   </article>
 <% else %>
   <article class="dd-panel" id="cruise-incompatible">

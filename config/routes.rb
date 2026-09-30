@@ -183,19 +183,26 @@ Rails.application.routes.draw do
       end
       resource :cruise, only: :show, controller: "cruise_arrangements" do
         post :successor
-        resource :agreement, only: [], controller: "cruise_agreements" do
+        resource :activation, only: %i[show create], controller: "cruise_activations"
+        resource :inventory_change, only: :show, controller: "cruise_inventory_changes" do
+          get :same_terms
+          post :same_terms, action: :create_same_terms
+          get :changed_terms
+          post :changed_terms, action: :create_changed_terms
+        end
+        resource :active_version, only: :show, controller: "cruise_active_versions"
+        resource :agreement, only: :show, controller: "cruise_agreements" do
           post :provisional
           post :confirm
           post :correct
           post :terms
-          post :same_terms_increase
-          post :supplemental_block
         end
         resource :sailing, only: %i[edit update], controller: "cruise_sailings"
         resources :commercial_benefits, only: %i[create update],
           param: :term_type, controller: "cruise_commercial_benefits"
+        resource :supplier_rates, only: :show, controller: "cruise_supplier_rate_summaries"
         resources :cabin_categories, path: "cabin-categories",
-          param: :resource_id, only: %i[new create edit update],
+          param: :resource_id, only: %i[index new create edit update destroy],
           controller: "cruise_cabin_categories" do
           resource :supplier_rates, path: "supplier-rates", only: %i[show create update],
             controller: "cruise_supplier_rates" do

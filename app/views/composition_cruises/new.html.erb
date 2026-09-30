@@ -26,8 +26,49 @@
         </div>
       <% end %>
 
-      <section aria-labelledby="cruise-agreement-heading" class="dd-stack">
-        <h2 id="cruise-agreement-heading" class="dd-section-title">Supplier agreement</h2>
+      <section aria-labelledby="cruise-sailing-heading" class="dd-stack">
+        <h2 id="cruise-sailing-heading" class="dd-section-title">Sailing</h2>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="item_name">Ship</label>
+          <input id="item_name" name="item[name]" class="dd-field" required maxlength="160"
+            value="<%= item[:name] %>">
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="occurrence_name">Sailing or itinerary name</label>
+          <input id="occurrence_name" name="occurrence[name]" class="dd-field" required maxlength="160"
+            value="<%= occurrence[:name] %>">
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="occurrence_starts_on">Start date</label>
+          <input id="occurrence_starts_on" name="occurrence[starts_on]" type="date" class="dd-field" required
+            value="<%= occurrence[:starts_on] %>">
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="occurrence_ends_on">End date</label>
+          <input id="occurrence_ends_on" name="occurrence[ends_on]" type="date" class="dd-field" required
+            value="<%= occurrence[:ends_on] %>">
+        </div>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="occurrence_time_zone">Time zone</label>
+          <select id="occurrence_time_zone" name="occurrence[time_zone]" class="dd-field" required>
+            <% iana_timezone_options.each do |zone| %>
+              <option value="<%= zone %>" <%= "selected" if occurrence[:time_zone].to_s == zone.to_s %>>
+                <%= zone %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+
+        <%= render "cruise_sailings/endpoint_fields", occurrence: occurrence %>
+      </section>
+
+      <section aria-labelledby="cruise-arrangement-heading" class="dd-stack">
+        <h2 id="cruise-arrangement-heading" class="dd-section-title">Arrangement</h2>
 
         <div class="dd-field-group">
           <label class="dd-label" for="arrangement_contracting_supplier_id">Contracting Supplier</label>
@@ -72,47 +113,6 @@
           </select>
           <p class="dd-field-hint">Optional when different from the contractor.</p>
         </div>
-      </section>
-
-      <section aria-labelledby="cruise-sailing-heading" class="dd-stack">
-        <h2 id="cruise-sailing-heading" class="dd-section-title">Sailing</h2>
-
-        <div class="dd-field-group">
-          <label class="dd-label" for="item_name">Ship</label>
-          <input id="item_name" name="item[name]" class="dd-field" required maxlength="160"
-            value="<%= item[:name] %>">
-        </div>
-
-        <div class="dd-field-group">
-          <label class="dd-label" for="occurrence_name">Sailing or itinerary name</label>
-          <input id="occurrence_name" name="occurrence[name]" class="dd-field" required maxlength="160"
-            value="<%= occurrence[:name] %>">
-        </div>
-
-        <div class="dd-field-group">
-          <label class="dd-label" for="occurrence_starts_on">Start date</label>
-          <input id="occurrence_starts_on" name="occurrence[starts_on]" type="date" class="dd-field" required
-            value="<%= occurrence[:starts_on] %>">
-        </div>
-
-        <div class="dd-field-group">
-          <label class="dd-label" for="occurrence_ends_on">End date</label>
-          <input id="occurrence_ends_on" name="occurrence[ends_on]" type="date" class="dd-field" required
-            value="<%= occurrence[:ends_on] %>">
-        </div>
-
-        <div class="dd-field-group">
-          <label class="dd-label" for="occurrence_time_zone">Time zone</label>
-          <select id="occurrence_time_zone" name="occurrence[time_zone]" class="dd-field" required>
-            <% iana_timezone_options.each do |zone| %>
-              <option value="<%= zone %>" <%= "selected" if occurrence[:time_zone].to_s == zone.to_s %>>
-                <%= zone %>
-              </option>
-            <% end %>
-          </select>
-        </div>
-
-        <%= render "cruise_sailings/endpoint_fields", occurrence: occurrence %>
       </section>
 
       <div class="dd-form-actions">

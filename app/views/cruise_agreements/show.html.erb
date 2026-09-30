@@ -1,0 +1,13 @@
+<% confirmation = @agreement_confirmation %>
+<% ship_name = @shape.summary["ship_name"].presence || @supplier_arrangement.name %>
+<% content_for :title, "Agreement · #{ship_name} · DepartureDesk" %>
+
+<%= render "cruise_setup/shell", current: :agreement, page_title: "Agreement" %>
+
+<div class="dd-cruise-agreement-review">
+  <%= render "cruise_agreements/identity", confirmation: confirmation %>
+  <%= render "cruise_agreements/deposits" %>
+  <%= render "cruise_agreements/deadlines" %>
+  <%= render "cruise_agreements/benefits" %>
+  <%= render "cruise_agreements/policies" %>
+</div>

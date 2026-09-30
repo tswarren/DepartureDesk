@@ -1,0 +1,73 @@
+<dl class="dd-fact-grid">
+  <div>
+    <dt>Contracting supplier</dt>
+    <dd><%= @supplier_arrangement.contracting_supplier.display_name_for_directory %></dd>
+  </div>
+  <% if confirmation.group_reference.present? %>
+    <div>
+      <dt>Supplier group number</dt>
+      <dd>Group <%= confirmation.group_reference %></dd>
+    </div>
+  <% end %>
+  <% if confirmation.group_creation_date.present? %>
+    <div>
+      <dt>Group creation date</dt>
+      <dd><%= cruise_calendar_date(confirmation.group_creation_date) %></dd>
+    </div>
+  <% end %>
+  <% if confirmation.contract_date.present? %>
+    <div>
+      <dt>Contract date</dt>
+      <dd><%= cruise_calendar_date(confirmation.contract_date) %></dd>
+    </div>
+  <% end %>
+  <% if confirmation.confirmed? && confirmation.confirmed_at.present? %>
+    <div>
+      <dt>Confirmed</dt>
+      <dd>
+        <%= cruise_confirmation_recorded_on(confirmation) %>
+        <% if confirmation.confirmed_by %>
+          by <%= confirmation.confirmed_by.display_name %>
+        <% end %>
+      </dd>
+    </div>
+  <% end %>
+</dl>
+<% if confirmation.note.present? %>
+  <div class="dd-agreement-note">
+    <h3 class="dd-agreement-row-heading">Notes</h3>
+    <div class="dd-reference-text"><%= formatted_reference_text(confirmation.note) %></div>
+  </div>
+<% end %>
+<% if confirmation.deposit_treatment.present? || cruise_supplemental_deposit_treatment_pending?(confirmation) %>
+  <div class="dd-agreement-note">
+    <h3 class="dd-agreement-row-heading">Deposit treatment for a supplemental block</h3>
+    <% if confirmation.deposit_treatment.present? %>
+      <div class="dd-reference-text"><%= formatted_reference_text(confirmation.deposit_treatment) %></div>
+    <% else %>
+      <p class="dd-agreement-description">Not recorded</p>
+    <% end %>
+  </div>
+<% end %>
+<% priors = cruise_agreement_prior_confirmations(confirmation) %>
+<% if priors.any? %>
+  <details class="dd-agreement-note">
+    <summary>View history</summary>
+    <ol class="dd-agreement-ladder">
+      <% priors.each do |prior| %>
+        <li>
+          <p class="dd-agreement-threshold"><%= prior.confirmed? ? "Confirmed" : "Provisional" %></p>
+          <% if prior.group_reference.present? %>
+            <p class="dd-agreement-meta">Group <%= prior.group_reference %></p>
+          <% end %>
+          <% if prior.group_creation_date.present? %>
+            <p class="dd-agreement-meta">Group creation date <%= cruise_calendar_date(prior.group_creation_date) %></p>
+          <% end %>
+          <% if prior.contract_date.present? %>
+            <p class="dd-agreement-meta">Contract date <%= cruise_calendar_date(prior.contract_date) %></p>
+          <% end %>
+        </li>
+      <% end %>
+    </ol>
+  </details>
+<% end %>

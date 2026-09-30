@@ -1,0 +1,79 @@
+<% confirmed = confirmation&.confirmed? %>
+<% editing = cruise_agreement_focused?("agreement") %>
+<section class="dd-panel dd-agreement-section" aria-labelledby="agreement">
+  <header class="dd-panel-header">
+    <%= cruise_marked_heading(:h2, "agreement", "Agreement", class: "dd-agreement-heading") %>
+    <% if confirmed %>
+      <%= cruise_status_badge("Confirmed", :success) %>
+    <% elsif confirmation %>
+      <%= cruise_status_badge("Provisional", :neutral) %>
+    <% end %>
+  </header>
+  <div class="dd-panel-body">
+    <% if confirmed && !editing %>
+      <%= render "cruise_agreements/identity_summary", confirmation: confirmation %>
+      <% if @editable %>
+        <div class="dd-agreement-row-actions">
+          <%= cruise_row_link "Correct", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "agreement") %>
+        </div>
+      <% end %>
+    <% elsif confirmation && !confirmed && !editing %>
+      <%= render "cruise_agreements/identity_summary", confirmation: confirmation %>
+      <% if @editable %>
+        <div class="dd-agreement-row-actions">
+          <%= cruise_row_link "Edit", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "agreement") %>
+        </div>
+      <% end %>
+    <% elsif !confirmation && !@editable %>
+      <p class="dd-agreement-description">The Supplier agreement has not been confirmed.</p>
+    <% end %>
+
+    <% if @editable && @supplier_arrangement_version && (editing || confirmation.nil?) %>
+      <% if @form_error.present? && (editing || (confirmation.nil? && @focus.blank?)) %>
+        <p id="form-error-summary" role="alert" data-controller="form-error-summary"><%= @form_error %></p>
+      <% end %>
+      <%= form_with url: (confirmed ? correct_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement) : confirm_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)),
+            method: :post, class: "dd-stack", html: { id: "cruise-agreement-confirm" } do %>
+        <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <div class="dd-field">
+          <label class="dd-label" for="agreement_group_creation_date_confirm">Group creation date</label>
+          <%= date_field_tag :group_creation_date, params[:group_creation_date].presence || confirmation&.group_creation_date,
+                id: "agreement_group_creation_date_confirm", class: "dd-input", required: true %>
+        </div>
+        <div class="dd-field">
+          <label class="dd-label" for="agreement_group_reference">Supplier group number</label>
+          <%= text_field_tag :group_reference, params[:group_reference].presence || confirmation&.group_reference,
+                id: "agreement_group_reference", class: "dd-input", required: true %>
+        </div>
+        <div class="dd-field">
+          <label class="dd-label" for="agreement_contract_date">Contract date</label>
+          <%= date_field_tag :contract_date, params[:contract_date].presence || confirmation&.contract_date,
+                id: "agreement_contract_date", class: "dd-input", required: true %>
+        </div>
+        <div class="dd-field">
+          <label class="dd-label" for="agreement_note">Note</label>
+          <%= text_area_tag :note, params.key?(:note) ? params[:note] : confirmation&.note,
+                id: "agreement_note", class: "dd-input", rows: 4, maxlength: SupplierArrangementCruiseAgreementConfirmation::NOTE_LIMIT %>
+        </div>
+        <div class="dd-field">
+          <label class="dd-label" for="agreement_deposit_treatment">Deposit treatment for a supplemental block</label>
+          <%= text_area_tag :deposit_treatment, params.key?(:deposit_treatment) ? params[:deposit_treatment] : confirmation&.deposit_treatment,
+                id: "agreement_deposit_treatment", class: "dd-input", rows: 3, maxlength: SupplierArrangementCruiseAgreementConfirmation::NOTE_LIMIT %>
+        </div>
+        <div class="dd-form-actions">
+          <% unless confirmed %>
+            <%= submit_tag "Save for later",
+                  formaction: provisional_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
+                  formnovalidate: true,
+                  class: "dd-button dd-button--quiet" %>
+          <% end %>
+          <%= submit_tag(confirmed ? "Correct confirmation" : "Confirm Supplier agreement", class: "dd-button") %>
+          <% if confirmation.present? %>
+            <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "agreement"), class: "dd-button dd-button--quiet" %>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</section>

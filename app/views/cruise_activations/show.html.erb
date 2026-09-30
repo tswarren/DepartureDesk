@@ -1,0 +1,242 @@
+<% content_for :title, "Review & activate #{@supplier_arrangement.name} · DepartureDesk" %>
+<% navigation = cruise_setup_navigation %>
+<% review_status = navigation.areas.find { |area| area.key == :review }.status %>
+<% setup_areas = navigation.areas.reject { |area| area.key == :review } %>
+
+<%= render "cruise_setup/shell", current: :review, page_title: "Review & activate" %>
+
+<p id="cruise-activation-status"><%= review_status %></p>
+
+<section class="dd-panel" aria-labelledby="cruise-activation-setup-heading">
+  <div class="dd-panel-body">
+    <h2 id="cruise-activation-setup-heading" class="dd-panel-title">Supplier setup</h2>
+    <ul id="cruise-activation-setup">
+      <% setup_areas.each do |area| %>
+        <li>
+          <% if cruise_setup_area_available?(area) %>
+            <%= link_to area.label, cruise_setup_area_path(area, @supplier_arrangement_version) %>
+          <% else %>
+            <%= area.label %>
+          <% end %>
+          <span><%= area.status %></span>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+</section>
+
+<%= render "shared/form_errors", object: @command_form if @command_form&.errors&.any? %>
+
+<% if @review.activated? %>
+  <section class="dd-panel" aria-labelledby="cruise-activated-heading">
+    <div class="dd-panel-body dd-stack">
+      <h2 id="cruise-activated-heading" class="dd-panel-title">Supplier terms are active</h2>
+      <p>Version <%= @supplier_arrangement_version.version_number %> became governing<% if @activation %> on <%= cruise_activation_recorded_on(@activation) %><% end %>.</p>
+      <% if @activation %>
+        <p>Activated by <%= @activation.actor.display_name %>.</p>
+        <% identifier = cruise_activation_identifier(@activation) %>
+        <% if identifier.present? %>
+          <p>Supplier-issued identifier <%= identifier %></p>
+        <% end %>
+      <% end %>
+      <%= link_to "Connect to Client service",
+            departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement),
+            class: "dd-button" %>
+      <%= link_to "Return to Cruise overview",
+            departure_arrangement_cruise_path(@departure, @supplier_arrangement),
+            class: "dd-button dd-button--secondary" %>
+    </div>
+  </section>
+<% elsif review_status == "Needs attention" %>
+  <section class="dd-panel" aria-labelledby="cruise-attention-heading">
+    <div class="dd-panel-body dd-stack">
+      <h2 id="cruise-attention-heading" class="dd-panel-title">Needs attention</h2>
+      <ul>
+        <% @review.blockers.each do |blocker| %>
+          <li>
+            <p><%= blocker.message %></p>
+            <% destination = cruise_activation_blocker_path(blocker) %>
+            <% if destination %>
+              <%= link_to cruise_activation_blocker_label(blocker), destination %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  </section>
+<% elsif review_status == "Ready to review" %>
+  <section class="dd-panel" aria-labelledby="cruise-consequences-heading">
+    <div class="dd-panel-body">
+      <h2 id="cruise-consequences-heading" class="dd-panel-title">What activation will do</h2>
+      <ul>
+        <% @review.consequences.each do |sentence| %>
+          <li><%= sentence %></li>
+        <% end %>
+      </ul>
+      <% if @review.triggers.empty? %>
+        <p>No confirmation-triggered commitments are declared.</p>
+      <% else %>
+        <h3>Confirmation triggers</h3>
+        <ul>
+          <% @review.triggers.each do |trigger| %>
+            <li><%= trigger.description %></li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
+  </section>
+
+  <% if Current.agency_user.permitted?(:manage_departures) %>
+    <%= form_with url: departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement), method: :post do %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+      <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+      <% if @elapsed_review_token.present? %>
+        <%= hidden_field_tag :elapsed_review_token, @elapsed_review_token %>
+      <% end %>
+      <% if @acknowledgement_token.present? %>
+        <%= hidden_field_tag :duplicate_acknowledgement_token, @acknowledgement_token %>
+      <% end %>
+
+      <% if @acknowledgement_token.present? %>
+        <div class="dd-alert dd-alert--warning" role="status">
+          <p class="dd-alert-title">Matching Supplier identifiers</p>
+          <p>Review the matching Supplier identifiers, then activate again to create this identifier anyway.</p>
+          <ul>
+            <% Array(@duplicate_candidates).each do |candidate| %>
+              <li><%= Array(candidate.signals).to_sentence %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <% if @review.elapsed.any? %>
+        <section class="dd-panel" aria-labelledby="cruise-elapsed-heading">
+          <div class="dd-panel-body dd-stack">
+            <h2 id="cruise-elapsed-heading" class="dd-panel-title">A Supplier requirement is already past due</h2>
+            <ul>
+              <% @review.elapsed.each do |row| %>
+                <li><%= row.label %><% if row.due_label.present? %> — due <%= row.due_label %><% end %></li>
+              <% end %>
+            </ul>
+            <p>Activating this Cruise will open each listed requirement as already overdue.</p>
+            <div class="dd-field-group">
+              <%= check_box_tag :elapsed_deadlines_acknowledged, "1", params[:elapsed_deadlines_acknowledged] == "1" %>
+              <%= label_tag :elapsed_deadlines_acknowledged, "I reviewed these elapsed Supplier requirements.", class: "dd-label" %>
+            </div>
+          </div>
+        </section>
+      <% end %>
+
+      <% @review.triggers.select(&:needs_quantity?).each do |trigger| %>
+        <div class="dd-field-group">
+          <%= label_tag "confirmed_quantities_#{trigger.id}", "Supplier-confirmed quantity · #{trigger.description}", class: "dd-label" %>
+          <%= number_field_tag "confirmed_quantities[#{trigger.id}]", params.dig(:confirmed_quantities, trigger.id.to_s), min: 1, step: 1, required: true, id: "confirmed_quantities_#{trigger.id}" %>
+        </div>
+      <% end %>
+      <% @review.triggers.select(&:needs_amount?).each do |trigger| %>
+        <div class="dd-field-group">
+          <%= label_tag "confirmed_amounts_#{trigger.id}", "Supplier-confirmed amount in minor units · #{trigger.description}", class: "dd-label" %>
+          <%= number_field_tag "confirmed_amounts_minor_units[#{trigger.id}]", params.dig(:confirmed_amounts_minor_units, trigger.id.to_s), min: 0, step: 1, required: true, id: "confirmed_amounts_#{trigger.id}" %>
+        </div>
+      <% end %>
+
+      <section class="dd-panel" aria-labelledby="cruise-evidence-heading">
+        <div class="dd-panel-body dd-stack">
+          <h2 id="cruise-evidence-heading" class="dd-panel-title">Activation evidence</h2>
+          <p>Record or reuse the Supplier evidence supporting activation of these terms. The Cruise agreement confirmation is a separate record.</p>
+          <% if @existing_confirmations.any? %>
+            <div class="dd-field-group">
+              <%= label_tag :existing_confirmation_id, "Existing compatible evidence", class: "dd-label" %>
+              <%= select_tag :existing_confirmation_id,
+                    options_for_select([["Create new evidence", ""]] + @existing_confirmations.map { |entry| [ "#{entry.evidence_on}: #{entry.reference_note}", entry.id ] }, params[:existing_confirmation_id]),
+                    id: "activation_existing_confirmation_id" %>
+            </div>
+          <% end %>
+          <div class="dd-field-group">
+            <%= label_tag "confirmation_evidence_kind", "Evidence kind", class: "dd-label" %>
+            <%= select_tag "confirmation[evidence_kind]",
+                  options_for_select(SupplierConfirmation::BOOKING_EVIDENCE_KINDS.map { |kind| [ kind.humanize, kind ] }, params.dig(:confirmation, :evidence_kind)),
+                  include_blank: "Choose evidence", id: "confirmation_evidence_kind" %>
+          </div>
+          <div class="dd-field-group">
+            <%= label_tag "confirmation_evidence_on", "Evidence date", class: "dd-label" %>
+            <%= date_field_tag "confirmation[evidence_on]", params.dig(:confirmation, :evidence_on), id: "confirmation_evidence_on" %>
+          </div>
+          <div class="dd-field-group">
+            <%= label_tag "confirmation_channel", "Channel", class: "dd-label" %>
+            <%= text_field_tag "confirmation[channel]", params.dig(:confirmation, :channel), id: "confirmation_channel", maxlength: 80 %>
+          </div>
+          <div class="dd-field-group">
+            <%= label_tag "confirmation_reference_note", "Reference note", class: "dd-label" %>
+            <%= text_area_tag "confirmation[reference_note]", params.dig(:confirmation, :reference_note), id: "confirmation_reference_note", maxlength: 500 %>
+          </div>
+          <div class="dd-field-group">
+            <%= label_tag "confirmation_confirmed_without_identifier_reason", "Reason no Supplier identifier was issued", class: "dd-label" %>
+            <%= text_area_tag "confirmation[confirmed_without_identifier_reason]", params.dig(:confirmation, :confirmed_without_identifier_reason), id: "confirmation_confirmed_without_identifier_reason", maxlength: 500 %>
+          </div>
+          <details <%= "open".html_safe if @command_form&.errors&.any? { |error| %w[display_value identifier_type issuer_context other_type_label].include?(error.attribute.to_s) } %>>
+            <summary>Add a Supplier-issued identifier</summary>
+            <div class="dd-field-group">
+              <%= label_tag "identifier_identifier_type", "Identifier type", class: "dd-label" %>
+              <%= select_tag "identifier[identifier_type]",
+                    options_for_select([[ "No identifier", "" ]] + SupplierIssuedIdentifier::IDENTIFIER_TYPES.map { |kind| [ kind.humanize, kind ] }, params.dig(:identifier, :identifier_type)),
+                    id: "identifier_identifier_type" %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "identifier_other_type_label", "Other identifier label", class: "dd-label" %>
+              <%= text_field_tag "identifier[other_type_label]", params.dig(:identifier, :other_type_label), id: "identifier_other_type_label", maxlength: 80 %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "identifier_issuer_context", "Issuer context", class: "dd-label" %>
+              <%= text_field_tag "identifier[issuer_context]", params.dig(:identifier, :issuer_context), id: "identifier_issuer_context", maxlength: 80 %>
+              <% if @command_form&.errors&.[](:issuer_context)&.any? %>
+                <p class="dd-field-error" id="identifier_issuer_context_error"><%= @command_form.errors[:issuer_context].to_sentence %></p>
+              <% end %>
+            </div>
+            <div class="dd-field-group">
+              <%= label_tag "confirmation_display_value", "Identifier", class: "dd-label" %>
+              <%= text_field_tag "identifier[display_value]", params.dig(:identifier, :display_value), id: "confirmation_display_value", maxlength: 160 %>
+            </div>
+          </details>
+          <div class="dd-page-actions">
+            <% if @supplier_arrangement_version&.draft? && @supplier_arrangement_version.copied_from_id.present? %>
+              <p>Activating Draft Version <%= @supplier_arrangement_version.version_number %>. Active Version <%= @supplier_arrangement_version.copied_from.version_number %> remains in effect until activation succeeds.</p>
+            <% end %>
+            <%= submit_tag "Activate Supplier terms", class: "dd-button" %>
+          </div>
+        </div>
+      </section>
+    <% end %>
+  <% end %>
+<% else %>
+  <section class="dd-panel" aria-labelledby="cruise-advanced-heading">
+    <div class="dd-panel-body dd-stack">
+      <h2 id="cruise-advanced-heading" class="dd-panel-title">Requires Advanced</h2>
+      <% if @review.blockers.any? %>
+        <p>This screen cannot represent every activation requirement.</p>
+        <ul>
+          <% @review.blockers.each do |blocker| %>
+            <li>
+              <p><%= blocker.message %></p>
+              <% destination = cruise_activation_blocker_path(blocker) %>
+              <% if destination %>
+                <%= link_to cruise_activation_blocker_label(blocker), destination %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p>The Supplier setup is ready, and this Cruise activation screen cannot safely represent the activation.</p>
+        <% @review.unsupported_reasons.each do |reason| %>
+          <p><%= reason %></p>
+        <% end %>
+        <% if @review.cost_rows.any? { |row| row.stage_label == "Estimate" } %>
+          <p>A selected Supplier cost is an estimate. This Cruise review will not acknowledge an estimate.</p>
+        <% end %>
+      <% end %>
+      <%= link_to "Open Advanced Supplier planning",
+            departure_arrangement_activation_path(@departure, @supplier_arrangement) %>
+    </div>
+  </section>
+<% end %>

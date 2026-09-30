@@ -153,7 +153,11 @@ class SupplierDepositAmountEvaluator
         }
       }
     when "capacity_pool_units"
-      evaluate_capacity_pool_rate(rate, quantity_phase: opening_phase)
+      evaluate_capacity_pool_rate(
+        rate,
+        quantity_phase: opening_phase,
+        exclude_nonnumeric_opening: true
+      )
     when "traveler_positions"
       raise IncompleteCalculation, "Traveler position deposit quantities are not supported yet"
     else
@@ -177,8 +181,31 @@ class SupplierDepositAmountEvaluator
     @arrangement.versions.where.not(status: "draft").exists?
   end
 
-  def evaluate_capacity_pool_rate(rate, quantity_phase:)
-    sources = capacity_pool_sources(quantity_phase:)
+  def evaluate_capacity_pool_rate(rate, quantity_phase:, exclude_nonnumeric_opening: false)
+    sources, excluded = capacity_pool_resolution(
+      quantity_phase:,
+      exclude_nonnumeric_opening:
+    )
+    if sources.empty?
+      if excluded.any?
+        return {
+          quantity_not_tracked: true,
+          amount_minor_units: nil,
+          components: [],
+          inputs: {
+            "amount_shape" => "quantity_times_rate",
+            "quantity_basis" => "capacity_pool_units",
+            "quantity_phase" => quantity_phase.to_s,
+            "quantity_tracked" => false,
+            "rate_minor_units" => rate,
+            "excluded_pools" => excluded
+          }
+        }
+      end
+
+      raise IncompleteCalculation, "Capacity-pool quantity must be positive"
+    end
+
     total_quantity = sources.sum { |row| row.fetch(:quantity) }
     raise IncompleteCalculation, "Capacity-pool quantity must be positive" unless total_quantity.positive?
 
@@ -198,6 +225,7 @@ class SupplierDepositAmountEvaluator
       }
     end
     {
+      quantity_not_tracked: false,
       amount_minor_units: amount,
       components:,
       inputs: {
@@ -205,20 +233,38 @@ class SupplierDepositAmountEvaluator
         "quantity" => total_quantity,
         "quantity_basis" => "capacity_pool_units",
         "quantity_phase" => quantity_phase.to_s,
+        "quantity_tracked" => true,
         "rate_minor_units" => rate,
-        "sources" => components
+        "sources" => components,
+        "excluded_pools" => excluded
       }
     }
   end
 
   def capacity_pool_sources(quantity_phase:)
+    capacity_pool_resolution(quantity_phase:, exclude_nonnumeric_opening: false).first
+  end
+
+  def capacity_pool_resolution(quantity_phase:, exclude_nonnumeric_opening:)
     links = coverage_link_rows
     raise IncompleteCalculation, "Deposit coverage is required for capacity-pool quantities" if links.empty?
 
-    links.map do |link|
+    sources = []
+    excluded = []
+    links.each do |link|
       pool = resolve_capacity_pool(link)
+      if exclude_nonnumeric_opening && !pool.numeric_inventory?
+        excluded << {
+          "capacity_pool_id" => pool.id,
+          "supplier_resource_id" => pool.supplier_resource_id,
+          "inventory_mode" => pool.inventory_mode,
+          "reason" => "quantity_not_tracked"
+        }
+        next
+      end
+
       quantity, meta = quantity_for_pool(pool, quantity_phase:)
-      {
+      sources << {
         capacity_pool_id: pool.id,
         supplier_resource_id: pool.supplier_resource_id,
         quantity:,
@@ -227,6 +273,7 @@ class SupplierDepositAmountEvaluator
         capacity_event_id: meta[:capacity_event_id]
       }
     end
+    [ sources, excluded ]
   end
 
   def resolve_capacity_pool(link)

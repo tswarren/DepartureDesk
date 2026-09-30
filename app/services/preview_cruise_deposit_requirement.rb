@@ -61,9 +61,13 @@ class PreviewCruiseDepositRequirement
       contributor_definition_ids: @candidate.contributor_definition_ids.presence
     )
 
-    quantity_label = Array(evaluated[:components]).lazy
-      .map { |row| row.with_indifferent_access[:quantity_label] }
-      .find(&:present?)
+    quantity_label = if evaluated[:quantity_not_tracked]
+      "Quantity not tracked"
+    else
+      Array(evaluated[:components]).lazy
+        .map { |row| row.with_indifferent_access[:quantity_label] }
+        .find(&:present?)
+    end
 
     Result.new(
       status: "ready",

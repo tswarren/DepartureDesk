@@ -1,0 +1,91 @@
+<% content_for :title, "Supplier rates · #{@supplier_arrangement.name} · DepartureDesk" %>
+
+<%= render "cruise_setup/shell", current: :rates, page_title: "Supplier rates" %>
+
+<article class="dd-stack" id="cruise-supplier-rates-workspace">
+  <section class="dd-panel">
+    <div class="dd-panel-body dd-stack">
+      <p id="cruise-supplier-rates-summary"><%= cruise_supplier_rates_summary(@workspace) %></p>
+      <% if @workspace.attention_items.any? %>
+        <section id="cruise-supplier-rates-attention" aria-labelledby="cruise-supplier-rates-attention-heading">
+          <h2 id="cruise-supplier-rates-attention-heading" class="dd-section-title">Needs attention</h2>
+          <ul>
+            <% @workspace.attention_items.each do |item| %>
+              <li>
+                <%= item.message %>
+                <% if item.advanced? && @item %>
+                  <%= link_to "Open",
+                        departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @item),
+                        class: "dd-link" %>
+                <% elsif item.resource_id.present? %>
+                  <%= link_to "Open",
+                        cruise_supplier_rate_editor_path(item.resource_id, stage: item.stage),
+                        class: "dd-link" %>
+                <% end %>
+              </li>
+            <% end %>
+          </ul>
+        </section>
+      <% end %>
+      <% if @workspace.rows.any? %>
+        <p class="dd-field-hint">Illustrative cabin totals</p>
+        <div class="dd-table-wrap">
+          <table class="dd-table dd-rates-table" id="cruise-supplier-rates-table">
+            <thead>
+              <tr>
+                <th scope="col">Code</th>
+                <th scope="col">Cabin category</th>
+                <th scope="col">Stage</th>
+                <th scope="col">Status</th>
+                <th scope="col">Single</th>
+                <th scope="col">Double</th>
+                <th scope="col">Triple</th>
+                <th scope="col">Commission</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @workspace.rows.each do |row| %>
+                <tr>
+                  <td>
+                    <span class="dd-visually-hidden dd-cabin-field-label">Code</span>
+                    <%= row.code.presence || "—" %>
+                  </td>
+                  <td>
+                    <span class="dd-visually-hidden dd-cabin-field-label">Cabin category</span>
+                    <% if row.advanced? && @item %>
+                      <%= link_to row.name,
+                            departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @item),
+                            class: "dd-link" %>
+                    <% else %>
+                      <%= link_to row.name,
+                            cruise_supplier_rate_editor_path(row.resource_id, stage: row.stage),
+                            class: "dd-link" %>
+                    <% end %>
+                  </td>
+                  <td>
+                    <span class="dd-visually-hidden dd-cabin-field-label">Stage</span>
+                    <%= row.stage_label %>
+                  </td>
+                  <td>
+                    <span class="dd-visually-hidden dd-cabin-field-label">Status</span>
+                    <%= row.status_label %>
+                  </td>
+                  <% [ [ "Single", row.single ], [ "Double", row.double ], [ "Triple", row.triple ] ].each do |label, illustration| %>
+                    <td>
+                      <span class="dd-visually-hidden dd-cabin-field-label"><%= label %></span>
+                      <%= cruise_supplier_rate_scenario_amount(row, illustration) %>
+                    </td>
+                  <% end %>
+                  <td>
+                    <span class="dd-visually-hidden dd-cabin-field-label">Commission</span>
+                    <%= row.commission_label %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+  </section>
+</article>

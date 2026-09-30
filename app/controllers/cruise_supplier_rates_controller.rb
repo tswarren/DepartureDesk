@@ -66,6 +66,17 @@ class CruiseSupplierRatesController < ApplicationController
       currency: currency,
       commission_method: preview.commission_method,
       error: nil,
+      profile_commissions: preview.profile_commissions.map { |row|
+        {
+          key: row.key,
+          label: row.label,
+          basis_recorded: row.basis_recorded,
+          commissionable: row.commissionable_minor_units &&
+            Money.new(row.commissionable_minor_units, currency).format,
+          expected_commission: row.expected_commission_minor_units &&
+            Money.new(row.expected_commission_minor_units, currency).format
+        }
+      },
       illustrations: preview.illustrations.map { |row|
         {
           key: row.key,
@@ -360,8 +371,6 @@ class CruiseSupplierRatesController < ApplicationController
     default_profiles = [
       { family: "first_second", category: nil, key: "first_second" },
       { family: "additional", category: nil, key: "additional" },
-      { family: "every_traveler", category: nil, key: "every_traveler" },
-      { family: "every_cabin", category: nil, key: "every_cabin" },
       { family: "single_supplement", category: nil, key: "single_supplement" }
     ]
 

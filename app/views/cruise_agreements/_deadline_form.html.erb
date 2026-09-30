@@ -1,0 +1,51 @@
+<% posted = cruise_posted_deadline if cruise_agreement_focused?(focus_key) %>
+<% date_value = posted&.dig(:fixed_date).presence || (definition ? cruise_fixed_due_date(definition) : nil) %>
+<% description_value = if posted&.key?(:description)
+     posted[:description]
+   elsif definition
+     definition.description
+   end %>
+<% projected = definition ? CruiseDeadlineTemplateSupport.project_editor_fields(definition) : nil %>
+<% coverage = projected ? projected[:coverage] : { scope: "arrangement" } %>
+<% if @form_error.present? %>
+  <p id="form-error-summary" role="alert" data-controller="form-error-summary"><%= @form_error %></p>
+<% end %>
+<%= form_with url: definition ?
+      departure_arrangement_cruise_deposits_and_deadlines_deadline_path(@departure, @supplier_arrangement, definition) :
+      departure_arrangement_cruise_deposits_and_deadlines_deadlines_path(@departure, @supplier_arrangement),
+    method: definition ? :patch : :post, class: "dd-stack", html: { id: "cruise-deadline-focus-#{focus_key}" } do %>
+  <%= hidden_field_tag :return_to, CruiseAgreementReview::AGREEMENT_RETURN_TOKEN %>
+  <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+  <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+  <% if definition %>
+    <%= hidden_field_tag :lock_version, definition.lock_version %>
+    <% if projected[:warning_lead_days].present? %>
+      <%= hidden_field_tag "cruise_deadline[warning_lead_days]", projected[:warning_lead_days] %>
+    <% end %>
+  <% end %>
+  <%= hidden_field_tag "cruise_deadline[template]", template %>
+  <%= hidden_field_tag "cruise_deadline[kind]", definition&.kind.presence || "actionable" %>
+  <%= hidden_field_tag "cruise_deadline[rule_shape]", "fixed_date" %>
+  <%= hidden_field_tag "cruise_deadline[coverage_scope]", coverage[:scope].presence || "arrangement" %>
+  <% if coverage[:supplier_resource_id].present? %>
+    <%= hidden_field_tag "cruise_deadline[supplier_resource_id]", coverage[:supplier_resource_id] %>
+  <% end %>
+  <% if coverage[:capacity_pool_id].present? %>
+    <%= hidden_field_tag "cruise_deadline[capacity_pool_id]", coverage[:capacity_pool_id] %>
+  <% end %>
+  <div class="dd-field">
+    <label class="dd-label" for="deadline_date_<%= focus_key %>">Date</label>
+    <%= date_field_tag "cruise_deadline[fixed_date]", date_value, id: "deadline_date_#{focus_key}", class: "dd-input", required: true %>
+  </div>
+  <% if show_description %>
+    <div class="dd-field">
+      <label class="dd-label" for="deadline_description_<%= focus_key %>">Required action</label>
+      <%= text_area_tag "cruise_deadline[description]", description_value, id: "deadline_description_#{focus_key}", class: "dd-input", rows: 4, maxlength: SupplierDeadlineDefinition::DESCRIPTION_LIMIT %>
+      <p class="dd-help">This sentence does not release inventory.</p>
+    </div>
+  <% end %>
+  <div class="dd-form-actions">
+    <%= submit_tag definition ? "Save" : "Add", class: "dd-button" %>
+    <%= link_to "Cancel", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, anchor: "deadlines"), class: "dd-button dd-button--quiet" %>
+  </div>
+<% end %>

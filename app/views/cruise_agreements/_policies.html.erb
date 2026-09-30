@@ -1,0 +1,90 @@
+<% card = cruise_term("card_restrictions") %>
+<% steps = cruise_cancellation_steps %>
+<section class="dd-panel dd-agreement-section" aria-labelledby="policies">
+  <header class="dd-panel-header">
+    <%= cruise_marked_heading(:h2, "policies", "Policies", class: "dd-agreement-heading") %>
+  </header>
+  <div class="dd-panel-body">
+    <p class="dd-agreement-description">These are recorded Supplier terms. DepartureDesk does not process payments or apply the cancellation ladder.</p>
+
+    <div class="dd-agreement-row">
+      <% if cruise_agreement_focused?("term-card") && @editable %>
+        <%= cruise_marked_heading(:h3, "term-card", "Payment restrictions", class: "dd-agreement-row-heading") %>
+        <%= render "cruise_agreements/card_form", term: card %>
+      <% elsif card %>
+        <div class="dd-agreement-row-head">
+          <%= cruise_marked_heading(:h3, "term-card", "Payment restrictions", class: "dd-agreement-row-heading") %>
+          <%= cruise_status_badge("Recorded", :neutral) %>
+        </div>
+        <div class="dd-reference-text dd-agreement-row-prose"><%= formatted_reference_text(card.body) %></div>
+        <% if @editable %>
+          <div class="dd-agreement-row-actions">
+            <%= cruise_row_link "Edit", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "term-card") %>
+          </div>
+        <% end %>
+      <% else %>
+        <div class="dd-agreement-row-head">
+          <%= cruise_marked_heading(:h3, "term-card", "Payment restrictions", class: "dd-agreement-row-heading") %>
+          <%= cruise_status_badge("Not recorded", :neutral) %>
+          <% if @editable %>
+            <div class="dd-agreement-row-actions">
+              <%= cruise_row_link "Add", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "term-card") %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="dd-agreement-row">
+      <%= cruise_marked_heading(:h3, "term-cancellation", "Cancellation policy", class: "dd-agreement-row-heading") %>
+      <% editing_new = cruise_agreement_focused?("cancellation-new") %>
+      <% editing_position = @focus.to_s[/\Acancellation-edit-(\d+)\z/, 1]&.to_i %>
+      <% if @editable && (editing_new || editing_position&.positive?) %>
+        <%= render "cruise_agreements/cancellation_form", steps: steps, editing_position: editing_position, adding: editing_new %>
+      <% elsif steps.any? %>
+        <ol class="dd-agreement-ladder">
+          <% steps.each_with_index do |step, index| %>
+            <li>
+              <p class="dd-agreement-threshold"><%= step.days_before_departure %> days before departure</p>
+              <div class="dd-reference-text"><%= formatted_reference_text(step.body) %></div>
+              <% if @editable %>
+                <div class="dd-agreement-row-actions">
+                  <%= cruise_row_link "Edit", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "cancellation-edit-#{index + 1}") %>
+                  <%= form_with url: terms_departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement),
+                        method: :post,
+                        class: "dd-agreement-inline-form",
+                        data: { turbo_confirm: "Remove this cancellation step? The saved ladder is replaced with the remaining steps." } do %>
+                    <%= hidden_field_tag :term_scope, "cancellation" %>
+                    <%= hidden_field_tag :cancellation_editor, "term-cancellation" %>
+                    <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+                    <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+                    <% steps.each_with_index do |kept, kept_index| %>
+                      <% next if kept_index == index %>
+                      <%= hidden_field_tag "cancellation_steps[][days_before_departure]", kept.days_before_departure, id: nil %>
+                      <%= hidden_field_tag "cancellation_steps[][body]", kept.body, id: nil %>
+                    <% end %>
+                    <%= submit_tag "Remove", class: "dd-button dd-button--danger dd-button--small" %>
+                  <% end %>
+                </div>
+              <% end %>
+            </li>
+          <% end %>
+        </ol>
+        <% if @editable %>
+          <div class="dd-agreement-row-actions">
+            <%= cruise_row_link "Add step", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "cancellation-new") %>
+          </div>
+        <% end %>
+      <% else %>
+        <div class="dd-agreement-row-head">
+          <%= cruise_status_badge("Not recorded", :neutral) %>
+          <% if @editable %>
+            <div class="dd-agreement-row-actions">
+              <%= cruise_row_link "Add step", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "cancellation-new") %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>
