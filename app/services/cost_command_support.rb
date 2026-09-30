@@ -373,9 +373,19 @@ module CostCommandSupport
     )
   end
 
+  def reject_expected_commission!(definition, economic_role)
+    return unless definition.noncommissionable? && economic_role.to_s == "expected_commission"
+
+    raise AgencyCommand::Error.new(
+      "Noncommissionable definitions cannot contain expected commission.",
+      code: :invalid_state
+    )
+  end
+
   def build_supplier_cost_component_already_locked!(
     definition:, attributes:, position:, base_links:
   )
+    reject_expected_commission!(definition, attributes[:economic_role] || attributes["economic_role"])
     component = definition.supplier_cost_components.create!(
       attributes.merge(owner_attributes_for(definition), position: position)
     )

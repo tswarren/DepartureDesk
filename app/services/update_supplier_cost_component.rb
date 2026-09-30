@@ -36,6 +36,7 @@ class UpdateSupplierCostComponent < AgencyCommand
         end
         links_changed = @base_links_supplied && links != current_links
         return Result.new(status: :noop, record: component) if same_values?(component, attrs) && !links_changed
+        reject_expected_commission!(definition, attrs[:economic_role])
         ensure_current_lock_version!(definition, @definition_lock_version) if links_changed
         component.update!(attrs)
         replace_base_links!(definition, component, links) if links_changed

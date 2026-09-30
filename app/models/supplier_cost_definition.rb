@@ -4,6 +4,7 @@ class SupplierCostDefinition < ApplicationRecord
   STAGES = %w[estimate contracted].freeze
   STATUSES = %w[working forecast_ready].freeze
   MODES = %w[calculated zero_cost].freeze
+  COMMISSION_TREATMENTS = %w[unspecified noncommissionable].freeze
   ROUNDING_MODES = %w[half_up].freeze
   ZERO_COST_REASON_LIMIT = 500
   READINESS_PROVENANCE_LIMIT = 500
@@ -20,6 +21,7 @@ class SupplierCostDefinition < ApplicationRecord
   enum :stage, STAGES.index_by(&:itself), validate: true
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "working"
   enum :mode, MODES.index_by(&:itself), validate: true, default: "calculated"
+  enum :commission_treatment, COMMISSION_TREATMENTS.index_by(&:itself), validate: true, default: "unspecified"
   enum :rounding_mode, ROUNDING_MODES.index_by(&:itself), validate: true, default: "half_up"
 
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id,

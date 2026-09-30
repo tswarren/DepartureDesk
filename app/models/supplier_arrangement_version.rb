@@ -35,6 +35,13 @@ class SupplierArrangementVersion < ApplicationRecord
   has_many :supplier_deposit_requirement_definition_coverage_links, dependent: :restrict_with_exception
   has_many :supplier_deposit_requirement_definition_cost_links, dependent: :restrict_with_exception
   has_many :supplier_deposit_requirement_definition_contributor_links, dependent: :restrict_with_exception
+  has_many :supplier_deposit_bases, dependent: :restrict_with_exception
+  has_many :supplier_deposit_basis_entries, dependent: :restrict_with_exception
+  has_many :supplier_deposit_basis_shares, dependent: :restrict_with_exception
+  has_many :hotel_attrition_policies, dependent: :restrict_with_exception
+  has_many :hotel_attrition_nights, dependent: :restrict_with_exception
+  has_many :hotel_attrition_zero_utilization_rates, dependent: :restrict_with_exception
+  has_many :supplier_deposit_refund_clarifications, dependent: :restrict_with_exception
   has_many :supplier_deposit_requirement_tranches, dependent: :restrict_with_exception
   has_many :supplier_planning_milestone_occurrences, dependent: :restrict_with_exception
   has_one :supplier_arrangement_activation, dependent: :restrict_with_exception

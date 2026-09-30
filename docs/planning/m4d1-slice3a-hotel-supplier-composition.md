@@ -1,6 +1,6 @@
 # M4D.1 Slice 3A — Hotel Supplier Composition
 
-**Status:** Accepted 2026-09-30. Slice 3A.0, the persistence compatibility gate, is recorded in [the 3A.0 result](#3a0-result). Four required facts have no lossless shipped representation, so Slice 3A.1 remains blocked. Not authority for Transportation, a Client Service connection, or a generalized adapter.
+**Status:** Accepted 2026-09-30. Slice 3A.0, the persistence compatibility gate, is recorded in [the 3A.0 result](#3a0-result). [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md), Hotel Supplier-term persistence foundations, is Accepted 2026-09-30 and is the authorized implementation. The Slice 3A.1 compatibility proof is green. Hotel UI slices 3A.2–3A.6 remain unauthorized until their own accepted plans name that work. Not authority for Transportation, a Client Service connection, or a generalized adapter.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md).
 
@@ -26,7 +26,7 @@ The implementation base is [`115d3b5`](https://github.com/tswarren/DepartureDesk
 
 PR #156 and its generalized adapter services remain non-authoritative.
 
-Slice 3A.0 has run. Its result is below. Slice 3A.1 does not start until every required fact has a lossless persisted representation. A foundation amendment for each named incompatibility has to be accepted, and this compatibility proof rerun, before that slice is authorized.
+Slice 3A.0 has run. Its result is below. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the accepted foundation amendment for the four incompatibilities that result names. The Slice 3A.1 compatibility proof is green. Hotel UI slices 3A.2–3A.6 remain unauthorized until their own accepted plans name that work. §23 below supersedes the former 3A.1–3A.3 sequence.
 
 ---
 
@@ -213,7 +213,7 @@ The Hotel Item is capacity-managed. Activation classifies every planned Occurren
 
 Each pooled pair has one numeric `block` Pool measured in `resource_units`. Those four Pools are the only capacity. A `not_applicable` pair has no Pool.
 
-No `occurrence_role` column is authorized. Slice 3A.0 maps this graph onto shipped Occurrence, pair, and Pool records. If that mapping cannot keep the Stay Occurrence out of capacity, stop before Slice 3A.1 and accept only the smallest foundation amendment that specific gap requires.
+No `occurrence_role` column is authorized. Slice 3A.0 mapped this graph onto shipped Occurrence, pair, and Pool records. The Stay Occurrence stays out of capacity.
 
 ---
 
@@ -324,11 +324,11 @@ Canonical rates:
 | Standard | $173 | $173 | $193 | $213 |
 | Deluxe | $223 | $223 | $243 | $263 |
 
-Where existing M3 cost primitives can represent the economic meaning accurately, persist the base plus occupancy-position increments rather than four unrelated complete prices.
+The locked representation is one `resource_nights` base of $173 or $223 and `occupancy_position_nights` supplements of $20 at positions 3 and 4. An occupancy range of positions 1–2 is not that base, because the shipped forecast counts each matching occupant. The completed Triple and Quad prices are not stored as components. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) keeps this representation closed.
 
 The rates are an explicit persisted net/noncommissionable Supplier term.
 
-Slice 3A creates no `expected_commission` component. Omitting that component is not the noncommissionable fact: an absent commission component can also mean commission has not been entered. Generic Supplier cost records have no noncommissionable flag today. Slice 3A.0 maps the explicit net/noncommissionable term onto shipped records. If it cannot do so losslessly, stop before Slice 3A.1 and accept only the smallest foundation amendment that fact requires.
+Slice 3A creates no `expected_commission` component. Omitting that component is not the noncommissionable fact: an absent commission component can also mean commission has not been entered. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) stores `commission_treatment` on the Supplier cost definition. `noncommissionable` rejects an `expected_commission` component. `unspecified` with no commission component remains a different state.
 
 If a persisted economic shape cannot be represented losslessly by the typed Hotel editor, the UI must show a precise Advanced destination rather than normalize or guess the terms.
 
@@ -428,7 +428,7 @@ The versioned derivation that those requirements preserve is:
     Second    45% = $1,870.20
     Third     45% = $1,870.20
 
-Preserve that basis in existing versioned evidence or term fields. Slice 3A.0 maps it onto shipped records. If those fields cannot retain the basis without parsing prose, stop before Slice 3A.1 and accept only the smallest persistence addition required to retain this basis. Do not add a generalized deposit-basis engine.
+[Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) retains this basis as a version-and-Item deposit basis: four Occurrence/Resource quantity and rate snapshots, and explicit share links on the three `fixed_amount` requirements. Those requirements keep `percentage` null. The basis is historical evidence. It is not a live deposit calculator.
 
 October 4 is the final scheduled deposit for the original block.
 
@@ -517,7 +517,7 @@ The invariant is:
 
 > Attrition policy exists. Attrition liability does not yet exist.
 
-Slice 3A.0 maps these inputs onto shipped records. If existing versioned terms cannot retain the nightly minimums, the 100% consequence, and the zero-utilization rates and quoted tax without parsing prose, stop before Slice 3A.1 and accept only the smallest typed policy record those fields require. Do not generalize that record into a Hotel settlement engine.
+[Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) stores these inputs on a version-and-Item Hotel attrition policy: room-night minima on the inventory Occurrences, `lost_room_revenue` at 100%, Resource-keyed zero-utilization snapshots of $173 and $223, and the combined quoted tax rate of 16.5%. It does not generalize that record into a Hotel settlement engine.
 
 ---
 
@@ -541,7 +541,9 @@ Do not infer a cancellation ladder from attrition.
 
 ## 16. Refund clarification and agreement history
 
-The original supplied wording called the Group deposits non-refundable.
+The original supplied wording, retained exactly, is:
+
+> Deposits are non-refundable.
 
 The governing clarification is:
 
@@ -549,7 +551,7 @@ The governing clarification is:
 
 Slice 3A preserves these facts unambiguously:
 
-- original wording: deposits described as non-refundable, retained as history;
+- original wording: “Deposits are non-refundable.”, retained as history;
 - governing clarification: the sentence above;
 - payer: the agency;
 - refund recipient: the agency;
@@ -563,7 +565,7 @@ The clarification is recorded on the current editable draft before first activat
 
 It does not require a successor because no governing predecessor exists yet.
 
-Prefer existing versioned Supplier-term and evidence authority. Slice 3A.0 maps these facts onto shipped records. If that representation can retain them only by parsing prose, stop before Slice 3A.1 and accept a narrowly typed agreement-policy record for this clarification. Do not introduce `HotelRefundClarification` by default.
+[Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) stores these facts on `SupplierDepositRefundClarification`. That record is closed: exact original wording, the governing sentence, Agency payer, Agency recipient, and the refund date. It is not `HotelRefundClarification` and not a general agreement-term framework.
 
 Review displays the governing sentence. "Governing clarification recorded" is not a substitute for that sentence.
 
@@ -741,7 +743,7 @@ Every nested record is resolved through the authorized Agency, Departure, Arrang
 
 ## 23. Implementation slices
 
-Acceptance of this document authorizes the following implementation order.
+Acceptance of this document authorizes the implementation order below. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the only later slice this acceptance authorizes. Slices 3A.2–3A.6 wait for that foundation's green compatibility proof and for their own accepted plans.
 
 ### 3A.0 — Persistence compatibility gate
 
@@ -766,13 +768,13 @@ Before Hotel UI, Slice 3A.0 maps those semantics onto shipped schema and command
 
 If every required fact maps losslessly onto shipped M3 records, Slice 3A.0 is documentation and proof only.
 
-If one does not, stop before Slice 3A.1. Draft and accept the smallest foundation amendment necessary for that specific incompatibility. Do not add an `occurrence_role` column or a generalized adapter.
+If one does not, the smallest foundation amendment for that incompatibility is a later accepted slice. Do not add an `occurrence_role` column or a generalized adapter.
 
-**Exit:** the accepted Hotel contract is shown to fit shipped records, or the specific incompatibility is named and Hotel UI has not started. The [3A.0 result](#3a0-result) names four incompatibilities. Hotel UI has not started.
+**Exit:** the accepted Hotel contract is shown to fit shipped records, or the specific incompatibility is named and Hotel UI has not started. The [3A.0 result](#3a0-result) names four incompatibilities. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the accepted foundation for them. Hotel UI has not started.
 
 ### 3A.0 result
 
-Recorded 2026-09-30 from `test/services/m4d1_slice3a0_hotel_persistence_compatibility_test.rb`. The test builds the Hilton draft with shipped Supplier commands and asserts both the facts those records store and the four facts they cannot distinguish. Slice 3A stays Accepted. This result does not authorize Slice 3A.1.
+Recorded 2026-09-30 from `test/services/m4d1_slice3a0_hotel_persistence_compatibility_test.rb`. The test builds the Hilton draft with shipped Supplier commands and asserts both the facts those records store and the four facts they cannot distinguish. Slice 3A stays Accepted. This result names the gaps. It does not close them. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the accepted foundation amendment for those four incompatibilities. The later [3A.1 result](#3a1-result) records that the compatibility proof now stores them.
 
 No Hotel route, view, command, migration, `occurrence_role` column, or generalized adapter was introduced.
 
@@ -796,7 +798,7 @@ No Hotel route, view, command, migration, `occurrence_role` column, or generaliz
 
 #### Confirmed incompatibilities
 
-Free-text `description`, `notes`, `reference_note`, and untyped `rule_parameters` values do not satisfy the gate. Slice 3A.1 remains blocked until each of these has a lossless typed representation, the smallest foundation amendment for that gap is accepted, and this proof is rerun.
+Free-text `description`, `notes`, `reference_note`, and untyped `rule_parameters` values do not satisfy the gate. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the accepted typed representation for each row. The compatibility proof rerun is green. Hotel UI stays unauthorized.
 
 | Accepted fact the shipped model cannot distinguish | What the test examined |
 | --- | --- |
@@ -805,13 +807,41 @@ Free-text `description`, `notes`, `reference_note`, and untyped `rule_parameters
 | The structured attrition inputs in §14: nightly minimums 7 and 15, a 100% shortfall consequence, and the $173 / $223 / 16.5% zero-utilization fallback, distinguishable from arbitrary policy prose | No attrition table exists. `SupplierDeadlineDefinition` and `SupplierDepositRequirementDefinition` have no columns for those inputs. A separate deadline probe submits those keys and policy prose; the saved parameters keep only `datetime`, and `description` remains a string. The Hilton cutoff is not that probe |
 | The structured refund facts in §16: original nonrefundable wording, governing clarification, Agency payer, Agency recipient, and the November 20, 2027 deadline, distinguishable from note text that must later be parsed | `ActivateSupplierArrangementVersion` persists `SupplierConfirmation` with no columns for those facts. `reference_note` is a string. Two confirmations created by that command differ in the note and share the same evidence date, channel, and missing-identifier reason |
 
-#### Slice 3A.1
+#### Foundation
 
-Authorize Slice 3A.1 only after the 3A.0 result shows that every required Slice 3A fact has a lossless persisted representation. This result does not. Draft and accept the smallest foundation amendment for each named incompatibility, apply it, and rerun `test/services/m4d1_slice3a0_hotel_persistence_compatibility_test.rb`.
+[Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is that amendment. It adds commission treatment, the original deposit basis, the Hotel attrition policy, and `SupplierDepositRefundClarification`. The rerun of `test/services/m4d1_slice3a0_hotel_persistence_compatibility_test.rb` is green. Slice 3A.2 is eligible for its own accepted plan. That proof does not start Hotel UI.
 
-### 3A.1 — Stay, room inventory, and Supplier rates
+The sequence below supersedes the former 3A.1–3A.3 order. The former 3A.1 combined stay, inventory, and rates. The former 3A.3 combined review, activation, lifecycle, and closure. Those UI slices are split. They display the Slice 3A.1 records. They do not define a second commission treatment, deposit basis, attrition policy, or refund clarification.
 
-Implement the central Hotel Supplier facts:
+### 3A.1 — Supplier-term persistence foundations
+
+Accepted 2026-09-30 as [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md). That plan is the implementation authority for:
+
+- `commission_treatment` of `unspecified` or `noncommissionable` on the Supplier cost definition;
+- a version-and-Item original contracted room-revenue basis of 415600 minor units, with four quantity and rate snapshots and share links of 1000, 4500, and 4500 basis points;
+- a version-and-Item Hotel attrition policy of `lost_room_revenue` at 100%, room-night minima of 7 and 15, and zero-utilization snapshots of 17300 and 22300 minor units plus 1650 basis points of quoted tax;
+- one `SupplierDepositRefundClarification` whose original wording is “Deposits are non-refundable.” and whose governing wording is the November 20, 2027 agency-refund sentence.
+
+**Exit:** the four 3A.0 incompatibilities have lossless typed representations, and the compatibility proof rerun establishes them without Hotel UI.
+
+### 3A.1 result
+
+Recorded 2026-09-30. `test/services/m4d1_slice3a0_hotel_persistence_compatibility_test.rb` now stores the four former incompatibilities through the Slice 3A.1 commands. The occupancy-increment representation stayed one `resource_nights` base of 17300 or 22300 minor units plus `occupancy_position_nights` supplements of 2000 minor units at positions 3 and 4.
+
+| 3A.0 incompatibility | 3A.1 representation |
+| --- | --- |
+| Net/noncommissionable | `SupplierCostDefinition.commission_treatment` |
+| Deposit derivation | version-and-Item deposit basis, four quantity/rate snapshots, and share links |
+| Attrition | version-and-Item Hotel attrition policy, room-night minima, and Resource rate snapshots |
+| Refund clarification | `SupplierDepositRefundClarification` |
+
+Slice 3A.2 is eligible for its own accepted plan. This result does not authorize Hotel UI.
+
+### 3A.2 — Stay and nightly inventory
+
+Eligible for its own accepted plan. This slice is not authorized until that plan is accepted.
+
+Implement:
 
 - Hotel Item/stay;
 - Standard and Deluxe Resources;
@@ -819,17 +849,30 @@ Implement the central Hotel Supplier facts:
 - 5/2 then 10/5 quantities;
 - independent sibling saves;
 - stable Item-ID navigation;
-- second-Item isolation proof;
-- occupancy-position rates;
+- second-Item isolation proof.
+
+**Exit:** Staff can accurately establish and review the Hotel stay and nightly room supply without flattening inventory or creating Client facts.
+
+### 3A.3 — Supplier rates and economics
+
+Not authorized until its own accepted plan names the work.
+
+Implement:
+
+- the locked occupancy-position rates from §9;
 - Single/Double/Triple/Quad review;
-- explicit net/noncommissionable term and no `expected_commission` component;
+- the persisted `noncommissionable` treatment and no `expected_commission` component;
 - $1,311 + $2,845 = $4,156 evaluation from one night per Pool;
 - quoted tax exposure kept separate;
 - Advanced fallback for unsupported shapes.
 
-**Exit:** Staff can accurately establish and review the Hotel stay, nightly room supply, and Supplier economics without flattening inventory or creating Client facts.
+This slice displays the rate shape and commission treatment recorded by Slice 3A.1. It does not redefine them.
 
-### 3A.2 — Agreement and operational requirements
+**Exit:** Staff can accurately establish and review Hotel Supplier economics without creating Client facts.
+
+### 3A.4 — Agreement and operational requirements
+
+Not authorized until its own accepted plan names the work.
 
 Implement:
 
@@ -843,13 +886,15 @@ Implement:
 - no-separate-cancellation-schedule state;
 - original nonrefundable wording plus the governing refund facts in §16.
 
-Use existing generic/versioned structures wherever they preserve the agreement safely.
+Use the Slice 3A.1 records for the deposit basis, attrition policy, and refund clarification. Display those facts. Do not define a second copy of them.
 
 Do not introduce calculation engines for future Reservation or settlement behavior.
 
 **Exit:** Staff can record the Supplier agreement facts required before activation without creating payments, liabilities, folios, refunds, or Client records.
 
-### 3A.3 — Review, activation, lifecycle, and closure
+### 3A.5 — Review and activation
+
+Not authorized until its own accepted plan names the work.
 
 Implement:
 
@@ -857,15 +902,24 @@ Implement:
 - write-free review;
 - generic activation integration;
 - governing read-only presentation;
-- successor proposed presentation;
 - Viewer and Staff authorization proof using the existing Composition denial;
 - cross-Agency isolation;
 - Advanced fallback;
-- responsive and accessibility proof against [the interface contract](../ui/interface-contract.md): 375, 768, reference desktop, and 1280 pixels, plus skip link, landmarks, headings, visible focus, keyboard order, accessible names, validation association, and reflow;
+- responsive and accessibility proof against [the interface contract](../ui/interface-contract.md): 375, 768, reference desktop, and 1280 pixels, plus skip link, landmarks, headings, visible focus, keyboard order, accessible names, validation association, and reflow.
+
+**Exit:** Staff can review the exact Supplier version without writes and activate it through existing Supplier activation authority.
+
+### 3A.6 — Lifecycle and closure
+
+Not authorized until its own accepted plan names the work.
+
+Implement:
+
+- successor proposed presentation;
 - complete Hilton browser acceptance journey;
 - documentation/status updates.
 
-**Exit:** the Accepted Hilton Staff walkthrough can be completed through normal Hotel Supplier Composition from initial stay creation through reviewed/activated Supplier terms.
+**Exit:** the Accepted Hilton Staff walkthrough can be completed through normal Hotel Supplier Composition from initial stay creation through reviewed/activated Supplier terms, including a later successor presented as proposed.
 
 ---
 
@@ -985,22 +1039,22 @@ Acceptance of Slice 3A locks these decisions:
 7. **Net/noncommissionable is an explicit persisted term.** Slice 3A creates no `expected_commission` component.
 8. **The original $4,156 pretax target is distinct from later forecasts.** A two-night multiplier that would produce $8,312 is rejected.
 9. **The three scheduled deposits are `fixed_amount` requirements** of 41560, 187020, and 187020 minor units. Later Supplier changes do not silently rebase them. `percentage_of_cost_sources` is not used. The $0 October 4 adjustment creates no fourth requirement.
-10. **The $4,156 derivation is preserved with those requirements.** Slice 3A does not authorize a generalized deposit-basis engine. Slice 3A.0 may require only the smallest added persistence if shipped evidence or term fields cannot retain the basis.
+10. **The $4,156 derivation is preserved with those requirements.** [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) stores it as a version-and-Item basis with quantity and rate snapshots and share links. That is not a generalized deposit-basis engine.
 11. **The October 3 cutoff is one actionable `rooming_list_due` Deadline** at 5:00 p.m. America/New_York, with local date-time precision. Mark complete, Reschedule, and Waive live on Agreement → Deadlines and call existing Deadline authority. Passing it does not automatically release inventory.
 12. **November 1–3 are availability-only terms until separately confirmed.**
 13. **The Destination Fee waiver is a Supplier concession, not negative cost or Client discount.**
-14. **Attrition inputs are structured and calculation is deferred.** The persisted facts are the 100% consequence, nightly minimums of 7 and 15, and the zero-utilization fallback of $173, $223, and 16.5% quoted tax, plus the readable qualifications in §14. No attrition calculator, Obligation, or charge is created.
+14. **Attrition inputs are structured and calculation is deferred.** [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) persists the 100% `lost_room_revenue` consequence, room-night minima of 7 and 15, and the zero-utilization snapshots of $173, $223, and 16.5% quoted tax. The readable qualifications in §14 stay prose. No attrition calculator, Obligation, or charge is created.
 15. **Early departure remains policy until later Reservation facts exist.**
 16. **No cancellation ladder is inferred.**
-17. **The refund clarification preserves named facts.** Original nonrefundable wording stays history. The governing outcome is that the Hotel refunds the agency on or before November 20, 2027, the amount actually paid minus the attrition shortfall. The agency is payer and refund recipient.
-18. **Prefer existing versioned Supplier terms for that clarification.** No `HotelRefundClarification` model is authorized by default. Slice 3A.0 stops if shipped terms can retain those facts only by parsing prose.
+17. **The refund clarification preserves named facts.** Original wording, “Deposits are non-refundable.”, stays history. The governing outcome is that the Hotel refunds the agency on or before November 20, 2027, the amount actually paid minus the attrition shortfall. The agency is payer and refund recipient.
+18. **`SupplierDepositRefundClarification` is the closed record for that clarification.** [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is its authority. No `HotelRefundClarification` model and no general agreement-term framework are authorized.
 19. **The original contract/signature date and Supplier group/confirmation number remain blank when unknown.** Confirmation evidence does not become the contract date.
 20. **Review is write-free and shows the governing refund sentence.** Activation uses existing generic authority.
 21. **Activated terms are read-only; later proposed terms do not mutate the governing version.**
 22. **Unsupported shapes fail closed to an exact Advanced destination.**
 23. **Hotel management uses existing Composition denial.** A Viewer without `manage_departures` is redirected. Another Agency's identifiers are not found. This supersedes the walkthrough sentence that Hotel management routes return not found to a Viewer.
 24. **No generalized non-Cruise adapter is extracted from Hotel alone.**
-25. **Slice 3A.0 verifies persistence. It does not make product decisions.** If a required fact does not map losslessly, stop before Slice 3A.1 and accept the smallest foundation amendment for that fact.
+25. **Slice 3A.0 verifies persistence. It does not make product decisions.** The four incompatibilities it named are closed by the accepted [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) foundation. The compatibility proof is green. Hotel UI slices 3A.2–3A.6 remain unauthorized until each has its own accepted plan.
 
 ---
 
