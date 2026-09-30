@@ -108,10 +108,11 @@ class M4d1CruiseInventoryMaintenanceTest < ActiveSupport::TestCase
     active = compile(version: @arrangement.reload.governing_version)
     assert_equal [ "Current active capacity: 12 cabins" ], active.cabin_rows.map(&:quantity_label)
     assert_not_includes active.cabin_rows.map(&:name), "Supplemental O1 block"
-    assert summary.maintenance_steps.map(&:code).include?(:opening_authority_incomplete)
-    assert summary.maintenance_steps.map(&:code).include?(:cruise_agreement_unconfirmed)
-    assert summary.maintenance_steps.map(&:code).include?(:cruise_contracted_rates_missing)
-    assert summary.maintenance_steps.map(&:code).include?(:cruise_deposit_treatment_missing)
+    codes = summary.activation_readiness.blockers.map(&:code)
+    assert_includes codes, :opening_authority_incomplete
+    assert_includes codes, :cruise_agreement_unconfirmed
+    assert_includes codes, :cruise_contracted_rates_missing
+    assert_includes codes, :cruise_deposit_treatment_missing
   end
 
   test "changed terms uses the selected cabin category" do

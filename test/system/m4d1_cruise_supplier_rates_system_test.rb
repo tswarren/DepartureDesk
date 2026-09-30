@@ -358,14 +358,16 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     sign_in_from_browser(@staff)
     visit departure_arrangement_cruise_supplier_rates_path(@departure, @arrangement)
     assert_text "1 cabin category · 1 not recorded"
-    [ 1280, 375 ].each do |width|
+    [ 375, 768, 1280, 1400 ].each do |width|
       resize_window(width, 900)
       assert_no_page_overflow
     end
 
     visit_rates_page
-    resize_window(375, 900)
-    assert_no_page_overflow
+    [ 375, 768, 1280, 1400 ].each do |width|
+      resize_window(width, 900)
+      assert_no_page_overflow
+    end
     assert_selector "#cruise-supplier-rate-terms"
     assert_text "Forecast occupancy"
     assert_text "It does not assign travelers or reserve cabins."

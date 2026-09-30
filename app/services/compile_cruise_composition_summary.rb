@@ -7,22 +7,13 @@ class CompileCruiseCompositionSummary
     :quantity, :opening_quantity_label, :current_capacity_label, :carried, :rate_posture,
     :advanced_rates, :removable
   )
-  MaintenanceStep = Data.define(:code, :message, :resource_id)
   RequirementRow = Data.define(:key, :label, :detail)
   TermRow = Data.define(:key, :label, :status_label, :recorded, :advanced)
   BlockerRow = Data.define(:code, :message, :path, :cruise_coded)
-  RecommendedNextAction = Data.define(:key, :label, :detail, :resource_id, :blocker_code, :advanced)
   Activation = Data.define(:ready, :status_label, :detail, :blockers)
   Result = Data.define(
-    :sections, :recommended_next_action, :cabin_rows, :requirement_rows, :term_rows, :activation,
-    :maintenance_steps, :activation_readiness
+    :sections, :cabin_rows, :requirement_rows, :term_rows, :activation, :activation_readiness
   )
-  MAINTENANCE_CODES = %i[
-    opening_authority_incomplete
-    cruise_agreement_unconfirmed
-    cruise_contracted_rates_missing
-    cruise_deposit_treatment_missing
-  ].freeze
 
   CRUISE_BLOCKER_PRIORITY = %i[
     cruise_agreement_unconfirmed
@@ -73,18 +64,14 @@ class CompileCruiseCompositionSummary
         cruise_coded: CRUISE_BLOCKER_PRIORITY.include?(blocker.code)
       )
     }
-    resource_definitions = version.supplier_resource_definitions.order(:position, :id).to_a
     @activation = activation_summary
-    recommended = recommended_next_action(resource_definitions)
 
     Result.new(
       sections: sections,
-      recommended_next_action: recommended,
       cabin_rows: @cabin_rows,
       requirement_rows: @requirement_rows,
       term_rows: @term_rows,
       activation: @activation,
-      maintenance_steps: maintenance_steps(version),
       activation_readiness: readiness
     )
   end
@@ -130,24 +117,6 @@ class CompileCruiseCompositionSummary
 
   def self.current_supplier_capacity(pool)
     pool&.capacity_projection&.current_supplier_capacity
-  end
-
-  def self.presentation_blocker(blockers, resource_definitions: [])
-    agreement = blockers.find { |blocker| blocker.code == :cruise_agreement_unconfirmed }
-    return agreement if agreement
-
-    rate_blockers = blockers.select { |blocker| blocker.code == :cruise_contracted_rates_missing }
-    if rate_blockers.any?
-      ordered_paths = resource_definitions.sort_by { |definition| [ definition.position.to_i, definition.id.to_s ] }
-        .map { |definition| "resources.#{definition.id}" }
-      chosen = ordered_paths.filter_map { |path| rate_blockers.find { |blocker| blocker.path == path } }.first
-      return chosen || rate_blockers.first
-    end
-
-    treatment = blockers.find { |blocker| blocker.code == :cruise_deposit_treatment_missing }
-    return treatment if treatment
-
-    blockers.first
   end
 
   private
@@ -262,31 +231,6 @@ class CompileCruiseCompositionSummary
     return nil if quantity.blank?
 
     "Original opening quantity: #{quantity} #{"cabin".pluralize(quantity)}"
-  end
-
-  def maintenance_steps(version)
-    return [] unless version.draft? && version.copied_from_id.present?
-
-    MAINTENANCE_CODES.filter_map do |code|
-      @blockers.select { |blocker| blocker.code == code }.map do |blocker|
-        MaintenanceStep.new(
-          code: code,
-          message: blocker.message,
-          resource_id: maintenance_resource_id(version, blocker)
-        )
-      end
-    end.flatten
-  end
-
-  def maintenance_resource_id(version, blocker)
-    case blocker.code
-    when :cruise_contracted_rates_missing
-      definition_id = blocker.path.to_s.delete_prefix("resources.")
-      version.supplier_resource_definitions.find_by(id: definition_id)&.supplier_resource_id
-    when :opening_authority_incomplete
-      definition_id = blocker.path.to_s.split(".pools.").last
-      version.capacity_pool_definitions.find_by(id: definition_id)&.supplier_resource_id
-    end
   end
 
   def requirement_rows
@@ -558,108 +502,6 @@ class CompileCruiseCompositionSummary
       status_label: recorded.positive? ? "#{recorded} recorded" : "None recorded",
       detail: "Optional terms stay quiet until the agreement includes them."
     )
-  end
-
-  def recommended_next_action(resource_definitions)
-    missing_rates = @cabin_rows.find { |row| row.rate_posture == :missing }
-    if @cabin_rows.empty?
-      return action(:add_cabins, "Add cabin categories", "Add the cabin categories the Supplier is holding for this group.")
-    end
-    if missing_rates
-      return action(
-        :add_rates,
-        "Enter Supplier rates",
-        "Enter Supplier rates for #{cabin_name(missing_rates)}.",
-        resource_id: missing_rates.resource_id,
-        advanced: missing_rates.advanced_rates
-      )
-    end
-    unless @confirmation&.confirmed?
-      label = @confirmation&.provisional? ? "Finish the Supplier agreement" : "Record the Supplier agreement"
-      return action(:record_agreement, label, "Group number and contract date can be confirmed when the contract is in hand.")
-    end
-
-    gaps = activation_requirement_gaps
-    if gaps.any?
-      return requirement_recommendation(gaps)
-    end
-
-    if @blockers.any?
-      chosen = self.class.presentation_blocker(@blockers, resource_definitions: resource_definitions)
-      others = @blockers.size - 1
-      detail = if others.zero?
-        "This is the only activation issue."
-      elsif others == 1
-        "1 other issue is listed under Activation."
-      else
-        "#{others} other issues are listed under Activation."
-      end
-      return action(:resolve_blocker, chosen.message, detail, blocker_code: chosen.code)
-    end
-
-    action(:review_activation, "Review activation", "Review this Supplier arrangement for activation.")
-  end
-
-  def activation_requirement_gaps
-    gaps = []
-    gaps << :contracted_rates if @cabin_rows.any? { |row| row.rate_posture != :contracted_ready }
-    gaps << :initial_deposit unless @requirement_rows.any? { |row| row.key == "initial_deposit" }
-    gaps << :hard_stop unless @requirement_rows.any? { |row| row.key == "hard_stop" }
-    gaps << :final_payment unless @requirement_rows.any? { |row| row.key == "final_payment" }
-    gaps
-  end
-
-  def requirement_recommendation(gaps)
-    chosen = gaps.first
-    detail = requirement_detail(gaps, chosen)
-    case chosen
-    when :contracted_rates
-      cabin = @cabin_rows.find { |row| row.rate_posture != :contracted_ready }
-      action(
-        :review_contracted_rates,
-        "Review contracted Supplier rates",
-        detail,
-        resource_id: cabin.resource_id,
-        advanced: cabin.advanced_rates
-      )
-    when :initial_deposit
-      action(:record_initial_deposit, "Record the initial group deposit", detail)
-    when :hard_stop
-      action(:record_hard_stop, "Record the hard stop", detail)
-    else
-      action(:record_final_payment, "Record final payment", detail)
-    end
-  end
-
-  def requirement_detail(gaps, chosen)
-    others = gaps - [ chosen ]
-    sentences = []
-    if chosen == :contracted_rates
-      count = @cabin_rows.count { |row| row.rate_posture != :contracted_ready }
-      sentences << "#{count} #{"cabin category".pluralize(count)} still #{count == 1 ? "needs" : "need"} ready contracted Supplier rates."
-    end
-    if others.include?(:contracted_rates)
-      sentences << "Contracted Supplier rates still need attention."
-    end
-    if others.intersect?(%i[initial_deposit hard_stop final_payment])
-      sentences << "Supplier requirements still need attention."
-    end
-    sentences.presence&.join(" ") || "This can be recorded when the agreement is in hand."
-  end
-
-  def action(key, label, detail, resource_id: nil, blocker_code: nil, advanced: false)
-    RecommendedNextAction.new(
-      key: key,
-      label: label,
-      detail: detail,
-      resource_id: resource_id,
-      blocker_code: blocker_code,
-      advanced: advanced
-    )
-  end
-
-  def cabin_name(row)
-    [ row.code, row.name ].compact_blank.join(" ")
   end
 
   def staff_date(value)

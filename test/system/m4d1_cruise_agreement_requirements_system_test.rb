@@ -141,10 +141,10 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
     end
     assert_text "August 8, 2027"
 
-    resize_window(1280, 900)
-    assert_no_page_overflow
-    resize_window(375, 900)
-    assert_no_page_overflow
+    [ 375, 768, 1280, 1400 ].each do |width|
+      resize_window(width, 900)
+      assert_no_page_overflow
+    end
   end
 
   test "staff records allocated credit, a cancellation ladder, and formatted wording" do

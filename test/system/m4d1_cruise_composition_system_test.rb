@@ -46,7 +46,7 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     assert_no_text "Add cabin categories"
     assert_selector "#cruise-step-agreement .dd-journey-step__status", text: "Not started"
     assert_link "Review & activate"
-    [ 375, 1280 ].each do |width|
+    [ 375, 768, 1280, 1400 ].each do |width|
       resize_window(width, 900)
       assert_selector "#cruise-setup-nav"
       assert_no_page_overflow
@@ -115,9 +115,12 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     resize_window(1280, 900)
     assert_selector "table.dd-cabin-table thead", count: 1, visible: :visible
     assert_selector "table.dd-cabin-table tbody tr", count: 3
+    [ 375, 768, 1400 ].each do |width|
+      resize_window(width, 900)
+      assert_no_page_overflow
+    end
     resize_window(375, 900)
     assert_selector "table.dd-cabin-table thead", visible: :hidden
-    assert_no_page_overflow
     resize_window(1280, 900)
     [
       [ "0", "E3", "Edge Stateroom with Veranda" ],

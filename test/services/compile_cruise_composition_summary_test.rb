@@ -33,14 +33,13 @@ class CompileCruiseCompositionSummaryTest < ActiveSupport::TestCase
     @version = @arrangement.versions.sole
   end
 
-  test "a new cruise recommends cabin categories and retains every readiness blocker" do
+  test "a new cruise keeps every readiness blocker and has not started cabin inventory" do
     summary = compile
     readiness = SupplierArrangementActivationReadiness.new(
       agency: @agency, arrangement: @arrangement, version: @version
     ).call
 
-    assert_equal :add_cabins, summary.recommended_next_action.key
-    assert_equal "Add cabin categories", summary.recommended_next_action.label
+    assert_equal "Not started", navigate(summary).areas.find { |area| area.key == :cabins }.status
     assert_equal readiness.blockers.map(&:code), summary.activation.blockers.map(&:code)
     assert_includes summary.activation.blockers.map(&:code), :cruise_agreement_unconfirmed
     assert_equal "Not ready", summary.sections.find { |section| section.key == "activation" }.status_label
@@ -49,70 +48,35 @@ class CompileCruiseCompositionSummaryTest < ActiveSupport::TestCase
     assert summary.term_rows.none?(&:recorded)
   end
 
-  test "a cabin without rates recommends supplier rates" do
+  test "a cabin without rates leaves supplier rates not started" do
     add_cabin!
     summary = compile
 
-    assert_equal :add_rates, summary.recommended_next_action.key
-    assert_match(/O1/, summary.recommended_next_action.detail)
+    assert_equal "Not started", navigate(summary).areas.find { |area| area.key == :rates }.status
     assert_equal "1 · 8 cabins", summary.sections.find { |section| section.key == "cabins" }.detail
     assert summary.cabin_rows.sole.removable
   end
 
-  test "estimated rates recommend the agreement while every blocker stays listed" do
+  test "estimated rates keep the agreement and contracted-rate blockers listed" do
     add_cabin!
     add_estimate!
     summary = compile
     codes = summary.activation.blockers.map(&:code)
 
-    assert_equal :record_agreement, summary.recommended_next_action.key
+    assert_equal "Not started", navigate(summary).areas.find { |area| area.key == :agreement }.status
     assert_includes codes, :cruise_agreement_unconfirmed
     assert_includes codes, :cruise_contracted_rates_missing
     assert_equal "1 estimated", summary.sections.find { |section| section.key == "rates" }.detail
   end
 
-  test "a confirmed agreement with estimated rates names requirements without hiding them" do
+  test "a confirmed agreement with estimated rates stays confirmed" do
     add_cabin!
     add_estimate!
     confirm!
     summary = compile
 
-    assert_equal :review_contracted_rates, summary.recommended_next_action.key
-    assert_match(/Supplier requirements still need attention/, summary.recommended_next_action.detail)
     assert_match(/Confirmed/, summary.sections.find { |section| section.key == "agreement" }.status_label)
-  end
-
-  test "presentation priority picks one blocker and leaves the rest in order" do
-    first = blocker(:cruise_contracted_rates_missing, "resources.later")
-    earlier_cabin = blocker(:cruise_contracted_rates_missing, "resources.earlier")
-    agreement = blocker(:cruise_agreement_unconfirmed, "cruise_agreement")
-    treatment = blocker(:cruise_deposit_treatment_missing, "cruise_agreement")
-    generic = blocker(:opening_authority_incomplete, "pools.1")
-    definitions = [
-      Struct.new(:id, :position).new("later", 2),
-      Struct.new(:id, :position).new("earlier", 1)
-    ]
-
-    chosen = CompileCruiseCompositionSummary.presentation_blocker(
-      [ first, generic, agreement, earlier_cabin, treatment ],
-      resource_definitions: definitions
-    )
-    assert_equal :cruise_agreement_unconfirmed, chosen.code
-
-    chosen = CompileCruiseCompositionSummary.presentation_blocker(
-      [ first, earlier_cabin, treatment ],
-      resource_definitions: definitions
-    )
-    assert_equal "resources.earlier", chosen.path
-
-    chosen = CompileCruiseCompositionSummary.presentation_blocker(
-      [ generic, treatment ],
-      resource_definitions: definitions
-    )
-    assert_equal :cruise_deposit_treatment_missing, chosen.code
-
-    chosen = CompileCruiseCompositionSummary.presentation_blocker([ generic, blocker(:pairs_incomplete, "items.1") ])
-    assert_equal :opening_authority_incomplete, chosen.code
+    assert_includes summary.activation.blockers.map(&:code), :cruise_contracted_rates_missing
   end
 
   private
@@ -122,8 +86,13 @@ class CompileCruiseCompositionSummaryTest < ActiveSupport::TestCase
     CompileCruiseCompositionSummary.new(agency: @agency, arrangement: @arrangement, shape: shape).call
   end
 
-  def blocker(code, path)
-    SupplierArrangementActivationReadiness::Blocker.new(track: :structure, code: code, path: path, message: code.to_s)
+  def navigate(summary)
+    CompileCruiseSetupNavigation.new(
+      agency: @agency,
+      arrangement: @arrangement,
+      shape: DetectCruiseArrangementShape.new(agency: @agency, arrangement: @arrangement).call,
+      summary: summary
+    ).call
   end
 
   def add_cabin!

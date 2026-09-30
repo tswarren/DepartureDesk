@@ -130,11 +130,13 @@ class M4d1CruiseInventoryMaintenanceSystemTest < ApplicationSystemTestCase
     assert_equal [ @deposit.id, @deposit.lock_version, 5_000 ], deposit_identity
     assert_equal 12, @pool.reload.capacity_projection.current_supplier_capacity
 
-    resize_window(375, 800)
-    visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
-    assert_no_page_overflow
-    visit same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
-    assert_no_page_overflow
+    [ 375, 768, 1280, 1400 ].each do |width|
+      resize_window(width, 800)
+      visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
+      assert_no_page_overflow
+      visit same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
+      assert_no_page_overflow
+    end
   end
 
   test "changed terms opens the draft snapshot and leaves the client service unchanged" do
@@ -185,11 +187,13 @@ class M4d1CruiseInventoryMaintenanceSystemTest < ApplicationSystemTestCase
     assert_text "Draft · Version 2"
     assert_equal before, client_snapshot(offer.reload)
 
-    resize_window(375, 800)
-    visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
-    assert_no_page_overflow
-    visit departure_arrangement_cruise_active_version_path(@departure, @arrangement)
-    assert_no_page_overflow
+    [ 375, 768, 1280, 1400 ].each do |width|
+      resize_window(width, 800)
+      visit departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
+      assert_no_page_overflow
+      visit departure_arrangement_cruise_active_version_path(@departure, @arrangement)
+      assert_no_page_overflow
+    end
   end
 
   private

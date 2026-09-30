@@ -306,7 +306,7 @@ module CruiseCompositionHelper
       if Current.agency_user.permitted?(:manage_departures)
         cruise_supplier_rate_corrective_path(item.resource_id)
       else
-        departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates")
+        departure_arrangement_cruise_path(@departure, @supplier_arrangement)
       end
     when :advanced_costs
       item_record = cruise_setup_shape_for(version).item

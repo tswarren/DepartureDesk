@@ -81,10 +81,11 @@ class M4d1CruiseActivationSystemTest < ApplicationSystemTestCase
     visit departure_arrangement_cruise_activation_path(@departure, @arrangement)
     assert_text "Ready to review"
     assert_no_selector "table"
-    resize_window(375)
-    assert_no_page_overflow
+    [ 375, 768, 1280, 1400 ].each do |width|
+      resize_window(width)
+      assert_no_page_overflow
+    end
     resize_window(1280)
-    assert_no_page_overflow
     select "Supplier confirmation", from: "Evidence kind"
     fill_in_html_date "Evidence date", with: Date.current.iso8601
     fill_in "Channel", with: "portal"

@@ -1,6 +1,6 @@
 # UX-7 — Cruise Supplier Workspace Consolidation
 
-**Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is implemented. UX-7.4, Agreement, is implemented. UX-7.5, Review & activate, is implemented. UX-7.6, Inventory maintenance and Active snapshot polish, is implemented. UX-7.7, closure, is the next authorized slice. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.  
+**Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is implemented. UX-7.4, Agreement, is implemented. UX-7.5, Review & activate, is implemented. UX-7.6, Inventory maintenance and Active snapshot polish, is implemented. UX-7.7, closure, is implemented. The Cruise Supplier workspace consolidation is complete. No further implementation slice is authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.  
 **Parent:** [Cruise Composition UX](m4d1-cruise-composition-ux.md).  
 **Implementation baseline:** `fe01ed2b1b395e047d3c27ed466c6e5c444e340d`  
 **Depends on:** Cruise rework behavior, and UX-1 through UX-6 behavior at that baseline.  
@@ -57,7 +57,7 @@ UX-7 must not:
 
 That commit is the code UX-7 preserves. It includes governing-version resolution for a supplemental cabin. UX-7 does not infer this baseline from the planning-status word for UX-6. UX-5 remains implemented. This acceptance does not relabel UX-5 or UX-6.
 
-The former UX-7 cleanup sentence is replaced by this workspace consolidation. Interface-contract reconciliation, responsive and accessibility proof, and removal of superseded presentation are UX-7.7.
+The former UX-7 cleanup sentence is replaced by this workspace consolidation. Interface-contract reconciliation, responsive and accessibility proof, and removal of superseded presentation shipped with UX-7.7.
 
 ### UX-7.0 — Authority and baseline gate
 
@@ -515,7 +515,7 @@ Implemented. Presentation only, on top of the pinned UX-6 behavior: Active snaps
 
 ### UX-7.7 — Closure
 
-Responsive proof at 375, 768, 1280, and 1400 pixels. Accessibility proof. Terminology. Removal of superseded Overview editors, duplicate next-step presentation, the standalone Overview activation card, transitional later-capacity controls outside the §4 entrances, normal-path deposits-and-deadlines navigation, activation links to retired screens, duplicate version-context implementations, and dead helpers or CSS that only served the replaced presentation. Interface-contract reconciliation. End-to-end proof for Viewer and Staff, initial Draft, Active Cruise, successor Draft, incompatible shape, blocked activation, and successful activation.
+Implemented. Responsive proof at 375, 768, 1280, and 1400 pixels. Accessibility proof. Terminology. Removal of superseded Overview editors, duplicate next-step presentation, the standalone Overview activation card, transitional later-capacity controls outside the §4 entrances, normal-path deposits-and-deadlines navigation, activation links to retired screens, duplicate version-context implementations, and dead helpers or CSS that only served the replaced presentation. Interface-contract reconciliation. End-to-end proof for Viewer and Staff, initial Draft, Active Cruise, successor Draft, incompatible shape, blocked activation, and successful activation.
 
 Do not delete authoritative commands, generic Supplier-planning behavior Advanced still needs, domain services the new workspaces call, historical version records, or the compatibility escape hatch.
 
