@@ -10,7 +10,7 @@
 
 **Implementation prerequisite:** Slice 2D shipped at [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154).
 
-**Next unauthorized boundary:** a Slice 3A Hotel implementation plan. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27, and the [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. Hotel implementation remains prohibited until that Slice 3A plan is accepted.
+**Next boundary:** [Slice 3A](m4d1-slice3a-hotel-supplier-composition.md), Hotel Supplier Composition, is Accepted 2026-09-30. Slice 3A.0 recorded four incompatibilities, and Slice 3A.1 remains blocked. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27, and the [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. Transportation remains unauthorized until its own walkthrough and plan are accepted.
 
 **Prototype:** Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 remain prototype evidence. They are not an implementation source.
 
@@ -39,7 +39,7 @@ Supplier terms are not Client terms. A Supplier adapter may be ready for activat
 After this contract:
 
 1. The Hotel walkthrough is Accepted 2026-09-27. Do not revise the discarded Hilton draft on the prototype branch.
-2. Draft and accept a short Slice 3A implementation plan derived from that walkthrough.
+2. [Slice 3A](m4d1-slice3a-hotel-supplier-composition.md), Hotel Supplier Composition, is Accepted 2026-09-30.
 3. Implement Hotel Supplier Composition.
 4. Draft and accept a Transportation walkthrough and its implementation plan.
 5. Implement Transportation.
@@ -71,6 +71,4 @@ The generalized Slice 3 approach is not implementation authority. That includes 
 
 ## 7. Exit
 
-This slice is complete. The Hotel walkthrough is Accepted 2026-09-27. Its exit authorizes drafting a Slice 3A plan only.
-
-Hotel implementation remains prohibited until that Slice 3A implementation plan is accepted.
+This slice is complete. The Hotel walkthrough is Accepted 2026-09-27. [Slice 3A](m4d1-slice3a-hotel-supplier-composition.md) is Accepted 2026-09-30. Slice 3A.0 recorded four incompatibilities, and Slice 3A.1 remains blocked.

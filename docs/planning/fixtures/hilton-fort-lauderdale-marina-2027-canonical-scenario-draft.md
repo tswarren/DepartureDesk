@@ -1,6 +1,6 @@
 # Hilton Fort Lauderdale Marina 2027 — Canonical Hotel Agreement Scenario
 
-**Status:** Approved 2026-09-27 at the single registered Hotel fixture path, `docs/planning/fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md`. This is the Hotel agreement scenario for the Smith Family Reunion stay. Approval does not authorize Hotel implementation. An accepted Slice 3A plan must name the facts it uses. The contract/signature date and Hotel group or confirmation number stay blank.  
+**Status:** Approved 2026-09-27 at the single registered Hotel fixture path, `docs/planning/fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md`. This is the Hotel agreement scenario for the Smith Family Reunion stay. The accepted [Slice 3A plan](../m4d1-slice3a-hotel-supplier-composition.md) names the facts it uses. Slice 3A.0 recorded four incompatibilities, and Slice 3A.1 remains blocked. The contract/signature date and Hotel group or confirmation number stay blank.  
 **Departure:** Smith Family Reunion  
 **Supplier:** Hilton Fort Lauderdale Marina  
 **Purpose:** Approved Hotel agreement facts and MVP proof scenario, with the [Hotel Staff walkthrough](../m4d1-hilton-hotel-staff-walkthrough.md).
@@ -39,8 +39,8 @@ The following earlier fixture facts are superseded:
 | Departure | Smith Family Reunion |
 | Property | Hilton Fort Lauderdale Marina |
 | Stay name | Pre-cruise hotel stay |
-| Contract/signature date | September 28, 2027 |
-| Hotel group or confirmation number | Not HH2609271548 |
+| Contract/signature date | Unspecified; leave blank |
+| Hotel group or confirmation number | Unspecified; leave blank |
 | Time zone | America/New_York |
 | Check-in time | 3:00 p.m. |
 | Checkout time | Noon |
@@ -66,7 +66,7 @@ The quantities vary by night. They must not be flattened into one constant openi
 
 Each room category is a stable Hotel Resource. The nightly contracted quantities are Supplier-controlled room-unit capacity for the covered occurrence dates. They do not represent travelers, Hotel-wide physical inventory, expected pickup, or rooms already sold.
 
-**Topology decision for Slice 3A:** identify each inventory night by an authoritative date and each category/night block by an exact Pool. Present one continuous guest stay, not a new guest check-in on November 5. A free-text Pool label must not be the only source of the date. The plan must specify how M3 Occurrences, Pools, and the actual November 4 check-in/November 6 checkout terms coexist before implementation.
+**Topology:** the accepted [Slice 3A plan](../m4d1-slice3a-hotel-supplier-composition.md) names the graph. One Stay Occurrence carries November 4 check-in through November 6 checkout and is not capacity-bearing. Each inventory night is its own single-day Occurrence, and each category/night block is one Pool. A free-text Pool label is not the date.
 
 ### 3.2 Occupancy
 
@@ -312,7 +312,7 @@ At least one browser proof must use two Hotel Items, with navigation by stable I
 
 ## 16. Fixture assertions and behavior boundaries
 
-The commercial terms below are the Approved scenario values for this proof. The contract/signature date and Hotel group or confirmation number remain unspecified. Approval does not authorize Hotel implementation until an accepted Slice 3A plan names the facts it uses.
+The commercial terms below are the Approved scenario values for this proof. The contract/signature date and Hotel group or confirmation number remain unspecified. The accepted [Slice 3A plan](../m4d1-slice3a-hotel-supplier-composition.md) names the facts it uses. Slice 3A.0 recorded four incompatibilities, and Slice 3A.1 remains blocked.
 
 1. The contracted stay is November 4–6, 2027.
 2. Nightly inventory varies: 5 Standard/2 Deluxe, then 10 Standard/5 Deluxe.

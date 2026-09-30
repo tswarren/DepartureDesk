@@ -111,9 +111,9 @@ The later browser proof should follow the Staff path from Composition and establ
 3. Keep guest-paid tax separate from the pretax Group deposit basis; show 10%/45%/45% without creating a second October 4 charge.
 4. Show the $150 per-room-night waiver for every contracted block room, contingent November 1–3 nights, per-date attrition, no inferred cancellation ladder, and no materialized attrition or early-departure charge.
 5. Save the October 3, 5:00 p.m. Eastern cutoff once. Show the refund to the agency by November 20, 2027, with the original nonrefundable sentence kept as history, and activate with that clarification already on the pre-activation draft.
-6. Show governing read-only and successor proposed states after activation. Test a second Hotel Item and reopening the first by stable Item ID without adding its facts to the Hilton block. A Viewer may read the Hotel summary on a view-authorized route but cannot save, amend, or activate; Hotel management routes return not found to a Viewer. Cross-Agency read and management identifiers return not found. Preserve an exact Advanced fallback for unsupported shapes.
+6. Show governing read-only and successor proposed states after activation. Test a second Hotel Item and reopening the first by stable Item ID without adding its facts to the Hilton block. A Viewer may read the Hotel summary on a view-authorized route but cannot save, amend, or activate. Hotel management routes use the same denial as other Composition management routes: an authenticated Viewer without `manage_departures` is redirected. Cross-Agency read and management identifiers return not found. Preserve an exact Advanced fallback for unsupported shapes.
 
-Before accepting a Slice 3A implementation plan, settle these decisions explicitly:
+The decisions in the table below are settled by the Accepted [Slice 3A plan](m4d1-slice3a-hotel-supplier-composition.md). Slice 3A.0 recorded four incompatibilities, and Slice 3A.1 remains blocked.
 
 | Decision | Required outcome |
 | --- | --- |
@@ -125,4 +125,4 @@ Before accepting a Slice 3A implementation plan, settle these decisions explicit
 
 The Hotel agreement text was not available. The Approved fixture states the scenario values for the fee, the October dates, the $0 October 4 addition, the agency as payer and refund recipient, the November 20 refund deadline, the zero-utilization rates, and the release rule. The contract/signature date and Hotel group or confirmation number stay blank.
 
-This acceptance authorizes drafting a separate Hotel Slice 3A plan. It does not authorize Hotel adapter implementation, and it does not settle Cruise confirmation, Cruise deposits, or Client pricing.
+[Slice 3A](m4d1-slice3a-hotel-supplier-composition.md), Hotel Supplier Composition, is Accepted 2026-09-30. Slice 3A.0 recorded four incompatibilities, and Slice 3A.1 remains blocked. This walkthrough does not settle Cruise confirmation, Cruise deposits, or Client pricing.

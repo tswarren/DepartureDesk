@@ -1,6 +1,6 @@
 # M4D.1 Slice 2D — Cruise Client Terms and Scenario Review
 
-**Status:** Shipped 2026-09-24. Sole shipped authority for M4D.1 Slice 2D (Stops F–G). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. [Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md) is the accepted layer and delivery-order decision and authorizes no adapter code. The next unauthorized boundary is a Slice 3A implementation plan. The Hotel Staff walkthrough is Accepted 2026-09-27. M4E and M5 remain unauthorized until named.
+**Status:** Shipped 2026-09-24. Sole shipped authority for M4D.1 Slice 2D (Stops F–G). Parent [M4D.1](m4d1-departure-composition-workspace.md) remains Accepted for later slices. [Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md) is the accepted layer and delivery-order decision and authorizes no adapter code. [Slice 3A](m4d1-slice3a-hotel-supplier-composition.md) Slice 3A.0 recorded four incompatibilities, and Slice 3A.1 remains blocked. The Hotel Staff walkthrough is Accepted 2026-09-27. M4E and M5 remain unauthorized until named.
 
 **Ship commit:** [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154). Deliveries 2D-A, 2D-B, and 2D-C merged with that ship.
 

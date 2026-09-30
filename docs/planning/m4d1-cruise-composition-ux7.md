@@ -1,6 +1,6 @@
 # UX-7 — Cruise Supplier Workspace Consolidation
 
-**Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is implemented. UX-7.4, Agreement, is implemented. UX-7.5, Review & activate, is implemented. UX-7.6, Inventory maintenance and Active snapshot polish, is implemented. UX-7.7, closure, is implemented. The Cruise Supplier workspace consolidation is complete. No further implementation slice is authorized. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.  
+**Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is implemented. UX-7.4, Agreement, is implemented. UX-7.5, Review & activate, is implemented. UX-7.6, Inventory maintenance and Active snapshot polish, is implemented. UX-7.7, closure, is implemented. The Cruise Supplier workspace consolidation is complete. It is not Hotel authority. [Slice 3A](m4d1-slice3a-hotel-supplier-composition.md) is Accepted 2026-09-30. Agreement documents and a workflow engine stay outside this plan.  
 **Parent:** [Cruise Composition UX](m4d1-cruise-composition-ux.md).  
 **Implementation baseline:** `fe01ed2b1b395e047d3c27ed466c6e5c444e340d`  
 **Depends on:** Cruise rework behavior, and UX-1 through UX-6 behavior at that baseline.  
