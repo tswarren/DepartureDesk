@@ -47,7 +47,7 @@
             class: "dd-button dd-button--secondary" %>
     </div>
   </section>
-<% elsif @review.blockers.any? %>
+<% elsif review_status == "Needs attention" %>
   <section class="dd-panel" aria-labelledby="cruise-attention-heading">
     <div class="dd-panel-body dd-stack">
       <h2 id="cruise-attention-heading" class="dd-panel-title">Needs attention</h2>
@@ -64,7 +64,7 @@
       </ul>
     </div>
   </section>
-<% elsif @review.cruise_post_allowed? %>
+<% elsif review_status == "Ready to review" %>
   <section class="dd-panel" aria-labelledby="cruise-consequences-heading">
     <div class="dd-panel-body">
       <h2 id="cruise-consequences-heading" class="dd-panel-title">What activation will do</h2>
@@ -213,12 +213,27 @@
   <section class="dd-panel" aria-labelledby="cruise-advanced-heading">
     <div class="dd-panel-body dd-stack">
       <h2 id="cruise-advanced-heading" class="dd-panel-title">Requires Advanced</h2>
-      <p>The Supplier setup is ready, and this screen cannot safely post the activation.</p>
-      <% @review.unsupported_reasons.each do |reason| %>
-        <p><%= reason %></p>
-      <% end %>
-      <% if @review.cost_rows.any? { |row| row.stage_label == "Estimate" } %>
-        <p>A selected Supplier cost is an estimate. This Cruise review will not acknowledge an estimate.</p>
+      <% if @review.blockers.any? %>
+        <p>This screen cannot represent every activation requirement.</p>
+        <ul>
+          <% @review.blockers.each do |blocker| %>
+            <li>
+              <p><%= blocker.message %></p>
+              <% destination = cruise_activation_blocker_path(blocker) %>
+              <% if destination %>
+                <%= link_to cruise_activation_blocker_label(blocker), destination %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p>The Supplier setup is ready, and this Cruise activation screen cannot safely represent the activation.</p>
+        <% @review.unsupported_reasons.each do |reason| %>
+          <p><%= reason %></p>
+        <% end %>
+        <% if @review.cost_rows.any? { |row| row.stage_label == "Estimate" } %>
+          <p>A selected Supplier cost is an estimate. This Cruise review will not acknowledge an estimate.</p>
+        <% end %>
       <% end %>
       <%= link_to "Open Advanced Supplier planning",
             departure_arrangement_activation_path(@departure, @supplier_arrangement) %>

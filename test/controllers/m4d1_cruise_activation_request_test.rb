@@ -123,10 +123,17 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     )
     sign_in_as @staff
     get departure_arrangement_cruise_activation_path(@departure, @arrangement)
+    review = CompileCruiseActivationReview.new(
+      agency: @agency, arrangement: @arrangement, version: @version.reload
+    ).call
+    assert_equal true, review.readiness_ready?
+    assert_equal false, review.cruise_post_allowed?
+    assert_empty review.blockers
     assert_select "#cruise-activation-status", text: "Requires Advanced"
-    assert_match "cannot safely post", response.body
+    assert_match "The Supplier setup is ready", response.body
+    assert_match "cannot safely represent the activation", response.body
     assert_no_match "Activate Supplier terms", response.body
-    assert_match "Open Advanced Supplier planning", response.body
+    assert_select "a[href=?]", departure_arrangement_activation_path(@departure, @arrangement), text: "Open Advanced Supplier planning"
 
     post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params
     assert_response :unprocessable_entity
@@ -176,8 +183,9 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
       get departure_arrangement_cruise_activation_path(@departure, @arrangement)
     end
 
-    assert_select "#cruise-activation-status", text: "Needs attention"
+    assert_select "#cruise-activation-status", text: "Requires Advanced"
     assert_match "Add at least one Arrangement Item.", response.body
+    assert_no_match "The Supplier setup is ready", response.body
     assert_select "a[href=?]", departure_arrangement_activation_path(@departure, @arrangement), text: "Open Advanced Supplier planning"
     assert_no_match "Activate Supplier terms", response.body
   end

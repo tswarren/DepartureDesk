@@ -68,7 +68,7 @@ Satisfied 2026-09-29 by acceptance of this plan. UX-7.0 changed planning documen
 3. **Remove drafting residue.** No conversational-source markers remain in the accepted text.
 4. **Lock authorization.** No permission change. Viewer-readable Overview and Agreement facts stay readable with `view_departures`. Cabin-category and Supplier-rate GETs stay `manage_departures` unless a later accepted access change says otherwise.
 5. **Lock navigation-status sources.** The non-activation mapping in §5 is the accepted source list. UX-7.1 renders only those rows. If a later change cannot express a status from an existing fact, omit that status. Do not add a general workspace-completion evaluator.
-6. **Lock status words.** Typed-adapter incompatibility is **Advanced**. Activation readiness blockers are **Needs attention**. Readiness satisfied and `cruise_post_allowed?` is **Ready to review**. Readiness satisfied and not `cruise_post_allowed?` is **Requires Advanced**. **Active** means the version this workspace is presenting is the activated governing version, and Staff are not working a successor draft.
+6. **Lock status words.** Typed-adapter incompatibility is **Advanced**. A readiness blocker set that includes a recognized Cruise code is **Needs attention**. A readiness blocker set with no recognized Cruise code is **Requires Advanced**. Readiness satisfied and `cruise_post_allowed?` is **Ready to review**. Readiness satisfied and not `cruise_post_allowed?` is **Requires Advanced**. **Active** means the version this workspace is presenting is the activated governing version, and Staff are not working a successor draft.
 7. **Lock UX-6 inventory.** The governing Active snapshot stays read-only except `RecordCruiseSameTermsCapacityIncrease`. Changed terms are not offered there. Overview and Agreement lose transitional Change inventory controls.
 8. **Lock supplemental identity.** The new Resource keeps the selected Supplier code and the stored name `Supplemental <supplier_code> block`.
 9. **Lock requirement endpoints.** Agreement becomes the normal presentation for recognized Cruise requirements. Deposit and deadline routes and controllers remain where Agreement forms and unrecognized or Advanced structures still post.
@@ -210,17 +210,18 @@ Allowed words:
 | Not started | Existing records required to render that area are absent. |
 | Advanced | Authoritative data exists, and the typed Cruise adapter cannot safely represent it. |
 | Ready to review | Activation readiness is satisfied and `cruise_post_allowed?` is true. |
-| Requires Advanced | Activation readiness is satisfied and `cruise_post_allowed?` is false. |
+| Requires Advanced | Readiness has blockers and none are recognized Cruise codes, or readiness is satisfied and `cruise_post_allowed?` is false. |
 | Active | The version this workspace is presenting is the activated governing version, and Staff are not working a successor draft. |
 
-**Blocked** is not a Cruise setup status. An incompatible typed shape is **Advanced**, not a second meaning of blocked. Activation readiness blockers are **Needs attention**.
+**Blocked** is not a Cruise setup status. An incompatible typed shape is **Advanced**, not a second meaning of blocked. A recognized Cruise activation blocker is **Needs attention**. A readiness blocker set with no recognized Cruise code is **Requires Advanced**.
 
 Review & activate uses only this matrix, evaluated against the version the workspace is presenting:
 
 | Existing activation facts | Display |
 | --- | --- |
 | That version is the activated governing version, and the workspace is not a successor draft | **Active** |
-| `SupplierArrangementActivationReadiness` has blockers | **Needs attention** |
+| Readiness includes a recognized Cruise blocker | **Needs attention** |
+| Readiness has blockers and none are recognized Cruise codes | **Requires Advanced** |
 | Readiness is satisfied and `CompileCruiseActivationReview#cruise_post_allowed?` is false | **Requires Advanced** |
 | Readiness is satisfied and `cruise_post_allowed?` is true | **Ready to review** |
 

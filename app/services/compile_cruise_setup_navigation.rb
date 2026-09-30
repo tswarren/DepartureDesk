@@ -121,7 +121,11 @@ class CompileCruiseSetupNavigation
     if version&.activated? && version.id == @arrangement.governing_version_id
       return "Active"
     end
-    return "Needs attention" if codes.any?
+    if codes.any?
+      return "Needs attention" if codes.any? { |code| RECOGNIZED_ATTENTION_CODES.include?(code) }
+
+      return "Requires Advanced"
+    end
     return "Ready to review" if review.cruise_post_allowed?
 
     "Requires Advanced"
