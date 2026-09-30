@@ -84,6 +84,7 @@ class CompileCruiseSetupNavigationTest < ActiveSupport::TestCase
     navigation = compile
 
     assert_equal "Complete", status_for(navigation, :agreement)
+    assert_equal "Needs attention", status_for(navigation, :review)
     assert_not_includes navigation.attention_items.map(&:code), :cruise_deposit_treatment_missing
   end
 

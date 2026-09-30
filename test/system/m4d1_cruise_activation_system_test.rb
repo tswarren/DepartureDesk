@@ -65,7 +65,9 @@ class M4d1CruiseActivationSystemTest < ApplicationSystemTestCase
     visit departure_arrangement_cruise_path(@departure, @arrangement)
     click_on "Review & activate"
     assert_text "does not have an opening cabin quantity"
-    assert_no_button "Activate Cruise supplier arrangement"
+    assert_text "Needs attention"
+    assert_no_button "Activate Supplier terms"
+    assert_no_selector "table"
     assert_no_page_overflow
 
     resize_window(375)
@@ -77,14 +79,19 @@ class M4d1CruiseActivationSystemTest < ApplicationSystemTestCase
     )
     resize_window(1280)
     visit departure_arrangement_cruise_activation_path(@departure, @arrangement)
-    assert_text "This Cruise can be activated from this review."
+    assert_text "Ready to review"
+    assert_no_selector "table"
+    resize_window(375)
+    assert_no_page_overflow
+    resize_window(1280)
+    assert_no_page_overflow
     select "Supplier confirmation", from: "Evidence kind"
     fill_in_html_date "Evidence date", with: Date.current.iso8601
     fill_in "Channel", with: "portal"
     fill_in "Reference note", with: "Supplier approved the terms"
     fill_in "Reason no Supplier identifier was issued", with: "Supplier did not issue one"
-    click_on "Activate Cruise supplier arrangement"
-    assert_text "Version #{@version.reload.version_number} is now the governing"
+    click_on "Activate Supplier terms"
+    assert_text "Version #{@version.reload.version_number} became governing"
     click_on "Connect to Client service"
     assert_current_path departure_arrangement_cruise_service_connection_path(@departure, @arrangement)
   end

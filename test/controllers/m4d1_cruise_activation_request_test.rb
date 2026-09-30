@@ -65,10 +65,13 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     sign_in_as @staff
     get departure_arrangement_cruise_activation_path(@departure, @arrangement)
     assert_response :success
-    assert_match "This Cruise can be activated from this review.", response.body
+    assert_select "#cruise-activation-status", text: "Ready to review"
+    assert_match "No confirmation-triggered commitments will open.", response.body
     assert_match "No confirmation-triggered commitments are declared.", response.body
-    assert_match "Group reference 1119999", response.body
     assert_select "input#confirmation_display_value[value='1119999']", count: 0
+    assert_select "input#confirmation_display_value"
+    assert_select "table", count: 0
+    assert_select "input[type=submit][value=?]", "Activate Supplier terms"
     assert_no_match "provisional_costs_acknowledged", response.body
     assert_no_match "I confirm the entered cost-source list is complete.", response.body
 
@@ -85,7 +88,11 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     assert @version.reload.activated?
     follow_redirect!
     assert_match "Connect to Client service", response.body
-    assert_match "Version #{@version.version_number} is now the governing", response.body
+    assert_select "#cruise-activation-status", text: "Active"
+    assert_match "Version #{@version.version_number} became governing", response.body
+    assert_match "Activated by Sam Carter", response.body
+    assert_no_match "Supplier-issued identifier", response.body
+    assert_no_match "Activate Supplier terms", response.body
   end
 
   test "cruise agreement confirmation is not reused as supplier confirmation" do
@@ -116,11 +123,122 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     )
     sign_in_as @staff
     get departure_arrangement_cruise_activation_path(@departure, @arrangement)
-    assert_no_match "Activate Cruise supplier arrangement", response.body
-    assert_match "Advanced Supplier planning", response.body
+    assert_select "#cruise-activation-status", text: "Requires Advanced"
+    assert_match "cannot safely post", response.body
+    assert_no_match "Activate Supplier terms", response.body
+    assert_match "Open Advanced Supplier planning", response.body
 
     post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params
     assert_response :unprocessable_entity
+    assert @version.reload.draft?
+  end
+
+  test "known blockers link to cabin inventory, supplier rates, and agreement" do
+    resource_id = @version.supplier_resource_definitions.sole.supplier_resource_id
+    @version.capacity_pool_definitions.find_by!(capacity_pool: @pool).update!(proposed_opening_quantity: nil)
+    @version.supplier_arrangement_cruise_agreement_confirmations.find_by!(current: true).update_columns(
+      status: "provisional", confirmed_at: nil, confirmed_by_id: nil
+    )
+    sources = @version.supplier_cost_sources.where(supplier_resource_id: resource_id)
+    @version.supplier_cost_definitions.where(supplier_cost_source_id: sources.select(:id)).delete_all
+    sources.delete_all
+
+    sign_in_as @staff
+    get departure_arrangement_cruise_activation_path(@departure, @arrangement)
+
+    assert_select "#cruise-activation-status", text: "Needs attention"
+    assert_select "a[href=?]", edit_departure_arrangement_cruise_cabin_category_path(@departure, @arrangement, resource_id)
+    assert_select "a[href=?]", departure_arrangement_cruise_agreement_path(@departure, @arrangement, focus: "agreement")
+    rates_link = css_select("a").find { |link| link.text == "Open Supplier rates" }
+    assert rates_link
+    assert_includes rates_link["href"], resource_id
+    assert_no_match "#cruise-rates", response.body
+    assert_no_match "deposits-and-deadlines", response.body
+    assert_no_match "What activation will do", response.body
+    assert_no_match "Activate Supplier terms", response.body
+  end
+
+  test "an unknown blocker links to advanced supplier planning" do
+    sign_in_as @staff
+    unknown = SupplierArrangementActivationReadiness::Blocker.new(
+      track: :structure, code: :items_missing, path: "items", message: "Add at least one Arrangement Item."
+    )
+    real = SupplierArrangementActivationReadiness.new(
+      agency: @agency, arrangement: @arrangement, version: @version.reload
+    ).call
+    replaced = SupplierArrangementActivationReadiness::Result.new(
+      version: real.version, blockers: [ unknown ], cost_selections: real.cost_selections
+    )
+    readiness = Object.new
+    readiness.define_singleton_method(:call) { replaced }
+
+    with_constructor(SupplierArrangementActivationReadiness, readiness) do
+      get departure_arrangement_cruise_activation_path(@departure, @arrangement)
+    end
+
+    assert_select "#cruise-activation-status", text: "Needs attention"
+    assert_match "Add at least one Arrangement Item.", response.body
+    assert_select "a[href=?]", departure_arrangement_activation_path(@departure, @arrangement), text: "Open Advanced Supplier planning"
+    assert_no_match "Activate Supplier terms", response.body
+  end
+
+  test "a confirmed agreement stays complete while another blocker keeps review in needs attention" do
+    @version.capacity_pool_definitions.find_by!(capacity_pool: @pool).update!(proposed_opening_quantity: nil)
+    sign_in_as @staff
+    get departure_arrangement_cruise_activation_path(@departure, @arrangement)
+
+    assert_select "#cruise-activation-status", text: "Needs attention"
+    assert_select "#cruise-activation-setup", text: /Agreement\s+Complete/
+  end
+
+  test "a successor draft is not labeled active" do
+    sign_in_as @staff
+    post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params
+    assert_redirected_to departure_arrangement_cruise_activation_path(@departure, @arrangement)
+
+    CreateSupplierArrangementSuccessor.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement.reload,
+      arrangement_lock_version: @arrangement.lock_version,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    get departure_arrangement_cruise_activation_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "#cruise-activation-status", text: "Needs attention"
+
+    draft = @arrangement.versions.find_by!(status: "draft")
+    RecordCruiseSupplierAgreement.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      intent: "confirm",
+      version_lock_version: draft.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      group_reference: "2228888",
+      group_creation_date: "2026-09-01",
+      contract_date: "2026-09-13"
+    ).call
+
+    get departure_arrangement_cruise_activation_path(@departure, @arrangement)
+    assert_select "#cruise-activation-status", text: "Ready to review"
+    assert_match "remains in effect until activation succeeds", response.body
+    assert_select "input[type=submit][value=?]", "Activate Supplier terms"
+    assert_select "input#confirmation_display_value[value='2228888']", count: 0
+  end
+
+  test "a viewer can read the review and cannot activate" do
+    sign_in_as agency_users(:harbor_viewer)
+    get departure_arrangement_cruise_activation_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "#cruise-activation-status", text: "Ready to review"
+    assert_no_match "Activate Supplier terms", response.body
+    assert_select "a[href=?]", departure_arrangement_cruise_cabin_categories_path(@departure, @arrangement), count: 0
+
+    post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params
+    assert_redirected_to root_path
     assert @version.reload.draft?
   end
 

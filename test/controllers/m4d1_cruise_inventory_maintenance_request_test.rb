@@ -150,7 +150,8 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_match "Draft · Version #{successor.version_number}", response.body
     get departure_arrangement_cruise_activation_path(@departure, @arrangement)
-    assert_match "Activating Draft Version #{successor.version_number}", response.body
+    assert_select ".dd-cruise-version-badge", text: "Draft · Version #{successor.version_number}"
+    assert_select "#cruise-activation-status", text: "Needs attention"
     get edit_departure_arrangement_cruise_cabin_category_path(@departure, @arrangement, @resource)
     assert_match "Draft · Version #{successor.version_number}", response.body
     get departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @arrangement, @resource)

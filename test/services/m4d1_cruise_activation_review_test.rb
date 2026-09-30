@@ -129,7 +129,28 @@ class M4d1CruiseActivationReviewTest < ActiveSupport::TestCase
     assert_equal false, reviewed.cruise_post_allowed?
   end
 
+  test "presentation mode keeps the same activation conclusion" do
+    assert_same_activation_conclusion
+
+    prepare_post_eligible!
+    assert_same_activation_conclusion
+
+    add_estimate_source!
+    assert_same_activation_conclusion
+  end
+
   private
+
+  def assert_same_activation_conclusion
+    full = compile
+    plain = compile(presentation: false)
+
+    assert_equal full.cruise_post_allowed?, plain.cruise_post_allowed?
+    assert_equal full.readiness_ready?, plain.readiness_ready?
+    assert_equal full.activated?, plain.activated?
+    assert_equal full.blockers.map(&:code), plain.blockers.map(&:code)
+    assert_equal full.unsupported_reasons, plain.unsupported_reasons
+  end
 
   def with_constructor(klass, replacement)
     singleton = klass.singleton_class
@@ -183,11 +204,12 @@ class M4d1CruiseActivationReviewTest < ActiveSupport::TestCase
     def each(...) = @rows.each(...)
   end
 
-  def compile
+  def compile(presentation: true)
     CompileCruiseActivationReview.new(
       agency: @agency,
       arrangement: @setup[:arrangement],
-      version: @setup[:version].reload
+      version: @setup[:version].reload,
+      presentation: presentation
     ).call
   end
 

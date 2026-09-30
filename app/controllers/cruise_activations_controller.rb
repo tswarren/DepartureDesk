@@ -11,6 +11,7 @@ class CruiseActivationsController < ApplicationController
 
   def show
     @review = compile_review
+    load_recorded_activation if @review.activated?
     @idempotency_key = SecureRandom.uuid
     prepare_review_form
   end
@@ -72,6 +73,15 @@ class CruiseActivationsController < ApplicationController
   end
 
   private
+
+  def load_recorded_activation
+    @activation = SupplierArrangementActivation.includes(
+      :actor, supplier_confirmation: :supplier_issued_identifiers
+    ).find_by(
+      agency: Current.agency,
+      supplier_arrangement_version: @supplier_arrangement_version
+    )
+  end
 
   def compile_review
     CompileCruiseActivationReview.new(

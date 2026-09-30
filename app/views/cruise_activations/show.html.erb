@@ -1,21 +1,43 @@
-<% content_for :title, "Activate #{@supplier_arrangement.name} · DepartureDesk" %>
-<% sailing = @review.sailing %>
-<% agreement = @review.agreement %>
+<% content_for :title, "Review & activate #{@supplier_arrangement.name} · DepartureDesk" %>
+<% navigation = cruise_setup_navigation %>
+<% review_status = navigation.areas.find { |area| area.key == :review }.status %>
+<% setup_areas = navigation.areas.reject { |area| area.key == :review } %>
 
-<%= render "cruise_setup/shell", current: :review, page_title: "Review activation" %>
-<% if @supplier_arrangement_version&.draft? && @supplier_arrangement_version.copied_from_id.present? %>
-  <p>Activating Draft Version <%= @supplier_arrangement_version.version_number %>. Active Version <%= @supplier_arrangement_version.copied_from.version_number %> remains in effect until activation succeeds.</p>
-<% end %>
+<%= render "cruise_setup/shell", current: :review, page_title: "Review & activate" %>
+
+<p id="cruise-activation-status"><%= review_status %></p>
+
+<section class="dd-panel" aria-labelledby="cruise-activation-setup-heading">
+  <div class="dd-panel-body">
+    <h2 id="cruise-activation-setup-heading" class="dd-panel-title">Supplier setup</h2>
+    <ul id="cruise-activation-setup">
+      <% setup_areas.each do |area| %>
+        <li>
+          <% if cruise_setup_area_available?(area) %>
+            <%= link_to area.label, cruise_setup_area_path(area, @supplier_arrangement_version) %>
+          <% else %>
+            <%= area.label %>
+          <% end %>
+          <span><%= area.status %></span>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+</section>
 
 <%= render "shared/form_errors", object: @command_form if @command_form&.errors&.any? %>
 
 <% if @review.activated? %>
   <section class="dd-panel" aria-labelledby="cruise-activated-heading">
     <div class="dd-panel-body dd-stack">
-      <h2 id="cruise-activated-heading" class="dd-panel-title">Cruise supplier arrangement activated</h2>
-      <p>Version <%= sailing[:version_number] %> is now the governing Supplier Arrangement version.</p>
-      <% if sailing[:successor?] && sailing[:governing_version_number].present? %>
-        <p>The previous governing version remains preserved.</p>
+      <h2 id="cruise-activated-heading" class="dd-panel-title">Supplier terms are active</h2>
+      <p>Version <%= @supplier_arrangement_version.version_number %> became governing<% if @activation %> on <%= cruise_activation_recorded_on(@activation) %><% end %>.</p>
+      <% if @activation %>
+        <p>Activated by <%= @activation.actor.display_name %>.</p>
+        <% identifier = cruise_activation_identifier(@activation) %>
+        <% if identifier.present? %>
+          <p>Supplier-issued identifier <%= identifier %></p>
+        <% end %>
       <% end %>
       <%= link_to "Connect to Client service",
             departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement),
@@ -25,138 +47,24 @@
             class: "dd-button dd-button--secondary" %>
     </div>
   </section>
-<% else %>
-  <section class="dd-panel" aria-labelledby="cruise-sailing-heading">
-    <div class="dd-panel-body">
-      <h2 id="cruise-sailing-heading" class="dd-panel-title">Cruise</h2>
-      <dl class="dd-fact-grid">
-        <div><dt>Supplier</dt><dd><%= sailing[:supplier_name] %></dd></div>
-        <div><dt>Ship</dt><dd><%= sailing[:ship_name] %></dd></div>
-        <div><dt>Sailing</dt><dd><%= sailing[:sailing_name] %></dd></div>
-        <div><dt>Dates</dt><dd><%= sailing[:starts_on] %>–<%= sailing[:ends_on] %></dd></div>
-        <div><dt>Arrangement version</dt><dd><%= sailing[:version_number] %></dd></div>
-        <% if agreement[:group_reference].present? %>
-          <div><dt>Supplier group reference</dt><dd><%= agreement[:group_reference] %></dd></div>
-        <% end %>
-        <% if sailing[:successor?] %>
-          <div>
-            <dt>Version under review</dt>
-            <dd>Proposed successor. Version <%= sailing[:governing_version_number] %> is governing until this successor is activated.</dd>
-          </div>
-        <% end %>
-      </dl>
-    </div>
-  </section>
-
-  <section class="dd-panel" aria-labelledby="cruise-cabins-heading">
-    <div class="dd-panel-body">
-      <h2 id="cruise-cabins-heading" class="dd-panel-title">Cabin inventory</h2>
-      <% if @review.cabins.any? %>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Cabin category</th>
-              <th scope="col">Inventory</th>
-              <th scope="col">Opening quantity</th>
-              <th scope="col">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% @review.cabins.each do |cabin| %>
-              <tr>
-                <th scope="row"><%= cabin.code %> — <%= cabin.name %></th>
-                <td><%= cabin.inventory_label %></td>
-                <td><%= cabin.quantity_label %></td>
-                <td><%= cabin.status_label %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      <% else %>
-        <p>Cabin inventory cannot be listed on this review.</p>
-      <% end %>
-    </div>
-  </section>
-
-  <section class="dd-panel" aria-labelledby="cruise-rates-heading">
-    <div class="dd-panel-body">
-      <h2 id="cruise-rates-heading" class="dd-panel-title">Supplier rates</h2>
-      <% if @review.cost_rows.any? %>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Supplier cost</th>
-              <th scope="col">Stage</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% @review.cost_rows.each do |row| %>
-              <tr>
-                <th scope="row"><%= row.label %></th>
-                <td><%= row.stage_label %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      <% else %>
-        <p>No selected Supplier cost source.</p>
-      <% end %>
-    </div>
-  </section>
-
-  <section class="dd-panel" aria-labelledby="cruise-requirements-heading">
+<% elsif @review.blockers.any? %>
+  <section class="dd-panel" aria-labelledby="cruise-attention-heading">
     <div class="dd-panel-body dd-stack">
-      <h2 id="cruise-requirements-heading" class="dd-panel-title">Agreement and requirements</h2>
-      <p>Supplier agreement: <%= agreement[:status_label] %><% if agreement[:contract_date].present? %>. Contract date <%= agreement[:contract_date] %><% end %><% if agreement[:group_reference].present? %>. Group reference <%= agreement[:group_reference] %><% end %>.</p>
-      <% @review.requirements.each do |requirement| %>
-        <h3><%= requirement.label %></h3>
-        <p><%= requirement.detail %></p>
-      <% end %>
+      <h2 id="cruise-attention-heading" class="dd-panel-title">Needs attention</h2>
+      <ul>
+        <% @review.blockers.each do |blocker| %>
+          <li>
+            <p><%= blocker.message %></p>
+            <% destination = cruise_activation_blocker_path(blocker) %>
+            <% if destination %>
+              <%= link_to cruise_activation_blocker_label(blocker), destination %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
     </div>
   </section>
-
-  <section class="dd-panel" aria-labelledby="cruise-status-heading">
-    <div class="dd-panel-body dd-stack">
-      <h2 id="cruise-status-heading" class="dd-panel-title">Activation status</h2>
-      <% if @review.blockers.any? %>
-        <p><strong>This Cruise isn't ready to activate.</strong> <%= pluralize(@review.blockers.size, "item") %> <%= @review.blockers.one? ? "needs" : "need" %> attention.</p>
-        <ul>
-          <% @review.blockers.each do |blocker| %>
-            <li>
-              <p><%= blocker.message %></p>
-              <% case blocker.destination %>
-              <% when :cabin_categories %>
-                <%= link_to "Review cabin categories",
-                      cruise_cabin_corrective_path(blocker.resource_id, @supplier_arrangement_version) %>
-              <% when :supplier_rates %>
-                <% if Current.agency_user.permitted?(:manage_departures) %>
-                  <%= link_to "Review Supplier rates", cruise_supplier_rate_corrective_path(blocker.resource_id) %>
-                <% else %>
-                  <%= link_to "Review Supplier rates",
-                        departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates") %>
-                <% end %>
-              <% when :agreement %>
-                <%= link_to "Review Supplier agreement", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement) %>
-              <% else %>
-                <%= link_to "Review in Advanced Supplier planning", departure_arrangement_activation_path(@departure, @supplier_arrangement) %>
-              <% end %>
-            </li>
-          <% end %>
-        </ul>
-      <% elsif @review.cruise_post_allowed? %>
-        <p><strong>This Cruise can be activated from this review.</strong> Authoritative readiness has no blockers, and this review can represent the activation contract.</p>
-      <% else %>
-        <p><strong>Use Advanced Supplier planning.</strong> This review cannot safely post the activation command.</p>
-        <% @review.unsupported_reasons.each do |reason| %>
-          <p><%= reason %></p>
-        <% end %>
-        <% if @review.cost_rows.any? { |row| row.stage_label == "Estimate" } %>
-          <p>A selected Supplier cost is an estimate. This Cruise review will not acknowledge an estimate.</p>
-        <% end %>
-      <% end %>
-    </div>
-  </section>
-
+<% elsif @review.cruise_post_allowed? %>
   <section class="dd-panel" aria-labelledby="cruise-consequences-heading">
     <div class="dd-panel-body">
       <h2 id="cruise-consequences-heading" class="dd-panel-title">What activation will do</h2>
@@ -178,7 +86,7 @@
     </div>
   </section>
 
-  <% if @review.cruise_post_allowed? && Current.agency_user.permitted?(:manage_departures) %>
+  <% if Current.agency_user.permitted?(:manage_departures) %>
     <%= form_with url: departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement), method: :post do %>
       <%= hidden_field_tag :idempotency_key, @idempotency_key %>
       <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
@@ -214,7 +122,7 @@
             <p>Activating this Cruise will open each listed requirement as already overdue.</p>
             <div class="dd-field-group">
               <%= check_box_tag :elapsed_deadlines_acknowledged, "1", params[:elapsed_deadlines_acknowledged] == "1" %>
-              <%= label_tag :elapsed_deadlines_acknowledged, "I understand these requirements are already overdue and want to activate these terms.", class: "dd-label" %>
+              <%= label_tag :elapsed_deadlines_acknowledged, "I reviewed these elapsed Supplier requirements.", class: "dd-label" %>
             </div>
           </div>
         </section>
@@ -235,7 +143,7 @@
 
       <section class="dd-panel" aria-labelledby="cruise-evidence-heading">
         <div class="dd-panel-body dd-stack">
-          <h2 id="cruise-evidence-heading" class="dd-panel-title">Supplier confirmation evidence</h2>
+          <h2 id="cruise-evidence-heading" class="dd-panel-title">Activation evidence</h2>
           <p>Record or reuse the Supplier evidence supporting activation of these terms. The Cruise agreement confirmation is a separate record.</p>
           <% if @existing_confirmations.any? %>
             <div class="dd-field-group">
@@ -292,10 +200,28 @@
             </div>
           </details>
           <div class="dd-page-actions">
-            <%= submit_tag "Activate Cruise supplier arrangement", class: "dd-button" %>
+            <% if @supplier_arrangement_version&.draft? && @supplier_arrangement_version.copied_from_id.present? %>
+              <p>Activating Draft Version <%= @supplier_arrangement_version.version_number %>. Active Version <%= @supplier_arrangement_version.copied_from.version_number %> remains in effect until activation succeeds.</p>
+            <% end %>
+            <%= submit_tag "Activate Supplier terms", class: "dd-button" %>
           </div>
         </div>
       </section>
     <% end %>
   <% end %>
+<% else %>
+  <section class="dd-panel" aria-labelledby="cruise-advanced-heading">
+    <div class="dd-panel-body dd-stack">
+      <h2 id="cruise-advanced-heading" class="dd-panel-title">Requires Advanced</h2>
+      <p>The Supplier setup is ready, and this screen cannot safely post the activation.</p>
+      <% @review.unsupported_reasons.each do |reason| %>
+        <p><%= reason %></p>
+      <% end %>
+      <% if @review.cost_rows.any? { |row| row.stage_label == "Estimate" } %>
+        <p>A selected Supplier cost is an estimate. This Cruise review will not acknowledge an estimate.</p>
+      <% end %>
+      <%= link_to "Open Advanced Supplier planning",
+            departure_arrangement_activation_path(@departure, @supplier_arrangement) %>
+    </div>
+  </section>
 <% end %>

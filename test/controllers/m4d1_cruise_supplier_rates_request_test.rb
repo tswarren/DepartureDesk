@@ -247,14 +247,14 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_cruise_activation_path(@departure, @arrangement)
     assert_response :success
-    rate_links = css_select("a").select { |link| link.text == "Review Supplier rates" }
+    rate_links = css_select("a").select { |link| link.text == "Open Supplier rates" }
     assert rate_links.any?
     assert rate_links.none? { |link| link["href"].include?("#cruise-rates") }
     assert_select "a[href=?]",
       departure_arrangement_cruise_cabin_category_supplier_rates_path(
         @departure, @arrangement, @resource, stage: "estimate"
       ),
-      text: "Review Supplier rates"
+      text: "Open Supplier rates"
   end
 
   test "cross-agency supplier rates return not found" do

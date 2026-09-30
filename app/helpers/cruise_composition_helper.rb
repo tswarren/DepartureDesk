@@ -359,6 +359,40 @@ module CruiseCompositionHelper
     true
   end
 
+  def cruise_activation_blocker_path(blocker)
+    case blocker.destination
+    when :cabin_categories
+      return unless Current.agency_user.permitted?(:manage_departures)
+
+      cruise_cabin_corrective_path(blocker.resource_id, @supplier_arrangement_version)
+    when :supplier_rates
+      return unless Current.agency_user.permitted?(:manage_departures)
+
+      cruise_supplier_rate_corrective_path(blocker.resource_id)
+    when :agreement
+      departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "agreement")
+    else
+      departure_arrangement_activation_path(@departure, @supplier_arrangement)
+    end
+  end
+
+  def cruise_activation_blocker_label(blocker)
+    case blocker.destination
+    when :cabin_categories then "Open Cabin inventory"
+    when :supplier_rates then "Open Supplier rates"
+    when :agreement then "Open Agreement"
+    else "Open Advanced Supplier planning"
+    end
+  end
+
+  def cruise_activation_recorded_on(activation)
+    activation.activated_at.in_time_zone(activation.agency.default_timezone).strftime("%B %-d, %Y")
+  end
+
+  def cruise_activation_identifier(activation)
+    activation.supplier_confirmation.supplier_issued_identifiers.filter_map(&:display_value).find(&:present?)
+  end
+
   def cruise_cabin_corrective_path(resource_id, version)
     if Current.agency_user.permitted?(:manage_departures)
       if resource_id.present? && version&.draft?
