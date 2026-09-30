@@ -1446,19 +1446,25 @@
   }
 
   @media (max-width: 767px) {
-    .dd-cabin-table thead {
+    .dd-cabin-table thead,
+    .dd-rates-table thead {
       display: none;
     }
 
     .dd-cabin-table,
     .dd-cabin-table tbody,
     .dd-cabin-table tr,
-    .dd-cabin-table td {
+    .dd-cabin-table td,
+    .dd-rates-table,
+    .dd-rates-table tbody,
+    .dd-rates-table tr,
+    .dd-rates-table td {
       display: block;
       width: auto;
     }
 
-    .dd-cabin-table tbody tr {
+    .dd-cabin-table tbody tr,
+    .dd-rates-table tbody tr {
       margin: 0 0 0.75rem;
       border: 1px solid var(--dd-border);
       border-radius: var(--dd-radius-md);
@@ -1466,12 +1472,14 @@
       padding: 0.75rem;
     }
 
-    .dd-cabin-table td {
+    .dd-cabin-table td,
+    .dd-rates-table td {
       border: 0;
       padding: 0.35rem 0;
     }
 
-    .dd-cabin-table .dd-cabin-field-label {
+    .dd-cabin-table .dd-cabin-field-label,
+    .dd-rates-table .dd-cabin-field-label {
       position: static;
       width: auto;
       height: auto;

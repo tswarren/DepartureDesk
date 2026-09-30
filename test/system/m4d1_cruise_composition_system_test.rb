@@ -75,7 +75,7 @@ class M4d1CruiseCompositionSystemTest < ApplicationSystemTestCase
     assert_text "Fixed block"
     click_link "Back to Cruise"
     assert_selector "#cruise-workspace"
-    assert_text "Add Supplier rates"
+    assert_text "Open Supplier rates"
 
     click_link "Return to Suppliers"
     assert_selector "a", text: "Open Cruise setup"

@@ -447,14 +447,15 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_cruise_path(@departure, arrangement)
     assert_response :success
-    assert_nav_labels(except: [ "Cabin inventory" ])
+    assert_nav_labels(except: [ "Cabin inventory", "Supplier rates" ])
     assert_select "a#cruise-step-sailing[href=?]",
       departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-sailing")
     assert_select "a#cruise-step-cabins", count: 0
+    assert_select "a#cruise-step-rates", count: 0
     assert_select "a", text: "Open Cabin inventory", count: 0
+    assert_select "a", text: "Open Supplier rates", count: 0
     assert_match "1 category · 8 cabins", response.body
-    assert_select "a#cruise-step-rates[href=?]",
-      departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-rates")
+    assert_match "1 cabin category · 1 not recorded", response.body
     assert_select "a#cruise-step-agreement[href=?]",
       departure_arrangement_cruise_agreement_path(@departure, arrangement)
     assert_select "a#cruise-step-review[href=?]",
@@ -483,6 +484,8 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_response :redirect
     get departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, arrangement, resource)
     assert_response :redirect
+    get departure_arrangement_cruise_supplier_rates_path(@departure, arrangement)
+    assert_response :redirect
   end
 
   test "staff overview links editors and keeps cabin and rate navigation on the summary cards" do
@@ -502,7 +505,7 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_select "a#cruise-step-cabins[href=?]",
       departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
     assert_select "a#cruise-step-rates[href=?]",
-      departure_arrangement_cruise_path(@departure, arrangement, anchor: "cruise-rates")
+      departure_arrangement_cruise_supplier_rates_path(@departure, arrangement)
     assert_select "#cruise-step-agreement .dd-journey-step__status", text: "Not started"
     assert_select "#cruise-attention", text: /Confirm the Cruise supplier agreement/, count: 0
     assert_select "#cruise-review-activate[href=?]",
@@ -511,7 +514,9 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-cabins a", text: "Edit", count: 0
     assert_select "#cruise-cabins a", text: "Add cabin categories", count: 0
     assert_select "#cruise-cabins a", text: "Change inventory", count: 0
-    assert_select "#cruise-rates a", text: "Add Supplier rates"
+    assert_select "#cruise-rates a", text: "Open Supplier rates"
+    assert_select "#cruise-rates a", text: "Add Supplier rates", count: 0
+    assert_select "#cruise-rates a", text: "Review Supplier rates", count: 0
     assert_select "#cruise-client"
     assert_select "#cruise-recommended-next", count: 0
     assert_select "#cruise-maintenance", count: 0

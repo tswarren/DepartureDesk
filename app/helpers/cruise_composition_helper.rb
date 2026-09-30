@@ -119,11 +119,7 @@ module CruiseCompositionHelper
         departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins")
       end
     when :cruise_contracted_rates_missing
-      if step.resource_id.present?
-        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, step.resource_id)
-      else
-        departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates")
-      end
+      cruise_supplier_rate_corrective_path(step.resource_id)
     when :cruise_agreement_unconfirmed, :cruise_deposit_treatment_missing
       departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
     end
@@ -288,7 +284,7 @@ module CruiseCompositionHelper
     when :cabins
       departure_arrangement_cruise_cabin_categories_path(@departure, @supplier_arrangement)
     when :rates
-      departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates")
+      departure_arrangement_cruise_supplier_rates_path(@departure, @supplier_arrangement)
     when :agreement
       departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement)
     when :review
@@ -303,8 +299,8 @@ module CruiseCompositionHelper
     when :cabin_card
       cruise_cabin_corrective_path(nil, version)
     when :supplier_rates
-      if item.resource_id.present? && Current.agency_user.permitted?(:manage_departures)
-        departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, item.resource_id)
+      if Current.agency_user.permitted?(:manage_departures)
+        cruise_supplier_rate_corrective_path(item.resource_id)
       else
         departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates")
       end
@@ -350,7 +346,7 @@ module CruiseCompositionHelper
   end
 
   def cruise_setup_area_available?(area)
-    return Current.agency_user.permitted?(:manage_departures) if area.key == :cabins
+    return Current.agency_user.permitted?(:manage_departures) if area.key == :cabins || area.key == :rates
 
     true
   end
@@ -365,6 +361,56 @@ module CruiseCompositionHelper
     else
       departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-cabins")
     end
+  end
+
+  def cruise_supplier_rates_workspace(summary = nil)
+    @cruise_supplier_rates_workspace ||= CompileCruiseSupplierRatesWorkspace.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      shape: cruise_setup_detected_shape,
+      readiness: summary&.activation_readiness
+    ).call
+  end
+
+  def cruise_supplier_rates_summary(workspace)
+    return "No cabin categories yet." if workspace.category_count.zero?
+
+    parts = [ "#{workspace.category_count} #{'cabin category'.pluralize(workspace.category_count)}" ]
+    parts << "#{workspace.contracted_count} contracted" if workspace.contracted_count.positive?
+    parts << "#{workspace.estimate_count} #{'estimate'.pluralize(workspace.estimate_count)}" if workspace.estimate_count.positive?
+    parts << "#{workspace.unrecorded_count} not recorded" if workspace.unrecorded_count.positive?
+    parts << "#{workspace.advanced_count} advanced" if workspace.advanced_count.positive?
+    parts.join(" · ")
+  end
+
+  def cruise_supplier_rate_editor_path(resource_id, stage: nil)
+    options = {}
+    options[:stage] = stage if stage.present?
+    departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @supplier_arrangement, resource_id, options
+    )
+  end
+
+  def cruise_supplier_rate_corrective_path(resource_id)
+    return departure_arrangement_cruise_supplier_rates_path(@departure, @supplier_arrangement) if resource_id.blank?
+
+    row = cruise_supplier_rates_workspace.rows.find { |candidate| candidate.resource_id == resource_id }
+    if row&.advanced?
+      item = cruise_setup_detected_shape.item
+      return departure_arrangement_path(@departure, @supplier_arrangement) unless item
+
+      departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, item)
+    elsif row
+      cruise_supplier_rate_editor_path(resource_id, stage: row.stage)
+    else
+      departure_arrangement_cruise_supplier_rates_path(@departure, @supplier_arrangement)
+    end
+  end
+
+  def cruise_supplier_rate_illustration_amount(illustration)
+    return "Unavailable" unless illustration.available?
+
+    Money.new(illustration.gross_minor_units, illustration.currency).format
   end
 
   def cruise_cabin_inventory_workspace(summary = nil)

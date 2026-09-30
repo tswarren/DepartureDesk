@@ -75,7 +75,7 @@ class M4d1CruiseReworkSystemTest < ApplicationSystemTestCase
     select "Not provided yet", from: "Commission method"
     click_on "Save Supplier terms"
     assert_text "Supplier rates saved"
-    click_on "Record contracted rates"
+    click_on "Record contracted rates from Estimate"
     assert_text "Contracted rates recorded. The estimate is unchanged."
     click_on "Estimate"
     assert_field "Base Fare · First/Second", with: "1624.00"

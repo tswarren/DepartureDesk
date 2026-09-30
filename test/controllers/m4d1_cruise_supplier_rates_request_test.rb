@@ -20,13 +20,20 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     get departure_arrangement_cruise_path(@departure, @arrangement)
     assert_response :success
     assert_select "#cruise-rates-heading"
-    assert_select "a", text: "Add Supplier rates"
+    assert_select "a", text: "Open Supplier rates"
+    assert_select "a", text: "Add Supplier rates", count: 0
 
     get departure_arrangement_cruise_cabin_category_supplier_rates_path(
       @departure, @arrangement, @resource
     )
     assert_response :success
     assert_select "#cruise-supplier-rate-terms"
+    assert_select "a[href=?]", departure_arrangement_cruise_supplier_rates_path(@departure, @arrangement), text: "Supplier rates"
+    assert_select "#cruise-rate-stage-status", text: /Not recorded/
+    assert_select "#commission_method option", count: 3
+    assert_select "#commission_method option", text: "Not provided yet"
+    assert_select "#commission_method option", text: "Dollar amount"
+    assert_select "#commission_method option", text: "Percentage"
     assert_select "button", text: "Add rate profile"
     assert_select "button", text: "Add component"
     assert_no_match(/Use the same commission rate for every profile/, response.body)
@@ -170,6 +177,81 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     assert_match(/Commissionable components differ by rate profile/, response.body)
     assert_select "#cruise-supplier-rate-terms", count: 0
     assert_select "a", text: "Open advanced cost planning"
+  end
+
+  test "supplier rates landing keeps a ready estimate distinct from the contracted activation finding" do
+    sign_in_as @staff
+    get departure_arrangement_cruise_supplier_rates_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "#cruise-step-rates[aria-current=page]"
+    assert_match "1 cabin category · 1 not recorded", response.body
+    assert_select "#cruise-supplier-rates-table td", text: /Not recorded/
+
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource: @resource,
+      terms: {
+        first_second_fare: "1624.00",
+        additional_fare: "406.00",
+        single_supplement: "1624.00",
+        nccf: "320.00",
+        first_second_discount: "150.00",
+        additional_discount: "37.50",
+        taxes_fees: "137.00"
+      },
+      commission: { method: "not_provided" },
+      stage: "estimate",
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    SetCruiseSupplierOccupancyPlan.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource: @resource,
+      expected_cabins: { double: 1 },
+      version_lock_version: @version.reload.lock_version
+    ).call
+    definition = DetectCruiseSupplierRateShape.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource
+    ).call.definition
+    MarkCruiseSupplierRateScheduleForecastReady.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource: @resource,
+      definition_lock_version: definition.lock_version,
+      readiness_provenance: "Signed terms",
+      confirm_omissions: true
+    ).call
+
+    get departure_arrangement_cruise_supplier_rates_path(@departure, @arrangement)
+    assert_response :success
+    assert_match "1 cabin category · 1 estimate", response.body
+    assert_select "#cruise-supplier-rates-table td", text: /Estimate/
+    assert_select "#cruise-supplier-rates-table td", text: /Ready/
+    assert_select "#cruise-supplier-rates-attention", text: /Record contracted Supplier rates for O1/
+    assert_select "a[href=?]",
+      departure_arrangement_cruise_cabin_category_supplier_rates_path(
+        @departure, @arrangement, @resource, stage: "estimate"
+      ),
+      text: "Prime Oceanview"
+    assert_match "Single occupancy", response.body
+    assert_match "Double occupancy", response.body
+    assert_match "Triple occupancy", response.body
+
+    get departure_arrangement_cruise_activation_path(@departure, @arrangement)
+    assert_response :success
+    rate_links = css_select("a").select { |link| link.text == "Review Supplier rates" }
+    assert rate_links.any?
+    assert rate_links.none? { |link| link["href"].include?("#cruise-rates") }
+    assert_select "a[href=?]",
+      departure_arrangement_cruise_cabin_category_supplier_rates_path(
+        @departure, @arrangement, @resource, stage: "estimate"
+      ),
+      text: "Review Supplier rates"
   end
 
   test "cross-agency supplier rates return not found" do

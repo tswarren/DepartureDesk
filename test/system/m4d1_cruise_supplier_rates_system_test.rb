@@ -347,11 +347,28 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     click_on "Save Supplier terms"
     assert_text "Supplier rates saved"
 
-    click_on "Record contracted rates"
+    click_on "Record contracted rates from Estimate"
     assert_text "Contracted rates recorded. The estimate is unchanged."
     assert_text "Contracted"
     click_on "Estimate"
     assert_field "Base Fare · First/Second", with: "1624.00"
+  end
+
+  test "supplier rates landing and matrix do not overflow the page" do
+    sign_in_from_browser(@staff)
+    visit departure_arrangement_cruise_supplier_rates_path(@departure, @arrangement)
+    assert_text "1 cabin category · 1 not recorded"
+    [ 1280, 375 ].each do |width|
+      resize_window(width, 900)
+      assert_no_page_overflow
+    end
+
+    visit_rates_page
+    resize_window(375, 900)
+    assert_no_page_overflow
+    assert_selector "#cruise-supplier-rate-terms"
+    assert_text "Forecast occupancy"
+    assert_text "It does not assign travelers or reserve cabins."
   end
 
   private

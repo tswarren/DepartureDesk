@@ -129,8 +129,12 @@
                 <%= link_to "Review cabin categories",
                       cruise_cabin_corrective_path(blocker.resource_id, @supplier_arrangement_version) %>
               <% when :supplier_rates %>
-                <%= link_to "Review Supplier rates",
-                      blocker.resource_id.present? ? departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, blocker.resource_id) : departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates") %>
+                <% if Current.agency_user.permitted?(:manage_departures) %>
+                  <%= link_to "Review Supplier rates", cruise_supplier_rate_corrective_path(blocker.resource_id) %>
+                <% else %>
+                  <%= link_to "Review Supplier rates",
+                        departure_arrangement_cruise_path(@departure, @supplier_arrangement, anchor: "cruise-rates") %>
+                <% end %>
               <% when :agreement %>
                 <%= link_to "Review Supplier agreement", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement) %>
               <% else %>

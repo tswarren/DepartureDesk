@@ -64,37 +64,15 @@
         </div>
       </section>
 
+      <% rates_workspace = cruise_supplier_rates_workspace(summary) %>
       <section id="cruise-rates" class="dd-panel" aria-labelledby="cruise-rates-heading">
         <div class="dd-panel-body dd-stack">
           <h2 id="cruise-rates-heading" class="dd-section-title">Supplier rates</h2>
-          <% if summary.cabin_rows.empty? %>
-            <p>Waiting for cabin categories.</p>
-          <% else %>
-            <ul>
-              <% summary.cabin_rows.each do |row| %>
-                <li>
-                  <strong><%= row.code.presence || row.name %></strong>
-                  — <%= row.name %>
-                  · <%= cruise_rate_posture_label(row.rate_posture) %>
-                  <% if @can_manage %>
-                    ·
-                    <% if row.advanced_rates %>
-                      <%= link_to "Open advanced cost planning",
-                            departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @shape.item),
-                            class: "dd-link" %>
-                    <% elsif row.rate_posture == :missing %>
-                      <%= link_to "Add Supplier rates",
-                            departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row.resource_id),
-                            class: "dd-link" %>
-                    <% else %>
-                      <%= link_to "Review Supplier rates",
-                            departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, row.resource_id),
-                            class: "dd-link" %>
-                    <% end %>
-                  <% end %>
-                </li>
-              <% end %>
-            </ul>
+          <p><%= cruise_supplier_rates_summary(rates_workspace) %></p>
+          <% if @can_manage && !rates_workspace.advanced? %>
+            <%= link_to "Open Supplier rates",
+                  departure_arrangement_cruise_supplier_rates_path(@departure, @supplier_arrangement),
+                  class: "dd-button dd-button--quiet" %>
           <% end %>
         </div>
       </section>

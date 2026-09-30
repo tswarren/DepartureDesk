@@ -200,6 +200,7 @@ Rails.application.routes.draw do
         resource :sailing, only: %i[edit update], controller: "cruise_sailings"
         resources :commercial_benefits, only: %i[create update],
           param: :term_type, controller: "cruise_commercial_benefits"
+        resource :supplier_rates, only: :show, controller: "cruise_supplier_rate_summaries"
         resources :cabin_categories, path: "cabin-categories",
           param: :resource_id, only: %i[index new create edit update destroy],
           controller: "cruise_cabin_categories" do

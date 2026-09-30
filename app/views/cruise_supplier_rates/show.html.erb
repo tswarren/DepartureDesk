@@ -51,6 +51,13 @@
 %>
 
 <%= render "cruise_setup/shell", current: :rates, page_title: "Supplier rates", version: @resource_definition.supplier_arrangement_version %>
+<p>
+  <%= link_to "Supplier rates",
+        departure_arrangement_cruise_supplier_rates_path(@departure, @supplier_arrangement),
+        class: "dd-link" %>
+  / <%= @resource_definition.supplier_code.presence || @resource_definition.name %>
+  · <%= @resource_definition.name %>
+</p>
 
 <article class="dd-panel dd-cruise-rate-editor" id="cruise-supplier-rates">
   <div class="dd-panel-body dd-stack">
@@ -76,6 +83,12 @@
         <p><%= link_to "Open advanced cost planning", @advanced_path, class: "dd-button dd-button-secondary" %></p>
       </section>
     <% else %>
+      <p id="cruise-rate-stage-status">
+        <% definition = @rate_shape.definition %>
+        <% if definition&.contracted? %>Contracted<% elsif definition&.estimate? %>Estimate<% else %>—<% end %>
+        ·
+        <% if definition&.forecast_ready? %>Ready<% elsif definition %>Needs review<% else %>Not recorded<% end %>
+      </p>
       <% if @editable && @rate_shape.source %>
         <% rate_definitions = @rate_shape.source.supplier_cost_definitions %>
         <% if rate_definitions.any?(&:estimate?) && rate_definitions.none?(&:contracted?) %>
@@ -83,9 +96,9 @@
                 method: :post, class: "dd-inline-actions" do %>
             <%= hidden_field_tag :version_lock_version, @cruise_shape.version.lock_version %>
             <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
-            <%= submit_tag "Record contracted rates", class: "dd-button" %>
+            <%= submit_tag "Record contracted rates from Estimate", class: "dd-button" %>
           <% end %>
-          <p class="dd-help">This copies the estimate into contracted rates and leaves the estimate unchanged.</p>
+          <p class="dd-help">This creates a separate Contracted rate schedule from the current Estimate. The Estimate remains unchanged. Review the Contracted rates before marking them ready.</p>
         <% elsif rate_definitions.any?(&:estimate?) && rate_definitions.any?(&:contracted?) %>
           <nav class="dd-inline-actions" aria-label="Supplier rate stage">
             <%= link_to "Estimate",
@@ -377,7 +390,8 @@
       <% end %>
 
       <section class="dd-stack" aria-labelledby="occupancy-plan-heading">
-        <h2 id="occupancy-plan-heading" class="dd-section-title">Occupancy planning</h2>
+        <h2 id="occupancy-plan-heading" class="dd-section-title">Forecast occupancy</h2>
+        <p>Used to forecast Supplier cost for this cabin category. It does not assign travelers or reserve cabins.</p>
         <p>Per-cabin illustrations above do not assert an expected sales mix. Enter expected cabin counts only when known.</p>
         <% if @editable %>
           <%= form_with url: occupancy_plan_departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
