@@ -238,9 +238,12 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
         @departure, @arrangement, @resource, stage: "estimate"
       ),
       text: "Prime Oceanview"
-    assert_match "Single occupancy", response.body
-    assert_match "Double occupancy", response.body
-    assert_match "Triple occupancy", response.body
+    assert_select "#cruise-supplier-rates-table th", text: "Single"
+    assert_select "#cruise-supplier-rates-table th", text: "Double"
+    assert_select "#cruise-supplier-rates-table th", text: "Triple"
+    assert_select "#cruise-supplier-rates-table td", text: /\$3,555\.00/
+    assert_select "#cruise-supplier-rates-table td", text: /\$3,862\.00/
+    assert_select "#cruise-supplier-rates-table td", text: /\$4,687\.50/
 
     get departure_arrangement_cruise_activation_path(@departure, @arrangement)
     assert_response :success

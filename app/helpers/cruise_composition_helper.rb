@@ -368,7 +368,8 @@ module CruiseCompositionHelper
       agency: Current.agency,
       arrangement: @supplier_arrangement,
       shape: cruise_setup_detected_shape,
-      readiness: summary&.activation_readiness
+      readiness: summary&.activation_readiness,
+      cabin_rows: summary&.cabin_rows
     ).call
   end
 
@@ -411,6 +412,12 @@ module CruiseCompositionHelper
     return "Unavailable" unless illustration.available?
 
     Money.new(illustration.gross_minor_units, illustration.currency).format
+  end
+
+  def cruise_supplier_rate_scenario_amount(row, illustration)
+    return "—" if row.advanced? || row.status_label == "Not recorded"
+
+    cruise_supplier_rate_illustration_amount(illustration)
   end
 
   def cruise_cabin_inventory_workspace(summary = nil)

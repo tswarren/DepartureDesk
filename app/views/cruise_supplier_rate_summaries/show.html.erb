@@ -37,7 +37,9 @@
                 <th scope="col">Cabin category</th>
                 <th scope="col">Stage</th>
                 <th scope="col">Status</th>
-                <th scope="col">Illustrative cabin totals</th>
+                <th scope="col">Single</th>
+                <th scope="col">Double</th>
+                <th scope="col">Triple</th>
                 <th scope="col">Commission</th>
               </tr>
             </thead>
@@ -68,23 +70,12 @@
                     <span class="dd-visually-hidden dd-cabin-field-label">Status</span>
                     <%= row.status_label %>
                   </td>
-                  <td>
-                    <span class="dd-visually-hidden dd-cabin-field-label">Illustrative cabin totals</span>
-                    <% if row.advanced? %>
-                      Advanced
-                    <% elsif row.illustrations.empty? %>
-                      Unavailable
-                    <% else %>
-                      <ul>
-                        <% row.illustrations.each do |illustration| %>
-                          <li>
-                            <%= illustration.label %>:
-                            <%= cruise_supplier_rate_illustration_amount(illustration) %>
-                          </li>
-                        <% end %>
-                      </ul>
-                    <% end %>
-                  </td>
+                  <% [ [ "Single", row.single ], [ "Double", row.double ], [ "Triple", row.triple ] ].each do |label, illustration| %>
+                    <td>
+                      <span class="dd-visually-hidden dd-cabin-field-label"><%= label %></span>
+                      <%= cruise_supplier_rate_scenario_amount(row, illustration) %>
+                    </td>
+                  <% end %>
                   <td>
                     <span class="dd-visually-hidden dd-cabin-field-label">Commission</span>
                     <%= row.commission_label %>

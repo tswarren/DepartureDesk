@@ -1,15 +1,17 @@
 # frozen_string_literal: true
 
-# Presentation facts for the Supplier rates workspace. Scenario amounts and
-# commission method come from CompileCruiseSupplierRatePreview. Stage prefers
+# Presentation facts for the Supplier rates workspace. Rows are the typed
+# Cruise cabin categories from Cabin inventory, not every Supplier Resource.
+# Scenario amounts come from CompileCruiseSupplierRatePreview. Stage prefers
 # a Contracted definition when one exists. Readiness is that definition's
-# forecast-ready status.
+# forecast-ready status. Commission text is the recorded term when that term
+# is one percentage or one dollar amount.
 class CompileCruiseSupplierRatesWorkspace
   Illustration = Data.define(:key, :label, :gross_minor_units, :currency, :available?)
   AttentionItem = Data.define(:code, :message, :resource_id, :stage, :advanced?)
   Row = Data.define(
     :resource_id, :code, :name, :stage, :stage_label, :status_label,
-    :advanced?, :commission_label, :illustrations
+    :advanced?, :commission_label, :illustrations, :single, :double, :triple
   )
   Result = Data.define(
     :advanced?, :category_count, :contracted_count, :estimate_count,
@@ -21,12 +23,16 @@ class CompileCruiseSupplierRatesWorkspace
     "dollar" => "Dollar amount",
     "percentage" => "Percentage"
   }.freeze
+  SINGLE_KEYS = %w[single single_adult].freeze
+  DOUBLE_KEYS = %w[double double_adult].freeze
+  TRIPLE_KEYS = %w[triple].freeze
 
-  def initialize(agency:, arrangement:, shape:, readiness: nil)
+  def initialize(agency:, arrangement:, shape:, readiness: nil, cabin_rows: nil)
     @agency = agency
     @arrangement = arrangement
     @shape = shape
     @readiness = readiness
+    @cabin_rows = cabin_rows
   end
 
   def call
@@ -35,7 +41,7 @@ class CompileCruiseSupplierRatesWorkspace
     version = @shape.version
     return empty_result(advanced: false) if version.nil?
 
-    rows = version.supplier_resource_definitions.includes(:supplier_resource).order(:position, :id).map do |definition|
+    rows = cabin_category_definitions(version).map do |definition|
       row_for(version, definition)
     end
 
@@ -96,9 +102,29 @@ class CompileCruiseSupplierRatesWorkspace
       stage_label: stage_label(stage),
       status_label: preview.definition&.forecast_ready? ? "Ready" : "Needs review",
       advanced?: false,
-      commission_label: COMMISSION_LABELS.fetch(preview.commission_method, "—"),
-      illustrations: illustrations_for(preview)
+      commission_label: commission_label_for(preview),
+      **scenario_fields(illustrations_for(preview))
     )
+  end
+
+  def cabin_category_definitions(version)
+    resource_ids = cabin_category_rows.filter_map { |row|
+      row.resource_id unless row.inventory_label == "Inventory not configured"
+    }
+    version.supplier_resource_definitions
+      .includes(:supplier_resource)
+      .where(supplier_resource_id: resource_ids)
+      .order(:position, :id)
+  end
+
+  def cabin_category_rows
+    return @cabin_rows if @cabin_rows
+
+    CompileCruiseCompositionSummary.new(
+      agency: @agency,
+      arrangement: @arrangement,
+      shape: @shape
+    ).cabin_inventory_rows
   end
 
   def representable_gap?(shape)
@@ -127,8 +153,59 @@ class CompileCruiseSupplierRatesWorkspace
       status_label: advanced ? "Advanced" : "Not recorded",
       advanced?: advanced,
       commission_label: advanced ? "Advanced" : "—",
-      illustrations: []
+      **scenario_fields([])
     )
+  end
+
+  def scenario_fields(illustrations)
+    {
+      illustrations: illustrations,
+      single: scenario_for(illustrations, SINGLE_KEYS),
+      double: scenario_for(illustrations, DOUBLE_KEYS),
+      triple: scenario_for(illustrations, TRIPLE_KEYS)
+    }
+  end
+
+  def scenario_for(illustrations, keys)
+    illustrations.find { |illustration| keys.include?(illustration.key) } ||
+      Illustration.new(key: keys.first, label: nil, gross_minor_units: nil, currency: nil, available?: false)
+  end
+
+  def commission_label_for(preview)
+    method = preview.commission_method.to_s
+    return "Not provided yet" if method.blank? || method == "not_provided"
+
+    definition = preview.definition
+    components = definition&.supplier_cost_components.to_a.select { |component|
+      component.economic_role == "expected_commission"
+    }
+    case method
+    when "percentage"
+      rates = components.select { |component| component.calculation_kind == "percentage" }
+        .filter_map(&:rate)
+        .map { |rate| BigDecimal(rate.to_s) }
+        .uniq
+      return recorded_percent_label(rates.first) if rates.one?
+
+      "Percentage"
+    when "dollar"
+      amounts = components.select { |component| component.calculation_kind == "unit_rate" }
+        .filter_map(&:amount_minor_units)
+        .uniq
+      if amounts.one? && preview.currency.present?
+        return Money.new(amounts.first, preview.currency).format
+      end
+
+      "Dollar amount"
+    else
+      COMMISSION_LABELS.fetch(method, "—")
+    end
+  end
+
+  def recorded_percent_label(rate)
+    percent = BigDecimal(rate.to_s) * 100
+    text = percent.frac.zero? ? percent.to_i.to_s : percent.to_s("F").sub(/\.?0+\z/, "")
+    "#{text}%"
   end
 
   def illustrations_for(preview)
@@ -169,11 +246,12 @@ class CompileCruiseSupplierRatesWorkspace
     end
     blockers.each do |blocker|
       row = rows.find { |candidate| candidate.resource_id == blocker.resource_id }
-      next if row&.status_label == "Needs review" && row.stage == "contracted"
+      next if row.nil?
+      next if row.status_label == "Needs review" && row.stage == "contracted"
 
       items << AttentionItem.new(
         code: :cruise_contracted_rates_missing,
-        message: "Record contracted Supplier rates for #{category_label(row) || 'this category'}",
+        message: "Record contracted Supplier rates for #{category_label(row)}",
         resource_id: blocker.resource_id,
         stage: row&.stage,
         advanced?: row&.advanced? == true

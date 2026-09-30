@@ -41,7 +41,34 @@ class CompileCruiseSupplierRatesWorkspaceTest < ActiveSupport::TestCase
     assert_equal "—", row.stage_label
     assert_equal "Not recorded", row.status_label
     assert_equal "—", row.commission_label
-    assert_equal "Unavailable", illustration_text(row)
+    assert_not row.single.available?
+    assert_not row.double.available?
+    assert_not row.triple.available?
+  end
+
+  test "an unrelated supplier resource is not a cabin category" do
+    cabin = add_cabin!
+    item = cabin.record.resource.arrangement_item
+    resource = item.supplier_resources.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: @arrangement
+    )
+    @version.supplier_resource_definitions.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: @arrangement,
+      arrangement_item: item,
+      supplier_resource: resource,
+      name: "Airport transfer",
+      position: 2
+    )
+
+    workspace = compile
+
+    assert_equal 1, workspace.category_count
+    assert_equal [ cabin.record.resource.id ], workspace.rows.map(&:resource_id)
+    assert workspace.attention_items.none? { |item| item.message.include?("Airport transfer") }
   end
 
   test "a ready estimate stays ready when activation still requires contracted rates" do
@@ -147,6 +174,38 @@ class CompileCruiseSupplierRatesWorkspaceTest < ActiveSupport::TestCase
     assert_equal preview.illustrations.map(&:gross_minor_units), row.illustrations.map(&:gross_minor_units)
     assert_not_includes row.illustrations.map(&:key), "triple"
     assert_includes row.illustrations.map(&:key), "double"
+    double = preview.illustrations.find { |illustration| illustration.key == "double" }
+    assert row.single.available?
+    assert row.double.available?
+    assert_not row.triple.available?
+    assert_equal double.gross_minor_units, row.double.gross_minor_units
+  end
+
+  test "commission shows the recorded percentage or dollar term" do
+    percentage_cabin = add_cabin!(name: "Prime Oceanview", code: "O1")
+    create_rates!(percentage_cabin.record.resource, commission: {
+      method: "percentage",
+      percentage: "15",
+      add_cells: %w[base_fare:first_second base_fare:additional base_fare:single_supplement],
+      subtract_cells: %w[discount:first_second discount:additional]
+    })
+    dollar_cabin = add_cabin!(name: "Deluxe Inside", code: "DI")
+    create_rates!(dollar_cabin.record.resource, commission: {
+      method: "dollar",
+      amount: "375.00",
+      applies_per: "cabin"
+    })
+    mixed_cabin = add_cabin!(name: "Concierge", code: "C1")
+    create_rates!(mixed_cabin.record.resource, commission: {
+      method: "dollar",
+      amounts: { "first_second" => "375.00", "additional" => "100.00" }
+    })
+
+    rows = compile.rows.index_by(&:code)
+
+    assert_equal "15%", rows.fetch("O1").commission_label
+    assert_equal "$375.00", rows.fetch("DI").commission_label
+    assert_equal "Dollar amount", rows.fetch("C1").commission_label
   end
 
   test "an unrepresentable rate shape stays advanced" do
@@ -194,7 +253,7 @@ class CompileCruiseSupplierRatesWorkspaceTest < ActiveSupport::TestCase
     ).call
   end
 
-  def create_rates!(resource, stage: "estimate")
+  def create_rates!(resource, stage: "estimate", commission: { method: "not_provided" })
     CreateCruiseSupplierRateSchedule.new(
       agency: @agency,
       actor: @actor,
@@ -209,7 +268,7 @@ class CompileCruiseSupplierRatesWorkspaceTest < ActiveSupport::TestCase
         additional_discount: "37.50",
         taxes_fees: "137.00"
       },
-      commission: { method: "not_provided" },
+      commission: commission,
       stage: stage,
       version_lock_version: @version.reload.lock_version,
       idempotency_key: SecureRandom.uuid
@@ -244,9 +303,4 @@ class CompileCruiseSupplierRatesWorkspaceTest < ActiveSupport::TestCase
     ).call.definition
   end
 
-  def illustration_text(row)
-    return "Unavailable" if row.illustrations.empty?
-
-    row.illustrations.map(&:label).join(", ")
-  end
 end
