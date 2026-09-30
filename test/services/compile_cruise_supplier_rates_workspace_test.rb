@@ -302,5 +302,4 @@ class CompileCruiseSupplierRatesWorkspaceTest < ActiveSupport::TestCase
       agency: @agency, arrangement: @arrangement, resource: resource, stage: stage
     ).call.definition
   end
-
 end
