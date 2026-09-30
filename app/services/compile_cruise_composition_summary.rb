@@ -128,6 +128,10 @@ class CompileCruiseCompositionSummary
     end
   end
 
+  def self.current_supplier_capacity(pool)
+    pool&.capacity_projection&.current_supplier_capacity
+  end
+
   def self.presentation_blocker(blockers, resource_definitions: [])
     agreement = blockers.find { |blocker| blocker.code == :cruise_agreement_unconfirmed }
     return agreement if agreement
@@ -243,7 +247,7 @@ class CompileCruiseCompositionSummary
     return nil unless CruiseCabinCategorySupport.typed_cabin_pool?(pool, pool_definition)
     return nil unless pool.numeric_inventory?
 
-    capacity = pool.capacity_projection&.current_supplier_capacity
+    capacity = self.class.current_supplier_capacity(pool)
     return nil if capacity.nil?
 
     "Current Supplier capacity: #{capacity} #{"cabin".pluralize(capacity)}"

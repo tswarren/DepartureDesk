@@ -115,9 +115,14 @@ class CruiseInventoryChangesController < ApplicationController
     @governing_version = governing_version!
     @successor = draft_successor
     @pool_options = eligible_pool_options(@governing_version)
-    @pool_capacities = pool_capacities(@governing_version)
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
-    @selected_pool_id = params[:capacity_pool_id].presence || @pool_options.first&.last
+    requested_pool_id = params[:capacity_pool_id].presence
+    @selected_pool_id = if @pool_options.any? { |_label, id| id == requested_pool_id }
+      requested_pool_id
+    else
+      @pool_options.first&.last
+    end
+    @selected_pool_context = selected_pool_context(@governing_version, @selected_pool_id)
   end
 
   def prepare_changed_terms
@@ -136,19 +141,24 @@ class CruiseInventoryChangesController < ApplicationController
     end
   end
 
-  def pool_capacities(version)
+  def selected_pool_context(version, pool_id)
+    return if pool_id.blank?
+
     resources = version.supplier_resource_definitions.index_by(&:supplier_resource_id)
-    version.capacity_pool_definitions.includes(capacity_pool: :capacity_projection).order(:position, :id).filter_map do |definition|
-      pool = definition.capacity_pool
-      next unless pool.numeric_inventory?
+    definition = version.capacity_pool_definitions.includes(capacity_pool: :capacity_projection)
+      .find { |row| row.capacity_pool_id == pool_id }
+    return unless definition
 
-      resource = resources[definition.supplier_resource_id]
-      label = [ resource&.supplier_code, resource&.name ].compact_blank.join(" · ")
-      capacity = pool.capacity_projection&.current_supplier_capacity
-      next if capacity.nil?
+    pool = definition.capacity_pool
+    return unless pool.numeric_inventory?
 
-      { label: label.presence || "Cabin block", capacity: capacity }
-    end
+    resource = resources[definition.supplier_resource_id]
+    label = [ resource&.supplier_code, resource&.name ].compact_blank.join(" · ")
+    {
+      id: pool.id,
+      label: label.presence || "Cabin category",
+      current_capacity: CompileCruiseCompositionSummary.current_supplier_capacity(pool)
+    }
   end
 
   def eligible_pool_options(version)

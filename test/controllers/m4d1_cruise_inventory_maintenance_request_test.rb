@@ -79,7 +79,8 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
     assert_response :success
     assert_match "Active Version #{@version.version_number}", response.body
-    assert_match "Current Supplier capacity 8 cabins", response.body
+    assert_select "#cruise-same-terms-capacity", text: /O1 · Prime Oceanview/
+    assert_select "#cruise-same-terms-capacity", text: /Current Supplier capacity\s+8\s+cabins/
     increase_form = css_select("#cruise-same-terms-increase").inner_html
     assert_no_match "projection_lock_version", increase_form
     assert_no_match "arrangement_lock_version", increase_form
@@ -174,6 +175,65 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     assert_select "a", text: "Edit", count: 0
     assert_select "a", text: "Add cabins under same Supplier terms", count: 1
     assert_select "a", text: "Propose changed terms", count: 0
+  end
+
+  test "same terms shows the selected cabin capacity" do
+    inside = add_cabin!("DI", "Deluxe Inside", "block", 3)
+    satisfy_cruise_activation_gate!(
+      agency: @agency, actor: @staff, arrangement: @arrangement, version: @version.reload
+    )
+    activate_original!
+    sign_in_as @staff
+
+    get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "#cruise-same-terms-capacity", text: /O1 · Prime Oceanview/
+    assert_select "#cruise-same-terms-capacity", text: /Current Supplier capacity\s+8\s+cabins/
+    assert_select "#cruise-same-terms-capacity", text: /Deluxe Inside/, count: 0
+    assert_select "#cruise-same-terms-capacity", text: /3 cabins/, count: 0
+
+    get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+      params: { capacity_pool_id: inside.record.pool.id }
+    assert_response :success
+    assert_select "#cruise-same-terms-capacity", text: /DI · Deluxe Inside/
+    assert_select "#cruise-same-terms-capacity", text: /Current Supplier capacity\s+3\s+cabins/
+    assert_select "#cruise-same-terms-capacity", text: /Prime Oceanview/, count: 0
+    assert_select "#cruise-same-terms-capacity", text: /8 cabins/, count: 0
+    assert_equal inside.record.pool.id, css_select("#cruise-same-terms-increase input[name=capacity_pool_id]").first["value"]
+  end
+
+  test "an arbitrary version parameter cannot retarget governing inventory" do
+    activate_original!
+    sign_in_as @staff
+    post changed_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+      params: supplemental_params
+    successor = @arrangement.versions.find_by!(status: "draft")
+    foreign_version = { version_id: successor.id, version: successor.version_number }
+
+    get departure_arrangement_cruise_active_version_path(@departure, @arrangement), params: foreign_version
+    assert_response :success
+    assert_select "#active-terms-heading", text: "Active · Version #{@version.version_number}"
+    assert_select "#cruise-active-snapshot", text: /These Supplier terms currently govern/
+    assert_select "#cruise-active-snapshot", text: /Supplemental O1 block/, count: 0
+
+    get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+      params: foreign_version
+    assert_response :success
+    assert_match "Active Version #{@version.version_number}", response.body
+    assert_select "#cruise-same-terms-capacity", text: /Current Supplier capacity\s+8\s+cabins/
+    assert_select ".dd-cruise-version-badge", text: "Active"
+
+    assert_no_difference "SupplierArrangementVersion.count" do
+      post same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @arrangement),
+        params: increase_params(idempotency_key: "ignore-version-selector").merge(
+          foreign_version.merge(version_lock_version: successor.lock_version)
+        )
+    end
+    assert_redirected_to departure_arrangement_cruise_cabin_categories_path(@departure, @arrangement)
+    assert_equal 12, @pool.reload.capacity_projection.current_supplier_capacity
+    assert_equal "draft", successor.reload.status
+    assert_equal 8, successor.capacity_pool_definitions.find_by!(capacity_pool: @pool).proposed_opening_quantity
+    assert_equal @version.id, @arrangement.reload.governing_version_id
   end
 
   test "same terms while a draft exists changes the live projection and leaves the carried definition" do
