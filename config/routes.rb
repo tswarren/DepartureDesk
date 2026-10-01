@@ -237,7 +237,6 @@ Rails.application.routes.draw do
         get "items/:item_id/inventory", to: "hotel_room_inventories#show", as: :item_inventory
         post "items/:item_id/inventory/resources", to: "hotel_room_inventories#create_resource", as: :item_inventory_resources
         patch "items/:item_id/inventory/resources/:resource_id", to: "hotel_room_inventories#update_resource", as: :item_inventory_resource
-        post "items/:item_id/inventory/nights", to: "hotel_room_inventories#create_night", as: :item_inventory_nights
         post "items/:item_id/inventory/openings", to: "hotel_room_inventories#create_opening", as: :item_inventory_openings
         patch "items/:item_id/inventory/openings/:pool_definition_id", to: "hotel_room_inventories#update_opening", as: :item_inventory_opening
       end

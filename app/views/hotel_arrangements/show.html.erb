@@ -14,6 +14,16 @@
           <% shape = @shapes[item] %>
           <li id="hotel-item-<%= item.id %>">
             <h2 class="dd-section-title"><%= shape.item_definition.name %></h2>
+            <% if shape.stay_definition %>
+              <p><%= hotel_stay_span(shape.stay_definition) %></p>
+            <% end %>
+            <% if shape.categories.any? %>
+              <ul>
+                <% shape.categories.each do |category| %>
+                  <li><%= category.resource_definition.name %> / <%= hotel_category_room_night_sentence(category.room_night_count) %></li>
+                <% end %>
+              </ul>
+            <% end %>
             <p><%= hotel_room_night_sentence(shape) %></p>
             <% if shape.blocked? %>
               <%= render "hotel_setup/unsupported", shape: shape, item: item %>

@@ -32,7 +32,7 @@ class HotelStaysController < ApplicationController
       idempotency_key: @idempotency_key
     )
     redirect_to item_inventory_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item),
-      notice: "Hotel stay saved. Add room categories and nights next."
+      notice: "Hotel stay saved. Add room categories next."
   rescue AgencyCommand::Error => error
     @editable = hotel_editable?
     hotel_command_error(error, :new)

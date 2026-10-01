@@ -17,4 +17,26 @@ module HotelCompositionHelper
   def hotel_evidence_kind_options
     CapacityPoolDefinition::EVIDENCE_KINDS
   end
+
+  def hotel_stay_span(definition)
+    return if definition.nil?
+
+    start_on = definition.starts_on
+    end_on = definition.ends_on
+    if start_on.year == end_on.year && start_on.month == end_on.month
+      "#{start_on.strftime("%b %-d")}–#{end_on.strftime("%-d, %Y")}"
+    elsif start_on.year == end_on.year
+      "#{start_on.strftime("%b %-d")}–#{end_on.strftime("%b %-d, %Y")}"
+    else
+      "#{start_on.strftime("%b %-d, %Y")}–#{end_on.strftime("%b %-d, %Y")}"
+    end
+  end
+
+  def hotel_night_label(date)
+    date.to_date.strftime("%b %-d")
+  end
+
+  def hotel_category_room_night_sentence(count)
+    "#{count} contracted #{'room night'.pluralize(count)}"
+  end
 end

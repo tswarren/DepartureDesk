@@ -5,6 +5,8 @@ class DetectHotelInventoryShape
     :item,
     :item_definition,
     :stay_definition,
+    :candidate_dates,
+    :categories,
     :nights,
     :resources,
     :cells,
@@ -21,7 +23,13 @@ class DetectHotelInventoryShape
     end
   end
 
-  Cell = Data.define(:night_definition, :resource_definition, :pool_definition, :reason) do
+  CategoryShape = Data.define(:resource_definition, :cells, :reason, :room_night_count) do
+    def supported?
+      reason.nil?
+    end
+  end
+
+  Cell = Data.define(:date, :night_definition, :resource_definition, :pool_definition, :reason) do
     def supported?
       reason.nil?
     end
@@ -51,25 +59,22 @@ class DetectHotelInventoryShape
 
     occurrences = occurrence_definitions.select { |row| row.arrangement_item_id == @item.id }
       .sort_by { |row| [ row.starts_on, row.id ] }
-    stay, nights = partition_occurrences(occurrences, reasons)
+    stay = select_stay(occurrences, reasons)
+    dates = candidate_dates(stay)
+    nights_by_date = recognized_nights(occurrences, stay, dates, reasons)
     reasons << "The Stay has a Capacity Pool." if stay && pools_for(stay).any?
-    reasons.concat(stay_pair_reasons(stay)) if stay
 
     resources = resource_definitions
-    cells = nights.flat_map do |night|
-      resources.map do |resource|
-        Cell.new(
-          night_definition: night,
-          resource_definition: resource,
-          pool_definition: sole_pool(night, resource),
-          reason: cell_reason(night, resource)
-        )
-      end
-    end
+    categories = resources.map { |resource| category_shape(stay, resource, dates, nights_by_date) }
+    cells = categories.flat_map(&:cells)
+    nights = nights_by_date.values.flatten
+
     ItemShape.new(
       item: @item,
       item_definition: definition,
       stay_definition: stay,
+      candidate_dates: dates,
+      categories: categories,
       nights: nights,
       resources: resources,
       cells: cells,
@@ -86,6 +91,8 @@ class DetectHotelInventoryShape
       item: @item,
       item_definition: definition,
       stay_definition: nil,
+      candidate_dates: [],
+      categories: [],
       nights: [],
       resources: [],
       cells: [],
@@ -133,29 +140,74 @@ class DetectHotelInventoryShape
     yield
   end
 
-  def partition_occurrences(occurrences, reasons)
+  def select_stay(occurrences, reasons)
     stays = occurrences.select { |occurrence| occurrence.starts_on != occurrence.ends_on }
-    nights = occurrences.select { |occurrence| occurrence.starts_on == occurrence.ends_on }
     reasons << "Hotel setup requires one Stay." unless stays.one?
     reasons << "An extra Service Occurrence cannot be edited here." if stays.size > 1
-    [ stays.one? ? stays.first : nil, nights ]
+    stays.one? ? stays.first : nil
   end
 
-  def stay_pair_reasons(stay)
-    resource_definitions.filter_map do |resource|
-      pair = pair_for(stay, resource)
-      next if pair.nil? || pair.classification == "not_applicable"
+  def candidate_dates(stay)
+    return [] if stay.nil?
 
-      "The Stay is classified for a room category."
-    end.uniq
+    (stay.starts_on...stay.ends_on).to_a
+  end
+
+  def recognized_nights(occurrences, stay, dates, reasons)
+    grouped = Hash.new { |hash, key| hash[key] = [] }
+    extras = []
+    occurrences.each do |occurrence|
+      next if stay && occurrence.id == stay.id
+
+      if occurrence.starts_on == occurrence.ends_on && dates.include?(occurrence.starts_on)
+        grouped[occurrence.starts_on] << occurrence
+      else
+        extras << occurrence
+      end
+    end
+    reasons << "An extra Service Occurrence cannot be edited here." if extras.any? || grouped.values.any? { |rows| rows.many? }
+    grouped
+  end
+
+  def category_shape(stay, resource, dates, nights_by_date)
+    cells = dates.map do |date|
+      nights = nights_by_date[date]
+      night = nights.one? ? nights.first : nil
+      Cell.new(
+        date: date,
+        night_definition: night,
+        resource_definition: resource,
+        pool_definition: night ? sole_pool(night, resource) : nil,
+        reason: nights.many? ? "An extra Service Occurrence cannot be edited here." : cell_reason(night, resource)
+      )
+    end
+    CategoryShape.new(
+      resource_definition: resource,
+      cells: cells,
+      reason: stay_category_reason(stay, resource),
+      room_night_count: cells.sum { |cell| countable_quantity(cell) }
+    )
+  end
+
+  def stay_category_reason(stay, resource)
+    return "Hotel setup requires one Stay." if stay.nil?
+
+    pair = pair_for(stay, resource)
+    return "The Stay has no room-category classification." if pair.nil?
+    return "The Stay is classified for a room category." unless pair.classification == "not_applicable"
+    return "The Stay has a Capacity Pool." if pools_for(stay).any? { |pool| pool.supplier_resource_id == resource.supplier_resource_id }
+
+    nil
   end
 
   def cell_reason(night, resource)
+    return nil if night.nil?
     return "A room night has a local time." if local_time?(night)
 
+    pair = pair_for(night, resource)
     pools = pools_for(night).select { |pool| pool.supplier_resource_id == resource.supplier_resource_id }
-    return nil if pools.empty?
-    return "A room night Pool is not one numeric block measured in rooms." unless pools.one? && numeric_room_block?(pools.first)
+    return nil if pools.empty? && (pair.nil? || pair.classification == "pooled")
+    return "A room night Pool is not one numeric block measured in rooms." unless pools.one? && pair&.classification == "pooled" && numeric_room_block?(pools.first)
 
     nil
   end

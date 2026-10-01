@@ -60,13 +60,13 @@ This slice’s local navigation is Overview, Stay, and Room inventory. Overview 
 
 Entry is **Add Hotel stay** from the Supplier Arrangement. The stay form collects the contracting Supplier, Item name, arrival date, departure date, check-in time, checkout time, and IANA time zone. Display currency is the Departure operating currency. Saving the stay creates the Item, marks it capacity-managed, and creates the Stay Occurrence. It does not create a Resource, Pool, rate, deposit, deadline, Service Offer, or Package inclusion.
 
-Room inventory then adds Standard and Deluxe and the two inventory nights. Each category/night quantity is its own save. Reopening one cell does not rewrite the other three openings, the other Resource, or the Stay.
+Room inventory shows one card per room category. Candidate nights are derived from the Stay: arrival through the day before checkout. Staff enter each night’s contracted rooms on that category. Saving a blank night records that date only. Reopening one cell does not rewrite the other three openings, the other Resource, or the Stay. The page does not create those nights when it is opened.
 
 ## 5. Route identity
 
 Every Hotel route resolves Agency → Departure → Arrangement → exact editable Arrangement Version → Arrangement Item by stable ID. The Item must belong to that authorized version graph. Name, position, `.first`, and `.last` are not identity.
 
-The route does not discover the version by assuming the Arrangement has exactly one draft. It operates on the exact editable version selected by the existing Composition and Supplier-planning authority.
+The route does not discover the version by assuming the Arrangement has exactly one draft. It selects the draft version when one exists, otherwise the governing version, and keeps that version’s id for the rest of the request. Later commands reload that id.
 
 If a successor draft already exists, Stay and Room inventory operate on that draft version only. This slice does not build successor creation or the proposed-version presentation. That remains Slice 3A.6.
 
@@ -87,7 +87,7 @@ The typed Hotel surface may edit only the exact subset of generic Supplier graph
 When the stored graph cannot round-trip, show the safe facts read-only and link to the exact Advanced Supplier-planning screen. Fail closed when:
 
 - the Item is not capacity-managed;
-- the Stay Occurrence has a Pool, or either Stay × Resource pair is not `not_applicable`;
+- the Stay Occurrence has a Pool, a Stay × Resource pair is missing, or a Stay × Resource pair is not `not_applicable`;
 - an inventory Occurrence has a local check-in or checkout time;
 - a pair is `pooled` without exactly one numeric `block` Pool in `resource_units`;
 - a Pool uses another inventory mode or measurement basis;
@@ -103,8 +103,8 @@ Request and system coverage for the new pages:
 
 1. Add the canonical Hilton stay and resume it by Item id.
 2. Add Standard and Deluxe with maximum occupancy 4.
-3. Save November 4 as 5 and 2, then November 5 as 10 and 5, each without rewriting the other night.
-4. Overview shows 2 categories and 22 contracted room nights, and does not show the forbidden room counts.
+3. Save November 4 as 5 and 2, then November 5 as 10 and 5, on the room category, each without rewriting the other night.
+4. Overview shows Standard 15, Deluxe 7, and 2 categories with 22 contracted room nights, and does not show the forbidden room counts.
 5. An invalid quantity leaves the valid openings and the submitted invalid value in place.
 6. A second Hotel Item does not change the Hilton openings.
 7. A Viewer cannot save. Another Agency’s Item id is not found.

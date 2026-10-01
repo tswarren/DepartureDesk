@@ -63,19 +63,26 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     item = create_stay("Pre-cruise hotel stay")
     arrangement = item.supplier_arrangement
 
+    version_id = draft_version(item).id
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_match "Nov 4", response.body
+    assert_match "Nov 5", response.body
+    assert_no_match(/Nov 1|Nov 2|Nov 3/, response.body)
+    assert_equal 1, draft_version(item).service_occurrence_definitions.where(arrangement_item: item).count
+    assert_equal 0, draft_version(item).capacity_pool_definitions.count
+
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
     assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Deluxe")
-    post item_inventory_nights_departure_arrangement_hotel_path(@departure, arrangement, item), params: night_params("2027-11-04")
-    post item_inventory_nights_departure_arrangement_hotel_path(@departure, arrangement, item), params: night_params("2027-11-05")
 
-    quantities = [ [ "November 4", "Standard", 5 ], [ "November 4", "Deluxe", 2 ], [ "November 5", "Standard", 10 ], [ "November 5", "Deluxe", 5 ] ]
-    quantities.each do |night_name, resource_name, quantity|
-      night = occurrence_named(item, night_name)
+    quantities = [ [ "2027-11-04", "Standard", 5 ], [ "2027-11-04", "Deluxe", 2 ], [ "2027-11-05", "Standard", 10 ], [ "2027-11-05", "Deluxe", 5 ] ]
+    quantities.each do |date, resource_name, quantity|
       resource = resource_named(item, resource_name)
-      post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params(night, resource, quantity)
+      post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params(date, resource, quantity)
       assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
     end
+    assert_equal version_id, draft_version(item).id
 
     assert_equal [ 5, 2, 10, 5 ], opening_quantities(item)
     version = draft_version(item)
@@ -94,6 +101,8 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_hotel_path(@departure, arrangement)
     assert_response :success
+    assert_match "Standard / 15 contracted room nights", response.body
+    assert_match "Deluxe / 7 contracted room nights", response.body
     assert_match "2 room categories · 22 contracted room nights", response.body
     assert_match item.id, response.body
 
@@ -104,6 +113,7 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     }
     assert_response :unprocessable_entity
     assert_select "#form-error-summary"
+    assert_select "input[name='opening[proposed_opening_quantity]'][value='0']"
     assert_equal [ 5, 2, 10, 5 ], opening_quantities(item)
 
     post departure_arrangement_hotel_stays_path(@departure, arrangement), params: stay_params("Post-cruise hotel stay").except(:arrangement)
@@ -142,10 +152,8 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     item = create_stay("Pre-cruise hotel stay")
     arrangement = item.supplier_arrangement
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
-    post item_inventory_nights_departure_arrangement_hotel_path(@departure, arrangement, item), params: night_params("2027-11-04")
-    night = occurrence_named(item, "November 4")
     resource = resource_named(item, "Standard")
-    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params(night, resource, 5)
+    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", resource, 5)
 
     pool_definition = pool_named(item, "November 4", "Standard")
     pool_definition.update!(unit_label: "cabins")
@@ -159,6 +167,226 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     assert_equal quantity_before, pool_definition.reload.proposed_opening_quantity
     assert_equal "cabins", pool_definition.unit_label
     assert_equal updated_at, pool_definition.updated_at
+  end
+
+  test "a successor draft is the pinned version and the governing predecessor stays unchanged" do
+    sign_in_as @staff
+    item = create_stay("Pre-cruise hotel stay")
+    arrangement = item.supplier_arrangement
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
+    resource = resource_named(item, "Standard")
+    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", resource, 5)
+
+    activated = activate_arrangement!(arrangement)
+    predecessor_pool = activated.capacity_pool_definitions.find_by!(label: "November 4 Standard")
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement.reload,
+      arrangement_lock_version: arrangement.lock_version,
+      version_lock_version: activated.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    successor_pool = successor.capacity_pool_definitions.find_by!(label: "November 4 Standard")
+    patch item_inventory_opening_departure_arrangement_hotel_path(@departure, arrangement, item, successor_pool), params: {
+      definition_lock_version: successor_pool.lock_version,
+      opening: { proposed_opening_quantity: "8" }
+    }
+    assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_equal 8, successor_pool.reload.proposed_opening_quantity
+    assert_equal 5, predecessor_pool.reload.proposed_opening_quantity
+    assert_equal successor.id, successor_pool.supplier_arrangement_version_id
+  end
+
+  test "an activated arrangement without a successor is read only" do
+    sign_in_as @staff
+    item = create_stay("Pre-cruise hotel stay")
+    arrangement = item.supplier_arrangement
+    activate_arrangement!(arrangement)
+    count = arrangement.supplier_resources.count
+
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
+    assert_response :unprocessable_entity
+    assert_equal count, arrangement.supplier_resources.reload.count
+
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_select "button", text: "Add room category", count: 0
+  end
+
+  test "an item with no definition on the pinned version is not found" do
+    sign_in_as @staff
+    item = create_stay("Pre-cruise hotel stay")
+    arrangement = item.supplier_arrangement
+    activate_arrangement!(arrangement)
+    orphan = arrangement.arrangement_items.create!(agency: @agency, departure: @departure)
+
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, orphan)
+    assert_response :not_found
+  end
+
+  test "missing and wrong stay pairs and bad inventory cells stay isolated" do
+    sign_in_as @staff
+    item = create_stay("Pre-cruise hotel stay")
+    arrangement = item.supplier_arrangement
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Deluxe")
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", standard, 5)
+    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-05", deluxe, 5)
+
+    stay = occurrence_named(item, "Stay")
+    stay_pair = draft_version(item).capacity_pair_definitions.find_by!(
+      service_occurrence_id: stay.service_occurrence_id,
+      supplier_resource_id: standard.supplier_resource_id
+    )
+    stay_pair.destroy!
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_match "The Stay has no room-category classification.", response.body
+    assert_select "#hotel-category-#{deluxe.supplier_resource_id} input[name='opening[proposed_opening_quantity]']"
+    assert_select "#hotel-category-#{standard.supplier_resource_id} input[name='opening[proposed_opening_quantity]']", count: 0
+
+    ClassifyCapacityPair.new(
+      agency: @agency,
+      actor: @staff,
+      item: item,
+      service_occurrence: stay.service_occurrence,
+      supplier_resource: standard.supplier_resource,
+      classification: "pooled",
+      version_lock_version: draft_version(item).lock_version
+    ).call
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_match "The Stay is classified for a room category.", response.body
+
+    night = occurrence_named(item, "November 5")
+    night.update!(starts_at_local: "16:00", ends_at_local: "16:00")
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_match "A room night has a local time.", response.body
+    assert_select "#hotel-cell-2027-11-04-#{deluxe.supplier_resource_id} input[name='opening[proposed_opening_quantity]']"
+
+    night.update!(starts_at_local: nil, ends_at_local: nil)
+    inventory_pair = draft_version(item).capacity_pair_definitions.find_by!(
+      service_occurrence_id: night.service_occurrence_id,
+      supplier_resource_id: deluxe.supplier_resource_id
+    )
+    inventory_pair.update!(classification: "not_applicable")
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_match "A room night Pool is not one numeric block measured in rooms.", response.body
+    assert_equal 5, pool_named(item, "November 4", "Standard").proposed_opening_quantity
+    assert_equal 5, pool_named(item, "November 5", "Deluxe").proposed_opening_quantity
+
+    definition = pool_named(item, "November 4", "Standard")
+    copy = CapacityPool.create!(definition.capacity_pool.attributes.except("id", "created_at", "updated_at"))
+    CapacityPoolDefinition.create!(
+      definition.attributes.except("id", "created_at", "updated_at", "lock_version").merge(
+        "capacity_pool_id" => copy.id,
+        "label" => "November 4 Standard extra",
+        "normalized_label" => "november 4 standard extra",
+        "position" => definition.position + 1
+      )
+    )
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_match "A room night Pool is not one numeric block measured in rooms.", response.body
+    assert_select "#hotel-cell-2027-11-04-#{deluxe.supplier_resource_id} input[name='opening[proposed_opening_quantity]']"
+  end
+
+  test "a pool on the stay, an extra occurrence, and a second pool block the typed editor" do
+    sign_in_as @staff
+    item = create_stay("Pre-cruise hotel stay")
+    arrangement = item.supplier_arrangement
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
+    resource = resource_named(item, "Standard")
+    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", resource, 5)
+    version = draft_version(item)
+    before_occurrences = version.service_occurrence_definitions.where(arrangement_item: item).count
+    before_pools = version.capacity_pool_definitions.count
+
+    CreateServiceOccurrence.new(
+      agency: @agency,
+      actor: @staff,
+      item: item,
+      version_lock_version: version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        name: "Early night",
+        starts_on: "2027-11-01",
+        ends_on: "2027-11-01",
+        time_zone: "America/New_York"
+      }
+    ).call
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_match "An extra Service Occurrence cannot be edited here.", response.body
+    assert_match "Advanced Supplier planning", response.body
+    assert_equal before_occurrences + 1, draft_version(item).service_occurrence_definitions.where(arrangement_item: item).count
+    assert_equal before_pools, draft_version(item).capacity_pool_definitions.count
+
+    extra = draft_version(item).service_occurrence_definitions.find_by!(name: "Early night")
+    RemoveServiceOccurrence.new(
+      agency: @agency,
+      actor: @staff,
+      occurrence: extra.service_occurrence,
+      version_lock_version: draft_version(item).lock_version
+    ).call
+    stay = occurrence_named(item, "Stay")
+    ConfigureCapacityPairWithPool.new(
+      agency: @agency,
+      actor: @staff,
+      item: item,
+      service_occurrence: stay.service_occurrence,
+      supplier_resource: resource.supplier_resource,
+      version_lock_version: draft_version(item).lock_version,
+      idempotency_key: SecureRandom.uuid,
+      pool_attributes: {
+        label: "Stay Standard",
+        inventory_mode: "block",
+        measurement_basis: "resource_units",
+        unit_label: "rooms",
+        proposed_opening_quantity: 1,
+        evidence_kind: "contract",
+        evidence_on: "2026-09-30",
+        evidence_reference_note: "Stay pool"
+      }
+    ).call
+    pool_count = draft_version(item).capacity_pool_definitions.count
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_match "The Stay has a Capacity Pool.", response.body
+    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-05", resource, 9)
+    assert_response :unprocessable_entity
+    assert_equal pool_count, draft_version(item).capacity_pool_definitions.count
+  end
+
+  test "changing the stay leaves stored nights in place and fails closed when they no longer match" do
+    sign_in_as @staff
+    item = create_stay("Pre-cruise hotel stay")
+    arrangement = item.supplier_arrangement
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
+    resource = resource_named(item, "Standard")
+    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", resource, 5)
+    stay = occurrence_named(item, "Stay")
+    night_id = occurrence_named(item, "November 4").id
+
+    patch item_stay_departure_arrangement_hotel_path(@departure, arrangement, item), params: {
+      definition_lock_version: stay.lock_version,
+      occurrence: {
+        starts_on: "2027-11-10",
+        ends_on: "2027-11-12",
+        starts_at_local: "15:00",
+        ends_at_local: "12:00",
+        time_zone: "America/New_York"
+      }
+    }
+    assert_redirected_to departure_arrangement_hotel_path(@departure, arrangement)
+    assert ServiceOccurrenceDefinition.exists?(night_id)
+    assert_equal 5, pool_named(item, "November 4", "Standard").proposed_opening_quantity
+
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_match "An extra Service Occurrence cannot be edited here.", response.body
+    assert_select "a", text: "Advanced Supplier planning"
   end
 
   private
@@ -185,18 +413,11 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     }
   end
 
-  def night_params(date)
-    {
-      idempotency_key: SecureRandom.uuid,
-      night: { starts_on: date }
-    }
-  end
-
-  def opening_params(night, resource, quantity)
+  def opening_params(date, resource, quantity)
     {
       idempotency_key: SecureRandom.uuid,
       opening: {
-        service_occurrence_id: night.service_occurrence_id,
+        starts_on: date,
         supplier_resource_id: resource.supplier_resource_id,
         proposed_opening_quantity: quantity,
         evidence_kind: "contract",
@@ -204,6 +425,14 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
         evidence_reference_note: "Hilton group contract"
       }
     }
+  end
+
+  def activate_arrangement!(arrangement)
+    @departure.update!(status: "active", departure_reference: "D-930210", first_activated_at: Time.current)
+    version = arrangement.versions.find_by!(status: "draft")
+    version.update!(status: "activated", activated_at: Time.current)
+    arrangement.update!(status: "active", governing_version: version)
+    version
   end
 
   def create_stay(name)

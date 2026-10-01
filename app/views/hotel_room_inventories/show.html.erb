@@ -1,13 +1,12 @@
 <% content_for :title, "Room inventory · #{@departure.name} · DepartureDesk" %>
 <% resource = (@resource_attributes || {}).with_indifferent_access %>
-<% night = (@night_attributes || {}).with_indifferent_access %>
 <% opening = (@opening_attributes || {}).with_indifferent_access %>
 <%= render "departure_compositions/shell", active_area: "suppliers" %>
 <%= render "hotel_setup/shell", current: "inventory", page_title: "Room inventory", item: @arrangement_item %>
 
 <article class="dd-panel" id="hotel-inventory">
   <div class="dd-panel-body dd-stack">
-    <p><%= hotel_room_night_sentence(@shape) %></p>
+    <p id="hotel-inventory-summary"><%= hotel_room_night_sentence(@shape) %></p>
     <p>Operating currency <%= @departure.operating_currency %>.</p>
 
     <% if @shape.blocked? %>
@@ -16,7 +15,7 @@
 
     <% if @shape.stay_definition %>
       <p>
-        Stay <%= @shape.stay_definition.starts_on %> through <%= @shape.stay_definition.ends_on %>,
+        Stay <%= hotel_stay_span(@shape.stay_definition) %>,
         check-in <%= hotel_local_time(@shape.stay_definition.starts_at_local) %>,
         checkout <%= hotel_local_time(@shape.stay_definition.ends_at_local) %>,
         <%= @shape.stay_definition.time_zone %>.
@@ -27,34 +26,118 @@
 
     <section aria-labelledby="room-categories-heading" class="dd-stack">
       <h2 id="room-categories-heading" class="dd-section-title">Room categories</h2>
-      <% if @shape.resources.empty? %>
+      <% if @shape.categories.empty? %>
         <p>No room categories yet.</p>
-      <% else %>
-        <ul>
-          <% @shape.resources.each do |definition| %>
-            <li>
-              <% if @editable %>
-                <%= form_with url: item_inventory_resource_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, definition.supplier_resource_id),
-                      method: :patch, class: "dd-form dd-stack" do %>
-                  <%= hidden_field_tag :definition_lock_version, definition.lock_version %>
-                  <div class="dd-field-group">
-                    <label class="dd-label" for="resource_name_<%= definition.id %>">Room category</label>
-                    <input id="resource_name_<%= definition.id %>" name="resource[name]" class="dd-field" required maxlength="160"
-                      value="<%= @resource_error_id == definition.supplier_resource_id ? resource[:name] : definition.name %>">
-                  </div>
-                  <div class="dd-field-group">
-                    <label class="dd-label" for="resource_occupancy_<%= definition.id %>">Maximum occupancy</label>
-                    <input id="resource_occupancy_<%= definition.id %>" name="resource[maximum_occupancy]" class="dd-field" inputmode="numeric" required
-                      value="<%= @resource_error_id == definition.supplier_resource_id ? resource[:maximum_occupancy] : definition.maximum_occupancy %>">
-                  </div>
-                  <button type="submit" class="dd-button">Save room category</button>
-                <% end %>
-              <% else %>
-                <p><%= definition.name %>, maximum occupancy <%= definition.maximum_occupancy %>.</p>
+        <% if @shape.candidate_dates.any? %>
+          <p>Room nights <%= @shape.candidate_dates.map { |date| hotel_night_label(date) }.to_sentence %>.</p>
+        <% end %>
+      <% end %>
+
+      <% @shape.categories.each do |category| %>
+        <% definition = category.resource_definition %>
+        <section class="dd-panel" id="hotel-category-<%= definition.supplier_resource_id %>" aria-labelledby="hotel-category-heading-<%= definition.id %>">
+          <div class="dd-panel-body dd-stack">
+            <h3 id="hotel-category-heading-<%= definition.id %>" class="dd-section-title"><%= definition.name %></h3>
+            <p>Maximum occupancy <%= definition.maximum_occupancy %>.</p>
+            <% if category.reason.present? %>
+              <p><%= category.reason %></p>
+              <p>
+                <%= link_to "Item capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item), class: "dd-link" %>
+              </p>
+            <% end %>
+
+            <ul>
+              <% category.cells.each do |cell| %>
+                <% pool = cell.pool_definition %>
+                <% target = pool ? pool.id : "#{cell.date}--#{definition.supplier_resource_id}" %>
+                <% invalid = @opening_target.present? && @opening_target == target %>
+                <% quantity = invalid ? opening[:proposed_opening_quantity] : pool&.proposed_opening_quantity %>
+                <li id="hotel-cell-<%= cell.date %>-<%= definition.supplier_resource_id %>">
+                  <h4 class="dd-section-title"><%= hotel_night_label(cell.date) %></h4>
+                  <% if cell.reason.present? || !category.supported? %>
+                    <p><%= cell.reason.presence || category.reason %></p>
+                    <p>
+                      <%= link_to "Item capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item), class: "dd-link" %>
+                    </p>
+                    <% if pool %>
+                      <p><%= pool.proposed_opening_quantity %> <%= pool.unit_label %></p>
+                    <% else %>
+                      <p>No contracted rooms recorded.</p>
+                    <% end %>
+                  <% elsif pool && @editable %>
+                    <%= form_with url: item_inventory_opening_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, pool),
+                          method: :patch, class: "dd-form dd-stack" do %>
+                      <%= hidden_field_tag :definition_lock_version, pool.lock_version %>
+                      <div class="dd-field-group">
+                        <label class="dd-label" for="opening_quantity_<%= pool.id %>">Contracted rooms</label>
+                        <input id="opening_quantity_<%= pool.id %>" name="opening[proposed_opening_quantity]" class="dd-field" inputmode="numeric" required
+                          <% if invalid %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>
+                          value="<%= quantity %>">
+                      </div>
+                      <button type="submit" class="dd-button">Save contracted rooms</button>
+                    <% end %>
+                  <% elsif pool %>
+                    <p><%= pool.proposed_opening_quantity %> <%= pool.unit_label %>.</p>
+                  <% elsif @editable %>
+                    <%= form_with url: item_inventory_openings_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
+                          method: :post, class: "dd-form dd-stack" do %>
+                      <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+                      <%= hidden_field_tag "opening[starts_on]", cell.date %>
+                      <%= hidden_field_tag "opening[supplier_resource_id]", definition.supplier_resource_id %>
+                      <div class="dd-field-group">
+                        <label class="dd-label" for="opening_quantity_<%= target %>">Contracted rooms</label>
+                        <input id="opening_quantity_<%= target %>" name="opening[proposed_opening_quantity]" class="dd-field" inputmode="numeric" required
+                          <% if invalid %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>
+                          value="<%= quantity %>">
+                      </div>
+                      <div class="dd-field-group">
+                        <label class="dd-label" for="opening_evidence_kind_<%= target %>">Evidence</label>
+                        <select id="opening_evidence_kind_<%= target %>" name="opening[evidence_kind]" class="dd-field" required>
+                          <option value="">Choose evidence</option>
+                          <% hotel_evidence_kind_options.each do |kind| %>
+                            <option value="<%= kind %>" <%= "selected" if invalid && opening[:evidence_kind] == kind %>><%= kind.humanize %></option>
+                          <% end %>
+                        </select>
+                      </div>
+                      <div class="dd-field-group">
+                        <label class="dd-label" for="opening_evidence_on_<%= target %>">Evidence date</label>
+                        <input id="opening_evidence_on_<%= target %>" name="opening[evidence_on]" type="date" class="dd-field" required
+                          value="<%= invalid ? opening[:evidence_on] : nil %>">
+                      </div>
+                      <div class="dd-field-group">
+                        <label class="dd-label" for="opening_evidence_note_<%= target %>">Reference note</label>
+                        <input id="opening_evidence_note_<%= target %>" name="opening[evidence_reference_note]" class="dd-field" required maxlength="500"
+                          value="<%= invalid ? opening[:evidence_reference_note] : nil %>">
+                      </div>
+                      <button type="submit" class="dd-button">Save contracted rooms</button>
+                    <% end %>
+                  <% else %>
+                    <p>No contracted rooms recorded.</p>
+                  <% end %>
+                </li>
               <% end %>
-            </li>
-          <% end %>
-        </ul>
+            </ul>
+            <p><%= hotel_category_room_night_sentence(category.room_night_count) %></p>
+
+            <% if @editable %>
+              <%= form_with url: item_inventory_resource_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, definition.supplier_resource_id),
+                    method: :patch, class: "dd-form dd-stack" do %>
+                <%= hidden_field_tag :definition_lock_version, definition.lock_version %>
+                <div class="dd-field-group">
+                  <label class="dd-label" for="resource_name_<%= definition.id %>">Room category</label>
+                  <input id="resource_name_<%= definition.id %>" name="resource[name]" class="dd-field" required maxlength="160"
+                    value="<%= @resource_error_id == definition.supplier_resource_id ? resource[:name] : definition.name %>">
+                </div>
+                <div class="dd-field-group">
+                  <label class="dd-label" for="resource_occupancy_<%= definition.id %>">Maximum occupancy</label>
+                  <input id="resource_occupancy_<%= definition.id %>" name="resource[maximum_occupancy]" class="dd-field" inputmode="numeric" required
+                    value="<%= @resource_error_id == definition.supplier_resource_id ? resource[:maximum_occupancy] : definition.maximum_occupancy %>">
+                </div>
+                <button type="submit" class="dd-button">Save room category</button>
+              <% end %>
+            <% end %>
+          </div>
+        </section>
       <% end %>
 
       <% if @editable %>
@@ -72,110 +155,6 @@
           </div>
           <button type="submit" class="dd-button">Add room category</button>
         <% end %>
-      <% end %>
-    </section>
-
-    <section aria-labelledby="room-nights-heading" class="dd-stack">
-      <h2 id="room-nights-heading" class="dd-section-title">Room nights</h2>
-      <% if @shape.nights.empty? %>
-        <p>No room nights yet.</p>
-      <% else %>
-        <ul>
-          <% @shape.nights.each do |definition| %>
-            <li>
-              <h3 class="dd-section-title"><%= definition.name %></h3>
-              <p><%= definition.starts_on %></p>
-            </li>
-          <% end %>
-        </ul>
-      <% end %>
-
-      <% if @editable %>
-        <%= form_with url: item_inventory_nights_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
-              method: :post, class: "dd-form dd-stack" do %>
-          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
-          <div class="dd-field-group">
-            <label class="dd-label" for="night_starts_on">Room night</label>
-            <input id="night_starts_on" name="night[starts_on]" type="date" class="dd-field" required value="<%= night[:starts_on] %>">
-          </div>
-          <button type="submit" class="dd-button">Add room night</button>
-        <% end %>
-      <% end %>
-    </section>
-
-    <section aria-labelledby="contracted-rooms-heading" class="dd-stack">
-      <h2 id="contracted-rooms-heading" class="dd-section-title">Contracted rooms</h2>
-      <% if @shape.cells.empty? %>
-        <p>Add a room category and a room night to record contracted rooms.</p>
-      <% else %>
-        <ul>
-          <% @shape.cells.each do |cell| %>
-            <% pool = cell.pool_definition %>
-            <% target = pool ? pool.id : "#{cell.night_definition.service_occurrence_id}--#{cell.resource_definition.supplier_resource_id}" %>
-            <% invalid = @opening_target.present? && @opening_target == target %>
-            <li id="hotel-cell-<%= cell.night_definition.id %>-<%= cell.resource_definition.id %>">
-              <h3 class="dd-section-title"><%= cell.night_definition.name %> · <%= cell.resource_definition.name %></h3>
-              <% if cell.reason.present? %>
-                <p><%= cell.reason %></p>
-                <p>
-                  <%= link_to "Item capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item), class: "dd-link" %>
-                </p>
-                <% if pool %>
-                  <p><%= pool.proposed_opening_quantity %> <%= pool.unit_label %></p>
-                <% end %>
-              <% elsif pool && @editable %>
-                <%= form_with url: item_inventory_opening_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, pool),
-                      method: :patch, class: "dd-form dd-stack" do %>
-                  <%= hidden_field_tag :definition_lock_version, pool.lock_version %>
-                  <div class="dd-field-group">
-                    <label class="dd-label" for="opening_quantity_<%= pool.id %>">Contracted rooms</label>
-                    <input id="opening_quantity_<%= pool.id %>" name="opening[proposed_opening_quantity]" class="dd-field" inputmode="numeric" required
-                      <% if invalid %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>
-                      value="<%= invalid ? opening[:proposed_opening_quantity] : pool.proposed_opening_quantity %>">
-                  </div>
-                  <button type="submit" class="dd-button">Save contracted rooms</button>
-                <% end %>
-              <% elsif pool %>
-                <p><%= pool.proposed_opening_quantity %> <%= pool.unit_label %>.</p>
-              <% elsif @editable %>
-                <%= form_with url: item_inventory_openings_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
-                      method: :post, class: "dd-form dd-stack" do %>
-                  <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
-                  <%= hidden_field_tag "opening[service_occurrence_id]", cell.night_definition.service_occurrence_id %>
-                  <%= hidden_field_tag "opening[supplier_resource_id]", cell.resource_definition.supplier_resource_id %>
-                  <div class="dd-field-group">
-                    <label class="dd-label" for="opening_quantity_<%= target %>">Contracted rooms</label>
-                    <input id="opening_quantity_<%= target %>" name="opening[proposed_opening_quantity]" class="dd-field" inputmode="numeric" required
-                      <% if invalid %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>
-                      value="<%= invalid ? opening[:proposed_opening_quantity] : nil %>">
-                  </div>
-                  <div class="dd-field-group">
-                    <label class="dd-label" for="opening_evidence_kind_<%= target %>">Evidence</label>
-                    <select id="opening_evidence_kind_<%= target %>" name="opening[evidence_kind]" class="dd-field" required>
-                      <option value="">Choose evidence</option>
-                      <% hotel_evidence_kind_options.each do |kind| %>
-                        <option value="<%= kind %>" <%= "selected" if invalid && opening[:evidence_kind] == kind %>><%= kind.humanize %></option>
-                      <% end %>
-                    </select>
-                  </div>
-                  <div class="dd-field-group">
-                    <label class="dd-label" for="opening_evidence_on_<%= target %>">Evidence date</label>
-                    <input id="opening_evidence_on_<%= target %>" name="opening[evidence_on]" type="date" class="dd-field" required
-                      value="<%= invalid ? opening[:evidence_on] : nil %>">
-                  </div>
-                  <div class="dd-field-group">
-                    <label class="dd-label" for="opening_evidence_note_<%= target %>">Reference note</label>
-                    <input id="opening_evidence_note_<%= target %>" name="opening[evidence_reference_note]" class="dd-field" required maxlength="500"
-                      value="<%= invalid ? opening[:evidence_reference_note] : nil %>">
-                  </div>
-                  <button type="submit" class="dd-button">Save contracted rooms</button>
-                <% end %>
-              <% else %>
-                <p>No contracted rooms recorded.</p>
-              <% end %>
-            </li>
-          <% end %>
-        </ul>
       <% end %>
     </section>
   </div>

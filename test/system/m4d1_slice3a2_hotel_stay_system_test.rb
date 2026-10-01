@@ -38,6 +38,10 @@ class M4d1Slice3a2HotelStaySystemTest < ApplicationSystemTestCase
     fill_in_html_date "Departure date", "2027-11-06"
     click_button "Save and continue"
     assert_selector "#room-categories-heading"
+    assert_text "Nov 4"
+    assert_text "Nov 5"
+    assert_no_text "Nov 1"
+    assert_no_button "Add room night"
 
     fill_in "resource_name", with: "Standard"
     fill_in "resource_maximum_occupancy", with: "4"
@@ -48,34 +52,43 @@ class M4d1Slice3a2HotelStaySystemTest < ApplicationSystemTestCase
     click_button "Add room category"
     assert_selector "input[value='Deluxe']"
 
-    fill_in_html_date "Room night", "2027-11-04"
-    click_button_and_expect "Add room night", text: "November 4"
-    fill_in_html_date "Room night", "2027-11-05"
-    click_button_and_expect "Add room night", text: "November 5"
-
     item = ArrangementItemDefinition.find_by!(agency: @agency, name: "Pre-cruise hotel stay").arrangement_item
+    assert_equal 1, draft_version(item).service_occurrence_definitions.where(arrangement_item: item).count
+
     openings = [
-      [ "November 4", "Standard", "5" ],
-      [ "November 4", "Deluxe", "2" ],
-      [ "November 5", "Standard", "10" ],
-      [ "November 5", "Deluxe", "5" ]
+      [ "2027-11-04", "November 4", "Standard", "5" ],
+      [ "2027-11-04", "November 4", "Deluxe", "2" ],
+      [ "2027-11-05", "November 5", "Standard", "10" ],
+      [ "2027-11-05", "November 5", "Deluxe", "5" ]
     ]
-    openings.each do |night_name, resource_name, quantity|
-      night = occurrence_named(item, night_name)
+    openings.each do |date, night_name, resource_name, quantity|
       resource = resource_named(item, resource_name)
-      target = "#{night.service_occurrence_id}--#{resource.supplier_resource_id}"
+      target = "#{date}--#{resource.supplier_resource_id}"
       fill_in "opening_quantity_#{target}", with: quantity
       select "Contract", from: "opening_evidence_kind_#{target}"
       find("#opening_evidence_on_#{target}").execute_script("this.value = arguments[0]", "2026-09-30")
       fill_in "opening_evidence_note_#{target}", with: "Hilton group contract"
-      within("#hotel-cell-#{night.id}-#{resource.id}") { click_button "Save contracted rooms" }
+      within("#hotel-cell-#{date}-#{resource.supplier_resource_id}") { click_button "Save contracted rooms" }
       assert_text "#{night_name} #{resource_name} saved."
     end
 
-    click_link_and_expect "Overview", heading: @departure.name
+    assert_equal 3, draft_version(item).service_occurrence_definitions.where(arrangement_item: item).count
+    assert_equal 6, draft_version(item).capacity_pair_definitions.where(arrangement_item: item).count
+    assert_equal 4, draft_version(item).capacity_pool_definitions.count
+
+    find("#hotel-step-overview").click
+    assert_text "Standard / 15 contracted room nights"
+    assert_text "Deluxe / 7 contracted room nights"
     assert_text "2 room categories · 22 contracted room nights"
     assert_no_text "Supplier rates"
     assert_no_text "Review & activate"
+
+    visit item_inventory_departure_arrangement_hotel_path(@departure, item.supplier_arrangement, item)
+    standard = pool_named(item, "November 4", "Standard")
+    fill_in "opening_quantity_#{standard.id}", with: "6"
+    within("#hotel-cell-2027-11-04-#{standard.supplier_resource_id}") { click_button "Save contracted rooms" }
+    assert_text "November 4 Standard saved."
+    assert_equal [ 6, 2, 10, 5 ], opening_quantities(item)
 
     visit edit_item_stay_departure_arrangement_hotel_path(@departure, item.supplier_arrangement, item)
     [ 375, 768, 1280 ].each do |width|
@@ -98,7 +111,7 @@ class M4d1Slice3a2HotelStaySystemTest < ApplicationSystemTestCase
     assert_text "A room night Pool is not one numeric block measured in rooms."
     assert_link "Item capacity"
     assert_equal "cabins", pool.reload.unit_label
-    assert_equal 5, pool.proposed_opening_quantity
+    assert_equal 6, pool.proposed_opening_quantity
   end
 
   private
@@ -113,6 +126,20 @@ class M4d1Slice3a2HotelStaySystemTest < ApplicationSystemTestCase
 
   def resource_named(item, name)
     draft_version(item).supplier_resource_definitions.find_by!(arrangement_item: item, name: name)
+  end
+
+  def opening_quantities(item)
+    version = draft_version(item)
+    nights = version.service_occurrence_definitions.where(arrangement_item: item).where.not(name: "Stay").order(:starts_on, :id)
+    resources = version.supplier_resource_definitions.where(arrangement_item: item).order(:position, :id)
+    nights.flat_map do |night|
+      resources.map do |resource|
+        version.capacity_pool_definitions.find_by!(
+          service_occurrence_id: night.service_occurrence_id,
+          supplier_resource_id: resource.supplier_resource_id
+        ).proposed_opening_quantity
+      end
+    end
   end
 
   def pool_named(item, night_name, resource_name)

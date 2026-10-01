@@ -9,18 +9,26 @@ module HotelArrangementAccess
   private
 
   def set_hotel_version
-    @supplier_arrangement_version = resolved_hotel_version
-    raise ActiveRecord::RecordNotFound if @supplier_arrangement_version.nil?
+    version = select_hotel_version(@supplier_arrangement)
+    raise ActiveRecord::RecordNotFound if version.nil?
+
+    pin_authorized_version!(@supplier_arrangement, version)
   end
 
-  def resolved_hotel_version
-    if @supplier_arrangement.association(:versions).loaded?
-      @supplier_arrangement.versions.find { |version| version.draft? } ||
-        @supplier_arrangement.versions.find { |version| version.id == @supplier_arrangement.governing_version_id }
+  def select_hotel_version(arrangement)
+    versions = if arrangement.association(:versions).loaded?
+      arrangement.versions
     else
-      @supplier_arrangement.versions.find_by(status: "draft") ||
-        @supplier_arrangement.governing_version
+      arrangement.versions.to_a
     end
+    versions.find { |version| version.draft? } ||
+      versions.find { |version| version.id == arrangement.governing_version_id }
+  end
+
+  def pin_authorized_version!(arrangement, version)
+    @supplier_arrangement = arrangement
+    @authorized_hotel_version_id = version.id
+    @supplier_arrangement_version = version
   end
 
   def set_hotel_item
@@ -56,8 +64,11 @@ module HotelArrangementAccess
     @supplier_arrangement_version.draft? && Current.agency_user.permitted?(:manage_departures)
   end
 
-  def reload_draft_version!
-    @supplier_arrangement_version = @supplier_arrangement.versions.find_by!(status: "draft")
+  def reload_authorized_version!(arrangement = @supplier_arrangement)
+    raise ActiveRecord::RecordNotFound if @authorized_hotel_version_id.blank?
+
+    @supplier_arrangement_version = arrangement.versions.find(@authorized_hotel_version_id)
+    @supplier_arrangement_version.reload
   end
 
   def hotel_command_context
@@ -75,8 +86,9 @@ module HotelArrangementAccess
           contracting_supplier_id: contracting_supplier_id
         }
       ).call.record
+      pin_authorized_version!(created, created.versions.sole) if arrangement.nil?
 
-      version = created.versions.find_by!(status: "draft")
+      version = reload_authorized_version!(created)
       item = CreateArrangementItem.new(
         **hotel_command_context,
         arrangement: created,
@@ -89,7 +101,7 @@ module HotelArrangementAccess
         }
       ).call.record
 
-      version.reload
+      version = reload_authorized_version!(created)
       definition = version.arrangement_item_definitions.find_by!(arrangement_item: item)
       SetItemCapacityManagement.new(
         **hotel_command_context,
@@ -98,7 +110,7 @@ module HotelArrangementAccess
         lock_version: definition.lock_version
       ).call
 
-      version.reload
+      version = reload_authorized_version!(created)
       CreateServiceOccurrence.new(
         **hotel_command_context,
         item: item,
@@ -130,7 +142,7 @@ module HotelArrangementAccess
   def classify_stay_resource!(item:, stay_definition:, resource:)
     return if stay_definition.nil?
 
-    version = reload_draft_version!
+    version = reload_authorized_version!
     ClassifyCapacityPair.new(
       **hotel_command_context,
       item: item,

@@ -32,7 +32,7 @@ class CompositionHotelsController < ApplicationController
     )
     arrangement = item.supplier_arrangement
     redirect_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item),
-      notice: "Hotel stay saved. Add room categories and nights next."
+      notice: "Hotel stay saved. Add room categories next."
   rescue AgencyCommand::Error => error
     hotel_command_error(error, :new)
   end
