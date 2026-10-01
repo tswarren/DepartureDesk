@@ -172,6 +172,51 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     assert_match second.id, response.body
   end
 
+  test "a stale lock on an unchanged opening rejects the rest of the room inventory matrix" do
+    sign_in_as @staff
+    item = create_stay("Pre-cruise hotel stay")
+    arrangement = item.supplier_arrangement
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Deluxe")
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    record_openings(arrangement, item, [
+      [ "2027-11-04", standard, 5 ],
+      [ "2027-11-04", deluxe, 2 ],
+      [ "2027-11-05", standard, 10 ],
+      [ "2027-11-05", deluxe, 5 ]
+    ])
+    assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+
+    viewed_standard = pool_named(item, "November 4", "Standard")
+    viewed_deluxe = pool_named(item, "November 5", "Deluxe")
+    viewed_standard_lock = viewed_standard.lock_version
+    viewed_deluxe_lock = viewed_deluxe.lock_version
+    live_standard = CapacityPoolDefinition.find(viewed_standard.id)
+    replace_opening!(live_standard, 7)
+    replace_opening!(live_standard, 5)
+    assert_equal 5, live_standard.reload.proposed_opening_quantity
+    assert_not_equal viewed_standard_lock, live_standard.lock_version
+
+    record_openings(
+      arrangement, item,
+      [
+        [ "2027-11-04", standard, 5 ],
+        [ "2027-11-05", deluxe, 6 ]
+      ],
+      evidence: false,
+      locks: {
+        viewed_standard.id => viewed_standard_lock,
+        viewed_deluxe.id => viewed_deluxe_lock
+      }
+    )
+    assert_response :unprocessable_entity
+    assert_match "Room inventory changed while you were editing it.", response.body
+    assert_equal 5, pool_named(item, "November 4", "Standard").proposed_opening_quantity
+    assert_equal 5, pool_named(item, "November 5", "Deluxe").proposed_opening_quantity
+    assert_equal live_standard.lock_version, pool_named(item, "November 4", "Standard").lock_version
+  end
+
   test "viewer cannot save a hotel stay and another agency is not found" do
     sign_in_as agency_users(:harbor_viewer)
     get new_departure_composition_suppliers_hotel_path(@departure)
@@ -556,6 +601,17 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
       idempotency_key: SecureRandom.uuid,
       resource: { name: name, maximum_occupancy: 4 }
     }
+  end
+
+  def replace_opening!(definition, quantity)
+    UpdateCapacityPool.new(
+      agency: @agency,
+      actor: @staff,
+      definition: definition,
+      lock_version: definition.lock_version,
+      attributes: { proposed_opening_quantity: quantity }
+    ).call
+    definition.reload
   end
 
   def record_openings(arrangement, item, entries, evidence: true, locks: {})

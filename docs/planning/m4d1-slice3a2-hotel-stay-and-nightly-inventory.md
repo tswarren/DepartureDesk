@@ -74,7 +74,7 @@ After activation, these definitions are read-only through the existing draft-onl
 
 ## 6. Orchestration
 
-Thin Hotel controllers call the shipped commands. There is no `SaveHotelStay` and no `SaveHotelInventory` that writes the Item, both nights, both Resources, and all four Pools in one command. The room-inventory submission sequences the existing occurrence, pair, and pool commands in one transaction. If any requested cell is invalid or unsupported, that transaction writes nothing and redisplays the submitted matrix. An unchanged opening is not rewritten.
+Thin Hotel controllers call the shipped commands. There is no `SaveHotelStay` and no `SaveHotelInventory` that writes the Item, both nights, both Resources, and all four Pools in one command. The room-inventory submission sequences the existing occurrence, pair, and pool commands in one transaction. Before those commands run, every existing Pool in the submitted matrix must still have the lock version Staff viewed, including an opening whose quantity is unchanged. If any requested cell is invalid, unsupported, or stale, the submission writes nothing and redisplays the submitted matrix. An unchanged opening is not rewritten.
 
 The initial Stay action may sequence `CreateArrangementItem`, then `SetItemCapacityManagement`, then `CreateServiceOccurrence`. Each command retains its own authority. Do not invent a new domain command to make that sequence atomic. If the existing command composition can run those three writes in one transaction, do that, so a failure of the Stay Occurrence leaves no Item behind. If it cannot, the UI must show an explicit resumable partial state for the records that committed. That is an implementation choice, not a second domain model.
 
@@ -105,7 +105,7 @@ Request and system coverage for the new pages:
 2. Add Standard and Deluxe with maximum occupancy 4.
 3. Save November 4 as 5 and 2 and November 5 as 10 and 5 in one room-inventory submission, with one evidence block recorded on each new Pool, without rewriting an unchanged opening.
 4. Overview shows Standard 15, Deluxe 7, and 2 categories with 22 contracted room nights, and does not show the forbidden room counts.
-5. An invalid quantity in that submission leaves every persisted opening unchanged and redisplays the submitted matrix.
+5. An invalid quantity in that submission leaves every persisted opening unchanged and redisplays the submitted matrix. A stale lock on an unchanged opening rejects the whole matrix and leaves the other requested opening unchanged.
 6. A second Hotel Item does not change the Hilton openings.
 7. A Viewer cannot save. Another Agency’s Item id is not found.
 8. An unsupported Pool shape stays unchanged and offers the Advanced destination.

@@ -125,6 +125,8 @@ class HotelRoomInventoriesController < ApplicationController
     creates = []
     updates = []
     @invalid_cells = []
+    return nil unless submitted_pool_locks_current?
+
     @submitted_quantities.each do |resource_id, dates|
       dates.each do |date, raw|
         cell = category_for_resource(resource_id)&.cells&.find { |row| row.date.to_date.iso8601 == date }
@@ -164,6 +166,27 @@ class HotelRoomInventoriesController < ApplicationController
     end
 
     { creates: creates, updates: updates }
+  end
+
+  def submitted_pool_locks_current?
+    current = true
+    @submitted_quantities.each do |resource_id, dates|
+      dates.each_key do |date|
+        cell = category_for_resource(resource_id)&.cells&.find { |row| row.date.to_date.iso8601 == date }
+        next if cell.nil? || !category_for(cell)&.supported? || !cell.supported?
+
+        pool = cell.pool_definition
+        next if pool.nil?
+
+        submitted_lock = params.dig(:pool_lock, pool.id)
+        next if submitted_lock.present? && submitted_lock.to_i == pool.lock_version
+
+        @form_error ||= "Room inventory changed while you were editing it."
+        @invalid_cells << "#{resource_id}--#{date}"
+        current = false
+      end
+    end
+    current
   end
 
   def parsed_room_count(value, key)
