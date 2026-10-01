@@ -60,7 +60,7 @@ This slice’s local navigation is Overview, Stay, and Room inventory. Overview 
 
 Entry is **Add Hotel stay** from the Supplier Arrangement. The stay form collects the contracting Supplier, Item name, arrival date, departure date, check-in time, checkout time, and IANA time zone. Display currency is the Departure operating currency. Saving the stay creates the Item, marks it capacity-managed, and creates the Stay Occurrence. It does not create a Resource, Pool, rate, deposit, deadline, Service Offer, or Package inclusion.
 
-Room inventory shows one card per room category. Candidate nights are rows on that category, derived from the Stay: arrival through the day before checkout. Category name and occupancy are edited on demand. Staff enter each night’s contracted rooms on that category. Saving a blank night records that date only. Reopening one cell does not rewrite the other three openings, the other Resource, or the Stay. The page does not create those nights when it is opened.
+Room inventory is one matrix. Candidate nights are columns, derived from the Stay: arrival through the day before checkout. Room categories are rows. Category name and occupancy are edited on demand, and Add room category remains its own action. Staff enter the contracted rooms they are saving and submit the matrix once, with one evidence section. Evidence is required when that submission creates a Pool, and the same evidence is copied onto each new Pool. A quantity-only correction omits evidence and updates only the Pools whose openings changed. A blank new cell is left alone. Reopening one opening does not rewrite the other openings, the other Resource, or the Stay. The page does not create those nights when it is opened.
 
 ## 5. Route identity
 
@@ -74,7 +74,7 @@ After activation, these definitions are read-only through the existing draft-onl
 
 ## 6. Orchestration
 
-Thin Hotel controllers call the shipped commands. There is no `SaveHotelStay` that writes the Item, both nights, both Resources, and all four Pools in one command. A failed inventory save leaves the other openings unchanged and redisplays the submitted invalid value.
+Thin Hotel controllers call the shipped commands. There is no `SaveHotelStay` and no `SaveHotelInventory` that writes the Item, both nights, both Resources, and all four Pools in one command. The room-inventory submission sequences the existing occurrence, pair, and pool commands in one transaction. If any requested cell is invalid or unsupported, that transaction writes nothing and redisplays the submitted matrix. An unchanged opening is not rewritten.
 
 The initial Stay action may sequence `CreateArrangementItem`, then `SetItemCapacityManagement`, then `CreateServiceOccurrence`. Each command retains its own authority. Do not invent a new domain command to make that sequence atomic. If the existing command composition can run those three writes in one transaction, do that, so a failure of the Stay Occurrence leaves no Item behind. If it cannot, the UI must show an explicit resumable partial state for the records that committed. That is an implementation choice, not a second domain model.
 
@@ -103,9 +103,9 @@ Request and system coverage for the new pages:
 
 1. Add the canonical Hilton stay and resume it by Item id.
 2. Add Standard and Deluxe with maximum occupancy 4.
-3. Save November 4 as 5 and 2, then November 5 as 10 and 5, on the room category, each without rewriting the other night.
+3. Save November 4 as 5 and 2 and November 5 as 10 and 5 in one room-inventory submission, with one evidence block recorded on each new Pool, without rewriting an unchanged opening.
 4. Overview shows Standard 15, Deluxe 7, and 2 categories with 22 contracted room nights, and does not show the forbidden room counts.
-5. An invalid quantity leaves the valid openings and the submitted invalid value in place.
+5. An invalid quantity in that submission leaves every persisted opening unchanged and redisplays the submitted matrix.
 6. A second Hotel Item does not change the Hilton openings.
 7. A Viewer cannot save. Another Agency’s Item id is not found.
 8. An unsupported Pool shape stays unchanged and offers the Advanced destination.
@@ -119,6 +119,6 @@ Supplier rates, `commission_treatment`, cost components, the $4,156 evaluation, 
 
 ## 10. Exit
 
-Staff can establish and review the Hilton stay and the 5/2 then 10/5 nightly supply, reopen one category/night without flattening the other, and leave no Client, rate, or agreement record behind.
+Staff can establish and review the Hilton stay and the 5/2 and 10/5 nightly supply in one room-inventory submission, reopen one category/night without rewriting the others, and leave no Client, rate, or agreement record behind.
 
 Slice 3A.3 is then eligible for its own accepted plan. This exit does not authorize it.

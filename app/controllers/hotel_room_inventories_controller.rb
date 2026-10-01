@@ -62,79 +62,23 @@ class HotelRoomInventoriesController < ApplicationController
     hotel_command_error(error, :show)
   end
 
-  def create_opening
-    cell = opening_cell
-    category = category_for(cell)
-    unless @editable && category&.supported? && cell&.supported? && cell.pool_definition.nil?
-      @form_error = cell&.reason || category&.reason || @shape.reasons.first || "This contracted room count cannot be saved here."
-      @opening_target = opening_target
-      render :show, status: :unprocessable_entity
-      return
-    end
+  def update
+    return render_blocked if @shape.blocked? || !@editable
 
-    @opening_attributes = opening_params.to_h
-    @opening_target = opening_target
+    @submitted_quantities = submitted_quantities
+    @submitted_evidence = evidence_params.to_h.with_indifferent_access
     @idempotency_key = params[:idempotency_key].presence || SecureRandom.uuid
-    ActiveRecord::Base.transaction do
-      version = reload_authorized_version!
-      occurrence = cell.night_definition&.service_occurrence || CreateServiceOccurrence.new(
-        **hotel_command_context,
-        item: @arrangement_item,
-        version_lock_version: version.lock_version,
-        idempotency_key: "#{@idempotency_key}:night",
-        attributes: {
-          name: night_name(cell.date),
-          starts_on: cell.date,
-          ends_on: cell.date,
-          time_zone: @departure.time_zone
-        }
-      ).call.record
-      version = reload_authorized_version!
-      ConfigureCapacityPairWithPool.new(
-        **hotel_command_context,
-        item: @arrangement_item,
-        service_occurrence: occurrence,
-        supplier_resource: cell.resource_definition.supplier_resource,
-        version_lock_version: version.lock_version,
-        idempotency_key: "#{@idempotency_key}:opening",
-        pool_attributes: {
-          label: "#{night_name(cell.date)} #{cell.resource_definition.name}",
-          inventory_mode: "block",
-          measurement_basis: "resource_units",
-          unit_label: "rooms",
-          proposed_opening_quantity: @opening_attributes[:proposed_opening_quantity],
-          evidence_kind: @opening_attributes[:evidence_kind],
-          evidence_on: @opening_attributes[:evidence_on],
-          evidence_reference_note: @opening_attributes[:evidence_reference_note]
-        }
-      ).call
-    end
-    redirect_to inventory_path, notice: "#{night_name(cell.date)} #{cell.resource_definition.name} saved."
-  rescue AgencyCommand::Error => error
-    @opening_target = opening_target
-    hotel_command_error(error, :show)
-  end
-
-  def update_opening
-    cell = @shape.cells.find { |row| row.pool_definition&.id == params[:pool_definition_id] }
-    unless @editable && category_for(cell)&.supported? && cell&.supported?
-      @form_error = cell&.reason || @shape.reasons.first || "This contracted room count cannot be saved here."
-      @opening_target = params[:pool_definition_id]
+    changes = inventory_changes
+    if changes.nil?
       render :show, status: :unprocessable_entity
       return
     end
 
-    @opening_attributes = opening_params.to_h
-    @opening_target = cell.pool_definition.id
-    UpdateCapacityPool.new(
-      **hotel_command_context,
-      definition: cell.pool_definition,
-      lock_version: params[:definition_lock_version],
-      attributes: { proposed_opening_quantity: @opening_attributes[:proposed_opening_quantity] }
-    ).call
-    redirect_to inventory_path, notice: "#{cell.night_definition.name} #{cell.resource_definition.name} saved."
+    ActiveRecord::Base.transaction do
+      apply_inventory_changes!(changes)
+    end
+    redirect_to inventory_path, notice: "Room inventory saved."
   rescue AgencyCommand::Error => error
-    @opening_target = params[:pool_definition_id]
     hotel_command_error(error, :show)
   end
 
@@ -161,16 +105,139 @@ class HotelRoomInventoriesController < ApplicationController
     params.fetch(:resource, ActionController::Parameters.new).permit(:name, :maximum_occupancy)
   end
 
-  def opening_params
-    params.fetch(:opening, ActionController::Parameters.new).permit(
-      :proposed_opening_quantity, :evidence_kind, :evidence_on, :evidence_reference_note,
-      :starts_on, :supplier_resource_id
+  def submitted_quantities
+    params.fetch(:quantity, ActionController::Parameters.new).to_unsafe_h.each_with_object({}) do |(resource_id, dates), result|
+      next unless dates.respond_to?(:each)
+
+      result[resource_id.to_s] = dates.each_with_object({}) do |(date, value), by_date|
+        by_date[date.to_s] = value
+      end
+    end
+  end
+
+  def evidence_params
+    params.fetch(:evidence, ActionController::Parameters.new).permit(
+      :evidence_kind, :evidence_on, :evidence_reference_note
     )
   end
 
-  def opening_cell
-    category_for_resource(opening_params[:supplier_resource_id])&.cells&.find do |cell|
-      cell.date.to_s == opening_params[:starts_on].to_s
+  def inventory_changes
+    creates = []
+    updates = []
+    @invalid_cells = []
+    @submitted_quantities.each do |resource_id, dates|
+      dates.each do |date, raw|
+        cell = category_for_resource(resource_id)&.cells&.find { |row| row.date.to_date.iso8601 == date }
+        key = "#{resource_id}--#{date}"
+        if cell.nil? || !category_for(cell)&.supported? || !cell.supported?
+          @form_error ||= cell&.reason || category_for(cell)&.reason || "This contracted room count cannot be saved here."
+          @invalid_cells << key
+          next
+        end
+
+        value = raw.to_s.strip
+        if value.blank?
+          if cell.pool_definition
+            @form_error ||= "Enter a valid room count."
+            @invalid_cells << key
+          end
+          next
+        end
+
+        quantity = parsed_room_count(value, key)
+        next if quantity.nil?
+
+        if cell.pool_definition
+          next if cell.pool_definition.proposed_opening_quantity == quantity
+
+          updates << { cell: cell, quantity: quantity }
+        else
+          creates << { cell: cell, quantity: quantity }
+        end
+      end
+    end
+    return nil if @invalid_cells.any?
+
+    if creates.any? && !evidence_complete?
+      @form_error = "Enter complete supplier evidence."
+      return nil
+    end
+
+    { creates: creates, updates: updates }
+  end
+
+  def parsed_room_count(value, key)
+    quantity = Integer(value, 10)
+    unless quantity.positive?
+      @form_error ||= "Proposed opening quantity must be greater than zero."
+      @invalid_cells << key
+      return nil
+    end
+
+    quantity
+  rescue ArgumentError, TypeError
+    @form_error ||= "Proposed opening quantity must be a whole number."
+    @invalid_cells << key
+    nil
+  end
+
+  def evidence_complete?
+    @submitted_evidence[:evidence_kind].present? &&
+      @submitted_evidence[:evidence_on].present? &&
+      @submitted_evidence[:evidence_reference_note].present?
+  end
+
+  def apply_inventory_changes!(changes)
+    occurrences = {}
+    changes[:creates].group_by { |change| change[:cell].date }.sort.each do |date, group|
+      version = reload_authorized_version!
+      occurrence = group.filter_map { |change| change[:cell].night_definition&.service_occurrence }.first
+      occurrence ||= occurrences[date]
+      occurrence ||= CreateServiceOccurrence.new(
+        **hotel_command_context,
+        item: @arrangement_item,
+        version_lock_version: version.lock_version,
+        idempotency_key: "#{@idempotency_key}:night:#{date.to_date.iso8601}",
+        attributes: {
+          name: night_name(date),
+          starts_on: date,
+          ends_on: date,
+          time_zone: @departure.time_zone
+        }
+      ).call.record
+      occurrences[date] = occurrence
+      group.each do |change|
+        version = reload_authorized_version!
+        cell = change[:cell]
+        ConfigureCapacityPairWithPool.new(
+          **hotel_command_context,
+          item: @arrangement_item,
+          service_occurrence: occurrence,
+          supplier_resource: cell.resource_definition.supplier_resource,
+          version_lock_version: version.lock_version,
+          idempotency_key: "#{@idempotency_key}:opening:#{cell.resource_definition.supplier_resource_id}:#{date.to_date.iso8601}",
+          pool_attributes: {
+            label: "#{night_name(date)} #{cell.resource_definition.name}",
+            inventory_mode: "block",
+            measurement_basis: "resource_units",
+            unit_label: "rooms",
+            proposed_opening_quantity: change[:quantity],
+            evidence_kind: @submitted_evidence[:evidence_kind],
+            evidence_on: @submitted_evidence[:evidence_on],
+            evidence_reference_note: @submitted_evidence[:evidence_reference_note]
+          }
+        ).call
+      end
+    end
+
+    changes[:updates].each do |change|
+      pool = change[:cell].pool_definition
+      UpdateCapacityPool.new(
+        **hotel_command_context,
+        definition: pool,
+        lock_version: params.dig(:pool_lock, pool.id),
+        attributes: { proposed_opening_quantity: change[:quantity] }
+      ).call
     end
   end
 
@@ -181,15 +248,11 @@ class HotelRoomInventoriesController < ApplicationController
   end
 
   def category_for_resource(resource_id)
-    @shape.categories.find { |category| category.resource_definition.supplier_resource_id == resource_id }
+    @shape.categories.find { |category| category.resource_definition.supplier_resource_id == resource_id.to_s }
   end
 
-  def opening_target
-    [ opening_params[:starts_on], opening_params[:supplier_resource_id] ].join("--")
-  end
-
-  def night_name(date_string)
-    Date.iso8601(date_string.to_s).strftime("%B %-d")
+  def night_name(date)
+    date.to_date.strftime("%B %-d")
   rescue Date::Error, ArgumentError
     "Room night"
   end

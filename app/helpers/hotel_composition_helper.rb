@@ -46,4 +46,15 @@ module HotelCompositionHelper
   def hotel_category_room_night_sentence(count)
     "#{count} contracted #{'room night'.pluralize(count)}"
   end
+
+  def hotel_matrix_quantity(resource_id, date, pool)
+    return pool&.proposed_opening_quantity if @submitted_quantities.nil?
+
+    submitted = @submitted_quantities.dig(resource_id.to_s, date.to_date.iso8601)
+    submitted.nil? ? pool&.proposed_opening_quantity : submitted
+  end
+
+  def hotel_matrix_cell_invalid?(resource_id, date)
+    Array(@invalid_cells).include?("#{resource_id}--#{date.to_date.iso8601}")
+  end
 end

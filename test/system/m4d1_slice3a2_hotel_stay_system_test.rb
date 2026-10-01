@@ -55,22 +55,21 @@ class M4d1Slice3a2HotelStaySystemTest < ApplicationSystemTestCase
     item = ArrangementItemDefinition.find_by!(agency: @agency, name: "Pre-cruise hotel stay").arrangement_item
     assert_equal 1, draft_version(item).service_occurrence_definitions.where(arrangement_item: item).count
 
-    openings = [
-      [ "2027-11-04", "November 4", "Standard", "5" ],
-      [ "2027-11-04", "November 4", "Deluxe", "2" ],
-      [ "2027-11-05", "November 5", "Standard", "10" ],
-      [ "2027-11-05", "November 5", "Deluxe", "5" ]
-    ]
-    openings.each do |date, night_name, resource_name, quantity|
-      resource = resource_named(item, resource_name)
-      target = "#{date}--#{resource.supplier_resource_id}"
-      fill_in "opening_quantity_#{target}", with: quantity
-      select "Contract", from: "opening_evidence_kind_#{target}"
-      find("#opening_evidence_on_#{target}").execute_script("this.value = arguments[0]", "2026-09-30")
-      fill_in "opening_evidence_note_#{target}", with: "Hilton group contract"
-      within("#hotel-cell-#{date}-#{resource.supplier_resource_id}") { click_button "Save contracted rooms" }
-      assert_text "#{night_name} #{resource_name} saved."
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    {
+      [ standard, "2027-11-04" ] => "5",
+      [ deluxe, "2027-11-04" ] => "2",
+      [ standard, "2027-11-05" ] => "10",
+      [ deluxe, "2027-11-05" ] => "5"
+    }.each do |(category, date), quantity|
+      fill_in "quantity_#{category.supplier_resource_id}_#{date}", with: quantity
     end
+    select "Contract", from: "Evidence"
+    find("#evidence_on").execute_script("this.value = arguments[0]", "2026-09-30")
+    fill_in "Reference note", with: "Hilton group contract"
+    click_button "Save room inventory"
+    assert_text "Room inventory saved."
 
     assert_equal 3, draft_version(item).service_occurrence_definitions.where(arrangement_item: item).count
     assert_equal 6, draft_version(item).capacity_pair_definitions.where(arrangement_item: item).count
@@ -84,10 +83,9 @@ class M4d1Slice3a2HotelStaySystemTest < ApplicationSystemTestCase
     assert_no_text "Review & activate"
 
     visit item_inventory_departure_arrangement_hotel_path(@departure, item.supplier_arrangement, item)
-    standard = pool_named(item, "November 4", "Standard")
-    fill_in "opening_quantity_#{standard.id}", with: "6"
-    within("#hotel-cell-2027-11-04-#{standard.supplier_resource_id}") { click_button "Save contracted rooms" }
-    assert_text "November 4 Standard saved."
+    fill_in "quantity_#{standard.supplier_resource_id}_2027-11-04", with: "6"
+    click_button "Save room inventory"
+    assert_text "Room inventory saved."
     assert_equal [ 6, 2, 10, 5 ], opening_quantities(item)
 
     visit edit_item_stay_departure_arrangement_hotel_path(@departure, item.supplier_arrangement, item)

@@ -81,13 +81,32 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     assert_match "Edit category", response.body
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Deluxe")
 
-    quantities = [ [ "2027-11-04", "Standard", 5 ], [ "2027-11-04", "Deluxe", 2 ], [ "2027-11-05", "Standard", 10 ], [ "2027-11-05", "Deluxe", 5 ] ]
-    quantities.each do |date, resource_name, quantity|
-      resource = resource_named(item, resource_name)
-      post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params(date, resource, quantity)
-      assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
-    end
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    record_openings(arrangement, item, [
+      [ "2027-11-04", standard, "abc" ],
+      [ "2027-11-04", deluxe, 2 ],
+      [ "2027-11-05", standard, 10 ],
+      [ "2027-11-05", deluxe, 5 ]
+    ])
+    assert_response :unprocessable_entity
+    assert_select "#form-error-summary"
+    assert_select "input[value='abc']"
+    assert_equal 0, draft_version(item).capacity_pool_definitions.count
+    assert_equal 1, draft_version(item).service_occurrence_definitions.where(arrangement_item: item).count
+
+    record_openings(arrangement, item, [
+      [ "2027-11-04", standard, 5 ],
+      [ "2027-11-04", deluxe, 2 ],
+      [ "2027-11-05", standard, 10 ],
+      [ "2027-11-05", deluxe, 5 ]
+    ])
+    assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
     assert_equal version_id, draft_version(item).id
+    pools = draft_version(item).capacity_pool_definitions
+    assert_equal [ "contract" ], pools.map(&:evidence_kind).uniq
+    assert_equal [ Date.new(2026, 9, 30) ], pools.map(&:evidence_on).uniq
+    assert_equal [ "Hilton group contract" ], pools.map(&:evidence_reference_note).uniq
 
     assert_equal [ 5, 2, 10, 5 ], opening_quantities(item)
     version = draft_version(item)
@@ -112,14 +131,37 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     assert_match item.id, response.body
 
     deluxe_november_4 = pool_named(item, "November 4", "Deluxe")
-    patch item_inventory_opening_departure_arrangement_hotel_path(@departure, arrangement, item, deluxe_november_4), params: {
-      definition_lock_version: deluxe_november_4.lock_version,
-      opening: { proposed_opening_quantity: "0" }
-    }
+    sibling_stamps = draft_version(item).capacity_pool_definitions.where.not(id: deluxe_november_4.id).order(:id).map(&:updated_at)
+    record_openings(
+      arrangement, item,
+      [ [ "2027-11-04", deluxe, 3 ] ],
+      evidence: false,
+      locks: { deluxe_november_4.id => deluxe_november_4.lock_version }
+    )
+    assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_equal 3, deluxe_november_4.reload.proposed_opening_quantity
+    assert_equal sibling_stamps, draft_version(item).capacity_pool_definitions.where.not(id: deluxe_november_4.id).order(:id).map(&:updated_at)
+    record_openings(
+      arrangement, item,
+      [ [ "2027-11-04", deluxe, 2 ] ],
+      evidence: false,
+      locks: { deluxe_november_4.id => deluxe_november_4.lock_version }
+    )
+    assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+
+    deluxe_november_4 = pool_named(item, "November 4", "Deluxe")
+    sibling_stamps = draft_version(item).capacity_pool_definitions.where.not(id: deluxe_november_4.id).order(:id).map(&:updated_at)
+    record_openings(
+      arrangement, item,
+      [ [ "2027-11-04", deluxe, "0" ] ],
+      evidence: false,
+      locks: { deluxe_november_4.id => deluxe_november_4.lock_version }
+    )
     assert_response :unprocessable_entity
     assert_select "#form-error-summary"
-    assert_select "input[name='opening[proposed_opening_quantity]'][value='0']"
+    assert_select "input[name='quantity[#{deluxe.supplier_resource_id}][2027-11-04]'][value='0']"
     assert_equal [ 5, 2, 10, 5 ], opening_quantities(item)
+    assert_equal sibling_stamps, draft_version(item).capacity_pool_definitions.where.not(id: deluxe_november_4.id).order(:id).map(&:updated_at)
 
     post departure_arrangement_hotel_stays_path(@departure, arrangement), params: stay_params("Post-cruise hotel stay").except(:arrangement)
     second = item_named("Post-cruise hotel stay")
@@ -158,7 +200,7 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     arrangement = item.supplier_arrangement
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
     resource = resource_named(item, "Standard")
-    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", resource, 5)
+    record_openings(arrangement, item, [ [ "2027-11-04", resource, 5 ] ])
 
     pool_definition = pool_named(item, "November 4", "Standard")
     pool_definition.update!(unit_label: "cabins")
@@ -172,6 +214,16 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     assert_equal quantity_before, pool_definition.reload.proposed_opening_quantity
     assert_equal "cabins", pool_definition.unit_label
     assert_equal updated_at, pool_definition.updated_at
+
+    record_openings(
+      arrangement, item,
+      [ [ "2027-11-04", resource, 9 ] ],
+      evidence: false,
+      locks: { pool_definition.id => pool_definition.lock_version }
+    )
+    assert_response :unprocessable_entity
+    assert_equal quantity_before, pool_definition.reload.proposed_opening_quantity
+    assert_equal updated_at, pool_definition.updated_at
   end
 
   test "a successor draft is the pinned version and the governing predecessor stays unchanged" do
@@ -180,7 +232,7 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     arrangement = item.supplier_arrangement
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
     resource = resource_named(item, "Standard")
-    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", resource, 5)
+    record_openings(arrangement, item, [ [ "2027-11-04", resource, 5 ] ])
 
     activated = activate_arrangement!(arrangement)
     predecessor_pool = activated.capacity_pool_definitions.find_by!(label: "November 4 Standard")
@@ -194,10 +246,12 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     ).call.record
 
     successor_pool = successor.capacity_pool_definitions.find_by!(label: "November 4 Standard")
-    patch item_inventory_opening_departure_arrangement_hotel_path(@departure, arrangement, item, successor_pool), params: {
-      definition_lock_version: successor_pool.lock_version,
-      opening: { proposed_opening_quantity: "8" }
-    }
+    record_openings(
+      arrangement, item,
+      [ [ "2027-11-04", resource, "8" ] ],
+      evidence: false,
+      locks: { successor_pool.id => successor_pool.lock_version }
+    )
     assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
     assert_equal 8, successor_pool.reload.proposed_opening_quantity
     assert_equal 5, predecessor_pool.reload.proposed_opening_quantity
@@ -211,7 +265,7 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     arrangement = item.supplier_arrangement
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
     resource = resource_named(item, "Standard")
-    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", resource, 5)
+    record_openings(arrangement, item, [ [ "2027-11-04", resource, 5 ] ])
 
     governing = activate_arrangement!(arrangement)
     successor = CreateSupplierArrangementSuccessor.new(
@@ -241,10 +295,12 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     assert_match "Successor hotel stay", response.body
 
     successor_pool = successor.capacity_pool_definitions.find_by!(label: "November 4 Standard")
-    patch item_inventory_opening_departure_arrangement_hotel_path(@departure, arrangement, item, successor_pool), params: {
-      definition_lock_version: successor_pool.lock_version,
-      opening: { proposed_opening_quantity: "6" }
-    }
+    record_openings(
+      arrangement, item,
+      [ [ "2027-11-04", resource, "6" ] ],
+      evidence: false,
+      locks: { successor_pool.id => successor_pool.lock_version }
+    )
     assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
     assert_equal 6, successor_pool.reload.proposed_opening_quantity
     assert_equal successor.id, successor_pool.supplier_arrangement_version_id
@@ -321,8 +377,10 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Deluxe")
     standard = resource_named(item, "Standard")
     deluxe = resource_named(item, "Deluxe")
-    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", standard, 5)
-    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-05", deluxe, 5)
+    record_openings(arrangement, item, [
+      [ "2027-11-04", standard, 5 ],
+      [ "2027-11-05", deluxe, 5 ]
+    ])
 
     stay = occurrence_named(item, "Stay")
     stay_pair = draft_version(item).capacity_pair_definitions.find_by!(
@@ -333,8 +391,8 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
     assert_response :success
     assert_match "The Stay has no room-category classification.", response.body
-    assert_select "#hotel-category-#{deluxe.supplier_resource_id} input[name='opening[proposed_opening_quantity]']"
-    assert_select "#hotel-category-#{standard.supplier_resource_id} input[name='opening[proposed_opening_quantity]']", count: 0
+    assert_select "#hotel-category-#{deluxe.supplier_resource_id} input[id^='quantity_']"
+    assert_select "#hotel-category-#{standard.supplier_resource_id} input[id^='quantity_']", count: 0
 
     ClassifyCapacityPair.new(
       agency: @agency,
@@ -352,7 +410,7 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     night.update!(starts_at_local: "16:00", ends_at_local: "16:00")
     get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
     assert_match "A room night has a local time.", response.body
-    assert_select "#hotel-cell-2027-11-04-#{deluxe.supplier_resource_id} input[name='opening[proposed_opening_quantity]']"
+    assert_select "#hotel-cell-2027-11-04-#{deluxe.supplier_resource_id} input[id^='quantity_']"
 
     night.update!(starts_at_local: nil, ends_at_local: nil)
     inventory_pair = draft_version(item).capacity_pair_definitions.find_by!(
@@ -377,7 +435,7 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     )
     get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
     assert_match "A room night Pool is not one numeric block measured in rooms.", response.body
-    assert_select "#hotel-cell-2027-11-04-#{deluxe.supplier_resource_id} input[name='opening[proposed_opening_quantity]']"
+    assert_select "#hotel-cell-2027-11-04-#{deluxe.supplier_resource_id} input[id^='quantity_']"
   end
 
   test "a pool on the stay, an extra occurrence, and a second pool block the typed editor" do
@@ -386,7 +444,7 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     arrangement = item.supplier_arrangement
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
     resource = resource_named(item, "Standard")
-    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", resource, 5)
+    record_openings(arrangement, item, [ [ "2027-11-04", resource, 5 ] ])
     version = draft_version(item)
     before_occurrences = version.service_occurrence_definitions.where(arrangement_item: item).count
     before_pools = version.capacity_pool_definitions.count
@@ -441,7 +499,7 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     pool_count = draft_version(item).capacity_pool_definitions.count
     get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
     assert_match "The Stay has a Capacity Pool.", response.body
-    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-05", resource, 9)
+    record_openings(arrangement, item, [ [ "2027-11-05", resource, 9 ] ])
     assert_response :unprocessable_entity
     assert_equal pool_count, draft_version(item).capacity_pool_definitions.count
   end
@@ -452,7 +510,7 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     arrangement = item.supplier_arrangement
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
     resource = resource_named(item, "Standard")
-    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", resource, 5)
+    record_openings(arrangement, item, [ [ "2027-11-04", resource, 5 ] ])
     stay = occurrence_named(item, "Stay")
     night_id = occurrence_named(item, "November 4").id
 
@@ -500,18 +558,30 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     }
   end
 
-  def opening_params(date, resource, quantity)
-    {
+  def record_openings(arrangement, item, entries, evidence: true, locks: {})
+    patch item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: matrix_params(entries, evidence: evidence, locks: locks)
+  end
+
+  def matrix_params(entries, evidence: true, locks: {})
+    quantities = {}
+    entries.each do |date, resource, quantity|
+      quantities[resource.supplier_resource_id] ||= {}
+      quantities[resource.supplier_resource_id][date.to_s] = quantity
+    end
+    payload = {
       idempotency_key: SecureRandom.uuid,
-      opening: {
-        starts_on: date,
-        supplier_resource_id: resource.supplier_resource_id,
-        proposed_opening_quantity: quantity,
+      quantity: quantities
+    }
+    payload[:pool_lock] = locks if locks.present?
+    if evidence
+      payload[:evidence] = {
         evidence_kind: "contract",
         evidence_on: "2026-09-30",
         evidence_reference_note: "Hilton group contract"
       }
-    }
+    end
+    payload
   end
 
   def activate_arrangement!(arrangement)

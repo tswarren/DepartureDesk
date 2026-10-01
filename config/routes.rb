@@ -235,10 +235,9 @@ Rails.application.routes.draw do
         get "items/:item_id/stay/edit", to: "hotel_stays#edit", as: :edit_item_stay
         patch "items/:item_id/stay", to: "hotel_stays#update", as: :item_stay
         get "items/:item_id/inventory", to: "hotel_room_inventories#show", as: :item_inventory
+        patch "items/:item_id/inventory", to: "hotel_room_inventories#update"
         post "items/:item_id/inventory/resources", to: "hotel_room_inventories#create_resource", as: :item_inventory_resources
         patch "items/:item_id/inventory/resources/:resource_id", to: "hotel_room_inventories#update_resource", as: :item_inventory_resource
-        post "items/:item_id/inventory/openings", to: "hotel_room_inventories#create_opening", as: :item_inventory_openings
-        patch "items/:item_id/inventory/openings/:pool_definition_id", to: "hotel_room_inventories#update_opening", as: :item_inventory_opening
       end
       resource :activation,
         only: %i[show create],
