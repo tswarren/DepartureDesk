@@ -1,6 +1,6 @@
 Here is the **intended Cruise component workflow**, using Smith Family Reunion as the example. This describes the rework we have been designing; the :chatgpt-content-reference{index="0"}[draft plan](sandbox:/workspace/scratch/76dc08f1cc65/DepartureDesk-cruise-rework-plan-draft.md) and revised Celebrity fixture are **not yet accepted implementation authority**. Several steps differ from the shipped builder.
 
-Optional departure and return ports, itinerary notes, and commercial-benefit terms are accepted in [Sailing ports and commercial benefits](../m4d1-cruise-ports-and-commercial-benefits.md). This journey does not reopen them.
+Optional departure and return ports, itinerary notes, and commercial-benefit terms are accepted in [Sailing ports and commercial benefits](../m4-offers-and-pricing/m4d1-cruise-ports-and-commercial-benefits.md). This journey does not reopen them.
 
 The workflow has two boundaries:
 

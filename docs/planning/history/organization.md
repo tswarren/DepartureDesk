@@ -90,8 +90,8 @@ Update the status references in:
 - `docs/architecture/current-state.md`
 - `docs/terminology.md`
 - `docs/planning/roadmap.md`
-- `docs/planning/m4-offers-and-pricing.md`
-- `docs/planning/m4d1-departure-composition-workspace.md`
+- `docs/planning/m4-offers-and-pricing/m4-offers-and-pricing.md`
+- `docs/planning/m4-offers-and-pricing/m4d1-departure-composition-workspace.md`
 - `docs/planning/drafts/README.md`
 
 Do this as a small closure PR. Do not mix it with the Slice 3 redesign.

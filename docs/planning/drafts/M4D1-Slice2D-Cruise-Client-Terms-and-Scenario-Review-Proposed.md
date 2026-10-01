@@ -1,8 +1,8 @@
 # M4D.1 Slice 2D — Cruise Client Terms and Scenario Review
 
-**Status:** Superseded by [M4D.1 Slice 2D](../m4d1-slice2d-cruise-client-terms-and-scenario-review.md). Historical proposal. Not implementation authority.
+**Status:** Superseded by [M4D.1 Slice 2D](../m4-offers-and-pricing/m4d1-slice2d-cruise-client-terms-and-scenario-review.md). Historical proposal. Not implementation authority.
 
-**Parent authority:** `docs/planning/m4d1-departure-composition-workspace.md`, especially Stops F–G and §§13–14, 19, 21, and 23.
+**Parent authority:** `docs/planning/m4-offers-and-pricing/m4d1-departure-composition-workspace.md`, especially Stops F–G and §§13–14, 19, 21, and 23.
 
 **Prerequisite:** M4D.1 Slice 2C must be Shipped on a green `main` tip. Slice 2D consumes its one-Service-per-Cruise-Item claim, exactly-one cabin-category choice group, exact source bindings, and option-owned `client_rate_category_key`. It does not reinterpret or replace Slice 2C.
 

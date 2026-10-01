@@ -1,10 +1,10 @@
 # M4D.1 Slice 3 — Hotel, Transportation, Activity, and Mixed-DMC Adapters
 
-**Status:** Superseded by [M4D.1 Slice 3R](../m4d1-slice3r-non-cruise-adapter-boundary.md). Discovery history. Not implementation authority. `main` never accepted this draft.
+**Status:** Superseded by [M4D.1 Slice 3R](../m4-offers-and-pricing/m4d1-slice3r-non-cruise-adapter-boundary.md). Discovery history. Not implementation authority. `main` never accepted this draft.
 
 **Prototype:** Unmerged branch `m4d1-slice3-hotel-transport-activity` (PR #156) explored this approach. That branch is prototype evidence and is not an implementation source.
 
-**Parent authority:** [M4D.1 — Departure Composition Workspace](../m4d1-departure-composition-workspace.md). The generalized adapter approach in this draft is not the Slice 3 delivery boundary.
+**Parent authority:** [M4D.1 — Departure Composition Workspace](../m4-offers-and-pricing/m4d1-departure-composition-workspace.md). The generalized adapter approach in this draft is not the Slice 3 delivery boundary.
 
 **Prerequisite:** Slice 2D shipped at `dc272a3` (PR #154). The earlier prerequisite, which treated Slice 2D as still unshipped, is retired with this draft.
 
@@ -490,7 +490,7 @@ Ship:
 
 **Exit:** One DMC Arrangement can contain heterogeneous Items without a DMC aggregate, mega-form, or Cruise-specific persistence.
 
-This draft was never accepted on `main`. It is superseded by [M4D.1 Slice 3R](../m4d1-slice3r-non-cruise-adapter-boundary.md).
+This draft was never accepted on `main`. It is superseded by [M4D.1 Slice 3R](../m4-offers-and-pricing/m4d1-slice3r-non-cruise-adapter-boundary.md).
 
 ---
 
@@ -573,7 +573,7 @@ For each family, prove:
 
 On Accept:
 
-* create this document at `docs/planning/m4d1-slice3-hotel-transportation-activity-adapters.md`;
+* create this document at `docs/planning/m4d1-slice3-hotel-transportation-activity-adapters.md` (not created; the accepted boundary is [Slice 3R](../m4-offers-and-pricing/m4d1-slice3r-non-cruise-adapter-boundary.md));
 * update the M4D.1 parent Slice 3 section;
 * update `AGENTS.md`, `docs/README.md`, `docs/planning/roadmap.md`, and `docs/terminology.md`;
 * pin the implementation base;

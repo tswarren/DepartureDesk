@@ -1,6 +1,6 @@
 # Planning drafts
 
-Place new draft slice plans or amendments here until they are Accepted and moved into `docs/planning/` or `docs/adr/`. Files in this directory are not implementation authority.
+Place new draft plans or amendments here until they are Accepted and moved into the matching `docs/planning/` milestone folder or `docs/adr/`. Files in this directory are not implementation authority.
 
 Where the product stands is the [planning index](../README.md).
 
@@ -14,9 +14,9 @@ Where the product stands is the [planning index](../README.md).
 Superseded proposals and stubs that point at a shipped or accepted contract. Do not implement from them.
 
 - [Composition workspace stubs](composition-workspace/README.md).
-- [Slice 3 adapter draft](../history/md41-slice3-hotel-transport-etc-adapters-draft.md). Moved to planning history. Superseded by [Slice 3R](../m4d1-slice3r-non-cruise-adapter-boundary.md).
+- [Slice 3 adapter draft](../history/md41-slice3-hotel-transport-etc-adapters-draft.md). Moved to planning history. Superseded by [Slice 3R](../m4-offers-and-pricing/m4d1-slice3r-non-cruise-adapter-boundary.md).
 - [Slice 3 review](../history/m4d1-slice3-review.md) and the earlier planning essays in [planning history](../history/README.md). Not implementation authority.
-- [Discarded Hilton walkthrough](../history/m4d1-slice3-a-hotel.md). Moved to planning history. Superseded by the Approved [Hilton Fort Lauderdale Marina fixture](../fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) and the Accepted [Hotel Staff walkthrough](../m4d1-hilton-hotel-staff-walkthrough.md).
+- [Discarded Hilton walkthrough](../history/m4d1-slice3-a-hotel.md). Moved to planning history. Superseded by the Approved [Hilton Fort Lauderdale Marina fixture](../fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) and the Accepted [Hotel Staff walkthrough](../m4-offers-and-pricing/m4d1-hilton-hotel-staff-walkthrough.md).
 - [Slice 2D proposal](M4D1-Slice2D-Cruise-Client-Terms-and-Scenario-Review-Proposed.md).
 - [Slice 2C draft](slice2c.md) and [Slice 2C decision notes](slice2c-proposed-decisions.md).
 - [Slice 2B-UX draft pointer](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md).
@@ -27,4 +27,4 @@ Superseded proposals and stubs that point at a shipped or accepted contract. Do 
 - [M4D.0R remediation brief](DepartureDesk-M4D0-builder-interface-remediation-brief.md).
 - [Group-departure wizard notes](DepartureDesk-group-departure-wizard.md).
 
-Promoted contracts now live in `docs/planning/` and `docs/adr/`.
+Promoted contracts now live in the `docs/planning/` milestone folders and in `docs/adr/`.

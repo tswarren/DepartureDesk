@@ -3,7 +3,7 @@
 **Status:** Approved 2026-09-27 at the single registered Hotel fixture path, `docs/planning/fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md`. This is the Hotel agreement scenario for the Smith Family Reunion stay. Approval does not authorize Hotel implementation. An accepted Slice 3A plan must name the facts it uses. The contract/signature date and Hotel group or confirmation number stay blank.  
 **Departure:** Smith Family Reunion  
 **Supplier:** Hilton Fort Lauderdale Marina  
-**Purpose:** Approved Hotel agreement facts and MVP proof scenario, with the [Hotel Staff walkthrough](../m4d1-hilton-hotel-staff-walkthrough.md).
+**Purpose:** Approved Hotel agreement facts and MVP proof scenario, with the [Hotel Staff walkthrough](../m4-offers-and-pricing/m4d1-hilton-hotel-staff-walkthrough.md).
 
 ## 1. Authority and scope
 

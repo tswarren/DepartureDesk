@@ -1,6 +1,6 @@
 # ADR 0010: Supplier capacity ledger and projection
 
-- Status: Accepted. Implemented by shipped [M3B](../planning/m3b-supplier-capacity.md). Arrangement activation and Staff-facing effective-capacity controls remain M3D.
+- Status: Accepted. Implemented by shipped [M3B](../planning/m3-supplier-planning/m3b-supplier-capacity.md). Arrangement activation and Staff-facing effective-capacity controls remain M3D.
 - Date: 2026-09-16
 - Amended: 2026-09-27. An evidenced increase under unchanged governing terms is a capacity event on the existing Pool. Inventory with different rates, deposit treatment, or release terms uses a successor and a distinct Resource, Pool, and rate source. Passing a deadline does not itself release capacity.
 - Decision owners: DepartureDesk maintainers
@@ -193,6 +193,6 @@ Rejected. Whole-number `resource_units` and `traveler_positions` are the closed 
 
 ## Implementation boundary
 
-This ADR establishes capacity topology and authority. [M3B](../planning/m3b-supplier-capacity.md) shipped draft Pool configuration and the event/projection/reconciliation engine. Arrangement activation and user-accessible effective-capacity controls remain M3D work.
+This ADR establishes capacity topology and authority. [M3B](../planning/m3-supplier-planning/m3b-supplier-capacity.md) shipped draft Pool configuration and the event/projection/reconciliation engine. Arrangement activation and user-accessible effective-capacity controls remain M3D work.
 
 M3B did not add a production activation command, bypass flag, controller, route, task, seed, or console-oriented activation service. Activated test graphs are created only by static fixtures or helpers under `test/`. Event, reconciliation, override, projection, and inactive-Supplier recovery commands are proven in model/service tests and are not reachable from HTTP or Staff UI until M3D explicitly exposes them.

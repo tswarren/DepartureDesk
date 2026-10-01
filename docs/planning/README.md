@@ -1,53 +1,97 @@
 # Planning
 
-This page is the slice-level status index. A slice's own header remains the authority for that slice.
+This page is the canonical index of current planning status and authorization. An accepted or shipped plan remains the authority for the scope and contract it established. This index says where that work stands and links to it. It does not restate the contract.
 
-**Status words:** Draft, Accepted, Shipped, Superseded, Historical, Complete. Complete is only for a parent whose required slices have shipped.
+A milestone-folder `README.md` is a reading list. It does not establish status or implementation authority.
+
+**Document statuses:** Draft, Accepted, Shipped, Superseded, Historical, Complete. Complete is only for a parent whose required plans have shipped.
+
+**Index states:** **Not authorized** means no accepted plan exists, so the work must not be implemented. **Deferred** means a decision already postponed the work. Neither word belongs in a plan header.
+
+## Planning names
+
+Plans created after this reorganization use descriptive filenames within their milestone folder. Existing historical milestone and slice identifiers remain valid for existing documents, but new plans do not extend those identifier trees. Dependencies and sequencing are stated explicitly in plan metadata rather than encoded in filenames.
+
+Milestone numbers such as M5 and M6 stay. A new plan must not be named `M4D.1 Slice 3B` or `3A.4`.
 
 ## Where we stand
 
-M1, M2, and M3 are complete. M4 is accepted and shipped through M4D.0. The Cruise vertical of M4D.1 is shipped through Slice 2D. [Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md) shipped in PR #162. [Slice 3R](m4d1-slice3r-non-cruise-adapter-boundary.md) is accepted for the layer boundary and delivery order only.
-
-## Now
-
-[Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md) shipped in PR #162. The [Cruise rework](m4d1-cruise-rework.md) is Accepted 2026-09-27. Its contracted-rate, agreement-confirmation, deposit and deadline, later-capacity, and Offer Design slices are implemented. Slice 6 document storage stays deferred. The [Cruise Composition UX](m4d1-cruise-composition-ux.md) plan is Accepted 2026-09-28. UX-1, the read-only overview, UX-2, establish supply, and UX-3, establish economics, are accepted. UX-4, record requirements, and UX-4.5, numeric capacity evaluation, are accepted. UX-5, review and activate, is implemented. UX-6, maintain active and proposed Cruise supply, is implemented at `fe01ed2`. [UX-7](m4d1-cruise-composition-ux7.md), Cruise Supplier workspace consolidation, is Accepted 2026-09-29. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is implemented. UX-7.4, Agreement, is implemented. UX-7.5, Review & activate, is implemented. UX-7.6, Inventory maintenance and Active snapshot polish, is implemented. UX-7.7, closure, is implemented. The Cruise Supplier workspace consolidation is complete. No further implementation slice is authorized. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27, and the [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. The next unauthorized non-Cruise boundary is a Slice 3A implementation plan. Hotel implementation remains prohibited until that plan is accepted. Supplier Composition fixtures are indexed in [fixtures/README.md](fixtures/README.md). Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence and are not an implementation source.
+M1, M2, and M3 are complete. M4 offers through M4D.0 are shipped. Cruise Supplier Composition through the workspace consolidation is shipped, except Cruise document storage, which is Deferred. Hotel Supplier Composition, Hotel Agreement, Hotel Review and Activation, Hotel Lifecycle, Transportation, M4E, and M5 are Not authorized.
 
 ## Milestones
 
 | Milestone | State | Authority |
 | --- | --- | --- |
 | M0 — Agency identity | Complete | [Roadmap](roadmap.md) |
-| M1 — Directories | Complete | [M1](m1-client-and-supplier-directories.md) |
-| M2 — Departure core | Complete | [M2](m2-departure-core.md) |
-| M3 — Supplier planning | Complete | [M3](m3-supplier-planning.md) |
-| M4 — Offers and pricing | Accepted; shipped through M4D.0; M4D.1 in progress | [M4](m4-offers-and-pricing.md) |
-| M5 — Client Trips and fulfillment | Planned | [Roadmap](roadmap.md) |
-| M6A — Client subledger | Planned | [Roadmap](roadmap.md) |
-| M6B — Supplier subledger | Planned | [Roadmap](roadmap.md) |
-| M7 — Changes and operations | Planned | [Roadmap](roadmap.md) |
-| M8 — Reconciliation and pilot readiness | Planned | [Roadmap](roadmap.md) |
+| M1 — Directories | Complete | [M1](m1-separate-directories/m1-client-and-supplier-directories.md) |
+| M2 — Departure core | Complete | [M2](m2-departure-core/m2-departure-core.md) |
+| M3 — Supplier planning | Complete | [M3](m3-supplier-planning/m3-supplier-planning.md) |
+| M4 — Offers and pricing | Accepted; later standing is this index | [M4](m4-offers-and-pricing/m4-offers-and-pricing.md) |
+| M5 — Client Trips and fulfillment | Not authorized | [Roadmap](roadmap.md) sequences it after M4 |
+| M6A — Client subledger | Not authorized | [Roadmap](roadmap.md) |
+| M6B — Supplier subledger | Not authorized | [Roadmap](roadmap.md) |
+| M7 — Changes and operations | Not authorized | [Roadmap](roadmap.md) |
+| M8 — Reconciliation and pilot readiness | Not authorized | [Roadmap](roadmap.md) |
 
-## M4D.1
+Roadmap **Planned** means the milestone comes later. It does not authorize code.
 
-Parent: [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md) (Accepted).
+## M4 — Offers
 
-- **Slice 1 — Shipped.** [Workspace foundation](m4d1-slice1-workspace-foundation.md).
-- **Slice 2A — Shipped.** [Sailing and cabin inventory](m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md), [Supplier rates and occupancy totals](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md), [rate matrix](m4d1-slice2a2r-cruise-supplier-rate-matrix.md), [matrix interaction](m4d1-slice2a2r2-cruise-rate-matrix-interaction.md), and [rate-shape detector](m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md).
-- **Slice 2B — Shipped.** [Deposits, deadlines, and activation-safe editing](m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md), [deposit semantics](m4d1-slice2br-cruise-deposit-semantics-amendment.md), [workspace remediation](m4d1-slice2bux-deposits-deadlines-workspace-remediation.md), and [contributor replace](m4d1-slice2buxr-contributor-replace-and-closure.md).
-- **Slice 2C — Shipped.** [Cruise service connection](m4d1-slice2c-cruise-service-connection.md).
-- **Slice 2D — Shipped.** [Cruise Client terms and scenario review](m4d1-slice2d-cruise-client-terms-and-scenario-review.md).
-- **Ports and commercial benefits — Shipped.** [Sailing ports and commercial benefits](m4d1-cruise-ports-and-commercial-benefits.md). Optional ports, itinerary notes, and versioned tour-conductor and GAP terms only.
-- **Slice 3R — Accepted.** [Non-Cruise adapter boundary](m4d1-slice3r-non-cruise-adapter-boundary.md). Layer boundary and delivery order only.
-- **Cruise rework — Accepted 2026-09-27, slices 1–5 and 7 implemented.** [Supplier agreement, contracted rates, deposits, and amendments](m4d1-cruise-rework.md). Slice 6 document storage stays deferred. Not Hotel code.
-- **Cruise Composition UX — Accepted 2026-09-28.** [Overview and later presentation slices](m4d1-cruise-composition-ux.md). UX-1, UX-2, and UX-3 are accepted. UX-4, record requirements, and UX-4.5, numeric capacity evaluation, are accepted. UX-5, review and activate, is implemented. UX-6, maintain active and proposed Cruise supply, is implemented at `fe01ed2`.
-- **UX-7 — Accepted 2026-09-29.** [Cruise Supplier workspace consolidation](m4d1-cruise-composition-ux7.md). UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is implemented. UX-7.2, Cabin inventory, is implemented. UX-7.3, Supplier rates, is implemented. UX-7.4, Agreement, is implemented. UX-7.5, Review & activate, is implemented. UX-7.6, Inventory maintenance and Active snapshot polish, is implemented. UX-7.7, closure, is implemented. The Cruise Supplier workspace consolidation is complete. No further implementation slice is authorized. Not Hotel code, agreement documents, or a workflow engine.
-- **Hotel Staff walkthrough — Accepted 2026-09-27.** [Hilton journey](m4d1-hilton-hotel-staff-walkthrough.md), with the Approved [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md). Authorizes a Slice 3A plan, not Hotel code.
+| Capability | Status | Governing document |
+| --- | --- | --- |
+| Task-flow gate | Accepted | [M4.0](m4-offers-and-pricing/m40-task-flow-and-contract.md) |
+| Service definitions | Shipped | [M4A](m4-offers-and-pricing/m4a-service-definitions-and-sources.md) |
+| Unpublished Client pricing | Shipped | [M4B](m4-offers-and-pricing/m4b-client-pricing-and-anonymous-preview.md) |
+| Packages, choices, and Client terms | Shipped | [M4C](m4-offers-and-pricing/m4c-packages-choices-and-client-terms.md) |
+| Publication and live feasibility | Shipped | [M4D](m4-offers-and-pricing/m4d-publication-and-live-feasibility.md) |
+| Narrow group departure builder | Shipped | [M4D.0](m4-offers-and-pricing/m4d0-narrow-group-departure-builder.md) |
+| Builder interface remediation | Historical | [M4D.0R](m4-offers-and-pricing/m4d0r-builder-interface-remediation.md) |
+
+## Supplier Composition
+
+| Capability | Status | Governing document |
+| --- | --- | --- |
+| Composition workspace | Shipped | [Workspace foundation](m4-offers-and-pricing/m4d1-slice1-workspace-foundation.md), under the [M4D.1 parent](m4-offers-and-pricing/m4d1-departure-composition-workspace.md) |
+| Non-Cruise adapter boundary | Accepted | [Slice 3R](m4-offers-and-pricing/m4d1-slice3r-non-cruise-adapter-boundary.md). Layer boundary and delivery order only. It authorizes no adapter code. |
+
+### Cruise
+
+| Capability | Status | Governing document |
+| --- | --- | --- |
+| Sailing and cabin inventory | Shipped | [Slice 2A.1](m4-offers-and-pricing/m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) |
+| Supplier rates | Shipped | [Slice 2A.2](m4-offers-and-pricing/m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md), [rate matrix](m4-offers-and-pricing/m4d1-slice2a2r-cruise-supplier-rate-matrix.md), [matrix interaction](m4-offers-and-pricing/m4d1-slice2a2r2-cruise-rate-matrix-interaction.md), [rate-shape detector](m4-offers-and-pricing/m4d1-slice2a2r3-cruise-rate-shape-detector-remediation.md) |
+| Deposits and deadlines | Shipped | [Slice 2B](m4-offers-and-pricing/m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md), [deposit semantics](m4-offers-and-pricing/m4d1-slice2br-cruise-deposit-semantics-amendment.md), [workspace remediation](m4-offers-and-pricing/m4d1-slice2bux-deposits-deadlines-workspace-remediation.md), [contributor replace](m4-offers-and-pricing/m4d1-slice2buxr-contributor-replace-and-closure.md) |
+| Service connection | Shipped | [Slice 2C](m4-offers-and-pricing/m4d1-slice2c-cruise-service-connection.md) |
+| Client terms and scenario review | Shipped | [Slice 2D](m4-offers-and-pricing/m4d1-slice2d-cruise-client-terms-and-scenario-review.md) |
+| Ports and commercial benefits | Shipped | [Sailing ports and commercial benefits](m4-offers-and-pricing/m4d1-cruise-ports-and-commercial-benefits.md) |
+| Cruise rework | Accepted | [Cruise rework](m4-offers-and-pricing/m4d1-cruise-rework.md). Slices 1–5 and 7 are implemented. |
+| Cruise document storage | Deferred | — |
+| Composition UX | Shipped | [Cruise Composition UX](m4-offers-and-pricing/m4d1-cruise-composition-ux.md) through [UX-7](m4-offers-and-pricing/m4d1-cruise-composition-ux7.md) |
+
+### Hotel
+
+| Capability | Status | Governing document |
+| --- | --- | --- |
+| Hilton staff walkthrough | Accepted | [Walkthrough](m4-offers-and-pricing/m4d1-hilton-hotel-staff-walkthrough.md) and the Approved [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) |
+| Hotel Supplier Composition | Not authorized | — |
+| Hotel Agreement | Not authorized | — |
+| Hotel Review and Activation | Not authorized | — |
+| Hotel Lifecycle | Not authorized | — |
+
+### Other
+
+| Capability | Status | Governing document |
+| --- | --- | --- |
+| Transportation | Not authorized | — |
+| M4E — acceptance and hardening | Not authorized | — |
+
+Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence and are not an implementation source. Supplier Composition fixtures are indexed in [fixtures/README.md](fixtures/README.md).
 
 ## Product authority
 
 - [MVP](departure-desk-mvp.md) — product scope.
 - [Commercial decision register](commercial-domain-decision-register.md) — commercial and financial rules.
-- [Roadmap](roadmap.md) — milestone sequence and gates.
+- [Roadmap](roadmap.md) — milestone sequence. It does not authorize a plan.
 
 ## Drafts
 

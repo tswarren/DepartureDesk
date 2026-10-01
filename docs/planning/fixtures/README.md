@@ -32,7 +32,7 @@ Behavior coverage is [the proof matrix](supplier-composition-proof-matrix.md).
 | Proves | Nightly room blocks that vary by date, occupancy-position room rates, percentage deposits on contracted room revenue, draft/governing/successor behavior, and a second Hotel Item under the same Arrangement. |
 | Supersedes | The discarded Hilton walkthrough and its simplified stay. |
 | Unresolved | Contract/signature date and Hotel group or confirmation number. Both stay blank. |
-| Walkthrough | [Hilton Staff journey](../m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27. It chooses no Hotel Client Service connection in Supplier Composition. |
+| Walkthrough | [Hilton Staff journey](../m4-offers-and-pricing/m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27. It chooses no Hotel Client Service connection in Supplier Composition. |
 | Slices that may rely on it | An accepted Slice 3A plan may name these facts. Approval does not authorize Hotel code. |
 
 ## ABC Motorcoach

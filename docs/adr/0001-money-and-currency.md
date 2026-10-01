@@ -26,7 +26,7 @@ DepartureDesk will adopt `money-rails` as the Rails integration and value-object
 
 The gem will not define the accounting model and will not be the sole enforcement layer. PostgreSQL columns and constraints remain authoritative; DepartureDesk domain records define the meaning, provenance, state, and relationships of each amount.
 
-This ADR accepts the dependency and persistence convention. The gem is installed (`Gemfile`, lockfile, `config/initializers/money.rb`, and mismatch tests). [M3C](../planning/m3c-cost-terms-and-forecasts.md) shipped the first draft Supplier cost monetary tables using `*_minor_units` plus explicit definition currency. Posted client/supplier ledgers, Obligations, Payments, and historical conversion facts remain later implementation. The accepted MVP commercial contract limits each Departure to one operating currency and excludes FX. Do not persist functional-currency translations or conversion facts until a later accepted amendment introduces cross-currency behavior.
+This ADR accepts the dependency and persistence convention. The gem is installed (`Gemfile`, lockfile, `config/initializers/money.rb`, and mismatch tests). [M3C](../planning/m3-supplier-planning/m3c-cost-terms-and-forecasts.md) shipped the first draft Supplier cost monetary tables using `*_minor_units` plus explicit definition currency. Posted client/supplier ledgers, Obligations, Payments, and historical conversion facts remain later implementation. The accepted MVP commercial contract limits each Departure to one operating currency and excludes FX. Do not persist functional-currency translations or conversion facts until a later accepted amendment introduces cross-currency behavior.
 
 ## Persistence contract
 
