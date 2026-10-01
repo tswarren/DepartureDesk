@@ -1,14 +1,14 @@
 # ADR 0013: Supplier operational commitments, Deadlines, exposure, and Arrangement ending
 
-- Status: Accepted. Implemented by shipped [M3E](../planning/m3e-supplier-operational-control.md). M3E.1–M3E.7b (including M3E.5R and M3D remediations) are shipped. Arrangement ending is shipped. M3E is fully shipped and production-ready.
+- Status: Accepted. Implemented by shipped [M3E](../planning/m3-supplier-planning/m3e-supplier-operational-control.md). M3E.1–M3E.7b (including M3E.5R and M3D remediations) are shipped. Arrangement ending is shipped. M3E is fully shipped and production-ready.
 - Date: 2026-09-18
-- Amended: 2026-09-18; amended again 2026-09-18 (tranche, earlier-of, reconciliation matrix, cascade catalog, projection locators); Accepted 2026-09-18; amended 2026-09-22 ([M4D.1 Slice 2B-R](../planning/m4d1-slice2br-cruise-deposit-semantics-amendment.md) capacity-sourced deposits and source-aware cumulative targets); amended 2026-09-27. The Celebrity example below is historical for that sailing. The accepted Cruise rework replaces the Arrangement-wide `$500 × retained cabins` final tranche with a readable allocated-cabin rule and keeps one initial `$50 ×` opening-block requirement. The generic cumulative-target mechanism remains for other contracts. July 9 is a Staff action and does not itself release capacity.
+- Amended: 2026-09-18; amended again 2026-09-18 (tranche, earlier-of, reconciliation matrix, cascade catalog, projection locators); Accepted 2026-09-18; amended 2026-09-22 ([M4D.1 Slice 2B-R](../planning/m4-offers-and-pricing/m4d1-slice2br-cruise-deposit-semantics-amendment.md) capacity-sourced deposits and source-aware cumulative targets); amended 2026-09-27. The Celebrity example below is historical for that sailing. The accepted Cruise rework replaces the Arrangement-wide `$500 × retained cabins` final tranche with a readable allocated-cabin rule and keeps one initial `$50 ×` opening-block requirement. The generic cumulative-target mechanism remains for other contracts. July 9 is a Staff action and does not itself release capacity.
 - Decision owners: DepartureDesk maintainers
-- Parent: [M3 — Supplier planning](../planning/m3-supplier-planning.md)
+- Parent: [M3 — Supplier planning](../planning/m3-supplier-planning/m3-supplier-planning.md)
 - Architecture: [ADR 0008](0008-supplier-arrangement-version-topology.md), [ADR 0009](0009-supplier-contracting-and-service-provider-roles.md), [ADR 0010](0010-supplier-capacity-ledger-and-projection.md), [ADR 0011](0011-supplier-cost-definitions-and-forecast-evaluation.md), and [ADR 0012](0012-arrangement-activation-reservations-and-confirmations.md)
-- Decision register: [M3E Decision Register](../planning/m3e-decision-register.md)
-- Prerequisite: M3D, including M3D.9 Reservation-integrity remediation, must be shipped and final M3D correctness QC must be green at the implementation branch base. [M3E.0](../planning/m3e0-m3d-closure-gate.md) records that gate as satisfied on pinned base `344ab86`.
-- Implementing slice: [M3E](../planning/m3e-supplier-operational-control.md)
+- Decision register: [M3E Decision Register](../planning/m3-supplier-planning/m3e-decision-register.md)
+- Prerequisite: M3D, including M3D.9 Reservation-integrity remediation, must be shipped and final M3D correctness QC must be green at the implementation branch base. [M3E.0](../planning/m3-supplier-planning/m3e0-m3d-closure-gate.md) records that gate as satisfied on pinned base `344ab86`.
+- Implementing slice: [M3E](../planning/m3-supplier-planning/m3e-supplier-operational-control.md)
 
 ## Context
 
@@ -187,7 +187,7 @@ Therefore:
 
 Deposit and Deadline definitions (and related commitment-definition lines) belong to one exact Arrangement version and use explicit coverage links to supported Arrangement, Item, capacity, Supplier cost, Reservation, or planning-milestone sources. Generic polymorphic ownership is rejected on authoritative records.
 
-Draft definitions may be incomplete. Activation requires every enabled definition to be structurally complete, coverage-compatible, and deterministically calculable. [M3D.7](../planning/m3d7-activated-definition-immutability.md) freeze rules extend to these new exact-version definition families: only draft definitions remain editable.
+Draft definitions may be incomplete. Activation requires every enabled definition to be structurally complete, coverage-compatible, and deterministically calculable. [M3D.7](../planning/m3-supplier-planning/m3d7-activated-definition-immutability.md) freeze rules extend to these new exact-version definition families: only draft definitions remain editable.
 
 Activation atomically materializes definitions whose triggers are already true, including earlier-of definitions using their fallback date; any failed required materialization rolls back activation.
 

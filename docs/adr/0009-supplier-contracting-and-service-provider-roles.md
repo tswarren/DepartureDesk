@@ -14,7 +14,7 @@ Finally, Supplier lifecycle commands must not silently invalidate current Suppli
 
 ## Decision
 
-This ADR locks the role meanings required by [M3 closed decisions 6 and 10](../planning/m3-supplier-planning.md). It does not authorize Arrangement persistence or Supplier-inactivation dependencies by itself.
+This ADR locks the role meanings required by [M3 closed decisions 6 and 10](../planning/m3-supplier-planning/m3-supplier-planning.md). It does not authorize Arrangement persistence or Supplier-inactivation dependencies by itself.
 
 ### Contracting Supplier
 

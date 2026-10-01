@@ -1,6 +1,6 @@
 # ADR 0011: Supplier cost definitions and forecast evaluation
 
-- Status: Accepted. Implemented by shipped [M3C](../planning/m3c-cost-terms-and-forecasts.md). Arrangement activation and effective contracted terms remain M3D.
+- Status: Accepted. Implemented by shipped [M3C](../planning/m3-supplier-planning/m3c-cost-terms-and-forecasts.md). Arrangement activation and effective contracted terms remain M3D.
 - Date: 2026-09-17
 - Amended: 2026-09-27. Estimate and contracted definitions remain distinct siblings. Recording contracted Cruise rates copies an estimate into a new contracted definition and does not change the estimate's stage. A changed-cost supplemental Cruise block uses its own Resource-scoped cost source. This amendment adds no Pool-scoped cost definitions.
 - Decision owners: DepartureDesk maintainers
@@ -17,7 +17,7 @@ M3C therefore needs one durable calculation model that preserves provenance and 
 
 ## Decision
 
-This ADR governs Supplier cost-term definitions and draft forecast evaluation. [M3C](../planning/m3c-cost-terms-and-forecasts.md) shipped the implementing persistence, commands, and draft UI.
+This ADR governs Supplier cost-term definitions and draft forecast evaluation. [M3C](../planning/m3-supplier-planning/m3c-cost-terms-and-forecasts.md) shipped the implementing persistence, commands, and draft UI.
 
 ### Exact-version economic source
 
@@ -292,6 +292,6 @@ Rejected for M3C. One current assumption set per exact context is sufficient for
 
 ## Implementation boundary
 
-This ADR establishes cost-definition and forecast-evaluation authority. [M3C](../planning/m3c-cost-terms-and-forecasts.md) shipped draft cost sources, definitions, components, usage assumptions, deterministic forecast evaluation, and draft UI. Arrangement activation and effective contracted terms remain M3D work.
+This ADR establishes cost-definition and forecast-evaluation authority. [M3C](../planning/m3-supplier-planning/m3c-cost-terms-and-forecasts.md) shipped draft cost sources, definitions, components, usage assumptions, deterministic forecast evaluation, and draft UI. Arrangement activation and effective contracted terms remain M3D work.
 
 M3A, M3B, and M3C are shipped. Arrangement activation, successor copying, effective contracted terms, Reservations, commitments, Supplier Obligations, FX, posting, settlement, and remittance remain later slices.

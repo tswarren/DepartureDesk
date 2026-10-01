@@ -3,7 +3,7 @@
 require "test_helper"
 
 # M3F.2 integrated Celebrity Beyond and Vineyard Tour Supplier-side journeys.
-# Ledger labels follow docs/planning/m3f-acceptance-and-hardening.md.
+# Ledger labels follow docs/planning/m3-supplier-planning/m3f-acceptance-and-hardening.md.
 # M3E.7b remains slice baseline; this file owns the parent integrated composition.
 class M3f2IntegratedScenarioJourneysTest < ActiveSupport::TestCase
   include M3fScenarioHelper

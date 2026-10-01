@@ -2,6 +2,6 @@
 
 **Status:** Promoted 2026-09-21.
 
-Accepted authority lives at [m4d0-narrow-group-departure-builder.md](../m4d0-narrow-group-departure-builder.md).
+Accepted authority lives at [m4d0-narrow-group-departure-builder.md](../m4-offers-and-pricing/m4d0-narrow-group-departure-builder.md).
 
 The [streamlined discovery draft](DepartureDesk-M4D0-streamlined-group-departure-builder-draft.md) remains discovery backlog only.

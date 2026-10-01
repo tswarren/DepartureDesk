@@ -1,8 +1,8 @@
 # M4D.1 Slice 2C — Connect Cruise Service, Cabin Categories, and Client Choices
 
-**Status:** Superseded by [M4D.1 Slice 2C](../m4d1-slice2c-cruise-service-connection.md). Historical draft. Not implementation authority.
+**Status:** Superseded by [M4D.1 Slice 2C](../m4-offers-and-pricing/m4d1-slice2c-cruise-service-connection.md). Historical draft. Not implementation authority.
 
-**Parent authority:** [M4D.1](m4d1-departure-composition-workspace.md), especially §§11, 13, 19, and 21.
+**Parent authority:** [M4D.1](../m4-offers-and-pricing/m4d1-departure-composition-workspace.md), especially §§11, 13, 19, and 21.
 
 **Implementation base:** Green `main` at or after `df16a71` (PR #152), with Slice 2B, 2B-UX, and 2B-UX-R shipped.
 

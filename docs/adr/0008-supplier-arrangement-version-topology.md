@@ -15,7 +15,7 @@ The model therefore needs to distinguish stable identity from the exact versione
 
 ## Decision
 
-This ADR locks the topology required by [M3 closed decision 4](../planning/m3-supplier-planning.md). It does not authorize Arrangement tables or commands by itself.
+This ADR locks the topology required by [M3 closed decision 4](../planning/m3-supplier-planning/m3-supplier-planning.md). It does not authorize Arrangement tables or commands by itself.
 
 ### Stable Arrangement and immutable activated versions
 

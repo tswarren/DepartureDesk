@@ -52,6 +52,6 @@ Every normative or planning document should state its status near the top. Histo
 - Keep shipped behavior distinct from planned behavior.
 - Link to a governing document instead of copying it into another file.
 - Preserve superseded ADRs in `adr/`; archive obsolete implementation plans elsewhere.
-- A slice status change updates that slice's header and `docs/planning/README.md`.
+- A status or authorization change is recorded in `docs/planning/README.md`. The plan's own header stays the authority for the scope that plan established. Do not restate that standing in the roadmap or in `AGENTS.md`.
 - Update `AGENTS.md` only when the unauthorized boundary changes.
 - Do not place secrets, real traveler data, or production credentials in documentation or scenarios.

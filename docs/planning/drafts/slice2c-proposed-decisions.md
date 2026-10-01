@@ -1,4 +1,4 @@
-**Status:** Superseded by [M4D.1 Slice 2C](../m4d1-slice2c-cruise-service-connection.md). Historical decision notes. Not implementation authority.
+**Status:** Superseded by [M4D.1 Slice 2C](../m4-offers-and-pricing/m4d1-slice2c-cruise-service-connection.md). Historical decision notes. Not implementation authority.
 
 I would lock the following decisions. One important change from my earlier draft: the rate-category key should follow the stable Client choice option, not the Supplier Resource.
 

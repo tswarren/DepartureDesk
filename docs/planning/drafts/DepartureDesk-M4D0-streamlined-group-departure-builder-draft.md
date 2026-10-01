@@ -1,10 +1,10 @@
 # M4D.0 — Streamlined group departure builder
 
-**Status:** Draft for review, 2026-09-21. **Discovery backlog only**—not implementation authority. Accepted implementation authority is [M4D.0 narrow builder](../m4d0-narrow-group-departure-builder.md). Product decisions here that are not also in that Accepted plan remain deferred until a later accepted slice names them.
+**Status:** Draft for review, 2026-09-21. **Discovery backlog only**—not implementation authority. Accepted implementation authority is [M4D.0 narrow builder](../m4-offers-and-pricing/m4d0-narrow-group-departure-builder.md). Product decisions here that are not also in that Accepted plan remain deferred until a later accepted slice names them.
 
 **Pinned planning note:** Shipped M4D merge [`88db505`](https://github.com/tswarren/DepartureDesk/commit/88db505fa81ab740ad134fea28998841b401d7e9). Implementation of the first builder uses the narrow draft’s pin and acceptance gate, not this document.
 
-**Placement:** After shipped [M4D](../m4d-publication-and-live-feasibility.md) and before draft [M4E](DepartureDesk-M4E-acceptance-and-hardening-draft.md), as discovery context for the narrow plan. Do not treat this file as permission to implement document upload, Departure sales-action policy, proposal sharing, or other deferred items ahead of the narrow contract.
+**Placement:** After shipped [M4D](../m4-offers-and-pricing/m4d-publication-and-live-feasibility.md) and before draft [M4E](DepartureDesk-M4E-acceptance-and-hardening-draft.md), as discovery context for the narrow plan. Do not treat this file as permission to implement document upload, Departure sales-action policy, proposal sharing, or other deferred items ahead of the narrow contract.
 
 ## Goal
 

@@ -6,7 +6,7 @@
 
 ## Context
 
-The MVP vocabulary describes Travel Program as an optional reusable or recurring concept and Departure as a dated occurrence. Parent [M2 — Departure core](../planning/m2-departure-core.md) must establish which record is the operational ownership root before later planning, offers, Client Trips, fulfillment, capacity, financial, cancellation, reporting, and closeout records attach.
+The MVP vocabulary describes Travel Program as an optional reusable or recurring concept and Departure as a dated occurrence. Parent [M2 — Departure core](../planning/m2-departure-core/m2-departure-core.md) must establish which record is the operational ownership root before later planning, offers, Client Trips, fulfillment, capacity, financial, cancellation, reporting, and closeout records attach.
 
 Neither accepted reference scenario currently demonstrates a durable shared record above Departure:
 
