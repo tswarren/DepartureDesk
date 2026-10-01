@@ -93,9 +93,7 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
       supplier_deposit_requirement_definitions
       supplier_arrangement_commercial_benefit_definitions
       supplier_arrangement_cruise_term_definitions
-      supplier_deposit_bases supplier_deposit_basis_entries supplier_deposit_basis_shares
-      hotel_attrition_policies hotel_attrition_nights hotel_attrition_zero_utilization_rates
-      supplier_deposit_refund_clarifications
+      supplier_agreement_references
     ].each { |association| version.public_send(association).order(:id).lock.load }
     SupplierCostComponentBase.where(supplier_arrangement_version_id: version.id).order(:id).lock.load
     SupplierCostOccupancyProfilePosition.where(
@@ -156,8 +154,8 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
     carry_cost_readiness!(definitions)
     copy_triggers!(from, to, sources, definitions, components)
     copy_deadlines!(from, to, sources, definitions, components)
-    deposit_copies = copy_deposits!(from, to, sources, definitions, components)
-    copy_supplier_term_foundations!(from, to, deposit_copies)
+    copy_deposits!(from, to, sources, definitions, components)
+    copy_family(from.supplier_agreement_references, to.supplier_agreement_references)
     copy_family(
       from.supplier_arrangement_commercial_benefit_definitions,
       to.supplier_arrangement_commercial_benefit_definitions
@@ -308,54 +306,6 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
       )
     end
     deposit_copies
-  end
-
-  def copy_supplier_term_foundations!(from, to, deposit_copies)
-    basis_copies = copy_family(from.supplier_deposit_bases, to.supplier_deposit_bases)
-    from.supplier_deposit_basis_entries.order(:id).each do |entry|
-      to.supplier_deposit_basis_entries.create!(
-        copy_attributes(entry).merge(
-          supplier_arrangement_version: to,
-          supplier_deposit_basis_id: basis_copies.fetch(entry.supplier_deposit_basis_id).id,
-          copied_from: entry
-        )
-      )
-    end
-    from.supplier_deposit_basis_shares.order(:id).each do |share|
-      to.supplier_deposit_basis_shares.create!(
-        copy_attributes(share).merge(
-          supplier_arrangement_version: to,
-          supplier_deposit_basis_id: basis_copies.fetch(share.supplier_deposit_basis_id).id,
-          supplier_deposit_requirement_definition_id:
-            deposit_copies.fetch(share.supplier_deposit_requirement_definition_id).id,
-          copied_from: share
-        )
-      )
-    end
-
-    policy_copies = copy_family(from.hotel_attrition_policies, to.hotel_attrition_policies)
-    from.hotel_attrition_nights.order(:id).each do |night|
-      to.hotel_attrition_nights.create!(
-        copy_attributes(night).merge(
-          supplier_arrangement_version: to,
-          hotel_attrition_policy_id: policy_copies.fetch(night.hotel_attrition_policy_id).id,
-          copied_from: night
-        )
-      )
-    end
-    from.hotel_attrition_zero_utilization_rates.order(:id).each do |rate|
-      to.hotel_attrition_zero_utilization_rates.create!(
-        copy_attributes(rate).merge(
-          supplier_arrangement_version: to,
-          hotel_attrition_policy_id: policy_copies.fetch(rate.hotel_attrition_policy_id).id,
-          copied_from: rate
-        )
-      )
-    end
-    copy_family(
-      from.supplier_deposit_refund_clarifications,
-      to.supplier_deposit_refund_clarifications
-    )
   end
 
   def remap_optional(map, id)

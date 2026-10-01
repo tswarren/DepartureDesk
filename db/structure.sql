@@ -2377,75 +2377,6 @@ END;
 $$;
 
 
---
--- Name: validate_supplier_deposit_basis_totals(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.validate_supplier_deposit_basis_totals() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-DECLARE basis_id uuid;
-DECLARE basis_amount bigint;
-DECLARE basis_currency text;
-DECLARE entry_total bigint;
-DECLARE share_total integer;
-DECLARE mismatch boolean;
-BEGIN
-  IF TG_TABLE_NAME = 'supplier_deposit_bases' AND TG_OP = 'DELETE' THEN
-    RETURN OLD;
-  END IF;
-
-  basis_id := CASE TG_TABLE_NAME
-    WHEN 'supplier_deposit_bases' THEN NEW.id
-    ELSE COALESCE(NEW.supplier_deposit_basis_id, OLD.supplier_deposit_basis_id)
-  END;
-
-  SELECT b.basis_amount_minor_units, b.currency
-    INTO basis_amount, basis_currency
-    FROM supplier_deposit_bases b
-   WHERE b.id = basis_id;
-  IF NOT FOUND THEN
-    RETURN COALESCE(NEW, OLD);
-  END IF;
-
-  SELECT COALESCE(SUM(extended_amount_minor_units), 0)
-    INTO entry_total
-    FROM supplier_deposit_basis_entries
-   WHERE supplier_deposit_basis_id = basis_id;
-  IF entry_total IS DISTINCT FROM basis_amount THEN
-    RAISE EXCEPTION 'deposit basis entries do not match the basis amount';
-  END IF;
-
-  SELECT COALESCE(SUM(share_basis_points), 0)
-    INTO share_total
-    FROM supplier_deposit_basis_shares
-   WHERE supplier_deposit_basis_id = basis_id;
-  IF share_total IS DISTINCT FROM 10000 THEN
-    RAISE EXCEPTION 'deposit basis shares must total 10000 basis points';
-  END IF;
-
-  SELECT EXISTS (
-    SELECT 1
-      FROM supplier_deposit_basis_shares s
-      JOIN supplier_deposit_requirement_definitions d
-        ON d.id = s.supplier_deposit_requirement_definition_id
-     WHERE s.supplier_deposit_basis_id = basis_id
-       AND (
-         d.amount_shape IS DISTINCT FROM 'fixed_amount'
-         OR d.currency IS DISTINCT FROM basis_currency
-         OR d.fixed_amount_minor_units IS NULL
-         OR basis_amount * s.share_basis_points IS DISTINCT FROM d.fixed_amount_minor_units * 10000
-       )
-  ) INTO mismatch;
-  IF mismatch THEN
-    RAISE EXCEPTION 'deposit basis shares do not match the fixed requirements';
-  END IF;
-
-  RETURN COALESCE(NEW, OLD);
-END;
-$$;
-
-
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -3176,72 +3107,6 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^D-[0-9]{6}$'::text))),
     CONSTRAINT departures_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('departed'::character varying)::text]))),
     CONSTRAINT departures_target_timing_text CHECK (((target_timing_text IS NULL) OR ((btrim((target_timing_text)::text) <> ''::text) AND (char_length((target_timing_text)::text) <= 160))))
-);
-
-
---
--- Name: hotel_attrition_nights; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.hotel_attrition_nights (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    agency_id uuid NOT NULL,
-    departure_id uuid NOT NULL,
-    supplier_arrangement_id uuid NOT NULL,
-    supplier_arrangement_version_id uuid NOT NULL,
-    hotel_attrition_policy_id uuid NOT NULL,
-    arrangement_item_id uuid NOT NULL,
-    service_occurrence_id uuid NOT NULL,
-    minimum_utilized_room_nights integer NOT NULL,
-    copied_from_id uuid,
-    created_at timestamp(6) with time zone NOT NULL,
-    updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT attrition_nights_minimum CHECK ((minimum_utilized_room_nights > 0))
-);
-
-
---
--- Name: hotel_attrition_policies; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.hotel_attrition_policies (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    agency_id uuid NOT NULL,
-    departure_id uuid NOT NULL,
-    supplier_arrangement_id uuid NOT NULL,
-    supplier_arrangement_version_id uuid CONSTRAINT hotel_attrition_policies_supplier_arrangement_version__not_null NOT NULL,
-    arrangement_item_id uuid NOT NULL,
-    consequence character varying NOT NULL,
-    consequence_basis_points integer NOT NULL,
-    quoted_tax_rate_basis_points integer NOT NULL,
-    copied_from_id uuid,
-    lock_version integer DEFAULT 0 NOT NULL,
-    created_at timestamp(6) with time zone NOT NULL,
-    updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT attrition_policies_consequence CHECK ((((consequence)::text = 'lost_room_revenue'::text) AND (consequence_basis_points = 10000))),
-    CONSTRAINT attrition_policies_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT attrition_policies_tax_rate CHECK (((quoted_tax_rate_basis_points >= 0) AND (quoted_tax_rate_basis_points <= 10000)))
-);
-
-
---
--- Name: hotel_attrition_zero_utilization_rates; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.hotel_attrition_zero_utilization_rates (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    agency_id uuid NOT NULL,
-    departure_id uuid NOT NULL,
-    supplier_arrangement_id uuid CONSTRAINT hotel_attrition_zero_utilizati_supplier_arrangement_id_not_null NOT NULL,
-    supplier_arrangement_version_id uuid CONSTRAINT hotel_attrition_zero_utiliz_supplier_arrangement_versi_not_null NOT NULL,
-    hotel_attrition_policy_id uuid CONSTRAINT hotel_attrition_zero_utiliza_hotel_attrition_policy_id_not_null NOT NULL,
-    arrangement_item_id uuid CONSTRAINT hotel_attrition_zero_utilization_r_arrangement_item_id_not_null NOT NULL,
-    supplier_resource_id uuid CONSTRAINT hotel_attrition_zero_utilization__supplier_resource_id_not_null NOT NULL,
-    amount_minor_units bigint CONSTRAINT hotel_attrition_zero_utilization_ra_amount_minor_units_not_null NOT NULL,
-    copied_from_id uuid,
-    created_at timestamp(6) with time zone NOT NULL,
-    updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT attrition_zero_rates_amount CHECK ((amount_minor_units >= 0))
 );
 
 
@@ -4128,6 +3993,37 @@ CREATE TABLE public.sessions (
     user_agent character varying,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: supplier_agreement_references; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_agreement_references (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_agreement_referenc_supplier_arrangement_versi_not_null NOT NULL,
+    arrangement_item_id uuid,
+    kind character varying NOT NULL,
+    governing_wording character varying(2000) NOT NULL,
+    original_wording character varying(2000),
+    source_description character varying(2000) NOT NULL,
+    supplier_reference character varying(2000),
+    external_reference character varying(2000),
+    evidence_note character varying(2000),
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    copied_from_id uuid,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT agreement_references_kind CHECK ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[])) AND ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying])::text[])) AND (arrangement_item_id IS NOT NULL)) OR ((kind)::text = ANY ((ARRAY['destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[]))))),
+    CONSTRAINT agreement_references_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT agreement_references_provenance CHECK ((((source_description)::text = btrim((source_description)::text)) AND ((char_length((source_description)::text) >= 1) AND (char_length((source_description)::text) <= 2000)) AND ((supplier_reference IS NULL) OR (((supplier_reference)::text = btrim((supplier_reference)::text)) AND ((char_length((supplier_reference)::text) >= 1) AND (char_length((supplier_reference)::text) <= 2000)))) AND ((external_reference IS NULL) OR (((external_reference)::text = btrim((external_reference)::text)) AND ((char_length((external_reference)::text) >= 1) AND (char_length((external_reference)::text) <= 2000)))) AND ((evidence_note IS NULL) OR (((evidence_note)::text = btrim((evidence_note)::text)) AND ((char_length((evidence_note)::text) >= 1) AND (char_length((evidence_note)::text) <= 2000)))))),
+    CONSTRAINT agreement_references_wording CHECK ((((governing_wording)::text = btrim((governing_wording)::text)) AND ((char_length((governing_wording)::text) >= 1) AND (char_length((governing_wording)::text) <= 2000)) AND ((((kind)::text = 'deposit_refund'::text) AND (original_wording IS NOT NULL) AND ((original_wording)::text = btrim((original_wording)::text)) AND ((char_length((original_wording)::text) >= 1) AND (char_length((original_wording)::text) <= 2000))) OR (((kind)::text <> 'deposit_refund'::text) AND (original_wording IS NULL)))))
 );
 
 
@@ -5354,76 +5250,6 @@ CREATE TABLE public.supplier_deadline_projections (
 
 
 --
--- Name: supplier_deposit_bases; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.supplier_deposit_bases (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    agency_id uuid NOT NULL,
-    departure_id uuid NOT NULL,
-    supplier_arrangement_id uuid NOT NULL,
-    supplier_arrangement_version_id uuid NOT NULL,
-    arrangement_item_id uuid NOT NULL,
-    basis_kind character varying NOT NULL,
-    currency character varying(3) NOT NULL,
-    basis_amount_minor_units bigint NOT NULL,
-    copied_from_id uuid,
-    lock_version integer DEFAULT 0 NOT NULL,
-    created_at timestamp(6) with time zone NOT NULL,
-    updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT deposit_bases_amount CHECK ((basis_amount_minor_units >= 0)),
-    CONSTRAINT deposit_bases_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
-    CONSTRAINT deposit_bases_kind CHECK (((basis_kind)::text = 'original_contracted_room_revenue'::text)),
-    CONSTRAINT deposit_bases_lock_version CHECK ((lock_version >= 0))
-);
-
-
---
--- Name: supplier_deposit_basis_entries; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.supplier_deposit_basis_entries (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    agency_id uuid NOT NULL,
-    departure_id uuid NOT NULL,
-    supplier_arrangement_id uuid NOT NULL,
-    supplier_arrangement_version_id uuid CONSTRAINT supplier_deposit_basis_entr_supplier_arrangement_versi_not_null NOT NULL,
-    supplier_deposit_basis_id uuid CONSTRAINT supplier_deposit_basis_entri_supplier_deposit_basis_id_not_null NOT NULL,
-    arrangement_item_id uuid NOT NULL,
-    service_occurrence_id uuid NOT NULL,
-    supplier_resource_id uuid NOT NULL,
-    agreed_quantity integer NOT NULL,
-    agreed_unit_rate_minor_units bigint CONSTRAINT supplier_deposit_basis_entr_agreed_unit_rate_minor_uni_not_null NOT NULL,
-    extended_amount_minor_units bigint CONSTRAINT supplier_deposit_basis_entr_extended_amount_minor_unit_not_null NOT NULL,
-    copied_from_id uuid,
-    created_at timestamp(6) with time zone NOT NULL,
-    updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT deposit_basis_entries_extension CHECK (((agreed_quantity > 0) AND (agreed_unit_rate_minor_units >= 0) AND (extended_amount_minor_units >= 0) AND ((agreed_quantity * agreed_unit_rate_minor_units) = extended_amount_minor_units)))
-);
-
-
---
--- Name: supplier_deposit_basis_shares; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.supplier_deposit_basis_shares (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    agency_id uuid NOT NULL,
-    departure_id uuid NOT NULL,
-    supplier_arrangement_id uuid NOT NULL,
-    supplier_arrangement_version_id uuid CONSTRAINT supplier_deposit_basis_shar_supplier_arrangement_versi_not_null NOT NULL,
-    supplier_deposit_basis_id uuid CONSTRAINT supplier_deposit_basis_share_supplier_deposit_basis_id_not_null NOT NULL,
-    arrangement_item_id uuid NOT NULL,
-    supplier_deposit_requirement_definition_id uuid CONSTRAINT supplier_deposit_basis_shar_supplier_deposit_requireme_not_null NOT NULL,
-    share_basis_points integer NOT NULL,
-    copied_from_id uuid,
-    created_at timestamp(6) with time zone NOT NULL,
-    updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT deposit_basis_shares_points CHECK (((share_basis_points >= 1) AND (share_basis_points <= 10000)))
-);
-
-
---
 -- Name: supplier_deposit_external_attestations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5449,36 +5275,6 @@ CREATE TABLE public.supplier_deposit_external_attestations (
     CONSTRAINT deposit_attestations_confirmed_complete CHECK ((confirmed_complete = true)),
     CONSTRAINT deposit_attestations_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT deposit_attestations_note CHECK (((btrim((note)::text) <> ''::text) AND (char_length((note)::text) <= 2000)))
-);
-
-
---
--- Name: supplier_deposit_refund_clarifications; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.supplier_deposit_refund_clarifications (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    agency_id uuid NOT NULL,
-    departure_id uuid NOT NULL,
-    supplier_arrangement_id uuid CONSTRAINT supplier_deposit_refund_clarif_supplier_arrangement_id_not_null NOT NULL,
-    supplier_arrangement_version_id uuid CONSTRAINT supplier_deposit_refund_cla_supplier_arrangement_versi_not_null NOT NULL,
-    arrangement_item_id uuid CONSTRAINT supplier_deposit_refund_clarificat_arrangement_item_id_not_null NOT NULL,
-    original_wording character varying(2000) CONSTRAINT supplier_deposit_refund_clarification_original_wording_not_null NOT NULL,
-    governing_wording character varying(2000) CONSTRAINT supplier_deposit_refund_clarificatio_governing_wording_not_null NOT NULL,
-    payer character varying NOT NULL,
-    recipient character varying NOT NULL,
-    refund_due_on date NOT NULL,
-    evidence_note character varying(2000),
-    recorded_by_id uuid NOT NULL,
-    recorded_at timestamp with time zone NOT NULL,
-    copied_from_id uuid,
-    lock_version integer DEFAULT 0 NOT NULL,
-    created_at timestamp(6) with time zone NOT NULL,
-    updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT deposit_refund_clarifications_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT deposit_refund_clarifications_note CHECK (((evidence_note IS NULL) OR (((evidence_note)::text = btrim((evidence_note)::text)) AND ((char_length((evidence_note)::text) >= 1) AND (char_length((evidence_note)::text) <= 2000))))),
-    CONSTRAINT deposit_refund_clarifications_parties CHECK ((((payer)::text = 'agency'::text) AND ((recipient)::text = 'agency'::text))),
-    CONSTRAINT deposit_refund_clarifications_wording CHECK ((((original_wording)::text = btrim((original_wording)::text)) AND ((char_length((original_wording)::text) >= 1) AND (char_length((original_wording)::text) <= 2000)) AND ((governing_wording)::text = btrim((governing_wording)::text)) AND ((char_length((governing_wording)::text) >= 1) AND (char_length((governing_wording)::text) <= 2000))))
 );
 
 
@@ -6443,30 +6239,6 @@ ALTER TABLE ONLY public.departures
 
 
 --
--- Name: hotel_attrition_nights hotel_attrition_nights_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_nights
-    ADD CONSTRAINT hotel_attrition_nights_pkey PRIMARY KEY (id);
-
-
---
--- Name: hotel_attrition_policies hotel_attrition_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_policies
-    ADD CONSTRAINT hotel_attrition_policies_pkey PRIMARY KEY (id);
-
-
---
--- Name: hotel_attrition_zero_utilization_rates hotel_attrition_zero_utilization_rates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_zero_utilization_rates
-    ADD CONSTRAINT hotel_attrition_zero_utilization_rates_pkey PRIMARY KEY (id);
-
-
---
 -- Name: offices offices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6776,6 +6548,14 @@ ALTER TABLE ONLY public.service_offers
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_agreement_references supplier_agreement_references_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT supplier_agreement_references_pkey PRIMARY KEY (id);
 
 
 --
@@ -7163,43 +6943,11 @@ ALTER TABLE ONLY public.supplier_deadline_projections
 
 
 --
--- Name: supplier_deposit_bases supplier_deposit_bases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_bases
-    ADD CONSTRAINT supplier_deposit_bases_pkey PRIMARY KEY (id);
-
-
---
--- Name: supplier_deposit_basis_entries supplier_deposit_basis_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_entries
-    ADD CONSTRAINT supplier_deposit_basis_entries_pkey PRIMARY KEY (id);
-
-
---
--- Name: supplier_deposit_basis_shares supplier_deposit_basis_shares_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_shares
-    ADD CONSTRAINT supplier_deposit_basis_shares_pkey PRIMARY KEY (id);
-
-
---
 -- Name: supplier_deposit_external_attestations supplier_deposit_external_attestations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.supplier_deposit_external_attestations
     ADD CONSTRAINT supplier_deposit_external_attestations_pkey PRIMARY KEY (id);
-
-
---
--- Name: supplier_deposit_refund_clarifications supplier_deposit_refund_clarifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_refund_clarifications
-    ADD CONSTRAINT supplier_deposit_refund_clarifications_pkey PRIMARY KEY (id);
 
 
 --
@@ -7684,6 +7432,34 @@ CREATE UNIQUE INDEX index_agency_users_on_password_reset_token_digest ON public.
 
 
 --
+-- Name: index_agreement_references_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_references_on_id_agency ON public.supplier_agreement_references USING btree (id, agency_id);
+
+
+--
+-- Name: index_agreement_references_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_references_on_lineage_owner ON public.supplier_agreement_references USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_agreement_references_on_version_item_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_references_on_version_item_kind ON public.supplier_agreement_references USING btree (supplier_arrangement_version_id, arrangement_item_id, kind) WHERE (arrangement_item_id IS NOT NULL);
+
+
+--
+-- Name: index_agreement_references_on_version_kind_without_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_references_on_version_kind_without_item ON public.supplier_agreement_references USING btree (supplier_arrangement_version_id, kind) WHERE (arrangement_item_id IS NULL);
+
+
+--
 -- Name: index_arrangement_activations_on_departure_history; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7856,76 +7632,6 @@ CREATE UNIQUE INDEX index_attention_findings_on_id_agency ON public.supplier_att
 --
 
 CREATE UNIQUE INDEX index_attention_findings_on_identity ON public.supplier_attention_findings USING btree (supplier_arrangement_id, detector_key, source_kind, source_id);
-
-
---
--- Name: index_attrition_nights_on_id_agency; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_attrition_nights_on_id_agency ON public.hotel_attrition_nights USING btree (id, agency_id);
-
-
---
--- Name: index_attrition_nights_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_attrition_nights_on_lineage_owner ON public.hotel_attrition_nights USING btree (id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: index_attrition_nights_on_policy_and_occurrence; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_attrition_nights_on_policy_and_occurrence ON public.hotel_attrition_nights USING btree (hotel_attrition_policy_id, service_occurrence_id);
-
-
---
--- Name: index_attrition_policies_on_child_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_attrition_policies_on_child_owner ON public.hotel_attrition_policies USING btree (id, supplier_arrangement_version_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: index_attrition_policies_on_id_agency; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_attrition_policies_on_id_agency ON public.hotel_attrition_policies USING btree (id, agency_id);
-
-
---
--- Name: index_attrition_policies_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_attrition_policies_on_lineage_owner ON public.hotel_attrition_policies USING btree (id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: index_attrition_policies_on_version_and_item; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_attrition_policies_on_version_and_item ON public.hotel_attrition_policies USING btree (supplier_arrangement_version_id, arrangement_item_id);
-
-
---
--- Name: index_attrition_zero_rates_on_id_agency; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_attrition_zero_rates_on_id_agency ON public.hotel_attrition_zero_utilization_rates USING btree (id, agency_id);
-
-
---
--- Name: index_attrition_zero_rates_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_attrition_zero_rates_on_lineage_owner ON public.hotel_attrition_zero_utilization_rates USING btree (id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: index_attrition_zero_rates_on_policy_and_resource; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_attrition_zero_rates_on_policy_and_resource ON public.hotel_attrition_zero_utilization_rates USING btree (hotel_attrition_policy_id, supplier_resource_id);
 
 
 --
@@ -9469,76 +9175,6 @@ CREATE UNIQUE INDEX index_deposit_attestations_on_opening_owner ON public.suppli
 
 
 --
--- Name: index_deposit_bases_on_child_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_bases_on_child_owner ON public.supplier_deposit_bases USING btree (id, supplier_arrangement_version_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: index_deposit_bases_on_id_agency; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_bases_on_id_agency ON public.supplier_deposit_bases USING btree (id, agency_id);
-
-
---
--- Name: index_deposit_bases_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_bases_on_lineage_owner ON public.supplier_deposit_bases USING btree (id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: index_deposit_bases_on_version_and_item; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_bases_on_version_and_item ON public.supplier_deposit_bases USING btree (supplier_arrangement_version_id, arrangement_item_id);
-
-
---
--- Name: index_deposit_basis_entries_on_id_agency; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_basis_entries_on_id_agency ON public.supplier_deposit_basis_entries USING btree (id, agency_id);
-
-
---
--- Name: index_deposit_basis_entries_on_line; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_basis_entries_on_line ON public.supplier_deposit_basis_entries USING btree (supplier_deposit_basis_id, service_occurrence_id, supplier_resource_id);
-
-
---
--- Name: index_deposit_basis_entries_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_basis_entries_on_lineage_owner ON public.supplier_deposit_basis_entries USING btree (id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: index_deposit_basis_shares_on_id_agency; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_basis_shares_on_id_agency ON public.supplier_deposit_basis_shares USING btree (id, agency_id);
-
-
---
--- Name: index_deposit_basis_shares_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_basis_shares_on_lineage_owner ON public.supplier_deposit_basis_shares USING btree (id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: index_deposit_basis_shares_on_requirement; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_basis_shares_on_requirement ON public.supplier_deposit_basis_shares USING btree (supplier_deposit_requirement_definition_id);
-
-
---
 -- Name: index_deposit_contributor_links_on_definition_contributor; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9606,27 +9242,6 @@ CREATE UNIQUE INDEX index_deposit_definitions_on_lineage_owner ON public.supplie
 --
 
 CREATE UNIQUE INDEX index_deposit_definitions_on_position ON public.supplier_deposit_requirement_definitions USING btree (supplier_arrangement_version_id, "position");
-
-
---
--- Name: index_deposit_refund_clarifications_on_id_agency; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_refund_clarifications_on_id_agency ON public.supplier_deposit_refund_clarifications USING btree (id, agency_id);
-
-
---
--- Name: index_deposit_refund_clarifications_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_refund_clarifications_on_lineage_owner ON public.supplier_deposit_refund_clarifications USING btree (id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: index_deposit_refund_clarifications_on_version_item; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_deposit_refund_clarifications_on_version_item ON public.supplier_deposit_refund_clarifications USING btree (supplier_arrangement_version_id, arrangement_item_id);
 
 
 --
@@ -12423,48 +12038,6 @@ CREATE TRIGGER departures_reject_identity_change BEFORE UPDATE ON public.departu
 
 
 --
--- Name: hotel_attrition_nights hotel_attrition_nights_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER hotel_attrition_nights_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.hotel_attrition_nights FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
-
-
---
--- Name: hotel_attrition_nights hotel_attrition_nights_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER hotel_attrition_nights_reject_owner_change BEFORE UPDATE ON public.hotel_attrition_nights FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'hotel_attrition_policy_id', 'arrangement_item_id', 'service_occurrence_id', 'copied_from_id');
-
-
---
--- Name: hotel_attrition_policies hotel_attrition_policies_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER hotel_attrition_policies_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.hotel_attrition_policies FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
-
-
---
--- Name: hotel_attrition_policies hotel_attrition_policies_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER hotel_attrition_policies_reject_owner_change BEFORE UPDATE ON public.hotel_attrition_policies FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'arrangement_item_id', 'consequence', 'consequence_basis_points', 'copied_from_id');
-
-
---
--- Name: hotel_attrition_zero_utilization_rates hotel_attrition_zero_utilization_rates_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER hotel_attrition_zero_utilization_rates_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.hotel_attrition_zero_utilization_rates FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
-
-
---
--- Name: hotel_attrition_zero_utilization_rates hotel_attrition_zero_utilization_rates_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER hotel_attrition_zero_utilization_rates_reject_owner_change BEFORE UPDATE ON public.hotel_attrition_zero_utilization_rates FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'hotel_attrition_policy_id', 'arrangement_item_id', 'supplier_resource_id', 'copied_from_id');
-
-
---
 -- Name: offices offices_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12833,6 +12406,20 @@ CREATE TRIGGER service_offers_reject_item_claim_change BEFORE UPDATE ON public.s
 --
 
 CREATE TRIGGER service_offers_reject_owner_change BEFORE UPDATE ON public.service_offers FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_owner_change();
+
+
+--
+-- Name: supplier_agreement_references supplier_agreement_references_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_references_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_agreement_references supplier_agreement_references_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_references_reject_owner_change BEFORE UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'arrangement_item_id', 'kind', 'copied_from_id');
 
 
 --
@@ -13361,69 +12948,6 @@ CREATE TRIGGER supplier_deadline_occurrences_reject_update BEFORE UPDATE ON publ
 
 
 --
--- Name: supplier_deposit_bases supplier_deposit_bases_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER supplier_deposit_bases_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deposit_bases FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
-
-
---
--- Name: supplier_deposit_bases supplier_deposit_bases_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER supplier_deposit_bases_reject_owner_change BEFORE UPDATE ON public.supplier_deposit_bases FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'arrangement_item_id', 'basis_kind', 'copied_from_id');
-
-
---
--- Name: supplier_deposit_bases supplier_deposit_bases_validate_totals; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE CONSTRAINT TRIGGER supplier_deposit_bases_validate_totals AFTER INSERT OR UPDATE ON public.supplier_deposit_bases DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.validate_supplier_deposit_basis_totals();
-
-
---
--- Name: supplier_deposit_basis_entries supplier_deposit_basis_entries_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER supplier_deposit_basis_entries_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deposit_basis_entries FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
-
-
---
--- Name: supplier_deposit_basis_entries supplier_deposit_basis_entries_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER supplier_deposit_basis_entries_reject_owner_change BEFORE UPDATE ON public.supplier_deposit_basis_entries FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'supplier_deposit_basis_id', 'arrangement_item_id', 'service_occurrence_id', 'supplier_resource_id', 'copied_from_id');
-
-
---
--- Name: supplier_deposit_basis_entries supplier_deposit_basis_entries_validate_totals; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE CONSTRAINT TRIGGER supplier_deposit_basis_entries_validate_totals AFTER INSERT OR DELETE OR UPDATE ON public.supplier_deposit_basis_entries DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.validate_supplier_deposit_basis_totals();
-
-
---
--- Name: supplier_deposit_basis_shares supplier_deposit_basis_shares_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER supplier_deposit_basis_shares_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deposit_basis_shares FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
-
-
---
--- Name: supplier_deposit_basis_shares supplier_deposit_basis_shares_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER supplier_deposit_basis_shares_reject_owner_change BEFORE UPDATE ON public.supplier_deposit_basis_shares FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'supplier_deposit_basis_id', 'arrangement_item_id', 'supplier_deposit_requirement_definition_id', 'copied_from_id');
-
-
---
--- Name: supplier_deposit_basis_shares supplier_deposit_basis_shares_validate_totals; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE CONSTRAINT TRIGGER supplier_deposit_basis_shares_validate_totals AFTER INSERT OR DELETE OR UPDATE ON public.supplier_deposit_basis_shares DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.validate_supplier_deposit_basis_totals();
-
-
---
 -- Name: supplier_deposit_external_attestations supplier_deposit_external_attestations_reject_delete; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13435,20 +12959,6 @@ CREATE TRIGGER supplier_deposit_external_attestations_reject_delete BEFORE DELET
 --
 
 CREATE TRIGGER supplier_deposit_external_attestations_reject_update BEFORE UPDATE ON public.supplier_deposit_external_attestations FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
-
-
---
--- Name: supplier_deposit_refund_clarifications supplier_deposit_refund_clarifications_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER supplier_deposit_refund_clarifications_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deposit_refund_clarifications FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
-
-
---
--- Name: supplier_deposit_refund_clarifications supplier_deposit_refund_clarifications_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER supplier_deposit_refund_clarifications_reject_owner_change BEFORE UPDATE ON public.supplier_deposit_refund_clarifications FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'arrangement_item_id', 'copied_from_id');
 
 
 --
@@ -13717,6 +13227,38 @@ ALTER TABLE ONLY public.agency_users
 
 
 --
+-- Name: supplier_agreement_references agreement_references_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT agreement_references_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_agreement_references(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_agreement_references agreement_references_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT agreement_references_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_agreement_references agreement_references_recorder_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT agreement_references_recorder_fk FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_agreement_references agreement_references_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT agreement_references_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_arrangement_activations arrangement_activations_actor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13874,78 +13416,6 @@ ALTER TABLE ONLY public.supplier_attention_findings
 
 ALTER TABLE ONLY public.supplier_attention_findings
     ADD CONSTRAINT attention_findings_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: hotel_attrition_nights attrition_nights_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_nights
-    ADD CONSTRAINT attrition_nights_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.hotel_attrition_nights(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: hotel_attrition_nights attrition_nights_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_nights
-    ADD CONSTRAINT attrition_nights_occurrence_fk FOREIGN KEY (service_occurrence_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrences(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: hotel_attrition_nights attrition_nights_policy_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_nights
-    ADD CONSTRAINT attrition_nights_policy_fk FOREIGN KEY (hotel_attrition_policy_id, supplier_arrangement_version_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.hotel_attrition_policies(id, supplier_arrangement_version_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: hotel_attrition_policies attrition_policies_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_policies
-    ADD CONSTRAINT attrition_policies_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.hotel_attrition_policies(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: hotel_attrition_policies attrition_policies_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_policies
-    ADD CONSTRAINT attrition_policies_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: hotel_attrition_policies attrition_policies_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_policies
-    ADD CONSTRAINT attrition_policies_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: hotel_attrition_zero_utilization_rates attrition_zero_rates_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_zero_utilization_rates
-    ADD CONSTRAINT attrition_zero_rates_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.hotel_attrition_zero_utilization_rates(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: hotel_attrition_zero_utilization_rates attrition_zero_rates_policy_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_zero_utilization_rates
-    ADD CONSTRAINT attrition_zero_rates_policy_fk FOREIGN KEY (hotel_attrition_policy_id, supplier_arrangement_version_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.hotel_attrition_policies(id, supplier_arrangement_version_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: hotel_attrition_zero_utilization_rates attrition_zero_rates_resource_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_zero_utilization_rates
-    ADD CONSTRAINT attrition_zero_rates_resource_fk FOREIGN KEY (supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_resources(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -15125,86 +14595,6 @@ ALTER TABLE ONLY public.supplier_deposit_external_attestations
 
 
 --
--- Name: supplier_deposit_bases deposit_bases_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_bases
-    ADD CONSTRAINT deposit_bases_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_bases(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_bases deposit_bases_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_bases
-    ADD CONSTRAINT deposit_bases_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_bases deposit_bases_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_bases
-    ADD CONSTRAINT deposit_bases_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_basis_entries deposit_basis_entries_basis_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_entries
-    ADD CONSTRAINT deposit_basis_entries_basis_fk FOREIGN KEY (supplier_deposit_basis_id, supplier_arrangement_version_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_bases(id, supplier_arrangement_version_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_basis_entries deposit_basis_entries_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_entries
-    ADD CONSTRAINT deposit_basis_entries_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_basis_entries(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_basis_entries deposit_basis_entries_occurrence_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_entries
-    ADD CONSTRAINT deposit_basis_entries_occurrence_fk FOREIGN KEY (service_occurrence_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.service_occurrences(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_basis_entries deposit_basis_entries_resource_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_entries
-    ADD CONSTRAINT deposit_basis_entries_resource_fk FOREIGN KEY (supplier_resource_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_resources(id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_basis_shares deposit_basis_shares_basis_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_shares
-    ADD CONSTRAINT deposit_basis_shares_basis_fk FOREIGN KEY (supplier_deposit_basis_id, supplier_arrangement_version_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_bases(id, supplier_arrangement_version_id, arrangement_item_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_basis_shares deposit_basis_shares_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_shares
-    ADD CONSTRAINT deposit_basis_shares_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_basis_shares(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_basis_shares deposit_basis_shares_requirement_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_shares
-    ADD CONSTRAINT deposit_basis_shares_requirement_fk FOREIGN KEY (supplier_deposit_requirement_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_requirement_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
 -- Name: supplier_deposit_requirement_definition_contributor_links deposit_contributor_links_contributor_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15330,38 +14720,6 @@ ALTER TABLE ONLY public.supplier_deposit_requirement_definitions
 
 ALTER TABLE ONLY public.supplier_deposit_requirement_definitions
     ADD CONSTRAINT deposit_definitions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_refund_clarifications deposit_refund_clarifications_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_refund_clarifications
-    ADD CONSTRAINT deposit_refund_clarifications_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_deposit_refund_clarifications(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_refund_clarifications deposit_refund_clarifications_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_refund_clarifications
-    ADD CONSTRAINT deposit_refund_clarifications_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
-
-
---
--- Name: supplier_deposit_refund_clarifications deposit_refund_clarifications_recorder_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_refund_clarifications
-    ADD CONSTRAINT deposit_refund_clarifications_recorder_fk FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
-
-
---
--- Name: supplier_deposit_refund_clarifications deposit_refund_clarifications_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_refund_clarifications
-    ADD CONSTRAINT deposit_refund_clarifications_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -15837,22 +15195,6 @@ ALTER TABLE ONLY public.package_client_cancellation_tiers
 
 
 --
--- Name: supplier_deposit_bases fk_rails_4ae5baead1; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_bases
-    ADD CONSTRAINT fk_rails_4ae5baead1 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
-
-
---
--- Name: supplier_deposit_basis_entries fk_rails_4aed55c5a7; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_entries
-    ADD CONSTRAINT fk_rails_4aed55c5a7 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
-
-
---
 -- Name: client_organizations fk_rails_4e204305ef; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15874,22 +15216,6 @@ ALTER TABLE ONLY public.reference_sequences
 
 ALTER TABLE ONLY public.package_versions
     ADD CONSTRAINT fk_rails_50f0db7fa1 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
-
-
---
--- Name: supplier_deposit_refund_clarifications fk_rails_51daf06ff9; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_refund_clarifications
-    ADD CONSTRAINT fk_rails_51daf06ff9 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
-
-
---
--- Name: hotel_attrition_zero_utilization_rates fk_rails_52b9a4e966; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_zero_utilization_rates
-    ADD CONSTRAINT fk_rails_52b9a4e966 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -15962,14 +15288,6 @@ ALTER TABLE ONLY public.supplier_arrangement_endings
 
 ALTER TABLE ONLY public.service_offers
     ADD CONSTRAINT fk_rails_709ec2c35a FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
-
-
---
--- Name: hotel_attrition_nights fk_rails_7518214390; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_nights
-    ADD CONSTRAINT fk_rails_7518214390 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -16146,14 +15464,6 @@ ALTER TABLE ONLY public.package_price_component_bases
 
 ALTER TABLE ONLY public.supplier_reservations
     ADD CONSTRAINT fk_rails_a1b8a7498f FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
-
-
---
--- Name: supplier_deposit_basis_shares fk_rails_a22baf3c17; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.supplier_deposit_basis_shares
-    ADD CONSTRAINT fk_rails_a22baf3c17 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -16437,14 +15747,6 @@ ALTER TABLE ONLY public.supplier_cost_participant_categories
 
 
 --
--- Name: hotel_attrition_policies fk_rails_ec6f35c663; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.hotel_attrition_policies
-    ADD CONSTRAINT fk_rails_ec6f35c663 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
-
-
---
 -- Name: package_client_stated_conditions fk_rails_ee71fe5f1b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16506,6 +15808,14 @@ ALTER TABLE ONLY public.package_client_payment_schedules
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT fk_rails_fda020f2ca FOREIGN KEY (agency_user_id) REFERENCES public.agency_users(id);
+
+
+--
+-- Name: supplier_agreement_references fk_rails_fe357b7e0b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT fk_rails_fe357b7e0b FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -17931,6 +17241,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261001180000'),
 ('20260930170000'),
 ('20260928020000'),
 ('20260928010000'),

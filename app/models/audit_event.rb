@@ -136,9 +136,7 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.deposit_definition_removed
     supplier_arrangement.deposits_materialized
     supplier_arrangement.deposit_attested_external
-    supplier_arrangement.deposit_basis_recorded
-    supplier_arrangement.hotel_attrition_policy_recorded
-    supplier_arrangement.deposit_refund_clarification_recorded
+    supplier_arrangement.agreement_reference_recorded
     supplier_arrangement.planning_milestone_recorded
     supplier_arrangement.exposure_qualified
     supplier_arrangement.commitments_disposed

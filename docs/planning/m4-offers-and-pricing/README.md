@@ -41,3 +41,4 @@ This page is a reading list of the files in this folder. It does not establish s
 - [Slice 3A.1 Hotel Supplier-term persistence foundations](m4d1-slice3a1-hotel-supplier-term-persistence.md)
 - [Slice 3A.2 stay and nightly inventory](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md)
 - [Slice 3A.3 Hotel Supplier rates](m4d1-slice3a3-hotel-supplier-rates.md)
+- [Supplier complexity rebaseline](supplier-complexity-rebaseline.md)

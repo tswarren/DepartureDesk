@@ -16,7 +16,7 @@ Milestone numbers such as M5 and M6 stay. A new plan must not be named `M4D.1 Sl
 
 ## Where we stand
 
-M1, M2, and M3 are complete. M4 offers through M4D.0 are shipped. Cruise Supplier Composition through the workspace consolidation is shipped, except Cruise document storage, which is Deferred. Hotel persistence, foundations, stay and inventory, and supplier rates are shipped. Hotel Agreement, Hotel Review and Activation, Hotel Lifecycle, Transportation, M4E, and M5 are Not authorized.
+M1, M2, and M3 are complete. M4 offers through M4D.0 are shipped. Cruise Supplier Composition through the workspace consolidation is shipped, except Cruise document storage, which is Deferred. Hotel persistence, foundations, stay and inventory, supplier rates, and the Supplier complexity rebaseline are shipped. Hotel Agreement, Hotel Review and Activation, Hotel Lifecycle, Transportation, M4E, and M5 are Not authorized.
 
 ## Milestones
 
@@ -76,6 +76,7 @@ Roadmap **Planned** means the milestone comes later. It does not authorize code.
 | Supplier foundations | Shipped | [Slice 3A.1](m4-offers-and-pricing/m4d1-slice3a1-hotel-supplier-term-persistence.md) |
 | Stay and inventory | Shipped | [Slice 3A.2](m4-offers-and-pricing/m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) |
 | Supplier rates | Shipped | [Slice 3A.3](m4-offers-and-pricing/m4d1-slice3a3-hotel-supplier-rates.md) |
+| Supplier complexity rebaseline | Shipped | [Supplier complexity rebaseline](m4-offers-and-pricing/supplier-complexity-rebaseline.md) |
 | Hilton staff walkthrough | Accepted | [Walkthrough](m4-offers-and-pricing/m4d1-hilton-hotel-staff-walkthrough.md) and the Approved [Hilton fixture](fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) |
 | Hotel Agreement | Not authorized | — |
 | Hotel Review and Activation | Not authorized | — |

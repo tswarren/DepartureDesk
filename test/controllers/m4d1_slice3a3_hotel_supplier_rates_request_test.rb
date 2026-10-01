@@ -39,7 +39,7 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
 
     assert_no_difference -> { ServiceOffer.where(agency: @agency).count } do
       assert_no_difference -> { SupplierCostUsageAssumption.where(agency: @agency).count } do
-        assert_no_difference -> { SupplierDepositBasis.where(agency: @agency).count } do
+        assert_no_difference -> { SupplierAgreementReference.where(agency: @agency).count } do
           save_rates(arrangement, item, standard, deluxe)
         end
       end
@@ -128,7 +128,7 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_no_match "$4,156.00", response.body
     assert_equal 17_300, component_amount(item, "November 4", "Standard", "Room night base")
     assert_equal evidence, pool.reload.evidence_reference_note
-    assert_equal 0, SupplierDepositBasis.where(supplier_arrangement_version: draft_version(item)).count
+    assert_equal 0, SupplierAgreementReference.where(supplier_arrangement_version: draft_version(item)).count
   end
 
   test "a november 5 difference stays visible and is not flattened" do

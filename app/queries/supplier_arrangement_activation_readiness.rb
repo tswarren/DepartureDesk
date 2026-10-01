@@ -47,13 +47,7 @@ class SupplierArrangementActivationReadiness
   ].freeze
 
   REQUIRED_COPY_MODELS = [
-    SupplierDepositBasis,
-    SupplierDepositBasisEntry,
-    SupplierDepositBasisShare,
-    HotelAttritionPolicy,
-    HotelAttritionNight,
-    HotelAttritionZeroUtilizationRate,
-    SupplierDepositRefundClarification
+    SupplierAgreementReference
   ].freeze
 
   def verify_ownership

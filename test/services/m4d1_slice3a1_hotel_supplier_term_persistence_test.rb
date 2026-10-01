@@ -108,16 +108,25 @@ class M4d1Slice3a1HotelSupplierTermPersistenceTest < ActiveSupport::TestCase
     assert_predicate @definition.reload, :noncommissionable?
   end
 
-  test "deposit basis shares and entries stay fixed when the current rate changes" do
-    basis = record_basis.record
-    assert_equal 10_000, basis.basis_amount_minor_units
-    entry = basis.supplier_deposit_basis_entries.sole
-    assert_equal 1 * 10_000, entry.extended_amount_minor_units
-    share = basis.supplier_deposit_basis_shares.sole
-    assert_equal 10_000, share.share_basis_points
+  test "derivation wording stays fixed when the rate changes and a mismatched deposit still saves" do
+    reference = record_reference(kind: "deposit_derivation", governing_wording: DERIVATION).record
+    assert_equal DERIVATION, reference.governing_wording
+    assert_nil reference.original_wording
+    assert_equal "Hilton agreement", reference.source_description
     assert_nil @deposit.reload.percentage
-    assert_equal 10_000 * 10_000, basis.basis_amount_minor_units * share.share_basis_points
-    assert_equal @deposit.fixed_amount_minor_units * 10_000, basis.basis_amount_minor_units * share.share_basis_points
+
+    mismatched = CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency, actor: @admin, version: @version.reload,
+      version_lock_version: @version.lock_version, idempotency_key: SecureRandom.uuid,
+      attributes: {
+        amount_shape: "fixed_amount", fixed_amount_minor_units: 1, currency: "USD",
+        rule_shape: "fixed_date", rule_parameters: { "date" => "2026-12-01" },
+        precision: "date_only", time_zone: "America/New_York",
+        coverage_links: [], cost_links: [], contributor_definition_ids: []
+      }
+    ).call.record
+    assert_equal 1, mismatched.fixed_amount_minor_units
+    assert_equal 10_000, @deposit.reload.fixed_amount_minor_units
 
     CreateSupplierCostComponent.new(
       agency: @agency, actor: @admin, definition: @definition.reload,
@@ -128,80 +137,74 @@ class M4d1Slice3a1HotelSupplierTermPersistenceTest < ActiveSupport::TestCase
       }
     ).call
 
-    assert_equal 10_000, basis.reload.basis_amount_minor_units
-    assert_equal 10_000, basis.supplier_deposit_basis_entries.sole.agreed_unit_rate_minor_units
+    assert_equal DERIVATION, reference.reload.governing_wording
     assert_equal 10_000, @deposit.reload.fixed_amount_minor_units
+    assert_equal 1, mismatched.reload.fixed_amount_minor_units
 
-    replay = record_basis
+    replay = record_reference(kind: "deposit_derivation", governing_wording: DERIVATION)
     assert_equal :replayed, replay.status
-    assert_equal basis.id, replay.record.id
-    assert_equal 1, @version.supplier_deposit_bases.where(arrangement_item: @item).count
+    assert_equal reference.id, replay.record.id
+    assert_equal 1, @version.supplier_agreement_references.where(arrangement_item: @item, kind: "deposit_derivation").count
   end
 
-  test "attrition and refund clarification reject another item and keep exact wording" do
-    policy = RecordHotelAttritionPolicy.new(
-      agency: @agency, actor: @admin, arrangement_item: @item, idempotency_key: SecureRandom.uuid,
-      quoted_tax_rate_basis_points: 1_650,
-      nights: [ { service_occurrence_id: @occurrence.id, minimum_utilized_room_nights: 7 } ],
-      zero_utilization_rates: [ { supplier_resource_id: @resource.id, amount_minor_units: 17_300 } ]
-    ).call.record
-    assert_equal "lost_room_revenue", policy.consequence
-    assert_equal 10_000, policy.consequence_basis_points
-    assert_equal 7, policy.hotel_attrition_nights.sole.minimum_utilized_room_nights
-    assert_equal 17_300, policy.hotel_attrition_zero_utilization_rates.sole.amount_minor_units
+  test "agreement references keep exact wording and reject another agency, a viewer, and a later kind" do
+    attrition = record_reference(kind: "attrition", governing_wording: ATTRITION).record
+    assert_equal ATTRITION, attrition.governing_wording
+    assert_nil attrition.original_wording
+    assert_nil @version.supplier_agreement_references.find_by(arrangement_item: other_item.fetch(:item), kind: "attrition")
 
-    other = other_item
-    assert_raises(ActiveRecord::RecordNotFound) do
-      RecordHotelAttritionPolicy.new(
-        agency: @agency, actor: @admin, arrangement_item: @item, idempotency_key: SecureRandom.uuid,
-        quoted_tax_rate_basis_points: 1_650,
-        nights: [ { service_occurrence_id: other.fetch(:occurrence).id, minimum_utilized_room_nights: 1 } ],
-        zero_utilization_rates: [ { supplier_resource_id: @resource.id, amount_minor_units: 1 } ]
-      ).call
-    end
-    assert_nil @version.hotel_attrition_policies.find_by(arrangement_item: other.fetch(:item))
-
-    clarification = RecordSupplierDepositRefundClarification.new(
-      agency: @agency, actor: @admin, arrangement_item: @item, idempotency_key: SecureRandom.uuid,
-      original_wording: ORIGINAL, governing_wording: GOVERNING, refund_due_on: Date.new(2027, 11, 20),
-      evidence_note: "Recorded from the agreement"
-    ).call.record
-    assert_equal ORIGINAL, clarification.original_wording
-    assert_equal GOVERNING, clarification.governing_wording
-    assert_equal "agency", clarification.payer
-    assert_equal "agency", clarification.recipient
-    assert_equal Date.new(2027, 11, 20), clarification.refund_due_on
-    assert_equal @admin.id, clarification.recorded_by_id
+    refund = record_reference(
+      kind: "deposit_refund", governing_wording: GOVERNING, original_wording: ORIGINAL,
+      evidence_note: "Recorded from the agreement", idempotency_key: SecureRandom.uuid
+    ).record
+    assert_equal ORIGINAL, refund.original_wording
+    assert_equal GOVERNING, refund.governing_wording
+    assert_equal @admin.id, refund.recorded_by_id
+    assert_not_includes SupplierAgreementReference.column_names, "refund_due_on"
+    assert_not_includes SupplierAgreementReference.column_names, "payer"
+    assert_not_includes SupplierAgreementReference.column_names, "recipient"
 
     assert_raises(ActiveRecord::RecordNotFound) do
-      RecordSupplierDepositRefundClarification.new(
+      RecordSupplierAgreementReference.new(
         agency: agencies(:cove), actor: agency_users(:cove_admin), arrangement_item: @item,
-        idempotency_key: SecureRandom.uuid, original_wording: ORIGINAL, governing_wording: GOVERNING,
-        refund_due_on: Date.new(2027, 11, 20)
+        kind: "deposit_refund", governing_wording: GOVERNING, original_wording: ORIGINAL,
+        source_description: SOURCE, idempotency_key: SecureRandom.uuid
       ).call
     end
     viewer = assert_raises(AgencyCommand::Error) do
-      RecordSupplierDepositRefundClarification.new(
+      RecordSupplierAgreementReference.new(
         agency: @agency, actor: agency_users(:harbor_viewer), arrangement_item: @item,
-        idempotency_key: SecureRandom.uuid, original_wording: ORIGINAL, governing_wording: GOVERNING,
-        refund_due_on: Date.new(2027, 11, 20)
+        kind: "deposit_refund", governing_wording: GOVERNING, original_wording: ORIGINAL,
+        source_description: SOURCE, idempotency_key: SecureRandom.uuid
       ).call
     end
     assert_equal :unauthorized, viewer.code
+
+    later_kind = assert_raises(AgencyCommand::Error) do
+      RecordSupplierAgreementReference.new(
+        agency: @agency, actor: @admin, arrangement_item: @item, kind: "cancellation",
+        governing_wording: "No separate cancellation schedule.", source_description: SOURCE,
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert_equal :invalid, later_kind.code
+
+    missing_item = assert_raises(AgencyCommand::Error) do
+      RecordSupplierAgreementReference.new(
+        agency: @agency, actor: @admin, arrangement_item: nil, kind: "attrition",
+        governing_wording: ATTRITION, source_description: SOURCE, idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert_equal :invalid, missing_item.code
   end
 
-  test "successor copies the historical basis and an omitted copy cannot activate" do
-    basis = record_basis.record
-    RecordHotelAttritionPolicy.new(
-      agency: @agency, actor: @admin, arrangement_item: @item, idempotency_key: SecureRandom.uuid,
-      quoted_tax_rate_basis_points: 1_650,
-      nights: [ { service_occurrence_id: @occurrence.id, minimum_utilized_room_nights: 7 } ],
-      zero_utilization_rates: [ { supplier_resource_id: @resource.id, amount_minor_units: 17_300 } ]
-    ).call
-    clarification = RecordSupplierDepositRefundClarification.new(
-      agency: @agency, actor: @admin, arrangement_item: @item, idempotency_key: SecureRandom.uuid,
-      original_wording: ORIGINAL, governing_wording: GOVERNING, refund_due_on: Date.new(2027, 11, 20)
-    ).call.record
+  test "successor copies agreement references and an omitted copy cannot activate" do
+    derivation = record_reference(kind: "deposit_derivation", governing_wording: DERIVATION).record
+    record_reference(kind: "attrition", governing_wording: ATTRITION)
+    refund = record_reference(
+      kind: "deposit_refund", governing_wording: GOVERNING, original_wording: ORIGINAL,
+      idempotency_key: SecureRandom.uuid
+    ).record
     prepare_activation!
     ActivateDeparture.new(
       agency: @agency, actor: @admin, departure: @departure, lock_version: @departure.reload.lock_version
@@ -225,7 +228,7 @@ class M4d1Slice3a1HotelSupplierTermPersistenceTest < ActiveSupport::TestCase
       ).call
     end
     assert_raises(ActiveRecord::RecordInvalid) do
-      basis.reload.update!(basis_amount_minor_units: 1)
+      derivation.reload.update!(governing_wording: "Changed after confirmation.")
     end
 
     successor = CreateSupplierArrangementSuccessor.new(
@@ -233,28 +236,24 @@ class M4d1Slice3a1HotelSupplierTermPersistenceTest < ActiveSupport::TestCase
       arrangement_lock_version: @arrangement.lock_version, version_lock_version: @version.reload.lock_version,
       idempotency_key: SecureRandom.uuid
     ).call.record
-    copied_basis = successor.supplier_deposit_bases.sole
-    assert_equal basis.id, copied_basis.copied_from_id
-    assert_equal 10_000, copied_basis.basis_amount_minor_units
-    assert_equal basis.supplier_deposit_basis_entries.sole.id, copied_basis.supplier_deposit_basis_entries.sole.copied_from_id
-    copied_policy = successor.hotel_attrition_policies.sole
-    assert_equal @version.hotel_attrition_policies.sole.id, copied_policy.copied_from_id
-    copied_clarification = successor.supplier_deposit_refund_clarifications.sole
-    assert_equal clarification.id, copied_clarification.copied_from_id
-    assert_equal GOVERNING, copied_clarification.governing_wording
-    assert_equal clarification.reload.recorded_at, copied_clarification.recorded_at
+    copied = successor.supplier_agreement_references.order(:kind).to_a
+    assert_equal %w[attrition deposit_derivation deposit_refund], copied.map(&:kind)
+    copied_refund = copied.find { |reference| reference.deposit_refund? }
+    assert_equal refund.id, copied_refund.copied_from_id
+    assert_equal GOVERNING, copied_refund.governing_wording
+    assert_equal ORIGINAL, copied_refund.original_wording
+    assert_equal refund.reload.recorded_at, copied_refund.recorded_at
 
-    RecordSupplierDepositRefundClarification.new(
-      agency: @agency, actor: @admin, arrangement_item: @item,
-      lock_version: copied_clarification.lock_version,
-      original_wording: ORIGINAL, governing_wording: "#{GOVERNING} Revised on the successor.",
-      refund_due_on: Date.new(2027, 11, 20)
+    RecordSupplierAgreementReference.new(
+      agency: @agency, actor: @admin, arrangement_item: @item, kind: "deposit_refund",
+      lock_version: copied_refund.lock_version, source_description: SOURCE,
+      original_wording: ORIGINAL, governing_wording: "#{GOVERNING} Revised on the successor."
     ).call
-    assert_equal GOVERNING, clarification.reload.governing_wording
-    assert_equal 10_000, basis.reload.basis_amount_minor_units
-    assert_equal 10_000, copied_basis.reload.basis_amount_minor_units
+    assert_equal GOVERNING, refund.reload.governing_wording
+    assert_equal "#{GOVERNING} Revised on the successor.", copied_refund.reload.governing_wording
+    assert_equal DERIVATION, derivation.reload.governing_wording
 
-    copied_basis.supplier_deposit_basis_entries.sole.destroy!
+    copied_refund.destroy!
     readiness = SupplierArrangementActivationReadiness.new(
       agency: @agency, arrangement: @arrangement, version: successor
     ).call
@@ -263,15 +262,15 @@ class M4d1Slice3a1HotelSupplierTermPersistenceTest < ActiveSupport::TestCase
 
   private
 
-  def record_basis
-    CreateSupplierDepositBasis.new(
-      agency: @agency, actor: @admin, arrangement_item: @item, currency: "USD",
-      basis_amount_minor_units: 10_000, idempotency_key: "term-basis",
-      entries: [ {
-        service_occurrence_id: @occurrence.id, supplier_resource_id: @resource.id,
-        agreed_quantity: 1, agreed_unit_rate_minor_units: 10_000, extended_amount_minor_units: 10_000
-      } ],
-      shares: [ { supplier_deposit_requirement_definition_id: @deposit.id, share_basis_points: 10_000 } ]
+  DERIVATION = "November 4 Standard 5 x 17300. Total 415600. Shares 1000, 4500, and 4500."
+  ATTRITION = "November 4 minimum 7. November 5 minimum 15. Lost room revenue at 100 percent. Rates 17300 and 22300. Quoted tax 1650 basis points."
+  SOURCE = "Hilton agreement"
+
+  def record_reference(kind:, governing_wording:, original_wording: nil, evidence_note: nil, idempotency_key: "term-#{kind}")
+    RecordSupplierAgreementReference.new(
+      agency: @agency, actor: @admin, arrangement_item: @item, kind: kind,
+      governing_wording: governing_wording, original_wording: original_wording,
+      source_description: SOURCE, evidence_note: evidence_note, idempotency_key: idempotency_key
     ).call
   end
 

@@ -28,6 +28,7 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
   ].freeze
 
   CURRENT_SUPPLIER_TABLES = %w[
+    supplier_agreement_references
     supplier_arrangement_activation_capacity_entries
     supplier_arrangement_activation_cost_selections
     supplier_arrangement_activations
@@ -75,11 +76,7 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
     supplier_deadline_definitions
     supplier_deadline_occurrences
     supplier_deadline_projections
-    supplier_deposit_bases
-    supplier_deposit_basis_entries
-    supplier_deposit_basis_shares
     supplier_deposit_external_attestations
-    supplier_deposit_refund_clarifications
     supplier_deposit_requirement_definition_contributor_links
     supplier_deposit_requirement_definition_cost_links
     supplier_deposit_requirement_definition_coverage_links

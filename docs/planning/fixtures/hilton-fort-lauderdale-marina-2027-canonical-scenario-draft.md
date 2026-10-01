@@ -205,7 +205,7 @@ When a date has zero utilized rooms, the shortfall uses each unsold room's contr
 
 The stated nightly minimums equal the full contracted block on each night: 7 of 7 and 15 of 15. This is a zero-attrition allowance under the stated formula. A release after cutoff does not reduce either minimum. Do not borrow an 80% or other allowance from a different agreement. Actual attrition tax belongs to the Group liability rather than an occupied guest's folio.
 
-**MVP representation:** retain this as structured policy attached to the Hotel Item. Do not materialize an attrition Obligation or charge before later Reservation facts establish actual utilized rooms, booking channels, rates, and taxes.
+**MVP representation:** retain this as version-owned agreement-reference wording on the Hotel Item. Do not materialize an attrition Obligation or charge before later Reservation facts establish actual utilized rooms, booking channels, rates, and taxes.
 
 ## 11. Early departure
 

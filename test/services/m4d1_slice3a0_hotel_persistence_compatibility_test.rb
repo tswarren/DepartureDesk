@@ -185,10 +185,8 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
     assert_equal forecast_before, evaluate.totals.forecast_supplier_cost_minor_units
     assert_equal deposit_ids, @version.supplier_deposit_requirement_definitions.order(:position).map(&:id)
     assert_equal 6, @version.capacity_pair_definitions.where(arrangement_item: item).count
-    assert_nil @version.supplier_deposit_bases.find_by(arrangement_item: second_item)
-    assert_nil @version.hotel_attrition_policies.find_by(arrangement_item: second_item)
-    assert_nil @version.supplier_deposit_refund_clarifications.find_by(arrangement_item: second_item)
-    assert_equal 415_600, @version.supplier_deposit_bases.find_by!(arrangement_item: item).basis_amount_minor_units
+    assert_empty @version.supplier_agreement_references.where(arrangement_item: second_item)
+    assert_equal 415_600, deposits.sum(&:fixed_amount_minor_units)
 
     assert_typed_supplier_terms!(item, november_4, november_5, standard, deluxe, deposits, deadline, confirmation)
   end
@@ -203,26 +201,19 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
     assert_equal 0, net_source.supplier_cost_definitions.sole.supplier_cost_components.where(economic_role: "expected_commission").count
     assert_equal 0, unset_source.supplier_cost_definitions.sole.supplier_cost_components.where(economic_role: "expected_commission").count
 
-    basis = @version.supplier_deposit_bases.find_by!(arrangement_item: item)
-    assert_equal "original_contracted_room_revenue", basis.basis_kind
-    assert_equal 415_600, basis.basis_amount_minor_units
-    assert_equal "USD", basis.currency
-    lines = basis.supplier_deposit_basis_entries
-    assert_equal [ 44_600, 86_500, 111_500, 173_000 ], lines.map(&:extended_amount_minor_units).sort
-    assert_equal(
-      {
-        [ november_4.id, standard.id ] => [ 5, 17_300, 86_500 ],
-        [ november_4.id, deluxe.id ] => [ 2, 22_300, 44_600 ],
-        [ november_5.id, standard.id ] => [ 10, 17_300, 173_000 ],
-        [ november_5.id, deluxe.id ] => [ 5, 22_300, 111_500 ]
-      },
-      lines.to_h { |line|
-        [ [ line.service_occurrence_id, line.supplier_resource_id ],
-          [ line.agreed_quantity, line.agreed_unit_rate_minor_units, line.extended_amount_minor_units ] ]
-      }
-    )
-    assert_equal [ 1_000, 4_500, 4_500 ], basis.supplier_deposit_basis_shares.order(:share_basis_points).map(&:share_basis_points)
+    derivation = @version.supplier_agreement_references.find_by!(arrangement_item: item, kind: "deposit_derivation")
+    assert_nil derivation.original_wording
+    [
+      "November 4 Standard 5 x 17300 = 86500",
+      "November 4 Deluxe 2 x 22300 = 44600",
+      "November 5 Standard 10 x 17300 = 173000",
+      "November 5 Deluxe 5 x 22300 = 111500",
+      "415600",
+      "1000",
+      "4500"
+    ].each { |fact| assert_includes derivation.governing_wording, fact }
     assert deposits.all? { |row| row.percentage.nil? && row.rule_parameters.keys == [ "date" ] }
+    assert_equal [ 41_560, 187_020, 187_020 ], deposits.map(&:fixed_amount_minor_units)
 
     derived = contrast_deposit(description: derivation_prose)
     assert_equal({ "date" => "2027-05-07" }, derived.rule_parameters)
@@ -230,29 +221,33 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
     assert_equal [ "datetime" ], probed_deadline.rule_parameters.keys
     assert_equal [ "datetime" ], deadline.rule_parameters.keys
 
-    policy = @version.hotel_attrition_policies.find_by!(arrangement_item: item)
-    assert_equal "lost_room_revenue", policy.consequence
-    assert_equal 10_000, policy.consequence_basis_points
-    assert_equal 1_650, policy.quoted_tax_rate_basis_points
-    assert_equal(
-      { november_4.id => 7, november_5.id => 15 },
-      policy.hotel_attrition_nights.to_h { |night| [ night.service_occurrence_id, night.minimum_utilized_room_nights ] }
-    )
-    assert_equal(
-      { standard.id => 17_300, deluxe.id => 22_300 },
-      policy.hotel_attrition_zero_utilization_rates.to_h { |rate| [ rate.supplier_resource_id, rate.amount_minor_units ] }
-    )
+    attrition = @version.supplier_agreement_references.find_by!(arrangement_item: item, kind: "attrition")
+    [
+      "November 4 minimum 7",
+      "November 5 minimum 15",
+      "100 percent",
+      "17300",
+      "22300",
+      "1650",
+      "approved-channel",
+      "contracted rates",
+      "evaluated independently",
+      "does not offset",
+      "Released rooms remain in the minimum",
+      "average utilized-room rate",
+      "early-departure fee",
+      "No separate cancellation schedule"
+    ].each { |fact| assert_includes attrition.governing_wording, fact }
+    assert_nil attrition.original_wording
 
-    clarification = @version.supplier_deposit_refund_clarifications.find_by!(arrangement_item: item)
-    assert_equal "Deposits are non-refundable.", clarification.original_wording
+    refund = @version.supplier_agreement_references.find_by!(arrangement_item: item, kind: "deposit_refund")
+    assert_equal "Deposits are non-refundable.", refund.original_wording
     assert_equal(
       "The Hotel refunds the agency on or before November 20, 2027, the amount actually paid toward the deposits minus the attrition shortfall.",
-      clarification.governing_wording
+      refund.governing_wording
     )
-    assert_equal "agency", clarification.payer
-    assert_equal "agency", clarification.recipient
-    assert_equal Date.new(2027, 11, 20), clarification.refund_due_on
-    assert_not_equal clarification.class.name, confirmation.class.name
+    assert_not_includes SupplierAgreementReference.column_names, "refund_due_on"
+    assert_not_equal refund.class.name, confirmation.class.name
     %w[original_wording governing_wording payer recipient refund_due_on].each do |column|
       assert_not_includes SupplierConfirmation.column_names, column
     end
@@ -264,43 +259,37 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
   end
 
   def record_hilton_terms!(item, november_4, november_5, standard, deluxe, deposits)
-    CreateSupplierDepositBasis.new(
-      agency: @agency, actor: @admin, arrangement_item: item, currency: "USD",
-      basis_amount_minor_units: 415_600, idempotency_key: "hilton-basis",
-      entries: [
-        [ november_4, standard, 5, 17_300, 86_500 ],
-        [ november_4, deluxe, 2, 22_300, 44_600 ],
-        [ november_5, standard, 10, 17_300, 173_000 ],
-        [ november_5, deluxe, 5, 22_300, 111_500 ]
-      ].map { |occurrence, resource, quantity, rate, extended|
-        {
-          service_occurrence_id: occurrence.id, supplier_resource_id: resource.id,
-          agreed_quantity: quantity, agreed_unit_rate_minor_units: rate,
-          extended_amount_minor_units: extended
-        }
-      },
-      shares: deposits.zip([ 1_000, 4_500, 4_500 ]).map { |requirement, points|
-        { supplier_deposit_requirement_definition_id: requirement.id, share_basis_points: points }
-      }
+    RecordSupplierAgreementReference.new(
+      agency: @agency, actor: @admin, arrangement_item: item, kind: "deposit_derivation",
+      source_description: "Hilton Fort Lauderdale Marina agreement", idempotency_key: "hilton-derivation",
+      governing_wording: <<~TEXT.squish
+        Original contracted room block: November 4 Standard 5 x 17300 = 86500;
+        November 4 Deluxe 2 x 22300 = 44600; November 5 Standard 10 x 17300 = 173000;
+        November 5 Deluxe 5 x 22300 = 111500. Total 415600.
+        Deposit shares 1000, 4500, and 4500 basis points.
+      TEXT
     ).call
-    RecordHotelAttritionPolicy.new(
-      agency: @agency, actor: @admin, arrangement_item: item,
-      quoted_tax_rate_basis_points: 1_650, idempotency_key: "hilton-attrition",
-      nights: [
-        { service_occurrence_id: november_4.id, minimum_utilized_room_nights: 7 },
-        { service_occurrence_id: november_5.id, minimum_utilized_room_nights: 15 }
-      ],
-      zero_utilization_rates: [
-        { supplier_resource_id: standard.id, amount_minor_units: 17_300 },
-        { supplier_resource_id: deluxe.id, amount_minor_units: 22_300 }
-      ]
+    RecordSupplierAgreementReference.new(
+      agency: @agency, actor: @admin, arrangement_item: item, kind: "attrition",
+      source_description: "Hilton Fort Lauderdale Marina agreement", idempotency_key: "hilton-attrition",
+      governing_wording: <<~TEXT.squish
+        November 4 minimum 7 room nights. November 5 minimum 15 room nights.
+        Lost room revenue at 100 percent. Zero-utilization rates Standard 17300 and Deluxe 22300.
+        Quoted tax 1650 basis points. Only approved-channel reservations count.
+        Reservations must use contracted rates. Dates are evaluated independently.
+        Overachievement does not offset another date. Released rooms remain in the minimum.
+        Ordinary shortfall uses the average utilized-room rate.
+        A collected early-departure fee affects later attrition.
+        No separate cancellation schedule exists.
+      TEXT
     ).call
-    RecordSupplierDepositRefundClarification.new(
-      agency: @agency, actor: @admin, arrangement_item: item, idempotency_key: "hilton-refund",
+    RecordSupplierAgreementReference.new(
+      agency: @agency, actor: @admin, arrangement_item: item, kind: "deposit_refund",
+      source_description: "Hilton Fort Lauderdale Marina agreement", idempotency_key: "hilton-refund",
       original_wording: "Deposits are non-refundable.",
-      governing_wording: "The Hotel refunds the agency on or before November 20, 2027, the amount actually paid toward the deposits minus the attrition shortfall.",
-      refund_due_on: Date.new(2027, 11, 20)
+      governing_wording: "The Hotel refunds the agency on or before November 20, 2027, the amount actually paid toward the deposits minus the attrition shortfall."
     ).call
+    [ november_4, november_5, standard, deluxe, deposits ]
   end
 
   def derivation_prose
