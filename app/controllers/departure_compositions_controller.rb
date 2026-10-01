@@ -122,12 +122,7 @@ class DepartureCompositionsController < ApplicationController
   end
 
   def hotel_lodging_items(arrangement)
-    version = if arrangement.association(:versions).loaded?
-      arrangement.versions.find { |row| row.draft? } ||
-        arrangement.versions.find { |row| row.id == arrangement.governing_version_id }
-    else
-      arrangement.versions.find_by(status: "draft") || arrangement.governing_version
-    end
+    version = arrangement.editable_version
     return [] if version.nil?
 
     DetectHotelInventoryShape.lodging_items(version)

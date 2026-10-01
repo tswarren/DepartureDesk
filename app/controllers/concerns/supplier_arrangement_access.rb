@@ -19,8 +19,7 @@ module SupplierArrangementAccess
 
   def set_editable_draft_version
     @supplier_arrangement_version =
-      @supplier_arrangement.versions.find_by(status: "draft") ||
-      @supplier_arrangement.governing_version ||
+      @supplier_arrangement.editable_version ||
       @supplier_arrangement.versions.order(:version_number).last ||
       raise(ActiveRecord::RecordNotFound)
   end

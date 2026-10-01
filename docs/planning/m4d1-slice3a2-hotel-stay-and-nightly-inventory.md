@@ -66,7 +66,7 @@ Room inventory shows one card per room category. Candidate nights are rows on th
 
 Every Hotel route resolves Agency → Departure → Arrangement → exact editable Arrangement Version → Arrangement Item by stable ID. The Item must belong to that authorized version graph. Name, position, `.first`, and `.last` are not identity.
 
-The route does not discover the version by assuming the Arrangement has exactly one draft. It selects the draft version when one exists, otherwise the governing version, and keeps that version’s id for the rest of the request. Later commands reload that id.
+The route does not discover the version by searching for a draft. It pins `SupplierArrangement#editable_version`, the sole draft Supplier planning already uses, or the governing version when no draft exists, and keeps that version’s id for the rest of the request. Later commands reload that id.
 
 If a successor draft already exists, Stay and Room inventory operate on that draft version only. This slice does not build successor creation or the proposed-version presentation. That remains Slice 3A.6.
 

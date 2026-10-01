@@ -9,20 +9,10 @@ module HotelArrangementAccess
   private
 
   def set_hotel_version
-    version = select_hotel_version(@supplier_arrangement)
+    version = @supplier_arrangement.editable_version
     raise ActiveRecord::RecordNotFound if version.nil?
 
     pin_authorized_version!(@supplier_arrangement, version)
-  end
-
-  def select_hotel_version(arrangement)
-    versions = if arrangement.association(:versions).loaded?
-      arrangement.versions
-    else
-      arrangement.versions.to_a
-    end
-    versions.find { |version| version.draft? } ||
-      versions.find { |version| version.id == arrangement.governing_version_id }
   end
 
   def pin_authorized_version!(arrangement, version)

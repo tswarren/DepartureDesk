@@ -202,6 +202,88 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     assert_equal 8, successor_pool.reload.proposed_opening_quantity
     assert_equal 5, predecessor_pool.reload.proposed_opening_quantity
     assert_equal successor.id, successor_pool.supplier_arrangement_version_id
+    assert_equal successor.id, arrangement.reload.editable_version.id
+  end
+
+  test "hotel uses the sole editable version when a later version is also present" do
+    sign_in_as @staff
+    item = create_stay("Pre-cruise hotel stay")
+    arrangement = item.supplier_arrangement
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
+    resource = resource_named(item, "Standard")
+    post item_inventory_openings_departure_arrangement_hotel_path(@departure, arrangement, item), params: opening_params("2027-11-04", resource, 5)
+
+    governing = activate_arrangement!(arrangement)
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement.reload,
+      arrangement_lock_version: arrangement.lock_version,
+      version_lock_version: governing.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+    successor.arrangement_item_definitions.find_by!(arrangement_item: item).update!(name: "Successor hotel stay")
+    later = arrangement.versions.create!(
+      agency: @agency,
+      departure: @departure,
+      version_number: arrangement.versions.maximum(:version_number) + 1,
+      status: "superseded",
+      activated_at: 2.days.ago,
+      superseded_at: 1.day.ago
+    )
+
+    assert_operator later.version_number, :>, successor.version_number
+    assert_equal later.id, arrangement.versions.order(:version_number).last.id
+    assert_equal successor.id, arrangement.reload.editable_version.id
+
+    get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_match "Successor hotel stay", response.body
+
+    successor_pool = successor.capacity_pool_definitions.find_by!(label: "November 4 Standard")
+    patch item_inventory_opening_departure_arrangement_hotel_path(@departure, arrangement, item, successor_pool), params: {
+      definition_lock_version: successor_pool.lock_version,
+      opening: { proposed_opening_quantity: "6" }
+    }
+    assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_equal 6, successor_pool.reload.proposed_opening_quantity
+    assert_equal successor.id, successor_pool.supplier_arrangement_version_id
+    assert_equal 5, governing.capacity_pool_definitions.find_by!(label: "November 4 Standard").proposed_opening_quantity
+    assert_empty later.capacity_pool_definitions
+  end
+
+  test "editable version is the sole draft even when a loaded list would find another draft first" do
+    sign_in_as @staff
+    item = create_stay("Pre-cruise hotel stay")
+    arrangement = item.supplier_arrangement
+    governing = activate_arrangement!(arrangement)
+    successor = CreateSupplierArrangementSuccessor.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: arrangement.reload,
+      arrangement_lock_version: arrangement.lock_version,
+      version_lock_version: governing.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call.record
+
+    arrangement.versions.load
+    decoy = governing
+    decoy.define_singleton_method(:draft?) { true }
+    arrangement.association(:versions).target = [ decoy, *arrangement.versions.to_a ]
+
+    assert_equal successor.id, arrangement.editable_version.id
+    assert decoy.draft?
+    assert_not_equal decoy.id, arrangement.editable_version.id
+  end
+
+  test "hotel access does not choose a version by finding a draft" do
+    source = Rails.root.join("app/controllers/concerns/hotel_arrangement_access.rb").read
+    composition = Rails.root.join("app/controllers/departure_compositions_controller.rb").read
+
+    refute_match(/find \{ \|version\| version\.draft\?/, source)
+    refute_match(/find_by\(status: "draft"\)/, source)
+    assert_match("editable_version", source)
+    refute_match(/find \{ \|row\| row\.draft\?/, composition)
   end
 
   test "an activated arrangement without a successor is read only" do
