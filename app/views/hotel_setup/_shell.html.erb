@@ -58,6 +58,14 @@
           <span class="dd-journey-step__title">Room inventory</span>
         <% end %>
       </li>
+      <li>
+        <%= link_to item_rates_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item),
+              class: "dd-journey-step",
+              id: "hotel-step-rates",
+              aria: (current_key == "rates" ? { current: "page" } : {}) do %>
+          <span class="dd-journey-step__title">Supplier rates</span>
+        <% end %>
+      </li>
     <% end %>
   </ol>
 </nav>

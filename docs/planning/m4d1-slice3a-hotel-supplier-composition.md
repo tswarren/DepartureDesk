@@ -1,6 +1,6 @@
 # M4D.1 Slice 3A — Hotel Supplier Composition
 
-**Status:** Accepted 2026-09-30. Slice 3A.0, the persistence compatibility gate, is recorded in [the 3A.0 result](#3a0-result). [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md), Hotel Supplier-term persistence foundations, is Accepted 2026-09-30 and implemented. The Slice 3A.1 compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. Hotel UI slices 3A.3–3A.6 remain unauthorized until their own accepted plans name that work. Not authority for Transportation, a Client Service connection, or a generalized adapter.
+**Status:** Accepted 2026-09-30. Slice 3A.0, the persistence compatibility gate, is recorded in [the 3A.0 result](#3a0-result). [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md), Hotel Supplier-term persistence foundations, is Accepted 2026-09-30 and implemented. The Slice 3A.1 compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md), Hotel Supplier rates and economics, is Accepted 2026-10-01 and implemented. Hotel UI slices 3A.4–3A.6 remain unauthorized until their own accepted plans name that work. Not authority for Transportation, a Client Service connection, or a generalized adapter.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md).
 
@@ -26,7 +26,7 @@ The implementation base is [`115d3b5`](https://github.com/tswarren/DepartureDesk
 
 PR #156 and its generalized adapter services remain non-authoritative.
 
-Slice 3A.0 has run. Its result is below. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the accepted foundation amendment for the four incompatibilities that result names. The Slice 3A.1 compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. Hotel UI slices 3A.3–3A.6 remain unauthorized until their own accepted plans name that work. §23 below supersedes the former 3A.1–3A.3 sequence.
+Slice 3A.0 has run. Its result is below. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the accepted foundation amendment for the four incompatibilities that result names. The Slice 3A.1 compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md), Hotel Supplier rates and economics, is Accepted 2026-10-01 and implemented. Hotel UI slices 3A.4–3A.6 remain unauthorized until their own accepted plans name that work. §23 below supersedes the former 3A.1–3A.3 sequence.
 
 ---
 
@@ -835,7 +835,7 @@ Recorded 2026-09-30. `test/services/m4d1_slice3a0_hotel_persistence_compatibilit
 | Attrition | version-and-Item Hotel attrition policy, room-night minima, and Resource rate snapshots |
 | Refund clarification | `SupplierDepositRefundClarification` |
 
-[Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) is implemented. This result does not authorize slices 3A.3–3A.6.
+[Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) is implemented. [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md) is Accepted 2026-10-01 and implemented. This result does not authorize slices 3A.4–3A.6.
 
 ### 3A.2 — Stay and nightly inventory
 
@@ -845,20 +845,9 @@ Implemented as [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md). 
 
 ### 3A.3 — Supplier rates and economics
 
-Not authorized until its own accepted plan names the work.
+Accepted 2026-10-01 and implemented as [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md). That plan is the implementation authority for one contracted cost source per inventory night and room category, the persisted `noncommissionable` treatment, and a probe read of the current pretax room block. The accepted contract removes the write-free quoted-tax illustration from this slice and does not assign it to Slice 3A.4.
 
-Implement:
-
-- the locked occupancy-position rates from §9;
-- Single/Double/Triple/Quad review;
-- the persisted `noncommissionable` treatment and no `expected_commission` component;
-- $1,311 + $2,845 = $4,156 evaluation from one night per Pool;
-- quoted tax exposure kept separate;
-- Advanced fallback for unsupported shapes.
-
-This slice displays the rate shape and commission treatment recorded by Slice 3A.1. It does not redefine them.
-
-**Exit:** Staff can accurately establish and review Hotel Supplier economics without creating Client facts.
+**Exit:** Staff can record and resume the Hilton Supplier-rate schedule, including the occupancy illustrations and the current $4,156 pretax room block, without creating Client facts.
 
 ### 3A.4 — Agreement and operational requirements
 

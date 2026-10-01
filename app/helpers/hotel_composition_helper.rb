@@ -57,4 +57,41 @@ module HotelCompositionHelper
   def hotel_matrix_cell_invalid?(resource_id, date)
     Array(@invalid_cells).include?("#{resource_id}--#{date.to_date.iso8601}")
   end
+
+  def hotel_rates_uniform?(contexts, kind)
+    contexts.map { |context| context.public_send(kind)&.amount_minor_units }.uniq.size <= 1
+  end
+
+  def hotel_rate_amount(minor, currency)
+    return "" if minor.nil? || currency.blank?
+
+    Money.new(minor, currency).format(symbol: false, thousands_separator: false)
+  end
+
+  def hotel_rate_value(context, kind, currency)
+    submitted = @submitted_rate_values&.dig(context.resource_id.to_s, context.date.iso8601, kind.to_s)
+    return submitted unless submitted.nil?
+
+    hotel_rate_amount(context.public_send(kind)&.amount_minor_units, currency)
+  end
+
+  def hotel_compact_rate_value(contexts, kind, currency)
+    submitted = contexts.map do |context|
+      @submitted_rate_values&.dig(context.resource_id.to_s, context.date.iso8601, kind.to_s)
+    end
+    return submitted.compact.first if submitted.compact.uniq.size == 1
+
+    hotel_rate_amount(contexts.first&.public_send(kind)&.amount_minor_units, currency)
+  end
+
+  def hotel_rate_field_invalid?(context, kind)
+    Array(@invalid_rate_fields).include?("#{context.resource_id}--#{context.date.iso8601}--#{kind}")
+  end
+
+  def hotel_noncommissionable_checked?(shape)
+    return @submitted_noncommissionable unless @submitted_noncommissionable.nil?
+
+    definitions = shape.supported_contexts.filter_map(&:definition)
+    definitions.any? && definitions.all?(&:noncommissionable?)
+  end
 end

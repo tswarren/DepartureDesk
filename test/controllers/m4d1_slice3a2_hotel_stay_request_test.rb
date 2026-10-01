@@ -22,8 +22,8 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, item.supplier_arrangement, item)
     follow_redirect!
     assert_response :success
-    assert_select "ol.dd-journey-strip .dd-journey-step", count: 3
-    assert_select "a", text: "Supplier rates", count: 0
+    assert_select "ol.dd-journey-strip .dd-journey-step", count: 4
+    assert_select "a", text: "Supplier rates", count: 1
     assert_select "a", text: "Agreement", count: 0
     assert_select "a", text: "Review & activate", count: 0
 

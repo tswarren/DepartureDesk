@@ -79,7 +79,7 @@ class M4d1Slice3a2HotelStaySystemTest < ApplicationSystemTestCase
     assert_text "Standard / 15 contracted room nights"
     assert_text "Deluxe / 7 contracted room nights"
     assert_text "2 room categories · 22 contracted room nights"
-    assert_no_text "Supplier rates"
+    assert_text "Supplier rates"
     assert_no_text "Review & activate"
 
     visit item_inventory_departure_arrangement_hotel_path(@departure, item.supplier_arrangement, item)
