@@ -223,6 +223,23 @@ $$;
 
 
 --
+-- Name: lock_version_before_supplier_confirmation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.lock_version_before_supplier_confirmation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  PERFORM id
+    FROM supplier_arrangement_versions
+   WHERE id = NEW.supplier_arrangement_version_id
+     FOR UPDATE;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_agency_user_agency_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -547,6 +564,41 @@ BEGIN
     OR NEW.copied_from_id IS DISTINCT FROM OLD.copied_from_id
   THEN
     RAISE EXCEPTION 'commercial benefit definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_confirmed_agreement_reference_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_confirmed_agreement_reference_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE version_id uuid;
+BEGIN
+  version_id := CASE TG_OP
+    WHEN 'DELETE' THEN OLD.supplier_arrangement_version_id
+    ELSE NEW.supplier_arrangement_version_id
+  END;
+
+  PERFORM id
+    FROM supplier_arrangement_versions
+   WHERE id = version_id
+     FOR SHARE;
+
+  IF EXISTS (
+    SELECT 1
+      FROM supplier_confirmations
+     WHERE supplier_arrangement_version_id = version_id
+  ) THEN
+    RAISE EXCEPTION 'agreement references are immutable after Supplier confirmation';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
   END IF;
   RETURN NEW;
 END;
@@ -12409,6 +12461,13 @@ CREATE TRIGGER service_offers_reject_owner_change BEFORE UPDATE ON public.servic
 
 
 --
+-- Name: supplier_agreement_references supplier_agreement_references_reject_confirmed; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_references_reject_confirmed BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_agreement_reference_mutation();
+
+
+--
 -- Name: supplier_agreement_references supplier_agreement_references_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12707,6 +12766,13 @@ CREATE TRIGGER supplier_confirmation_reservation_scope_links_reject_delete BEFOR
 --
 
 CREATE TRIGGER supplier_confirmation_reservation_scope_links_reject_update BEFORE UPDATE ON public.supplier_confirmation_reservation_scope_links FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: supplier_confirmations supplier_confirmations_lock_version; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_confirmations_lock_version BEFORE INSERT ON public.supplier_confirmations FOR EACH ROW EXECUTE FUNCTION public.lock_version_before_supplier_confirmation();
 
 
 --
@@ -17241,6 +17307,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261001193000'),
 ('20261001180000'),
 ('20260930170000'),
 ('20260928020000'),

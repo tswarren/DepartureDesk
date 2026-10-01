@@ -198,6 +198,54 @@ class M4d1Slice3a1HotelSupplierTermPersistenceTest < ActiveSupport::TestCase
     assert_equal :invalid, missing_item.code
   end
 
+  test "supplier confirmation freezes agreement references while the version is still draft" do
+    reference = record_reference(kind: "deposit_derivation", governing_wording: DERIVATION).record
+    updated = record_reference(
+      kind: "deposit_derivation",
+      governing_wording: "#{DERIVATION} Draft revision.",
+      idempotency_key: SecureRandom.uuid,
+      lock_version: reference.lock_version
+    )
+    assert_equal :updated, updated.status
+    assert_equal "draft", @version.reload.status
+
+    confirm_version!
+    assert_equal "draft", @version.reload.status
+
+    command_error = assert_raises(AgencyCommand::Error) do
+      record_reference(
+        kind: "deposit_derivation",
+        governing_wording: "#{DERIVATION} After confirmation.",
+        idempotency_key: SecureRandom.uuid,
+        lock_version: updated.record.reload.lock_version
+      )
+    end
+    assert_equal :invalid_state, command_error.code
+    assert_equal "#{DERIVATION} Draft revision.", reference.reload.governing_wording
+
+    assert_raises(ActiveRecord::RecordInvalid) do
+      reference.update!(governing_wording: "#{DERIVATION} Direct edit.")
+    end
+    assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierAgreementReference.transaction(requires_new: true) do
+        reference.update_columns(governing_wording: "#{DERIVATION} Bypassed edit.")
+      end
+    end
+    assert_raises(ActiveRecord::RecordNotDestroyed) { reference.destroy! }
+    assert_raises(ActiveRecord::StatementInvalid) do
+      SupplierAgreementReference.transaction(requires_new: true) do
+        SupplierAgreementReference.where(id: reference.id).delete_all
+      end
+    end
+    assert_equal "#{DERIVATION} Draft revision.", reference.reload.governing_wording
+
+    added = assert_raises(AgencyCommand::Error) do
+      record_reference(kind: "attrition", governing_wording: ATTRITION, idempotency_key: SecureRandom.uuid)
+    end
+    assert_equal :invalid_state, added.code
+    assert_nil @version.supplier_agreement_references.find_by(kind: "attrition")
+  end
+
   test "successor copies agreement references and an omitted copy cannot activate" do
     derivation = record_reference(kind: "deposit_derivation", governing_wording: DERIVATION).record
     record_reference(kind: "attrition", governing_wording: ATTRITION)
@@ -266,12 +314,25 @@ class M4d1Slice3a1HotelSupplierTermPersistenceTest < ActiveSupport::TestCase
   ATTRITION = "November 4 minimum 7. November 5 minimum 15. Lost room revenue at 100 percent. Rates 17300 and 22300. Quoted tax 1650 basis points."
   SOURCE = "Hilton agreement"
 
-  def record_reference(kind:, governing_wording:, original_wording: nil, evidence_note: nil, idempotency_key: "term-#{kind}")
+  def record_reference(kind:, governing_wording:, original_wording: nil, evidence_note: nil,
+    idempotency_key: "term-#{kind}", lock_version: nil)
     RecordSupplierAgreementReference.new(
       agency: @agency, actor: @admin, arrangement_item: @item, kind: kind,
       governing_wording: governing_wording, original_wording: original_wording,
-      source_description: SOURCE, evidence_note: evidence_note, idempotency_key: idempotency_key
+      source_description: SOURCE, evidence_note: evidence_note, idempotency_key: idempotency_key,
+      lock_version: lock_version
     ).call
+  end
+
+  def confirm_version!
+    SupplierConfirmation.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement,
+      supplier_arrangement_version: @version, confirming_supplier: @contractor,
+      evidence_kind: "supplier_confirmation", evidence_on: Date.new(2026, 9, 28),
+      channel: "email", reference_note: "Confirmed the Hotel terms.",
+      confirmed_without_identifier_reason: "No hotel number was issued.",
+      actor: @admin, recorded_at: Time.current
+    )
   end
 
   def other_item

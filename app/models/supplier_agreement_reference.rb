@@ -35,6 +35,8 @@ class SupplierAgreementReference < ApplicationRecord
   validates :arrangement_item, presence: true, if: :item_required?
   validates :kind, uniqueness: { scope: [ :supplier_arrangement_version_id, :arrangement_item_id ] }
   validate :original_wording_matches_kind
+  validate :version_must_be_unconfirmed_for_reference_mutation
+  before_destroy :reject_confirmed_reference_destroy
 
   private
 
@@ -48,5 +50,23 @@ class SupplierAgreementReference < ApplicationRecord
     elsif original_wording.present?
       errors.add(:original_wording, "must be blank")
     end
+  end
+
+  def version_must_be_unconfirmed_for_reference_mutation
+    return unless confirmed_version?
+
+    errors.add(:base, "Agreement references are immutable after Supplier confirmation")
+  end
+
+  def reject_confirmed_reference_destroy
+    return unless confirmed_version?
+
+    errors.add(:base, "Agreement references are immutable after Supplier confirmation")
+    throw :abort
+  end
+
+  def confirmed_version?
+    supplier_arrangement_version_id.present? &&
+      SupplierConfirmation.exists?(supplier_arrangement_version_id: supplier_arrangement_version_id)
   end
 end

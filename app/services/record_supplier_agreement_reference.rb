@@ -29,6 +29,12 @@ class RecordSupplierAgreementReference < AgencyCommand
         raise Error.new("Choose the Arrangement Item.", code: :invalid) if @item.blank?
 
         _departure, arrangement, version, item = lock_term_item!(@item)
+        if SupplierConfirmation.exists?(supplier_arrangement_version_id: version.id)
+          raise Error.new(
+            "Agreement references are immutable after Supplier confirmation.",
+            code: :invalid_state
+          )
+        end
         attrs = normalize_attrs!(kind)
         payload = attrs.merge(arrangement_item_id: item.id)
         if (replay = replay_recorded!(SupplierAgreementReference, payload))
