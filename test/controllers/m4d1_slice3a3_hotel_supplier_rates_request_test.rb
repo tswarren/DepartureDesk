@@ -202,6 +202,92 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_equal 22_300, component_amount(item, "November 4", "Deluxe", "Room night base")
   end
 
+  test "a blank supplement removes the component and leaves the other rates in place" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+    base = source_for(item, "November 4", "Standard").supplier_cost_definitions.sole.supplier_cost_components.find_by!(label: "Room night base")
+    fourth = source_for(item, "November 4", "Standard").supplier_cost_definitions.sole.supplier_cost_components.find_by!(label: "Fourth occupant")
+    base_stamp = base.updated_at
+
+    patch item_rates_departure_arrangement_hotel_path(@departure, arrangement, item), params: rate_params(
+      standard, deluxe, locks: lock_params(item), third: ""
+    )
+    assert_redirected_to item_rates_departure_arrangement_hotel_path(@departure, arrangement, item)
+    follow_redirect!
+
+    assert_empty draft_version(item).supplier_cost_components.where(label: "Third occupant")
+    assert_equal 0, draft_version(item).supplier_cost_components.where(amount_minor_units: 0, occupancy_position_from: 3).count
+    assert_equal 2_000, fourth.reload.amount_minor_units
+    assert_equal 4, fourth.occupancy_position_from
+    assert_equal 4, fourth.occupancy_position_to
+    assert_equal base_stamp, base.reload.updated_at
+    assert_equal 17_300, base.amount_minor_units
+    assert_match "Standard: $173.00 / $173.00 / $173.00 / $193.00", response.body
+    assert_match "Deluxe: $223.00 / $223.00 / $223.00 / $243.00", response.body
+
+    patch item_rates_departure_arrangement_hotel_path(@departure, arrangement, item), params: rate_params(
+      standard, deluxe,
+      locks: lock_params(item),
+      third: "",
+      bases: { standard.supplier_resource_id => "", deluxe.supplier_resource_id => "223" }
+    )
+    assert_response :unprocessable_entity
+    assert_match "Enter a Supplier rate.", response.body
+    assert_equal 17_300, component_amount(item, "November 4", "Standard", "Room night base")
+    assert_empty draft_version(item).supplier_cost_components.where(label: "Third occupant")
+  end
+
+  test "saving supplier rates requires the noncommissionable acknowledgement" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+
+    assert_no_difference -> { SupplierCostSource.where(agency: @agency).count } do
+      patch item_rates_departure_arrangement_hotel_path(@departure, arrangement, item), params: rate_params(
+        standard, deluxe, commission: false
+      )
+    end
+    assert_response :unprocessable_entity
+    assert_match "Confirm Net and noncommissionable before saving Supplier rates.", response.body
+    assert_select "input#noncommissionable[checked]", count: 0
+
+    save_rates(arrangement, item, standard, deluxe)
+    patch item_rates_departure_arrangement_hotel_path(@departure, arrangement, item), params: rate_params(
+      standard, deluxe, locks: lock_params(item), deluxe_base: "230", commission: false
+    )
+    assert_response :unprocessable_entity
+    assert_match "Confirm Net and noncommissionable before saving Supplier rates.", response.body
+    assert_equal 22_300, component_amount(item, "November 4", "Deluxe", "Room night base")
+    assert draft_version(item).supplier_cost_definitions.all?(&:noncommissionable?)
+  end
+
+  test "occupancy illustrations stop at the category maximum occupancy" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    UpdateSupplierResource.new(
+      agency: @agency,
+      actor: @staff,
+      definition: standard,
+      lock_version: standard.lock_version,
+      attributes: { name: "Standard", maximum_occupancy: 3 }
+    ).call
+
+    save_rates(arrangement, item, standard, deluxe)
+    follow_redirect!
+    assert_match "Standard: $173.00 / $173.00 / $193.00", response.body
+    assert_no_match "Standard: $173.00 / $173.00 / $193.00 / ", response.body
+    assert_match "Deluxe: $223.00 / $223.00 / $243.00 / $263.00", response.body
+  end
+
   test "an unsupported cost graph stays unchanged and links to advanced supplier cost planning" do
     sign_in_as @staff
     item = hilton_inventory
@@ -365,18 +451,19 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
       params: rate_params(standard, deluxe, bases: bases, locks: locks, deluxe_base: deluxe_base)
   end
 
-  def rate_params(standard, deluxe, bases: nil, locks: {}, deluxe_base: "223")
-    {
+  def rate_params(standard, deluxe, bases: nil, locks: {}, deluxe_base: "223", third: "20", fourth: "20", commission: true)
+    payload = {
       idempotency_key: SecureRandom.uuid,
-      noncommissionable: "1",
       base: bases || {
         standard.supplier_resource_id => "173",
         deluxe.supplier_resource_id => deluxe_base
       },
-      supplement: { "3" => "20", "4" => "20" },
+      supplement: { "3" => third, "4" => fourth },
       definition_lock: locks[:definition_lock] || {},
       component_lock: locks[:component_lock] || {}
     }
+    payload[:noncommissionable] = "1" if commission
+    payload
   end
 
   def lock_params(item)

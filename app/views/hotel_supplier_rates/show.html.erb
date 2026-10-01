@@ -135,7 +135,8 @@
 
         <div class="dd-field-group">
           <label class="dd-label" for="noncommissionable">
-            <input type="checkbox" id="noncommissionable" name="noncommissionable" value="1" <%= "checked" if hotel_noncommissionable_checked?(@rate_shape) %> <%= "disabled" unless @editable %>>
+            <input type="checkbox" id="noncommissionable" name="noncommissionable" value="1" <%= "checked" if hotel_noncommissionable_checked?(@rate_shape) %> <%= "disabled" unless @editable %>
+              <% if @commission_invalid %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>>
             Net and noncommissionable
           </label>
         </div>

@@ -3,7 +3,7 @@
 class HotelSupplierRatesController < ApplicationController
   include HotelArrangementAccess
 
-  RateChange = Data.define(:context, :kind, :minor, :component)
+  RateChange = Data.define(:context, :kind, :minor, :component, :remove)
   COMPONENT_LABELS = {
     base: "Room night base",
     third: "Third occupant",
@@ -24,7 +24,7 @@ class HotelSupplierRatesController < ApplicationController
   end
 
   def update
-    @submitted_noncommissionable = ActiveModel::Type::Boolean.new.cast(params[:noncommissionable])
+    @submitted_noncommissionable = ActiveModel::Type::Boolean.new.cast(params[:noncommissionable]) || false
     return render_blocked if @rate_shape.blocked? || !hotel_editable?
 
     unless locks_current?
@@ -35,6 +35,12 @@ class HotelSupplierRatesController < ApplicationController
 
     changes = rate_changes
     if @form_error
+      render :show, status: :unprocessable_entity
+      return
+    end
+    unless @submitted_noncommissionable
+      @commission_invalid = true
+      @form_error = "Confirm Net and noncommissionable before saving Supplier rates."
       render :show, status: :unprocessable_entity
       return
     end
@@ -133,9 +139,11 @@ class HotelSupplierRatesController < ApplicationController
         component = context.public_send(kind)
         minor = minor_units_for(raw)
         if minor == :blank
-          if component
+          if component && kind == :base
             @invalid_rate_fields << rate_field_key(context, kind)
             error ||= "Enter a Supplier rate."
+          elsif component
+            changes << RateChange.new(context: context, kind: kind, minor: nil, component: component, remove: true)
           end
           next
         end
@@ -146,7 +154,7 @@ class HotelSupplierRatesController < ApplicationController
         end
         next if component&.amount_minor_units == minor
 
-        changes << RateChange.new(context: context, kind: kind, minor: minor, component: component)
+        changes << RateChange.new(context: context, kind: kind, minor: minor, component: component, remove: false)
       end
     end
     return fail_rates(error) if error
@@ -276,7 +284,7 @@ class HotelSupplierRatesController < ApplicationController
       if group.any?
         source = ensure_source!(context)
         definition = ensure_definition!(context, source)
-        group.sort_by { |change| change.component ? 0 : 1 }.each do |change|
+        group.sort_by { |change| change.remove ? 0 : (change.component ? 1 : 2) }.each do |change|
           write_component!(definition, context, change)
         end
         set_commission!(definition) if @submitted_noncommissionable
@@ -327,6 +335,16 @@ class HotelSupplierRatesController < ApplicationController
   end
 
   def write_component!(definition, context, change)
+    if change.remove
+      definition.reload
+      RemoveSupplierCostComponent.new(
+        **hotel_command_context,
+        component: change.component,
+        definition_lock_version: definition.lock_version
+      ).call
+      return
+    end
+
     if change.component
       return if change.component.amount_minor_units == change.minor
 

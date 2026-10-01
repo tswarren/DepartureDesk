@@ -141,11 +141,11 @@ A common third-occupant field and a common fourth-occupant field are shown only 
 
 The save may fan one submitted amount across the recognized night and category sources. When the stored graph already differs by Resource or by night, the page shows those values independently. It does not replace them with one common value.
 
-A blank supplement creates no component. A stored zero is a known zero. Blank and zero remain different facts.
+A blank supplement creates no component. Submitting a blank value for a supplement that already has a component removes that component through `RemoveSupplierCostComponent`. It does not store zero. A stored zero is a known zero. Blank and zero remain different facts. A stored room-night base stays required: blanking it is rejected.
 
 ## 7. Save boundary
 
-**Save Supplier rates** is one Staff action. It sequences the shipped cost commands in one transaction: create a missing source, create its contracted definition, create or update the supported components, and set commission treatment. Each command keeps its own authority. There is no `SaveHotelRates` domain command and no direct model write.
+**Save Supplier rates** is one Staff action. It sequences the shipped cost commands in one transaction: create a missing source, create its contracted definition, create or update the supported components, remove a supplement whose submitted amount is blank, and set commission treatment. Each command keeps its own authority. There is no `SaveHotelRates` domain command and no direct model write.
 
 Before those commands run, every existing cost definition represented in the submitted snapshot must still have the lock version Staff viewed, including a definition whose amounts did not change. A stale snapshot is rejected and writes nothing. An invalid amount rejects the whole submission and redisplays the submitted values. An unchanged component is not rewritten. Creation uses distinct idempotency keys from one form key.
 
@@ -153,7 +153,7 @@ Rendering the page creates nothing.
 
 ## 8. Commission
 
-Every typed Hilton definition persists `commission_treatment` `noncommissionable` through `SetSupplierCostCommissionTreatment`. The page says **Net and noncommissionable**. An absent commission component is not that fact: `unspecified` remains “not entered.”
+Every typed Hilton definition persists `commission_treatment` `noncommissionable` through `SetSupplierCostCommissionTreatment`. The page says **Net and noncommissionable**, and saving the typed rates requires that acknowledgement. An unchecked box is rejected and does not leave the stored treatment looking changed. An absent commission component is not that fact: `unspecified` remains “not entered.”
 
 The shipped model and database rules stay authoritative. A noncommissionable definition cannot contain an `expected_commission` component. An `expected_commission` component cannot belong to a noncommissionable definition.
 
