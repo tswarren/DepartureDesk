@@ -38,19 +38,19 @@ class M4d1Slice3a2HotelStaySystemTest < ApplicationSystemTestCase
     fill_in_html_date "Departure date", "2027-11-06"
     click_button "Save and continue"
     assert_selector "#room-categories-heading"
-    assert_text "Nov 4"
-    assert_text "Nov 5"
+    assert_text "Nov 4–6, 2027 · 2 nights"
     assert_no_text "Nov 1"
     assert_no_button "Add room night"
 
     fill_in "resource_name", with: "Standard"
     fill_in "resource_maximum_occupancy", with: "4"
     click_button "Add room category"
-    assert_selector "input[value='Standard']"
+    assert_text "Standard"
+    assert_text "Maximum occupancy 4"
     fill_in "resource_name", with: "Deluxe"
     fill_in "resource_maximum_occupancy", with: "4"
     click_button "Add room category"
-    assert_selector "input[value='Deluxe']"
+    assert_text "Deluxe"
 
     item = ArrangementItemDefinition.find_by!(agency: @agency, name: "Pre-cruise hotel stay").arrangement_item
     assert_equal 1, draft_version(item).service_occurrence_definitions.where(arrangement_item: item).count

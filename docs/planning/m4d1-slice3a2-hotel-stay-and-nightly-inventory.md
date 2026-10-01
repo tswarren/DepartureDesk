@@ -60,7 +60,7 @@ This slice’s local navigation is Overview, Stay, and Room inventory. Overview 
 
 Entry is **Add Hotel stay** from the Supplier Arrangement. The stay form collects the contracting Supplier, Item name, arrival date, departure date, check-in time, checkout time, and IANA time zone. Display currency is the Departure operating currency. Saving the stay creates the Item, marks it capacity-managed, and creates the Stay Occurrence. It does not create a Resource, Pool, rate, deposit, deadline, Service Offer, or Package inclusion.
 
-Room inventory shows one card per room category. Candidate nights are derived from the Stay: arrival through the day before checkout. Staff enter each night’s contracted rooms on that category. Saving a blank night records that date only. Reopening one cell does not rewrite the other three openings, the other Resource, or the Stay. The page does not create those nights when it is opened.
+Room inventory shows one card per room category. Candidate nights are rows on that category, derived from the Stay: arrival through the day before checkout. Category name and occupancy are edited on demand. Staff enter each night’s contracted rooms on that category. Saving a blank night records that date only. Reopening one cell does not rewrite the other three openings, the other Resource, or the Stay. The page does not create those nights when it is opened.
 
 ## 5. Route identity
 

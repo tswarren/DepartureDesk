@@ -18,6 +18,13 @@ module HotelCompositionHelper
     CapacityPoolDefinition::EVIDENCE_KINDS
   end
 
+  def hotel_contracted_stay_sentence(definition, night_count)
+    return if definition.nil?
+
+    nights = night_count.to_i
+    "#{hotel_stay_span(definition)} · #{nights} #{'night'.pluralize(nights)}"
+  end
+
   def hotel_stay_span(definition)
     return if definition.nil?
 

@@ -66,14 +66,19 @@ class M4d1Slice3a2HotelStayRequestTest < ActionDispatch::IntegrationTest
     version_id = draft_version(item).id
     get item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
     assert_response :success
-    assert_match "Nov 4", response.body
-    assert_match "Nov 5", response.body
-    assert_no_match(/Nov 1|Nov 2|Nov 3/, response.body)
+    assert_match "Nov 4–6, 2027 · 2 nights", response.body
+    assert_no_match(/Nov 1|Nov 2|Nov 3|Nov 5/, response.body)
     assert_equal 1, draft_version(item).service_occurrence_definitions.where(arrangement_item: item).count
     assert_equal 0, draft_version(item).capacity_pool_definitions.count
 
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
     assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+    follow_redirect!
+    assert_match "Standard", response.body
+    assert_match "Maximum occupancy 4", response.body
+    assert_match "Nov 4", response.body
+    assert_match "Nov 5", response.body
+    assert_match "Edit category", response.body
     post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Deluxe")
 
     quantities = [ [ "2027-11-04", "Standard", 5 ], [ "2027-11-04", "Deluxe", 2 ], [ "2027-11-05", "Standard", 10 ], [ "2027-11-05", "Deluxe", 5 ] ]
