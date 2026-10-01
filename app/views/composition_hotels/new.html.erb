@@ -1,0 +1,50 @@
+<% content_for :title, "Add Hotel stay · #{@departure.name} · DepartureDesk" %>
+<% item = (@item_attributes || {}).with_indifferent_access %>
+<% arrangement = (@arrangement_attributes || {}).with_indifferent_access %>
+<% occurrence = (@occurrence_attributes || {}).with_indifferent_access %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+
+<article class="dd-panel" id="hotel-stay-form">
+  <div class="dd-panel-body">
+    <header class="dd-page-header">
+      <div class="dd-page-heading">
+        <p class="dd-eyebrow"><%= @departure.name %></p>
+        <h2 class="dd-page-title">Add Hotel stay</h2>
+        <p class="dd-page-description">
+          This creates the Supplier arrangement, the lodging stay, and its check-in and checkout.
+          Room categories and nightly inventory come next.
+        </p>
+      </div>
+    </header>
+
+    <%= form_with url: departure_composition_suppliers_hotels_path(@departure), method: :post, class: "dd-form dd-stack" do %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <%= render "hotel_stays/error_summary" %>
+
+      <section aria-labelledby="hotel-stay-heading" class="dd-stack">
+        <h2 id="hotel-stay-heading" class="dd-section-title">Stay</h2>
+        <%= render "hotel_stays/fields", item: item, occurrence: occurrence, show_item_name: true %>
+      </section>
+
+      <section aria-labelledby="hotel-arrangement-heading" class="dd-stack">
+        <h2 id="hotel-arrangement-heading" class="dd-section-title">Arrangement</h2>
+        <div class="dd-field-group">
+          <label class="dd-label" for="arrangement_contracting_supplier_id">Contracting Supplier</label>
+          <select id="arrangement_contracting_supplier_id" name="arrangement[contracting_supplier_id]" class="dd-field" required>
+            <option value="">Choose a supplier</option>
+            <% active_supplier_options.each do |supplier| %>
+              <option value="<%= supplier.id %>" <%= "selected" if arrangement[:contracting_supplier_id].to_s == supplier.id.to_s %>>
+                <%= supplier_option_label(supplier) %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+      </section>
+
+      <div class="dd-inline-actions">
+        <button type="submit" class="dd-button">Save and continue</button>
+        <%= link_to "Return to Suppliers", suppliers_departure_composition_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

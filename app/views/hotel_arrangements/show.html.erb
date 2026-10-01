@@ -1,0 +1,34 @@
+<% content_for :title, "Hotel · #{@departure.name} · DepartureDesk" %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<%= render "hotel_setup/shell", current: "overview", page_title: "Hotel" %>
+
+<article class="dd-panel" id="hotel-workspace">
+  <div class="dd-panel-body dd-stack">
+    <p>Operating currency <%= @departure.operating_currency %>.</p>
+
+    <% if @lodging_items.empty? %>
+      <p>No Hotel stay yet.</p>
+    <% else %>
+      <ul>
+        <% @lodging_items.each do |item| %>
+          <% shape = @shapes[item] %>
+          <li id="hotel-item-<%= item.id %>">
+            <h2 class="dd-section-title"><%= shape.item_definition.name %></h2>
+            <p><%= hotel_room_night_sentence(shape) %></p>
+            <% if shape.blocked? %>
+              <%= render "hotel_setup/unsupported", shape: shape, item: item %>
+            <% end %>
+            <p>
+              <%= link_to "Stay", edit_item_stay_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item) %>
+              · <%= link_to "Room inventory", item_inventory_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item) %>
+            </p>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+
+    <% if @editable %>
+      <p><%= link_to "Add another Hotel stay", new_departure_arrangement_hotel_stay_path(@departure, @supplier_arrangement), class: "dd-button" %></p>
+    <% end %>
+  </div>
+</article>

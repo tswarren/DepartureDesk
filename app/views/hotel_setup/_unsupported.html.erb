@@ -1,0 +1,12 @@
+<div role="status">
+  <p>This Hotel graph cannot be edited here.</p>
+  <ul>
+    <% shape.reasons.each do |reason| %>
+      <li><%= reason %></li>
+    <% end %>
+  </ul>
+  <p>
+    <%= link_to "Item capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, item), class: "dd-link" %>
+    · <%= link_to "Advanced Supplier planning", departure_arrangement_path(@departure, @supplier_arrangement), class: "dd-link" %>
+  </p>
+</div>

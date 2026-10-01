@@ -1,6 +1,6 @@
 # M4D.1 Slice 3A — Hotel Supplier Composition
 
-**Status:** Accepted 2026-09-30. Slice 3A.0, the persistence compatibility gate, is recorded in [the 3A.0 result](#3a0-result). [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md), Hotel Supplier-term persistence foundations, is Accepted 2026-09-30 and is the authorized implementation. The Slice 3A.1 compatibility proof is green. Hotel UI slices 3A.2–3A.6 remain unauthorized until their own accepted plans name that work. Not authority for Transportation, a Client Service connection, or a generalized adapter.
+**Status:** Accepted 2026-09-30. Slice 3A.0, the persistence compatibility gate, is recorded in [the 3A.0 result](#3a0-result). [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md), Hotel Supplier-term persistence foundations, is Accepted 2026-09-30 and implemented. The Slice 3A.1 compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. Hotel UI slices 3A.3–3A.6 remain unauthorized until their own accepted plans name that work. Not authority for Transportation, a Client Service connection, or a generalized adapter.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md).
 
@@ -26,7 +26,7 @@ The implementation base is [`115d3b5`](https://github.com/tswarren/DepartureDesk
 
 PR #156 and its generalized adapter services remain non-authoritative.
 
-Slice 3A.0 has run. Its result is below. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the accepted foundation amendment for the four incompatibilities that result names. The Slice 3A.1 compatibility proof is green. Hotel UI slices 3A.2–3A.6 remain unauthorized until their own accepted plans name that work. §23 below supersedes the former 3A.1–3A.3 sequence.
+Slice 3A.0 has run. Its result is below. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the accepted foundation amendment for the four incompatibilities that result names. The Slice 3A.1 compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. Hotel UI slices 3A.3–3A.6 remain unauthorized until their own accepted plans name that work. §23 below supersedes the former 3A.1–3A.3 sequence.
 
 ---
 
@@ -743,7 +743,7 @@ Every nested record is resolved through the authorized Agency, Departure, Arrang
 
 ## 23. Implementation slices
 
-Acceptance of this document authorizes the implementation order below. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the only later slice this acceptance authorizes. Slices 3A.2–3A.6 wait for that foundation's green compatibility proof and for their own accepted plans.
+Acceptance of this document authorizes the implementation order below. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is implemented. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) is implemented. Slices 3A.3–3A.6 wait for their own accepted plans.
 
 ### 3A.0 — Persistence compatibility gate
 
@@ -809,7 +809,7 @@ Free-text `description`, `notes`, `reference_note`, and untyped `rule_parameters
 
 #### Foundation
 
-[Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is that amendment. It adds commission treatment, the original deposit basis, the Hotel attrition policy, and `SupplierDepositRefundClarification`. The rerun of `test/services/m4d1_slice3a0_hotel_persistence_compatibility_test.rb` is green. Slice 3A.2 is eligible for its own accepted plan. That proof does not start Hotel UI.
+[Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is that amendment. It adds commission treatment, the original deposit basis, the Hotel attrition policy, and `SupplierDepositRefundClarification`. The rerun of `test/services/m4d1_slice3a0_hotel_persistence_compatibility_test.rb` is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) is implemented. That proof does not authorize slices 3A.3–3A.6.
 
 The sequence below supersedes the former 3A.1–3A.3 order. The former 3A.1 combined stay, inventory, and rates. The former 3A.3 combined review, activation, lifecycle, and closure. Those UI slices are split. They display the Slice 3A.1 records. They do not define a second commission treatment, deposit basis, attrition policy, or refund clarification.
 
@@ -835,21 +835,11 @@ Recorded 2026-09-30. `test/services/m4d1_slice3a0_hotel_persistence_compatibilit
 | Attrition | version-and-Item Hotel attrition policy, room-night minima, and Resource rate snapshots |
 | Refund clarification | `SupplierDepositRefundClarification` |
 
-Slice 3A.2 is eligible for its own accepted plan. This result does not authorize Hotel UI.
+[Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) is implemented. This result does not authorize slices 3A.3–3A.6.
 
 ### 3A.2 — Stay and nightly inventory
 
-Eligible for its own accepted plan. This slice is not authorized until that plan is accepted.
-
-Implement:
-
-- Hotel Item/stay;
-- Standard and Deluxe Resources;
-- dated nightly Pools;
-- 5/2 then 10/5 quantities;
-- independent sibling saves;
-- stable Item-ID navigation;
-- second-Item isolation proof.
+Implemented as [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md). That plan is the implementation authority for the Hotel Item, the continuous Stay, Standard and Deluxe Resources, and the four nightly `block` Pools. It does not assign Supplier rates.
 
 **Exit:** Staff can accurately establish and review the Hotel stay and nightly room supply without flattening inventory or creating Client facts.
 
@@ -1054,7 +1044,7 @@ Acceptance of Slice 3A locks these decisions:
 22. **Unsupported shapes fail closed to an exact Advanced destination.**
 23. **Hotel management uses existing Composition denial.** A Viewer without `manage_departures` is redirected. Another Agency's identifiers are not found. This supersedes the walkthrough sentence that Hotel management routes return not found to a Viewer.
 24. **No generalized non-Cruise adapter is extracted from Hotel alone.**
-25. **Slice 3A.0 verifies persistence. It does not make product decisions.** The four incompatibilities it named are closed by the accepted [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) foundation. The compatibility proof is green. Hotel UI slices 3A.2–3A.6 remain unauthorized until each has its own accepted plan.
+25. **Slice 3A.0 verifies persistence. It does not make product decisions.** The four incompatibilities it named are closed by the accepted [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) foundation. The compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) is implemented. Hotel UI slices 3A.3–3A.6 remain unauthorized until each has its own accepted plan.
 
 ---
 

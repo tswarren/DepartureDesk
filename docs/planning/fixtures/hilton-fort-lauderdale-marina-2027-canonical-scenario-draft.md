@@ -1,6 +1,6 @@
 # Hilton Fort Lauderdale Marina 2027 — Canonical Hotel Agreement Scenario
 
-**Status:** Approved 2026-09-27 at the single registered Hotel fixture path, `docs/planning/fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md`. This is the Hotel agreement scenario for the Smith Family Reunion stay. The accepted [Slice 3A plan](../m4d1-slice3a-hotel-supplier-composition.md) names the facts it uses. Slice 3A.0 recorded four incompatibilities. Slice 3A.1, Hotel Supplier-term persistence foundations, is Accepted 2026-09-30. The Slice 3A.1 compatibility proof is green. Hotel UI slices 3A.2–3A.6 remain unauthorized until their own accepted plans name that work. The contract/signature date and Hotel group or confirmation number stay blank.  
+**Status:** Approved 2026-09-27 at the single registered Hotel fixture path, `docs/planning/fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md`. This is the Hotel agreement scenario for the Smith Family Reunion stay. The accepted [Slice 3A plan](../m4d1-slice3a-hotel-supplier-composition.md) names the facts it uses. Slice 3A.0 recorded four incompatibilities. Slice 3A.1, Hotel Supplier-term persistence foundations, is Accepted 2026-09-30. The Slice 3A.1 compatibility proof is green. Slice 3A.2, Stay and nightly inventory, is implemented. Hotel UI slices 3A.3–3A.6 remain unauthorized until their own accepted plans name that work. The contract/signature date and Hotel group or confirmation number stay blank.  
 **Departure:** Smith Family Reunion  
 **Supplier:** Hilton Fort Lauderdale Marina  
 **Purpose:** Approved Hotel agreement facts and MVP proof scenario, with the [Hotel Staff walkthrough](../m4d1-hilton-hotel-staff-walkthrough.md).
@@ -312,7 +312,7 @@ At least one browser proof must use two Hotel Items, with navigation by stable I
 
 ## 16. Fixture assertions and behavior boundaries
 
-The commercial terms below are the Approved scenario values for this proof. The contract/signature date and Hotel group or confirmation number remain unspecified. The accepted [Slice 3A plan](../m4d1-slice3a-hotel-supplier-composition.md) names the facts it uses. Slice 3A.0 recorded four incompatibilities. Slice 3A.1, Hotel Supplier-term persistence foundations, is Accepted 2026-09-30. The Slice 3A.1 compatibility proof is green. Hotel UI slices 3A.2–3A.6 remain unauthorized until their own accepted plans name that work.
+The commercial terms below are the Approved scenario values for this proof. The contract/signature date and Hotel group or confirmation number remain unspecified. The accepted [Slice 3A plan](../m4d1-slice3a-hotel-supplier-composition.md) names the facts it uses. Slice 3A.0 recorded four incompatibilities. Slice 3A.1, Hotel Supplier-term persistence foundations, is Accepted 2026-09-30. The Slice 3A.1 compatibility proof is green. Slice 3A.2, Stay and nightly inventory, is implemented. Hotel UI slices 3A.3–3A.6 remain unauthorized until their own accepted plans name that work.
 
 1. The contracted stay is November 4–6, 2027.
 2. Nightly inventory varies: 5 Standard/2 Deluxe, then 10 Standard/5 Deluxe.

@@ -1,6 +1,6 @@
 # M4D.1 Slice 3A.1 — Hotel Supplier-term persistence foundations
 
-**Status:** Accepted 2026-09-30 and implemented. This is the only Slice 3A.1. The compatibility proof is green. Hotel UI slices 3A.2–3A.6 remain unauthorized until their own accepted plans name that work. Slice 3A.2 is eligible for its own accepted plan.
+**Status:** Accepted 2026-09-30 and implemented. This is the only Slice 3A.1. The compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. Hotel UI slices 3A.3–3A.6 remain unauthorized until their own accepted plans name that work.
 
 **Parent:** [M4D.1 Slice 3A — Hotel Supplier Composition](m4d1-slice3a-hotel-supplier-composition.md). Acceptance of this plan amends that document's §23.
 
@@ -439,4 +439,4 @@ These remain readable terms for a later agreement slice. This slice does not tur
 
 Every fact identified as a Slice 3A.0 persistence incompatibility has a lossless typed representation. The rerun compatibility proof constructs those representations without prose parsing, arbitrary `rule_parameters` storage, Cruise-specific records, or Hotel UI records.
 
-Only then is the next Hotel slice, Slice 3A.2, eligible for authorization.
+Only then is the next Hotel slice, Slice 3A.2, eligible for authorization. That plan is [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), and it is implemented.
