@@ -26,9 +26,12 @@ class CompileHotelActivationReview
     ).call
     confirmation = SupplierConfirmation.where(supplier_arrangement_version_id: @version.id).order(:recorded_at, :id).last
     hotel_blockers = hotel_blockers(workspace)
+    other_lodging_blockers = other_lodging_blockers()
     blockers = hotel_blockers.dup
+    blockers.concat(other_lodging_blockers) if confirmation.nil?
     blockers.concat(readiness_blockers(readiness)) if confirmation.present?
     hotel_clear = hotel_blockers.empty?
+    confirmation_clear = hotel_clear && other_lodging_blockers.empty?
     elapsed_labels = elapsed_labels_for(workspace)
     provisional_selection = readiness.cost_selections.any? { |_source, definition| definition.estimate? }
     if confirmation.present? && provisional_selection
@@ -45,7 +48,7 @@ class CompileHotelActivationReview
       sections: sections_for(workspace, confirmation),
       blockers: blockers,
       elapsed_labels: elapsed_labels,
-      confirmation_allowed: draft && confirmation.nil? && hotel_clear,
+      confirmation_allowed: draft && confirmation.nil? && confirmation_clear,
       revision_allowed: revision_allowed?(confirmation),
       activation_allowed: draft && confirmation.present? && hotel_clear && readiness.ready? && !provisional_selection,
       confirmation: confirmation
@@ -111,6 +114,32 @@ class CompileHotelActivationReview
 
   def acceptable_term?(term)
     term.state.in?([ "Recorded", "Reviewed — none" ])
+  end
+
+  def other_lodging_blockers
+    other_item_ids = @version.arrangement_item_definitions
+      .where(category: "lodging")
+      .where.not(arrangement_item_id: @item.id)
+      .pluck(:arrangement_item_id)
+    return [] if other_item_ids.empty?
+
+    incomplete = other_item_ids.any? do |item_id|
+      item = @arrangement.arrangement_items.find(item_id)
+      workspace = HotelAgreementWorkspace.new(
+        agency: @agency, departure: @departure, arrangement: @arrangement,
+        version: @version, item: item
+      ).call
+      hotel_blockers(workspace).any?
+    end
+    return [] unless incomplete
+
+    [
+      Blocker.new(
+        code: :other_lodging_review,
+        message: "Another Hotel stay in this Supplier agreement still needs review.",
+        target: :terms
+      )
+    ]
   end
 
   def readiness_blockers(readiness)
