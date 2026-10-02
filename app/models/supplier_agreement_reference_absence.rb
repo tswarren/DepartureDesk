@@ -17,11 +17,16 @@ class SupplierAgreementReferenceAbsence < ApplicationRecord
     :supplier_arrangement_version_id, :arrangement_item_id, :kind
 
   validates :recorded_at, presence: true
+  validates :arrangement_item, presence: true, if: :item_kind?
   validates :kind, uniqueness: { scope: [ :supplier_arrangement_version_id, :arrangement_item_id ] }
   validate :version_must_be_unconfirmed_for_absence_mutation
   before_destroy :reject_confirmed_absence_destroy
 
   private
+
+  def item_kind?
+    SupplierAgreementReference::ITEM_KINDS.include?(kind)
+  end
 
   def version_must_be_unconfirmed_for_absence_mutation
     return unless confirmed_version?
