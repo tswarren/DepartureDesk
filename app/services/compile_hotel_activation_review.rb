@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class CompileHotelActivationReview
-  CONFIRMATION_IGNORED_CODES = %i[lodging_agreement_unconfirmed].freeze
-
   Blocker = Data.define(:code, :message, :target)
   Section = Data.define(:key, :label, :state, :detail)
   Result = Data.define(
@@ -27,16 +25,16 @@ class CompileHotelActivationReview
       agency: @agency, arrangement: @arrangement, version: @version
     ).call
     confirmation = SupplierConfirmation.where(supplier_arrangement_version_id: @version.id).order(:recorded_at, :id).last
-    blockers = hotel_blockers(workspace) + readiness_blockers(readiness, ignore: [])
-    hotel_clear = hotel_blockers(workspace).empty?
-    confirmation_blockers = hotel_blockers(workspace) + readiness_blockers(readiness, ignore: CONFIRMATION_IGNORED_CODES)
+    hotel_blockers = hotel_blockers(workspace)
+    blockers = hotel_blockers + readiness_blockers(readiness)
+    hotel_clear = hotel_blockers.empty?
     draft = @version.draft? && @arrangement.editable_version&.id == @version.id
     Result.new(
       workspace: workspace,
       readiness: readiness,
       sections: sections_for(workspace, confirmation),
       blockers: blockers,
-      confirmation_allowed: draft && confirmation.nil? && confirmation_blockers.empty?,
+      confirmation_allowed: draft && confirmation.nil? && hotel_clear,
       revision_allowed: revision_allowed?(confirmation),
       activation_allowed: draft && confirmation.present? && hotel_clear && readiness.ready?,
       confirmation: confirmation
@@ -82,7 +80,7 @@ class CompileHotelActivationReview
         target: :rates
       )
     end
-    if workspace.deposits.empty? || workspace.unassigned_deposits.any? || workspace.deposits.any? { |row| !row.thin }
+    if workspace.unassigned_deposits.any? || workspace.deposits.any? { |row| !row.thin }
       blockers << Blocker.new(code: :deposits, message: "Scheduled deposits must be supported thin deposits.", target: :deposits)
     end
     if workspace.deadlines.any?(&:advanced)
@@ -101,15 +99,11 @@ class CompileHotelActivationReview
   end
 
   def acceptable_term?(term)
-    if SupplierAgreementReference::ITEM_KINDS.include?(term.kind)
-      term.state == "Recorded"
-    else
-      term.state.in?([ "Recorded", "Reviewed — none" ])
-    end
+    term.state.in?([ "Recorded", "Reviewed — none" ])
   end
 
-  def readiness_blockers(readiness, ignore:)
-    readiness.blockers.reject { |blocker| ignore.include?(blocker.code) }.map do |blocker|
+  def readiness_blockers(readiness)
+    readiness.blockers.map do |blocker|
       Blocker.new(code: blocker.code, message: blocker.message, target: :activation)
     end
   end
@@ -125,7 +119,7 @@ class CompileHotelActivationReview
 
   def deposit_state(workspace)
     return "Needs attention" if workspace.unassigned_deposits.any? || workspace.deposits.any? { |row| !row.thin }
-    return "Not started" if workspace.deposits.empty?
+    return "No Supplier deposits recorded" if workspace.deposits.empty?
 
     "Recorded"
   end
