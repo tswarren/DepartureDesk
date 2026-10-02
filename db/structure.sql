@@ -240,6 +240,43 @@ $$;
 
 
 --
+-- Name: lodging_coverage_affects_version(uuid, uuid, uuid, uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.lodging_coverage_affects_version(p_version_id uuid, p_arrangement_item_id uuid, p_service_occurrence_id uuid, p_supplier_resource_id uuid, p_capacity_pool_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$
+  SELECT EXISTS (
+    SELECT 1
+      FROM arrangement_item_definitions definitions
+     WHERE definitions.supplier_arrangement_version_id = p_version_id
+       AND definitions.category = 'lodging'
+       AND (
+         definitions.arrangement_item_id = p_arrangement_item_id
+         OR EXISTS (
+           SELECT 1
+             FROM service_occurrences occurrences
+            WHERE occurrences.id = p_service_occurrence_id
+              AND occurrences.arrangement_item_id = definitions.arrangement_item_id
+         )
+         OR EXISTS (
+           SELECT 1
+             FROM supplier_resources resources
+            WHERE resources.id = p_supplier_resource_id
+              AND resources.arrangement_item_id = definitions.arrangement_item_id
+         )
+         OR EXISTS (
+           SELECT 1
+             FROM capacity_pools pools
+            WHERE pools.id = p_capacity_pool_id
+              AND pools.arrangement_item_id = definitions.arrangement_item_id
+         )
+       )
+  );
+$$;
+
+
+--
 -- Name: reject_agency_user_agency_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -606,40 +643,6 @@ $$;
 
 
 --
--- Name: lodging_coverage_affects_version(uuid, uuid, uuid, uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.lodging_coverage_affects_version(p_version_id uuid, p_arrangement_item_id uuid, p_service_occurrence_id uuid, p_supplier_resource_id uuid, p_capacity_pool_id uuid) RETURNS boolean
-    LANGUAGE sql STABLE
-    AS $$
-  SELECT EXISTS (
-    SELECT 1
-      FROM arrangement_item_definitions definitions
-     WHERE definitions.supplier_arrangement_version_id = p_version_id
-       AND definitions.category = 'lodging'
-       AND (
-         definitions.arrangement_item_id = p_arrangement_item_id
-         OR EXISTS (
-           SELECT 1 FROM service_occurrences occurrences
-            WHERE occurrences.id = p_service_occurrence_id
-              AND occurrences.arrangement_item_id = definitions.arrangement_item_id
-         )
-         OR EXISTS (
-           SELECT 1 FROM supplier_resources resources
-            WHERE resources.id = p_supplier_resource_id
-              AND resources.arrangement_item_id = definitions.arrangement_item_id
-         )
-         OR EXISTS (
-           SELECT 1 FROM capacity_pools pools
-            WHERE pools.id = p_capacity_pool_id
-              AND pools.arrangement_item_id = definitions.arrangement_item_id
-         )
-       )
-  );
-$$;
-
-
---
 -- Name: reject_confirmed_lodging_definition_mutation(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -661,7 +664,9 @@ BEGIN
      FOR SHARE;
 
   IF NOT EXISTS (
-    SELECT 1 FROM supplier_confirmations WHERE supplier_arrangement_version_id = version_id
+    SELECT 1
+      FROM supplier_confirmations
+     WHERE supplier_arrangement_version_id = version_id
   ) THEN
     IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
     RETURN NEW;
@@ -675,19 +680,22 @@ BEGIN
     'capacity_pair_definitions', 'capacity_pool_definitions'
   ) THEN
     frozen := EXISTS (
-      SELECT 1 FROM arrangement_item_definitions definitions
+      SELECT 1
+        FROM arrangement_item_definitions definitions
        WHERE definitions.supplier_arrangement_version_id = version_id
          AND definitions.arrangement_item_id = row_record.arrangement_item_id
          AND definitions.category = 'lodging'
     );
   ELSIF TG_TABLE_NAME = 'supplier_cost_sources' THEN
     frozen := EXISTS (
-      SELECT 1 FROM arrangement_item_definitions definitions
+      SELECT 1
+        FROM arrangement_item_definitions definitions
        WHERE definitions.supplier_arrangement_version_id = version_id
          AND definitions.category = 'lodging'
     ) AND (
       row_record.arrangement_item_id IS NULL OR EXISTS (
-        SELECT 1 FROM arrangement_item_definitions definitions
+        SELECT 1
+          FROM arrangement_item_definitions definitions
          WHERE definitions.supplier_arrangement_version_id = version_id
            AND definitions.arrangement_item_id = row_record.arrangement_item_id
            AND definitions.category = 'lodging'
@@ -698,12 +706,14 @@ BEGIN
       FROM supplier_cost_sources
      WHERE id = row_record.supplier_cost_source_id;
     frozen := EXISTS (
-      SELECT 1 FROM arrangement_item_definitions definitions
+      SELECT 1
+        FROM arrangement_item_definitions definitions
        WHERE definitions.supplier_arrangement_version_id = version_id
          AND definitions.category = 'lodging'
     ) AND (
       item_id IS NULL OR EXISTS (
-        SELECT 1 FROM arrangement_item_definitions definitions
+        SELECT 1
+          FROM arrangement_item_definitions definitions
          WHERE definitions.supplier_arrangement_version_id = version_id
            AND definitions.arrangement_item_id = item_id
            AND definitions.category = 'lodging'
@@ -715,12 +725,14 @@ BEGIN
       JOIN supplier_cost_sources sources ON sources.id = definitions.supplier_cost_source_id
      WHERE definitions.id = row_record.supplier_cost_definition_id;
     frozen := EXISTS (
-      SELECT 1 FROM arrangement_item_definitions item_definitions
+      SELECT 1
+        FROM arrangement_item_definitions item_definitions
        WHERE item_definitions.supplier_arrangement_version_id = version_id
          AND item_definitions.category = 'lodging'
     ) AND (
       item_id IS NULL OR EXISTS (
-        SELECT 1 FROM arrangement_item_definitions item_definitions
+        SELECT 1
+          FROM arrangement_item_definitions item_definitions
          WHERE item_definitions.supplier_arrangement_version_id = version_id
            AND item_definitions.arrangement_item_id = item_id
            AND item_definitions.category = 'lodging'
@@ -4297,7 +4309,7 @@ CREATE TABLE public.supplier_agreement_reference_absences (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT agreement_reference_absences_kind CHECK ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[])) AND ((NOT ((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying])::text[]))) OR (arrangement_item_id IS NOT NULL)))),
+    CONSTRAINT agreement_reference_absences_kind CHECK ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[])) AND (((kind)::text <> ALL ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying])::text[])) OR (arrangement_item_id IS NOT NULL)))),
     CONSTRAINT agreement_reference_absences_lock_version CHECK ((lock_version >= 0))
 );
 
