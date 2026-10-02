@@ -2,6 +2,7 @@
 
 class SupplierDeadlineDefinition < ApplicationRecord
   include DraftVersionDefinition
+  include LodgingConfirmationFreeze::Model
 
   DEADLINE_TYPES = %w[
     deposit_due option_or_release_date rooming_list_due legal_names_due final_count_due

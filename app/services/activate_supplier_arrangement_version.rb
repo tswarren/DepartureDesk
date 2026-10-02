@@ -1,5 +1,3 @@
-require "ostruct"
-
 class ActivateSupplierArrangementVersion < AgencyCommand
   include ArrangementCommandSupport
 
@@ -89,7 +87,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       confirmation = resolve_confirmation!(
         arrangement: arrangement, version: version, recorded_at: activated_at
       )
-      identifier = resolve_identifier!(confirmation, arrangement)
+      identifier = confirmation.supplier_confirmation_identifier_links.order(:created_at, :id).first&.supplier_issued_identifier
       activation = create_manifest!(
         arrangement: arrangement, version: version, confirmation: confirmation,
         predecessor: predecessor, activation_kind: activation_kind,
@@ -196,7 +194,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     end
     sole_draft = arrangement.versions.where(status: "draft").sole
     if arrangement.draft? && arrangement.governing_version_id.nil? &&
-        predecessor.nil? && version.id == sole_draft.id && version.copied_from_id.nil?
+        predecessor.nil? && version.id == sole_draft.id && first_activation_lineage?(arrangement, version)
       return "first"
     end
     if arrangement.active? && predecessor&.activated? &&
@@ -207,6 +205,15 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     raise Error.new("Only the sole editable draft version can be activated.", code: :invalid_state)
   rescue ActiveRecord::SoleRecordExceeded, ActiveRecord::RecordNotFound
     raise Error.new("Only the sole editable draft version can be activated.", code: :invalid_state)
+  end
+
+  def first_activation_lineage?(arrangement, version)
+    return true if version.copied_from_id.nil?
+
+    copied = arrangement.versions.find_by(id: version.copied_from_id)
+    copied&.abandoned? && copied.activated_at.nil? &&
+      copied.supplier_arrangement_id == arrangement.id &&
+      SupplierConfirmation.exists?(supplier_arrangement_version_id: copied.id)
   end
 
   def ensure_submitted_lock!(record, submitted)
@@ -290,7 +297,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
 
   def resolve_confirmation!(arrangement:, version:, recorded_at:)
     if @existing_confirmation_id.present?
-      if @evidence_attributes.values.any?(&:present?)
+      if @evidence_attributes.values.any?(&:present?) || @identifier_attributes.present?
         raise Error.new("Choose existing evidence or enter new evidence, not both.", code: :invalid)
       end
       confirmation = SupplierConfirmation.where(agency_id: @agency.id)
@@ -300,45 +307,18 @@ class ActivateSupplierArrangementVersion < AgencyCommand
       return confirmation
     end
 
-    attrs = normalized_confirmation_attributes
-    confirmation = SupplierConfirmation.create!(
-      owner_attributes(arrangement, version).merge(
-        confirming_supplier_id: arrangement.contracting_supplier_id,
-        actor: @actor,
-        recorded_at: recorded_at,
-        **attrs
-      )
-    )
+    confirmation = RecordSupplierConfirmationEvidence.new(
+      agency: @agency,
+      actor: @actor,
+      arrangement: arrangement,
+      version: version,
+      recorded_at: recorded_at,
+      evidence_attributes: @evidence_attributes,
+      identifier_attributes: @identifier_attributes,
+      duplicate_acknowledgement_token: @duplicate_acknowledgement_token
+    ).call.record
     ensure_confirmation_compatible!(confirmation, arrangement, version)
     confirmation
-  end
-
-  def normalized_confirmation_attributes
-    kind = @evidence_attributes[:evidence_kind].to_s.strip
-    unless SupplierConfirmation::BOOKING_EVIDENCE_KINDS.include?(kind)
-      raise Error.new("Choose valid Supplier confirmation evidence.", code: :invalid)
-    end
-    other_label = @evidence_attributes[:other_evidence_label].to_s.strip.presence
-    if (kind == "other") != other_label.present?
-      raise Error.new("Enter an other evidence label only for other evidence.", code: :invalid)
-    end
-    evidence_on = parse_date(@evidence_attributes[:evidence_on], "Evidence date")
-    channel = @evidence_attributes[:channel].to_s.strip
-    note = @evidence_attributes[:reference_note].to_s.strip
-    reason = @evidence_attributes[:confirmed_without_identifier_reason].to_s.strip.presence
-    if evidence_on.blank? || channel.blank? || note.blank?
-      raise Error.new("Enter complete Supplier confirmation evidence.", code: :invalid)
-    end
-    if @identifier_attributes.blank? && reason.blank?
-      raise Error.new(
-        "Enter a Supplier identifier or explain why this is confirmed without one.", code: :invalid
-      )
-    end
-    {
-      evidence_kind: kind, other_evidence_label: other_label, evidence_on: evidence_on,
-      channel: channel, reference_note: note,
-      confirmed_without_identifier_reason: reason
-    }
   end
 
   def ensure_confirmation_compatible!(confirmation, arrangement, version)
@@ -350,89 +330,6 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     unless compatible
       raise Error.new("That confirmation is not compatible with this exact version.", code: :invalid)
     end
-  end
-
-  def resolve_identifier!(confirmation, arrangement)
-    return if @identifier_attributes.blank?
-
-    type = @identifier_attributes[:identifier_type].to_s.strip
-    unless SupplierIssuedIdentifier::IDENTIFIER_TYPES.include?(type)
-      raise Error.new("Choose a valid Supplier identifier type.", code: :invalid)
-    end
-    display = @identifier_attributes[:display_value].to_s.strip
-    normalized = display.downcase
-    issuer = @identifier_attributes[:issuer_context].to_s.strip
-    other_label = @identifier_attributes[:other_type_label].to_s.strip.presence
-    if display.blank?
-      raise Error.new("Enter the Supplier identifier.", code: :invalid)
-    end
-    if issuer.blank?
-      raise Error.new("Enter the issuer context for this Supplier identifier.", code: :invalid)
-    end
-    if (type == "other") != other_label.present?
-      message = if type == "other"
-        "Enter the other identifier label."
-      else
-        "Remove the other identifier label unless the type is other."
-      end
-      raise Error.new(message, code: :invalid)
-    end
-    lookup = SupplierIssuedIdentifierOwnerLookup.call(
-      agency: @agency,
-      supplier_id: arrangement.contracting_supplier_id,
-      identifier_type: type,
-      issuer_context: issuer,
-      normalized_value: normalized,
-      arrangement: arrangement,
-      reservation: nil
-    )
-    if lookup.foreign.any?
-      fingerprint = DuplicateAcknowledgement.fingerprint(
-        supplier_id: arrangement.contracting_supplier_id,
-        identifier_type: type,
-        issuer_context: issuer,
-        normalized_value: normalized
-      )
-      candidates = lookup.foreign.map do |row|
-        OpenStruct.new(id: row.id, signals: [ "supplier_issued_identifier", row.display_value ])
-      end
-      candidate_digest = DuplicateAcknowledgement.candidate_digest(candidates)
-      if @duplicate_acknowledgement_token.blank?
-        raise DuplicateReviewRequired.new(
-          token: DuplicateAcknowledgement.issue(
-            "shape" => "create",
-            "command" => "supplier_issued_identifier.create",
-            "agency_id" => @agency.id,
-            "actor_id" => @actor.id,
-            "fingerprint" => fingerprint,
-            "candidate_digest" => candidate_digest
-          ),
-          candidates: candidates
-        )
-      end
-      payload = DuplicateAcknowledgement.verify!(
-        @duplicate_acknowledgement_token,
-        agency: @agency, actor: @actor, command: "supplier_issued_identifier.create"
-      )
-      unless payload["fingerprint"] == fingerprint
-        raise Error.new("That acknowledgement does not match this identifier.", code: :conflict)
-      end
-      unless payload["candidate_digest"] == candidate_digest
-        raise Error.new("Duplicate candidates changed. Review them again.", code: :conflict)
-      end
-      if DuplicateAcknowledgement.expired?(payload)
-        raise Error.new("That acknowledgement has expired.", code: :invalid)
-      end
-    end
-    lookup.same_owner.first ||
-      SupplierIssuedIdentifier.create!(
-        agency: @agency, departure_id: arrangement.departure_id,
-        supplier_arrangement: arrangement,
-        supplier_id: arrangement.contracting_supplier_id,
-        issuer_context: issuer, identifier_type: type,
-        other_type_label: other_label, display_value: display,
-        normalized_value: normalized, first_supplier_confirmation: confirmation
-      )
   end
 
   def create_manifest!(

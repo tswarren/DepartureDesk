@@ -1,0 +1,163 @@
+<% content_for :title, "Hotel review · #{@departure.name} · DepartureDesk" %>
+<% workspace = @review.workspace %>
+<% version = workspace.version %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<%= render "hotel_setup/shell", current: "agreement", page_title: "Hotel review", item: @arrangement_item %>
+
+<article class="dd-panel" id="hotel-review">
+  <div class="dd-panel-body dd-stack">
+    <header class="dd-stack">
+      <p>
+        <%= workspace.supplier_name %>
+        · <%= workspace.arrangement_name %>
+        · <%= workspace.item_name %>
+      </p>
+      <p>
+        Version <%= version.number %>
+        · <span id="hotel-review-confirmation"><%= version.confirmation %></span>
+        · <span id="hotel-review-activation"><%= version.activation %></span>
+      </p>
+      <p><%= link_to "Hotel Agreement", hotel_agreement_path_for %></p>
+    </header>
+
+    <% if flash.now[:alert].present? %>
+      <p class="dd-banner" role="alert"><%= flash.now[:alert] %></p>
+    <% end %>
+
+    <% @review.sections.each do |section| %>
+      <section id="hotel-review-<%= section.key %>" aria-labelledby="hotel-review-<%= section.key %>-heading">
+        <h2 id="hotel-review-<%= section.key %>-heading" class="dd-section-title"><%= section.label %></h2>
+        <p><%= section.state %><% if section.detail.present? %> · <%= section.detail %><% end %></p>
+        <% if section.key == "rates" %>
+          <ul>
+            <% workspace.rates.rows.each do |row| %>
+              <li><%= row.category %> · <%= row.date %> · <%= row.authority || "Not recorded" %></li>
+            <% end %>
+          </ul>
+        <% elsif section.key == "deposits" %>
+          <ul>
+            <% workspace.deposits.each do |row| %>
+              <li><%= row.amount_label %> · <%= row.due_label %></li>
+            <% end %>
+          </ul>
+        <% elsif section.key == "deadlines" %>
+          <% if workspace.deadlines.empty? %>
+            <p>No rooming list recorded</p>
+          <% else %>
+            <ul>
+              <% workspace.deadlines.each do |row| %>
+                <li><%= row.label %> · <%= row.due_label %></li>
+              <% end %>
+            </ul>
+          <% end %>
+        <% elsif section.key == "terms" %>
+          <ul>
+            <% workspace.terms.each do |term| %>
+              <li id="hotel-review-term-<%= term.kind %>"><%= term.label %> · <%= term.state %></li>
+            <% end %>
+          </ul>
+        <% end %>
+      </section>
+    <% end %>
+
+    <% if @review.blockers.any? %>
+      <section id="hotel-review-blockers" aria-labelledby="hotel-review-blockers-heading">
+        <h2 id="hotel-review-blockers-heading" class="dd-section-title">Blockers</h2>
+        <ul>
+          <% @review.blockers.each do |blocker| %>
+            <li>
+              <%= link_to blocker.message, hotel_review_blocker_path(blocker) %>
+            </li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+
+    <% if @can_manage && @review.confirmation_allowed %>
+      <%= form_with url: item_hotel_review_confirmation_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item), method: :post, class: "dd-form dd-stack", id: "hotel-review-confirmation-form" do %>
+        <%= hidden_field_tag :version_id, version.record.id %>
+        <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+        <h2 class="dd-section-title">Record Supplier confirmation</h2>
+        <div class="dd-field-group">
+          <label class="dd-label" for="confirmation-evidence-kind">Evidence</label>
+          <%= select_tag "confirmation[evidence_kind]", options_for_select(SupplierConfirmation::BOOKING_EVIDENCE_KINDS.map { |kind| [ kind.humanize, kind ] }, "supplier_confirmation"), id: "confirmation-evidence-kind", class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="confirmation-evidence-on">Evidence date</label>
+          <%= date_field_tag "confirmation[evidence_on]", nil, id: "confirmation-evidence-on", class: "dd-field", required: true %>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="confirmation-channel">Channel</label>
+          <%= text_field_tag "confirmation[channel]", nil, id: "confirmation-channel", class: "dd-field", required: true %>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="confirmation-reference-note">Reference note</label>
+          <%= text_area_tag "confirmation[reference_note]", nil, id: "confirmation-reference-note", class: "dd-field", required: true %>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="confirmation-without-identifier">Confirmed without a Supplier identifier</label>
+          <%= text_area_tag "confirmation[confirmed_without_identifier_reason]", nil, id: "confirmation-without-identifier", class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="identifier-type">Supplier identifier type</label>
+          <%= text_field_tag "identifier[identifier_type]", nil, id: "identifier-type", class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="identifier-display">Supplier identifier</label>
+          <%= text_field_tag "identifier[display_value]", nil, id: "identifier-display", class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <label class="dd-label" for="identifier-issuer">Issuer context</label>
+          <%= text_field_tag "identifier[issuer_context]", nil, id: "identifier-issuer", class: "dd-field" %>
+        </div>
+        <% if @acknowledgement_token.present? %>
+          <%= hidden_field_tag :duplicate_acknowledgement_token, @acknowledgement_token %>
+        <% end %>
+        <button type="submit" class="dd-button">Confirm Supplier agreement</button>
+      <% end %>
+    <% elsif @can_manage && version.draft && !@review.confirmation %>
+      <p id="hotel-review-confirmation-closed">Supplier confirmation stays closed until this review has no other blockers.</p>
+    <% end %>
+
+    <% if @can_manage && @review.revision_allowed %>
+      <%= form_with url: item_hotel_review_revision_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item), method: :post, class: "dd-form dd-stack", id: "hotel-review-revision-form" do %>
+        <%= hidden_field_tag :version_id, version.record.id %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+        <%= hidden_field_tag :version_lock_version, version.record.lock_version %>
+        <div class="dd-field-group">
+          <label class="dd-label" for="hotel-review-revision-reason">Reason for revising this confirmed draft</label>
+          <%= text_area_tag :reason, nil, id: "hotel-review-revision-reason", class: "dd-field", required: true %>
+        </div>
+        <button type="submit" class="dd-button">Revise before activation</button>
+      <% end %>
+    <% end %>
+
+    <% if @can_manage && @review.activation_allowed %>
+      <%= form_with url: item_hotel_review_activation_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item), method: :post, class: "dd-form dd-stack", id: "hotel-review-activation-form" do %>
+        <%= hidden_field_tag :version_id, version.record.id %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+        <%= hidden_field_tag :version_lock_version, version.record.lock_version %>
+        <%= hidden_field_tag :existing_confirmation_id, @review.confirmation.id %>
+        <% if @review.elapsed_labels.any? %>
+          <div class="dd-field-group" id="hotel-review-elapsed-dates">
+            <p>The following Hotel date has already passed:</p>
+            <ul>
+              <% @review.elapsed_labels.each do |label| %>
+                <li><%= label %></li>
+              <% end %>
+            </ul>
+            <label class="dd-choice" for="hotel-review-elapsed-ack">
+              <%= check_box_tag :elapsed_deadlines_acknowledged, "1", false, id: "hotel-review-elapsed-ack", required: true %>
+              Activate this confirmed Hotel agreement with the elapsed date.
+            </label>
+          </div>
+        <% end %>
+        <button type="submit" class="dd-button">Activate arrangement</button>
+      <% end %>
+    <% elsif version.record.activated? %>
+      <p id="hotel-review-activated">Supplier confirmed. Activated. This review does not open another draft.</p>
+    <% end %>
+  </div>
+</article>

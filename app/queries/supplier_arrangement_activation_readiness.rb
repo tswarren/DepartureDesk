@@ -20,6 +20,7 @@ class SupplierArrangementActivationReadiness
     capacity_readiness
     cost_readiness
     cruise_agreement_readiness
+    lodging_confirmation_readiness
     trigger_readiness
     Result.new(version: @version, blockers: @blockers.freeze, cost_selections: @cost_selections.freeze)
   rescue ActiveRecord::RecordNotFound
@@ -47,8 +48,18 @@ class SupplierArrangementActivationReadiness
   ].freeze
 
   REQUIRED_COPY_MODELS = [
-    SupplierAgreementReference
+    SupplierAgreementReference,
+    SupplierAgreementReferenceAbsence
   ].freeze
+
+  def preactivation_revision_predecessor?(predecessor)
+    predecessor&.abandoned? &&
+      predecessor.activated_at.nil? &&
+      predecessor.supplier_arrangement_id == @arrangement.id &&
+      @arrangement.draft? &&
+      @arrangement.governing_version_id.nil? &&
+      SupplierConfirmation.exists?(supplier_arrangement_version_id: predecessor.id)
+  end
 
   def verify_ownership
     ids = [ @agency.id, @departure.agency_id, @arrangement.agency_id, @version.agency_id ]
@@ -62,7 +73,8 @@ class SupplierArrangementActivationReadiness
     return if @version.copied_from_id.nil?
 
     predecessor = @arrangement.versions.find_by(id: @version.copied_from_id)
-    unless predecessor&.activated? && @arrangement.governing_version_id == predecessor.id
+    unless preactivation_revision_predecessor?(predecessor) ||
+        (predecessor&.activated? && @arrangement.governing_version_id == predecessor.id)
       block(:lineage, :predecessor_not_governing, "version",
         "The successor must descend from the current governing version.")
       return
@@ -222,6 +234,14 @@ class SupplierArrangementActivationReadiness
       end
       @cost_selections << [ source, selection ]
     end
+  end
+
+  def lodging_confirmation_readiness
+    return unless @version.arrangement_item_definitions.exists?(category: "lodging")
+    return if SupplierConfirmation.exists?(supplier_arrangement_version_id: @version.id)
+
+    block(:structure, :lodging_agreement_unconfirmed, "supplier_confirmation",
+      "Confirm the Hotel supplier agreement before activation.")
   end
 
   def cruise_agreement_readiness

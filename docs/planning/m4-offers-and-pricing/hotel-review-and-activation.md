@@ -1,6 +1,6 @@
 # Hotel Review and Activation
 
-**Status:** Accepted 2026-10-01  
+**Status:** Shipped 2026-10-02  
 **Location:** `docs/planning/m4-offers-and-pricing/hotel-review-and-activation.md`  
 **Parent:** [Hotel Agreement](hotel-agreement.md)  
 **Authority:** [ADR 0015](../../adr/0015-supplier-agreement-operational-boundary.md) — Supplier agreement operational modeling boundary  
@@ -77,12 +77,23 @@ Recording confirmation does not activate the Arrangement, open capacity, materia
 
 ### When confirmation may be recorded
 
-Staff may record confirmation only when the Hotel review would pass §8 except for two absences:
+Supplier confirmation freezes a reviewed Hotel agreement. It is **not** generic activation readiness minus the missing confirmation.
 
-- `SupplierConfirmation` is not yet present;
-- activation consequences that the activation command creates later are not yet present. Those include capacity openings, materialized deposit tranches, and posted commitments.
+Staff may record confirmation when the typed Hotel agreement review is complete:
 
-Every other Hotel fact in §7 must already pass, including supported stay and inventory, one ready contracted definition per inventory night, supported thin deposits, Item-kind wording, and a resolved optional kind for this Item. A generic readiness blocker other than the missing lodging confirmation also blocks confirmation. Staff do not confirm a version the Hotel review would still reject.
+- the Stay shape is supported;
+- the nightly room-block shape is supported;
+- every inventory night has a complete supported contracted Hotel rate shape. An inventory night is a room category on a stay date that has a room block. A blank category-night is not offered and does not need a Supplier rate;
+- every Deposit relevant to this Hotel, when any exists, is assigned and uses the supported thin Hotel shape;
+- every Deadline relevant to this Hotel, when any exists, uses the supported Hotel shape;
+- each of the seven Hotel agreement-reference kinds is explicitly reviewed as recorded wording or **Reviewed — none** at its permitted scope;
+- no Hotel section is Advanced.
+
+Because `SupplierConfirmation` belongs to the exact Supplier Arrangement Version and the confirmation freeze covers lodging definitions on that version, every lodging Item on the exact version must satisfy this same typed Hotel confirmation review before the confirmation is recorded. One completed Hotel stay may not freeze another unfinished Hotel stay.
+
+Generic `SupplierArrangementActivationReadiness` blockers do **not** block Supplier confirmation merely because they are activation blockers. Capacity openings, materialized Deposit tranches, posted commitments, generic cost-source coverage, commitment-trigger coverage, and activation acknowledgements belong to activation.
+
+Recording confirmation still does not activate the Arrangement, open capacity, materialize deposits, or post a payment.
 
 ### What confirmation freezes
 
@@ -142,26 +153,25 @@ Activation still does not post a Supplier payment, a guest folio, an attrition c
 
 ## 6. Reviewed — none
 
-Optional agreement-reference kinds may be either recorded wording or an explicit statement that Staff reviewed that scope and no clause of that kind exists.
+Every Hotel agreement-reference kind may be either recorded wording or an explicit statement that Staff reviewed the permitted scope and no clause of that kind exists.
 
-Those kinds are:
+The seven kinds are:
 
+- `deposit_derivation`
+- `attrition`
+- `deposit_refund`
 - `destination_fee`
 - `additional_nights`
 - `early_departure`
 - `cancellation`
 
-Item kinds stay wording:
+The three Item kinds — `deposit_derivation`, `attrition`, and `deposit_refund` — remain **this Hotel stay** only. They do not gain agreement-wide scope. The other four kinds may use the existing Item or agreement-wide scope.
 
-- `deposit_derivation`
-- `attrition`
-- `deposit_refund`
-
-This plan does not add a reviewed-none fact for an Item kind, a deposit, or a Deadline.
+No absence is inferred from silence. Missing wording with no absence remains **Not reviewed** and blocks Supplier confirmation. This plan still does not add a reviewed-none fact for a Deposit or a Deadline.
 
 ### Scope
 
-An absence uses the same scope as the optional reference it replaces.
+An absence uses the same scope allowed for the reference it replaces. The three Item kinds are Item-scoped only; the four other kinds may be Item-scoped or agreement-wide.
 
 **This Hotel stay**
 
@@ -193,7 +203,7 @@ Do not store an empty `SupplierAgreementReference`. Do not add a `none` kind to 
 The smallest record is one absence:
 
 - it belongs to the Agency, the Departure, the Arrangement, and the exact version;
-- `kind` is one of the four optional kinds;
+- `kind` is one of the seven Hotel agreement-reference kinds;
 - it has no wording;
 - Item scope names the Arrangement Item; agreement-wide scope leaves that Item null;
 - one Item-scoped absence per version, Item, and kind;
@@ -205,21 +215,21 @@ A successor copies each absence and keeps lineage and scope. Deleting a copied a
 
 ### Display for this Item
 
-Resolve each optional kind in this order:
+Resolve each agreement-wide-capable kind in this order:
 
 1. Agreement-wide wording for that kind.
 2. Agreement-wide Reviewed — none for that kind.
 3. Wording recorded on this Item.
 4. Reviewed — none recorded on this Item.
-5. Not recorded.
+5. Not reviewed.
 
 | Resolved fact | Label |
 | --- | --- |
 | Wording at the winning scope | The recorded governing wording |
 | An absence at the winning scope | Reviewed — none |
-| Neither | Not recorded |
+| Neither | Not reviewed |
 
-Not recorded and Reviewed — none stay distinct. Reviewed — none is not a warning. Not recorded on this Item blocks the Hotel post for that optional kind. Another Item’s wording or absence does not satisfy this Item.
+Not reviewed and Reviewed — none stay distinct. Reviewed — none is not a warning. Not reviewed blocks Supplier confirmation. Another Item’s wording or absence does not satisfy this Item. For the three Item-only kinds, resolve only this Item's wording, this Item's Reviewed — none, then Not reviewed.
 
 Hilton proof: no separate cancellation schedule is an Item-scoped **Reviewed — none** for `cancellation` on the Hilton stay. Destination fee, additional nights, and early departure are recorded wording on that stay. The three Item kinds are recorded wording. None of those rows is an empty reference.
 
@@ -227,20 +237,26 @@ Hilton proof: no separate cancellation schedule is an Item-scoped **Reviewed —
 
 ## 7. Required versus optional
 
-### Required before the Hotel post
+### Required before Supplier confirmation
 
-- The stay shape is supported.
+- The Stay shape is supported.
 - The nightly inventory shape is supported.
-- Each inventory night has one ready contracted Supplier-cost definition. A working definition does not qualify. A ready estimate does not qualify.
-- The deposits on this Item’s schedule are supported thin deposits. The Hilton proof is the three fixed amounts $415.60, $1,870.20, and $1,870.20.
-- The three Item reference kinds have governing wording on this Item.
-- For this Item, each optional kind resolves to governing wording or Reviewed — none.
-- A `SupplierConfirmation` already exists for this exact version.
-- Generic `SupplierArrangementActivationReadiness` is ready, including a copied absence or copied reference where the predecessor had one.
+- Each inventory night has one complete supported contracted Hotel rate shape. An inventory night is a room category on a stay date that has a room block. A blank category-night is not offered and does not need a Supplier rate. A ready estimate does not qualify.
+- Every Deposit relevant to this Item, when any exists, is a supported thin Deposit. Zero Supplier deposits is valid and is displayed as **No Supplier deposits recorded**.
+- Every recorded Hotel Deadline, when any exists, is assigned to a Hotel scope and uses the supported shape. An unassigned generic Deadline is Advanced for the typed Hotel path.
+- All seven Hotel agreement-reference kinds are explicitly reviewed as wording or **Reviewed — none** at their permitted scope.
+- No Hotel section is Advanced.
 
-An unassigned deposit stays off the schedule. It still blocks the Hotel post until Staff assign it or the generic editor holds it as an Advanced shape. Advanced blocks the post either way. The review does not backfill coverage.
+An unassigned Deposit stays off the schedule and blocks the typed Hotel confirmation path until Staff assign it or resolve it in Advanced Supplier planning. The review does not backfill coverage.
 
-This plan does not require a particular deposit count for every lodging Item. The Hilton proof requires those three amounts. Another lodging Item posts when every deposit on its schedule is a supported thin deposit.
+The Hilton proof requires its three fixed amounts $415.60, $1,870.20, and $1,870.20. That is fixture proof, not a universal Hotel Deposit requirement.
+
+### Additional requirements before activation
+
+- A `SupplierConfirmation` exists for this exact version.
+- Generic `SupplierArrangementActivationReadiness` is ready, including copied references/absences and operational requirements.
+- Each inventory night selects a ready contracted Supplier-cost definition. A provisional estimate never clears the typed Hotel activation gate.
+- The typed Hotel review has proved the constrained Hotel shape before it supplies the existing generic cost-source and commitment-trigger coverage acknowledgements to `ActivateSupplierArrangementVersion`.
 
 ### Deadlines
 
@@ -252,13 +268,17 @@ When this Item has no rooming-list Deadline, the review says that none is record
 
 ### Optional
 
-Destination fee, additional nights, early departure, and cancellation are optional in the sense that wording is not required when Reviewed — none is recorded for this Item. They are not optional to leave as Not recorded.
-
-A recorded optional term and Reviewed — none are both sufficient. Neither is a warning.
+All seven Hotel agreement-reference kinds require an explicit review outcome before Supplier confirmation. Recorded wording and **Reviewed — none** are both sufficient at the kind's permitted scope. **Not reviewed** is incomplete. The three Item-only kinds remain this-stay-only; the other four retain Item or agreement-wide scope.
 
 ### Forecast readiness
 
-Ready means the existing `forecast_ready` cost-definition status. This plan does not mark a definition ready, does not add usage assumptions, and does not change the Hotel rate editor. Until each inventory night has one ready contracted definition, the Hotel post stays blocked and the rate section stays short of **Recorded** / **Contracted**.
+Ready means the existing `forecast_ready` cost-definition status and `MarkCostDefinitionForecastReady` remains the only transition to it.
+
+The typed Hotel rate save supplies the generic forecast inputs needed by the supported Hotel shape instead of asking Staff to operate generic cost planning. For each supported contracted room-night definition it creates or reuses the Item/Occurrence/Resource usage assumption, records `expected_billable_nights = 1`, and owns exactly one anonymous profile labeled `Contracted rooms`. That profile repeats one anonymous `Hotel guest` participant category across occupancy positions `1..maximum_occupancy` for that room category, with `resource_unit_count` equal to the current blocked-room quantity. The save then calls `MarkCostDefinitionForecastReady` with provenance `Hotel contracted rate workspace`.
+
+Do not weaken `validate_ready!`. A later consequential rate edit returns the definition to working through the existing cost command behavior; after the Hotel save restores a complete supported shape, the Hotel path recreates/reuses the required usage inputs and marks it ready again. The typed room-inventory editor keeps both the Hotel-owned profile's blocked-room quantity and its anonymous position list synchronized when room quantity or maximum occupancy changes. A second profile, a renamed `Contracted rooms` profile, or another occupancy shape is Advanced Supplier planning and is not silently overwritten.
+
+A ready estimate may be displayed, but it never clears the typed Hotel activation gate and the Hotel path never auto-acknowledges provisional costs.
 
 ---
 
@@ -272,9 +292,9 @@ Confirmation before activation is the same kind of fact Cruise already enforces 
 
 The Hotel post still passes the existing confirmation into activation. The generic activation screen does not ask for new Hotel evidence when that confirmation already exists.
 
-### Hotel post gate
+### Hotel activation gate
 
-The Hotel post is allowed only when all of the following are true:
+The Hotel activation post is allowed only when all of the following are true:
 
 - the version is the editable draft;
 - the review’s Item is lodging and the shapes in §7 are supported;
@@ -299,11 +319,10 @@ Blockers:
 - unsupported stay, inventory, deposit, Deadline, or rate shape;
 - a missing stay or nightly inventory;
 - a working contracted rate, or a ready estimate used as the only authority;
-- a missing scheduled deposit or an unassigned deposit;
-- a missing Item-kind reference;
-- an optional kind that is Not recorded for this Item;
-- Supplier confirmation not yet recorded;
-- a generic readiness blocker, including a missing successor copy of a reference or an absence.
+- an unassigned, incomplete, or unsupported relevant Deposit; zero relevant Deposits is valid;
+- any Hotel agreement-reference kind that remains Not reviewed;
+- Supplier confirmation not yet recorded when evaluating activation;
+- after confirmation, a generic activation-readiness blocker, including a missing successor copy of a reference or an absence.
 
 Not blockers and not warnings:
 
@@ -315,7 +334,11 @@ Not blockers and not warnings:
 - blank original contract date;
 - quoted tax, attrition exposure, or a refund amount that this product does not calculate.
 
-The review does not add an acknowledgement that turns a blocker into a warning. Existing generic activation acknowledgements stay on the generic command and are not redesigned here.
+The normal Hotel UI does not expose generic **cost-source coverage** or **commitment-trigger coverage** acknowledgement language. The typed Hotel activation post supplies those two existing generic acknowledgement values internally only when the exact version is entirely within the constrained Hotel shape: every retained Item is lodging, every lodging Item passes the typed Hotel review, every inventory night has one supported contracted source, there is no arrangement-wide Supplier cost source outside those Hotel matrices, relevant Deposits and Deadlines are scoped and supported, no Hotel section is Advanced, and no generic Supplier commitment-trigger definitions exist. A mixed Hotel/non-Hotel Arrangement or a version with generic commitment triggers uses **Advanced Supplier planning** for activation instead of silently auto-attesting to facts the Hotel workflow did not review.
+
+It does **not** auto-acknowledge provisional estimates. `provisional_costs_acknowledged` stays false; an estimate keeps typed Hotel activation blocked.
+
+The elapsed-date acknowledgement is shown only when activation preview finds an already-elapsed Hotel Deposit or Deadline occurrence, and the UI names the affected Hotel date instead of displaying an unconditional generic checkbox.
 
 ---
 
@@ -381,7 +404,7 @@ This plan is accepted. Implementation is complete when:
 - before first activation, revising a Supplier-confirmed lodging draft abandons that version, retains its confirmation, and creates one editable unconfirmed copy;
 - the abandoned confirmed version cannot activate, and the revised draft activates only as the Arrangement’s first activation after its own confirmation;
 - an optional-kind absence is Item-scoped or agreement-wide under the same scope invariant as optional references;
-- optional kinds can be wording or Reviewed — none for this Item, and Not recorded remains distinct;
+- all seven Hotel agreement-reference kinds can be wording or Reviewed — none at their permitted scope, and Not reviewed remains distinct;
 - a missing rooming-list Deadline is not a blocker and is not labeled Reviewed — none;
 - the Hotel post calls the existing activation command only when §8 allows it;
 - a lodging version without confirmation is not generically ready;
@@ -403,7 +426,27 @@ This plan is accepted. Implementation is complete when:
 - document storage
 - an attrition, refund, or folio calculator
 - empty `SupplierAgreementReference` rows
-- reviewed-none for deposits, Deadlines, or Item kinds
-- a Hotel command that marks a cost definition forecast-ready
+- reviewed-none for deposits or Deadlines
 - a confirmation fingerprint, in-place invalidation, or a command that removes `SupplierConfirmation` to resume editing
 - a change to generic activation meaning for Cruise or for an Arrangement that is not lodging, beyond the first-activation case in §5 for a revised lodging draft
+
+
+---
+
+## Amendment — 2026-10-02 Hotel workflow simplification
+
+Implementation of the first accepted Review and Activation contract exposed that treating confirmation as “generic activation readiness except confirmation” reintroduced generic M3 workflow into the normal Hotel path. This amendment is authoritative over conflicting earlier wording in this document.
+
+This amendment is Shipped 2026-10-02. Both end-to-end proofs pass without opening generic Supplier planning:
+
+1. the Hilton fixture, including its three Deposits, October 3 rooming-list Deadline, explicit agreement review, Supplier confirmation, and activation; and
+2. a simpler Hotel with no Supplier deposits, no rooming-list Deadline, and explicit **Reviewed — none** outcomes where clauses do not exist.
+
+Additional implementation invariants:
+
+- schema changes that amend already-created Hotel Review tables/functions ship in a new forward migration; previously applied migration versions are not relied on to rerun;
+- command lock order remains Agency → Departure → Arrangement → Version;
+- the PostgreSQL lodging freeze must recognize Item-, Occurrence-, Resource-, and Pool-scoped Deposit/Deadline coverage on both coverage links and their parent definitions;
+- wording-versus-absence and Item-versus-agreement-wide exclusivity remain serialized at the exact version;
+- the shared version graph copier, confirmation freeze, and pre-activation revision remain in force;
+- Hotel Lifecycle remains Not authorized.

@@ -240,6 +240,43 @@ $$;
 
 
 --
+-- Name: lodging_coverage_affects_version(uuid, uuid, uuid, uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.lodging_coverage_affects_version(p_version_id uuid, p_arrangement_item_id uuid, p_service_occurrence_id uuid, p_supplier_resource_id uuid, p_capacity_pool_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$
+  SELECT EXISTS (
+    SELECT 1
+      FROM arrangement_item_definitions definitions
+     WHERE definitions.supplier_arrangement_version_id = p_version_id
+       AND definitions.category = 'lodging'
+       AND (
+         definitions.arrangement_item_id = p_arrangement_item_id
+         OR EXISTS (
+           SELECT 1
+             FROM service_occurrences occurrences
+            WHERE occurrences.id = p_service_occurrence_id
+              AND occurrences.arrangement_item_id = definitions.arrangement_item_id
+         )
+         OR EXISTS (
+           SELECT 1
+             FROM supplier_resources resources
+            WHERE resources.id = p_supplier_resource_id
+              AND resources.arrangement_item_id = definitions.arrangement_item_id
+         )
+         OR EXISTS (
+           SELECT 1
+             FROM capacity_pools pools
+            WHERE pools.id = p_capacity_pool_id
+              AND pools.arrangement_item_id = definitions.arrangement_item_id
+         )
+       )
+  );
+$$;
+
+
+--
 -- Name: reject_agency_user_agency_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -600,6 +637,148 @@ BEGIN
   IF TG_OP = 'DELETE' THEN
     RETURN OLD;
   END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_confirmed_lodging_definition_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_confirmed_lodging_definition_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  version_id uuid;
+  item_id uuid;
+  frozen boolean := false;
+  row_record record;
+BEGIN
+  row_record := CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  version_id := row_record.supplier_arrangement_version_id;
+
+  PERFORM id
+    FROM supplier_arrangement_versions
+   WHERE id = version_id
+     FOR SHARE;
+
+  IF NOT EXISTS (
+    SELECT 1
+      FROM supplier_confirmations
+     WHERE supplier_arrangement_version_id = version_id
+  ) THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+
+  IF TG_TABLE_NAME = 'arrangement_item_definitions' THEN
+    frozen := row_record.category = 'lodging'
+      OR (TG_OP = 'UPDATE' AND OLD.category = 'lodging');
+  ELSIF TG_TABLE_NAME IN (
+    'service_occurrence_definitions', 'supplier_resource_definitions',
+    'capacity_pair_definitions', 'capacity_pool_definitions'
+  ) THEN
+    frozen := EXISTS (
+      SELECT 1
+        FROM arrangement_item_definitions definitions
+       WHERE definitions.supplier_arrangement_version_id = version_id
+         AND definitions.arrangement_item_id = row_record.arrangement_item_id
+         AND definitions.category = 'lodging'
+    );
+  ELSIF TG_TABLE_NAME = 'supplier_cost_sources' THEN
+    frozen := EXISTS (
+      SELECT 1
+        FROM arrangement_item_definitions definitions
+       WHERE definitions.supplier_arrangement_version_id = version_id
+         AND definitions.category = 'lodging'
+    ) AND (
+      row_record.arrangement_item_id IS NULL OR EXISTS (
+        SELECT 1
+          FROM arrangement_item_definitions definitions
+         WHERE definitions.supplier_arrangement_version_id = version_id
+           AND definitions.arrangement_item_id = row_record.arrangement_item_id
+           AND definitions.category = 'lodging'
+      )
+    );
+  ELSIF TG_TABLE_NAME = 'supplier_cost_definitions' THEN
+    SELECT arrangement_item_id INTO item_id
+      FROM supplier_cost_sources
+     WHERE id = row_record.supplier_cost_source_id;
+    frozen := EXISTS (
+      SELECT 1
+        FROM arrangement_item_definitions definitions
+       WHERE definitions.supplier_arrangement_version_id = version_id
+         AND definitions.category = 'lodging'
+    ) AND (
+      item_id IS NULL OR EXISTS (
+        SELECT 1
+          FROM arrangement_item_definitions definitions
+         WHERE definitions.supplier_arrangement_version_id = version_id
+           AND definitions.arrangement_item_id = item_id
+           AND definitions.category = 'lodging'
+      )
+    );
+  ELSIF TG_TABLE_NAME = 'supplier_cost_components' THEN
+    SELECT sources.arrangement_item_id INTO item_id
+      FROM supplier_cost_definitions definitions
+      JOIN supplier_cost_sources sources ON sources.id = definitions.supplier_cost_source_id
+     WHERE definitions.id = row_record.supplier_cost_definition_id;
+    frozen := EXISTS (
+      SELECT 1
+        FROM arrangement_item_definitions item_definitions
+       WHERE item_definitions.supplier_arrangement_version_id = version_id
+         AND item_definitions.category = 'lodging'
+    ) AND (
+      item_id IS NULL OR EXISTS (
+        SELECT 1
+          FROM arrangement_item_definitions item_definitions
+         WHERE item_definitions.supplier_arrangement_version_id = version_id
+           AND item_definitions.arrangement_item_id = item_id
+           AND item_definitions.category = 'lodging'
+      )
+    );
+  ELSIF TG_TABLE_NAME = 'supplier_deadline_definitions' THEN
+    frozen := EXISTS (
+      SELECT 1
+        FROM supplier_deadline_definition_coverage_links links
+       WHERE links.supplier_deadline_definition_id = row_record.id
+         AND public.lodging_coverage_affects_version(
+           version_id, links.arrangement_item_id, links.service_occurrence_id,
+           links.supplier_resource_id, links.capacity_pool_id
+         )
+    );
+  ELSIF TG_TABLE_NAME = 'supplier_deposit_requirement_definitions' THEN
+    frozen := EXISTS (
+      SELECT 1
+        FROM supplier_deposit_requirement_definition_coverage_links links
+       WHERE links.supplier_deposit_requirement_definition_id = row_record.id
+         AND public.lodging_coverage_affects_version(
+           version_id, links.arrangement_item_id, links.service_occurrence_id,
+           links.supplier_resource_id, links.capacity_pool_id
+         )
+    );
+  ELSIF TG_TABLE_NAME IN (
+    'supplier_deadline_definition_coverage_links',
+    'supplier_deposit_requirement_definition_coverage_links'
+  ) THEN
+    frozen := public.lodging_coverage_affects_version(
+      version_id, row_record.arrangement_item_id, row_record.service_occurrence_id,
+      row_record.supplier_resource_id, row_record.capacity_pool_id
+    );
+    IF NOT frozen AND TG_OP = 'UPDATE' THEN
+      frozen := public.lodging_coverage_affects_version(
+        OLD.supplier_arrangement_version_id, OLD.arrangement_item_id, OLD.service_occurrence_id,
+        OLD.supplier_resource_id, OLD.capacity_pool_id
+      );
+    END IF;
+  END IF;
+
+  IF frozen THEN
+    RAISE EXCEPTION 'lodging agreement definitions are immutable after Supplier confirmation';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
   RETURN NEW;
 END;
 $$;
@@ -990,10 +1169,6 @@ CREATE FUNCTION public.reject_mixed_agreement_reference_scope() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-  -- Exclusive lock before the opposite-scope check. A shared lock lets two
-  -- inserts of opposite scope both observe an empty set and both commit.
-  -- Version, Item, and kind cannot move: reject_supplier_term_owner_change
-  -- rejects that update, so only this version row needs the lock.
   PERFORM id
     FROM supplier_arrangement_versions
    WHERE id = NEW.supplier_arrangement_version_id
@@ -1012,10 +1187,37 @@ BEGIN
       FROM supplier_agreement_references existing
      WHERE existing.supplier_arrangement_version_id = NEW.supplier_arrangement_version_id
        AND existing.kind = NEW.kind
-       AND existing.id IS DISTINCT FROM NEW.id
+       AND (TG_TABLE_NAME <> 'supplier_agreement_references' OR existing.id IS DISTINCT FROM NEW.id)
+       AND (existing.arrangement_item_id IS NULL) IS DISTINCT FROM (NEW.arrangement_item_id IS NULL)
+  ) OR EXISTS (
+    SELECT 1
+      FROM supplier_agreement_reference_absences existing
+     WHERE existing.supplier_arrangement_version_id = NEW.supplier_arrangement_version_id
+       AND existing.kind = NEW.kind
+       AND (TG_TABLE_NAME <> 'supplier_agreement_reference_absences' OR existing.id IS DISTINCT FROM NEW.id)
        AND (existing.arrangement_item_id IS NULL) IS DISTINCT FROM (NEW.arrangement_item_id IS NULL)
   ) THEN
     RAISE EXCEPTION 'an agreement reference kind cannot use both Item scope and agreement-wide scope';
+  END IF;
+
+  IF TG_TABLE_NAME = 'supplier_agreement_references' AND EXISTS (
+    SELECT 1
+      FROM supplier_agreement_reference_absences existing
+     WHERE existing.supplier_arrangement_version_id = NEW.supplier_arrangement_version_id
+       AND existing.kind = NEW.kind
+       AND existing.arrangement_item_id IS NOT DISTINCT FROM NEW.arrangement_item_id
+  ) THEN
+    RAISE EXCEPTION 'an agreement reference kind cannot have both wording and reviewed none';
+  END IF;
+
+  IF TG_TABLE_NAME = 'supplier_agreement_reference_absences' AND EXISTS (
+    SELECT 1
+      FROM supplier_agreement_references existing
+     WHERE existing.supplier_arrangement_version_id = NEW.supplier_arrangement_version_id
+       AND existing.kind = NEW.kind
+       AND existing.arrangement_item_id IS NOT DISTINCT FROM NEW.arrangement_item_id
+  ) THEN
+    RAISE EXCEPTION 'an agreement reference kind cannot have both wording and reviewed none';
   END IF;
 
   RETURN NEW;
@@ -4090,6 +4292,29 @@ CREATE TABLE public.sessions (
 
 
 --
+-- Name: supplier_agreement_reference_absences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_agreement_reference_absences (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_agreement_reference_a_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_agreement_referen_supplier_arrangement_versi_not_null1 NOT NULL,
+    arrangement_item_id uuid,
+    kind character varying NOT NULL,
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    copied_from_id uuid,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT agreement_reference_absences_kind CHECK ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[])) AND (((kind)::text <> ALL ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying])::text[])) OR (arrangement_item_id IS NOT NULL)))),
+    CONSTRAINT agreement_reference_absences_lock_version CHECK ((lock_version >= 0))
+);
+
+
+--
 -- Name: supplier_agreement_references; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -6644,6 +6869,14 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: supplier_agreement_reference_absences supplier_agreement_reference_absences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_reference_absences
+    ADD CONSTRAINT supplier_agreement_reference_absences_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_agreement_references supplier_agreement_references_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7522,6 +7755,34 @@ CREATE UNIQUE INDEX index_agency_users_on_invitation_token_digest ON public.agen
 --
 
 CREATE UNIQUE INDEX index_agency_users_on_password_reset_token_digest ON public.agency_users USING btree (password_reset_token_digest) WHERE (password_reset_token_digest IS NOT NULL);
+
+
+--
+-- Name: index_agreement_reference_absences_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_reference_absences_on_id_agency ON public.supplier_agreement_reference_absences USING btree (id, agency_id);
+
+
+--
+-- Name: index_agreement_reference_absences_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_reference_absences_on_lineage_owner ON public.supplier_agreement_reference_absences USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_agreement_reference_absences_on_version_item_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_reference_absences_on_version_item_kind ON public.supplier_agreement_reference_absences USING btree (supplier_arrangement_version_id, arrangement_item_id, kind) WHERE (arrangement_item_id IS NOT NULL);
+
+
+--
+-- Name: index_agreement_reference_absences_on_version_kind_without_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_reference_absences_on_version_kind_without_item ON public.supplier_agreement_reference_absences USING btree (supplier_arrangement_version_id, kind) WHERE (arrangement_item_id IS NULL);
 
 
 --
@@ -11865,6 +12126,13 @@ CREATE TRIGGER arrangement_item_definitions_reject_owner_change BEFORE UPDATE ON
 
 
 --
+-- Name: arrangement_item_definitions arrangement_item_definitions_reject_supplier_confirmed_lodging; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER arrangement_item_definitions_reject_supplier_confirmed_lodging BEFORE INSERT OR DELETE OR UPDATE ON public.arrangement_item_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
+
+
+--
 -- Name: arrangement_items arrangement_items_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11914,6 +12182,13 @@ CREATE TRIGGER capacity_pair_definitions_reject_owner_change BEFORE UPDATE ON pu
 
 
 --
+-- Name: capacity_pair_definitions capacity_pair_definitions_reject_supplier_confirmed_lodging; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pair_definitions_reject_supplier_confirmed_lodging BEFORE INSERT OR DELETE OR UPDATE ON public.capacity_pair_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
+
+
+--
 -- Name: capacity_pair_definitions capacity_pairs_reject_cancelled_occurrence; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11939,6 +12214,13 @@ CREATE TRIGGER capacity_pool_definitions_reject_nonnumeric_quantity BEFORE INSER
 --
 
 CREATE TRIGGER capacity_pool_definitions_reject_owner_change BEFORE UPDATE ON public.capacity_pool_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_pool_definition_owner_change();
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_definitions_reject_supplier_confirmed_lodging; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pool_definitions_reject_supplier_confirmed_lodging BEFORE INSERT OR DELETE OR UPDATE ON public.capacity_pool_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
 
 
 --
@@ -12292,6 +12574,13 @@ CREATE TRIGGER service_occurrence_definitions_reject_owner_change BEFORE UPDATE 
 
 
 --
+-- Name: service_occurrence_definitions service_occurrence_definitions_reject_supplier_confirmed_lodgin; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_occurrence_definitions_reject_supplier_confirmed_lodgin BEFORE INSERT OR DELETE OR UPDATE ON public.service_occurrence_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
+
+
+--
 -- Name: service_occurrences service_occurrences_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12499,6 +12788,34 @@ CREATE TRIGGER service_offers_reject_item_claim_change BEFORE UPDATE ON public.s
 --
 
 CREATE TRIGGER service_offers_reject_owner_change BEFORE UPDATE ON public.service_offers FOR EACH ROW EXECUTE FUNCTION public.reject_service_offer_owner_change();
+
+
+--
+-- Name: supplier_agreement_reference_absences supplier_agreement_reference_absences_guard_mixed_scope; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_reference_absences_guard_mixed_scope BEFORE INSERT OR UPDATE ON public.supplier_agreement_reference_absences FOR EACH ROW EXECUTE FUNCTION public.reject_mixed_agreement_reference_scope();
+
+
+--
+-- Name: supplier_agreement_reference_absences supplier_agreement_reference_absences_reject_confirmed; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_reference_absences_reject_confirmed BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_agreement_reference_absences FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_agreement_reference_mutation();
+
+
+--
+-- Name: supplier_agreement_reference_absences supplier_agreement_reference_absences_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_reference_absences_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_agreement_reference_absences FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_agreement_reference_absences supplier_agreement_reference_absences_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_reference_absences_reject_owner_change BEFORE UPDATE ON public.supplier_agreement_reference_absences FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'arrangement_item_id', 'kind', 'copied_from_id');
 
 
 --
@@ -12901,6 +13218,13 @@ CREATE TRIGGER supplier_cost_components_reject_owner_change BEFORE UPDATE ON pub
 
 
 --
+-- Name: supplier_cost_components supplier_cost_components_reject_supplier_confirmed_lodging; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_components_reject_supplier_confirmed_lodging BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_components FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
+
+
+--
 -- Name: supplier_cost_components supplier_cost_components_validate_context; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12933,6 +13257,13 @@ CREATE TRIGGER supplier_cost_definitions_reject_owner_change BEFORE UPDATE ON pu
 --
 
 CREATE TRIGGER supplier_cost_definitions_reject_stage_change BEFORE UPDATE OF stage ON public.supplier_cost_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_cost_definition_stage_change();
+
+
+--
+-- Name: supplier_cost_definitions supplier_cost_definitions_reject_supplier_confirmed_lodging; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_definitions_reject_supplier_confirmed_lodging BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
 
 
 --
@@ -12999,6 +13330,13 @@ CREATE TRIGGER supplier_cost_sources_reject_owner_change BEFORE UPDATE ON public
 
 
 --
+-- Name: supplier_cost_sources supplier_cost_sources_reject_supplier_confirmed_lodging; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_sources_reject_supplier_confirmed_lodging BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_sources FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
+
+
+--
 -- Name: supplier_cost_usage_assumptions supplier_cost_usage_assumptions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13034,6 +13372,13 @@ CREATE TRIGGER supplier_deadline_definition_coverage_links_reject_non_draft_mu B
 
 
 --
+-- Name: supplier_deadline_definition_coverage_links supplier_deadline_definition_coverage_links_reject_supplier_con; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_definition_coverage_links_reject_supplier_con BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_definition_coverage_links FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
+
+
+--
 -- Name: supplier_deadline_definitions supplier_deadline_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13045,6 +13390,13 @@ CREATE TRIGGER supplier_deadline_definitions_reject_non_draft_mutation BEFORE IN
 --
 
 CREATE TRIGGER supplier_deadline_definitions_reject_owner_change BEFORE UPDATE ON public.supplier_deadline_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_deadline_definition_owner_change();
+
+
+--
+-- Name: supplier_deadline_definitions supplier_deadline_definitions_reject_supplier_confirmed_lodging; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_definitions_reject_supplier_confirmed_lodging BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
 
 
 --
@@ -13097,6 +13449,13 @@ CREATE TRIGGER supplier_deposit_requirement_definition_coverage_links_reject_n B
 
 
 --
+-- Name: supplier_deposit_requirement_definition_coverage_links supplier_deposit_requirement_definition_coverage_links_reject_s; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_definition_coverage_links_reject_s BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deposit_requirement_definition_coverage_links FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
+
+
+--
 -- Name: supplier_deposit_requirement_definitions supplier_deposit_requirement_definitions_reject_non_draft_mutat; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13108,6 +13467,13 @@ CREATE TRIGGER supplier_deposit_requirement_definitions_reject_non_draft_mutat B
 --
 
 CREATE TRIGGER supplier_deposit_requirement_definitions_reject_owner_change BEFORE UPDATE ON public.supplier_deposit_requirement_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_deposit_definition_owner_change();
+
+
+--
+-- Name: supplier_deposit_requirement_definitions supplier_deposit_requirement_definitions_reject_supplier_confir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deposit_requirement_definitions_reject_supplier_confir BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deposit_requirement_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
 
 
 --
@@ -13272,6 +13638,13 @@ CREATE TRIGGER supplier_resource_definitions_reject_owner_change BEFORE UPDATE O
 
 
 --
+-- Name: supplier_resource_definitions supplier_resource_definitions_reject_supplier_confirmed_lodging; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_resource_definitions_reject_supplier_confirmed_lodging BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_resource_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
+
+
+--
 -- Name: supplier_resources supplier_resources_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13338,6 +13711,38 @@ ALTER TABLE ONLY public.supplier_arrangement_activation_cost_selections
 
 ALTER TABLE ONLY public.agency_users
     ADD CONSTRAINT agency_users_default_office_fk FOREIGN KEY (default_office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
+-- Name: supplier_agreement_reference_absences agreement_reference_absences_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_reference_absences
+    ADD CONSTRAINT agreement_reference_absences_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_agreement_reference_absences(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_agreement_reference_absences agreement_reference_absences_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_reference_absences
+    ADD CONSTRAINT agreement_reference_absences_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_agreement_reference_absences agreement_reference_absences_recorder_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_reference_absences
+    ADD CONSTRAINT agreement_reference_absences_recorder_fk FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_agreement_reference_absences agreement_reference_absences_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_reference_absences
+    ADD CONSTRAINT agreement_reference_absences_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -15477,6 +15882,14 @@ ALTER TABLE ONLY public.supplier_cost_usage_assumptions
 
 
 --
+-- Name: supplier_agreement_reference_absences fk_rails_8a728f6899; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_reference_absences
+    ADD CONSTRAINT fk_rails_8a728f6899 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: service_offer_choice_groups fk_rails_8b98b852a1; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17355,6 +17768,10 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261002050000'),
+('20261002040000'),
+('20261002030000'),
+('20261002020000'),
 ('20261002010000'),
 ('20261001210000'),
 ('20261001193000'),

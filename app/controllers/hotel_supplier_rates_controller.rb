@@ -47,6 +47,7 @@ class HotelSupplierRatesController < ApplicationController
 
     ActiveRecord::Base.transaction do
       apply_rates!(changes)
+      mark_supported_contracted_rates_ready!
     end
     redirect_to rates_path, notice: "Supplier rates saved."
   rescue AgencyCommand::Error => error
@@ -378,6 +379,128 @@ class HotelSupplierRatesController < ApplicationController
       definition_lock_version: definition.lock_version,
       idempotency_key: rate_idempotency_key("component:#{context.occurrence_id}:#{context.resource_id}:#{change.kind}"),
       attributes: attributes
+    ).call
+  end
+
+  def mark_supported_contracted_rates_ready!
+    shape = DetectHotelRateShape.new(
+      agency: Current.agency,
+      arrangement: @supplier_arrangement,
+      version: @supplier_arrangement_version.reload,
+      item: @arrangement_item,
+      departure: @departure
+    ).call
+    return if shape.blocked? || shape.contexts.any?(&:advanced)
+
+    contexts = shape.supported_contexts.select do |context|
+      context.definition&.contracted? && context.base
+    end
+    return if contexts.empty?
+
+    category = hotel_rate_participant_category!
+    contexts.each do |context|
+      definition = context.definition
+
+      ensure_hotel_rate_usage_inputs!(context, category)
+      definition.reload
+      MarkCostDefinitionForecastReady.new(
+        **hotel_command_context,
+        definition: definition,
+        lock_version: definition.lock_version,
+        readiness_provenance: "Hotel contracted rate workspace"
+      ).call
+    end
+  end
+
+  def hotel_rate_participant_category!
+    version = @supplier_arrangement_version.reload
+    existing = version.supplier_cost_participant_categories.find_by(
+      arrangement_item_id: @arrangement_item.id,
+      label: "Hotel guest"
+    )
+    return existing if existing
+
+    CreateSupplierCostParticipantCategory.new(
+      **hotel_command_context,
+      arrangement_item: @arrangement_item,
+      version_lock_version: version.lock_version,
+      label: "Hotel guest",
+      idempotency_key: rate_idempotency_key("participant-category")
+    ).call.record
+  end
+
+  def ensure_hotel_rate_usage_inputs!(context, category)
+    version = @supplier_arrangement_version.reload
+    assumption = version.supplier_cost_usage_assumptions.find_by(
+      arrangement_item_id: @arrangement_item.id,
+      service_occurrence_id: context.occurrence_id,
+      supplier_resource_id: context.resource_id
+    )
+    if assumption.nil?
+      assumption = CreateSupplierCostUsageAssumption.new(
+        **hotel_command_context,
+        arrangement_item: @arrangement_item,
+        idempotency_key: rate_idempotency_key("usage:#{context.occurrence_id}:#{context.resource_id}"),
+        attributes: {
+          service_occurrence_id: context.occurrence_id,
+          supplier_resource_id: context.resource_id,
+          expected_billable_nights: 1
+        }
+      ).call.record
+    elsif assumption.expected_billable_nights != 1 ||
+        assumption.expected_resource_units.present? ||
+        assumption.expected_persons.present?
+      assumption = UpdateSupplierCostUsageAssumption.new(
+        **hotel_command_context,
+        assumption: assumption,
+        lock_version: assumption.lock_version,
+        attributes: {
+          expected_billable_nights: 1,
+          expected_resource_units: nil,
+          expected_persons: nil
+        }
+      ).call.record
+    end
+
+    quantity = context.cell.pool_definition&.proposed_opening_quantity.to_i
+    quantity = 1 unless quantity.positive?
+    maximum_occupancy = context.resource_definition.maximum_occupancy.to_i
+    maximum_occupancy = 1 unless maximum_occupancy.positive?
+    positions = Array.new(maximum_occupancy, category.id)
+
+    profiles = assumption.reload.supplier_cost_occupancy_profiles.order(:position, :id).to_a
+    if profiles.empty?
+      CreateSupplierCostOccupancyProfile.new(
+        **hotel_command_context,
+        assumption: assumption,
+        assumption_lock_version: assumption.lock_version,
+        idempotency_key: rate_idempotency_key("profile:#{context.occurrence_id}:#{context.resource_id}"),
+        attributes: {
+          label: "Contracted rooms",
+          resource_unit_count: quantity
+        },
+        positions: positions
+      ).call
+      return
+    end
+
+    unless profiles.one? && profiles.first.label == "Contracted rooms"
+      raise AgencyCommand::Error.new(
+        "This Hotel rate usage uses an Advanced Supplier cost shape.",
+        code: :invalid
+      )
+    end
+
+    profile = profiles.first
+    UpdateSupplierCostOccupancyProfile.new(
+      **hotel_command_context,
+      profile: profile,
+      lock_version: profile.lock_version,
+      attributes: {
+        label: "Contracted rooms",
+        resource_unit_count: quantity
+      },
+      positions: positions
     ).call
   end
 

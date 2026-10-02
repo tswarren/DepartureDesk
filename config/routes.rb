@@ -241,6 +241,12 @@ Rails.application.routes.draw do
         post "items/:item_id/inventory/resources", to: "hotel_room_inventories#create_resource", as: :item_inventory_resources
         patch "items/:item_id/inventory/resources/:resource_id", to: "hotel_room_inventories#update_resource", as: :item_inventory_resource
         get "items/:item_id/hotel_agreement", to: "hotel_agreements#show", as: :item_hotel_agreement
+        get "items/:item_id/hotel_review", to: "hotel_reviews#show", as: :item_hotel_review
+        post "items/:item_id/hotel_review/confirmation", to: "hotel_reviews#confirm", as: :item_hotel_review_confirmation
+        post "items/:item_id/hotel_review/revision", to: "hotel_reviews#revise", as: :item_hotel_review_revision
+        post "items/:item_id/hotel_review/activation", to: "hotel_reviews#activate", as: :item_hotel_review_activation
+        post "items/:item_id/hotel_agreement/terms/:kind/absence", to: "hotel_agreement_terms#record_absence", as: :item_hotel_agreement_term_absence
+        delete "items/:item_id/hotel_agreement/absences/:id", to: "hotel_agreement_terms#destroy_absence", as: :item_hotel_agreement_absence
         get "items/:item_id/hotel_agreement/deposits/new", to: "hotel_agreement_deposits#new", as: :new_item_hotel_agreement_deposit
         post "items/:item_id/hotel_agreement/deposits", to: "hotel_agreement_deposits#create", as: :item_hotel_agreement_deposits
         get "items/:item_id/hotel_agreement/deposits/:id/edit", to: "hotel_agreement_deposits#edit", as: :edit_item_hotel_agreement_deposit

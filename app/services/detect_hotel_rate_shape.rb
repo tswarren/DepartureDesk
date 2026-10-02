@@ -15,7 +15,7 @@ class DetectHotelRateShape
     :cell, :source, :definition, :base, :third, :fourth, :reason, :advanced
   ) do
     def supported?
-      reason.nil?
+      reason.nil? && cell.pool_definition.present?
     end
 
     def date
@@ -74,7 +74,9 @@ class DetectHotelRateShape
     end
     @matched_source_ids.concat(matched.map(&:id))
     inventory_reason = category.reason || cell.reason
-    inventory_reason = "Record this room night in Room inventory before entering a Supplier rate." if inventory_reason.nil? && (cell.night_definition.nil? || cell.pool_definition.nil?)
+    if inventory_reason.nil? && cell.pool_definition.nil? && matched.any?
+      inventory_reason = "Record this room night in Room inventory before entering a Supplier rate."
+    end
 
     if matched.many?
       return unsupported(cell, "More than one Supplier cost source covers this room night.", advanced: true)
@@ -133,6 +135,69 @@ class DetectHotelRateShape
     end
 
     definition = contracted.first || estimates.first
+    return display_incomplete_rate(cell, source, candidates) if definition.nil?
+
+    classified = classify_components(definition)
+    if classified.nil?
+      return unsupported(
+        cell, "This Supplier rate uses a cost shape this page cannot present.",
+        advanced: true, source: source, definition: definition
+      )
+    end
+    usage_reason = hotel_usage_shape_reason(cell, source)
+    if usage_reason
+      return unsupported(
+        cell, usage_reason,
+        advanced: true, source: source, definition: definition
+      )
+    end
+
+    Context.new(
+      cell: cell, source: source, definition: definition,
+      base: classified[:base], third: classified[:third], fourth: classified[:fourth],
+      reason: nil, advanced: false
+    )
+  end
+
+  def hotel_usage_shape_reason(cell, source)
+    assumption = @version.supplier_cost_usage_assumptions.find_by(
+      arrangement_item_id: @item.id,
+      service_occurrence_id: source.service_occurrence_id,
+      supplier_resource_id: source.supplier_resource_id
+    )
+    return "Hotel rate forecast inputs are missing." if assumption.nil?
+    return "Hotel rate forecast inputs use an Advanced Supplier cost shape." unless
+      assumption.expected_billable_nights == 1 &&
+      assumption.expected_resource_units.nil? &&
+      assumption.expected_persons.nil?
+
+    profiles = assumption.supplier_cost_occupancy_profiles.order(:position, :id).to_a
+    return "Hotel rate occupancy uses an Advanced Supplier cost shape." unless
+      profiles.one? && profiles.first.label == "Contracted rooms"
+
+    profile = profiles.first
+    expected_quantity = cell.pool_definition&.proposed_opening_quantity.to_i
+    return "Hotel rate occupancy is out of sync with room inventory." unless
+      expected_quantity.positive? && profile.resource_unit_count == expected_quantity
+
+    maximum_occupancy = cell.resource_definition.maximum_occupancy.to_i
+    maximum_occupancy = 1 unless maximum_occupancy.positive?
+    positions = profile.supplier_cost_occupancy_profile_positions.order(:occupancy_position).to_a
+    return "Hotel rate occupancy uses an Advanced Supplier cost shape." unless
+      positions.map(&:occupancy_position) == (1..maximum_occupancy).to_a &&
+      positions.all? { |position| position.participant_category&.label == "Hotel guest" }
+
+    nil
+  end
+
+  def display_incomplete_rate(cell, source, candidates)
+    working_contracted = candidates.select(&:contracted?)
+    working_estimates = candidates.select(&:estimate?)
+    if working_contracted.many? || (working_contracted.empty? && working_estimates.many?)
+      return unsupported(cell, "This Supplier rate uses a cost shape this page cannot present.", advanced: true, source: source)
+    end
+
+    definition = working_contracted.first || working_estimates.first
     return incomplete_rate(cell, source) if definition.nil?
 
     classified = classify_components(definition)
@@ -146,7 +211,7 @@ class DetectHotelRateShape
     Context.new(
       cell: cell, source: source, definition: definition,
       base: classified[:base], third: classified[:third], fourth: classified[:fourth],
-      reason: nil, advanced: false
+      reason: "No ready Supplier rate is recorded for this room night.", advanced: false
     )
   end
 

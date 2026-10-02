@@ -985,4 +985,4 @@ Hotel Agreement is complete when HA.1 and HA.2 ship and:
 - unsupported generic shapes remain intact and reachable through Advanced Supplier planning;
 - no duplicate Hotel agreement domain exists;
 - no executable policy was inferred from Supplier wording;
-- [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted separately.
+- [Hotel Review and Activation](hotel-review-and-activation.md) is Shipped separately.

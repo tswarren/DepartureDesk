@@ -71,12 +71,14 @@ class RecordSupplierAgreementReference < AgencyCommand
       end
     end
   rescue ActiveRecord::StatementInvalid => error
-    raise unless error.message.include?("both Item scope and agreement-wide scope")
+    if error.message.include?("both Item scope and agreement-wide scope")
+      raise Error.new("This term is already recorded at the other scope.", code: :invalid)
+    end
+    if error.message.include?("both wording and reviewed none")
+      raise Error.new("This term is already reviewed as none.", code: :invalid)
+    end
 
-    raise Error.new(
-      "This term is already recorded at the other scope.",
-      code: :invalid
-    )
+    raise error
   end
 
   private
@@ -147,11 +149,23 @@ class RecordSupplierAgreementReference < AgencyCommand
   end
 
   def reject_other_scope!(version, kind, item_id)
-    opposite = version.supplier_agreement_references.where(kind: kind)
-    opposite = item_id.nil? ? opposite.where.not(arrangement_item_id: nil) : opposite.where(arrangement_item_id: nil)
-    return unless opposite.exists?
-
-    raise Error.new("This term is already recorded at the other scope.", code: :invalid)
+    references = version.supplier_agreement_references.where(kind: kind)
+    absences = version.supplier_agreement_reference_absences.where(kind: kind)
+    if item_id.nil?
+      if references.where.not(arrangement_item_id: nil).exists? || absences.where.not(arrangement_item_id: nil).exists?
+        raise Error.new("This term is already recorded at the other scope.", code: :invalid)
+      end
+      if absences.where(arrangement_item_id: nil).exists?
+        raise Error.new("This term is already reviewed as none.", code: :invalid)
+      end
+    else
+      if references.where(arrangement_item_id: nil).exists? || absences.where(arrangement_item_id: nil).exists?
+        raise Error.new("This term is already recorded at the other scope.", code: :invalid)
+      end
+      if absences.where(arrangement_item_id: item_id).exists?
+        raise Error.new("This term is already reviewed as none.", code: :invalid)
+      end
+    end
   end
 
   def normalize_attrs!(kind)

@@ -38,10 +38,8 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     deluxe = resource_named(item, "Deluxe")
 
     assert_no_difference -> { ServiceOffer.where(agency: @agency).count } do
-      assert_no_difference -> { SupplierCostUsageAssumption.where(agency: @agency).count } do
-        assert_no_difference -> { SupplierAgreementReference.where(agency: @agency).count } do
-          save_rates(arrangement, item, standard, deluxe)
-        end
+      assert_no_difference -> { SupplierAgreementReference.where(agency: @agency).count } do
+        save_rates(arrangement, item, standard, deluxe)
       end
     end
     assert_redirected_to item_rates_departure_arrangement_hotel_path(@departure, arrangement, item)
@@ -55,10 +53,23 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_equal [ 2_000 ], draft_version(item).supplier_cost_components.where(label: "Third occupant").map(&:amount_minor_units).uniq
     assert_equal [ 2_000 ], draft_version(item).supplier_cost_components.where(label: "Fourth occupant").map(&:amount_minor_units).uniq
     assert draft_version(item).supplier_cost_definitions.all?(&:noncommissionable?)
-    assert draft_version(item).supplier_cost_definitions.all?(&:working?)
+    assert draft_version(item).supplier_cost_definitions.all?(&:forecast_ready?)
+    assert draft_version(item).supplier_cost_definitions.all? { |definition|
+      definition.readiness_provenance == "Hotel contracted rate workspace"
+    }
     assert_equal 0, draft_version(item).supplier_cost_components.where(economic_role: "expected_commission").count
-    assert_equal 0, draft_version(item).supplier_cost_usage_assumptions.count
-    assert_equal 0, draft_version(item).supplier_cost_occupancy_profiles.count
+    assert_equal 4, draft_version(item).supplier_cost_usage_assumptions.count
+    assert_equal [ 1 ], draft_version(item).supplier_cost_usage_assumptions.pluck(:expected_billable_nights).uniq
+    assert_equal 4, draft_version(item).supplier_cost_occupancy_profiles.count
+    guest = draft_version(item).supplier_cost_participant_categories.find_by!(
+      arrangement_item: item, label: "Hotel guest"
+    )
+    draft_version(item).supplier_cost_occupancy_profiles.each do |profile|
+      positions = profile.supplier_cost_occupancy_profile_positions.order(:occupancy_position)
+      assert_equal [ 1, 2, 3, 4 ], positions.pluck(:occupancy_position)
+      assert_equal [ guest.id ], positions.pluck(:participant_category_id).uniq
+    end
+    assert_equal 1, draft_version(item).supplier_cost_participant_categories.where(arrangement_item: item, label: "Hotel guest").count
     assert_equal 4, draft_version(item).supplier_cost_sources.where(arrangement_item: item).count
 
     assert_match "Standard: $173.00 / $173.00 / $193.00 / $213.00", response.body
@@ -75,9 +86,9 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     forecast = EvaluateSupplierCostForecast.new(
       agency: @agency, departure: @departure, arrangement: arrangement
     ).call
-    assert_equal 0, forecast.totals.forecast_supplier_cost_minor_units
+    assert_equal 503_600, forecast.totals.forecast_supplier_cost_minor_units
     draft_version(item).supplier_cost_sources.where(arrangement_item: item).each do |source|
-      assert_includes forecast.incomplete_source_ids, source.id
+      assert_not_includes forecast.incomplete_source_ids, source.id
     end
   end
 
@@ -128,6 +139,16 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_no_match "$4,156.00", response.body
     assert_equal 17_300, component_amount(item, "November 4", "Standard", "Room night base")
     assert_equal evidence, pool.reload.evidence_reference_note
+    updated_assumption = draft_version(item).supplier_cost_usage_assumptions.find_by!(
+      arrangement_item: item,
+      service_occurrence_id: pool.service_occurrence_id,
+      supplier_resource_id: pool.supplier_resource_id
+    )
+    assert_equal 6, updated_assumption.supplier_cost_occupancy_profiles.sole.resource_unit_count
+    forecast = EvaluateSupplierCostForecast.new(
+      agency: @agency, departure: @departure, arrangement: arrangement
+    ).call
+    assert_equal 524_900, forecast.totals.forecast_supplier_cost_minor_units
     assert_equal 0, SupplierAgreementReference.where(supplier_arrangement_version: draft_version(item)).count
   end
 
@@ -169,10 +190,19 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
 
     assert_response :success
-    assert_select "#hotel-agreement-rates", text: /In progress/
-    assert_select "#hotel-agreement-rate-authority", count: 0
+    assert_select "#hotel-agreement-rates", text: /Recorded/
+    assert_select "#hotel-agreement-rate-authority", text: "Contracted"
+    assert_match "$173", response.body
+    assert_no_match(/No Supplier rates are recorded/, response.body)
 
     version = draft_version(item)
+    version.supplier_cost_definitions.where(stage: "contracted").update_all(
+      status: "working",
+      forecast_ready_by_id: nil,
+      forecast_ready_at: nil,
+      readiness_provenance: nil,
+      readiness_fingerprint: nil
+    )
     version.supplier_cost_sources.each do |source|
       contracted = source.supplier_cost_definitions.find(&:contracted?)
       estimate = CreateSupplierCostDefinition.new(
@@ -216,21 +246,422 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_select "#hotel-agreement-rates", text: /In progress/
     assert_select "#hotel-agreement-rate-authority", text: "Estimated"
     assert_match "$173", response.body
+  end
 
-    version.supplier_cost_definitions.where(stage: "contracted").each do |definition|
-      definition.update!(
-        status: "forecast_ready",
-        forecast_ready_by: @staff,
-        forecast_ready_at: Time.current,
-        readiness_provenance: "Hilton contracted rate",
-        readiness_fingerprint: "agreement-rate-#{definition.id}"
-      )
-    end
+  test "a category with no rooms on one night does not need a rate that night" do
+    sign_in_as @staff
+    item = create_stay("Partial room block", starts_on: "2027-11-03")
+    arrangement = item.supplier_arrangement
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Deluxe")
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    record_openings(arrangement, item, [
+      [ "2027-11-03", standard, 1 ],
+      [ "2027-11-04", standard, 5 ],
+      [ "2027-11-04", deluxe, 5 ],
+      [ "2027-11-05", standard, 10 ],
+      [ "2027-11-05", deluxe, 5 ]
+    ])
+    assert_response :redirect
+    save_rates(arrangement, item, standard, deluxe)
+    assert_response :redirect
 
     get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
-
+    assert_response :success
     assert_select "#hotel-agreement-rates", text: /Recorded/
     assert_select "#hotel-agreement-rate-authority", text: "Contracted"
+    assert_no_match(/Each inventory night needs one ready contracted Supplier rate/, response.body)
+
+    get item_hotel_review_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_no_match(/Each inventory night needs one ready contracted Supplier rate/, response.body)
+  end
+
+  test "generic activation blockers do not prevent supplier confirmation" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+    assert_response :redirect
+
+    version = draft_version(item)
+    SupplierAgreementReference::KINDS.each do |kind|
+      RecordSupplierAgreementReferenceAbsence.new(
+        agency: @agency,
+        actor: @staff,
+        arrangement_item: item,
+        scope: "stay",
+        kind: kind,
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+
+    other_item = arrangement.arrangement_items.create!(agency: @agency, departure: @departure)
+    version.arrangement_item_definitions.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      arrangement_item: other_item,
+      name: "Airport transfer",
+      category: "ground_transportation",
+      capacity_management: "unmanaged",
+      default_service_provider: @contractor,
+      position: 2
+    )
+    occurrence = other_item.service_occurrences.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      status: "planned"
+    )
+    version.service_occurrence_definitions.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      arrangement_item: other_item,
+      service_occurrence: occurrence,
+      name: "Airport transfer",
+      starts_on: Date.new(2027, 11, 6),
+      ends_on: Date.new(2027, 11, 6),
+      time_zone: "America/New_York",
+      service_provider: @contractor
+    )
+    resource = other_item.supplier_resources.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement
+    )
+    version.supplier_resource_definitions.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      arrangement_item: other_item,
+      supplier_resource: resource,
+      name: "Motorcoach seat",
+      position: 1
+    )
+
+    readiness = SupplierArrangementActivationReadiness.new(
+      agency: @agency,
+      arrangement: arrangement,
+      version: version
+    ).call
+    assert_includes readiness.blockers.map(&:code), :item_coverage_missing
+
+    @departure.update!(
+      status: "active",
+      departure_reference: "D-#{SecureRandom.random_number(900000) + 100000}",
+      first_activated_at: Time.current
+    )
+
+    review = CompileHotelActivationReview.new(
+      agency: @agency,
+      departure: @departure,
+      arrangement: arrangement,
+      version: version,
+      item: item
+    ).call
+    assert review.confirmation_allowed
+    assert_not review.activation_allowed
+
+    post item_hotel_review_confirmation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: {
+        version_id: version.id,
+        idempotency_key: SecureRandom.uuid,
+        confirmation: {
+          evidence_kind: "supplier_confirmation",
+          evidence_on: "2026-10-02",
+          channel: "email",
+          reference_note: "Hotel confirmed the reviewed agreement.",
+          confirmed_without_identifier_reason: "No Supplier number was issued."
+        }
+      }
+
+    assert_response :redirect
+    assert SupplierConfirmation.exists?(supplier_arrangement_version_id: version.id)
+    confirmed_review = CompileHotelActivationReview.new(
+      agency: @agency,
+      departure: @departure,
+      arrangement: arrangement,
+      version: version.reload,
+      item: item
+    ).call
+    assert_not confirmed_review.activation_allowed
+  end
+
+  test "the canonical Hilton agreement confirms and activates through the typed Hotel path" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+    assert_response :redirect
+
+    version = draft_version(item)
+    [
+      [ 41_560, "2026-10-01" ],
+      [ 187_020, "2027-05-07" ],
+      [ 187_020, "2027-10-04" ]
+    ].each_with_index do |(amount, date), index|
+      CreateSupplierDepositRequirementDefinition.new(
+        agency: @agency,
+        actor: @staff,
+        version: version.reload,
+        version_lock_version: version.lock_version,
+        idempotency_key: "hilton-review-deposit-#{index}-#{SecureRandom.uuid}",
+        attributes: {
+          amount_shape: "fixed_amount",
+          fixed_amount_minor_units: amount,
+          currency: "USD",
+          rule_shape: "fixed_date",
+          rule_parameters: { "date" => date },
+          precision: "date_only",
+          time_zone: "America/New_York",
+          description: "Hilton deposit #{index + 1}",
+          coverage_links: [ { arrangement_item_id: item.id } ],
+          cost_links: [],
+          contributor_definition_ids: []
+        }
+      ).call
+    end
+
+    CreateSupplierDeadlineDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: version.reload,
+      version_lock_version: version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        deadline_type: "rooming_list_due",
+        kind: "actionable",
+        rule_shape: "fixed_local_datetime",
+        rule_parameters: { "datetime" => "2027-10-03T17:00:00" },
+        precision: "local_date_time",
+        time_zone: "America/New_York",
+        cardinality: "one_shared",
+        coverage_links: [ { arrangement_item_id: item.id } ],
+        commitment_lines: []
+      }
+    ).call
+
+    {
+      "deposit_derivation" => {
+        governing_wording: "The three fixed deposits derive from the contracted room block.",
+        original_wording: nil
+      },
+      "attrition" => {
+        governing_wording: "The Hotel agreement contains the governing attrition provision.",
+        original_wording: nil
+      },
+      "deposit_refund" => {
+        governing_wording: "The Hotel refunds any remaining deposit balance after the stay.",
+        original_wording: "Deposits are non-refundable."
+      },
+      "destination_fee" => {
+        governing_wording: "The destination fee is waived.",
+        original_wording: nil
+      },
+      "additional_nights" => {
+        governing_wording: "Additional nights are available on request.",
+        original_wording: nil
+      },
+      "early_departure" => {
+        governing_wording: "Early departure follows the Hotel agreement.",
+        original_wording: nil
+      }
+    }.each do |kind, wording|
+      RecordSupplierAgreementReference.new(
+        agency: @agency,
+        actor: @staff,
+        arrangement_item: item,
+        scope: "stay",
+        kind: kind,
+        governing_wording: wording[:governing_wording],
+        original_wording: wording[:original_wording],
+        source_description: "Hilton Fort Lauderdale Marina agreement",
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    RecordSupplierAgreementReferenceAbsence.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement_item: item,
+      scope: "stay",
+      kind: "cancellation",
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    @departure.update!(
+      status: "active",
+      departure_reference: "D-#{SecureRandom.random_number(900000) + 100000}",
+      first_activated_at: Time.current
+    )
+
+    review = CompileHotelActivationReview.new(
+      agency: @agency,
+      departure: @departure,
+      arrangement: arrangement,
+      version: version.reload,
+      item: item
+    ).call
+    assert review.confirmation_allowed
+    assert_equal 3, review.workspace.deposits.count
+    assert_equal [ 41_560, 187_020, 187_020 ],
+      review.workspace.deposits.map { |row| row.definition.fixed_amount_minor_units }
+    assert_equal 1, review.workspace.deadlines.count { |row| row.definition.deadline_type == "rooming_list_due" }
+
+    post item_hotel_review_confirmation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: {
+        version_id: version.id,
+        idempotency_key: SecureRandom.uuid,
+        confirmation: {
+          evidence_kind: "supplier_confirmation",
+          evidence_on: "2026-10-02",
+          channel: "email",
+          reference_note: "Hilton confirmed the reviewed agreement.",
+          confirmed_without_identifier_reason: "No Supplier number was issued."
+        }
+      }
+    assert_response :redirect
+
+    version.reload
+    arrangement.reload
+    confirmation = version.supplier_confirmations.sole
+    get item_hotel_review_departure_arrangement_hotel_path(
+      @departure, arrangement, item, version_id: version.id
+    )
+    assert_response :success
+    assert_select "#hotel-review-elapsed-dates", text: /Supplier deposit.*2026-10-01/m
+    assert_select "#hotel-review-cost-ack", count: 0
+    assert_select "#hotel-review-trigger-ack", count: 0
+    assert_select "button", text: "Activate arrangement"
+
+    post item_hotel_review_activation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: {
+        version_id: version.id,
+        idempotency_key: SecureRandom.uuid,
+        arrangement_lock_version: arrangement.lock_version,
+        version_lock_version: version.lock_version,
+        existing_confirmation_id: confirmation.id,
+        elapsed_deadlines_acknowledged: "1"
+      }
+    assert_response :redirect
+    assert_equal "active", arrangement.reload.status
+    assert_equal version.id, arrangement.governing_version_id
+    assert_predicate version.reload, :activated?
+  end
+
+  test "a no-deposit no-rooming-list hotel can confirm and activate through the typed path" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+    assert_response :redirect
+
+    version = draft_version(item)
+    SupplierAgreementReference::KINDS.each do |kind|
+      RecordSupplierAgreementReferenceAbsence.new(
+        agency: @agency,
+        actor: @staff,
+        arrangement_item: item,
+        scope: "stay",
+        kind: kind,
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert_equal 0, version.supplier_deposit_requirement_definitions.count
+    assert_equal 0, version.supplier_deadline_definitions.count
+
+    @departure.update!(
+      status: "active",
+      departure_reference: "D-#{SecureRandom.random_number(900000) + 100000}",
+      first_activated_at: Time.current
+    )
+
+    get item_hotel_review_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_select "#hotel-review-deposits", text: /No Supplier deposits recorded/
+    assert_select "#hotel-review-deadlines", text: /No rooming list recorded/
+    assert_no_match(/cost-source|commitment-trigger|forecast.ready/i, response.body)
+    assert_select "button", text: "Confirm Supplier agreement"
+
+    post item_hotel_review_confirmation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: {
+        version_id: version.id,
+        idempotency_key: SecureRandom.uuid,
+        confirmation: {
+          evidence_kind: "supplier_confirmation",
+          evidence_on: "2026-10-02",
+          channel: "email",
+          reference_note: "Hotel confirmed the reviewed agreement.",
+          confirmed_without_identifier_reason: "No Supplier number was issued."
+        }
+      }
+    assert_redirected_to item_hotel_review_departure_arrangement_hotel_path(
+      @departure, arrangement, item, version_id: version.id
+    )
+
+    confirmation = version.supplier_confirmations.sole
+    version.reload
+    arrangement.reload
+    get item_hotel_review_departure_arrangement_hotel_path(
+      @departure, arrangement, item, version_id: version.id
+    )
+    assert_select "button", text: "Activate arrangement"
+    assert_select "#hotel-review-cost-ack", count: 0
+    assert_select "#hotel-review-trigger-ack", count: 0
+
+    post item_hotel_review_activation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: {
+        version_id: version.id,
+        idempotency_key: SecureRandom.uuid,
+        arrangement_lock_version: arrangement.lock_version,
+        version_lock_version: version.lock_version,
+        existing_confirmation_id: confirmation.id
+      }
+    assert_response :redirect
+    assert_equal "active", arrangement.reload.status
+    assert_equal version.id, arrangement.governing_version_id
+    assert_predicate version.reload, :activated?
+  end
+
+  test "a renamed Hotel occupancy profile is Advanced and is not silently repaired" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+
+    assumption = draft_version(item).supplier_cost_usage_assumptions.order(:id).first
+    profile = assumption.supplier_cost_occupancy_profiles.sole
+    UpdateSupplierCostOccupancyProfile.new(
+      agency: @agency,
+      actor: @staff,
+      profile: profile,
+      lock_version: profile.lock_version,
+      attributes: {
+        label: "Custom occupancy mix",
+        resource_unit_count: profile.resource_unit_count
+      }
+    ).call
+
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_select "#hotel-agreement-rates", text: /Needs attention/
+    assert_match(/Advanced Supplier cost shape/, response.body)
+
+    patch item_rates_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: rate_params(standard, deluxe, locks: lock_params(item))
+    assert_response :unprocessable_entity
+    assert_match "Advanced Supplier cost shape", response.body
+    assert_equal "Custom occupancy mix", profile.reload.label
   end
 
   test "a stale definition lock rejects the whole rate save" do
@@ -361,6 +792,41 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_match "Standard: $173.00 / $173.00 / $193.00", response.body
     assert_no_match "Standard: $173.00 / $173.00 / $193.00 / ", response.body
     assert_match "Deluxe: $223.00 / $223.00 / $243.00 / $263.00", response.body
+    standard_assumptions = draft_version(item).supplier_cost_usage_assumptions.where(
+      supplier_resource_id: standard.supplier_resource_id
+    )
+    standard_assumptions.each do |assumption|
+      assert_equal [ 1, 2, 3 ],
+        assumption.supplier_cost_occupancy_profiles.sole
+          .supplier_cost_occupancy_profile_positions.order(:occupancy_position).pluck(:occupancy_position)
+    end
+  end
+
+  test "changing maximum occupancy resynchronizes Hotel-owned anonymous positions" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+
+    patch item_inventory_resource_departure_arrangement_hotel_path(
+      @departure, arrangement, item, standard.supplier_resource_id
+    ), params: {
+      definition_lock_version: standard.reload.lock_version,
+      resource: { name: "Standard", maximum_occupancy: 3 }
+    }
+    assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+
+    version = draft_version(item)
+    version.supplier_cost_usage_assumptions.where(
+      arrangement_item: item,
+      supplier_resource_id: standard.supplier_resource_id
+    ).each do |assumption|
+      assert_equal [ 1, 2, 3 ],
+        assumption.supplier_cost_occupancy_profiles.sole
+          .supplier_cost_occupancy_profile_positions.order(:occupancy_position).pluck(:occupancy_position)
+    end
   end
 
   test "an unsupported cost graph stays unchanged and links to advanced supplier cost planning" do
@@ -459,13 +925,13 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
 
   private
 
-  def stay_params(name, ends_on: "2027-11-06")
+  def stay_params(name, starts_on: "2027-11-04", ends_on: "2027-11-06")
     {
       idempotency_key: SecureRandom.uuid,
       arrangement: { contracting_supplier_id: @contractor.id },
       item: { name: name },
       occurrence: {
-        starts_on: "2027-11-04",
+        starts_on: starts_on,
         ends_on: ends_on,
         starts_at_local: "15:00",
         ends_at_local: "12:00",
@@ -549,8 +1015,8 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     }
   end
 
-  def create_stay(name)
-    post departure_composition_suppliers_hotels_path(@departure), params: stay_params(name)
+  def create_stay(name, starts_on: "2027-11-04", ends_on: "2027-11-06")
+    post departure_composition_suppliers_hotels_path(@departure), params: stay_params(name, starts_on: starts_on, ends_on: ends_on)
     item_named(name)
   end
 

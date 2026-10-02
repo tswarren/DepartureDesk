@@ -1,6 +1,6 @@
 # M4D.1 Slice 3A.2 — Stay and nightly inventory
 
-**Status:** Accepted 2026-09-30 and implemented. This is the only Slice 3A.2. It is the authorized implementation for the Hotel stay and nightly inventory. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01. Hotel Lifecycle is not authorized until its own accepted plan names that work.
+**Status:** Accepted 2026-09-30 and implemented. This is the only Slice 3A.2. It is the authorized implementation for the Hotel stay and nightly inventory. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Shipped 2026-10-02. Hotel Lifecycle is not authorized until its own accepted plan names that work.
 
 **Parent:** [M4D.1 Slice 3A — Hotel Supplier Composition](m4d1-slice3a-hotel-supplier-composition.md), §6–§8 and §23.
 
@@ -10,7 +10,7 @@
 
 **Scope:** The first Hotel UI. Staff establish and reopen one Hotel Item’s guest stay and its date-varying nightly room supply through shipped Supplier commands.
 
-This acceptance does not amend the §23 order. Hotel Supplier rates are shipped under Slice 3A.3. [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01. Hotel Lifecycle is not authorized. [Hotel Agreement](hotel-agreement.md) is Shipped under its own plan. The discarded Agreement draft is not this slice and is not that plan.
+This acceptance does not amend the §23 order. Hotel Supplier rates are shipped under Slice 3A.3. [Hotel Review and Activation](hotel-review-and-activation.md) is Shipped 2026-10-02. Hotel Lifecycle is not authorized. [Hotel Agreement](hotel-agreement.md) is Shipped under its own plan. The discarded Agreement draft is not this slice and is not that plan.
 
 ---
 
@@ -28,7 +28,7 @@ Slice 3A.2 establishes the Hotel’s temporal and inventory graph. Slice 3A.3 as
 | **3A.2** | Stay and nightly inventory. This plan. |
 | **3A.3** | Supplier rates and economics. Shipped. |
 | Hotel Agreement | Shipped 2026-10-01. [Hotel Agreement](hotel-agreement.md). |
-| Hotel Review and Activation | Accepted 2026-10-01 as [Hotel Review and Activation](hotel-review-and-activation.md). |
+| Hotel Review and Activation | Shipped 2026-10-02. [Hotel Review and Activation](hotel-review-and-activation.md). |
 | Hotel Lifecycle | Not authorized. |
 
 ## 3. Persisted graph

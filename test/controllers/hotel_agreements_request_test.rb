@@ -11,7 +11,7 @@ class HotelAgreementsRequestTest < ActionDispatch::IntegrationTest
     @departure = create_capacity_departure(@agency, name: "Smith Family Reunion")
     @graph = create_capacity_graph(
       agency: @agency, departure: @departure, contractor: @contractor,
-      provider: @contractor, prefix: "Hilton"
+      provider: @contractor, prefix: "Hilton", category: "lodging"
     )
     @arrangement = @graph[:arrangement]
     @item = @graph[:item]
@@ -26,7 +26,7 @@ class HotelAgreementsRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h2", text: "Hotel Agreement"
     assert_select "#hotel-agreement-role", text: "Draft"
-    assert_select "#hotel-term-destination_fee", text: /Not recorded/
+    assert_select "#hotel-term-destination_fee", text: /Not reviewed/
     assert_select "a", text: "Advanced Supplier planning"
     assert_select "button", text: "Create successor draft", count: 0
   end
