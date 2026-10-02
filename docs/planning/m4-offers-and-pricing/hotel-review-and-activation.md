@@ -100,7 +100,33 @@ After a `SupplierConfirmation` exists for a version that includes a lodging Item
 
 The existing draft commands enforce that freeze. A Hotel editor and the generic Supplier editor both reject the mutation. `ActivateSupplierArrangementVersion` may still materialize openings, tranches, and commitments from the frozen definitions. This freeze does not change a version that has no lodging Item.
 
-A later change to any frozen fact is a successor of the governing activated version, using the existing successor action. This review does not create that successor. This plan does not add a command that removes `SupplierConfirmation` and resumes editing.
+A frozen confirmed version is never edited in place. Before first activation, Staff explicitly revise the confirmed agreement into a new draft version; after activation, changes use the normal successor path. Each revised or successor version requires its own Supplier confirmation. This plan does not add a command that removes `SupplierConfirmation` and resumes editing.
+
+### Revise a confirmed agreement before first activation
+
+`CreateSupplierArrangementSuccessor` cannot correct a Supplier-confirmed initial draft. It requires an active Arrangement, an activated governing predecessor, and no existing draft. A never-activated version also cannot become `superseded`: that status is only for a version that has been activated.
+
+This plan adds one explicit revision command. It is part of this plan, not Hotel Lifecycle. Without it, a transcription mistake after confirmation has no ordinary correction. Abandoning the Arrangement and rebuilding it is not that correction.
+
+The command is atomic. It runs only when all of the following are true:
+
+- the Departure is active;
+- the Arrangement is still `draft` and has no governing version;
+- the exact version is the sole draft, includes a lodging Item, and already has a `SupplierConfirmation`;
+- the actor has `manage_departures`.
+
+In one transaction it:
+
+1. Copies that version’s definition graph into a new draft version, using the same copy lineage as a successor. The copy includes stay, inventory, rates, deposits, Deadlines, agreement references, and Reviewed — none absences.
+2. Does not copy `SupplierConfirmation`. The new draft is not confirmed.
+3. Marks the confirmed version `abandoned`, with a required reason and `abandoned_at`. It does not mark the Arrangement abandoned. `AbandonSupplierArrangement` remains the command that discards a never-activated Arrangement.
+4. Records an audit event for the revision. The abandoned version and its confirmation stay readable historical evidence.
+
+After the command, only the new draft can be edited. The abandoned version cannot be activated. The new draft cannot be activated until Staff record a new `SupplierConfirmation` for it. A second revision repeats the same command against that later confirmed draft.
+
+First activation of the revised draft stays the first activation of the Arrangement, not a successor activation. `ActivateSupplierArrangementVersion` accepts that sole draft when its `copied_from` version is an abandoned, never-activated, Supplier-confirmed version of the same still-draft Arrangement. An ordinary first draft, with no `copied_from`, is unchanged. A draft copied from an activated governing version remains the existing successor path. Cruise and non-lodging Arrangements are unchanged.
+
+The Hotel review offers this revision only for a Supplier-confirmed lodging draft that has not been activated. It does not create a post-activation successor.
 
 Activation of a Hotel version passes `existing_confirmation_id` and does not collect a second evidence form. The generic activation command still creates evidence when no confirmation exists, except for the lodging check in §8.
 
@@ -311,7 +337,7 @@ The governing activated version is read-only on the Agreement page. The Hotel ag
 
 The Hotel review no longer offers confirmation or activation for that version.
 
-Creating a successor stays the existing explicit successor action. This review does not create one. A proposed successor is Hotel Lifecycle.
+Creating a successor after activation stays the existing explicit successor action. This review does not create that successor. A proposed successor is Hotel Lifecycle. Before first activation, the revision command in §5 is how Staff correct a Supplier-confirmed draft.
 
 ---
 
@@ -336,7 +362,7 @@ On the Hilton Fort Lauderdale Marina stay, a passing review shows, without writi
 - Item-scoped **Reviewed — none** for cancellation on this stay;
 - Supplier confirmation recorded, evidence date distinct from the blank original contract date, identifier absent with a reason.
 
-Only then does Staff record confirmation. After that confirmation, a change to the stay, a room quantity, a rate, a deposit, the rooming-list Deadline, agreement wording, or Reviewed — none is rejected, and the same confirmation remains. Staff then activate. The governing Agreement page is read-only. No payment, folio, attrition charge, refund, or Client Trip exists because of that activation.
+Only then does Staff record confirmation. After that confirmation, a change to the stay, a room quantity, a rate, a deposit, the rooming-list Deadline, agreement wording, or Reviewed — none is rejected, and the same confirmation remains. Revising that confirmed draft keeps the confirmation on an abandoned version and opens a new unconfirmed draft copied from it. The abandoned version cannot activate. The new draft activates only after its own Supplier confirmation. Staff then activate. The governing Agreement page is read-only. No payment, folio, attrition charge, refund, or Client Trip exists because of that activation.
 
 A second Hotel Item on the same version does not change the Hilton Item’s room nights, deposits, rates, or agreement wording. That second Item may record a different Item-scoped outcome for an optional kind, including Reviewed — none where the Hilton stay has wording.
 
@@ -352,12 +378,14 @@ This plan is accepted. Implementation is complete when:
 - Staff can record `SupplierConfirmation` on the unconfirmed draft without activating, and only when §5’s confirmation gate passes;
 - that confirmation freezes the Hotel agreement-defining records in §5, including stay, inventory, rates, deposits, Deadlines, agreement references, and absences;
 - a later edit of a frozen fact is rejected on that version and is not repaired by replacing or fingerprinting the confirmation;
+- before first activation, revising a Supplier-confirmed lodging draft abandons that version, retains its confirmation, and creates one editable unconfirmed copy;
+- the abandoned confirmed version cannot activate, and the revised draft activates only as the Arrangement’s first activation after its own confirmation;
 - an optional-kind absence is Item-scoped or agreement-wide under the same scope invariant as optional references;
 - optional kinds can be wording or Reviewed — none for this Item, and Not recorded remains distinct;
 - a missing rooming-list Deadline is not a blocker and is not labeled Reviewed — none;
 - the Hotel post calls the existing activation command only when §8 allows it;
 - a lodging version without confirmation is not generically ready;
-- Cruise and non-Hotel activation behavior is unchanged;
+- Cruise and non-lodging activation behavior is unchanged, except that a revised lodging draft may be the Arrangement’s first activation when it was copied from an abandoned confirmed draft;
 - a Viewer can read and cannot confirm or activate;
 - another agency’s identifiers return not found;
 - the Hilton proof in §13 passes;
@@ -378,4 +406,4 @@ This plan is accepted. Implementation is complete when:
 - reviewed-none for deposits, Deadlines, or Item kinds
 - a Hotel command that marks a cost definition forecast-ready
 - a confirmation fingerprint, in-place invalidation, or a command that removes `SupplierConfirmation` to resume editing
-- a change to generic activation meaning for Cruise or for an Arrangement that is not lodging
+- a change to generic activation meaning for Cruise or for an Arrangement that is not lodging, beyond the first-activation case in §5 for a revised lodging draft
