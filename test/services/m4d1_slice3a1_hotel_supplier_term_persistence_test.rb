@@ -70,7 +70,7 @@ class M4d1Slice3a1HotelSupplierTermPersistenceTest < ActiveSupport::TestCase
       version_lock_version: @version.lock_version, idempotency_key: SecureRandom.uuid,
       attributes: {
         amount_shape: "fixed_amount", fixed_amount_minor_units: 10_000, currency: "USD",
-        rule_shape: "fixed_date", rule_parameters: { "date" => "2026-10-01" },
+        rule_shape: "fixed_date", rule_parameters: { "date" => "2027-05-07" },
         precision: "date_only", time_zone: "America/New_York",
         coverage_links: [], cost_links: [], contributor_definition_ids: []
       }
