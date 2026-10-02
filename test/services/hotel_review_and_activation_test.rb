@@ -126,6 +126,10 @@ class HotelReviewAndActivationTest < ActiveSupport::TestCase
 
     deadline_link = deadline.supplier_deadline_definition_coverage_links.sole
     deposit_link = deposit.supplier_deposit_requirement_definition_coverage_links.sole
+    assert_equal pool.id, deposit_link.capacity_pool_id
+    assert_nil deposit_link.arrangement_item_id
+    assert_nil deposit_link.service_occurrence_id
+    assert_nil deposit_link.supplier_resource_id
     confirm_directly!
 
     [
@@ -143,6 +147,22 @@ class HotelReviewAndActivationTest < ActiveSupport::TestCase
       end
       assert_match(/lodging agreement definitions are immutable after Supplier confirmation/, error.message)
     end
+  end
+
+  test "generic activation blockers keep specific Hotel-facing messages" do
+    confirm_directly!
+
+    review = CompileHotelActivationReview.new(
+      agency: @agency,
+      departure: @departure,
+      arrangement: @arrangement,
+      version: @version,
+      item: @item
+    ).call
+
+    messages = review.blockers.map(&:message)
+    assert_includes messages, "A retained service still needs Supplier cost coverage before activation."
+    assert messages.none? { |message| message == "Operational Supplier setup needs attention before activation." }
   end
 
   test "revision abandons the confirmed draft and copies absences onto an unconfirmed draft" do
