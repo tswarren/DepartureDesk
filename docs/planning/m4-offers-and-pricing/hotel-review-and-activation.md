@@ -274,9 +274,9 @@ All seven Hotel agreement-reference kinds require an explicit review outcome bef
 
 Ready means the existing `forecast_ready` cost-definition status and `MarkCostDefinitionForecastReady` remains the only transition to it.
 
-The typed Hotel rate save supplies the generic forecast inputs needed by the supported Hotel shape instead of asking Staff to operate generic cost planning. For each supported contracted room-night definition it creates or reuses the Item/Occurrence/Resource usage assumption, records `expected_billable_nights = 1`, creates the anonymous occupancy profile inputs required by `resource_nights` / `occupancy_position_nights`, and then calls `MarkCostDefinitionForecastReady` with provenance `Hotel contracted rate workspace`.
+The typed Hotel rate save supplies the generic forecast inputs needed by the supported Hotel shape instead of asking Staff to operate generic cost planning. For each supported contracted room-night definition it creates or reuses the Item/Occurrence/Resource usage assumption, records `expected_billable_nights = 1`, and owns exactly one anonymous profile labeled `Contracted rooms`. That profile repeats one anonymous `Hotel guest` participant category across occupancy positions `1..maximum_occupancy` for that room category, with `resource_unit_count` equal to the current blocked-room quantity. The save then calls `MarkCostDefinitionForecastReady` with provenance `Hotel contracted rate workspace`.
 
-Do not weaken `validate_ready!`. A later consequential rate edit returns the definition to working through the existing cost command behavior; after the Hotel save restores a complete supported shape, the Hotel path recreates/reuses the required usage inputs and marks it ready again. The typed room-inventory editor also keeps the Hotel-owned `Contracted rooms` occupancy profile's resource-unit count synchronized when an existing blocked-room quantity changes, so the forecast inputs do not drift from the room block. A definition or usage shape outside the supported Hotel shape remains Advanced.
+Do not weaken `validate_ready!`. A later consequential rate edit returns the definition to working through the existing cost command behavior; after the Hotel save restores a complete supported shape, the Hotel path recreates/reuses the required usage inputs and marks it ready again. The typed room-inventory editor keeps both the Hotel-owned profile's blocked-room quantity and its anonymous position list synchronized when room quantity or maximum occupancy changes. A second profile, a renamed `Contracted rooms` profile, or another occupancy shape is Advanced Supplier planning and is not silently overwritten.
 
 A ready estimate may be displayed, but it never clears the typed Hotel activation gate and the Hotel path never auto-acknowledges provisional costs.
 
@@ -444,6 +444,7 @@ The remediation is not complete, and this capability must not be marked Shipped,
 
 Additional implementation invariants:
 
+- schema changes that amend already-created Hotel Review tables/functions ship in a new forward migration; previously applied migration versions are not relied on to rerun;
 - command lock order remains Agency → Departure → Arrangement → Version;
 - the PostgreSQL lodging freeze must recognize Item-, Occurrence-, Resource-, and Pool-scoped Deposit/Deadline coverage on both coverage links and their parent definitions;
 - wording-versus-absence and Item-versus-agreement-wide exclusivity remain serialized at the exact version;
