@@ -47,15 +47,18 @@ class HotelRoomInventoriesController < ApplicationController
     definition = @shape.resources.find { |row| row.supplier_resource_id == params[:resource_id] }
     raise ActiveRecord::RecordNotFound if definition.nil?
 
-    UpdateSupplierResource.new(
-      **hotel_command_context,
-      definition: definition,
-      lock_version: params[:definition_lock_version],
-      attributes: {
-        name: resource_params[:name],
-        maximum_occupancy: resource_params[:maximum_occupancy]
-      }
-    ).call
+    ActiveRecord::Base.transaction do
+      updated = UpdateSupplierResource.new(
+        **hotel_command_context,
+        definition: definition,
+        lock_version: params[:definition_lock_version],
+        attributes: {
+          name: resource_params[:name],
+          maximum_occupancy: resource_params[:maximum_occupancy]
+        }
+      ).call.record
+      sync_hotel_rate_resource_profiles!(updated)
+    end
     redirect_to inventory_path, notice: "Room category saved."
   rescue AgencyCommand::Error => error
     @resource_error_id = params[:resource_id]
@@ -275,20 +278,61 @@ class HotelRoomInventoriesController < ApplicationController
     )
     return if assumption.nil?
 
+    sync_hotel_owned_profile!(
+      assumption,
+      quantity: quantity,
+      maximum_occupancy: cell.resource_definition.maximum_occupancy
+    )
+  end
+
+  def sync_hotel_rate_resource_profiles!(resource_definition)
+    version = @supplier_arrangement_version.reload
+    version.supplier_cost_usage_assumptions.where(
+      arrangement_item_id: @arrangement_item.id,
+      supplier_resource_id: resource_definition.supplier_resource_id
+    ).find_each do |assumption|
+      pool = version.capacity_pool_definitions.find_by(
+        service_occurrence_id: assumption.service_occurrence_id,
+        supplier_resource_id: resource_definition.supplier_resource_id
+      )
+      next unless pool&.proposed_opening_quantity.to_i.positive?
+
+      sync_hotel_owned_profile!(
+        assumption,
+        quantity: pool.proposed_opening_quantity,
+        maximum_occupancy: resource_definition.maximum_occupancy
+      )
+    end
+  end
+
+  def sync_hotel_owned_profile!(assumption, quantity:, maximum_occupancy:)
     profiles = assumption.supplier_cost_occupancy_profiles.order(:position, :id).to_a
-    return unless profiles.one?
+    return unless profiles.one? && profiles.first.label == "Contracted rooms"
+
+    category = @supplier_arrangement_version.supplier_cost_participant_categories.find_by(
+      arrangement_item_id: @arrangement_item.id,
+      label: "Hotel guest"
+    )
+    return if category.nil?
+
+    count = maximum_occupancy.to_i
+    count = 1 unless count.positive?
     profile = profiles.first
-    return unless profile.label == "Contracted rooms"
-    return if profile.resource_unit_count == quantity
+    positions = Array.new(count, category.id)
+    current_positions = profile.supplier_cost_occupancy_profile_positions
+      .order(:occupancy_position).pluck(:participant_category_id)
+
+    return if profile.resource_unit_count == quantity && current_positions == positions
 
     UpdateSupplierCostOccupancyProfile.new(
       **hotel_command_context,
       profile: profile,
       lock_version: profile.lock_version,
       attributes: {
-        label: profile.label,
+        label: "Contracted rooms",
         resource_unit_count: quantity
-      }
+      },
+      positions: positions
     ).call
   end
 
