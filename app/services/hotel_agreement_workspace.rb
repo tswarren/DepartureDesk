@@ -374,7 +374,6 @@ class HotelAgreementWorkspace
       wide_absence = absences.find { |absence| absence.kind == kind && absence.arrangement_item_id.nil? }
       if SupplierAgreementReference::ITEM_KINDS.include?(kind)
         wide_row = nil
-        item_absence = nil
         wide_absence = nil
       end
       resolved = if wide_row
