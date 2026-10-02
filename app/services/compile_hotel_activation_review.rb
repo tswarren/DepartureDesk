@@ -106,15 +106,19 @@ class CompileHotelActivationReview
     if workspace.unassigned_deposits.any? || workspace.deposits.any? { |row| !row.thin }
       blockers << Blocker.new(code: :deposits, message: "Scheduled deposits must be supported thin deposits.", target: :deposits)
     end
-    if workspace.deadlines.any?(&:advanced)
-      blockers << Blocker.new(code: :deadlines, message: "A Deadline on this stay uses an advanced shape.", target: :deadlines)
+    if workspace.unassigned_deadlines.any? || workspace.deadlines.any?(&:advanced)
+      blockers << Blocker.new(
+        code: :deadlines,
+        message: "A recorded Deadline needs Hotel scope or uses an advanced shape.",
+        target: :deadlines
+      )
     end
     workspace.terms.each do |term|
       next if acceptable_term?(term)
 
       blockers << Blocker.new(
         code: :"term_#{term.kind}",
-        message: "#{term.label} is not recorded for this Hotel stay.",
+        message: "#{term.label} is not reviewed for this Hotel stay.",
         target: :terms
       )
     end
@@ -127,6 +131,7 @@ class CompileHotelActivationReview
 
   def typed_activation_attestations_safe?
     @version.arrangement_item_definitions.where.not(category: "lodging").none? &&
+      @version.supplier_cost_sources.where(arrangement_item_id: nil).none? &&
       @version.supplier_commitment_trigger_definitions.none?
   end
 
@@ -213,7 +218,7 @@ class CompileHotelActivationReview
   end
 
   def deadline_state(workspace)
-    return "Needs attention" if workspace.deadlines.any?(&:advanced)
+    return "Needs attention" if workspace.unassigned_deadlines.any? || workspace.deadlines.any?(&:advanced)
     return "No rooming list recorded" if workspace.deadlines.none? { |row| row.definition.deadline_type == "rooming_list_due" }
 
     "Recorded"
