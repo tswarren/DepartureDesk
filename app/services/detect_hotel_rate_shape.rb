@@ -15,7 +15,7 @@ class DetectHotelRateShape
     :cell, :source, :definition, :base, :third, :fourth, :reason, :advanced
   ) do
     def supported?
-      reason.nil?
+      reason.nil? && cell.pool_definition.present?
     end
 
     def date
@@ -74,7 +74,9 @@ class DetectHotelRateShape
     end
     @matched_source_ids.concat(matched.map(&:id))
     inventory_reason = category.reason || cell.reason
-    inventory_reason = "Record this room night in Room inventory before entering a Supplier rate." if inventory_reason.nil? && (cell.night_definition.nil? || cell.pool_definition.nil?)
+    if inventory_reason.nil? && cell.pool_definition.nil? && matched.any?
+      inventory_reason = "Record this room night in Room inventory before entering a Supplier rate."
+    end
 
     if matched.many?
       return unsupported(cell, "More than one Supplier cost source covers this room night.", advanced: true)

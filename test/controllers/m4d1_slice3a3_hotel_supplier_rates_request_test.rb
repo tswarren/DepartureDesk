@@ -249,6 +249,36 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
 
   end
 
+  test "a category with no rooms on one night does not need a rate that night" do
+    sign_in_as @staff
+    item = create_stay("Partial room block", starts_on: "2027-11-03")
+    arrangement = item.supplier_arrangement
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Standard")
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, item), params: resource_params("Deluxe")
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    record_openings(arrangement, item, [
+      [ "2027-11-03", standard, 1 ],
+      [ "2027-11-04", standard, 5 ],
+      [ "2027-11-04", deluxe, 5 ],
+      [ "2027-11-05", standard, 10 ],
+      [ "2027-11-05", deluxe, 5 ]
+    ])
+    assert_response :redirect
+    save_rates(arrangement, item, standard, deluxe)
+    assert_response :redirect
+
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_select "#hotel-agreement-rates", text: /Recorded/
+    assert_select "#hotel-agreement-rate-authority", text: "Contracted"
+    assert_no_match(/Each inventory night needs one ready contracted Supplier rate/, response.body)
+
+    get item_hotel_review_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_no_match(/Each inventory night needs one ready contracted Supplier rate/, response.body)
+  end
+
   test "generic activation blockers do not prevent supplier confirmation" do
     sign_in_as @staff
     item = hilton_inventory
@@ -896,13 +926,13 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
 
   private
 
-  def stay_params(name, ends_on: "2027-11-06")
+  def stay_params(name, starts_on: "2027-11-04", ends_on: "2027-11-06")
     {
       idempotency_key: SecureRandom.uuid,
       arrangement: { contracting_supplier_id: @contractor.id },
       item: { name: name },
       occurrence: {
-        starts_on: "2027-11-04",
+        starts_on: starts_on,
         ends_on: ends_on,
         starts_at_local: "15:00",
         ends_at_local: "12:00",
@@ -986,8 +1016,8 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     }
   end
 
-  def create_stay(name)
-    post departure_composition_suppliers_hotels_path(@departure), params: stay_params(name)
+  def create_stay(name, starts_on: "2027-11-04", ends_on: "2027-11-06")
+    post departure_composition_suppliers_hotels_path(@departure), params: stay_params(name, starts_on: starts_on, ends_on: ends_on)
     item_named(name)
   end
 

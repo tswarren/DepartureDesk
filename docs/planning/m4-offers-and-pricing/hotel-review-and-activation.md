@@ -83,7 +83,7 @@ Staff may record confirmation when the typed Hotel agreement review is complete:
 
 - the Stay shape is supported;
 - the nightly room-block shape is supported;
-- every inventory night has a complete supported contracted Hotel rate shape;
+- every inventory night has a complete supported contracted Hotel rate shape. An inventory night is a room category on a stay date that has a room block. A blank category-night is not offered and does not need a Supplier rate;
 - every Deposit relevant to this Hotel, when any exists, is assigned and uses the supported thin Hotel shape;
 - every Deadline relevant to this Hotel, when any exists, uses the supported Hotel shape;
 - each of the seven Hotel agreement-reference kinds is explicitly reviewed as recorded wording or **Reviewed — none** at its permitted scope;
@@ -241,7 +241,7 @@ Hilton proof: no separate cancellation schedule is an Item-scoped **Reviewed —
 
 - The Stay shape is supported.
 - The nightly inventory shape is supported.
-- Each inventory night has one complete supported contracted Hotel rate shape. A ready estimate does not qualify.
+- Each inventory night has one complete supported contracted Hotel rate shape. An inventory night is a room category on a stay date that has a room block. A blank category-night is not offered and does not need a Supplier rate. A ready estimate does not qualify.
 - Every Deposit relevant to this Item, when any exists, is a supported thin Deposit. Zero Supplier deposits is valid and is displayed as **No Supplier deposits recorded**.
 - Every recorded Hotel Deadline, when any exists, is assigned to a Hotel scope and uses the supported shape. An unassigned generic Deadline is Advanced for the typed Hotel path.
 - All seven Hotel agreement-reference kinds are explicitly reviewed as wording or **Reviewed — none** at their permitted scope.

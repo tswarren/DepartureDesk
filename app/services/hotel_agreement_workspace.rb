@@ -204,7 +204,7 @@ class HotelAgreementWorkspace
       "Not started"
     elsif shape.blocked? || shape.contexts.any?(&:advanced)
       "Needs attention"
-    elsif estimate || shape.contexts.any? { |context| context.definition.nil? || context.reason.present? }
+    elsif estimate || shape.contexts.any? { |context| context.reason.present? || (context.cell.pool_definition.present? && context.definition.nil?) }
       "In progress"
     else
       "Recorded"
