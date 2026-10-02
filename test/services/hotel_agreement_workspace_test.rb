@@ -91,6 +91,15 @@ class HotelAgreementWorkspaceTest < ActiveSupport::TestCase
     assert_equal "Supplier confirmed", workspace.version.confirmation
     assert_equal "Not yet activated", workspace.version.activation
     assert workspace.version.draft
+    assert_equal "Based on current v#{@version.version_number}", workspace.version.lineage
+    assert_equal @version.id, workspace.version.current_version_id
+
+    governing = HotelAgreementWorkspace.new(
+      agency: @agency, departure: @departure, arrangement: @arrangement,
+      version: @version, item: @item
+    ).call
+    assert_equal successor.id, governing.version.proposed_version_id
+    assert_nil governing.version.lineage
   end
 
   private

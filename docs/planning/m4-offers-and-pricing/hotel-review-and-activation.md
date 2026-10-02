@@ -5,7 +5,7 @@
 **Parent:** [Hotel Agreement](hotel-agreement.md)  
 **Authority:** [ADR 0015](../../adr/0015-supplier-agreement-operational-boundary.md) — Supplier agreement operational modeling boundary  
 **Prerequisites:** Hotel Agreement shipped  
-**Does not authorize:** Hotel Lifecycle, Transportation, M4E, a Client Service connection, document storage, an attrition calculator, or a change to generic activation meaning for Cruise or non-Hotel Arrangements
+**Does not authorize:** Transportation, M4E, a Client Service connection, document storage, an attrition calculator, or a change to generic activation meaning for Cruise or non-Hotel Arrangements. [Hotel Lifecycle](hotel-lifecycle.md) is Shipped 2026-10-02 under its own plan.
 
 ---
 
@@ -419,7 +419,7 @@ This plan is accepted. Implementation is complete when:
 
 ## 15. Explicitly out
 
-- Hotel Lifecycle, including successor proposed presentation
+- Hotel Lifecycle, including successor proposed presentation, which is Shipped 2026-10-02 under [Hotel Lifecycle](hotel-lifecycle.md)
 - Transportation
 - M4E
 - a Client Service connection or Service Offer
@@ -449,4 +449,4 @@ Additional implementation invariants:
 - the PostgreSQL lodging freeze must recognize Item-, Occurrence-, Resource-, and Pool-scoped Deposit/Deadline coverage on both coverage links and their parent definitions;
 - wording-versus-absence and Item-versus-agreement-wide exclusivity remain serialized at the exact version;
 - the shared version graph copier, confirmation freeze, and pre-activation revision remain in force;
-- Hotel Lifecycle remains Not authorized.
+- Hotel Lifecycle is Shipped 2026-10-02. See [Hotel Lifecycle](hotel-lifecycle.md).

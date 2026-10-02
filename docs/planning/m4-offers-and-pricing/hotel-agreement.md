@@ -6,7 +6,7 @@
 **Authority:** [ADR 0015](../../adr/0015-supplier-agreement-operational-boundary.md) — Supplier agreement operational modeling boundary  
 **Prerequisites:** Hotel Supplier Composition foundations, Hotel Supplier rates, Supplier complexity rebaseline, Approved Hilton Fort Lauderdale Marina fixture, Accepted Hotel Staff walkthrough  
 **Implements:** Hotel Agreement only, through [workspace read mode](hotel-agreement-workspace-read-mode.md) then [term authoring](hotel-agreement-term-authoring.md)  
-**Does not authorize:** Hotel Review and Activation, Hotel Lifecycle, document storage, generalized Supplier policy/calculation engines, Transportation, M4E
+**Does not authorize:** document storage, generalized Supplier policy/calculation engines, Transportation, M4E. [Hotel Review and Activation](hotel-review-and-activation.md) is Shipped 2026-10-02 and [Hotel Lifecycle](hotel-lifecycle.md) is Shipped 2026-10-02 under their own plans.
 
 ---
 
@@ -924,7 +924,7 @@ Ships typed authoring of all seven accepted Hotel reference kinds, including pro
 This plan does not authorize:
 
 - Hotel Review & Activation;
-- Hotel Lifecycle;
+- Hotel Lifecycle, which is Shipped 2026-10-02 under [Hotel Lifecycle](hotel-lifecycle.md);
 - recording Supplier confirmation from Agreement;
 - Arrangement activation from Agreement;
 - persisted reviewed/none state;

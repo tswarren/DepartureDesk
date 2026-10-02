@@ -1,6 +1,6 @@
 # M4D.1 Slice 3A.3 — Hotel Supplier rates and economics
 
-**Status:** Accepted 2026-10-01. This plan authorizes Hotel Supplier rates and economics only. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Shipped 2026-10-02. Hotel Lifecycle remains not authorized until its own accepted plan names that work.
+**Status:** Accepted 2026-10-01. This plan authorizes Hotel Supplier rates and economics only. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Shipped 2026-10-02. [Hotel Lifecycle](hotel-lifecycle.md) is Shipped 2026-10-02.
 
 **Parent:** [M4D.1 Slice 3A — Hotel Supplier Composition](m4d1-slice3a-hotel-supplier-composition.md), §9–§10 and §23.
 
@@ -265,7 +265,7 @@ Commission: Net and noncommissionable
 
 No Client price, Agreement term, deposit requirement, Reservation, payment, or Hotel-specific parallel cost record is created.
 
-This exit authorizes Slice 3A.3 only. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Shipped 2026-10-02. Hotel Lifecycle is not authorized until its own accepted plan names that work.
+This exit authorizes Slice 3A.3 only. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Shipped 2026-10-02. [Hotel Lifecycle](hotel-lifecycle.md) is Shipped 2026-10-02.
 
 
 ---

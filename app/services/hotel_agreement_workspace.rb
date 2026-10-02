@@ -43,7 +43,10 @@ class HotelAgreementWorkspace
     "other" => "Other"
   }.freeze
 
-  VersionFacts = Data.define(:record, :number, :role, :confirmation, :activation, :confirmed, :draft, :governing)
+  VersionFacts = Data.define(
+    :record, :number, :role, :confirmation, :activation, :confirmed, :draft, :governing,
+    :lineage, :current_version_id, :proposed_version_id
+  )
   StaySection = Data.define(:state, :definition, :arrival_on, :departure_on, :check_in, :check_out, :time_zone)
   InventorySection = Data.define(:state, :categories, :room_night_count)
   InventoryCategory = Data.define(:name, :nights)
@@ -453,6 +456,8 @@ class HotelAgreementWorkspace
     else
       "Draft"
     end
+    predecessor = version.copied_from
+    proposed = @arrangement.versions.find_by(status: "draft")
     VersionFacts.new(
       record: version,
       number: version.version_number,
@@ -461,7 +466,10 @@ class HotelAgreementWorkspace
       activation: version.activated? ? "Activated" : "Not yet activated",
       confirmed: confirmed,
       draft: version.draft?,
-      governing: governing
+      governing: governing,
+      lineage: (version.draft? && predecessor ? "Based on current v#{predecessor.version_number}" : nil),
+      current_version_id: (version.draft? && predecessor ? @arrangement.governing_version_id : nil),
+      proposed_version_id: (governing && proposed ? proposed.id : nil)
     )
   end
 
