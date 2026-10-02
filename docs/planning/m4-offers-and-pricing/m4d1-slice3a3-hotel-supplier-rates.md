@@ -28,7 +28,7 @@ The persisted terms are the parent’s §9 shape: one room-night base and occupa
 | **3A.2** | Stay and nightly inventory. Implemented. |
 | **3A.3** | Supplier rates and economics. Accepted 2026-10-01. |
 | Hotel Agreement | Shipped 2026-10-01. [Hotel Agreement](hotel-agreement.md). |
-| Hotel Review and Activation | Shipped 2026-10-02 as [Hotel Review and Activation](hotel-review-and-activation.md). |
+| Hotel Review and Activation | In progress under the accepted 2026-10-02 amendment. [Hotel Review and Activation](hotel-review-and-activation.md). |
 | Hotel Lifecycle | Not authorized. |
 
 ## 3. Canonical Hilton economics
