@@ -243,7 +243,7 @@ Hilton proof: no separate cancellation schedule is an Item-scoped **Reviewed —
 - The nightly inventory shape is supported.
 - Each inventory night has one complete supported contracted Hotel rate shape. A ready estimate does not qualify.
 - Every Deposit relevant to this Item, when any exists, is a supported thin Deposit. Zero Supplier deposits is valid and is displayed as **No Supplier deposits recorded**.
-- Every relevant Hotel Deadline, when any exists, uses the supported shape.
+- Every recorded Hotel Deadline, when any exists, is assigned to a Hotel scope and uses the supported shape. An unassigned generic Deadline is Advanced for the typed Hotel path.
 - All seven Hotel agreement-reference kinds are explicitly reviewed as wording or **Reviewed — none** at their permitted scope.
 - No Hotel section is Advanced.
 
@@ -334,7 +334,7 @@ Not blockers and not warnings:
 - blank original contract date;
 - quoted tax, attrition exposure, or a refund amount that this product does not calculate.
 
-The normal Hotel UI does not expose generic **cost-source coverage** or **commitment-trigger coverage** acknowledgement language. The typed Hotel activation post supplies those two existing generic acknowledgement values internally only when the exact version is entirely within the constrained Hotel shape: every retained Item is lodging, every lodging Item passes the typed Hotel review, every inventory night has one supported contracted source, relevant Deposits and Deadlines are supported, no Hotel section is Advanced, and no generic Supplier commitment-trigger definitions exist. A mixed Hotel/non-Hotel Arrangement or a version with generic commitment triggers uses **Advanced Supplier planning** for activation instead of silently auto-attesting to facts the Hotel workflow did not review.
+The normal Hotel UI does not expose generic **cost-source coverage** or **commitment-trigger coverage** acknowledgement language. The typed Hotel activation post supplies those two existing generic acknowledgement values internally only when the exact version is entirely within the constrained Hotel shape: every retained Item is lodging, every lodging Item passes the typed Hotel review, every inventory night has one supported contracted source, there is no arrangement-wide Supplier cost source outside those Hotel matrices, relevant Deposits and Deadlines are scoped and supported, no Hotel section is Advanced, and no generic Supplier commitment-trigger definitions exist. A mixed Hotel/non-Hotel Arrangement or a version with generic commitment triggers uses **Advanced Supplier planning** for activation instead of silently auto-attesting to facts the Hotel workflow did not review.
 
 It does **not** auto-acknowledge provisional estimates. `provisional_costs_acknowledged` stays false; an estimate keeps typed Hotel activation blocked.
 
