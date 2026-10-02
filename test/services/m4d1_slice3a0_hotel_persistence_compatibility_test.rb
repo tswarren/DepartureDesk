@@ -574,22 +574,27 @@ class M4d1Slice3a0HotelPersistenceCompatibilityTest < ActiveSupport::TestCase
       agency: @agency, actor: @admin, definition: definition.reload,
       lock_version: definition.lock_version, readiness_provenance: "Confirmation proof"
     ).call
-    ActivateSupplierArrangementVersion.new(
-      agency: @agency, actor: @admin, arrangement: arrangement.reload, version: version.reload,
-      arrangement_lock_version: arrangement.lock_version,
-      version_lock_version: version.lock_version,
-      cost_source_coverage_acknowledged: true,
-      commitment_trigger_coverage_acknowledged: true,
+    confirmation = RecordSupplierConfirmationEvidence.new(
+      agency: @agency, actor: @admin, arrangement: arrangement, version: version,
+      recorded_at: Time.current,
       evidence_attributes: {
         evidence_kind: "supplier_confirmation",
         evidence_on: Date.new(2026, 9, 28),
         channel: "email",
         reference_note: reference_note,
         confirmed_without_identifier_reason: "No hotel number was issued."
-      },
+      }
+    ).call.record
+    ActivateSupplierArrangementVersion.new(
+      agency: @agency, actor: @admin, arrangement: arrangement.reload, version: version.reload,
+      arrangement_lock_version: arrangement.lock_version,
+      version_lock_version: version.lock_version,
+      cost_source_coverage_acknowledged: true,
+      commitment_trigger_coverage_acknowledged: true,
+      existing_confirmation_id: confirmation.id,
       idempotency_key: SecureRandom.uuid
     ).call
-    SupplierConfirmation.find_by!(supplier_arrangement: arrangement)
+    confirmation
   end
 
   def contrast_deadline

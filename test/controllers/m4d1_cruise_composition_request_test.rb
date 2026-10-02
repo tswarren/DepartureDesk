@@ -227,7 +227,8 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
       departure: @departure,
       contractor: @contractor,
       provider: @contractor,
-      prefix: "Hotel"
+      prefix: "Hotel",
+      category: "lodging"
     )[:arrangement]
 
     get suppliers_departure_composition_path(@departure)

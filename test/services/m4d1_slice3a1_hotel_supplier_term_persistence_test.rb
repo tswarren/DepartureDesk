@@ -258,16 +258,21 @@ class M4d1Slice3a1HotelSupplierTermPersistenceTest < ActiveSupport::TestCase
     ActivateDeparture.new(
       agency: @agency, actor: @admin, departure: @departure, lock_version: @departure.reload.lock_version
     ).call
-    ActivateSupplierArrangementVersion.new(
-      agency: @agency, actor: @admin, arrangement: @arrangement.reload, version: @version.reload,
-      arrangement_lock_version: @arrangement.lock_version, version_lock_version: @version.lock_version,
-      cost_source_coverage_acknowledged: true, commitment_trigger_coverage_acknowledged: true,
-      idempotency_key: SecureRandom.uuid,
+    confirmation = RecordSupplierConfirmationEvidence.new(
+      agency: @agency, actor: @admin, arrangement: @arrangement, version: @version,
+      recorded_at: Time.current,
       evidence_attributes: {
         evidence_kind: "supplier_confirmation", evidence_on: Date.new(2026, 9, 28), channel: "email",
         reference_note: "Confirmed without a hotel number.",
         confirmed_without_identifier_reason: "No hotel number was issued."
       }
+    ).call.record
+    ActivateSupplierArrangementVersion.new(
+      agency: @agency, actor: @admin, arrangement: @arrangement.reload, version: @version.reload,
+      arrangement_lock_version: @arrangement.lock_version, version_lock_version: @version.lock_version,
+      cost_source_coverage_acknowledged: true, commitment_trigger_coverage_acknowledged: true,
+      existing_confirmation_id: confirmation.id,
+      idempotency_key: SecureRandom.uuid
     ).call
 
     assert_raises(ActiveRecord::RecordNotFound) do

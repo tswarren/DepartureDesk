@@ -53,7 +53,7 @@ class HotelAgreementWorkspace
   MoneyRow = Data.define(
     :definition, :label, :due_on, :due_label, :amount_label, :shared, :thin, :advanced, :unassigned
   )
-  TermRow = Data.define(:kind, :label, :hint, :state, :reference, :wide_reference, :agreement_wide)
+  TermRow = Data.define(:kind, :label, :hint, :state, :reference, :wide_reference, :agreement_wide, :absence)
   ConfirmationSection = Data.define(:confirmed, :evidence_on, :channel, :reference_note)
   SourceDefault = Data.define(:source_description, :supplier_reference, :external_reference, :evidence_note)
   Result = Data.define(
@@ -362,32 +362,44 @@ class HotelAgreementWorkspace
     @references ||= @version.supplier_agreement_references.order(:kind, :id).to_a
   end
 
+  def absences
+    @absences ||= @version.supplier_agreement_reference_absences.order(:kind, :id).to_a
+  end
+
   def term_rows
     SupplierAgreementReference::KINDS.map do |kind|
-      scoped = references.select do |reference|
-        reference.kind == kind &&
-          (reference.arrangement_item_id.nil? || reference.arrangement_item_id == @item.id)
-      end
+      item_row = references.find { |reference| reference.kind == kind && reference.arrangement_item_id == @item.id }
+      wide_row = references.find { |reference| reference.kind == kind && reference.arrangement_item_id.nil? }
+      item_absence = absences.find { |absence| absence.kind == kind && absence.arrangement_item_id == @item.id }
+      wide_absence = absences.find { |absence| absence.kind == kind && absence.arrangement_item_id.nil? }
       if SupplierAgreementReference::ITEM_KINDS.include?(kind)
-        scoped = scoped.select { |reference| reference.arrangement_item_id == @item.id }
+        wide_row = nil
+        item_absence = nil
+        wide_absence = nil
       end
-      item_row = scoped.find { |reference| reference.arrangement_item_id == @item.id }
-      wide_row = scoped.find { |reference| reference.arrangement_item_id.nil? }
-      state = if item_row && wide_row
-        "Needs attention"
-      elsif item_row || wide_row
-        "Recorded"
+      resolved = if wide_row
+        [ "Recorded", wide_row, nil, true ]
+      elsif wide_absence
+        [ "Reviewed — none", nil, wide_absence, true ]
+      elsif item_row
+        [ "Recorded", item_row, nil, false ]
+      elsif item_absence
+        [ "Reviewed — none", nil, item_absence, false ]
       else
-        "Not recorded"
+        [ "Not recorded", nil, nil, false ]
+      end
+      if item_row && wide_row
+        resolved = [ "Needs attention", item_row, nil, false ]
       end
       TermRow.new(
         kind: kind,
         label: TERM_LABELS.fetch(kind),
         hint: TERM_HINTS[kind],
-        state: state,
-        reference: item_row || wide_row,
+        state: resolved[0],
+        reference: resolved[1],
         wide_reference: wide_row,
-        agreement_wide: item_row.nil? && wide_row.present?
+        agreement_wide: resolved[3],
+        absence: resolved[2]
       )
     end
   end

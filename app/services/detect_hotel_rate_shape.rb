@@ -133,7 +133,7 @@ class DetectHotelRateShape
     end
 
     definition = contracted.first || estimates.first
-    return incomplete_rate(cell, source) if definition.nil?
+    return display_incomplete_rate(cell, source, candidates) if definition.nil?
 
     classified = classify_components(definition)
     if classified.nil?
@@ -147,6 +147,31 @@ class DetectHotelRateShape
       cell: cell, source: source, definition: definition,
       base: classified[:base], third: classified[:third], fourth: classified[:fourth],
       reason: nil, advanced: false
+    )
+  end
+
+  def display_incomplete_rate(cell, source, candidates)
+    working_contracted = candidates.select(&:contracted?)
+    working_estimates = candidates.select(&:estimate?)
+    if working_contracted.many? || (working_contracted.empty? && working_estimates.many?)
+      return unsupported(cell, "This Supplier rate uses a cost shape this page cannot present.", advanced: true, source: source)
+    end
+
+    definition = working_contracted.first || working_estimates.first
+    return incomplete_rate(cell, source) if definition.nil?
+
+    classified = classify_components(definition)
+    if classified.nil?
+      return unsupported(
+        cell, "This Supplier rate uses a cost shape this page cannot present.",
+        advanced: true, source: source, definition: definition
+      )
+    end
+
+    Context.new(
+      cell: cell, source: source, definition: definition,
+      base: classified[:base], third: classified[:third], fourth: classified[:fourth],
+      reason: "No ready Supplier rate is recorded for this room night.", advanced: false
     )
   end
 

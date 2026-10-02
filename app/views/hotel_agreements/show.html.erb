@@ -19,6 +19,7 @@
         · <span id="hotel-agreement-confirmation"><%= version.confirmation %></span>
         · <span id="hotel-agreement-activation"><%= version.activation %></span>
       </p>
+      <p><%= link_to "Hotel review", item_hotel_review_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, version_id: version.record.id) %></p>
       <% if workspace.stay.arrival_on %>
         <p><%= hotel_stay_span(workspace.stay.definition) %></p>
       <% end %>
@@ -135,8 +136,10 @@
             <% end %>
           </tbody>
         </table>
-      <% else %>
+      <% elsif workspace.rates.state == "Not started" %>
         <p>No Supplier rates are recorded.</p>
+      <% else %>
+        <p>Entered Supplier rates are not yet a ready contracted rate.</p>
       <% end %>
       <% if @editable %>
         <p><%= link_to "Edit rates",
@@ -269,7 +272,13 @@
               <p><%= term.wide_reference.governing_wording %></p>
             <% end %>
             <% if @editable && !workspace.version.confirmed %>
-              <% if term.reference.nil? %>
+              <% if term.absence && term.reference.nil? %>
+                <p><%= button_to "Remove Reviewed — none",
+                      item_hotel_agreement_absence_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, term.absence),
+                      method: :delete,
+                      class: "dd-button dd-button--danger",
+                      params: { version_id: version.record.id, lock_version: term.absence.lock_version } %></p>
+              <% elsif term.reference.nil? %>
                 <p><%= link_to "Add term",
                       new_item_hotel_agreement_term_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, term.kind, version_id: version.record.id) %></p>
               <% else %>

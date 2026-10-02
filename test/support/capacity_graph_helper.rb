@@ -29,7 +29,8 @@ module CapacityGraphHelper
     prefix: "Capacity",
     capacity_management: "managed",
     occurrence_provider: provider,
-    item_provider: provider
+    item_provider: provider,
+    category: "activity_attraction"
   )
     arrangement = SupplierArrangement.create!(
       agency: agency,
@@ -51,7 +52,7 @@ module CapacityGraphHelper
       supplier_arrangement: arrangement,
       arrangement_item: item,
       name: "#{prefix} item",
-      category: "lodging",
+      category: category,
       capacity_management: capacity_management,
       default_service_provider: item_provider,
       position: 1

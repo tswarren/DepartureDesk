@@ -14,6 +14,7 @@ class SupplierDirectorySchemaTest < ActiveSupport::TestCase
 
       tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
       assert_equal %w[
+        supplier_agreement_reference_absences
         supplier_agreement_references
         supplier_arrangement_activation_capacity_entries
         supplier_arrangement_activation_cost_selections

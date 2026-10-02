@@ -171,6 +171,8 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_response :success
     assert_select "#hotel-agreement-rates", text: /In progress/
     assert_select "#hotel-agreement-rate-authority", count: 0
+    assert_match "$173", response.body
+    assert_no_match(/No Supplier rates are recorded/, response.body)
 
     version = draft_version(item)
     version.supplier_cost_sources.each do |source|

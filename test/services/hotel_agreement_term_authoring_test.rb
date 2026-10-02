@@ -13,7 +13,7 @@ class HotelAgreementTermAuthoringTest < ActiveSupport::TestCase
     @departure.update!(time_zone: "America/New_York")
     @graph = create_capacity_graph(
       agency: @agency, departure: @departure, contractor: @contractor,
-      provider: @contractor, prefix: "Hilton"
+      provider: @contractor, prefix: "Hilton", category: "lodging"
     )
     @arrangement = @graph[:arrangement]
     @version = @graph[:version]
@@ -267,6 +267,53 @@ class HotelAgreementTermAuthoringTest < ActiveSupport::TestCase
         idempotency_key: SecureRandom.uuid
       ).call
     end
+  end
+
+  test "reviewed none is scoped and exclusive with wording" do
+    recorded = RecordSupplierAgreementReferenceAbsence.new(
+      agency: @agency, actor: @admin, arrangement_item: @item, scope: "stay", kind: "cancellation",
+      idempotency_key: SecureRandom.uuid
+    ).call
+    assert_equal :created, recorded.status
+    assert_equal "Reviewed — none", compile(@item).terms.find { |term| term.kind == "cancellation" }.state
+
+    wording = assert_raises(AgencyCommand::Error) do
+      record(kind: "cancellation", scope: "stay", governing_wording: wording_for("cancellation"), idempotency_key: SecureRandom.uuid)
+    end
+    assert_equal :invalid, wording.code
+
+    item_kind = assert_raises(AgencyCommand::Error) do
+      RecordSupplierAgreementReferenceAbsence.new(
+        agency: @agency, actor: @admin, arrangement_item: @item, scope: "stay", kind: "attrition",
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert_equal :invalid, item_kind.code
+
+    RemoveSupplierAgreementReferenceAbsence.new(
+      agency: @agency, actor: @admin, absence: recorded.record, lock_version: recorded.record.lock_version
+    ).call
+    wide = RecordSupplierAgreementReferenceAbsence.new(
+      agency: @agency, actor: @admin, supplier_arrangement_version: @version, scope: "agreement",
+      kind: "early_departure", idempotency_key: SecureRandom.uuid
+    ).call
+    assert_nil wide.record.arrangement_item_id
+    assert_equal "Reviewed — none", compile(@item).terms.find { |term| term.kind == "early_departure" }.state
+
+    SupplierConfirmation.create!(
+      agency: @agency, departure: @departure, supplier_arrangement: @arrangement,
+      supplier_arrangement_version: @version, confirming_supplier: @contractor,
+      actor: @admin, evidence_kind: "supplier_confirmation", evidence_on: Date.new(2026, 9, 28),
+      channel: "email", reference_note: "Confirmed the Hotel terms.",
+      confirmed_without_identifier_reason: "No hotel number was issued.", recorded_at: Time.current
+    )
+    frozen = assert_raises(AgencyCommand::Error) do
+      RecordSupplierAgreementReferenceAbsence.new(
+        agency: @agency, actor: @admin, arrangement_item: @item, scope: "stay", kind: "destination_fee",
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert_equal :invalid_state, frozen.code
   end
 
   private

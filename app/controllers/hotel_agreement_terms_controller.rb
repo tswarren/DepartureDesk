@@ -11,7 +11,7 @@ class HotelAgreementTermsController < ApplicationController
   before_action :set_lodging_hotel_item
   before_action :assign_hotel_composition_context
   before_action :require_editable_agreement!
-  before_action :set_kind, only: %i[new create]
+  before_action :set_kind, only: %i[new create record_absence]
   before_action :set_reference, only: %i[edit update destroy]
 
   def new
@@ -61,6 +61,34 @@ class HotelAgreementTermsController < ApplicationController
       lock_version: params[:lock_version]
     ).call
     redirect_to hotel_agreement_path_for, notice: "Agreement term removed."
+  rescue AgencyCommand::Error => error
+    redirect_to hotel_agreement_path_for, alert: error.message
+  end
+
+  def record_absence
+    RecordSupplierAgreementReferenceAbsence.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      kind: @kind,
+      scope: params[:scope].presence || "stay",
+      arrangement_item: params[:scope] == "agreement" ? nil : @arrangement_item,
+      supplier_arrangement_version: @supplier_arrangement_version,
+      idempotency_key: params[:idempotency_key]
+    ).call
+    redirect_to hotel_agreement_path_for, notice: "Reviewed — none recorded."
+  rescue AgencyCommand::Error => error
+    hotel_command_error(error, :new)
+  end
+
+  def destroy_absence
+    absence = @supplier_arrangement_version.supplier_agreement_reference_absences.find(params[:id])
+    RemoveSupplierAgreementReferenceAbsence.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      absence: absence,
+      lock_version: params[:lock_version]
+    ).call
+    redirect_to hotel_agreement_path_for, notice: "Reviewed — none removed."
   rescue AgencyCommand::Error => error
     redirect_to hotel_agreement_path_for, alert: error.message
   end

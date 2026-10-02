@@ -1,6 +1,6 @@
 # Hotel Review and Activation
 
-**Status:** Accepted 2026-10-01  
+**Status:** Shipped 2026-10-02  
 **Location:** `docs/planning/m4-offers-and-pricing/hotel-review-and-activation.md`  
 **Parent:** [Hotel Agreement](hotel-agreement.md)  
 **Authority:** [ADR 0015](../../adr/0015-supplier-agreement-operational-boundary.md) — Supplier agreement operational modeling boundary  

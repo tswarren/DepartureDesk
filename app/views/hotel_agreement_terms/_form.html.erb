@@ -56,6 +56,10 @@
 
   <% unless locked %>
     <button type="submit" class="dd-button">Save term</button>
+    <% if optional_kind? && @reference.nil? %>
+      <button type="submit" class="dd-button dd-button--quiet" formnovalidate
+        formaction="<%= item_hotel_agreement_term_absence_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, @kind) %>">Record Reviewed — none</button>
+    <% end %>
   <% end %>
 <% end %>
 

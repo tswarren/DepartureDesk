@@ -500,7 +500,7 @@ HA.2 is complete when:
 
 After HA.2 ships, Hotel Agreement is complete.
 
-The next boundary is Accepted as [Hotel Review and Activation](hotel-review-and-activation.md).
+The next boundary is Shipped as [Hotel Review and Activation](hotel-review-and-activation.md).
 
 That plan defines:
 

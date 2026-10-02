@@ -26,8 +26,8 @@ class IllustrateHotelSupplierRates
   private
 
   def occupancy_rows
-    @shape.supported_contexts.group_by(&:resource_id).flat_map do |_resource_id, contexts|
-      priced = contexts.select { |context| context.definition && context.base }
+    priced_contexts.group_by(&:resource_id).flat_map do |_resource_id, contexts|
+      priced = contexts
       computed = priced.filter_map do |context|
         amounts = occupancy_amounts(context)
         [ context, amounts ] if amounts
@@ -42,6 +42,10 @@ class IllustrateHotelSupplierRates
         end
       end
     end
+  end
+
+  def priced_contexts
+    @shape.contexts.reject(&:advanced).select { |context| context.definition && context.base }
   end
 
   def occupancy_amounts(context)

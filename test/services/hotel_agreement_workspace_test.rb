@@ -14,7 +14,8 @@ class HotelAgreementWorkspaceTest < ActiveSupport::TestCase
       departure: @departure,
       contractor: @contractor,
       provider: @contractor,
-      prefix: "Hilton"
+      prefix: "Hilton",
+      category: "lodging"
     )
     @arrangement = @graph[:arrangement]
     @version = @graph[:version]

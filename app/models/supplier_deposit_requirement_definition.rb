@@ -2,6 +2,7 @@
 
 class SupplierDepositRequirementDefinition < ApplicationRecord
   include DraftVersionDefinition
+  include LodgingConfirmationFreeze::Model
 
   AMOUNT_SHAPES = %w[
     fixed_amount quantity_times_rate percentage_of_cost_sources cumulative_target

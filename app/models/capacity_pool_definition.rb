@@ -1,6 +1,7 @@
 class CapacityPoolDefinition < ApplicationRecord
   include ExactVersionCopyLineage
   include DraftVersionDefinition
+  include LodgingConfirmationFreeze::Model
   EVIDENCE_KINDS = %w[
     contract
     supplier_confirmation

@@ -2,6 +2,7 @@
 
 class SupplierDepositRequirementDefinitionCoverageLink < ApplicationRecord
   include DraftVersionDefinition
+  include LodgingConfirmationFreeze::Model
 
   belongs_to :agency
   belongs_to :departure
