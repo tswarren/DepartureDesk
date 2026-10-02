@@ -334,7 +334,7 @@ Not blockers and not warnings:
 - blank original contract date;
 - quoted tax, attrition exposure, or a refund amount that this product does not calculate.
 
-The normal Hotel UI does not expose generic **cost-source coverage** or **commitment-trigger coverage** acknowledgement language. After the Hotel review has proved one supported contracted source per inventory night, supported Deposits and Deadlines, and no Advanced Hotel shape, the typed Hotel activation post supplies those two existing generic acknowledgement values internally.
+The normal Hotel UI does not expose generic **cost-source coverage** or **commitment-trigger coverage** acknowledgement language. The typed Hotel activation post supplies those two existing generic acknowledgement values internally only when the exact version is entirely within the constrained Hotel shape: every retained Item is lodging, every lodging Item passes the typed Hotel review, every inventory night has one supported contracted source, relevant Deposits and Deadlines are supported, no Hotel section is Advanced, and no generic Supplier commitment-trigger definitions exist. A mixed Hotel/non-Hotel Arrangement or a version with generic commitment triggers uses **Advanced Supplier planning** for activation instead of silently auto-attesting to facts the Hotel workflow did not review.
 
 It does **not** auto-acknowledge provisional estimates. `provisional_costs_acknowledged` stays false; an estimate keeps typed Hotel activation blocked.
 
