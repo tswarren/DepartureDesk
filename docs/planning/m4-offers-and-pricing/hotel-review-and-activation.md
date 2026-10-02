@@ -89,6 +89,8 @@ Staff may record confirmation when the typed Hotel agreement review is complete:
 - each of the seven Hotel agreement-reference kinds is explicitly reviewed as recorded wording or **Reviewed — none** at its permitted scope;
 - no Hotel section is Advanced.
 
+Because `SupplierConfirmation` belongs to the exact Supplier Arrangement Version and the confirmation freeze covers lodging definitions on that version, every lodging Item on the exact version must satisfy this same typed Hotel confirmation review before the confirmation is recorded. One completed Hotel stay may not freeze another unfinished Hotel stay.
+
 Generic `SupplierArrangementActivationReadiness` blockers do **not** block Supplier confirmation merely because they are activation blockers. Capacity openings, materialized Deposit tranches, posted commitments, generic cost-source coverage, commitment-trigger coverage, and activation acknowledgements belong to activation.
 
 Recording confirmation still does not activate the Arrangement, open capacity, materialize deposits, or post a payment.
