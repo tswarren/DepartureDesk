@@ -664,7 +664,7 @@ This rebaseline authority is limited to the three named Slice 3A.1 candidates. I
 
 Separate follow-up work may remove typed UI that exposes generic grammar, identify dormant generic machinery, rename or reorganize workflows, reconcile retired slice numbers, and plan document support under a separately accepted document-storage plan. A later milestone may also promote a contractual definition that satisfies [§3.2](#32-contractual-definition) into additional operational behavior. Those activities do not expand the rebaseline's authority to reconsider shipped Supplier-domain decisions.
 
-[Hotel Agreement](../planning/m4-offers-and-pricing/hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](../planning/m4-offers-and-pricing/hotel-review-and-activation.md) is Shipped 2026-10-02. Hotel Lifecycle, Transportation, and M4E remain Not authorized until their own accepted plans name that work. Cruise document storage remains Deferred.
+[Hotel Agreement](../planning/m4-offers-and-pricing/hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](../planning/m4-offers-and-pricing/hotel-review-and-activation.md) is in progress under the accepted 2026-10-02 amendment. Hotel Lifecycle, Transportation, and M4E remain Not authorized until their own accepted plans name that work. Cruise document storage remains Deferred.
 
 ---
 
