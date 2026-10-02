@@ -20,8 +20,8 @@ class ReviseConfirmedHotelAgreement < AgencyCommand
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
+      departure = lock_departure_for!(@arrangement.departure_id)
       arrangement = lock_arrangement_for!(@arrangement)
-      departure = lock_departure_for!(arrangement.departure_id)
       version = arrangement.versions.lock.find_by(status: "draft")
       payload = {
         supplier_arrangement_id: arrangement.id,
