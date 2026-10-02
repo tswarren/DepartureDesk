@@ -462,20 +462,45 @@ class HotelSupplierRatesController < ApplicationController
       ).call.record
     end
 
-    return if assumption.supplier_cost_occupancy_profiles.exists?
-
     quantity = context.cell.pool_definition&.proposed_opening_quantity.to_i
     quantity = 1 unless quantity.positive?
-    CreateSupplierCostOccupancyProfile.new(
+    maximum_occupancy = context.resource_definition.maximum_occupancy.to_i
+    maximum_occupancy = 1 unless maximum_occupancy.positive?
+    positions = Array.new(maximum_occupancy, category.id)
+
+    profiles = assumption.reload.supplier_cost_occupancy_profiles.order(:position, :id).to_a
+    if profiles.empty?
+      CreateSupplierCostOccupancyProfile.new(
+        **hotel_command_context,
+        assumption: assumption,
+        assumption_lock_version: assumption.lock_version,
+        idempotency_key: rate_idempotency_key("profile:#{context.occurrence_id}:#{context.resource_id}"),
+        attributes: {
+          label: "Contracted rooms",
+          resource_unit_count: quantity
+        },
+        positions: positions
+      ).call
+      return
+    end
+
+    unless profiles.one? && profiles.first.label == "Contracted rooms"
+      raise AgencyCommand::Error.new(
+        "This Hotel rate usage uses an Advanced Supplier cost shape.",
+        code: :invalid
+      )
+    end
+
+    profile = profiles.first
+    UpdateSupplierCostOccupancyProfile.new(
       **hotel_command_context,
-      assumption: assumption.reload,
-      assumption_lock_version: assumption.lock_version,
-      idempotency_key: rate_idempotency_key("profile:#{context.occurrence_id}:#{context.resource_id}"),
+      profile: profile,
+      lock_version: profile.lock_version,
       attributes: {
         label: "Contracted rooms",
         resource_unit_count: quantity
       },
-      positions: [ category.id ]
+      positions: positions
     ).call
   end
 
