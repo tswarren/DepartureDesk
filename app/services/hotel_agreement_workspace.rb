@@ -48,8 +48,8 @@ class HotelAgreementWorkspace
   InventorySection = Data.define(:state, :categories, :room_night_count)
   InventoryCategory = Data.define(:name, :nights)
   InventoryNight = Data.define(:date, :quantity, :attention)
-  RateSection = Data.define(:state, :rows, :commission, :currency)
-  RateRow = Data.define(:category, :date, :single, :double, :triple, :quad)
+  RateSection = Data.define(:state, :rows, :commission, :currency, :authority)
+  RateRow = Data.define(:category, :date, :single, :double, :triple, :quad, :authority)
   MoneyRow = Data.define(
     :definition, :label, :due_on, :due_label, :amount_label, :shared, :thin, :advanced, :unassigned
   )
@@ -76,7 +76,8 @@ class HotelAgreementWorkspace
       agency: @agency, arrangement: @arrangement, version: @version, item: @item
     ).call
     rate_shape = DetectHotelRateShape.new(
-      agency: @agency, arrangement: @arrangement, version: @version, item: @item, departure: @departure
+      agency: @agency, arrangement: @arrangement, version: @version, item: @item, departure: @departure,
+      agreement_read: true
     ).call
     illustration = IllustrateHotelSupplierRates.new(
       agency: @agency, departure: @departure, arrangement: @arrangement, version: @version, shape: rate_shape
@@ -182,7 +183,8 @@ class HotelAgreementWorkspace
         single: amounts[0],
         double: amounts[1],
         triple: amounts[2],
-        quad: amounts[3]
+        quad: amounts[3],
+        authority: rate_authority_label(shape, row)
       )
     end
     treatments = shape.contexts.filter_map { |context| context.definition&.commission_treatment }.uniq
@@ -192,16 +194,37 @@ class HotelAgreementWorkspace
     when [] then nil
     else treatments.map(&:humanize).join(", ")
     end
-    state = if shape.contexts.none? { |context| context.definition }
+    authorities = shape.supported_contexts.filter_map do |context|
+      next unless context.definition
+
+      context.definition.estimate? ? "Estimated" : "Contracted"
+    end.uniq
+    estimate = shape.supported_contexts.any? { |context| context.definition&.estimate? }
+    state = if shape.contexts.none? { |context| context.source || context.definition }
       "Not started"
-    elsif shape.blocked? || shape.contexts.any? { |context| context.advanced || context.reason.to_s.match?(/More than one/) }
+    elsif shape.blocked? || shape.contexts.any?(&:advanced)
       "Needs attention"
-    elsif shape.contexts.any? { |context| context.definition.nil? || context.reason.present? }
+    elsif estimate || shape.contexts.any? { |context| context.definition.nil? || context.reason.present? }
       "In progress"
     else
       "Recorded"
     end
-    RateSection.new(state: state, rows: rows, commission: commission, currency: @departure.operating_currency)
+    RateSection.new(
+      state: state, rows: rows, commission: commission, currency: @departure.operating_currency,
+      authority: authorities.one? ? authorities.first : nil
+    )
+  end
+
+  def rate_authority_label(shape, row)
+    resource_id = row.resource_definition.supplier_resource_id
+    stages = shape.supported_contexts.filter_map do |context|
+      next unless context.definition
+      next unless context.resource_definition.supplier_resource_id == resource_id
+      next unless row.date.nil? || context.date == row.date
+
+      context.definition.estimate? ? "Estimated" : "Contracted"
+    end.uniq
+    stages.one? ? stages.first : nil
   end
 
   def deposit_rows_for
@@ -246,6 +269,7 @@ class HotelAgreementWorkspace
 
   def thin_deposit?(definition, coverage, costs)
     definition.fixed_amount? && definition.fixed_date? && definition.date_only? &&
+      definition.currency == @departure.operating_currency &&
       costs.empty? && definition.supplier_deposit_requirement_definition_contributor_links.empty? &&
       item_only_coverage?(coverage)
   end

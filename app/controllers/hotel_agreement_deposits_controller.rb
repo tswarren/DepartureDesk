@@ -52,7 +52,7 @@ class HotelAgreementDepositsController < ApplicationController
   def update
     @due_on = params[:due_on]
     @amount = params[:amount]
-    minor = money_minor(@amount)
+    minor = money_minor(@amount, @definition.currency)
     if minor.nil?
       @form_error = "Enter the deposit amount."
       render :edit, status: :unprocessable_entity
@@ -63,7 +63,7 @@ class HotelAgreementDepositsController < ApplicationController
       agency: Current.agency,
       actor: Current.agency_user,
       definition: @definition,
-      attributes: deposit_attributes(minor).merge(lock_version: params[:lock_version]),
+      attributes: deposit_attributes(minor, @definition).merge(lock_version: params[:lock_version]),
       lock_version: params[:lock_version]
     ).call
     redirect_to hotel_agreement_path_for, notice: "Deposit saved."
@@ -102,14 +102,15 @@ class HotelAgreementDepositsController < ApplicationController
     raise ActiveRecord::RecordNotFound if row.nil?
   end
 
-  def deposit_attributes(minor)
+  def deposit_attributes(minor, definition = nil)
     {
       amount_shape: "fixed_amount",
       fixed_amount_minor_units: minor,
-      currency: @departure.operating_currency,
+      currency: definition&.currency || @departure.operating_currency,
       rule_shape: "fixed_date",
       precision: "date_only",
-      time_zone: @departure.time_zone,
+      time_zone: definition&.time_zone || @departure.time_zone,
+      description: definition&.description,
       rule_parameters: { "date" => params[:due_on].to_s },
       coverage_links: [ { arrangement_item_id: @arrangement_item.id } ],
       cost_links: [],
@@ -117,11 +118,11 @@ class HotelAgreementDepositsController < ApplicationController
     }
   end
 
-  def money_minor(display)
+  def money_minor(display, currency = @departure.operating_currency)
     text = display.to_s.strip
     return nil if text.blank?
 
-    Money.from_amount(BigDecimal(text), @departure.operating_currency).fractional
+    Money.from_amount(BigDecimal(text), currency).fractional
   rescue ArgumentError
     nil
   end

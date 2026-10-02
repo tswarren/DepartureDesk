@@ -158,6 +158,81 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_equal 17_300, component_amount(item, "November 4", "Standard", "Room night base")
   end
 
+  test "agreement rates use a ready contracted definition and otherwise a ready estimate" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
+
+    assert_response :success
+    assert_select "#hotel-agreement-rates", text: /In progress/
+    assert_select "#hotel-agreement-rate-authority", count: 0
+
+    version = draft_version(item)
+    version.supplier_cost_sources.each do |source|
+      contracted = source.supplier_cost_definitions.find(&:contracted?)
+      estimate = CreateSupplierCostDefinition.new(
+        agency: @agency, actor: @staff, source: source,
+        source_lock_version: source.reload.lock_version,
+        idempotency_key: SecureRandom.uuid,
+        attributes: {
+          stage: "estimate", mode: "calculated", currency: "USD", rounding_mode: "half_up"
+        }
+      ).call.record
+      contracted.supplier_cost_components.order(:position).each do |component|
+        attributes = {
+          label: component.label,
+          economic_role: component.economic_role,
+          calculation_kind: component.calculation_kind,
+          amount_minor_units: component.amount_minor_units,
+          quantity_basis: component.quantity_basis,
+          pass_through: component.pass_through
+        }
+        if component.occupancy_position_from
+          attributes[:occupancy_position_from] = component.occupancy_position_from
+          attributes[:occupancy_position_to] = component.occupancy_position_to
+        end
+        CreateSupplierCostComponent.new(
+          agency: @agency, actor: @staff, definition: estimate.reload,
+          definition_lock_version: estimate.lock_version,
+          idempotency_key: SecureRandom.uuid,
+          attributes: attributes
+        ).call
+      end
+      estimate.reload.update!(
+        status: "forecast_ready",
+        forecast_ready_by: @staff,
+        forecast_ready_at: Time.current,
+        readiness_fingerprint: "agreement-rate-#{estimate.id}"
+      )
+    end
+
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
+
+    assert_select "#hotel-agreement-rates", text: /In progress/
+    assert_select "#hotel-agreement-rate-authority", text: "Estimated"
+    assert_match "$173", response.body
+
+    version.supplier_cost_definitions.where(stage: "contracted").each do |definition|
+      definition.update!(
+        status: "forecast_ready",
+        forecast_ready_by: @staff,
+        forecast_ready_at: Time.current,
+        readiness_provenance: "Hilton contracted rate",
+        readiness_fingerprint: "agreement-rate-#{definition.id}"
+      )
+    end
+
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
+
+    assert_select "#hotel-agreement-rates", text: /Recorded/
+    assert_select "#hotel-agreement-rate-authority", text: "Contracted"
+  end
+
   test "a stale definition lock rejects the whole rate save" do
     sign_in_as @staff
     item = hilton_inventory

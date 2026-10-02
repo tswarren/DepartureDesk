@@ -195,4 +195,47 @@ class HotelAgreementsRequestTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to root_path
   end
+
+  test "editing a thin deposit preserves description, currency, and time zone" do
+    sign_in_as @staff
+    post item_hotel_agreement_deposits_departure_arrangement_hotel_path(@departure, @arrangement, @item), params: {
+      version_id: @version.id,
+      idempotency_key: SecureRandom.uuid,
+      amount: "415.60",
+      due_on: "2026-10-01"
+    }
+    definition = @version.supplier_deposit_requirement_definitions.sole
+    definition.update!(description: "Group deposit note", time_zone: "America/Chicago")
+
+    patch item_hotel_agreement_deposit_departure_arrangement_hotel_path(@departure, @arrangement, @item, definition), params: {
+      version_id: @version.id,
+      lock_version: definition.lock_version,
+      amount: "500.00",
+      due_on: "2027-05-07"
+    }
+
+    assert_redirected_to item_hotel_agreement_departure_arrangement_hotel_path(
+      @departure, @arrangement, @item, version_id: @version.id
+    )
+    definition.reload
+    assert_equal "Group deposit note", definition.description
+    assert_equal "USD", definition.currency
+    assert_equal "America/Chicago", definition.time_zone
+    assert_equal 50_000, definition.fixed_amount_minor_units
+    assert_equal "2027-05-07", definition.rule_parameters["date"]
+
+    definition.update!(currency: "EUR")
+    patch item_hotel_agreement_deposit_departure_arrangement_hotel_path(@departure, @arrangement, @item, definition), params: {
+      version_id: @version.id,
+      lock_version: definition.lock_version,
+      amount: "10.00",
+      due_on: "2027-05-07"
+    }
+
+    assert_response :not_found
+    definition.reload
+    assert_equal "EUR", definition.currency
+    assert_equal "Group deposit note", definition.description
+    assert_equal 50_000, definition.fixed_amount_minor_units
+  end
 end

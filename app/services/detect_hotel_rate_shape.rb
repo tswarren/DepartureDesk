@@ -35,12 +35,13 @@ class DetectHotelRateShape
     end
   end
 
-  def initialize(agency:, arrangement:, version:, item:, departure:)
+  def initialize(agency:, arrangement:, version:, item:, departure:, agreement_read: false)
     @agency = agency
     @arrangement = arrangement
     @version = version
     @item = item
     @departure = departure
+    @agreement_read = agreement_read
   end
 
   def call
@@ -94,6 +95,8 @@ class DetectHotelRateShape
     end
 
     definitions = source.supplier_cost_definitions.to_a
+    return agreement_cost_context(cell, source, definitions) if @agreement_read
+
     definition = definitions.find { |row| row.contracted? && row.calculated? }
     unless definitions.empty? || (definitions.one? && definition)
       return unsupported(cell, "This Supplier rate uses a cost shape this page cannot edit.", advanced: true, source: source)
@@ -111,6 +114,46 @@ class DetectHotelRateShape
       cell: cell, source: source, definition: definition,
       base: classified[:base], third: classified[:third], fourth: classified[:fourth],
       reason: nil, advanced: false
+    )
+  end
+
+  def agreement_cost_context(cell, source, definitions)
+    return incomplete_rate(cell, source) if definitions.empty?
+
+    candidates = definitions.select { |row| row.calculated? && row.currency == @departure.operating_currency }
+    if candidates.empty?
+      return unsupported(cell, "This Supplier rate uses a cost shape this page cannot present.", advanced: true, source: source)
+    end
+
+    ready = candidates.select(&:forecast_ready?)
+    contracted = ready.select(&:contracted?)
+    estimates = ready.select(&:estimate?)
+    if contracted.many? || (contracted.empty? && estimates.many?)
+      return unsupported(cell, "This Supplier rate uses a cost shape this page cannot present.", advanced: true, source: source)
+    end
+
+    definition = contracted.first || estimates.first
+    return incomplete_rate(cell, source) if definition.nil?
+
+    classified = classify_components(definition)
+    if classified.nil?
+      return unsupported(
+        cell, "This Supplier rate uses a cost shape this page cannot present.",
+        advanced: true, source: source, definition: definition
+      )
+    end
+
+    Context.new(
+      cell: cell, source: source, definition: definition,
+      base: classified[:base], third: classified[:third], fourth: classified[:fourth],
+      reason: nil, advanced: false
+    )
+  end
+
+  def incomplete_rate(cell, source)
+    Context.new(
+      cell: cell, source: source, definition: nil, base: nil, third: nil, fourth: nil,
+      reason: "No ready Supplier rate is recorded for this room night.", advanced: false
     )
   end
 

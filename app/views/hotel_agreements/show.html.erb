@@ -103,6 +103,9 @@
     <section aria-labelledby="hotel-agreement-rates-heading" id="hotel-agreement-rates">
       <h2 id="hotel-agreement-rates-heading" class="dd-section-title">Supplier rates</h2>
       <p><%= workspace.rates.state %></p>
+      <% if workspace.rates.authority %>
+        <p id="hotel-agreement-rate-authority"><%= workspace.rates.authority %></p>
+      <% end %>
       <% if workspace.rates.commission %>
         <p>Commission treatment: <%= workspace.rates.commission %></p>
       <% end %>
@@ -122,7 +125,7 @@
           <tbody>
             <% workspace.rates.rows.each do |row| %>
               <tr>
-                <th scope="row"><%= row.category %></th>
+                <th scope="row"><%= row.category %><% if workspace.rates.authority.nil? && row.authority %> · <%= row.authority %><% end %></th>
                 <td><%= row.date ? hotel_night_label(row.date) : "Each night" %></td>
                 <td><%= hotel_agreement_money(row.single, workspace.rates.currency) %></td>
                 <td><%= hotel_agreement_money(row.double, workspace.rates.currency) %></td>

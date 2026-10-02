@@ -4,7 +4,7 @@
 **Location:** `docs/planning/m4-offers-and-pricing/hotel-agreement-term-authoring.md`  
 **Parent:** [Hotel Agreement](hotel-agreement.md)  
 **Sequence:** Second Hotel Agreement implementation slice  
-**Prerequisite:** HA.1 shipped and green  
+**Prerequisite:** Amended by the [parent delivery note](hotel-agreement.md#28-delivery-sequence). HA.1 and HA.2 were implemented together. This slice does not record a separate earlier HA.1 landing.  
 **Scope:** Typed `SupplierAgreementReference` authoring for all accepted Hotel term kinds  
 **Does not authorize:** Supplier confirmation, activation, reviewed-none state, document storage, executable policy
 

@@ -915,7 +915,7 @@ It does not expand agreement-reference authoring beyond currently shipped behavi
 
 Ships typed authoring of all seven accepted Hotel reference kinds, including provenance handling, version/item scope, draft deletion, and confirmation immutability.
 
-HA.2 begins only after HA.1 lands and proves the read-model assumptions.
+**Combined delivery.** HA.1 and HA.2 were implemented together. The earlier rule that HA.2 starts only after HA.1 has landed and is green was not met as a separate review gate. This section amends that sequence. The combined implementation is the authority for both slices. It does not record a prior independent HA.1 landing.
 
 ---
 
@@ -967,7 +967,7 @@ Accepted 2026-10-01, this parent locks:
 - no Supplier-confirmation mutation here;
 - no new policy models;
 - no new Hotel identity fields;
-- HA.1 then HA.2 delivery sequence.
+- HA.1 and HA.2 delivered together, as amended in §28.
 
 ---
 

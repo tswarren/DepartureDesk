@@ -500,6 +500,6 @@ HA.1 is complete when:
 
 ## 18. Exit / handoff
 
-After HA.1 ships, HA.2 may implement Hotel Agreement term authoring over the proven Item/version/read-model boundary.
+HA.2 was implemented in the same change as this slice. The parent [delivery note](hotel-agreement.md#28-delivery-sequence) amends the earlier rule that HA.2 starts only after this slice has landed and is green.
 
 Hotel Review & Activation remains unauthorized.
