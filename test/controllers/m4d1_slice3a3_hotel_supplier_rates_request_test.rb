@@ -345,6 +345,169 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_not confirmed_review.activation_allowed
   end
 
+  test "the canonical Hilton agreement confirms and activates through the typed Hotel path" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+    assert_response :redirect
+
+    version = draft_version(item)
+    [
+      [ 41_560, "2026-10-01" ],
+      [ 187_020, "2027-05-07" ],
+      [ 187_020, "2027-10-04" ]
+    ].each_with_index do |(amount, date), index|
+      CreateSupplierDepositRequirementDefinition.new(
+        agency: @agency,
+        actor: @staff,
+        version: version.reload,
+        version_lock_version: version.lock_version,
+        idempotency_key: "hilton-review-deposit-#{index}-#{SecureRandom.uuid}",
+        attributes: {
+          amount_shape: "fixed_amount",
+          fixed_amount_minor_units: amount,
+          currency: "USD",
+          rule_shape: "fixed_date",
+          rule_parameters: { "date" => date },
+          precision: "date_only",
+          time_zone: "America/New_York",
+          description: "Hilton deposit #{index + 1}",
+          coverage_links: [ { arrangement_item_id: item.id } ],
+          cost_links: [],
+          contributor_definition_ids: []
+        }
+      ).call
+    end
+
+    CreateSupplierDeadlineDefinition.new(
+      agency: @agency,
+      actor: @staff,
+      version: version.reload,
+      version_lock_version: version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        deadline_type: "rooming_list_due",
+        kind: "actionable",
+        rule_shape: "fixed_local_datetime",
+        rule_parameters: { "datetime" => "2027-10-03T17:00:00" },
+        precision: "local_date_time",
+        time_zone: "America/New_York",
+        cardinality: "one_shared",
+        coverage_links: [ { arrangement_item_id: item.id } ],
+        commitment_lines: []
+      }
+    ).call
+
+    {
+      "deposit_derivation" => {
+        governing_wording: "The three fixed deposits derive from the contracted room block.",
+        original_wording: nil
+      },
+      "attrition" => {
+        governing_wording: "The Hotel agreement contains the governing attrition provision.",
+        original_wording: nil
+      },
+      "deposit_refund" => {
+        governing_wording: "The Hotel refunds any remaining deposit balance after the stay.",
+        original_wording: "Deposits are non-refundable."
+      },
+      "destination_fee" => {
+        governing_wording: "The destination fee is waived.",
+        original_wording: nil
+      },
+      "additional_nights" => {
+        governing_wording: "Additional nights are available on request.",
+        original_wording: nil
+      },
+      "early_departure" => {
+        governing_wording: "Early departure follows the Hotel agreement.",
+        original_wording: nil
+      }
+    }.each do |kind, wording|
+      RecordSupplierAgreementReference.new(
+        agency: @agency,
+        actor: @staff,
+        arrangement_item: item,
+        scope: "stay",
+        kind: kind,
+        governing_wording: wording[:governing_wording],
+        original_wording: wording[:original_wording],
+        source_description: "Hilton Fort Lauderdale Marina agreement",
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    RecordSupplierAgreementReferenceAbsence.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement_item: item,
+      scope: "stay",
+      kind: "cancellation",
+      idempotency_key: SecureRandom.uuid
+    ).call
+
+    @departure.update!(
+      status: "active",
+      departure_reference: "D-#{SecureRandom.random_number(900000) + 100000}",
+      first_activated_at: Time.current
+    )
+
+    review = CompileHotelActivationReview.new(
+      agency: @agency,
+      departure: @departure,
+      arrangement: arrangement,
+      version: version.reload,
+      item: item
+    ).call
+    assert review.confirmation_allowed
+    assert_equal 3, review.workspace.deposits.count
+    assert_equal [ 41_560, 187_020, 187_020 ],
+      review.workspace.deposits.map { |row| row.definition.fixed_amount_minor_units }
+    assert_equal 1, review.workspace.deadlines.count { |row| row.definition.deadline_type == "rooming_list_due" }
+
+    post item_hotel_review_confirmation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: {
+        version_id: version.id,
+        idempotency_key: SecureRandom.uuid,
+        confirmation: {
+          evidence_kind: "supplier_confirmation",
+          evidence_on: "2026-10-02",
+          channel: "email",
+          reference_note: "Hilton confirmed the reviewed agreement.",
+          confirmed_without_identifier_reason: "No Supplier number was issued."
+        }
+      }
+    assert_response :redirect
+
+    version.reload
+    arrangement.reload
+    confirmation = version.supplier_confirmations.sole
+    get item_hotel_review_departure_arrangement_hotel_path(
+      @departure, arrangement, item, version_id: version.id
+    )
+    assert_response :success
+    assert_select "#hotel-review-elapsed-dates", text: /Supplier deposit.*2026-10-01/m
+    assert_select "#hotel-review-cost-ack", count: 0
+    assert_select "#hotel-review-trigger-ack", count: 0
+    assert_select "button", text: "Activate arrangement"
+
+    post item_hotel_review_activation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: {
+        version_id: version.id,
+        idempotency_key: SecureRandom.uuid,
+        arrangement_lock_version: arrangement.lock_version,
+        version_lock_version: version.lock_version,
+        existing_confirmation_id: confirmation.id,
+        elapsed_deadlines_acknowledged: "1"
+      }
+    assert_response :redirect
+    assert_equal "active", arrangement.reload.status
+    assert_equal version.id, arrangement.governing_version_id
+    assert_predicate version.reload, :activated?
+  end
+
   test "a no-deposit no-rooming-list hotel can confirm and activate through the typed path" do
     sign_in_as @staff
     item = hilton_inventory
