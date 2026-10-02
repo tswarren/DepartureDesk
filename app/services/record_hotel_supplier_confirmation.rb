@@ -21,8 +21,8 @@ class RecordHotelSupplierConfirmation < AgencyCommand
     key = normalize_idempotency_key(@idempotency_key)
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
+      departure = lock_departure_for!(@arrangement.departure_id)
       arrangement = lock_arrangement_for!(@arrangement)
-      departure = lock_departure_for!(arrangement.departure_id)
       version = arrangement.versions.lock.find(@version.id)
       item = arrangement.arrangement_items.find(@item.id)
       unless version.draft? && version.arrangement_item_definitions.exists?(arrangement_item_id: item.id, category: "lodging")
