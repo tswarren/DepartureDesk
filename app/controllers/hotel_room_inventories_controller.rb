@@ -262,7 +262,34 @@ class HotelRoomInventoriesController < ApplicationController
         lock_version: params.dig(:pool_lock, pool.id),
         attributes: { proposed_opening_quantity: change[:quantity] }
       ).call
+      sync_hotel_rate_usage_quantity!(change[:cell], change[:quantity])
     end
+  end
+
+  def sync_hotel_rate_usage_quantity!(cell, quantity)
+    version = @supplier_arrangement_version.reload
+    assumption = version.supplier_cost_usage_assumptions.find_by(
+      arrangement_item_id: @arrangement_item.id,
+      service_occurrence_id: cell.night_definition.service_occurrence_id,
+      supplier_resource_id: cell.resource_definition.supplier_resource_id
+    )
+    return if assumption.nil?
+
+    profiles = assumption.supplier_cost_occupancy_profiles.order(:position, :id).to_a
+    return unless profiles.one?
+    profile = profiles.first
+    return unless profile.label == "Contracted rooms"
+    return if profile.resource_unit_count == quantity
+
+    UpdateSupplierCostOccupancyProfile.new(
+      **hotel_command_context,
+      profile: profile,
+      lock_version: profile.lock_version,
+      attributes: {
+        label: profile.label,
+        resource_unit_count: quantity
+      }
+    ).call
   end
 
   def category_for(cell)
