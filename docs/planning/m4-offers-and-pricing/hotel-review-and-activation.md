@@ -75,7 +75,32 @@ The evidence date is the date of the confirmation evidence. It does not fill the
 
 Recording confirmation does not activate the Arrangement, open capacity, materialize deposits, or post a payment.
 
-A `SupplierConfirmation` for the version already freezes that version’s agreement references. This plan keeps that rule. After confirmation, Staff cannot insert, update, or delete agreement references or the absence facts in §6. Operational stay, inventory, rate, deposit, and Deadline edits remain governed by their existing draft rules. This plan does not add a new freeze to those operational records beyond what activation already imposes.
+### When confirmation may be recorded
+
+Staff may record confirmation only when the Hotel review would pass §8 except for two absences:
+
+- `SupplierConfirmation` is not yet present;
+- activation consequences that the activation command creates later are not yet present. Those include capacity openings, materialized deposit tranches, and posted commitments.
+
+Every other Hotel fact in §7 must already pass, including supported stay and inventory, one ready contracted definition per inventory night, supported thin deposits, Item-kind wording, and a resolved optional kind for this Item. A generic readiness blocker other than the missing lodging confirmation also blocks confirmation. Staff do not confirm a version the Hotel review would still reject.
+
+### What confirmation freezes
+
+Supplier confirmation is the last mutation of the Hotel agreement on that exact version. It is evidence for the definitions present at that moment. This plan does not keep the confirmation and allow those definitions to change underneath it, and it does not add a fingerprint or an invalidation command.
+
+After a `SupplierConfirmation` exists for a version that includes a lodging Item, Staff cannot insert, update, or delete these records on that version:
+
+- the stay and its schedule;
+- room Resources and nightly inventory;
+- Supplier rate definitions and their components for that lodging Item;
+- Deposit Requirements for that lodging Item;
+- Deadline definitions for that lodging Item, including a rooming-list Deadline when one is recorded;
+- agreement references;
+- Reviewed — none absences.
+
+The existing draft commands enforce that freeze. A Hotel editor and the generic Supplier editor both reject the mutation. `ActivateSupplierArrangementVersion` may still materialize openings, tranches, and commitments from the frozen definitions. This freeze does not change a version that has no lodging Item.
+
+A later change to any frozen fact is a successor of the governing activated version, using the existing successor action. This review does not create that successor. This plan does not add a command that removes `SupplierConfirmation` and resumes editing.
 
 Activation of a Hotel version passes `existing_confirmation_id` and does not collect a second evidence form. The generic activation command still creates evidence when no confirmation exists, except for the lodging check in §8.
 
@@ -282,7 +307,7 @@ The review shows one version. An explicit `version_id` must belong to the Arrang
 
 ## 11. After activation
 
-The governing activated version is read-only on the Agreement page. Confirmation reads **Supplier confirmed**. Activation reads **Activated**. Those labels stay separate.
+The governing activated version is read-only on the Agreement page. The Hotel agreement-defining records in §5 are already frozen when Supplier confirmation is recorded, before this activation step. Confirmation reads **Supplier confirmed**. Activation reads **Activated**. Those labels stay separate.
 
 The Hotel review no longer offers confirmation or activation for that version.
 
@@ -311,7 +336,7 @@ On the Hilton Fort Lauderdale Marina stay, a passing review shows, without writi
 - Item-scoped **Reviewed — none** for cancellation on this stay;
 - Supplier confirmation recorded, evidence date distinct from the blank original contract date, identifier absent with a reason.
 
-Only then does Staff activate. The governing Agreement page is read-only. No payment, folio, attrition charge, refund, or Client Trip exists because of that activation.
+Only then does Staff record confirmation. After that confirmation, a change to the stay, a room quantity, a rate, a deposit, the rooming-list Deadline, agreement wording, or Reviewed — none is rejected, and the same confirmation remains. Staff then activate. The governing Agreement page is read-only. No payment, folio, attrition charge, refund, or Client Trip exists because of that activation.
 
 A second Hotel Item on the same version does not change the Hilton Item’s room nights, deposits, rates, or agreement wording. That second Item may record a different Item-scoped outcome for an optional kind, including Reviewed — none where the Hilton stay has wording.
 
@@ -324,8 +349,9 @@ A lodging Item with no rooming-list Deadline still passes this review when the o
 This plan is accepted. Implementation is complete when:
 
 - the review is write-free and uses the Agreement workspace;
-- Staff can record `SupplierConfirmation` on the unconfirmed draft without activating;
-- that confirmation freezes agreement references and absences;
+- Staff can record `SupplierConfirmation` on the unconfirmed draft without activating, and only when §5’s confirmation gate passes;
+- that confirmation freezes the Hotel agreement-defining records in §5, including stay, inventory, rates, deposits, Deadlines, agreement references, and absences;
+- a later edit of a frozen fact is rejected on that version and is not repaired by replacing or fingerprinting the confirmation;
 - an optional-kind absence is Item-scoped or agreement-wide under the same scope invariant as optional references;
 - optional kinds can be wording or Reviewed — none for this Item, and Not recorded remains distinct;
 - a missing rooming-list Deadline is not a blocker and is not labeled Reviewed — none;
@@ -351,4 +377,5 @@ This plan is accepted. Implementation is complete when:
 - empty `SupplierAgreementReference` rows
 - reviewed-none for deposits, Deadlines, or Item kinds
 - a Hotel command that marks a cost definition forecast-ready
+- a confirmation fingerprint, in-place invalidation, or a command that removes `SupplierConfirmation` to resume editing
 - a change to generic activation meaning for Cruise or for an Arrangement that is not lodging
