@@ -28,7 +28,7 @@ Slice 3A.2 establishes the Hotel’s temporal and inventory graph. Slice 3A.3 as
 | **3A.2** | Stay and nightly inventory. This plan. |
 | **3A.3** | Supplier rates and economics. Shipped. |
 | Hotel Agreement | Shipped 2026-10-01. [Hotel Agreement](hotel-agreement.md). |
-| Hotel Review and Activation | Shipped 2026-10-02 as [Hotel Review and Activation](hotel-review-and-activation.md). |
+| Hotel Review and Activation | In progress under the accepted 2026-10-02 amendment. [Hotel Review and Activation](hotel-review-and-activation.md). |
 | Hotel Lifecycle | Not authorized. |
 
 ## 3. Persisted graph
