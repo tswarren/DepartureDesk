@@ -117,7 +117,7 @@ class SupplierArrangementsController < ApplicationController
       version_lock_version: params[:version_lock_version],
       idempotency_key: params[:idempotency_key]
     ).call
-    redirect_to hotel_successor_return_path,
+    redirect_to hotel_successor_return_path(result.record),
       notice: result.status == :replayed ? "Successor draft already exists." :
         "Successor draft version #{result.record.version_number} created."
   rescue AgencyCommand::Error => error
@@ -213,14 +213,16 @@ class SupplierArrangementsController < ApplicationController
     load_attention_findings!
   end
 
-  def hotel_successor_return_path
+  def hotel_successor_return_path(version = nil)
     arrangement_path = departure_arrangement_path(@departure, @supplier_arrangement)
     return arrangement_path unless params[:return_to] == "hotel_agreement"
 
     item = @supplier_arrangement.arrangement_items.find_by(id: params[:item_id])
     return arrangement_path if item.nil?
 
-    item_hotel_agreement_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item)
+    item_hotel_agreement_departure_arrangement_hotel_path(
+      @departure, @supplier_arrangement, item, version_id: version&.id
+    )
   end
 
   def load_deposit_operations!

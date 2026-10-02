@@ -27,7 +27,7 @@
         <% end %>
       </div>
     </details>
-    <%= link_to "Return to Suppliers", suppliers_departure_composition_path(@departure), class: "dd-button dd-button--quiet" %>
+    <%= link_to "Return to Departure Composition", suppliers_departure_composition_path(@departure), class: "dd-button dd-button--quiet" %>
   </div>
 </header>
 
@@ -35,7 +35,9 @@
   <ol class="dd-journey-strip">
     <% if item %>
       <li>
-        <%= link_to item_hotel_agreement_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item),
+        <%= link_to item_hotel_agreement_departure_arrangement_hotel_path(
+              @departure, @supplier_arrangement, item, version_id: @supplier_arrangement_version.id
+            ),
               class: "dd-journey-step",
               id: "hotel-step-agreement",
               aria: (current_key == "agreement" ? { current: "page" } : {}) do %>
@@ -51,7 +53,7 @@
         <span class="dd-journey-step__title">Overview</span>
       <% end %>
     </li>
-    <% if item %>
+    <% if item && @supplier_arrangement_version.draft? %>
       <li>
         <%= link_to edit_item_stay_departure_arrangement_hotel_path(
               @departure, @supplier_arrangement, item, **hotel_editor_options

@@ -923,6 +923,169 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_equal 22_300, component_amount(item, "November 4", "Deluxe", "Room night base")
   end
 
+  test "a Hotel successor opens on the new version and a second post does not create another draft" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    governing = activate_arrangement!(arrangement)
+    agreement = item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
+
+    get agreement
+    assert_response :success
+    assert_select "#hotel-agreement-role", text: "Current governing agreement"
+    assert_select "#hotel-step-stay", count: 0
+    assert_select "a", text: "Return to Departure Composition"
+
+    other = create_capacity_graph(
+      agency: @agency, departure: @departure, contractor: @contractor,
+      provider: @contractor, prefix: "Other", category: "lodging"
+    )
+    get item_hotel_agreement_departure_arrangement_hotel_path(
+      @departure, arrangement, item, version_id: other[:version].id
+    )
+    assert_response :not_found
+
+    post_hotel_successor(arrangement, item, governing)
+    successor = arrangement.reload.editable_version
+    assert_redirected_to item_hotel_agreement_departure_arrangement_hotel_path(
+      @departure, arrangement, item, version_id: successor.id
+    )
+    follow_redirect!
+    assert_select "#hotel-agreement-role", text: "Proposed successor draft"
+    assert_select "#hotel-agreement-lineage", text: "Based on current v#{governing.version_number}"
+    assert_select "#hotel-agreement-view-current"
+    assert_select "#hotel-step-stay"
+    assert_equal item.id, successor.arrangement_item_definitions.pick(:arrangement_item_id)
+
+    get agreement
+    assert_select "#hotel-agreement-role", text: "Proposed successor draft"
+    get item_hotel_agreement_departure_arrangement_hotel_path(
+      @departure, arrangement, item, version_id: governing.id
+    )
+    assert_select "#hotel-agreement-role", text: "Current governing agreement"
+    assert_select "#hotel-agreement-view-proposed"
+    get item_hotel_agreement_departure_arrangement_hotel_path(
+      @departure, arrangement, item, version_id: successor.id
+    )
+    assert_select "#hotel-agreement-role", text: "Proposed successor draft"
+
+    post_hotel_successor(arrangement, item, governing)
+    assert_redirected_to agreement
+    assert_equal 1, arrangement.versions.where(status: "draft").count
+    follow_redirect!
+    assert_match "Only an active arrangement without a successor draft can create a successor.", response.body
+    assert_select "#hotel-agreement-role", text: "Proposed successor draft"
+  end
+
+  test "a second Hotel item keeps its block on that item through the successor" do
+    sign_in_as @staff
+    first = hilton_inventory
+    arrangement = first.supplier_arrangement
+    post departure_arrangement_hotel_stays_path(@departure, arrangement), params: {
+      idempotency_key: SecureRandom.uuid,
+      item: { name: "Annex hotel stay" },
+      occurrence: {
+        starts_on: "2027-11-04", ends_on: "2027-11-06",
+        starts_at_local: "15:00", ends_at_local: "12:00", time_zone: "America/New_York"
+      }
+    }
+    assert_response :redirect
+    second = item_named("Annex hotel stay")
+    post item_inventory_resources_departure_arrangement_hotel_path(@departure, arrangement, second),
+      params: resource_params("Annex")
+    annex = resource_named(second, "Annex")
+    record_openings(arrangement, second, [ [ "2027-11-04", annex, 7 ], [ "2027-11-05", annex, 3 ] ])
+    assert_response :redirect
+
+    activate_arrangement!(arrangement)
+    post_hotel_successor(arrangement, first, arrangement.governing_version)
+    assert_response :redirect
+    draft = arrangement.reload.editable_version
+    governing = arrangement.governing_version
+    assert_equal [ first.id, second.id ].sort, draft.arrangement_item_definitions.pluck(:arrangement_item_id).sort
+    assert_equal [ first.id, second.id ].sort, governing.arrangement_item_definitions.pluck(:arrangement_item_id).sort
+    assert_equal [ 2, 5, 5, 10 ], opening_quantities(governing, first)
+    assert_equal [ 2, 5, 5, 10 ], opening_quantities(draft, first)
+    assert_equal [ 3, 7 ], opening_quantities(governing, second)
+    assert_equal [ 3, 7 ], opening_quantities(draft, second)
+
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, first, version_id: draft.id)
+    assert_select "th", text: "Standard"
+    assert_select "th", text: "Annex", count: 0
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, second, version_id: draft.id)
+    assert_select "th", text: "Annex"
+    assert_select "th", text: "Standard", count: 0
+  end
+
+  test "a viewer can read both Hotel versions and cannot create, edit, confirm, or activate" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    governing = activate_arrangement!(arrangement)
+    agreement = item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
+
+    sign_in_as agency_users(:harbor_viewer)
+    get agreement
+    assert_response :success
+    assert_select "#hotel-agreement-role", text: "Current governing agreement"
+    assert_select "button", text: "Create successor draft", count: 0
+    assert_select "#hotel-step-stay", count: 0
+    assert_no_difference -> { arrangement.versions.count } do
+      post_hotel_successor(arrangement, item, governing)
+    end
+    assert_redirected_to root_path
+    post item_hotel_review_confirmation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: { version_id: governing.id, idempotency_key: SecureRandom.uuid }
+    assert_response :not_found
+    post item_hotel_review_activation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: { version_id: governing.id, idempotency_key: SecureRandom.uuid }
+    assert_response :not_found
+
+    sign_in_as @staff
+    post_hotel_successor(arrangement, item, governing)
+    successor = arrangement.reload.editable_version
+    sign_in_as agency_users(:harbor_viewer)
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item, version_id: governing.id)
+    assert_response :success
+    assert_select "#hotel-agreement-role", text: "Current governing agreement"
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item, version_id: successor.id)
+    assert_response :success
+    assert_select "#hotel-agreement-role", text: "Proposed successor draft"
+    assert_select "button", text: "Save Supplier rates", count: 0
+    get item_rates_departure_arrangement_hotel_path(@departure, arrangement, item, version_id: successor.id)
+    assert_select "button", text: "Save Supplier rates", count: 0
+  end
+
+  test "an unsupported Hotel successor stays in Advanced planning and the governing version stays readable" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+    governing = activate_arrangement!(arrangement)
+    post_hotel_successor(arrangement, item, governing)
+    successor = arrangement.reload.editable_version
+    profile = successor.supplier_cost_occupancy_profiles.order(:id).first
+    UpdateSupplierCostOccupancyProfile.new(
+      agency: @agency, actor: @staff, profile: profile, lock_version: profile.lock_version,
+      attributes: { label: "Custom occupancy mix", resource_unit_count: profile.resource_unit_count }
+    ).call
+
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item, version_id: successor.id)
+    assert_response :success
+    assert_select "#hotel-agreement-rates", text: /Needs attention/
+    assert_match(/Advanced Supplier cost shape/, response.body)
+    assert_select "a", text: "Advanced Supplier planning"
+
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item, version_id: governing.id)
+    assert_response :success
+    assert_select "#hotel-agreement-role", text: "Current governing agreement"
+    assert_select "#hotel-agreement-rates", text: /Recorded/
+    assert_no_match(/Advanced Supplier cost shape/, response.body)
+    assert_match "$173.00", response.body
+  end
+
   private
 
   def stay_params(name, starts_on: "2027-11-04", ends_on: "2027-11-06")
@@ -1120,6 +1283,21 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
       }
     ).call
     source
+  end
+
+  def post_hotel_successor(arrangement, item, version)
+    post successor_departure_arrangement_path(@departure, arrangement), params: {
+      arrangement_lock_version: arrangement.reload.lock_version,
+      version_lock_version: version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      return_to: "hotel_agreement",
+      item_id: item.id
+    }
+  end
+
+  def opening_quantities(version, item)
+    resource_ids = version.supplier_resource_definitions.where(arrangement_item: item).pluck(:supplier_resource_id)
+    version.capacity_pool_definitions.where(supplier_resource_id: resource_ids).order(:proposed_opening_quantity).pluck(:proposed_opening_quantity)
   end
 
   def activate_arrangement!(arrangement)

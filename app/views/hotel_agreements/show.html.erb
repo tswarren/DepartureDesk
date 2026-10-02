@@ -19,6 +19,19 @@
         · <span id="hotel-agreement-confirmation"><%= version.confirmation %></span>
         · <span id="hotel-agreement-activation"><%= version.activation %></span>
       </p>
+      <% if version.lineage %>
+        <p id="hotel-agreement-lineage"><%= version.lineage %></p>
+      <% end %>
+      <% if version.current_version_id %>
+        <p><%= link_to "View current agreement",
+              item_hotel_agreement_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, version_id: version.current_version_id),
+              id: "hotel-agreement-view-current" %></p>
+      <% end %>
+      <% if version.proposed_version_id %>
+        <p><%= link_to "View proposed successor",
+              item_hotel_agreement_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, version_id: version.proposed_version_id),
+              id: "hotel-agreement-view-proposed" %></p>
+      <% end %>
       <p><%= link_to "Hotel review", item_hotel_review_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, version_id: version.record.id) %></p>
       <% if workspace.stay.arrival_on %>
         <p><%= hotel_stay_span(workspace.stay.definition) %></p>
