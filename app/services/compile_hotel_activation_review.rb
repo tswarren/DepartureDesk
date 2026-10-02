@@ -4,7 +4,7 @@ class CompileHotelActivationReview
   Blocker = Data.define(:code, :message, :target)
   Section = Data.define(:key, :label, :state, :detail)
   Result = Data.define(
-    :workspace, :readiness, :sections, :blockers,
+    :workspace, :readiness, :sections, :blockers, :elapsed_labels,
     :confirmation_allowed, :revision_allowed, :activation_allowed, :confirmation
   )
 
@@ -26,14 +26,17 @@ class CompileHotelActivationReview
     ).call
     confirmation = SupplierConfirmation.where(supplier_arrangement_version_id: @version.id).order(:recorded_at, :id).last
     hotel_blockers = hotel_blockers(workspace)
-    blockers = hotel_blockers + readiness_blockers(readiness)
+    blockers = hotel_blockers.dup
+    blockers.concat(readiness_blockers(readiness)) if confirmation.present?
     hotel_clear = hotel_blockers.empty?
+    elapsed_labels = elapsed_labels_for(workspace)
     draft = @version.draft? && @arrangement.editable_version&.id == @version.id
     Result.new(
       workspace: workspace,
       readiness: readiness,
       sections: sections_for(workspace, confirmation),
       blockers: blockers,
+      elapsed_labels: elapsed_labels,
       confirmation_allowed: draft && confirmation.nil? && hotel_clear,
       revision_allowed: revision_allowed?(confirmation),
       activation_allowed: draft && confirmation.present? && hotel_clear && readiness.ready?,
@@ -104,8 +107,42 @@ class CompileHotelActivationReview
 
   def readiness_blockers(readiness)
     readiness.blockers.map do |blocker|
-      Blocker.new(code: blocker.code, message: blocker.message, target: :activation)
+      message = if blocker.code == :lodging_agreement_unconfirmed
+        "Record Supplier confirmation before activation."
+      else
+        "Operational Supplier setup needs attention before activation."
+      end
+      Blocker.new(code: blocker.code, message: message, target: :activation)
+    end.uniq { |blocker| [ blocker.message, blocker.target ] }
+  end
+
+  def elapsed_labels_for(workspace)
+    at = Time.current
+    deadline_ids = workspace.deadlines.map { |row| row.definition.id }
+    deposit_ids = workspace.deposits.map { |row| row.definition.id }
+
+    deadline_rows = MaterializeSupplierDeadlineDefinitionsAlreadyLocked.new(
+      agency: @agency, actor: nil, arrangement: @arrangement, version: @version,
+      activation: nil, departure: @departure, at: at
+    ).preview_elapsed.select { |row| deadline_ids.include?(row[:definition].id) }
+
+    deposit_rows = MaterializeSupplierDepositRequirementDefinitionsAlreadyLocked.new(
+      agency: @agency, actor: nil, arrangement: @arrangement, version: @version,
+      activation: nil, departure: @departure, at: at
+    ).preview_elapsed.select { |row| deposit_ids.include?(row[:definition].id) }
+
+    deadline_labels = deadline_rows.map do |row|
+      definition = row[:definition]
+      due = row[:calculated_at] || row[:calculated_on]
+      "#{definition.display_label}: #{due}"
     end
+    deposit_labels = deposit_rows.map do |row|
+      due = row[:calculated_at] || row[:calculated_on]
+      "Supplier deposit: #{due}"
+    end
+    deadline_labels + deposit_labels
+  rescue AgencyCommand::Error
+    []
   end
 
   def revision_allowed?(confirmation)
