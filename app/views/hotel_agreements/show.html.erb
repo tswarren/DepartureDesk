@@ -279,8 +279,19 @@
                       class: "dd-button dd-button--danger",
                       params: { version_id: version.record.id, lock_version: term.absence.lock_version } %></p>
               <% elsif term.reference.nil? %>
-                <p><%= link_to "Add term",
-                      new_item_hotel_agreement_term_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, term.kind, version_id: version.record.id) %></p>
+                <div class="dd-inline-actions">
+                  <%= link_to "Add wording",
+                        new_item_hotel_agreement_term_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, term.kind, version_id: version.record.id) %>
+                  <%= button_to "Reviewed — none",
+                        item_hotel_agreement_term_absence_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, term.kind),
+                        method: :post,
+                        class: "dd-button dd-button--quiet",
+                        params: {
+                          version_id: version.record.id,
+                          scope: "stay",
+                          idempotency_key: SecureRandom.uuid
+                        } %>
+                </div>
               <% else %>
                 <p><%= link_to "Edit term",
                       edit_item_hotel_agreement_term_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, term.reference, version_id: version.record.id) %></p>
