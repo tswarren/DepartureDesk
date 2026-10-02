@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
 class CreateSupplierAgreementReferenceAbsences < ActiveRecord::Migration[8.1]
-  OPTIONAL_KINDS = %w[destination_fee additional_nights early_departure cancellation].freeze
+  KINDS = %w[
+    deposit_derivation attrition deposit_refund
+    destination_fee additional_nights early_departure cancellation
+  ].freeze
+  ITEM_KINDS = %w[deposit_derivation attrition deposit_refund].freeze
 
   def up
     create_table :supplier_agreement_reference_absences, id: :uuid, default: -> { "uuidv7()" } do |table|
@@ -51,7 +55,8 @@ class CreateSupplierAgreementReferenceAbsences < ActiveRecord::Migration[8.1]
       name: "agreement_reference_absences_recorder_fk"
 
     add_check_constraint :supplier_agreement_reference_absences,
-      "kind IN (#{OPTIONAL_KINDS.map { |kind| "'#{kind}'" }.join(", ")})",
+      "kind IN (#{KINDS.map { |kind| "'#{kind}'" }.join(", ")}) AND " \
+      "(kind NOT IN (#{ITEM_KINDS.map { |kind| "'#{kind}'" }.join(", ")}) OR arrangement_item_id IS NOT NULL)",
       name: "agreement_reference_absences_kind"
     add_check_constraint :supplier_agreement_reference_absences,
       "lock_version >= 0",
