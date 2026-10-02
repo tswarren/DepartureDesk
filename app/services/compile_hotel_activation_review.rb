@@ -30,6 +30,14 @@ class CompileHotelActivationReview
     blockers.concat(readiness_blockers(readiness)) if confirmation.present?
     hotel_clear = hotel_blockers.empty?
     elapsed_labels = elapsed_labels_for(workspace)
+    provisional_selection = readiness.cost_selections.any? { |_source, definition| definition.estimate? }
+    if confirmation.present? && provisional_selection
+      blockers << Blocker.new(
+        code: :provisional_supplier_cost,
+        message: "Operational Supplier setup still uses an estimated cost authority.",
+        target: :activation
+      )
+    end
     draft = @version.draft? && @arrangement.editable_version&.id == @version.id
     Result.new(
       workspace: workspace,
@@ -39,7 +47,7 @@ class CompileHotelActivationReview
       elapsed_labels: elapsed_labels,
       confirmation_allowed: draft && confirmation.nil? && hotel_clear,
       revision_allowed: revision_allowed?(confirmation),
-      activation_allowed: draft && confirmation.present? && hotel_clear && readiness.ready?,
+      activation_allowed: draft && confirmation.present? && hotel_clear && readiness.ready? && !provisional_selection,
       confirmation: confirmation
     )
   end
