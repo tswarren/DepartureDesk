@@ -17,4 +17,18 @@ class SupplierAmountDueContributor < ApplicationRecord
     :supplier_cost_component_id
 
   validates :position, numericality: { only_integer: true, greater_than: 0 }
+  validate :references_belong_to_exact_version
+
+  private
+
+  def references_belong_to_exact_version
+    if supplier_amount_due_definition_id.present? &&
+        supplier_amount_due_definition&.supplier_arrangement_version_id != supplier_arrangement_version_id
+      errors.add(:supplier_amount_due_definition, "must belong to this exact version")
+    end
+    if supplier_cost_component_id.present? &&
+        supplier_cost_component&.supplier_arrangement_version_id != supplier_arrangement_version_id
+      errors.add(:supplier_cost_component, "must belong to this exact version")
+    end
+  end
 end

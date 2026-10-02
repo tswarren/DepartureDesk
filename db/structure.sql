@@ -8026,6 +8026,13 @@ CREATE UNIQUE INDEX index_amount_due_definitions_on_version ON public.supplier_a
 
 
 --
+-- Name: index_amount_due_definitions_on_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_amount_due_definitions_on_version_owner ON public.supplier_amount_due_definitions USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: index_arrangement_activations_on_departure_history; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8380,6 +8387,13 @@ CREATE UNIQUE INDEX index_capacity_pool_defs_on_unique_label ON public.capacity_
 --
 
 CREATE INDEX index_capacity_pools_on_agency_id ON public.capacity_pools USING btree (agency_id);
+
+
+--
+-- Name: index_capacity_pools_on_arrangement_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pools_on_arrangement_owner ON public.capacity_pools USING btree (id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -11533,6 +11547,13 @@ CREATE INDEX index_supplier_cost_components_on_quantity_pool ON public.supplier_
 
 
 --
+-- Name: index_supplier_cost_components_on_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_cost_components_on_version_owner ON public.supplier_cost_components USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: index_supplier_cost_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -14099,7 +14120,7 @@ ALTER TABLE ONLY public.supplier_agreement_references
 --
 
 ALTER TABLE ONLY public.supplier_amount_due_contributors
-    ADD CONSTRAINT amount_due_contributors_component_fk FOREIGN KEY (supplier_cost_component_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_cost_components(id, supplier_arrangement_id, departure_id, agency_id);
+    ADD CONSTRAINT amount_due_contributors_component_fk FOREIGN KEY (supplier_cost_component_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_cost_components(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -14115,7 +14136,7 @@ ALTER TABLE ONLY public.supplier_amount_due_contributors
 --
 
 ALTER TABLE ONLY public.supplier_amount_due_contributors
-    ADD CONSTRAINT amount_due_contributors_definition_fk FOREIGN KEY (supplier_amount_due_definition_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_amount_due_definitions(id, supplier_arrangement_id, departure_id, agency_id);
+    ADD CONSTRAINT amount_due_contributors_definition_fk FOREIGN KEY (supplier_amount_due_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_amount_due_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -17859,7 +17880,7 @@ ALTER TABLE ONLY public.supplier_cost_components
 --
 
 ALTER TABLE ONLY public.supplier_cost_components
-    ADD CONSTRAINT supplier_cost_components_quantity_pool_fk FOREIGN KEY (quantity_capacity_pool_id, agency_id) REFERENCES public.capacity_pools(id, agency_id);
+    ADD CONSTRAINT supplier_cost_components_quantity_pool_fk FOREIGN KEY (quantity_capacity_pool_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pools(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -18157,6 +18178,8 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261002260000'),
+('20261002250000'),
 ('20261002240000'),
 ('20261002230000'),
 ('20261002220000'),

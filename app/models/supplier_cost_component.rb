@@ -46,12 +46,24 @@ class SupplierCostComponent < ApplicationRecord
   validates :rate, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :minimum_quantity, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validate :expected_commission_matches_commission_treatment, if: :expected_commission?
+  validate :quantity_pool_matches_source_context, if: -> { quantity_capacity_pool_id.present? }
 
   def currency
     supplier_cost_definition&.currency
   end
 
   private
+
+  def quantity_pool_matches_source_context
+    pool = quantity_capacity_pool
+    source = supplier_cost_definition&.supplier_cost_source
+    return if pool.nil? || source.nil?
+    return if pool.arrangement_item_id == source.arrangement_item_id &&
+      (source.service_occurrence_id.nil? || pool.service_occurrence_id == source.service_occurrence_id) &&
+      (source.supplier_resource_id.nil? || pool.supplier_resource_id == source.supplier_resource_id)
+
+    errors.add(:quantity_capacity_pool, "must belong to this segment")
+  end
 
   def expected_commission_matches_commission_treatment
     return unless supplier_cost_definition&.noncommissionable?

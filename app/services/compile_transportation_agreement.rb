@@ -81,7 +81,7 @@ class CompileTransportationAgreement
       maximum_passengers: ceiling ? ceiling * occupancy : nil,
       rate_minor_units: component&.amount_minor_units,
       exposure_minor_units: exposure,
-      advanced_reason: advanced_reason(item, occurrence_definition, resource_definition, pool_definition, component)
+      advanced_reason: TransportationAgreementShape.review_reason(@version, item)
     )
   end
 
@@ -99,25 +99,8 @@ class CompileTransportationAgreement
     pool.capacity_projection.current_supplier_capacity.to_i
   end
 
-  def advanced_reason(item, occurrence_definition, resource_definition, pool_definition, component)
-    return "Add one segment occurrence." if @version.service_occurrence_definitions.where(arrangement_item: item).count != 1
-    return "Add one motorcoach." if @version.supplier_resource_definitions.where(arrangement_item: item).count != 1
-    return "Enter a pickup and drop-off." if occurrence_definition.origin_name.blank? || occurrence_definition.destination_name.blank?
-    return "Enter passenger capacity per motorcoach." if resource_definition.maximum_occupancy.blank?
-    return "Add one motorcoach Pool." if pool_definition.nil? || pool_definition.capacity_pool.measurement_basis != "resource_units" || pool_definition.capacity_pool.inventory_mode != "block"
-    return "Enter the on-request ceiling." if pool_definition.maximum_total_resource_units.blank?
-    assumption = @version.supplier_cost_usage_assumptions.find_by(arrangement_item: item)
-    if assumption && (assumption.supplier_cost_occupancy_profiles.exists? || assumption.expected_persons.present? || assumption.expected_billable_nights.present?)
-      return SaveTransportationSegment::ADVANCED
-    end
-    return nil if component.nil?
-
-    return "The per-coach rate must be a contracted resource-unit charge." unless component.unit_rate? && component.resource_units? && component.supplier_charge? && component.supplier_cost_definition.contracted?
-    return "Link the per-coach rate to the motorcoach Pool." if component.quantity_capacity_pool_id.blank?
-    nil
-  end
-
   def confirmation_blocker_for(segments)
+    return TransportationAgreementShape::ADVANCED if TransportationAgreementShape.foreign_item?(@version)
     return "Add a transportation segment." if segments.empty?
     reason = segments.filter_map(&:advanced_reason).first
     return reason if reason

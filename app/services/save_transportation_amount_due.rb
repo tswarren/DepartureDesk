@@ -19,6 +19,10 @@ class SaveTransportationAmountDue < AgencyCommand
       departure = lock_departure_for!(@arrangement.departure_id)
       arrangement = lock_arrangement_for!(@arrangement)
       version = arrangement.versions.lock.find_by!(status: "draft")
+      advanced = version.arrangement_item_definitions.where(category: "ground_transportation").any? do |definition|
+        TransportationAgreementShape.structural_reason(version, definition.arrangement_item)
+      end
+      raise Error.new(TransportationAgreementShape::ADVANCED, code: :invalid_state) if advanced
       components = transportation_components(version)
       if components.empty? || components.any? { |component| component.quantity_capacity_pool_id.blank? }
         raise Error.new("Charter amount due needs a capacity-backed rate on each segment.", code: :invalid)
@@ -69,12 +73,8 @@ class SaveTransportationAmountDue < AgencyCommand
   private
 
   def transportation_components(version)
-    item_ids = version.arrangement_item_definitions.where(category: "ground_transportation").order(:position, :id).pluck(:arrangement_item_id)
-    item_ids.filter_map do |item_id|
-      version.supplier_cost_components.joins(supplier_cost_definition: :supplier_cost_source)
-        .where(supplier_cost_sources: { arrangement_item_id: item_id })
-        .where(calculation_kind: "unit_rate", quantity_basis: "resource_units", economic_role: "supplier_charge")
-        .order(:position).first
+    version.arrangement_item_definitions.where(category: "ground_transportation").order(:position, :id).filter_map do |definition|
+      TransportationAgreementShape.sole_component(version, definition.arrangement_item)
     end
   end
 

@@ -23,7 +23,9 @@ class SaveTransportationSegment < AgencyCommand
     ActiveRecord::Base.transaction do
       arrangement = ensure_arrangement!
       version = draft_version!(arrangement)
-      ensure_owned_usage!(version) if @item
+      if @item && TransportationAgreementShape.structural_reason(version, @item)
+        raise Error.new(ADVANCED, code: :invalid_state)
+      end
       item = ensure_segment!(arrangement, version)
       version = draft_version!(arrangement)
       sync_capacity!(arrangement, version, item)
@@ -214,15 +216,6 @@ class SaveTransportationSegment < AgencyCommand
         attributes:
       ).call
     end
-  end
-
-  def ensure_owned_usage!(version)
-    assumption = version.supplier_cost_usage_assumptions.find_by(arrangement_item: @item)
-    return if assumption.nil?
-    return unless assumption.supplier_cost_occupancy_profiles.exists? ||
-      assumption.expected_persons.present? || assumption.expected_billable_nights.present?
-
-    raise Error.new(ADVANCED, code: :invalid_state)
   end
 
   def occurrence_attributes(arrangement)
