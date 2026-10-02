@@ -91,6 +91,13 @@ class HotelReviewsController < ApplicationController
   helper_method :hotel_review_blocker_path
 
   def hotel_review_blocker_path(blocker)
+    if blocker.target.is_a?(Hash) && blocker.target[:kind] == :hotel_review
+      item = @supplier_arrangement.arrangement_items.find(blocker.target.fetch(:item_id))
+      return item_hotel_review_departure_arrangement_hotel_path(
+        @departure, @supplier_arrangement, item, version_id: @supplier_arrangement_version.id
+      )
+    end
+
     case blocker.target
     when :stay
       edit_item_stay_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, version_id: @supplier_arrangement_version.id)
