@@ -502,4 +502,4 @@ HA.1 is complete when:
 
 HA.2 was implemented in the same change as this slice. The parent [delivery note](hotel-agreement.md#28-delivery-sequence) amends the earlier rule that HA.2 starts only after this slice has landed and is green.
 
-[Hotel Review and Activation](hotel-review-and-activation.md) is Shipped 2026-10-02.
+[Hotel Review and Activation](hotel-review-and-activation.md) is in progress under the accepted 2026-10-02 amendment.
