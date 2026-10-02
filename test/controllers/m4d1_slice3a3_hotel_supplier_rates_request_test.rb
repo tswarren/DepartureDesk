@@ -61,6 +61,14 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_equal 4, draft_version(item).supplier_cost_usage_assumptions.count
     assert_equal [ 1 ], draft_version(item).supplier_cost_usage_assumptions.pluck(:expected_billable_nights).uniq
     assert_equal 4, draft_version(item).supplier_cost_occupancy_profiles.count
+    guest = draft_version(item).supplier_cost_participant_categories.find_by!(
+      arrangement_item: item, label: "Hotel guest"
+    )
+    draft_version(item).supplier_cost_occupancy_profiles.each do |profile|
+      positions = profile.supplier_cost_occupancy_profile_positions.order(:occupancy_position)
+      assert_equal [ 1, 2, 3, 4 ], positions.pluck(:occupancy_position)
+      assert_equal [ guest.id ], positions.pluck(:participant_category_id).uniq
+    end
     assert_equal 1, draft_version(item).supplier_cost_participant_categories.where(arrangement_item: item, label: "Hotel guest").count
     assert_equal 4, draft_version(item).supplier_cost_sources.where(arrangement_item: item).count
 
@@ -78,7 +86,7 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     forecast = EvaluateSupplierCostForecast.new(
       agency: @agency, departure: @departure, arrangement: arrangement
     ).call
-    assert_equal 415_600, forecast.totals.forecast_supplier_cost_minor_units
+    assert_equal 503_600, forecast.totals.forecast_supplier_cost_minor_units
     draft_version(item).supplier_cost_sources.where(arrangement_item: item).each do |source|
       assert_not_includes forecast.incomplete_source_ids, source.id
     end
@@ -140,7 +148,7 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     forecast = EvaluateSupplierCostForecast.new(
       agency: @agency, departure: @departure, arrangement: arrangement
     ).call
-    assert_equal 432_900, forecast.totals.forecast_supplier_cost_minor_units
+    assert_equal 524_900, forecast.totals.forecast_supplier_cost_minor_units
     assert_equal 0, SupplierAgreementReference.where(supplier_arrangement_version: draft_version(item)).count
   end
 
@@ -594,6 +602,39 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_predicate version.reload, :activated?
   end
 
+  test "a renamed Hotel occupancy profile is Advanced and is not silently repaired" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+
+    assumption = draft_version(item).supplier_cost_usage_assumptions.order(:id).first
+    profile = assumption.supplier_cost_occupancy_profiles.sole
+    UpdateSupplierCostOccupancyProfile.new(
+      agency: @agency,
+      actor: @staff,
+      profile: profile,
+      lock_version: profile.lock_version,
+      attributes: {
+        label: "Custom occupancy mix",
+        resource_unit_count: profile.resource_unit_count
+      }
+    ).call
+
+    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_select "#hotel-agreement-rates", text: /Needs attention/
+    assert_match(/Advanced Supplier cost shape/, response.body)
+
+    patch item_rates_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: rate_params(standard, deluxe, locks: lock_params(item))
+    assert_response :unprocessable_entity
+    assert_match "Advanced Supplier cost shape", response.body
+    assert_equal "Custom occupancy mix", profile.reload.label
+  end
+
   test "a stale definition lock rejects the whole rate save" do
     sign_in_as @staff
     item = hilton_inventory
@@ -722,6 +763,14 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_match "Standard: $173.00 / $173.00 / $193.00", response.body
     assert_no_match "Standard: $173.00 / $173.00 / $193.00 / ", response.body
     assert_match "Deluxe: $223.00 / $223.00 / $243.00 / $263.00", response.body
+    standard_assumptions = draft_version(item).supplier_cost_usage_assumptions.where(
+      supplier_resource_id: standard.supplier_resource_id
+    )
+    standard_assumptions.each do |assumption|
+      assert_equal [ 1, 2, 3 ],
+        assumption.supplier_cost_occupancy_profiles.sole
+          .supplier_cost_occupancy_profile_positions.order(:occupancy_position).pluck(:occupancy_position)
+    end
   end
 
   test "an unsupported cost graph stays unchanged and links to advanced supplier cost planning" do
