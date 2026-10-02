@@ -140,18 +140,20 @@
         <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
         <%= hidden_field_tag :version_lock_version, version.record.lock_version %>
         <%= hidden_field_tag :existing_confirmation_id, @review.confirmation.id %>
-        <label class="dd-choice" for="hotel-review-cost-ack">
-          <%= check_box_tag :cost_source_coverage_acknowledged, "1", false, id: "hotel-review-cost-ack", required: true %>
-          I confirm the entered cost-source list is complete.
-        </label>
-        <label class="dd-choice" for="hotel-review-trigger-ack">
-          <%= check_box_tag :commitment_trigger_coverage_acknowledged, "1", false, id: "hotel-review-trigger-ack", required: true %>
-          I confirm known confirmation-triggered commitments are covered by the listed triggers.
-        </label>
-        <label class="dd-choice" for="hotel-review-elapsed-ack">
-          <%= check_box_tag :elapsed_deadlines_acknowledged, "1", false, id: "hotel-review-elapsed-ack" %>
-          I acknowledge already-elapsed Deadlines.
-        </label>
+        <% if @review.elapsed_labels.any? %>
+          <div class="dd-field-group" id="hotel-review-elapsed-dates">
+            <p>The following Hotel date has already passed:</p>
+            <ul>
+              <% @review.elapsed_labels.each do |label| %>
+                <li><%= label %></li>
+              <% end %>
+            </ul>
+            <label class="dd-choice" for="hotel-review-elapsed-ack">
+              <%= check_box_tag :elapsed_deadlines_acknowledged, "1", false, id: "hotel-review-elapsed-ack", required: true %>
+              Activate this confirmed Hotel agreement with the elapsed date.
+            </label>
+          </div>
+        <% end %>
         <button type="submit" class="dd-button">Activate arrangement</button>
       <% end %>
     <% elsif version.record.activated? %>
