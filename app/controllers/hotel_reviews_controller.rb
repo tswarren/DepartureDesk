@@ -56,6 +56,17 @@ class HotelReviewsController < ApplicationController
   end
 
   def activate
+    review = CompileHotelActivationReview.new(
+      agency: Current.agency,
+      departure: @departure,
+      arrangement: @supplier_arrangement,
+      version: @supplier_arrangement_version,
+      item: @arrangement_item
+    ).call
+    unless review.activation_allowed
+      raise AgencyCommand::Error.new("This Hotel agreement is not ready to activate.", code: :invalid)
+    end
+
     result = ActivateSupplierArrangementVersion.new(
       agency: Current.agency,
       actor: Current.agency_user,
@@ -65,9 +76,9 @@ class HotelReviewsController < ApplicationController
       version_lock_version: params[:version_lock_version],
       idempotency_key: params[:idempotency_key],
       existing_confirmation_id: params[:existing_confirmation_id],
-      cost_source_coverage_acknowledged: params[:cost_source_coverage_acknowledged],
-      provisional_costs_acknowledged: params[:provisional_costs_acknowledged],
-      commitment_trigger_coverage_acknowledged: params[:commitment_trigger_coverage_acknowledged],
+      cost_source_coverage_acknowledged: true,
+      provisional_costs_acknowledged: false,
+      commitment_trigger_coverage_acknowledged: true,
       elapsed_deadlines_acknowledged: params[:elapsed_deadlines_acknowledged]
     ).call
     redirect_to hotel_agreement_path_for, notice: result.status == :replayed ? "Arrangement was already activated." : "Arrangement activated."
