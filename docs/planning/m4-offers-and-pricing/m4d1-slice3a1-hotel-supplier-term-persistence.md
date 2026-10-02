@@ -55,7 +55,7 @@ Acceptance of this plan amends [Slice 3A §23](m4d1-slice3a-hotel-supplier-compo
 | **3A.2** | Stay and nightly inventory. Shipped. |
 | **3A.3** | Supplier rates and economics. Shipped. |
 | Hotel Agreement | Shipped 2026-10-01. [Hotel Agreement](hotel-agreement.md). |
-| Hotel Review and Activation | Shipped 2026-10-02 as [Hotel Review and Activation](hotel-review-and-activation.md). |
+| Hotel Review and Activation | In progress under the accepted 2026-10-02 amendment. [Hotel Review and Activation](hotel-review-and-activation.md). |
 | Hotel Lifecycle | Not authorized. |
 
 Later Hotel plans display the records this slice persists. They do not define another commission treatment, deposit basis, attrition policy, or refund clarification.
