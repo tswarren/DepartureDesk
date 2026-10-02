@@ -773,6 +773,33 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     end
   end
 
+  test "changing maximum occupancy resynchronizes Hotel-owned anonymous positions" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+
+    patch item_inventory_resource_departure_arrangement_hotel_path(
+      @departure, arrangement, item, standard.supplier_resource_id
+    ), params: {
+      definition_lock_version: standard.reload.lock_version,
+      resource: { name: "Standard", maximum_occupancy: 3 }
+    }
+    assert_redirected_to item_inventory_departure_arrangement_hotel_path(@departure, arrangement, item)
+
+    version = draft_version(item)
+    version.supplier_cost_usage_assumptions.where(
+      arrangement_item: item,
+      supplier_resource_id: standard.supplier_resource_id
+    ).each do |assumption|
+      assert_equal [ 1, 2, 3 ],
+        assumption.supplier_cost_occupancy_profiles.sole
+          .supplier_cost_occupancy_profile_positions.order(:occupancy_position).pluck(:occupancy_position)
+    end
+  end
+
   test "an unsupported cost graph stays unchanged and links to advanced supplier cost planning" do
     sign_in_as @staff
     item = hilton_inventory
