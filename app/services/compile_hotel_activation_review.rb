@@ -136,40 +136,76 @@ class CompileHotelActivationReview
   end
 
   def other_lodging_blockers
-    other_item_ids = @version.arrangement_item_definitions
+    @version.arrangement_item_definitions
       .where(category: "lodging")
       .where.not(arrangement_item_id: @item.id)
-      .pluck(:arrangement_item_id)
-    return [] if other_item_ids.empty?
+      .order(:position, :id)
+      .filter_map do |definition|
+        item = @arrangement.arrangement_items.find(definition.arrangement_item_id)
+        workspace = HotelAgreementWorkspace.new(
+          agency: @agency, departure: @departure, arrangement: @arrangement,
+          version: @version, item: item
+        ).call
+        next if hotel_blockers(workspace).empty?
 
-    incomplete = other_item_ids.any? do |item_id|
-      item = @arrangement.arrangement_items.find(item_id)
-      workspace = HotelAgreementWorkspace.new(
-        agency: @agency, departure: @departure, arrangement: @arrangement,
-        version: @version, item: item
-      ).call
-      hotel_blockers(workspace).any?
-    end
-    return [] unless incomplete
-
-    [
-      Blocker.new(
-        code: :other_lodging_review,
-        message: "Another Hotel stay in this Supplier agreement still needs review.",
-        target: :terms
-      )
-    ]
+        Blocker.new(
+          code: :other_lodging_review,
+          message: "#{definition.name} still needs Hotel review.",
+          target: { kind: :hotel_review, item_id: item.id }
+        )
+      end
   end
 
   def readiness_blockers(readiness)
     readiness.blockers.map do |blocker|
-      message = if blocker.code == :lodging_agreement_unconfirmed
-        "Record Supplier confirmation before activation."
-      else
-        "Operational Supplier setup needs attention before activation."
-      end
-      Blocker.new(code: blocker.code, message: message, target: :activation)
-    end.uniq { |blocker| [ blocker.message, blocker.target ] }
+      Blocker.new(
+        code: blocker.code,
+        message: hotel_readiness_message(blocker),
+        target: hotel_readiness_target(blocker)
+      )
+    end.uniq { |entry| [ entry.code, entry.message, entry.target ] }
+  end
+
+  def hotel_readiness_message(blocker)
+    case blocker.code
+    when :lodging_agreement_unconfirmed
+      "Record Supplier confirmation before activation."
+    when :predecessor_not_governing, :copied_lineage_invalid
+      "The copied Hotel agreement history needs attention before activation."
+    when :items_missing, :occurrences_missing, :resources_missing, :incomplete_graph
+      "The Supplier agreement structure is incomplete before activation."
+    when :provider_inactive, :contracting_supplier_inactive
+      "A Supplier used by this agreement is not active."
+    when :management_undeclared, :pairs_incomplete, :pools_missing
+      "Room inventory still needs operational setup before activation."
+    when :supplying_supplier_mismatch, :opening_authority_incomplete
+      "Room inventory authority needs attention before activation."
+    when :item_coverage_missing
+      "A retained service still needs Supplier cost coverage before activation."
+    when :ready_definition_missing
+      "A Supplier cost used for activation is not ready."
+    when :cost_authority_ineligible
+      "A Supplier cost used for activation has an ineligible Supplier or currency."
+    when :carried_pool_omission_blocked
+      "A carried room-capacity change must be reconciled before activation."
+    when :trigger_incomplete, :confirmation_supplier_incompatible, :contracted_authority_invalid
+      "A Supplier commitment rule needs Advanced Supplier planning before activation."
+    when :cruise_agreement_unconfirmed, :cruise_contracted_rates_missing, :cruise_deposit_treatment_missing
+      "A Cruise service on this version needs its Cruise review completed before activation."
+    else
+      "Advanced Supplier planning is required before activation."
+    end
+  end
+
+  def hotel_readiness_target(blocker)
+    item_id = blocker.path.to_s[/\Aitems\.([0-9a-f-]+)/, 1]
+    if item_id && @version.arrangement_item_definitions.exists?(
+      arrangement_item_id: item_id, category: "lodging"
+    )
+      return { kind: :hotel_review, item_id: item_id }
+    end
+
+    :activation
   end
 
   def elapsed_labels_for(workspace)
