@@ -990,6 +990,15 @@ CREATE FUNCTION public.reject_mixed_agreement_reference_scope() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  -- Exclusive lock before the opposite-scope check. A shared lock lets two
+  -- inserts of opposite scope both observe an empty set and both commit.
+  -- Version, Item, and kind cannot move: reject_supplier_term_owner_change
+  -- rejects that update, so only this version row needs the lock.
+  PERFORM id
+    FROM supplier_arrangement_versions
+   WHERE id = NEW.supplier_arrangement_version_id
+     FOR UPDATE;
+
   IF TG_OP = 'UPDATE'
      AND OLD.supplier_arrangement_version_id IS NOT DISTINCT FROM NEW.supplier_arrangement_version_id
      AND OLD.kind IS NOT DISTINCT FROM NEW.kind
@@ -12493,17 +12502,17 @@ CREATE TRIGGER service_offers_reject_owner_change BEFORE UPDATE ON public.servic
 
 
 --
+-- Name: supplier_agreement_references supplier_agreement_references_guard_mixed_scope; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_references_guard_mixed_scope BEFORE INSERT OR UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_mixed_agreement_reference_scope();
+
+
+--
 -- Name: supplier_agreement_references supplier_agreement_references_reject_confirmed; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER supplier_agreement_references_reject_confirmed BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_agreement_reference_mutation();
-
-
---
--- Name: supplier_agreement_references supplier_agreement_references_reject_mixed_scope; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER supplier_agreement_references_reject_mixed_scope BEFORE INSERT OR UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_mixed_agreement_reference_scope();
 
 
 --
@@ -17346,6 +17355,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261002010000'),
 ('20261001210000'),
 ('20261001193000'),
 ('20261001180000'),
