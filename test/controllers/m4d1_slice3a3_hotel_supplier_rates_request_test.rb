@@ -231,6 +231,120 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
 
   end
 
+  test "generic activation blockers do not prevent supplier confirmation" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+    assert_response :redirect
+
+    version = draft_version(item)
+    SupplierAgreementReference::KINDS.each do |kind|
+      RecordSupplierAgreementReferenceAbsence.new(
+        agency: @agency,
+        actor: @staff,
+        arrangement_item: item,
+        scope: "stay",
+        kind: kind,
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+
+    other_item = arrangement.arrangement_items.create!(agency: @agency, departure: @departure)
+    version.arrangement_item_definitions.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      arrangement_item: other_item,
+      name: "Airport transfer",
+      category: "ground_transportation",
+      capacity_management: "unmanaged",
+      default_service_provider: @contractor,
+      position: 2
+    )
+    occurrence = other_item.service_occurrences.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      status: "planned"
+    )
+    version.service_occurrence_definitions.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      arrangement_item: other_item,
+      service_occurrence: occurrence,
+      name: "Airport transfer",
+      starts_on: Date.new(2027, 11, 6),
+      ends_on: Date.new(2027, 11, 6),
+      time_zone: "America/New_York",
+      service_provider: @contractor
+    )
+    resource = other_item.supplier_resources.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement
+    )
+    version.supplier_resource_definitions.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: arrangement,
+      arrangement_item: other_item,
+      supplier_resource: resource,
+      name: "Motorcoach seat",
+      position: 1
+    )
+
+    readiness = SupplierArrangementActivationReadiness.new(
+      agency: @agency,
+      arrangement: arrangement,
+      version: version
+    ).call
+    assert_includes readiness.blockers.map(&:code), :item_coverage_missing
+
+    @departure.update!(
+      status: "active",
+      departure_reference: "D-#{SecureRandom.random_number(900000) + 100000}",
+      first_activated_at: Time.current
+    )
+
+    review = CompileHotelActivationReview.new(
+      agency: @agency,
+      departure: @departure,
+      arrangement: arrangement,
+      version: version,
+      item: item
+    ).call
+    assert review.confirmation_allowed
+    assert_not review.activation_allowed
+
+    post item_hotel_review_confirmation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: {
+        version_id: version.id,
+        idempotency_key: SecureRandom.uuid,
+        confirmation: {
+          evidence_kind: "supplier_confirmation",
+          evidence_on: "2026-10-02",
+          channel: "email",
+          reference_note: "Hotel confirmed the reviewed agreement.",
+          confirmed_without_identifier_reason: "No Supplier number was issued."
+        }
+      }
+
+    assert_response :redirect
+    assert SupplierConfirmation.exists?(supplier_arrangement_version_id: version.id)
+    confirmed_review = CompileHotelActivationReview.new(
+      agency: @agency,
+      departure: @departure,
+      arrangement: arrangement,
+      version: version.reload,
+      item: item
+    ).call
+    assert_not confirmed_review.activation_allowed
+  end
+
   test "a no-deposit no-rooming-list hotel can confirm and activate through the typed path" do
     sign_in_as @staff
     item = hilton_inventory
