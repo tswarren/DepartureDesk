@@ -34,6 +34,14 @@ class CompileHotelActivationReview
     confirmation_clear = hotel_clear && other_lodging_blockers.empty?
     elapsed_labels = elapsed_labels_for(workspace)
     provisional_selection = readiness.cost_selections.any? { |_source, definition| definition.estimate? }
+    typed_attestations_safe = typed_activation_attestations_safe?
+    if confirmation.present? && !typed_attestations_safe
+      blockers << Blocker.new(
+        code: :advanced_activation_shape,
+        message: "This Supplier agreement needs Advanced Supplier planning before activation.",
+        target: :activation
+      )
+    end
     if confirmation.present? && provisional_selection
       blockers << Blocker.new(
         code: :provisional_supplier_cost,
@@ -50,7 +58,8 @@ class CompileHotelActivationReview
       elapsed_labels: elapsed_labels,
       confirmation_allowed: draft && confirmation.nil? && confirmation_clear,
       revision_allowed: revision_allowed?(confirmation),
-      activation_allowed: draft && confirmation.present? && hotel_clear && readiness.ready? && !provisional_selection,
+      activation_allowed: draft && confirmation.present? && hotel_clear && readiness.ready? &&
+        !provisional_selection && typed_attestations_safe,
       confirmation: confirmation
     )
   end
@@ -114,6 +123,11 @@ class CompileHotelActivationReview
 
   def acceptable_term?(term)
     term.state.in?([ "Recorded", "Reviewed — none" ])
+  end
+
+  def typed_activation_attestations_safe?
+    @version.arrangement_item_definitions.where.not(category: "lodging").none? &&
+      @version.supplier_commitment_trigger_definitions.none?
   end
 
   def other_lodging_blockers
