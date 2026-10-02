@@ -1,6 +1,6 @@
 # M4D.1 Slice 3A.3 — Hotel Supplier rates and economics
 
-**Status:** Accepted 2026-10-01. This plan authorizes Hotel Supplier rates and economics only. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. Hotel Review and Activation and Hotel Lifecycle remain not authorized until their own accepted plans name that work.
+**Status:** Accepted 2026-10-01. This plan authorizes Hotel Supplier rates and economics only. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01. Hotel Lifecycle remains not authorized until its own accepted plan names that work.
 
 **Parent:** [M4D.1 Slice 3A — Hotel Supplier Composition](m4d1-slice3a-hotel-supplier-composition.md), §9–§10 and §23.
 
@@ -10,7 +10,7 @@
 
 **Scope:** The Supplier rates area of the typed Hotel workspace. Staff record and review the ordinary Hotel rate structure on the inventory graph Slice 3A.2 already stored.
 
-This acceptance amends parent §23 and blocking-proof item 12 for this slice only: the write-free illustration `$4,156 × 16.5% = $685.74` is not part of Hotel Supplier rates. It does not assign that illustration to Hotel Agreement. The 16.5% already stored on the Hotel attrition snapshot remains a Slice 3A.1 attrition fact. This plan does not authorize Hotel Agreement, Hotel Review and Activation, or Hotel Lifecycle. [Hotel Agreement](hotel-agreement.md) is Shipped under its own plan.
+This acceptance amends parent §23 and blocking-proof item 12 for this slice only: the write-free illustration `$4,156 × 16.5% = $685.74` is not part of Hotel Supplier rates. It does not assign that illustration to Hotel Agreement. The 16.5% already stored on the Hotel attrition snapshot remains a Slice 3A.1 attrition fact. This plan does not authorize Hotel Agreement, Hotel Review and Activation, or Hotel Lifecycle. [Hotel Agreement](hotel-agreement.md) is Shipped under its own plan. [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01 under its own plan.
 
 ---
 
@@ -28,7 +28,7 @@ The persisted terms are the parent’s §9 shape: one room-night base and occupa
 | **3A.2** | Stay and nightly inventory. Implemented. |
 | **3A.3** | Supplier rates and economics. Accepted 2026-10-01. |
 | Hotel Agreement | Shipped 2026-10-01. [Hotel Agreement](hotel-agreement.md). |
-| Hotel Review and Activation | Not authorized. |
+| Hotel Review and Activation | Accepted 2026-10-01 as [Hotel Review and Activation](hotel-review-and-activation.md). |
 | Hotel Lifecycle | Not authorized. |
 
 ## 3. Canonical Hilton economics
@@ -263,4 +263,4 @@ Commission: Net and noncommissionable
 
 No Client price, Agreement term, deposit requirement, Reservation, payment, or Hotel-specific parallel cost record is created.
 
-This exit authorizes Slice 3A.3 only. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. Hotel Review and Activation and Hotel Lifecycle are not authorized until their own accepted plans name that work.
+This exit authorizes Slice 3A.3 only. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01. Hotel Lifecycle is not authorized until its own accepted plan names that work.

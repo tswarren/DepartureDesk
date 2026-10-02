@@ -522,9 +522,6 @@ Hotel Agreement is Shipped 2026-10-01: [Hotel Agreement](hotel-agreement.md).
 
 It presents the operational Hotel facts and the agreement references this plan establishes. It is the plan that first records Destination Fee, additional-night, early-departure, and cancellation references. It does not authorize document upload, a generalized Supplier contract-policy engine, refund calculations, attrition calculations, or new Deadline behavior.
 
-After Hotel Agreement, separate accepted plans remain required for:
+After Hotel Agreement, [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01. Hotel Lifecycle still requires its own accepted plan.
 
-1. Hotel Review and Activation;
-2. Hotel Lifecycle.
-
-No implementation for those workflows begins under this rebaseline.
+No implementation of Hotel Review and Activation or Hotel Lifecycle begins under this rebaseline.

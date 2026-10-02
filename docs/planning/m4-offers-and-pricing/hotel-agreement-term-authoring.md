@@ -500,11 +500,9 @@ HA.2 is complete when:
 
 After HA.2 ships, Hotel Agreement is complete.
 
-The next unauthorized boundary is:
+The next boundary is Accepted as [Hotel Review and Activation](hotel-review-and-activation.md).
 
-> **Hotel Review & Activation**
-
-That plan must explicitly define:
+That plan defines:
 
 - which Hotel facts must be reviewed;
 - required versus optional sections;

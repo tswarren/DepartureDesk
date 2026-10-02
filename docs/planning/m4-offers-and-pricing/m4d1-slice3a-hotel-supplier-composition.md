@@ -1,6 +1,6 @@
 # M4D.1 Slice 3A — Hotel Supplier Composition
 
-**Status:** Accepted 2026-09-30. Slice 3A.0, the persistence compatibility gate, is recorded in [the 3A.0 result](#3a0-result). [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md), Hotel Supplier-term persistence foundations, is Accepted 2026-09-30 and implemented. The Slice 3A.1 compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md), Hotel Supplier rates and economics, is Accepted 2026-10-01 and implemented. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. Hotel Review and Activation and Hotel Lifecycle are not authorized until their own accepted plans name that work. Not authority for Transportation, a Client Service connection, or a generalized adapter.
+**Status:** Accepted 2026-09-30. Slice 3A.0, the persistence compatibility gate, is recorded in [the 3A.0 result](#3a0-result). [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md), Hotel Supplier-term persistence foundations, is Accepted 2026-09-30 and implemented. The Slice 3A.1 compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md), Hotel Supplier rates and economics, is Accepted 2026-10-01 and implemented. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01. Hotel Lifecycle is not authorized until its own accepted plan names that work. Not authority for Transportation, a Client Service connection, or a generalized adapter.
 
 **Parent:** [M4D.1 — Departure Composition Workspace](m4d1-departure-composition-workspace.md).
 
@@ -26,7 +26,7 @@ The implementation base is [`115d3b5`](https://github.com/tswarren/DepartureDesk
 
 PR #156 and its generalized adapter services remain non-authoritative.
 
-Slice 3A.0 has run. Its result is below. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the accepted foundation amendment for the four incompatibilities that result names. The Slice 3A.1 compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md), Hotel Supplier rates and economics, is Accepted 2026-10-01 and implemented. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. Hotel Review and Activation and Hotel Lifecycle are not authorized until their own accepted plans name that work. §23 below supersedes the former 3A.1–3A.3 sequence.
+Slice 3A.0 has run. Its result is below. [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) is the accepted foundation amendment for the four incompatibilities that result names. The Slice 3A.1 compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md), Hotel Supplier rates and economics, is Accepted 2026-10-01 and implemented. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01. Hotel Lifecycle is not authorized until its own accepted plan names that work. §23 below supersedes the former 3A.1–3A.3 sequence.
 
 ---
 
@@ -743,7 +743,7 @@ Every nested record is resolved through the authorized Agency, Departure, Arrang
 
 ## 23. Implementation slices
 
-[Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md), [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), and [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md) are implemented under their own plans. Hotel Review and Activation and Hotel Lifecycle are not authorized by this section. [Hotel Agreement](hotel-agreement.md) is Shipped under its own plan. Those names are not slice numbers, and this parent does not accept them.
+[Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md), [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), and [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md) are implemented under their own plans. [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01 under its own plan. Hotel Lifecycle is not authorized by this section. [Hotel Agreement](hotel-agreement.md) is Shipped under its own plan. Those names are not slice numbers, and this parent does not accept them.
 
 ### 3A.0 — Persistence compatibility gate
 
@@ -835,7 +835,7 @@ Recorded 2026-09-30. `test/services/m4d1_slice3a0_hotel_persistence_compatibilit
 | Attrition | version-and-Item Hotel attrition policy, room-night minima, and Resource rate snapshots |
 | Refund clarification | `SupplierDepositRefundClarification` |
 
-[Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) is implemented. [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md) is Accepted 2026-10-01 and implemented. This result does not authorize Hotel Agreement, Hotel Review and Activation, or Hotel Lifecycle. [Hotel Agreement](hotel-agreement.md) is Shipped under its own plan.
+[Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) is implemented. [Slice 3A.3](m4d1-slice3a3-hotel-supplier-rates.md) is Accepted 2026-10-01 and implemented. This result does not authorize Hotel Agreement, Hotel Review and Activation, or Hotel Lifecycle. [Hotel Agreement](hotel-agreement.md) is Shipped under its own plan. [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01 under its own plan.
 
 ### 3A.2 — Stay and nightly inventory
 
@@ -855,7 +855,7 @@ Shipped 2026-10-01 as [Hotel Agreement](hotel-agreement.md). This parent does no
 
 ### Hotel Review and Activation
 
-Not authorized. This heading is not an accepted plan. A future plan has to account for a consolidated Hotel workspace, write-free review, generic activation, governing read-only presentation, the existing Composition denial, cross-Agency isolation, an Advanced fallback, and the [interface contract](../../ui/interface-contract.md)'s responsive and accessibility proof.
+Accepted 2026-10-01 as [Hotel Review and Activation](hotel-review-and-activation.md). This parent does not accept that work. That plan is the authority for the write-free Hotel review, Supplier confirmation before activation, and the Hotel post of the existing activation command.
 
 ### Hotel Lifecycle
 
@@ -994,7 +994,7 @@ Acceptance of Slice 3A locks these decisions:
 22. **Unsupported shapes fail closed to an exact Advanced destination.**
 23. **Hotel management uses existing Composition denial.** A Viewer without `manage_departures` is redirected. Another Agency's identifiers are not found. This supersedes the walkthrough sentence that Hotel management routes return not found to a Viewer.
 24. **No generalized non-Cruise adapter is extracted from Hotel alone.**
-25. **Slice 3A.0 verifies persistence. It does not make product decisions.** The four incompatibilities it named are closed by the accepted [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) foundation. The compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) is implemented. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. Hotel Review and Activation and Hotel Lifecycle remain not authorized until each has its own accepted plan.
+25. **Slice 3A.0 verifies persistence. It does not make product decisions.** The four incompatibilities it named are closed by the accepted [Slice 3A.1](m4d1-slice3a1-hotel-supplier-term-persistence.md) foundation. The compatibility proof is green. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md) is implemented. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Accepted 2026-10-01. Hotel Lifecycle remains not authorized until its own accepted plan names that work.
 
 ---
 
