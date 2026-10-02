@@ -282,13 +282,23 @@ class HotelAgreementTermAuthoringTest < ActiveSupport::TestCase
     end
     assert_equal :invalid, wording.code
 
-    item_kind = assert_raises(AgencyCommand::Error) do
-      RecordSupplierAgreementReferenceAbsence.new(
-        agency: @agency, actor: @admin, arrangement_item: @item, scope: "stay", kind: "attrition",
+    SupplierAgreementReference::ITEM_KINDS.each do |kind|
+      item_absence = RecordSupplierAgreementReferenceAbsence.new(
+        agency: @agency, actor: @admin, arrangement_item: @item, scope: "stay", kind: kind,
         idempotency_key: SecureRandom.uuid
       ).call
+      assert_equal :created, item_absence.status
+      assert_equal @item.id, item_absence.record.arrangement_item_id
+      assert_equal "Reviewed — none", compile(@item).terms.find { |term| term.kind == kind }.state
+
+      agreement_scope = assert_raises(AgencyCommand::Error) do
+        RecordSupplierAgreementReferenceAbsence.new(
+          agency: @agency, actor: @admin, supplier_arrangement_version: @version,
+          scope: "agreement", kind: kind, idempotency_key: SecureRandom.uuid
+        ).call
+      end
+      assert_equal :invalid, agreement_scope.code
     end
-    assert_equal :invalid, item_kind.code
 
     RemoveSupplierAgreementReferenceAbsence.new(
       agency: @agency, actor: @admin, absence: recorded.record, lock_version: recorded.record.lock_version
