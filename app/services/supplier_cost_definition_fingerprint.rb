@@ -5,7 +5,7 @@ class SupplierCostDefinitionFingerprint
   COMPONENT_FIELDS = %i[
     label economic_role calculation_kind amount_minor_units rate minimum_minor_units
     minimum_quantity quantity_basis participant_category_id occupancy_position_from
-    occupancy_position_to percentage_treatment pass_through
+    occupancy_position_to percentage_treatment pass_through quantity_capacity_pool_id
   ].freeze
 
   def self.call(definition, components: nil, category_labels: nil)

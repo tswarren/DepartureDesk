@@ -1,0 +1,37 @@
+<% attributes = attributes.with_indifferent_access %>
+<% if flash[:alert] %><p id="form-error-summary" class="dd-alert dd-alert--danger" role="alert"><%= flash[:alert] %></p><% end %>
+<%= hidden_field_tag :idempotency_key, idempotency_key %>
+<section class="dd-stack" aria-labelledby="segment-route-heading">
+  <h2 id="segment-route-heading" class="dd-section-title">Route</h2>
+  <div class="dd-field"><label class="dd-label" for="segment_name">Segment name</label><%= text_field_tag "segment[name]", attributes[:name], id: "segment_name", class: "dd-input", required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="segment_origin_name">Pickup</label><%= text_field_tag "segment[origin_name]", attributes[:origin_name], id: "segment_origin_name", class: "dd-input", required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="segment_destination_name">Drop-off</label><%= text_field_tag "segment[destination_name]", attributes[:destination_name], id: "segment_destination_name", class: "dd-input", required: true %></div>
+</section>
+<section class="dd-stack" aria-labelledby="segment-schedule-heading">
+  <h2 id="segment-schedule-heading" class="dd-section-title">Schedule</h2>
+  <div class="dd-field"><label class="dd-label" for="segment_starts_on">Service date</label><%= date_field_tag "segment[starts_on]", attributes[:starts_on], id: "segment_starts_on", class: "dd-input", required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="segment_ends_on">Service end date</label><%= date_field_tag "segment[ends_on]", attributes[:ends_on], id: "segment_ends_on", class: "dd-input" %></div>
+  <div class="dd-field"><label class="dd-label" for="segment_starts_at_local">Pickup time</label><%= time_field_tag "segment[starts_at_local]", attributes[:starts_at_local], id: "segment_starts_at_local", class: "dd-input", required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="segment_ends_at_local">Drop-off time</label><%= time_field_tag "segment[ends_at_local]", attributes[:ends_at_local], id: "segment_ends_at_local", class: "dd-input" %></div>
+  <div class="dd-field"><label class="dd-label" for="segment_time_zone">Time zone</label><%= text_field_tag "segment[time_zone]", attributes[:time_zone], id: "segment_time_zone", class: "dd-input", required: true %></div>
+</section>
+<section class="dd-stack" aria-labelledby="segment-coach-heading">
+  <h2 id="segment-coach-heading" class="dd-section-title">Motorcoach</h2>
+  <div class="dd-field"><label class="dd-label" for="segment_maximum_occupancy">Passenger capacity per motorcoach</label><%= number_field_tag "segment[maximum_occupancy]", attributes[:maximum_occupancy], id: "segment_maximum_occupancy", class: "dd-input", min: 1, required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="segment_confirmed_motorcoaches">Confirmed motorcoaches</label><%= number_field_tag "segment[confirmed_motorcoaches]", attributes[:confirmed_motorcoaches], id: "segment_confirmed_motorcoaches", class: "dd-input", min: 1, required: true %></div>
+  <% if attributes[:maximum_total_resource_units].present? %>
+    <%= hidden_field_tag "segment[maximum_total_resource_units]", attributes[:maximum_total_resource_units] %>
+    <p>Total ceiling: <%= attributes[:maximum_total_resource_units] %> motorcoaches. Changing the confirmed count does not change this ceiling.</p>
+  <% else %>
+    <div class="dd-field"><label class="dd-label" for="segment_additional_motorcoaches">Additional motorcoaches available on request</label><%= number_field_tag "segment[additional_motorcoaches]", attributes[:additional_motorcoaches], id: "segment_additional_motorcoaches", class: "dd-input", min: 0, required: true %></div>
+  <% end %>
+</section>
+<section class="dd-stack" aria-labelledby="segment-rate-heading">
+  <h2 id="segment-rate-heading" class="dd-section-title">Rate</h2>
+  <div class="dd-field"><label class="dd-label" for="segment_rate_amount">Supplier rate per motorcoach</label><%= text_field_tag "segment[rate_amount]", attributes[:rate_amount], id: "segment_rate_amount", class: "dd-input", inputmode: "decimal" %></div>
+</section>
+<section class="dd-stack" aria-labelledby="segment-deadline-heading">
+  <h2 id="segment-deadline-heading" class="dd-section-title">Deadline</h2>
+  <div class="dd-field"><label class="dd-label" for="segment_final_count_on">Final passenger and luggage count due</label><%= date_field_tag "segment[final_count_on]", attributes[:final_count_on], id: "segment_final_count_on", class: "dd-input" %></div>
+</section>
+<button class="dd-button" type="submit">Save segment</button>

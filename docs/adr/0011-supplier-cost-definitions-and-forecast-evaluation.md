@@ -3,6 +3,7 @@
 - Status: Accepted. Implemented by shipped [M3C](../planning/m3-supplier-planning/m3c-cost-terms-and-forecasts.md). Arrangement activation and effective contracted terms remain M3D.
 - Date: 2026-09-17
 - Amended: 2026-09-27. Estimate and contracted definitions remain distinct siblings. Recording contracted Cruise rates copies an estimate into a new contracted definition and does not change the estimate's stage. A changed-cost supplemental Cruise block uses its own Resource-scoped cost source. This amendment adds no Pool-scoped cost definitions.
+- Amended: 2026-10-02. A ready contracted `unit_rate` component on `resource_units` may opt into one stable Capacity Pool as its quantity authority. Before activation the quantity is that Pool's proposed opening. After activation it is the sum of `established` and `increased` events whose effective date has arrived. `released` and `withdrawn` do not reduce it. `current_supplier_capacity` remains the controlled-capacity figure. Hotel and other components that do not opt in keep using usage assumptions. Qualified exposure follows `EvaluateSupplierCostForecast`.
 - Decision owners: DepartureDesk maintainers
 
 ## Context

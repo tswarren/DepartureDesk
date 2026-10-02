@@ -2,6 +2,7 @@ class CapacityPoolDefinition < ApplicationRecord
   include ExactVersionCopyLineage
   include DraftVersionDefinition
   include LodgingConfirmationFreeze::Model
+  include TransportationConfirmationFreeze::Model
   EVIDENCE_KINDS = %w[
     contract
     supplier_confirmation
@@ -45,6 +46,10 @@ class CapacityPoolDefinition < ApplicationRecord
   validates :proposed_opening_quantity,
     numericality: { only_integer: true, greater_than: 0 },
     allow_nil: true
+  validates :maximum_total_resource_units,
+    numericality: { only_integer: true, greater_than: 0 },
+    allow_nil: true
+  validate :maximum_total_covers_opening
   validates :evidence_kind, inclusion: { in: EVIDENCE_KINDS }, allow_nil: true
   validates :evidence_reference_note,
     length: { maximum: EVIDENCE_REFERENCE_NOTE_LIMIT },
@@ -77,5 +82,12 @@ class CapacityPoolDefinition < ApplicationRecord
     elsif ordinary_fields.any?(&:present?) || evidence_external_reference.present?
       errors.add(:base, "Enter complete supplier evidence") unless ordinary_fields.all?(&:present?)
     end
+  end
+
+  def maximum_total_covers_opening
+    return if maximum_total_resource_units.nil? || proposed_opening_quantity.nil?
+    return if maximum_total_resource_units >= proposed_opening_quantity
+
+    errors.add(:maximum_total_resource_units, "must be at least the confirmed quantity")
   end
 end

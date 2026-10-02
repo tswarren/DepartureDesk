@@ -3,6 +3,7 @@
 - Status: Accepted. Not implementation authority.
 - Date: 2026-09-16
 - Amended: 2026-09-27. The accepted Cruise rework adds an exact-version Supplier agreement confirmation distinct from Reservation confirmation. A governing confirmed version may coexist with an unconfirmed successor. Confirmation facts are immutable. An explicit correction supersedes the previous confirmation without erasing it. An amendment has its own date and does not rewrite the original contract date. Activation does not rewrite prior activated definitions or confirmation history.
+- Amended: 2026-10-02. [Transportation Supplier Composition](../planning/m4-offers-and-pricing/transportation-supplier-composition.md) adds optional `origin_name` and `destination_name` on an Occurrence definition. Cruise sailing ports stay on `departure_port_name` and `return_port_name`. Local start and end times may each be omitted. When both are present on a same-day occurrence, the end is at or after the start. Hotel stay and Cruise sailing commands still require their existing paired times.
 - Decision owners: DepartureDesk maintainers
 
 ## Context
@@ -49,7 +50,7 @@ Version numbers are positive, monotonic within the Arrangement, assigned when ea
 
 An Occurrence and a Resource each belong immutably to one Item. A Resource represents a contracted category, class, or planned unit and may participate in capacity for multiple Occurrences of that Item. It is not an individual cabin, room, seat, or Traveler assignment.
 
-Service Occurrence current operational lifecycle (`planned` or `cancelled`) lives on the stable Occurrence identity, not on a versioned definition. Cancelling an Occurrence must not mutate an activated commercial definition and must not require a commercial successor version. Definition rows hold name, description, schedule, zone, provider override, and the optional departure and return port names.
+Service Occurrence current operational lifecycle (`planned` or `cancelled`) lives on the stable Occurrence identity, not on a versioned definition. Cancelling an Occurrence must not mutate an activated commercial definition and must not require a commercial successor version. Definition rows hold name, description, schedule, zone, provider override, the optional departure and return port names, and the optional origin and destination names. Local start and end times are independently optional. A same-day occurrence that has both times keeps the end at or after the start.
 
 ### Draft removal and retained history
 

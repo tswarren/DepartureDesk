@@ -156,6 +156,7 @@ Rails.application.routes.draw do
       namespace :suppliers do
         resources :cruises, only: %i[new create], controller: "/composition_cruises"
         resources :hotels, only: %i[new create], controller: "/composition_hotels"
+        resources :transportations, only: %i[new create], controller: "/composition_transportations"
       end
     end
     resource :builder, only: %i[show], controller: "departure_builders"
@@ -262,6 +263,16 @@ Rails.application.routes.draw do
         get "items/:item_id/hotel_agreement/terms/:id/edit", to: "hotel_agreement_terms#edit", as: :edit_item_hotel_agreement_term
         patch "items/:item_id/hotel_agreement/terms/:id", to: "hotel_agreement_terms#update", as: :item_hotel_agreement_term
         delete "items/:item_id/hotel_agreement/terms/:id", to: "hotel_agreement_terms#destroy"
+      end
+      resource :transportation, only: :show, controller: "transportation_arrangements" do
+        resources :segments, only: %i[new create edit update], controller: "transportation_segments"
+        resource :confirmation, only: :create, controller: "transportation_confirmations"
+        resource :activation, only: :create, controller: "transportation_activations"
+        resource :amount_due, only: :create, controller: "transportation_amount_dues"
+        resource :coach_change, only: :create, controller: "transportation_coach_changes"
+        resource :successor, only: :create, controller: "transportation_successors"
+        resource :revision, only: :create, controller: "transportation_revisions"
+        resource :final_count, only: :create, controller: "transportation_final_counts"
       end
       resource :activation,
         only: %i[show create],

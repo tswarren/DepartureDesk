@@ -785,6 +785,90 @@ $$;
 
 
 --
+-- Name: reject_confirmed_transportation_definition_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_confirmed_transportation_definition_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  version_id uuid;
+  item_id uuid;
+  frozen boolean := false;
+  row_record record;
+BEGIN
+  row_record := CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  version_id := row_record.supplier_arrangement_version_id;
+
+  PERFORM id
+    FROM supplier_arrangement_versions
+   WHERE id = version_id
+     FOR SHARE;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM supplier_confirmations WHERE supplier_arrangement_version_id = version_id
+  ) THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+
+  IF TG_TABLE_NAME = 'arrangement_item_definitions' THEN
+    item_id := row_record.arrangement_item_id;
+    frozen := (
+      row_record.category = 'ground_transportation'
+      OR (TG_OP = 'UPDATE' AND OLD.category = 'ground_transportation')
+    ) AND public.transportation_ceiling_item(version_id, item_id);
+  ELSIF TG_TABLE_NAME = 'capacity_pool_definitions' THEN
+    frozen := public.transportation_ceiling_item(version_id, row_record.arrangement_item_id)
+      OR (TG_OP = 'UPDATE' AND OLD.maximum_total_resource_units IS NOT NULL);
+  ELSIF TG_TABLE_NAME IN (
+    'service_occurrence_definitions', 'supplier_resource_definitions',
+    'capacity_pair_definitions'
+  ) THEN
+    frozen := public.transportation_ceiling_item(version_id, row_record.arrangement_item_id);
+  ELSIF TG_TABLE_NAME = 'supplier_cost_sources' THEN
+    frozen := public.transportation_ceiling_item(version_id, row_record.arrangement_item_id);
+  ELSIF TG_TABLE_NAME = 'supplier_cost_definitions' THEN
+    SELECT arrangement_item_id INTO item_id
+      FROM supplier_cost_sources
+     WHERE id = row_record.supplier_cost_source_id;
+    frozen := public.transportation_ceiling_item(version_id, item_id);
+  ELSIF TG_TABLE_NAME = 'supplier_cost_components' THEN
+    SELECT sources.arrangement_item_id INTO item_id
+      FROM supplier_cost_definitions definitions
+      JOIN supplier_cost_sources sources ON sources.id = definitions.supplier_cost_source_id
+     WHERE definitions.id = row_record.supplier_cost_definition_id;
+    frozen := public.transportation_ceiling_item(version_id, item_id);
+  ELSIF TG_TABLE_NAME = 'supplier_deadline_definitions' THEN
+    frozen := EXISTS (
+      SELECT 1
+        FROM supplier_deadline_definition_coverage_links links
+       WHERE links.supplier_deadline_definition_id = row_record.id
+         AND public.transportation_ceiling_item(version_id, links.arrangement_item_id)
+    );
+  ELSIF TG_TABLE_NAME = 'supplier_deadline_definition_coverage_links' THEN
+    frozen := public.transportation_ceiling_item(version_id, row_record.arrangement_item_id);
+  ELSIF TG_TABLE_NAME IN (
+    'supplier_amount_due_definitions', 'supplier_amount_due_contributors'
+  ) THEN
+    frozen := EXISTS (
+      SELECT 1 FROM capacity_pool_definitions pools
+       WHERE pools.supplier_arrangement_version_id = version_id
+         AND pools.maximum_total_resource_units IS NOT NULL
+    );
+  END IF;
+
+  IF frozen THEN
+    RAISE EXCEPTION 'transportation agreement definitions are immutable after Supplier confirmation';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_cruise_agreement_confirmation_owner_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2319,6 +2403,22 @@ $$;
 
 
 --
+-- Name: transportation_ceiling_item(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.transportation_ceiling_item(version_id uuid, item_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$
+  SELECT item_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM capacity_pool_definitions pools
+     WHERE pools.supplier_arrangement_version_id = version_id
+       AND pools.arrangement_item_id = item_id
+       AND pools.maximum_total_resource_units IS NOT NULL
+  );
+$$;
+
+
+--
 -- Name: validate_package_inclusion_origin(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2960,9 +3060,11 @@ CREATE TABLE public.capacity_pool_definitions (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     copied_from_id uuid,
+    maximum_total_resource_units integer,
     CONSTRAINT capacity_pool_defs_evidence_xor_override CHECK ((((override = false) AND (override_reason IS NULL) AND ((evidence_kind)::text = ANY (ARRAY[('contract'::character varying)::text, ('supplier_confirmation'::character varying)::text, ('supplier_message'::character varying)::text, ('supplier_portal'::character varying)::text, ('verbal_confirmation'::character varying)::text, ('other'::character varying)::text])) AND (evidence_on IS NOT NULL) AND (evidence_reference_note IS NOT NULL) AND (btrim((evidence_reference_note)::text) <> ''::text) AND (char_length((evidence_reference_note)::text) <= 500) AND ((evidence_external_reference IS NULL) OR ((btrim((evidence_external_reference)::text) <> ''::text) AND (char_length((evidence_external_reference)::text) <= 160)))) OR ((override = true) AND (override_reason IS NOT NULL) AND (btrim((override_reason)::text) <> ''::text) AND (char_length((override_reason)::text) <= 500) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)) OR ((override = false) AND (override_reason IS NULL) AND (evidence_kind IS NULL) AND (evidence_on IS NULL) AND (evidence_reference_note IS NULL) AND (evidence_external_reference IS NULL)))),
     CONSTRAINT capacity_pool_defs_label CHECK (((btrim((label)::text) <> ''::text) AND (char_length((label)::text) <= 120))),
     CONSTRAINT capacity_pool_defs_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT capacity_pool_defs_maximum_total CHECK (((maximum_total_resource_units IS NULL) OR ((maximum_total_resource_units > 0) AND ((proposed_opening_quantity IS NULL) OR (maximum_total_resource_units >= proposed_opening_quantity))))),
     CONSTRAINT capacity_pool_defs_normalized_label CHECK (((btrim((normalized_label)::text) <> ''::text) AND ((normalized_label)::text = lower(btrim((label)::text))) AND (char_length((normalized_label)::text) <= 120))),
     CONSTRAINT capacity_pool_defs_notes CHECK (((notes IS NULL) OR ((btrim((notes)::text) <> ''::text) AND (char_length((notes)::text) <= 2000)))),
     CONSTRAINT capacity_pool_defs_position_positive CHECK (("position" > 0)),
@@ -3819,14 +3921,18 @@ CREATE TABLE public.service_occurrence_definitions (
     copied_from_id uuid,
     departure_port_name character varying(160),
     return_port_name character varying(160),
+    origin_name character varying(160),
+    destination_name character varying(160),
     CONSTRAINT service_occurrence_definitions_date_order CHECK ((starts_on <= ends_on)),
     CONSTRAINT service_occurrence_definitions_departure_port_name CHECK (((departure_port_name IS NULL) OR ((btrim((departure_port_name)::text) <> ''::text) AND (char_length((departure_port_name)::text) <= 160)))),
     CONSTRAINT service_occurrence_definitions_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
+    CONSTRAINT service_occurrence_definitions_destination_name CHECK (((destination_name IS NULL) OR ((btrim((destination_name)::text) <> ''::text) AND (char_length((destination_name)::text) <= 160)))),
     CONSTRAINT service_occurrence_definitions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT service_occurrence_definitions_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
+    CONSTRAINT service_occurrence_definitions_origin_name CHECK (((origin_name IS NULL) OR ((btrim((origin_name)::text) <> ''::text) AND (char_length((origin_name)::text) <= 160)))),
     CONSTRAINT service_occurrence_definitions_return_port_name CHECK (((return_port_name IS NULL) OR ((btrim((return_port_name)::text) <> ''::text) AND (char_length((return_port_name)::text) <= 160)))),
-    CONSTRAINT service_occurrence_definitions_time_zone CHECK (((time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text))),
-    CONSTRAINT service_occurrence_definitions_times_paired CHECK (((starts_at_local IS NULL) = (ends_at_local IS NULL)))
+    CONSTRAINT service_occurrence_definitions_same_day_local_times CHECK (((starts_on <> ends_on) OR (starts_at_local IS NULL) OR (ends_at_local IS NULL) OR (starts_at_local <= ends_at_local))),
+    CONSTRAINT service_occurrence_definitions_time_zone CHECK (((time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text)))
 );
 
 
@@ -4342,6 +4448,52 @@ CREATE TABLE public.supplier_agreement_references (
     CONSTRAINT agreement_references_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT agreement_references_provenance CHECK ((((source_description)::text = btrim((source_description)::text)) AND ((char_length((source_description)::text) >= 1) AND (char_length((source_description)::text) <= 2000)) AND ((supplier_reference IS NULL) OR (((supplier_reference)::text = btrim((supplier_reference)::text)) AND ((char_length((supplier_reference)::text) >= 1) AND (char_length((supplier_reference)::text) <= 2000)))) AND ((external_reference IS NULL) OR (((external_reference)::text = btrim((external_reference)::text)) AND ((char_length((external_reference)::text) >= 1) AND (char_length((external_reference)::text) <= 2000)))) AND ((evidence_note IS NULL) OR (((evidence_note)::text = btrim((evidence_note)::text)) AND ((char_length((evidence_note)::text) >= 1) AND (char_length((evidence_note)::text) <= 2000)))))),
     CONSTRAINT agreement_references_wording CHECK ((((governing_wording)::text = btrim((governing_wording)::text)) AND ((char_length((governing_wording)::text) >= 1) AND (char_length((governing_wording)::text) <= 2000)) AND ((((kind)::text = 'deposit_refund'::text) AND (original_wording IS NOT NULL) AND ((original_wording)::text = btrim((original_wording)::text)) AND ((char_length((original_wording)::text) >= 1) AND (char_length((original_wording)::text) <= 2000))) OR (((kind)::text <> 'deposit_refund'::text) AND (original_wording IS NULL)))))
+);
+
+
+--
+-- Name: supplier_amount_due_contributors; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_amount_due_contributors (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_amount_due_contributo_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_amount_due_contrib_supplier_arrangement_versi_not_null NOT NULL,
+    supplier_amount_due_definition_id uuid CONSTRAINT supplier_amount_due_contrib_supplier_amount_due_defini_not_null NOT NULL,
+    supplier_cost_component_id uuid CONSTRAINT supplier_amount_due_contrib_supplier_cost_component_id_not_null NOT NULL,
+    "position" integer NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    copied_from_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT amount_due_contributors_position CHECK ((("position" > 0) AND (lock_version >= 0)))
+);
+
+
+--
+-- Name: supplier_amount_due_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_amount_due_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_amount_due_definition_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_amount_due_definit_supplier_arrangement_versi_not_null NOT NULL,
+    currency character varying(3) NOT NULL,
+    rule_shape character varying NOT NULL,
+    rule_parameters jsonb DEFAULT '{}'::jsonb NOT NULL,
+    "precision" character varying NOT NULL,
+    time_zone character varying NOT NULL,
+    "position" integer NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    copied_from_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT amount_due_definitions_date CHECK (((jsonb_typeof(rule_parameters) = 'object'::text) AND (rule_parameters ? 'date'::text))),
+    CONSTRAINT amount_due_definitions_shape CHECK ((((rule_shape)::text = 'fixed_date'::text) AND (("precision")::text = 'date_only'::text) AND (lock_version >= 0) AND (char_length((currency)::text) = 3)))
 );
 
 
@@ -5214,6 +5366,7 @@ CREATE TABLE public.supplier_cost_components (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     copied_from_id uuid,
+    quantity_capacity_pool_id uuid,
     CONSTRAINT supplier_cost_components_amount_nonnegative CHECK (((amount_minor_units IS NULL) OR (amount_minor_units >= 0))),
     CONSTRAINT supplier_cost_components_calculation_kind CHECK (((calculation_kind)::text = ANY (ARRAY[('fixed'::character varying)::text, ('unit_rate'::character varying)::text, ('percentage'::character varying)::text, ('minimum_amount_shortfall'::character varying)::text, ('minimum_quantity_shortfall'::character varying)::text]))),
     CONSTRAINT supplier_cost_components_category_basis CHECK (((participant_category_id IS NULL) OR ((quantity_basis)::text = ANY (ARRAY[('persons'::character varying)::text, ('person_nights'::character varying)::text, ('occupancy_positions'::character varying)::text, ('occupancy_position_nights'::character varying)::text])))),
@@ -5229,6 +5382,7 @@ CREATE TABLE public.supplier_cost_components (
     CONSTRAINT supplier_cost_components_position_positive CHECK (("position" > 0)),
     CONSTRAINT supplier_cost_components_position_selector CHECK ((((occupancy_position_from IS NULL) OR (occupancy_position_from > 0)) AND ((occupancy_position_to IS NULL) OR (occupancy_position_to > 0)) AND ((occupancy_position_to IS NULL) OR (occupancy_position_from IS NOT NULL)) AND ((occupancy_position_to IS NULL) OR (occupancy_position_to >= occupancy_position_from)))),
     CONSTRAINT supplier_cost_components_quantity_basis CHECK (((quantity_basis IS NULL) OR ((quantity_basis)::text = ANY (ARRAY[('resource_units'::character varying)::text, ('persons'::character varying)::text, ('nights'::character varying)::text, ('resource_nights'::character varying)::text, ('person_nights'::character varying)::text, ('occupancy_positions'::character varying)::text, ('occupancy_position_nights'::character varying)::text, ('single_occupancy_units'::character varying)::text, ('single_occupancy_nights'::character varying)::text])))),
+    CONSTRAINT supplier_cost_components_quantity_pool_shape CHECK (((quantity_capacity_pool_id IS NULL) OR (((calculation_kind)::text = 'unit_rate'::text) AND ((quantity_basis)::text = 'resource_units'::text)))),
     CONSTRAINT supplier_cost_components_rate_nonnegative CHECK (((rate IS NULL) OR (rate >= (0)::numeric)))
 );
 
@@ -6885,6 +7039,22 @@ ALTER TABLE ONLY public.supplier_agreement_references
 
 
 --
+-- Name: supplier_amount_due_contributors supplier_amount_due_contributors_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_amount_due_contributors
+    ADD CONSTRAINT supplier_amount_due_contributors_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_amount_due_definitions supplier_amount_due_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_amount_due_definitions
+    ADD CONSTRAINT supplier_amount_due_definitions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_arrangement_activation_capacity_entries supplier_arrangement_activation_capacity_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7814,6 +7984,55 @@ CREATE UNIQUE INDEX index_agreement_references_on_version_kind_without_item ON p
 
 
 --
+-- Name: index_amount_due_contributors_on_definition_component; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_amount_due_contributors_on_definition_component ON public.supplier_amount_due_contributors USING btree (supplier_amount_due_definition_id, supplier_cost_component_id);
+
+
+--
+-- Name: index_amount_due_contributors_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_amount_due_contributors_on_id_agency ON public.supplier_amount_due_contributors USING btree (id, agency_id);
+
+
+--
+-- Name: index_amount_due_contributors_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_amount_due_contributors_on_lineage_owner ON public.supplier_amount_due_contributors USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_amount_due_definitions_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_amount_due_definitions_on_id_agency ON public.supplier_amount_due_definitions USING btree (id, agency_id);
+
+
+--
+-- Name: index_amount_due_definitions_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_amount_due_definitions_on_lineage_owner ON public.supplier_amount_due_definitions USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_amount_due_definitions_on_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_amount_due_definitions_on_version ON public.supplier_amount_due_definitions USING btree (supplier_arrangement_version_id);
+
+
+--
+-- Name: index_amount_due_definitions_on_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_amount_due_definitions_on_version_owner ON public.supplier_amount_due_definitions USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: index_arrangement_activations_on_departure_history; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8168,6 +8387,13 @@ CREATE UNIQUE INDEX index_capacity_pool_defs_on_unique_label ON public.capacity_
 --
 
 CREATE INDEX index_capacity_pools_on_agency_id ON public.capacity_pools USING btree (agency_id);
+
+
+--
+-- Name: index_capacity_pools_on_arrangement_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pools_on_arrangement_owner ON public.capacity_pools USING btree (id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -11314,6 +11540,20 @@ CREATE UNIQUE INDEX index_supplier_cost_components_on_id_departure_agency ON pub
 
 
 --
+-- Name: index_supplier_cost_components_on_quantity_pool; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_cost_components_on_quantity_pool ON public.supplier_cost_components USING btree (quantity_capacity_pool_id);
+
+
+--
+-- Name: index_supplier_cost_components_on_version_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_cost_components_on_version_owner ON public.supplier_cost_components USING btree (id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: index_supplier_cost_definitions_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -12112,6 +12352,13 @@ CREATE TRIGGER agency_users_reject_agency_id_change BEFORE UPDATE ON public.agen
 
 
 --
+-- Name: arrangement_item_definitions arrangement_item_definitions_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER arrangement_item_definitions_reject_confirmed_transportation BEFORE INSERT OR DELETE OR UPDATE ON public.arrangement_item_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
+
+
+--
 -- Name: arrangement_item_definitions arrangement_item_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12168,6 +12415,13 @@ CREATE TRIGGER capacity_events_reject_update BEFORE UPDATE ON public.capacity_ev
 
 
 --
+-- Name: capacity_pair_definitions capacity_pair_definitions_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pair_definitions_reject_confirmed_transportation BEFORE INSERT OR DELETE OR UPDATE ON public.capacity_pair_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
+
+
+--
 -- Name: capacity_pair_definitions capacity_pair_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12193,6 +12447,13 @@ CREATE TRIGGER capacity_pair_definitions_reject_supplier_confirmed_lodging BEFOR
 --
 
 CREATE TRIGGER capacity_pairs_reject_cancelled_occurrence BEFORE INSERT OR UPDATE OF service_occurrence_id ON public.capacity_pair_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_pair_for_cancelled_occurrence();
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_definitions_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pool_definitions_reject_confirmed_transportation BEFORE INSERT OR DELETE OR UPDATE ON public.capacity_pool_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
 
 
 --
@@ -12553,6 +12814,13 @@ CREATE TRIGGER reject_arrangement_ending_mutation BEFORE DELETE OR UPDATE ON pub
 
 
 --
+-- Name: service_occurrence_definitions service_occurrence_definitions_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_occurrence_definitions_reject_confirmed_transportation BEFORE INSERT OR DELETE OR UPDATE ON public.service_occurrence_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
+
+
+--
 -- Name: service_occurrence_definitions service_occurrence_definitions_reject_invalid_zone; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12844,6 +13112,34 @@ CREATE TRIGGER supplier_agreement_references_reject_non_draft BEFORE INSERT OR D
 --
 
 CREATE TRIGGER supplier_agreement_references_reject_owner_change BEFORE UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'arrangement_item_id', 'kind', 'copied_from_id');
+
+
+--
+-- Name: supplier_amount_due_contributors supplier_amount_due_contributors_reject_confirmed_transportatio; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_amount_due_contributors_reject_confirmed_transportatio BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_amount_due_contributors FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
+
+
+--
+-- Name: supplier_amount_due_contributors supplier_amount_due_contributors_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_amount_due_contributors_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_amount_due_contributors FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_amount_due_definitions supplier_amount_due_definitions_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_amount_due_definitions_reject_confirmed_transportation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_amount_due_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
+
+
+--
+-- Name: supplier_amount_due_definitions supplier_amount_due_definitions_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_amount_due_definitions_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_amount_due_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
 
 
 --
@@ -13204,6 +13500,13 @@ CREATE TRIGGER supplier_cost_components_clear_bases_for_kind AFTER UPDATE OF cal
 
 
 --
+-- Name: supplier_cost_components supplier_cost_components_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_components_reject_confirmed_transportation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_components FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
+
+
+--
 -- Name: supplier_cost_components supplier_cost_components_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13229,6 +13532,13 @@ CREATE TRIGGER supplier_cost_components_reject_supplier_confirmed_lodging BEFORE
 --
 
 CREATE TRIGGER supplier_cost_components_validate_context BEFORE INSERT OR UPDATE ON public.supplier_cost_components FOR EACH ROW EXECUTE FUNCTION public.validate_supplier_cost_component();
+
+
+--
+-- Name: supplier_cost_definitions supplier_cost_definitions_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_definitions_reject_confirmed_transportation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
 
 
 --
@@ -13316,6 +13626,13 @@ CREATE TRIGGER supplier_cost_participant_categories_reject_owner_change BEFORE U
 
 
 --
+-- Name: supplier_cost_sources supplier_cost_sources_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_sources_reject_confirmed_transportation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_sources FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
+
+
+--
 -- Name: supplier_cost_sources supplier_cost_sources_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13365,6 +13682,13 @@ CREATE TRIGGER supplier_deadline_commitment_definition_lines_reject_owner_chan B
 
 
 --
+-- Name: supplier_deadline_definition_coverage_links supplier_deadline_definition_coverage_links_reject_confirmed_tr; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_definition_coverage_links_reject_confirmed_tr BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_definition_coverage_links FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
+
+
+--
 -- Name: supplier_deadline_definition_coverage_links supplier_deadline_definition_coverage_links_reject_non_draft_mu; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13376,6 +13700,13 @@ CREATE TRIGGER supplier_deadline_definition_coverage_links_reject_non_draft_mu B
 --
 
 CREATE TRIGGER supplier_deadline_definition_coverage_links_reject_supplier_con BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_definition_coverage_links FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
+
+
+--
+-- Name: supplier_deadline_definitions supplier_deadline_definitions_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_definitions_reject_confirmed_transportation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
 
 
 --
@@ -13624,6 +13955,13 @@ CREATE TRIGGER supplier_reservations_reject_owner_change BEFORE UPDATE ON public
 
 
 --
+-- Name: supplier_resource_definitions supplier_resource_definitions_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_resource_definitions_reject_confirmed_transportation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_resource_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_transportation_definition_mutation();
+
+
+--
 -- Name: supplier_resource_definitions supplier_resource_definitions_reject_non_draft_mutation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13775,6 +14113,54 @@ ALTER TABLE ONLY public.supplier_agreement_references
 
 ALTER TABLE ONLY public.supplier_agreement_references
     ADD CONSTRAINT agreement_references_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_amount_due_contributors amount_due_contributors_component_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_amount_due_contributors
+    ADD CONSTRAINT amount_due_contributors_component_fk FOREIGN KEY (supplier_cost_component_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_cost_components(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_amount_due_contributors amount_due_contributors_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_amount_due_contributors
+    ADD CONSTRAINT amount_due_contributors_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_amount_due_contributors(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_amount_due_contributors amount_due_contributors_definition_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_amount_due_contributors
+    ADD CONSTRAINT amount_due_contributors_definition_fk FOREIGN KEY (supplier_amount_due_definition_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_amount_due_definitions(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_amount_due_contributors amount_due_contributors_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_amount_due_contributors
+    ADD CONSTRAINT amount_due_contributors_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_amount_due_definitions amount_due_definitions_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_amount_due_definitions
+    ADD CONSTRAINT amount_due_definitions_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_amount_due_definitions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_amount_due_definitions amount_due_definitions_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_amount_due_definitions
+    ADD CONSTRAINT amount_due_definitions_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -15714,6 +16100,14 @@ ALTER TABLE ONLY public.package_client_cancellation_tiers
 
 
 --
+-- Name: supplier_amount_due_contributors fk_rails_416ce6bc45; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_amount_due_contributors
+    ADD CONSTRAINT fk_rails_416ce6bc45 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: client_organizations fk_rails_4e204305ef; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16183,6 +16577,14 @@ ALTER TABLE ONLY public.supplier_locations
 
 ALTER TABLE ONLY public.supplier_reservation_events
     ADD CONSTRAINT fk_rails_d50274fa49 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_amount_due_definitions fk_rails_d9f9aba58b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_amount_due_definitions
+    ADD CONSTRAINT fk_rails_d9f9aba58b FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -17474,6 +17876,14 @@ ALTER TABLE ONLY public.supplier_cost_components
 
 
 --
+-- Name: supplier_cost_components supplier_cost_components_quantity_pool_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_components
+    ADD CONSTRAINT supplier_cost_components_quantity_pool_fk FOREIGN KEY (quantity_capacity_pool_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.capacity_pools(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: supplier_cost_definitions supplier_cost_definitions_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17768,6 +18178,14 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261002260000'),
+('20261002250000'),
+('20261002240000'),
+('20261002230000'),
+('20261002220000'),
+('20261002210000'),
+('20261002200000'),
+('20261002190000'),
 ('20261002050000'),
 ('20261002040000'),
 ('20261002030000'),

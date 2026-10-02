@@ -381,9 +381,20 @@ module ArrangementCommandSupport
   end
 
   def cruise_sailing_occurrence_attributes(attrs, departure)
-    normalize_occurrence_attributes(attrs, departure).merge(
+    require_paired_local_times!(attrs)
+    normalize_occurrence_attributes(attrs, departure).except(:origin_name, :destination_name).merge(
       departure_port_name: normalize_optional_port_name(attrs[:departure_port_name]),
       return_port_name: normalize_optional_port_name(attrs[:return_port_name])
+    )
+  end
+
+  def require_paired_local_times!(attrs)
+    attrs = attrs.to_h.with_indifferent_access
+    return unless attrs[:starts_at_local].blank? ^ attrs[:ends_at_local].blank?
+
+    raise AgencyCommand::Error.new(
+      "Enter both a local start time and local end time, or leave both blank.",
+      code: :invalid
     )
   end
 
@@ -410,11 +421,14 @@ module ArrangementCommandSupport
 
     starts_at = normalize_local_time(attrs[:starts_at_local], "Start time")
     ends_at = normalize_local_time(attrs[:ends_at_local], "End time")
-    if starts_at.blank? ^ ends_at.blank?
-      raise AgencyCommand::Error.new("Enter both a local start time and local end time, or leave both blank.", code: :invalid)
+    if starts_on == ends_on && starts_at.present? && ends_at.present? && ends_at < starts_at
+      raise AgencyCommand::Error.new(
+        "End time must be at or after the start time on the same day.",
+        code: :invalid
+      )
     end
 
-    {
+    result = {
       name: normalize_definition_name(attrs[:name]),
       description: normalize_definition_description(attrs[:description]),
       starts_on: starts_on,
@@ -423,6 +437,13 @@ module ArrangementCommandSupport
       ends_at_local: ends_at,
       time_zone: normalize_optional_zone(attrs[:time_zone], fallback: departure.time_zone)
     }
+    if attrs.key?(:origin_name) || attrs.key?("origin_name")
+      result[:origin_name] = normalize_optional_port_name(attrs[:origin_name])
+    end
+    if attrs.key?(:destination_name) || attrs.key?("destination_name")
+      result[:destination_name] = normalize_optional_port_name(attrs[:destination_name])
+    end
+    result
   end
 
   def normalize_resource_attributes(attrs)

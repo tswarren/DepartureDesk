@@ -69,6 +69,8 @@ class CreateServiceOccurrence < AgencyCommand
             "ends_on" => definition.ends_on.iso8601,
             "starts_at_local" => definition.starts_at_local&.strftime("%H:%M:%S"),
             "ends_at_local" => definition.ends_at_local&.strftime("%H:%M:%S"),
+            "origin_name" => definition.origin_name,
+            "destination_name" => definition.destination_name,
             "time_zone" => definition.time_zone,
             "service_provider_id" => definition.service_provider_id
           }

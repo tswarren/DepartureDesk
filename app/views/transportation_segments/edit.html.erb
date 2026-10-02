@@ -1,0 +1,10 @@
+<% content_for :title, "Edit segment · #{@departure.name} · DepartureDesk" %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<article class="dd-panel">
+  <div class="dd-panel-body dd-stack">
+    <h2 class="dd-page-title">Edit segment</h2>
+    <%= form_with url: departure_arrangement_transportation_segment_path(@departure, @supplier_arrangement, @arrangement_item), method: :patch, class: "dd-form dd-stack" do %>
+      <%= render "form", attributes: @attributes, idempotency_key: @idempotency_key %>
+    <% end %>
+  </div>
+</article>

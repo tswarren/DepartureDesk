@@ -2,6 +2,7 @@ class SupplierCostSource < ApplicationRecord
   include ExactVersionCopyLineage
   include DraftVersionDefinition
   include LodgingConfirmationFreeze::Model
+  include TransportationConfirmationFreeze::Model
   LABEL_LIMIT = 160
   NOTES_LIMIT = 2_000
 

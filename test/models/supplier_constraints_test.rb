@@ -22,6 +22,8 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
     assert_equal %w[
       supplier_agreement_reference_absences
       supplier_agreement_references
+      supplier_amount_due_contributors
+      supplier_amount_due_definitions
       supplier_arrangement_activation_capacity_entries
       supplier_arrangement_activation_cost_selections
       supplier_arrangement_activations

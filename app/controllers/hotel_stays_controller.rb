@@ -55,6 +55,7 @@ class HotelStaysController < ApplicationController
     end
 
     definition = @shape.stay_definition
+    ensure_hotel_times_paired!(stay_occurrence_attributes)
     UpdateServiceOccurrence.new(
       **hotel_command_context,
       definition: definition,

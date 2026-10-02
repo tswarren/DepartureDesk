@@ -509,6 +509,15 @@ class EvaluateSupplierCostForecast
     )
   end
 
+  def capacity_backed_quantity(component)
+    pool_id = component.try(:quantity_capacity_pool_id)
+    return nil if pool_id.blank?
+
+    version = component.supplier_arrangement_version
+    pool = CapacityPool.find(pool_id)
+    BigDecimal(BillableCapacityQuantity.current(pool:, version:).to_s)
+  end
+
   def quantity_for(component, assumption, basis: component.quantity_basis)
     raise MissingInput.new(:missing_usage_assumption, "Usage assumptions are missing for this cost context.") unless assumption
 
@@ -528,6 +537,9 @@ class EvaluateSupplierCostForecast
 
     case basis
     when "resource_units"
+      backed = capacity_backed_quantity(component)
+      return backed unless backed.nil?
+
       profiles.any? ? profiles.sum(&:resource_unit_count) :
         required_quantity(assumption.expected_resource_units, :missing_resource_units, "Expected resource units are missing.")
     when "persons"
