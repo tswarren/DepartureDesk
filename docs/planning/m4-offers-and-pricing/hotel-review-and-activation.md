@@ -276,7 +276,7 @@ Ready means the existing `forecast_ready` cost-definition status and `MarkCostDe
 
 The typed Hotel rate save supplies the generic forecast inputs needed by the supported Hotel shape instead of asking Staff to operate generic cost planning. For each supported contracted room-night definition it creates or reuses the Item/Occurrence/Resource usage assumption, records `expected_billable_nights = 1`, creates the anonymous occupancy profile inputs required by `resource_nights` / `occupancy_position_nights`, and then calls `MarkCostDefinitionForecastReady` with provenance `Hotel contracted rate workspace`.
 
-Do not weaken `validate_ready!`. A later consequential rate edit returns the definition to working through the existing cost command behavior; after the Hotel save restores a complete supported shape, the Hotel path recreates/reuses the required usage inputs and marks it ready again. A definition outside the supported Hotel shape remains Advanced.
+Do not weaken `validate_ready!`. A later consequential rate edit returns the definition to working through the existing cost command behavior; after the Hotel save restores a complete supported shape, the Hotel path recreates/reuses the required usage inputs and marks it ready again. The typed room-inventory editor also keeps the Hotel-owned `Contracted rooms` occupancy profile's resource-unit count synchronized when an existing blocked-room quantity changes, so the forecast inputs do not drift from the room block. A definition or usage shape outside the supported Hotel shape remains Advanced.
 
 A ready estimate may be displayed, but it never clears the typed Hotel activation gate and the Hotel path never auto-acknowledges provisional costs.
 
