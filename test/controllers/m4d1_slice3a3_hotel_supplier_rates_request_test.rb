@@ -231,6 +231,82 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
 
   end
 
+  test "a no-deposit no-rooming-list hotel can confirm and activate through the typed path" do
+    sign_in_as @staff
+    item = hilton_inventory
+    arrangement = item.supplier_arrangement
+    standard = resource_named(item, "Standard")
+    deluxe = resource_named(item, "Deluxe")
+    save_rates(arrangement, item, standard, deluxe)
+    assert_response :redirect
+
+    version = draft_version(item)
+    SupplierAgreementReference::KINDS.each do |kind|
+      RecordSupplierAgreementReferenceAbsence.new(
+        agency: @agency,
+        actor: @staff,
+        arrangement_item: item,
+        scope: "stay",
+        kind: kind,
+        idempotency_key: SecureRandom.uuid
+      ).call
+    end
+    assert_equal 0, version.supplier_deposit_requirement_definitions.count
+    assert_equal 0, version.supplier_deadline_definitions.count
+
+    @departure.update!(
+      status: "active",
+      departure_reference: "D-#{SecureRandom.random_number(900000) + 100000}",
+      first_activated_at: Time.current
+    )
+
+    get item_hotel_review_departure_arrangement_hotel_path(@departure, arrangement, item)
+    assert_response :success
+    assert_select "#hotel-review-deposits", text: /No Supplier deposits recorded/
+    assert_select "#hotel-review-deadlines", text: /No rooming list recorded/
+    assert_no_match(/cost-source|commitment-trigger|forecast.ready/i, response.body)
+    assert_select "button", text: "Confirm Supplier agreement"
+
+    post item_hotel_review_confirmation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: {
+        version_id: version.id,
+        idempotency_key: SecureRandom.uuid,
+        confirmation: {
+          evidence_kind: "supplier_confirmation",
+          evidence_on: "2026-10-02",
+          channel: "email",
+          reference_note: "Hotel confirmed the reviewed agreement.",
+          confirmed_without_identifier_reason: "No Supplier number was issued."
+        }
+      }
+    assert_redirected_to item_hotel_review_departure_arrangement_hotel_path(
+      @departure, arrangement, item, version_id: version.id
+    )
+
+    confirmation = version.supplier_confirmations.sole
+    version.reload
+    arrangement.reload
+    get item_hotel_review_departure_arrangement_hotel_path(
+      @departure, arrangement, item, version_id: version.id
+    )
+    assert_select "button", text: "Activate arrangement"
+    assert_select "#hotel-review-cost-ack", count: 0
+    assert_select "#hotel-review-trigger-ack", count: 0
+
+    post item_hotel_review_activation_departure_arrangement_hotel_path(@departure, arrangement, item),
+      params: {
+        version_id: version.id,
+        idempotency_key: SecureRandom.uuid,
+        arrangement_lock_version: arrangement.lock_version,
+        version_lock_version: version.lock_version,
+        existing_confirmation_id: confirmation.id
+      }
+    assert_response :redirect
+    assert_equal "active", arrangement.reload.status
+    assert_equal version.id, arrangement.governing_version_id
+    assert_predicate version.reload, :activated?
+  end
+
   test "a stale definition lock rejects the whole rate save" do
     sign_in_as @staff
     item = hilton_inventory
