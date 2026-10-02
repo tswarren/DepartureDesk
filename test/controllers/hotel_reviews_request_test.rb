@@ -37,6 +37,31 @@ class HotelReviewsRequestTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "an unfinished second Hotel blocker links to that Hotel review" do
+    second = @arrangement.arrangement_items.create!(agency: @agency, departure: @departure)
+    version = @arrangement.editable_version
+    version.arrangement_item_definitions.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: @arrangement,
+      arrangement_item: second,
+      name: "Second hotel",
+      category: "lodging",
+      capacity_management: "managed",
+      default_service_provider: @contractor,
+      position: 2
+    )
+
+    sign_in_as @staff
+    get item_hotel_review_departure_arrangement_hotel_path(@departure, @arrangement, @item)
+
+    assert_response :success
+    expected = item_hotel_review_departure_arrangement_hotel_path(
+      @departure, @arrangement, second, version_id: version.id
+    )
+    assert_select "#hotel-review-blockers a[href='#{expected}']", text: /Second hotel still needs Hotel review/
+  end
+
   test "another agency cannot open the review" do
     sign_in_as agency_users(:cove_admin)
 
