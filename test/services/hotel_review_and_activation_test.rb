@@ -60,6 +60,67 @@ class HotelReviewAndActivationTest < ActiveSupport::TestCase
     assert_equal "Changed transfer", @other[:occurrence_definition].reload.name
   end
 
+  test "database freeze covers lodging parents and non-item coverage links" do
+    deadline = CreateSupplierDeadlineDefinition.new(
+      agency: @agency,
+      actor: @admin,
+      version: @version.reload,
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        deadline_type: "rooming_list_due",
+        kind: "actionable",
+        rule_shape: "fixed_local_datetime",
+        rule_parameters: { "datetime" => "2027-10-03T17:00:00" },
+        precision: "local_date_time",
+        time_zone: "America/New_York",
+        cardinality: "one_shared",
+        coverage_links: [ { service_occurrence_id: @graph[:occurrence].id } ],
+        commitment_lines: []
+      }
+    ).call.record
+
+    deposit = CreateSupplierDepositRequirementDefinition.new(
+      agency: @agency,
+      actor: @admin,
+      version: @version.reload,
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      attributes: {
+        amount_shape: "fixed_amount",
+        fixed_amount_minor_units: 10_000,
+        currency: "USD",
+        rule_shape: "fixed_date",
+        rule_parameters: { "date" => "2027-05-07" },
+        precision: "date_only",
+        time_zone: "America/New_York",
+        coverage_links: [ { supplier_resource_id: @graph[:resource].id } ],
+        cost_links: [],
+        contributor_definition_ids: []
+      }
+    ).call.record
+
+    deadline_link = deadline.supplier_deadline_definition_coverage_links.sole
+    deposit_link = deposit.supplier_deposit_requirement_definition_coverage_links.sole
+    confirm_directly!
+
+    [
+      [ "supplier_deadline_definitions", deadline.id ],
+      [ "supplier_deadline_definition_coverage_links", deadline_link.id ],
+      [ "supplier_deposit_requirement_definitions", deposit.id ],
+      [ "supplier_deposit_requirement_definition_coverage_links", deposit_link.id ]
+    ].each do |table, id|
+      error = assert_raises(ActiveRecord::StatementInvalid) do
+        ActiveRecord::Base.transaction(requires_new: true) do
+          ActiveRecord::Base.connection.execute(
+            "UPDATE #{table} SET updated_at = NOW() WHERE id = #{ActiveRecord::Base.connection.quote(id)}"
+          )
+        end
+      end
+      assert_match(/lodging agreement definitions are immutable after Supplier confirmation/, error.message)
+    end
+  end
+
   test "revision abandons the confirmed draft and copies absences onto an unconfirmed draft" do
     absence = RecordSupplierAgreementReferenceAbsence.new(
       agency: @agency, actor: @admin, arrangement_item: @item, scope: "stay",
