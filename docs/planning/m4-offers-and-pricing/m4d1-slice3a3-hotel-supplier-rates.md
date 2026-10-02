@@ -72,7 +72,7 @@ Currency is the Departure operating currency. Amounts are integer minor units. T
 
 A compact “all contracted nights” control may copy the same minor-unit amounts onto each night’s source. When stored amounts differ by night, the page shows those nights separately.
 
-The typed save does not create a usage assumption, an occupancy profile, a forecast-ready mark, a Client price, or a deposit-basis row.
+The typed rate save creates only the Hotel-owned generic forecast inputs required by the accepted Hotel Review and Activation amendment: one Item/Occurrence/Resource usage assumption with one billable night, one `Contracted rooms` occupancy profile, anonymous `Hotel guest` positions 1 through that room category's `maximum_occupancy`, and the existing `forecast_ready` transition with provenance `Hotel contracted rate workspace`. It still creates no Client price or deposit-basis row.
 
 ## 5. Workspace
 
@@ -177,9 +177,11 @@ Changing a Pool quantity changes this current result and does not rewrite rate c
 
 ## 11. Forecast readiness
 
-Saving Supplier rates does not call `MarkCostDefinitionForecastReady`. The page numbers come from the probe. The ordinary departure forecast does not include these definitions until a later explicit readiness step.
+Under the accepted Hotel Review and Activation amendment, a complete supported contracted Hotel rate save now calls the existing `MarkCostDefinitionForecastReady` after creating or repairing the Hotel-owned generic usage inputs. `validate_ready!` is unchanged.
 
-This slice does not ask how many rooms are expected to be Single, Double, Triple, or Quad. The contracted room-night block is the planning quantity already stored by Slice 3A.2. The typed save does not create a usage assumption or an occupancy profile in order to produce $4,156.
+The Hotel-owned occupancy profile is deliberately anonymous. It uses the blocked-room count as `resource_unit_count` and repeats the `Hotel guest` category across occupancy positions 1 through the room category's `maximum_occupancy`. This satisfies the generic `resource_nights` / `occupancy_position_nights` model without introducing Traveler identity or a Hotel-specific cost table. A renamed profile, a second profile, or another occupancy shape is Advanced Supplier planning and is not silently repaired.
+
+The `$4,156` figure on the Supplier-rates page remains the **base contracted-block preview** from ephemeral probe inputs. It is not the authoritative departure forecast total once occupancy-position supplements participate in the persisted anonymous profile.
 
 ## 12. Fail closed
 
@@ -229,7 +231,7 @@ Start from the completed Slice 3A.2 graph: Standard openings 5 and 10, Deluxe op
 5. Reopen the stored terms. A common supplement field appears only because every supported context stores the same amount.
 6. Show Standard illustrations $173 / $173 / $193 / $213 and Deluxe illustrations $223 / $223 / $243 / $263, bounded by maximum occupancy 4.
 7. Show the November 4 base block as $1,311, the November 5 base block as $2,845, and the pretax contracted-room total as $4,156, each from one billable night. A two-night evaluation is not that result.
-8. Show that those page figures come from the probe. The departure forecast does not include the definitions merely because the fields were saved.
+8. Show that those page figures come from the probe. A complete supported save also persists the Hotel-owned anonymous forecast inputs and marks the contracted definitions ready through the existing readiness command.
 9. Changing one category’s rate does not rewrite the other category, the Pools, Pool evidence, or the Stay.
 10. Changing a Pool quantity changes the derived block preview and does not rewrite rates or the Slice 3A.1 deposit basis.
 11. A different supported rate on November 5 is preserved and displayed as a nightly variation.
@@ -238,13 +240,13 @@ Start from the completed Slice 3A.2 graph: Standard openings 5 and 10, Deluxe op
 14. An unsupported cost graph stays unchanged and links to Advanced Supplier cost planning.
 15. A second Hotel Item stays isolated.
 16. A Viewer cannot save. Another Agency’s identifiers are not found. An activated version is read-only.
-17. No Client price, Agreement term, deposit requirement, Destination Fee, quoted-tax illustration, usage assumption, occupancy profile, Reservation, or Hotel-specific cost table is created.
+17. No Client price, Agreement term, deposit requirement, Destination Fee, quoted-tax illustration, Reservation, or Hotel-specific cost table is created. Only the Hotel-owned generic usage assumption, `Contracted rooms` occupancy profile, and anonymous positions required by the Review and Activation amendment are added.
 
 Supplier rates meets the interface contract at 375, 768, reference desktop, and 1280 pixels: skip link, landmarks, headings, visible focus, keyboard order, accessible names, and validation associated with the field.
 
 ## 17. Non-goals
 
-Client Hotel prices, Package pricing, quoted tax exposure, Destination Fee and its waiver, deposit requirements, the deposit-basis UI, deadlines, attrition, early departure, November 1–3 availability, cancellation, refund clarification, Supplier payments, Reservations, room assignments, traveler occupancy, actual pickup, folios, settlement, Review & activate, successor presentation, forecast readiness, a usage-assumption or occupancy-profile write, `occurrence_role`, a new migration, and a generalized cross-vertical rate abstraction.
+Client Hotel prices, Package pricing, quoted tax exposure, Destination Fee and its waiver, deposit requirements, the deposit-basis UI, deadlines, attrition, early departure, November 1–3 availability, cancellation, refund clarification, Supplier payments, Reservations, room assignments, named Traveler occupancy, actual pickup, folios, settlement, successor presentation, `occurrence_role`, and a generalized cross-vertical rate abstraction. The accepted Hotel Review and Activation amendment is the authority for the narrow Hotel-owned forecast-readiness inputs now written by this page.
 
 ## 18. Exit
 
@@ -264,3 +266,22 @@ Commission: Net and noncommissionable
 No Client price, Agreement term, deposit requirement, Reservation, payment, or Hotel-specific parallel cost record is created.
 
 This exit authorizes Slice 3A.3 only. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is in progress under the accepted 2026-10-02 amendment. Hotel Lifecycle is not authorized until its own accepted plan names that work.
+
+
+---
+
+## Amendment — 2026-10-02 forecast-readiness integration
+
+The accepted [Hotel Review and Activation](hotel-review-and-activation.md) amendment supersedes the earlier statements in this document that the typed Hotel rate save writes no usage assumption, occupancy profile, or forecast-ready transition.
+
+The supported Hotel-owned forecast shape is intentionally narrow:
+
+- one usage assumption for the exact Hotel Item, inventory-night Occurrence, and room-category Resource;
+- `expected_billable_nights = 1`;
+- no scalar `expected_resource_units` or `expected_persons`;
+- exactly one profile labeled `Contracted rooms`;
+- profile `resource_unit_count` equal to the current blocked-room quantity;
+- one anonymous `Hotel guest` participant category repeated across occupancy positions `1..maximum_occupancy`;
+- `MarkCostDefinitionForecastReady` with provenance `Hotel contracted rate workspace`.
+
+The typed room-inventory editor keeps this owned profile's blocked-room count and anonymous-position list synchronized when room quantity or maximum occupancy changes. A second profile, a renamed profile, or another non-owned usage shape is Advanced Supplier planning; the Hotel path does not overwrite it.
