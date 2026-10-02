@@ -53,5 +53,4 @@ module TransportationArrangementAccess
   def transportation_command_context
     { agency: Current.agency, actor: Current.agency_user }
   end
-
 end
