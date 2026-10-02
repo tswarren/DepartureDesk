@@ -80,6 +80,30 @@ class HotelReviewAndActivationTest < ActiveSupport::TestCase
       }
     ).call.record
 
+    ConfigureCapacityPairWithPool.new(
+      agency: @agency,
+      actor: @admin,
+      item: @item,
+      service_occurrence: @graph[:occurrence],
+      supplier_resource: @graph[:resource],
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      pool_attributes: {
+        label: "Hotel rooms",
+        inventory_mode: "block",
+        measurement_basis: "resource_units",
+        unit_label: "rooms",
+        proposed_opening_quantity: 2,
+        evidence_kind: "contract",
+        evidence_on: "2026-09-30",
+        evidence_reference_note: "Hotel contract"
+      }
+    ).call
+    pool = @version.reload.capacity_pool_definitions.find_by!(
+      service_occurrence_id: @graph[:occurrence].id,
+      supplier_resource_id: @graph[:resource].id
+    ).capacity_pool
+
     deposit = CreateSupplierDepositRequirementDefinition.new(
       agency: @agency,
       actor: @admin,
@@ -94,7 +118,7 @@ class HotelReviewAndActivationTest < ActiveSupport::TestCase
         rule_parameters: { "date" => "2027-05-07" },
         precision: "date_only",
         time_zone: "America/New_York",
-        coverage_links: [ { supplier_resource_id: @graph[:resource].id } ],
+        coverage_links: [ { capacity_pool_id: pool.id } ],
         cost_links: [],
         contributor_definition_ids: []
       }
