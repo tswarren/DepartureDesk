@@ -46,7 +46,7 @@ class HotelAgreementWorkspaceTest < ActiveSupport::TestCase
     assert workspace.deadlines.none? { |row| row.due_on == Date.new(2027, 11, 20) }
     refund = workspace.terms.find { |term| term.kind == "deposit_refund" }
     assert_equal "Recorded", refund.state
-    assert_equal "Not recorded", workspace.terms.find { |term| term.kind == "destination_fee" }.state
+    assert_equal "Not reviewed", workspace.terms.find { |term| term.kind == "destination_fee" }.state
     assert_equal "Draft", workspace.version.role
     assert_equal "Not Supplier confirmed", workspace.version.confirmation
     assert_equal "Not yet activated", workspace.version.activation
