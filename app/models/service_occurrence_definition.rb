@@ -2,6 +2,7 @@ class ServiceOccurrenceDefinition < ApplicationRecord
   include ExactVersionCopyLineage
   include DraftVersionDefinition
   include LodgingConfirmationFreeze::Model
+  include TransportationConfirmationFreeze::Model
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
   PORT_NAME_LIMIT = 160
@@ -20,14 +21,16 @@ class ServiceOccurrenceDefinition < ApplicationRecord
 
   normalizes :name, with: ->(value) { value.to_s.strip }
   normalizes :description, :time_zone, :departure_port_name, :return_port_name,
+    :origin_name, :destination_name,
     with: ->(value) { value.to_s.strip.presence }
 
   validates :name, presence: true, length: { maximum: NAME_LIMIT }
   validates :description, length: { maximum: DESCRIPTION_LIMIT }, allow_nil: true
-  validates :departure_port_name, :return_port_name, length: { maximum: PORT_NAME_LIMIT }, allow_nil: true
+  validates :departure_port_name, :return_port_name, :origin_name, :destination_name,
+    length: { maximum: PORT_NAME_LIMIT }, allow_nil: true
   validates :starts_on, :ends_on, :time_zone, presence: true
   validate :date_range_is_ordered
-  validate :local_times_are_paired
+  validate :same_day_local_times_are_ordered
   validate :timezone_is_iana
 
   def self.human_attribute_name(attribute, options = {})
@@ -47,10 +50,12 @@ class ServiceOccurrenceDefinition < ApplicationRecord
     errors.add(:ends_on, "must be on or after the start date")
   end
 
-  def local_times_are_paired
-    return unless starts_at_local.blank? ^ ends_at_local.blank?
+  def same_day_local_times_are_ordered
+    return if starts_on.blank? || ends_on.blank? || starts_on != ends_on
+    return if starts_at_local.blank? || ends_at_local.blank?
+    return if starts_at_local <= ends_at_local
 
-    errors.add(:base, "Enter both a local start time and local end time, or leave both blank.")
+    errors.add(:ends_at_local, "must be at or after the start time on the same day")
   end
 
   def timezone_is_iana

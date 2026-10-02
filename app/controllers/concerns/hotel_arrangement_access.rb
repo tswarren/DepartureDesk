@@ -108,6 +108,7 @@ module HotelArrangementAccess
   end
 
   def save_new_hotel_stay!(departure:, arrangement:, item_name:, occurrence_attributes:, idempotency_key:, contracting_supplier_id: nil)
+    ensure_hotel_times_paired!(occurrence_attributes)
     ActiveRecord::Base.transaction do
       created = arrangement || CreateSupplierArrangement.new(
         **hotel_command_context,
@@ -169,6 +170,16 @@ module HotelArrangementAccess
       :starts_on, :ends_on, :starts_at_local, :ends_at_local, :time_zone
     )
     occurrence.to_h
+  end
+
+  def ensure_hotel_times_paired!(attributes)
+    values = attributes.to_h.with_indifferent_access
+    return unless values[:starts_at_local].blank? ^ values[:ends_at_local].blank?
+
+    raise AgencyCommand::Error.new(
+      "Enter both a local start time and local end time, or leave both blank.",
+      code: :invalid
+    )
   end
 
   def hotel_agreement_editable?

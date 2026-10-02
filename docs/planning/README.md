@@ -16,7 +16,7 @@ Milestone numbers such as M5 and M6 stay. A new plan must not be named `M4D.1 Sl
 
 ## Where we stand
 
-M1, M2, and M3 are complete. M4 offers through M4D.0 are shipped. Cruise Supplier Composition through the workspace consolidation is shipped, except Cruise document storage, which is Deferred. Hotel persistence, foundations, stay and inventory, supplier rates, the Supplier complexity rebaseline, and Hotel Agreement are shipped. Hotel Review and Activation is Shipped. Hotel Lifecycle is Shipped 2026-10-02. Transportation, M4E, and M5 are Not authorized.
+M1, M2, and M3 are complete. M4 offers through M4D.0 are shipped. Cruise Supplier Composition through the workspace consolidation is shipped, except Cruise document storage, which is Deferred. Hotel persistence, foundations, stay and inventory, supplier rates, the Supplier complexity rebaseline, and Hotel Agreement are shipped. Hotel Review and Activation is Shipped. Hotel Lifecycle is Shipped 2026-10-02. The ABC Motorcoach Transportation walkthrough is Accepted 2026-10-02 and its fixture is Approved. The ABC Motorcoach supplier compatibility gate records which charter facts fit shipped Supplier commands. [Transportation Supplier Composition](m4-offers-and-pricing/transportation-supplier-composition.md) is Shipped 2026-10-02 and authorizes that Transportation Agreement workspace only. M4E and M5 are Not authorized.
 
 ## Milestones
 
@@ -86,7 +86,9 @@ Roadmap **Planned** means the milestone comes later. It does not authorize code.
 
 | Capability | Status | Governing document |
 | --- | --- | --- |
-| Transportation | Not authorized | — |
+| ABC Motorcoach staff walkthrough | Accepted 2026-10-02 | [Walkthrough](m4-offers-and-pricing/abc-motorcoach-transportation-staff-walkthrough.md) and the Approved [ABC fixture](fixtures/abc-motorcoach-2027-canonical-transportation-scenario-draft.md) |
+| ABC Motorcoach supplier compatibility | Recorded 2026-10-02 | [Compatibility gate](m4-offers-and-pricing/abc-motorcoach-supplier-compatibility.md) |
+| Transportation Supplier Composition | Shipped 2026-10-02 | [Transportation Supplier Composition](m4-offers-and-pricing/transportation-supplier-composition.md). Authorizes that Transportation Agreement workspace only |
 | M4E — acceptance and hardening | Not authorized | — |
 
 Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence and are not an implementation source. Supplier Composition fixtures are indexed in [fixtures/README.md](fixtures/README.md).

@@ -1,0 +1,174 @@
+<% content_for :title, "Transportation Agreement · #{@departure.name} · DepartureDesk" %>
+<% agreement = @agreement %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<article class="dd-panel" id="transportation-agreement">
+  <div class="dd-panel-body dd-stack">
+    <header class="dd-stack">
+      <p class="dd-eyebrow"><%= @departure.name %></p>
+      <h2 class="dd-page-title">Transportation Agreement</h2>
+      <p>
+        <%= @supplier_arrangement.contracting_supplier.display_name_for_directory %>
+        · <%= @supplier_arrangement.name %>
+        · Version <%= @supplier_arrangement_version.version_number %>
+        · <%= @supplier_arrangement_version.status.to_s.humanize %>
+        <% if agreement.confirmed %>· Supplier confirmed<% end %>
+      </p>
+      <% if @supplier_arrangement.governing_version && @supplier_arrangement.governing_version != @supplier_arrangement_version %>
+        <p><%= link_to "View governing agreement", departure_arrangement_transportation_path(@departure, @supplier_arrangement, version_id: @supplier_arrangement.governing_version_id) %></p>
+      <% end %>
+    </header>
+
+    <% if flash[:alert] %><p class="dd-alert dd-alert--danger" role="alert"><%= flash[:alert] %></p><% end %>
+    <% if flash[:notice] %><p class="dd-alert" role="status"><%= flash[:notice] %></p><% end %>
+
+    <section aria-labelledby="transport-segments-heading" class="dd-stack">
+      <h2 id="transport-segments-heading" class="dd-section-title">Segments</h2>
+      <% if @editable %>
+        <p><%= link_to "Add segment", new_departure_arrangement_transportation_segment_path(@departure, @supplier_arrangement), class: "dd-button" %></p>
+      <% end %>
+      <% if agreement.segments.empty? %>
+        <p>No segments yet.</p>
+      <% end %>
+      <% agreement.segments.each do |segment| %>
+        <section class="dd-stack" id="segment-<%= segment.item.id %>">
+          <h3><%= segment.item_definition.name %></h3>
+          <% if segment.occurrence_definition %>
+            <p>
+              <%= segment.occurrence_definition.starts_on.strftime("%b %-d, %Y") %>
+              <% if segment.occurrence_definition.starts_at_local %>· pickup <%= segment.occurrence_definition.starts_at_local.strftime("%-I:%M %P") %><% end %>
+            </p>
+            <p><%= segment.occurrence_definition.origin_name %> → <%= segment.occurrence_definition.destination_name %></p>
+          <% end %>
+          <p><%= segment.controlled_units %> motorcoach<%= "es" if segment.controlled_units != 1 %> confirmed</p>
+          <p><%= segment.passenger_spaces %> passenger spaces</p>
+          <% if segment.remaining_on_request.to_i.positive? %>
+            <p>Up to <%= segment.remaining_on_request %> additional motorcoach<%= "es" if segment.remaining_on_request != 1 %> on request</p>
+          <% elsif segment.pool_definition&.maximum_total_resource_units %>
+            <p>No additional coaches currently available on request</p>
+          <% end %>
+          <% if segment.maximum_passengers %>
+            <p>Maximum <%= segment.maximum_passengers %> passengers</p>
+          <% end %>
+          <% if segment.rate_minor_units %>
+            <p><%= format_offer_money(segment.rate_minor_units, @departure.operating_currency) %> per confirmed motorcoach</p>
+          <% end %>
+          <p>Current Supplier exposure · <%= segment.exposure_minor_units ? format_offer_money(segment.exposure_minor_units, @departure.operating_currency) : "not ready" %></p>
+          <% if segment.deadline %>
+            <p>Final passenger and luggage count due <%= Date.iso8601(segment.deadline.rule_parameters["date"].to_s).strftime("%b %-d, %Y") %></p>
+          <% end %>
+          <% if segment.advanced_reason %><p>Advanced Supplier planning · <%= segment.advanced_reason %></p><% end %>
+          <% if @editable %>
+            <p><%= link_to "Edit segment", edit_departure_arrangement_transportation_segment_path(@departure, @supplier_arrangement, segment.item) %></p>
+          <% end %>
+        </section>
+      <% end %>
+    </section>
+
+    <section aria-labelledby="transport-amount-heading" class="dd-stack">
+      <h2 id="transport-amount-heading" class="dd-section-title">Charter amount due</h2>
+      <% if agreement.amount_due %>
+        <p>Due <%= agreement.amount_due.due_on.strftime("%b %-d, %Y") %></p>
+        <% agreement.amount_due.lines.each do |line| %>
+          <p><%= line.label %> · <%= format_offer_money(line.amount_minor_units, agreement.amount_due.currency) %></p>
+        <% end %>
+        <p id="charter-amount-due">Current amount · <%= format_offer_money(agreement.amount_due.total_minor_units, agreement.amount_due.currency) %></p>
+      <% elsif @editable %>
+        <%= form_with url: departure_arrangement_transportation_amount_due_path(@departure, @supplier_arrangement), method: :post, class: "dd-form dd-stack" do %>
+          <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+          <div class="dd-field"><label class="dd-label" for="due_on">Amount due date</label><%= date_field_tag :due_on, nil, id: "due_on", class: "dd-input", required: true %></div>
+          <button class="dd-button" type="submit">Save charter amount due</button>
+        <% end %>
+      <% else %>
+        <p>No charter amount due recorded.</p>
+      <% end %>
+    </section>
+
+    <section aria-labelledby="transport-clarification-heading" class="dd-stack">
+      <h2 id="transport-clarification-heading" class="dd-section-title">Needs clarification</h2>
+      <ul>
+        <% agreement.clarifications.each do |note| %>
+          <li id="clarification-<%= note.code %>"><%= note.message %></li>
+        <% end %>
+      </ul>
+    </section>
+
+    <% if @editable && agreement.confirmation_allowed %>
+      <section aria-labelledby="transport-confirm-heading" class="dd-stack">
+        <h2 id="transport-confirm-heading" class="dd-section-title">Supplier confirmation</h2>
+        <%= form_with url: departure_arrangement_transportation_confirmation_path(@departure, @supplier_arrangement), method: :post, class: "dd-form dd-stack" do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <div class="dd-field"><label class="dd-label" for="confirmation_evidence_kind">Evidence</label>
+            <select id="confirmation_evidence_kind" name="confirmation[evidence_kind]" class="dd-input">
+              <option value="supplier_confirmation">Supplier confirmation</option>
+              <option value="contract">Contract</option>
+            </select>
+          </div>
+          <div class="dd-field"><label class="dd-label" for="confirmation_evidence_on">Evidence date</label><%= date_field_tag "confirmation[evidence_on]", Date.current, id: "confirmation_evidence_on", class: "dd-input", required: true %></div>
+          <div class="dd-field"><label class="dd-label" for="confirmation_channel">Channel</label><%= text_field_tag "confirmation[channel]", "email", id: "confirmation_channel", class: "dd-input", required: true %></div>
+          <div class="dd-field"><label class="dd-label" for="confirmation_reference_note">Reference note</label><%= text_field_tag "confirmation[reference_note]", nil, id: "confirmation_reference_note", class: "dd-input", required: true %></div>
+          <div class="dd-field"><label class="dd-label" for="confirmation_confirmed_without_identifier_reason">Confirmed without a Supplier identifier because</label><%= text_field_tag "confirmation[confirmed_without_identifier_reason]", nil, id: "confirmation_confirmed_without_identifier_reason", class: "dd-input", required: true %></div>
+          <button class="dd-button" type="submit">Confirm Transportation agreement</button>
+        <% end %>
+      </section>
+    <% end %>
+
+    <% if agreement.confirmed && @supplier_arrangement_version.draft? && Current.agency_user.permitted?(:manage_departures) %>
+      <section aria-labelledby="transport-activate-heading" class="dd-stack">
+        <h2 id="transport-activate-heading" class="dd-section-title">Activation</h2>
+        <%= form_with url: departure_arrangement_transportation_activation_path(@departure, @supplier_arrangement), method: :post do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+          <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+          <button class="dd-button" type="submit">Activate Transportation agreement</button>
+        <% end %>
+        <%= form_with url: departure_arrangement_transportation_revision_path(@departure, @supplier_arrangement), method: :post, class: "dd-form dd-stack" do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+          <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+          <div class="dd-field"><label class="dd-label" for="revision_reason">Reason for a new unconfirmed draft</label><%= text_field_tag :reason, nil, id: "revision_reason", class: "dd-input" %></div>
+          <button class="dd-button dd-button--quiet" type="submit">Revise confirmed draft</button>
+        <% end %>
+      </section>
+    <% end %>
+
+    <% if @supplier_arrangement.active? && Current.agency_user.permitted?(:manage_departures) && @supplier_arrangement.versions.where(status: "draft").none? %>
+      <section aria-labelledby="transport-coach-heading" class="dd-stack">
+        <h2 id="transport-coach-heading" class="dd-section-title">Additional confirmed coach</h2>
+        <%= form_with url: departure_arrangement_transportation_coach_change_path(@departure, @supplier_arrangement), method: :post, class: "dd-form dd-stack" do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <div class="dd-field"><label class="dd-label" for="arrangement_item_id">Segment</label>
+            <select id="arrangement_item_id" name="arrangement_item_id" class="dd-input">
+              <% agreement.segments.each do |segment| %>
+                <option value="<%= segment.item.id %>"><%= segment.item_definition.name %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field"><label class="dd-label" for="event_type">Change</label>
+            <select id="event_type" name="event_type" class="dd-input">
+              <option value="increased">Confirm another motorcoach</option>
+              <option value="released">Release a motorcoach</option>
+            </select>
+          </div>
+          <div class="dd-field"><label class="dd-label" for="quantity">Motorcoaches</label><%= number_field_tag :quantity, 1, id: "quantity", class: "dd-input", min: 1 %></div>
+          <div class="dd-field"><label class="dd-label" for="effective_on">Effective date</label><%= date_field_tag :effective_on, Date.current, id: "effective_on", class: "dd-input" %></div>
+          <div class="dd-field"><label class="dd-label" for="evidence_kind">Evidence</label>
+            <select id="evidence_kind" name="evidence_kind" class="dd-input"><option value="supplier_confirmation">Supplier confirmation</option></select>
+          </div>
+          <div class="dd-field"><label class="dd-label" for="evidence_on">Evidence date</label><%= date_field_tag :evidence_on, Date.current, id: "evidence_on", class: "dd-input" %></div>
+          <div class="dd-field"><label class="dd-label" for="evidence_reference_note">Reference note</label><%= text_field_tag :evidence_reference_note, nil, id: "evidence_reference_note", class: "dd-input" %></div>
+          <button class="dd-button" type="submit">Record coach change</button>
+        <% end %>
+        <%= form_with url: departure_arrangement_transportation_final_count_path(@departure, @supplier_arrangement), method: :post do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <button class="dd-button dd-button--quiet" type="submit">Record final count received</button>
+        <% end %>
+        <%= form_with url: departure_arrangement_transportation_successor_path(@departure, @supplier_arrangement), method: :post do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+          <%= hidden_field_tag :version_lock_version, @supplier_arrangement.governing_version.lock_version %>
+          <button class="dd-button dd-button--quiet" type="submit">Create successor for a contractual change</button>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</article>

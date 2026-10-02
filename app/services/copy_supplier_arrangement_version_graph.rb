@@ -33,6 +33,8 @@ class CopySupplierArrangementVersionGraph
       supplier_arrangement_cruise_term_definitions
       supplier_agreement_references
       supplier_agreement_reference_absences
+      supplier_amount_due_definitions
+      supplier_amount_due_contributors
     ].each { |association| @from.public_send(association).order(:id).lock.load }
     SupplierCostComponentBase.where(supplier_arrangement_version_id: @from.id).order(:id).lock.load
     SupplierCostOccupancyProfilePosition.where(
@@ -94,6 +96,7 @@ class CopySupplierArrangementVersionGraph
     copy_triggers!(sources, definitions, components)
     copy_deadlines!(sources, definitions, components)
     copy_deposits!(sources, definitions, components)
+    copy_amount_dues!(components)
     copy_family(@from.supplier_agreement_references, @to.supplier_agreement_references)
     copy_family(@from.supplier_agreement_reference_absences, @to.supplier_agreement_reference_absences)
     copy_family(
@@ -205,6 +208,20 @@ class CopySupplierArrangementVersionGraph
       )
     end
     deadline_copies
+  end
+
+  def copy_amount_dues!(components)
+    definitions = copy_family(@from.supplier_amount_due_definitions, @to.supplier_amount_due_definitions)
+    @from.supplier_amount_due_contributors.order(:position, :id).each do |contributor|
+      @to.supplier_amount_due_contributors.create!(
+        copy_attributes(contributor).merge(
+          supplier_arrangement_version: @to,
+          supplier_amount_due_definition_id: definitions.fetch(contributor.supplier_amount_due_definition_id).id,
+          supplier_cost_component_id: components.fetch(contributor.supplier_cost_component_id).id,
+          copied_from: contributor
+        )
+      )
+    end
   end
 
   def copy_deposits!(sources, definitions, components)

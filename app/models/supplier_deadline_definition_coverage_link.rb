@@ -3,6 +3,7 @@
 class SupplierDeadlineDefinitionCoverageLink < ApplicationRecord
   include DraftVersionDefinition
   include LodgingConfirmationFreeze::Model
+  include TransportationConfirmationFreeze::Model
 
   belongs_to :agency
   belongs_to :departure

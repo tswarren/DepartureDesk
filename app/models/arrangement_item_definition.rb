@@ -2,6 +2,7 @@ class ArrangementItemDefinition < ApplicationRecord
   include ExactVersionCopyLineage
   include DraftVersionDefinition
   include LodgingConfirmationFreeze::Model
+  include TransportationConfirmationFreeze::Model
   CATEGORIES = %w[
     cruise
     lodging

@@ -48,6 +48,7 @@ class DepartureCompositionsController < ApplicationController
       ).call
     end
     @hotel_items = @arrangements.index_with { |arrangement| hotel_lodging_items(arrangement) }
+    @transportation_items = @arrangements.index_with { |arrangement| transportation_items(arrangement) }
     render :suppliers
   end
 
@@ -119,6 +120,13 @@ class DepartureCompositionsController < ApplicationController
     @workspace.editable_packages.empty? &&
       @departure.service_offers.none? { |offer| offer.editable_draft_version.present? } &&
       @departure.supplier_arrangements.none?
+  end
+
+  def transportation_items(arrangement)
+    version = arrangement.editable_version
+    return [] if version.nil?
+
+    version.arrangement_item_definitions.select { |definition| definition.category == "ground_transportation" }
   end
 
   def hotel_lodging_items(arrangement)

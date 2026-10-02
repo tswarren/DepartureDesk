@@ -2,6 +2,7 @@ class SupplierResourceDefinition < ApplicationRecord
   include ExactVersionCopyLineage
   include DraftVersionDefinition
   include LodgingConfirmationFreeze::Model
+  include TransportationConfirmationFreeze::Model
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
   SUPPLIER_CODE_LIMIT = 80

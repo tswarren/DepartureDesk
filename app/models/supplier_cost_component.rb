@@ -2,6 +2,7 @@ class SupplierCostComponent < ApplicationRecord
   include ExactVersionCopyLineage
   include DraftVersionDefinition
   include LodgingConfirmationFreeze::Model
+  include TransportationConfirmationFreeze::Model
   ECONOMIC_ROLES = %w[supplier_charge supplier_credit expected_commission informational_allocation].freeze
   CALCULATION_KINDS = %w[fixed unit_rate percentage minimum_amount_shortfall minimum_quantity_shortfall].freeze
   QUANTITY_BASES = %w[
@@ -17,6 +18,7 @@ class SupplierCostComponent < ApplicationRecord
   belongs_to :supplier_arrangement_version
   belongs_to :supplier_cost_definition
   belongs_to :participant_category, class_name: "SupplierCostParticipantCategory", optional: true
+  belongs_to :quantity_capacity_pool, class_name: "CapacityPool", optional: true
 
   has_many :supplier_cost_component_bases, class_name: "SupplierCostComponentBase",
     dependent: :restrict_with_exception

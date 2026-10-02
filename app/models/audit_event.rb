@@ -141,6 +141,8 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.agreement_reference_absence_recorded
     supplier_arrangement.agreement_reference_absence_removed
     supplier_arrangement.confirmed_agreement_revised
+    supplier_arrangement.transportation_segment_saved
+    supplier_arrangement.amount_due_definition_saved
     supplier_arrangement.planning_milestone_recorded
     supplier_arrangement.exposure_qualified
     supplier_arrangement.commitments_disposed

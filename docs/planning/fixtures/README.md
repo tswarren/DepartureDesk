@@ -2,7 +2,7 @@
 
 This register is the index of business fixtures used to plan Supplier Composition. A fixture records facts and the behavior those facts must prove. It is not an implementation plan and it does not authorize code.
 
-**Status words:** Draft, Approved, Superseded. Hilton Fort Lauderdale Marina and Celebrity Beyond are Approved. The other scenarios remain Draft. A Draft fixture does not authorize an implementation slice. An Approved fixture still does not authorize code until an accepted slice plan names the facts it uses.
+**Status words:** Draft, Approved, Superseded. Hilton Fort Lauderdale Marina, Celebrity Beyond, and ABC Motorcoach are Approved. The other scenarios remain Draft. A Draft fixture does not authorize an implementation slice. An Approved fixture still does not authorize code until an accepted slice plan names the facts it uses.
 
 Shipped Cruise slices keep their own contracts. This register does not reopen them. No unaccepted slice may rely on a Draft fixture. An accepted slice may cite a Draft fixture only for the facts that slice names. That citation does not Approve the fixture.
 
@@ -40,13 +40,14 @@ Behavior coverage is [the proof matrix](supplier-composition-proof-matrix.md).
 | Field | Value |
 | --- | --- |
 | Canonical file | [abc-motorcoach-2027-canonical-transportation-scenario-draft.md](abc-motorcoach-2027-canonical-transportation-scenario-draft.md) |
-| Status | Draft |
-| Facts | Illustrative. |
+| Status | Approved 2026-10-02 |
+| Facts | ABC Motorcoach charter for the Smith Family Reunion. Two segments, one guaranteed 15-passenger coach each, two additional coaches on request, and fixed per-coach Supplier rates of $200 and $175. |
 | Layer | Supplier Composition. |
 | Proves | Two transportation occurrences under one agreement, a fixed per-coach cost, and an on-request ceiling that is not controlled capacity. |
 | Supersedes | The Airport to Port segment, the November 11 return date, and the earlier $27 / $23 / $23 Client figures. |
 | Unresolved | Contract date, confirmation number, cancellation terms, and payment treatment for a coach confirmed after November 3. |
-| Slices that may rely on it | None until this fixture is Approved and an accepted slice plan names it. |
+| Walkthrough | [ABC Motorcoach Staff journey](../m4-offers-and-pricing/abc-motorcoach-transportation-staff-walkthrough.md) is Accepted 2026-10-02. It chooses no Client transfer pricing or traveler manifest in Supplier Composition. |
+| Slices that may rely on it | An accepted Transportation plan may name these facts. Approval does not authorize Transportation code. |
 
 The on-request ceiling of two additional coaches is partial coverage of on-request services. It is not a reason to add another fixture.
 

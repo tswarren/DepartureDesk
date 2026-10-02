@@ -10,7 +10,7 @@
 
 **Implementation prerequisite:** Slice 2D shipped at [`dc272a3`](https://github.com/tswarren/DepartureDesk/commit/dc272a3) (PR #154).
 
-**Next boundary:** [Slice 3A](m4d1-slice3a-hotel-supplier-composition.md), Hotel Supplier Composition, is Accepted 2026-09-30. Slice 3A.0 recorded four incompatibilities. Slice 3A.1, Hotel Supplier-term persistence foundations, is Accepted 2026-09-30. The Slice 3A.1 compatibility proof is green. Slice 3A.2, Stay and nightly inventory, is implemented. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Shipped 2026-10-02. [Hotel Lifecycle](hotel-lifecycle.md) is Shipped 2026-10-02. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27, and the [Hilton fixture](../fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. Transportation remains unauthorized until its own walkthrough and plan are accepted.
+**Next boundary:** [Slice 3A](m4d1-slice3a-hotel-supplier-composition.md), Hotel Supplier Composition, is Accepted 2026-09-30. Slice 3A.0 recorded four incompatibilities. Slice 3A.1, Hotel Supplier-term persistence foundations, is Accepted 2026-09-30. The Slice 3A.1 compatibility proof is green. Slice 3A.2, Stay and nightly inventory, is implemented. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](hotel-review-and-activation.md) is Shipped 2026-10-02. [Hotel Lifecycle](hotel-lifecycle.md) is Shipped 2026-10-02. The [Hotel Staff walkthrough](m4d1-hilton-hotel-staff-walkthrough.md) is Accepted 2026-09-27, and the [Hilton fixture](../fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) is Approved. The [ABC Motorcoach Transportation walkthrough](abc-motorcoach-transportation-staff-walkthrough.md) is Accepted 2026-10-02, and the [ABC fixture](../fixtures/abc-motorcoach-2027-canonical-transportation-scenario-draft.md) is Approved. The [ABC Motorcoach supplier compatibility gate](abc-motorcoach-supplier-compatibility.md) records which charter facts fit shipped Supplier commands. [Transportation Supplier Composition](transportation-supplier-composition.md) is Shipped 2026-10-02 and authorizes that Transportation Agreement workspace only.
 
 **Prototype:** Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 remain prototype evidence. They are not an implementation source.
 
@@ -41,7 +41,7 @@ After this contract:
 1. The Hotel walkthrough is Accepted 2026-09-27. Do not revise the discarded Hilton draft on the prototype branch.
 2. [Slice 3A](m4d1-slice3a-hotel-supplier-composition.md), Hotel Supplier Composition, is Accepted 2026-09-30.
 3. Implement Hotel Supplier Composition.
-4. Draft and accept a Transportation walkthrough and its implementation plan.
+4. The [ABC Motorcoach Transportation walkthrough](abc-motorcoach-transportation-staff-walkthrough.md) is Accepted 2026-10-02. The [supplier compatibility gate](abc-motorcoach-supplier-compatibility.md) records the charter against shipped Supplier commands. [Transportation Supplier Composition](transportation-supplier-composition.md) is Shipped 2026-10-02.
 5. Implement Transportation.
 6. Extract shared support only if Transportation repeats the same orchestration.
 7. Draft and accept the Activity, Meal, and Excursion workflow.

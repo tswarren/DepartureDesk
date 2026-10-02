@@ -2,9 +2,9 @@
 
 ## 1. Status and authority
 
-**Status:** Draft. Supplier Composition boundary locked. Not implementation authority.
+**Status:** Approved 2026-10-02. Supplier Composition boundary locked. Not implementation authority.
 
-When accepted, this document supersedes conflicting transportation fixtures. No slice may rely on it until it is Approved and an accepted slice plan names it.
+This document supersedes conflicting transportation fixtures. The [ABC Motorcoach Staff walkthrough](../m4-offers-and-pricing/abc-motorcoach-transportation-staff-walkthrough.md) is Accepted 2026-10-02. No slice may rely on this fixture until an accepted Transportation plan names it. Approval does not authorize Transportation code.
 
 ## 2. Purpose
 
