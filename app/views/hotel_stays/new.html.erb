@@ -1,0 +1,21 @@
+<% content_for :title, "Add Hotel stay · #{@departure.name} · DepartureDesk" %>
+<% item = (@item_attributes || {}).with_indifferent_access %>
+<% occurrence = (@occurrence_attributes || {}).with_indifferent_access %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<%= render "hotel_setup/shell", current: "overview", page_title: "Add Hotel stay" %>
+
+<article class="dd-panel" id="hotel-stay-form">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_arrangement_hotel_stays_path(@departure, @supplier_arrangement), method: :post, class: "dd-form dd-stack" do %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <%= render "hotel_stays/error_summary" %>
+      <section aria-labelledby="hotel-another-stay-heading" class="dd-stack">
+        <h2 id="hotel-another-stay-heading" class="dd-section-title">Stay</h2>
+        <%= render "hotel_stays/fields", item: item, occurrence: occurrence, show_item_name: true, editable: @editable %>
+      </section>
+      <% if @editable %>
+        <button type="submit" class="dd-button">Save and continue</button>
+      <% end %>
+    <% end %>
+  </div>
+</article>

@@ -1,0 +1,169 @@
+<% content_for :title, "Supplier rates · #{@departure.name} · DepartureDesk" %>
+<% currency = @departure.operating_currency %>
+<% costs_workspace = departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @arrangement_item) %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<%= render "hotel_setup/shell", current: "rates", page_title: "Supplier rates", item: @arrangement_item %>
+
+<article class="dd-panel" id="hotel-supplier-rates">
+  <div class="dd-panel-body dd-stack">
+    <p>Operating currency <%= currency %>. Amounts are per room, per night.</p>
+    <%= render "hotel_stays/error_summary" %>
+
+    <% if @shape.blocked? %>
+      <%= render "hotel_setup/unsupported", shape: @shape, item: @arrangement_item %>
+    <% elsif @rate_shape.reasons.any? %>
+      <div role="status">
+        <p>This Hotel rate graph cannot be edited here.</p>
+        <ul>
+          <% @rate_shape.reasons.each do |reason| %>
+            <li><%= reason %></li>
+          <% end %>
+        </ul>
+        <p><%= link_to "Advanced Supplier cost planning", costs_workspace, class: "dd-link" %></p>
+      </div>
+    <% end %>
+
+    <% if @rate_shape.supported_contexts.empty? && !@rate_shape.blocked? %>
+      <p>Record room inventory before Supplier rates.</p>
+    <% end %>
+
+    <% if @rate_shape.contexts.any?(&:advanced) %>
+      <div role="status">
+        <ul>
+          <% @rate_shape.contexts.select(&:advanced).each do |context| %>
+            <li><%= context.resource_definition.name %> on <%= hotel_night_label(context.date) %>: <%= context.reason %></li>
+          <% end %>
+        </ul>
+        <p><%= link_to "Advanced Supplier cost planning", costs_workspace, class: "dd-link" %></p>
+      </div>
+    <% end %>
+
+    <section aria-labelledby="hotel-occupancy-heading" class="dd-stack" id="hotel-rate-occupancy">
+      <h2 id="hotel-occupancy-heading" class="dd-section-title">Occupancy</h2>
+      <% if @illustration.rows.empty? %>
+        <p>Occupancy totals appear after room-night rates are saved.</p>
+      <% else %>
+        <ul>
+          <% @illustration.rows.each do |row| %>
+            <li id="hotel-occupancy-<%= row.resource_definition.supplier_resource_id %><%= "-#{row.date.iso8601}" if row.date %>">
+              <%= row.resource_definition.name %><%= " #{hotel_night_label(row.date)}" if row.date %>: <%= row.amounts.map { |amount| format_offer_money(amount, currency) }.join(" / ") %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </section>
+
+    <section aria-labelledby="hotel-block-heading" class="dd-stack" id="hotel-rate-block">
+      <h2 id="hotel-block-heading" class="dd-section-title">Contracted room block</h2>
+      <% if @illustration.nights.empty? %>
+        <p>The pretax room block appears after room-night rates are saved.</p>
+      <% else %>
+        <ul>
+          <% @illustration.nights.each do |night| %>
+            <li id="hotel-block-<%= night.date.iso8601 %>">
+              <%= hotel_night_label(night.date) %> base block: <%= night.total_minor_units ? format_offer_money(night.total_minor_units, currency) : "—" %>
+              <% if night.lines.any? %>
+                <ul>
+                  <% night.lines.each do |line| %>
+                    <li><%= line.resource_definition.name %> / <%= line.quantity %> <%= "room".pluralize(line.quantity) %> / <%= format_offer_money(line.total_minor_units, currency) %></li>
+                  <% end %>
+                </ul>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+        <% if @illustration.total_minor_units %>
+          <p id="hotel-block-total">Current pretax contracted-room total: <%= format_offer_money(@illustration.total_minor_units, currency) %></p>
+        <% end %>
+      <% end %>
+    </section>
+
+    <% if @rate_shape.supported_contexts.any? %>
+      <% rate_fields = capture do %>
+        <% @rate_shape.supported_contexts.group_by(&:resource_definition).each do |resource, contexts| %>
+          <fieldset class="dd-stack">
+            <legend class="dd-section-title"><%= resource.name %></legend>
+            <% if hotel_rates_uniform?(contexts, :base) %>
+              <div class="dd-field-group">
+                <label class="dd-label" for="base_<%= resource.supplier_resource_id %>"><%= resource.name %> room night base</label>
+                <input id="base_<%= resource.supplier_resource_id %>" name="base[<%= resource.supplier_resource_id %>]" class="dd-field" inputmode="decimal"
+                  value="<%= hotel_compact_rate_value(contexts, :base, currency) %>"
+                  <% if contexts.any? { |context| hotel_rate_field_invalid?(context, :base) } %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>
+                  <%= "disabled" unless @editable %>>
+              </div>
+            <% else %>
+              <% contexts.each do |context| %>
+                <div class="dd-field-group">
+                  <label class="dd-label" for="base_<%= resource.supplier_resource_id %>_<%= context.date.iso8601 %>"><%= resource.name %> room night base on <%= hotel_night_label(context.date) %></label>
+                  <input id="base_<%= resource.supplier_resource_id %>_<%= context.date.iso8601 %>" name="base[<%= resource.supplier_resource_id %>][<%= context.date.iso8601 %>]" class="dd-field" inputmode="decimal"
+                    value="<%= hotel_rate_value(context, :base, currency) %>"
+                    <% if hotel_rate_field_invalid?(context, :base) %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>
+                    <%= "disabled" unless @editable %>>
+                </div>
+              <% end %>
+            <% end %>
+          </fieldset>
+        <% end %>
+
+        <fieldset class="dd-stack">
+          <legend class="dd-section-title">Occupancy supplements</legend>
+          <% @rate_shape.supported_contexts.then do |contexts| %>
+            <% { third: "3", fourth: "4" }.each do |kind, position| %>
+              <% label = kind == :third ? "Third occupant" : "Fourth occupant" %>
+              <% if hotel_rates_uniform?(contexts, kind) %>
+                <div class="dd-field-group">
+                  <label class="dd-label" for="supplement_<%= position %>"><%= label %></label>
+                  <input id="supplement_<%= position %>" name="supplement[<%= position %>]" class="dd-field" inputmode="decimal"
+                    value="<%= hotel_compact_rate_value(contexts, kind, currency) %>"
+                    <% if contexts.any? { |context| hotel_rate_field_invalid?(context, kind) } %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>
+                    <%= "disabled" unless @editable %>>
+                </div>
+              <% else %>
+                <% contexts.each do |context| %>
+                  <div class="dd-field-group">
+                    <label class="dd-label" for="supplement_<%= position %>_<%= context.resource_id %>_<%= context.date.iso8601 %>"><%= label %> for <%= context.resource_definition.name %> on <%= hotel_night_label(context.date) %></label>
+                    <input id="supplement_<%= position %>_<%= context.resource_id %>_<%= context.date.iso8601 %>" name="supplement[<%= position %>][<%= context.resource_id %>][<%= context.date.iso8601 %>]" class="dd-field" inputmode="decimal"
+                      value="<%= hotel_rate_value(context, kind, currency) %>"
+                      <% if hotel_rate_field_invalid?(context, kind) %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>
+                      <%= "disabled" unless @editable %>>
+                  </div>
+                <% end %>
+              <% end %>
+            <% end %>
+          <% end %>
+        </fieldset>
+
+        <div class="dd-field-group">
+          <label class="dd-label" for="noncommissionable">
+            <input type="checkbox" id="noncommissionable" name="noncommissionable" value="1" <%= "checked" if hotel_noncommissionable_checked?(@rate_shape) %> <%= "disabled" unless @editable %>
+              <% if @commission_invalid %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>>
+            Net and noncommissionable
+          </label>
+        </div>
+      <% end %>
+
+      <% if @editable %>
+        <%= form_with url: item_rates_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
+              method: :patch, class: "dd-form dd-stack", id: "hotel-supplier-rates-form" do %>
+          <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+          <%= render "hotel_setup/return_to" %>
+          <% @rate_shape.contexts.each do |context| %>
+            <% if context.definition %>
+              <%= hidden_field_tag "definition_lock[#{context.definition.id}]", context.definition.lock_version %>
+            <% end %>
+            <% %i[base third fourth].each do |kind| %>
+              <% component = context.public_send(kind) %>
+              <% if component %>
+                <%= hidden_field_tag "component_lock[#{component.id}]", component.lock_version %>
+              <% end %>
+            <% end %>
+          <% end %>
+          <%= rate_fields %>
+          <button class="dd-button" type="submit">Save Supplier rates</button>
+        <% end %>
+      <% else %>
+        <%= rate_fields %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

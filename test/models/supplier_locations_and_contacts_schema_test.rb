@@ -28,6 +28,7 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
   ].freeze
 
   CURRENT_SUPPLIER_TABLES = %w[
+    supplier_agreement_references
     supplier_arrangement_activation_capacity_entries
     supplier_arrangement_activation_cost_selections
     supplier_arrangement_activations

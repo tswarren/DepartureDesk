@@ -646,6 +646,13 @@ module CruiseSupplierRateBuilders
   end
 
   def sync_matrix_commission!(definition, commission, cell_to_component, start_position, profiles)
+    if definition.noncommissionable? && commission.fetch(:method) != "not_provided"
+      raise AgencyCommand::Error.new(
+        "Noncommissionable definitions cannot contain expected commission.",
+        code: :invalid_state
+      )
+    end
+
     components = definition.supplier_cost_components.reload.lock.to_a
     commission_components = components.select { |c| c.economic_role == "expected_commission" }
 

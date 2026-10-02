@@ -50,6 +50,12 @@ class SupplierArrangement < ApplicationRecord
 
   attr_readonly :agency_id, :departure_id, :contracting_supplier_id
 
+  def editable_version
+    versions.where(status: "draft").sole
+  rescue ActiveRecord::RecordNotFound
+    governing_version
+  end
+
   normalizes :name, with: ->(value) { value.to_s.strip }
 
   validates :name, presence: true, length: { maximum: NAME_LIMIT }

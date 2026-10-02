@@ -1,0 +1,180 @@
+<% content_for :title, "Room inventory · #{@departure.name} · DepartureDesk" %>
+<% resource = (@resource_attributes || {}).with_indifferent_access %>
+<% evidence = (@submitted_evidence || {}).with_indifferent_access %>
+<% dates = @shape.candidate_dates %>
+<% evidence_needed = @shape.categories.any? { |category| category.supported? && category.cells.any? { |cell| cell.supported? && cell.pool_definition.nil? } } %>
+<% matrix_editable = @editable && @shape.categories.any? { |category| category.supported? && category.cells.any?(&:supported?) } %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<%= render "hotel_setup/shell", current: "inventory", page_title: "Room inventory", item: @arrangement_item %>
+
+<article class="dd-panel" id="hotel-inventory">
+  <div class="dd-panel-body dd-stack">
+    <p id="hotel-inventory-summary"><%= hotel_room_night_sentence(@shape) %></p>
+    <p>Operating currency <%= @departure.operating_currency %>.</p>
+
+    <% if @shape.blocked? %>
+      <%= render "hotel_setup/unsupported", shape: @shape, item: @arrangement_item %>
+    <% end %>
+
+    <% if @shape.stay_definition %>
+      <p class="dd-eyebrow">Contracted stay</p>
+      <p><%= hotel_contracted_stay_sentence(@shape.stay_definition, @shape.candidate_dates.size) %></p>
+      <p>
+        Check-in <%= hotel_local_time(@shape.stay_definition.starts_at_local) %>,
+        checkout <%= hotel_local_time(@shape.stay_definition.ends_at_local) %>,
+        <%= @shape.stay_definition.time_zone %>.
+      </p>
+    <% end %>
+
+    <%= render "hotel_stays/error_summary" %>
+
+    <section aria-labelledby="room-categories-heading" class="dd-stack">
+      <h2 id="room-categories-heading" class="dd-section-title">Room categories</h2>
+      <% if @shape.categories.empty? %>
+        <p>No room categories yet.</p>
+      <% else %>
+        <% matrix = capture do %>
+          <div class="dd-table-wrap">
+            <table class="dd-table">
+              <caption class="dd-visually-hidden">Contracted rooms by room category and night</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Room category</th>
+                  <th scope="col">Maximum occupancy</th>
+                  <% dates.each do |date| %>
+                    <th scope="col"><%= hotel_night_label(date) %></th>
+                  <% end %>
+                  <th scope="col">Contracted room nights</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @shape.categories.each do |category| %>
+                  <% definition = category.resource_definition %>
+                  <tr id="hotel-category-<%= definition.supplier_resource_id %>">
+                    <th scope="row" id="hotel-category-heading-<%= definition.id %>"><%= definition.name %></th>
+                    <td>Maximum occupancy <%= definition.maximum_occupancy %></td>
+                    <% category.cells.each do |cell| %>
+                      <% date_key = cell.date.to_date.iso8601 %>
+                      <% pool = cell.pool_definition %>
+                      <% night_label = hotel_night_label(cell.date) %>
+                      <% field_id = "quantity_#{definition.supplier_resource_id}_#{date_key}" %>
+                      <% invalid = hotel_matrix_cell_invalid?(definition.supplier_resource_id, cell.date) %>
+                      <td id="hotel-cell-<%= date_key %>-<%= definition.supplier_resource_id %>">
+                        <% if !category.supported? || !cell.supported? %>
+                          <% if (cell.reason.presence || category.reason).present? %>
+                            <p><%= cell.reason.presence || category.reason %></p>
+                            <p>
+                              <%= link_to "Item capacity", departure_arrangement_item_capacity_path(@departure, @supplier_arrangement, @arrangement_item), class: "dd-link" %>
+                            </p>
+                          <% end %>
+                          <% if pool %>
+                            <p><%= pool.proposed_opening_quantity %> <%= pool.unit_label %></p>
+                          <% else %>
+                            <p>No contracted rooms recorded.</p>
+                          <% end %>
+                        <% elsif matrix_editable %>
+                          <% if pool %>
+                            <%= hidden_field_tag "pool_lock[#{pool.id}]", pool.lock_version %>
+                          <% end %>
+                          <label class="dd-label dd-visually-hidden" for="<%= field_id %>">Contracted rooms for <%= definition.name %> on <%= night_label %></label>
+                          <input id="<%= field_id %>" name="quantity[<%= definition.supplier_resource_id %>][<%= date_key %>]" class="dd-field" inputmode="numeric"
+                            <% if invalid %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>
+                            value="<%= hotel_matrix_quantity(definition.supplier_resource_id, cell.date, pool) %>">
+                        <% elsif pool %>
+                          <p><%= pool.proposed_opening_quantity %> <%= pool.unit_label %>.</p>
+                        <% else %>
+                          <p>No contracted rooms recorded.</p>
+                        <% end %>
+                      </td>
+                    <% end %>
+                    <td><%= hotel_category_room_night_sentence(category.room_night_count) %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+
+        <% if matrix_editable %>
+          <%= form_with url: item_inventory_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
+                method: :patch, class: "dd-form dd-stack" do %>
+            <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+            <%= render "hotel_setup/return_to" %>
+            <%= matrix %>
+            <% if evidence_needed %>
+              <fieldset class="dd-stack">
+                <legend class="dd-section-title">Supplier evidence</legend>
+                <div class="dd-field-group">
+                  <label class="dd-label" for="evidence_kind">Evidence</label>
+                  <select id="evidence_kind" name="evidence[evidence_kind]" class="dd-field"
+                    <% if @form_error.present? && Array(@invalid_cells).empty? %>aria-invalid="true" aria-describedby="form-error-summary"<% end %>>
+                    <option value="">Choose evidence</option>
+                    <% hotel_evidence_kind_options.each do |kind| %>
+                      <option value="<%= kind %>" <%= "selected" if evidence[:evidence_kind] == kind %>><%= kind.humanize %></option>
+                    <% end %>
+                  </select>
+                </div>
+                <div class="dd-field-group">
+                  <label class="dd-label" for="evidence_on">Evidence date</label>
+                  <input id="evidence_on" name="evidence[evidence_on]" type="date" class="dd-field" value="<%= evidence[:evidence_on] %>">
+                </div>
+                <div class="dd-field-group">
+                  <label class="dd-label" for="evidence_reference_note">Reference note</label>
+                  <input id="evidence_reference_note" name="evidence[evidence_reference_note]" class="dd-field" maxlength="500" value="<%= evidence[:evidence_reference_note] %>">
+                </div>
+              </fieldset>
+            <% end %>
+            <button type="submit" class="dd-button">Save room inventory</button>
+          <% end %>
+        <% else %>
+          <%= matrix %>
+        <% end %>
+
+        <% if @editable %>
+          <% @shape.categories.each do |category| %>
+            <% definition = category.resource_definition %>
+            <details class="dd-disclosure"<% if @resource_error_id == definition.supplier_resource_id %> open<% end %>>
+              <summary>Edit category</summary>
+              <div class="dd-disclosure-body">
+                <%= form_with url: item_inventory_resource_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, definition.supplier_resource_id),
+                      method: :patch, class: "dd-form dd-stack" do %>
+                  <%= hidden_field_tag :definition_lock_version, definition.lock_version %>
+                  <%= render "hotel_setup/return_to" %>
+                  <div class="dd-field-group">
+                    <label class="dd-label" for="resource_name_<%= definition.id %>">Room category</label>
+                    <input id="resource_name_<%= definition.id %>" name="resource[name]" class="dd-field" required maxlength="160"
+                      value="<%= @resource_error_id == definition.supplier_resource_id ? resource[:name] : definition.name %>">
+                  </div>
+                  <div class="dd-field-group">
+                    <label class="dd-label" for="resource_occupancy_<%= definition.id %>">Maximum occupancy</label>
+                    <input id="resource_occupancy_<%= definition.id %>" name="resource[maximum_occupancy]" class="dd-field" inputmode="numeric" required
+                      value="<%= @resource_error_id == definition.supplier_resource_id ? resource[:maximum_occupancy] : definition.maximum_occupancy %>">
+                  </div>
+                  <button type="submit" class="dd-button">Save room category</button>
+                <% end %>
+              </div>
+            </details>
+          <% end %>
+        <% end %>
+      <% end %>
+
+      <% if @editable %>
+        <%= form_with url: item_inventory_resources_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
+              method: :post, class: "dd-form dd-stack" do %>
+          <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+          <%= render "hotel_setup/return_to" %>
+          <div class="dd-field-group">
+            <label class="dd-label" for="resource_name">Room category</label>
+            <input id="resource_name" name="resource[name]" class="dd-field" required maxlength="160" value="<%= resource[:name] %>">
+          </div>
+          <div class="dd-field-group">
+            <label class="dd-label" for="resource_maximum_occupancy">Maximum occupancy</label>
+            <input id="resource_maximum_occupancy" name="resource[maximum_occupancy]" class="dd-field" inputmode="numeric" required
+              value="<%= resource[:maximum_occupancy].presence || 4 %>">
+          </div>
+          <button type="submit" class="dd-button">Add room category</button>
+        <% end %>
+      <% end %>
+    </section>
+  </div>
+</article>

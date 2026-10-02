@@ -93,6 +93,7 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
       supplier_deposit_requirement_definitions
       supplier_arrangement_commercial_benefit_definitions
       supplier_arrangement_cruise_term_definitions
+      supplier_agreement_references
     ].each { |association| version.public_send(association).order(:id).lock.load }
     SupplierCostComponentBase.where(supplier_arrangement_version_id: version.id).order(:id).lock.load
     SupplierCostOccupancyProfilePosition.where(
@@ -154,6 +155,7 @@ class CreateSupplierArrangementSuccessor < AgencyCommand
     copy_triggers!(from, to, sources, definitions, components)
     copy_deadlines!(from, to, sources, definitions, components)
     copy_deposits!(from, to, sources, definitions, components)
+    copy_family(from.supplier_agreement_references, to.supplier_agreement_references)
     copy_family(
       from.supplier_arrangement_commercial_benefit_definitions,
       to.supplier_arrangement_commercial_benefit_definitions

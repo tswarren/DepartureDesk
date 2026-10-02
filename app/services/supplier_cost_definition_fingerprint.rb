@@ -24,7 +24,9 @@ class SupplierCostDefinitionFingerprint
       SupplierCostParticipantCategory.where(id: category_ids).order(:id).pluck(:id, :label)
     end
     payload = {
-      definition: definition.attributes.slice("stage", "mode", "currency", "rounding_mode", "zero_cost_reason"),
+      definition: definition.attributes.slice(
+        "stage", "mode", "currency", "rounding_mode", "zero_cost_reason", "commission_treatment"
+      ),
       source: definition.supplier_cost_source.attributes.slice(
         "arrangement_item_id", "service_occurrence_id", "supplier_resource_id", "charging_supplier_id"
       ),

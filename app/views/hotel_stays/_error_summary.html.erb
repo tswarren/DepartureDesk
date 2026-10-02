@@ -1,0 +1,6 @@
+<% if @form_error.present? %>
+  <div id="form-error-summary" class="dd-form-error-summary" role="alert" tabindex="-1">
+    <h2 class="dd-form-error-summary__title">Please fix the following:</h2>
+    <ul><li><%= @form_error %></li></ul>
+  </div>
+<% end %>

@@ -1,7 +1,7 @@
 # UX-7 — Cruise Supplier Workspace Consolidation
 
 **Status:** Superseded draft. Not implementation authority.  
-**Successor:** [m4d1-cruise-composition-ux7.md](../../m4d1-cruise-composition-ux7.md), Accepted 2026-09-29. [UX-7-draft.md](UX-7-draft.md) is the same acceptance. Where this file differs, the accepted plan governs.  
+**Successor:** [m4d1-cruise-composition-ux7.md](../../m4-offers-and-pricing/m4d1-cruise-composition-ux7.md), Accepted 2026-09-29. [UX-7-draft.md](UX-7-draft.md) is the same acceptance. Where this file differs, the accepted plan governs.  
 **Parent:** M4D.1 — Departure Composition Workspace  
 **Scope:** Cruise Supplier setup presentation and navigation  
 **Depends on:** Accepted Cruise rework and UX-1 through UX-6 behavior

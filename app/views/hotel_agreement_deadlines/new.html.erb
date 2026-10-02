@@ -1,0 +1,13 @@
+<% content_for :title, "Deadline · #{@departure.name} · DepartureDesk" %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<%= render "hotel_setup/shell", current: "agreement", page_title: "Deadline", item: @arrangement_item %>
+
+<article class="dd-panel" id="hotel-agreement-deadline-form">
+  <div class="dd-panel-body dd-stack">
+    <%= render "hotel_stays/error_summary" %>
+    <%= render "form",
+          url: item_hotel_agreement_deadlines_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
+          method: :post %>
+    <p><%= link_to "Return to Hotel Agreement", hotel_agreement_path_for %></p>
+  </div>
+</article>

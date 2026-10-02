@@ -1,7 +1,7 @@
 # DepartureDesk interface contract
 
 **Status:** Active implementation contract
-**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, shipped M2B departed/correction surfaces, shipped M2C proof of Departures search, isolation, keyboard, drawer, and viewport behavior, shipped M3A tentative Supplier planning structure, shipped M3B draft Item-card Supplier capacity configuration, shipped M3C Arrangement/Item cost workspaces plus derived forecast views, shipped [M3D.0](../planning/m3d0-planning-workspace-compression.md) guided workspace compression over those M3A–M3C surfaces, shipped [M3D](../planning/m3d-activation-reservations-confirmations.md) activation, Reservation, confirmation, and effective-capacity surfaces, shipped [M3D.8](../planning/m3d8-activation-reservation-product-quality.md) product-quality remediation for those M3D surfaces, shipped [M3E](../planning/m3e-supplier-operational-control.md) operational commitments, Deadlines, deposits/milestones, exposure, Needs attention, and Arrangement ending (through M3E.7b, including M3E.5R and M3D remediations), shipped [M3F](../planning/m3f-acceptance-and-hardening.md) acceptance/hardening including exclusive occupancy-profile editors, capacity-consequence remove/focus, and cost-review single-preload, and shipped [M4A](../planning/m4a-service-definitions-and-sources.md) unpublished Service Offer drafts in the Departure workspace, and shipped [M4B](../planning/m4b-client-pricing-and-anonymous-preview.md) unpublished Client prices and anonymous preview, shipped [M4C](../planning/m4c-packages-choices-and-client-terms.md) unpublished Package drafts, shipped [M4D](../planning/m4d-publication-and-live-feasibility.md) Publish/Sales/live feasibility, shipped [M4D.0](../planning/m4d0-narrow-group-departure-builder.md) domain with historical interim [M4D.0R](../planning/m4d0r-builder-interface-remediation.md) presentation, and shipped [M4D.1 Slice 1](../planning/m4d1-slice1-workspace-foundation.md) Composition primary Staff chrome under Accepted [M4D.1](../planning/m4d1-departure-composition-workspace.md). **M3 is complete.**
+**Scope:** Agency identity, the complete M1 Client and Supplier directories, M1E proof of keyboard, drawer, viewport, and `#form-error-summary` behavior, shipped M2A Departures, shipped M2B departed/correction surfaces, shipped M2C proof of Departures search, isolation, keyboard, drawer, and viewport behavior, shipped M3A tentative Supplier planning structure, shipped M3B draft Item-card Supplier capacity configuration, shipped M3C Arrangement/Item cost workspaces plus derived forecast views, shipped [M3D.0](../planning/m3-supplier-planning/m3d0-planning-workspace-compression.md) guided workspace compression over those M3A–M3C surfaces, shipped [M3D](../planning/m3-supplier-planning/m3d-activation-reservations-confirmations.md) activation, Reservation, confirmation, and effective-capacity surfaces, shipped [M3D.8](../planning/m3-supplier-planning/m3d8-activation-reservation-product-quality.md) product-quality remediation for those M3D surfaces, shipped [M3E](../planning/m3-supplier-planning/m3e-supplier-operational-control.md) operational commitments, Deadlines, deposits/milestones, exposure, Needs attention, and Arrangement ending (through M3E.7b, including M3E.5R and M3D remediations), shipped [M3F](../planning/m3-supplier-planning/m3f-acceptance-and-hardening.md) acceptance/hardening including exclusive occupancy-profile editors, capacity-consequence remove/focus, and cost-review single-preload, and shipped [M4A](../planning/m4-offers-and-pricing/m4a-service-definitions-and-sources.md) unpublished Service Offer drafts in the Departure workspace, and shipped [M4B](../planning/m4-offers-and-pricing/m4b-client-pricing-and-anonymous-preview.md) unpublished Client prices and anonymous preview, shipped [M4C](../planning/m4-offers-and-pricing/m4c-packages-choices-and-client-terms.md) unpublished Package drafts, shipped [M4D](../planning/m4-offers-and-pricing/m4d-publication-and-live-feasibility.md) Publish/Sales/live feasibility, shipped [M4D.0](../planning/m4-offers-and-pricing/m4d0-narrow-group-departure-builder.md) domain with historical interim [M4D.0R](../planning/m4-offers-and-pricing/m4d0r-builder-interface-remediation.md) presentation, and shipped [M4D.1 Slice 1](../planning/m4-offers-and-pricing/m4d1-slice1-workspace-foundation.md) Composition primary Staff chrome under Accepted [M4D.1](../planning/m4-offers-and-pricing/m4d1-departure-composition-workspace.md). **M3 is complete.**
 
 The [design system](design-system.md) defines product-wide visual and interaction behavior. This contract maps it to the current Rails application. Domain-specific sections must be added only with the slice that ships their routes and records.
 
@@ -138,7 +138,7 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 
 ## Departure Composition Workspace (M4D.1 Slice 1 shipped; Slice 2A.1 shipped)
 
-Authority: [M4D.1](../planning/m4d1-departure-composition-workspace.md); foundation: [M4D.1 Slice 1](../planning/m4d1-slice1-workspace-foundation.md) (shipped); typed Cruise A–B: [M4D.1 Slice 2A.1](../planning/m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (shipped). Domain: [M4D.0](../planning/m4d0-narrow-group-departure-builder.md). Historical interim presentation: [M4D.0R](../planning/m4d0r-builder-interface-remediation.md).
+Authority: [M4D.1](../planning/m4-offers-and-pricing/m4d1-departure-composition-workspace.md); foundation: [M4D.1 Slice 1](../planning/m4-offers-and-pricing/m4d1-slice1-workspace-foundation.md) (shipped); typed Cruise A–B: [M4D.1 Slice 2A.1](../planning/m4-offers-and-pricing/m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) (shipped). Domain: [M4D.0](../planning/m4-offers-and-pricing/m4d0-narrow-group-departure-builder.md). Historical interim presentation: [M4D.0R](../planning/m4-offers-and-pricing/m4d0r-builder-interface-remediation.md).
 
 - **Create group departure** uses two save intents: **Save and add components** (Add Service) and **Save for later** (Composition Overview empty-state chooser). Timing mode toggles do not clear exploratory input until validated submit.
 - For `manage_departures`, **Composition is the primary working body** for draft and active Departures (`/departures/:id/composition` and area routes). Compact identity header; five-area navigation (Overview, Services, Suppliers, Package & Client terms, Review). Full administrative definition remains via **Departure details**.
@@ -180,7 +180,7 @@ Superseded as primary Staff chrome by Composition Slice 1. Retained for historic
 
 ## Cruise deposits and deadlines workspace (M4D.1 Slice 2B + 2B-UX)
 
-Authority: [Slice 2B](../planning/m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) (shipped domain); [Slice 2B-UX](../planning/m4d1-slice2bux-deposits-deadlines-workspace-remediation.md) (Accepted workspace remediation).
+Authority: [Slice 2B](../planning/m4-offers-and-pricing/m4d1-slice2b-cruise-deposits-deadlines-and-activation-safe-editing.md) (shipped domain); [Slice 2B-UX](../planning/m4-offers-and-pricing/m4d1-slice2bux-deposits-deadlines-workspace-remediation.md) (Accepted workspace remediation).
 
 - Page order: `dd-page-header` (eyebrow `Cruise Supplier planning`, secondary `Back to Cruise`) → mutually exclusive readiness/operational banner → independent Deposit requirements `dd-panel` → independent Supplier deadlines `dd-panel`.
 - Draft readiness is compact (counts + unique blockers); definition-level activation consequences live in an on-demand disclosure. Counts do not replace Slice 2B §10.2 rows. Gate `Activate Arrangement` when preview status is blocked. Do not duplicate a “Review issues” jump when the blocker list is already in the banner.
@@ -196,7 +196,7 @@ Authority: [Slice 2B](../planning/m4d1-slice2b-cruise-deposits-deadlines-and-act
 
 ## Cruise service connection workspace (M4D.1 Slice 2C)
 
-Authority: [Slice 2C](../planning/m4d1-slice2c-cruise-service-connection.md) (Shipped; merge `b35a4f6`).
+Authority: [Slice 2C](../planning/m4-offers-and-pricing/m4d1-slice2c-cruise-service-connection.md) (Shipped; merge `b35a4f6`).
 
 - Route: `/departures/:departure_id/arrangements/:arrangement_id/cruise/service-connection`. Every action, including show, requires `manage_departures` and responds not found when that permission is absent.
 - Page order: `dd-page-header` (eyebrow `Cruise Supplier planning`, one `h1`, secondary `Back to Cruise`) → summary or one editor. The summary is the default. The editor opens only from `editor=connect` or `editor=edit`. Success redirects `303` to the summary URL without that query. Failed saves render `422` and keep the entered fields.
@@ -206,7 +206,7 @@ Authority: [Slice 2C](../planning/m4d1-slice2c-cruise-service-connection.md) (Sh
 
 ## Cruise Client terms workspace (M4D.1 Slice 2D)
 
-Authority: [Slice 2D](../planning/m4d1-slice2d-cruise-client-terms-and-scenario-review.md) (Shipped 2026-09-24; merge `dc272a3`, PR #154).
+Authority: [Slice 2D](../planning/m4-offers-and-pricing/m4d1-slice2d-cruise-client-terms-and-scenario-review.md) (Shipped 2026-09-24; merge `dc272a3`, PR #154).
 
 - Route: `/departures/:departure_id/arrangements/:arrangement_id/cruise/client-terms`. Every action, including show, requires `manage_departures` and responds not found when that permission is absent.
 - Page order: summary, then one category editor. The summary is the default. The editor opens only from an explicit category action. Success redirects `303` to the summary without that query. Failed saves render `422`, preserve the matrix, and focus `#form-error-summary`.
@@ -221,7 +221,7 @@ Authority: [Slice 2D](../planning/m4d1-slice2d-cruise-client-terms-and-scenario-
 
 ## Cruise agreement rework
 
-Authority: [Cruise rework](../planning/m4d1-cruise-rework.md).
+Authority: [Cruise rework](../planning/m4-offers-and-pricing/m4d1-cruise-rework.md).
 
 - Supplier rates keep estimate and contracted as separate stages. **Record contracted rates** copies the estimate onto a contracted sibling and leaves the estimate unchanged. The copy stays working until Staff marks that stage forecast-ready.
 - Cruise setup shows Supplier agreement confirmation: group reference, contract date, actor, time, and an optional note. There is no document field. A confirmed value changes only through **Correct confirmation**, which keeps the earlier confirmation.

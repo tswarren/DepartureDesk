@@ -1,8 +1,8 @@
 # UX-7 — Cruise Supplier Workspace Consolidation
 
 **Status:** Accepted 2026-09-29. UX-7.0 is satisfied. UX-7.1, the shared shell and Overview, is the authorized slice. Not authority for Hotel, Slice 3A, agreement documents, or a workflow engine.  
-**Indexed authority:** [m4d1-cruise-composition-ux7.md](../../m4d1-cruise-composition-ux7.md). This file and that plan are the same acceptance.  
-**Parent:** [Cruise Composition UX](../../m4d1-cruise-composition-ux.md).  
+**Indexed authority:** [m4d1-cruise-composition-ux7.md](../../m4-offers-and-pricing/m4d1-cruise-composition-ux7.md). This file and that plan are the same acceptance.  
+**Parent:** [Cruise Composition UX](../../m4-offers-and-pricing/m4d1-cruise-composition-ux.md).  
 **Implementation baseline:** `fe01ed2b1b395e047d3c27ed466c6e5c444e340d`  
 **Depends on:** Cruise rework behavior, and UX-1 through UX-6 behavior at that baseline.  
 **Prior draft:** [UD-7-draft.md](UD-7-draft.md) is the reviewed predecessor. Where they differ, this plan governs.

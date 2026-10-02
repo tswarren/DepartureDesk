@@ -169,6 +169,33 @@ class SupplierCostPersistenceTest < ActiveSupport::TestCase
     end
   end
 
+  test "direct persistence cannot pair noncommissionable treatment with expected commission" do
+    commissioned = SupplierCostDefinition.create!(definition_attributes(create_source))
+    SupplierCostComponent.create!(
+      commission_component_attributes(commissioned)
+    )
+
+    treatment_error = assert_raises(ActiveRecord::RecordInvalid) do
+      commissioned.update!(commission_treatment: "noncommissionable")
+    end
+    assert_includes treatment_error.record.errors[:commission_treatment],
+      "cannot be noncommissionable while an expected commission component exists"
+    assert_equal "unspecified", commissioned.reload.commission_treatment
+
+    noncommissionable = SupplierCostDefinition.create!(
+      definition_attributes(
+        SupplierCostSource.create!(source_attributes(position: 2, label: "Noncommissionable room")),
+        commission_treatment: "noncommissionable"
+      )
+    )
+    role_error = assert_raises(ActiveRecord::RecordInvalid) do
+      SupplierCostComponent.create!(commission_component_attributes(noncommissionable))
+    end
+    assert_includes role_error.record.errors[:economic_role],
+      "cannot be expected commission on a noncommissionable definition"
+    assert_equal 0, noncommissionable.supplier_cost_components.where(economic_role: "expected_commission").count
+  end
+
   test "both departure currency commands freeze without rewriting component amounts" do
     definition = SupplierCostDefinition.create!(definition_attributes(create_source))
     component = SupplierCostComponent.create!(
@@ -239,6 +266,17 @@ class SupplierCostPersistenceTest < ActiveSupport::TestCase
 
   def create_source
     SupplierCostSource.create!(source_attributes)
+  end
+
+  def commission_component_attributes(definition)
+    owner_attributes.merge(
+      supplier_cost_definition: definition,
+      label: "Expected commission",
+      economic_role: "expected_commission",
+      calculation_kind: "fixed",
+      amount_minor_units: 1_000,
+      position: 1
+    )
   end
 
   def definition_attributes(source, **overrides)

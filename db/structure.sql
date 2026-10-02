@@ -223,6 +223,23 @@ $$;
 
 
 --
+-- Name: lock_version_before_supplier_confirmation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.lock_version_before_supplier_confirmation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  PERFORM id
+    FROM supplier_arrangement_versions
+   WHERE id = NEW.supplier_arrangement_version_id
+     FOR UPDATE;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_agency_user_agency_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -547,6 +564,41 @@ BEGIN
     OR NEW.copied_from_id IS DISTINCT FROM OLD.copied_from_id
   THEN
     RAISE EXCEPTION 'commercial benefit definition owner is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_confirmed_agreement_reference_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_confirmed_agreement_reference_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE version_id uuid;
+BEGIN
+  version_id := CASE TG_OP
+    WHEN 'DELETE' THEN OLD.supplier_arrangement_version_id
+    ELSE NEW.supplier_arrangement_version_id
+  END;
+
+  PERFORM id
+    FROM supplier_arrangement_versions
+   WHERE id = version_id
+     FOR SHARE;
+
+  IF EXISTS (
+    SELECT 1
+      FROM supplier_confirmations
+     WHERE supplier_arrangement_version_id = version_id
+  ) THEN
+    RAISE EXCEPTION 'agreement references are immutable after Supplier confirmation';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
   END IF;
   RETURN NEW;
 END;
@@ -931,6 +983,47 @@ $$;
 
 
 --
+-- Name: reject_mixed_agreement_reference_scope(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_mixed_agreement_reference_scope() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  -- Exclusive lock before the opposite-scope check. A shared lock lets two
+  -- inserts of opposite scope both observe an empty set and both commit.
+  -- Version, Item, and kind cannot move: reject_supplier_term_owner_change
+  -- rejects that update, so only this version row needs the lock.
+  PERFORM id
+    FROM supplier_arrangement_versions
+   WHERE id = NEW.supplier_arrangement_version_id
+     FOR UPDATE;
+
+  IF TG_OP = 'UPDATE'
+     AND OLD.supplier_arrangement_version_id IS NOT DISTINCT FROM NEW.supplier_arrangement_version_id
+     AND OLD.kind IS NOT DISTINCT FROM NEW.kind
+     AND OLD.arrangement_item_id IS NOT DISTINCT FROM NEW.arrangement_item_id
+  THEN
+    RETURN NEW;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+      FROM supplier_agreement_references existing
+     WHERE existing.supplier_arrangement_version_id = NEW.supplier_arrangement_version_id
+       AND existing.kind = NEW.kind
+       AND existing.id IS DISTINCT FROM NEW.id
+       AND (existing.arrangement_item_id IS NULL) IS DISTINCT FROM (NEW.arrangement_item_id IS NULL)
+  ) THEN
+    RAISE EXCEPTION 'an agreement reference kind cannot use both Item scope and agreement-wide scope';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_non_draft_arrangement_version_definition_mutation(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1034,6 +1127,26 @@ BEGIN
 
   IF TG_OP = 'DELETE' THEN
     RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_noncommissionable_expected_commission(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_noncommissionable_expected_commission() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.commission_treatment = 'noncommissionable' AND EXISTS (
+    SELECT 1 FROM supplier_cost_components
+     WHERE supplier_cost_definition_id = NEW.id
+       AND economic_role = 'expected_commission'
+  ) THEN
+    RAISE EXCEPTION 'noncommissionable definitions cannot contain expected commission';
   END IF;
   RETURN NEW;
 END;
@@ -1954,6 +2067,25 @@ $$;
 
 
 --
+-- Name: reject_supplier_term_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_term_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE column_name text;
+BEGIN
+  FOREACH column_name IN ARRAY TG_ARGV LOOP
+    IF to_jsonb(NEW) ->> column_name IS DISTINCT FROM to_jsonb(OLD) ->> column_name THEN
+      RAISE EXCEPTION '% owner is immutable', TG_TABLE_NAME;
+    END IF;
+  END LOOP;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: stamp_supplier_identifier_superseded_by_successor(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2210,13 +2342,18 @@ CREATE FUNCTION public.validate_supplier_cost_component() RETURNS trigger
     AS $$
 DECLARE source_item uuid;
 DECLARE definition_mode text;
+DECLARE definition_treatment text;
 BEGIN
-  SELECT s.arrangement_item_id, d.mode INTO source_item, definition_mode
+  SELECT s.arrangement_item_id, d.mode, d.commission_treatment
+    INTO source_item, definition_mode, definition_treatment
     FROM supplier_cost_definitions d
     JOIN supplier_cost_sources s ON s.id = d.supplier_cost_source_id
    WHERE d.id = NEW.supplier_cost_definition_id;
   IF definition_mode <> 'calculated' THEN
     RAISE EXCEPTION 'zero-cost definitions cannot contain components';
+  END IF;
+  IF definition_treatment = 'noncommissionable' AND NEW.economic_role = 'expected_commission' THEN
+    RAISE EXCEPTION 'noncommissionable definitions cannot contain expected commission';
   END IF;
   IF source_item IS NULL AND
      (NEW.quantity_basis IS NOT NULL OR NEW.participant_category_id IS NOT NULL
@@ -3953,6 +4090,37 @@ CREATE TABLE public.sessions (
 
 
 --
+-- Name: supplier_agreement_references; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_agreement_references (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_agreement_referenc_supplier_arrangement_versi_not_null NOT NULL,
+    arrangement_item_id uuid,
+    kind character varying NOT NULL,
+    governing_wording character varying(2000) NOT NULL,
+    original_wording character varying(2000),
+    source_description character varying(2000) NOT NULL,
+    supplier_reference character varying(2000),
+    external_reference character varying(2000),
+    evidence_note character varying(2000),
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    copied_from_id uuid,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT agreement_references_kind CHECK ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[])) AND ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying])::text[])) AND (arrangement_item_id IS NOT NULL)) OR ((kind)::text = ANY ((ARRAY['destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[]))))),
+    CONSTRAINT agreement_references_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT agreement_references_provenance CHECK ((((source_description)::text = btrim((source_description)::text)) AND ((char_length((source_description)::text) >= 1) AND (char_length((source_description)::text) <= 2000)) AND ((supplier_reference IS NULL) OR (((supplier_reference)::text = btrim((supplier_reference)::text)) AND ((char_length((supplier_reference)::text) >= 1) AND (char_length((supplier_reference)::text) <= 2000)))) AND ((external_reference IS NULL) OR (((external_reference)::text = btrim((external_reference)::text)) AND ((char_length((external_reference)::text) >= 1) AND (char_length((external_reference)::text) <= 2000)))) AND ((evidence_note IS NULL) OR (((evidence_note)::text = btrim((evidence_note)::text)) AND ((char_length((evidence_note)::text) >= 1) AND (char_length((evidence_note)::text) <= 2000)))))),
+    CONSTRAINT agreement_references_wording CHECK ((((governing_wording)::text = btrim((governing_wording)::text)) AND ((char_length((governing_wording)::text) >= 1) AND (char_length((governing_wording)::text) <= 2000)) AND ((((kind)::text = 'deposit_refund'::text) AND (original_wording IS NOT NULL) AND ((original_wording)::text = btrim((original_wording)::text)) AND ((char_length((original_wording)::text) >= 1) AND (char_length((original_wording)::text) <= 2000))) OR (((kind)::text <> 'deposit_refund'::text) AND (original_wording IS NULL)))))
+);
+
+
+--
 -- Name: supplier_arrangement_activation_capacity_entries; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4865,6 +5033,8 @@ CREATE TABLE public.supplier_cost_definitions (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     copied_from_id uuid,
+    commission_treatment character varying DEFAULT 'unspecified'::character varying NOT NULL,
+    CONSTRAINT supplier_cost_definitions_commission_treatment CHECK (((commission_treatment)::text = ANY ((ARRAY['unspecified'::character varying, 'noncommissionable'::character varying])::text[]))),
     CONSTRAINT supplier_cost_definitions_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT supplier_cost_definitions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_cost_definitions_mode CHECK (((mode)::text = ANY (ARRAY[('calculated'::character varying)::text, ('zero_cost'::character varying)::text]))),
@@ -6474,6 +6644,14 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: supplier_agreement_references supplier_agreement_references_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT supplier_agreement_references_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_arrangement_activation_capacity_entries supplier_arrangement_activation_capacity_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7344,6 +7522,34 @@ CREATE UNIQUE INDEX index_agency_users_on_invitation_token_digest ON public.agen
 --
 
 CREATE UNIQUE INDEX index_agency_users_on_password_reset_token_digest ON public.agency_users USING btree (password_reset_token_digest) WHERE (password_reset_token_digest IS NOT NULL);
+
+
+--
+-- Name: index_agreement_references_on_id_agency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_references_on_id_agency ON public.supplier_agreement_references USING btree (id, agency_id);
+
+
+--
+-- Name: index_agreement_references_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_references_on_lineage_owner ON public.supplier_agreement_references USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_agreement_references_on_version_item_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_references_on_version_item_kind ON public.supplier_agreement_references USING btree (supplier_arrangement_version_id, arrangement_item_id, kind) WHERE (arrangement_item_id IS NOT NULL);
+
+
+--
+-- Name: index_agreement_references_on_version_kind_without_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agreement_references_on_version_kind_without_item ON public.supplier_agreement_references USING btree (supplier_arrangement_version_id, kind) WHERE (arrangement_item_id IS NULL);
 
 
 --
@@ -12296,6 +12502,34 @@ CREATE TRIGGER service_offers_reject_owner_change BEFORE UPDATE ON public.servic
 
 
 --
+-- Name: supplier_agreement_references supplier_agreement_references_guard_mixed_scope; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_references_guard_mixed_scope BEFORE INSERT OR UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_mixed_agreement_reference_scope();
+
+
+--
+-- Name: supplier_agreement_references supplier_agreement_references_reject_confirmed; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_references_reject_confirmed BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_agreement_reference_mutation();
+
+
+--
+-- Name: supplier_agreement_references supplier_agreement_references_reject_non_draft; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_references_reject_non_draft BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_agreement_references supplier_agreement_references_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_agreement_references_reject_owner_change BEFORE UPDATE ON public.supplier_agreement_references FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_term_owner_change('agency_id', 'departure_id', 'supplier_arrangement_id', 'supplier_arrangement_version_id', 'arrangement_item_id', 'kind', 'copied_from_id');
+
+
+--
 -- Name: supplier_arrangement_activation_capacity_entries supplier_arrangement_activation_capacity_entries_reject_delete; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12583,6 +12817,13 @@ CREATE TRIGGER supplier_confirmation_reservation_scope_links_reject_update BEFOR
 
 
 --
+-- Name: supplier_confirmations supplier_confirmations_lock_version; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_confirmations_lock_version BEFORE INSERT ON public.supplier_confirmations FOR EACH ROW EXECUTE FUNCTION public.lock_version_before_supplier_confirmation();
+
+
+--
 -- Name: supplier_confirmations supplier_confirmations_reject_delete; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12671,6 +12912,13 @@ CREATE TRIGGER supplier_cost_components_validate_context BEFORE INSERT OR UPDATE
 --
 
 CREATE TRIGGER supplier_cost_definitions_reject_non_draft_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_non_draft_arrangement_version_definition_mutation();
+
+
+--
+-- Name: supplier_cost_definitions supplier_cost_definitions_reject_noncommissionable_commission; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_definitions_reject_noncommissionable_commission BEFORE INSERT OR UPDATE OF commission_treatment ON public.supplier_cost_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_noncommissionable_expected_commission();
 
 
 --
@@ -13090,6 +13338,38 @@ ALTER TABLE ONLY public.supplier_arrangement_activation_cost_selections
 
 ALTER TABLE ONLY public.agency_users
     ADD CONSTRAINT agency_users_default_office_fk FOREIGN KEY (default_office_id, agency_id) REFERENCES public.offices(id, agency_id);
+
+
+--
+-- Name: supplier_agreement_references agreement_references_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT agreement_references_copied_from_fk FOREIGN KEY (copied_from_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_agreement_references(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_agreement_references agreement_references_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT agreement_references_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_agreement_references agreement_references_recorder_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT agreement_references_recorder_fk FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: supplier_agreement_references agreement_references_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT agreement_references_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -15645,6 +15925,14 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: supplier_agreement_references fk_rails_fe357b7e0b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_agreement_references
+    ADD CONSTRAINT fk_rails_fe357b7e0b FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: service_offer_price_components fk_so_price_components_supplier_cost_copy; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17067,6 +17355,11 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261002010000'),
+('20261001210000'),
+('20261001193000'),
+('20261001180000'),
+('20260930170000'),
 ('20260928020000'),
 ('20260928010000'),
 ('20260926220000'),

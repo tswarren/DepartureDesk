@@ -20,6 +20,7 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
 
   test "supplier tables exist in the structure" do
     assert_equal %w[
+      supplier_agreement_references
       supplier_arrangement_activation_capacity_entries
       supplier_arrangement_activation_cost_selections
       supplier_arrangement_activations

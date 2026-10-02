@@ -1,0 +1,43 @@
+<% editable = local_assigns.fetch(:editable, true) %>
+<% field_state = ("disabled" unless editable) %>
+<% if local_assigns[:show_item_name] %>
+  <div class="dd-field-group">
+    <label class="dd-label" for="item_name">Stay name</label>
+    <input id="item_name" name="item[name]" class="dd-field" required maxlength="160" <%= field_state %> value="<%= item[:name] %>">
+  </div>
+<% end %>
+
+<div class="dd-field-group">
+  <label class="dd-label" for="occurrence_starts_on">Arrival date</label>
+  <input id="occurrence_starts_on" name="occurrence[starts_on]" type="date" class="dd-field" required <%= field_state %>
+    value="<%= occurrence[:starts_on] %>">
+</div>
+
+<div class="dd-field-group">
+  <label class="dd-label" for="occurrence_ends_on">Departure date</label>
+  <input id="occurrence_ends_on" name="occurrence[ends_on]" type="date" class="dd-field" required <%= field_state %>
+    value="<%= occurrence[:ends_on] %>">
+</div>
+
+<div class="dd-field-group">
+  <label class="dd-label" for="occurrence_starts_at_local">Check-in time</label>
+  <input id="occurrence_starts_at_local" name="occurrence[starts_at_local]" type="time" class="dd-field" required <%= field_state %>
+    value="<%= hotel_local_time(occurrence[:starts_at_local]) %>">
+</div>
+
+<div class="dd-field-group">
+  <label class="dd-label" for="occurrence_ends_at_local">Checkout time</label>
+  <input id="occurrence_ends_at_local" name="occurrence[ends_at_local]" type="time" class="dd-field" required <%= field_state %>
+    value="<%= hotel_local_time(occurrence[:ends_at_local]) %>">
+</div>
+
+<div class="dd-field-group">
+  <label class="dd-label" for="occurrence_time_zone">Time zone</label>
+  <select id="occurrence_time_zone" name="occurrence[time_zone]" class="dd-field" required <%= field_state %>>
+    <% iana_timezone_options.each do |zone| %>
+      <option value="<%= zone %>" <%= "selected" if occurrence[:time_zone].to_s == zone.to_s %>>
+        <%= zone %>
+      </option>
+    <% end %>
+  </select>
+</div>

@@ -47,6 +47,7 @@ class DepartureCompositionsController < ApplicationController
         arrangement: arrangement
       ).call
     end
+    @hotel_items = @arrangements.index_with { |arrangement| hotel_lodging_items(arrangement) }
     render :suppliers
   end
 
@@ -118,6 +119,13 @@ class DepartureCompositionsController < ApplicationController
     @workspace.editable_packages.empty? &&
       @departure.service_offers.none? { |offer| offer.editable_draft_version.present? } &&
       @departure.supplier_arrangements.none?
+  end
+
+  def hotel_lodging_items(arrangement)
+    version = arrangement.editable_version
+    return [] if version.nil?
+
+    DetectHotelInventoryShape.lodging_items(version)
   end
 
   def composition_work_on_for_workspace

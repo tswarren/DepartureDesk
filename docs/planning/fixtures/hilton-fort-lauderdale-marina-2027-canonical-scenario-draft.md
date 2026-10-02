@@ -1,9 +1,9 @@
 # Hilton Fort Lauderdale Marina 2027 — Canonical Hotel Agreement Scenario
 
-**Status:** Approved 2026-09-27 at the single registered Hotel fixture path, `docs/planning/fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md`. This is the Hotel agreement scenario for the Smith Family Reunion stay. Approval does not authorize Hotel implementation. An accepted Slice 3A plan must name the facts it uses. The contract/signature date and Hotel group or confirmation number stay blank.  
+**Status:** Approved 2026-09-27 at the single registered Hotel fixture path, `docs/planning/fixtures/hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md`. This is the Hotel agreement scenario for the Smith Family Reunion stay. The accepted [Slice 3A plan](../m4-offers-and-pricing/m4d1-slice3a-hotel-supplier-composition.md) names the facts it uses. Slice 3A.0 recorded four incompatibilities. Slice 3A.1, Hotel Supplier-term persistence foundations, is Accepted 2026-09-30. The Slice 3A.1 compatibility proof is green. Slice 3A.2, Stay and nightly inventory, is implemented. Hotel Supplier rates are shipped. [Hotel Agreement](../m4-offers-and-pricing/hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](../m4-offers-and-pricing/hotel-review-and-activation.md) is Accepted 2026-10-01. Hotel Lifecycle is not authorized until its own accepted plan names that work. The contract/signature date and Hotel group or confirmation number stay blank.  
 **Departure:** Smith Family Reunion  
 **Supplier:** Hilton Fort Lauderdale Marina  
-**Purpose:** Approved Hotel agreement facts and MVP proof scenario, with the [Hotel Staff walkthrough](../m4d1-hilton-hotel-staff-walkthrough.md).
+**Purpose:** Approved Hotel agreement facts and MVP proof scenario, with the [Hotel Staff walkthrough](../m4-offers-and-pricing/m4d1-hilton-hotel-staff-walkthrough.md).
 
 ## 1. Authority and scope
 
@@ -39,8 +39,8 @@ The following earlier fixture facts are superseded:
 | Departure | Smith Family Reunion |
 | Property | Hilton Fort Lauderdale Marina |
 | Stay name | Pre-cruise hotel stay |
-| Contract/signature date | September 28, 2027 |
-| Hotel group or confirmation number | Not HH2609271548 |
+| Contract/signature date | Unspecified; leave blank |
+| Hotel group or confirmation number | Unspecified; leave blank |
 | Time zone | America/New_York |
 | Check-in time | 3:00 p.m. |
 | Checkout time | Noon |
@@ -66,7 +66,7 @@ The quantities vary by night. They must not be flattened into one constant openi
 
 Each room category is a stable Hotel Resource. The nightly contracted quantities are Supplier-controlled room-unit capacity for the covered occurrence dates. They do not represent travelers, Hotel-wide physical inventory, expected pickup, or rooms already sold.
 
-**Topology decision for Slice 3A:** identify each inventory night by an authoritative date and each category/night block by an exact Pool. Present one continuous guest stay, not a new guest check-in on November 5. A free-text Pool label must not be the only source of the date. The plan must specify how M3 Occurrences, Pools, and the actual November 4 check-in/November 6 checkout terms coexist before implementation.
+**Topology:** the accepted [Slice 3A plan](../m4-offers-and-pricing/m4d1-slice3a-hotel-supplier-composition.md) names the graph. One Stay Occurrence carries November 4 check-in through November 6 checkout and is not capacity-bearing. Each inventory night is its own single-day Occurrence, and each category/night block is one Pool. A free-text Pool label is not the date.
 
 ### 3.2 Occupancy
 
@@ -169,7 +169,7 @@ This is one actionable Supplier Deadline. Recording that the rooming list was de
 
 October 4 is the due date of the **final scheduled deposit for the original block**. It precedes the November 4–6 stay, so it cannot be the final reconciliation of actual occupancy, attrition, early departures, or unpaid guest folios. In this scenario the October 4 pre-stay review of then-known added rooms, added nights, or other estimated Group charges is $0. Any later addition needs its own evidenced amount and must not create a second charge for the original $4,156 block.
 
-The last day of the block is the contracted departure, November 6, 2027. The Hotel refunds the unused deposit balance to the agency on or before November 20, 2027, fourteen days after that date.
+The last day of the block is the contracted departure, November 6, 2027. The governing refund date is on or before November 20, 2027. That date falls fourteen days after the departure. The governing sentence is the November 20 sentence in §9.3.
 
 Each deposit is a separate Supplier Deposit Requirement definition with its own identity, due date, amount, and relationship to the **original** contracted-room-revenue target. The write-free summary shows the 10%/45%/45% derivation. Later pickup, room-rate changes, tax changes, or additions do not silently rebase these original scheduled amounts; an amendment or separately evidenced adjustment must name its basis. These are requirements, not recorded payments.
 
@@ -183,7 +183,7 @@ Deposits must not be added to guest-paid room expense as a second cost. Tax on t
 
 ### 9.3 Blocking contract conflict
 
-The supplied clause calls the deposits “non-refundable.” This scenario keeps that sentence visible as the original wording and replaces it with the governing refund rule: the Hotel refunds the agency, within fourteen days after November 6, 2027, the amount paid minus the attrition shortfall. That clarification is recorded on the current draft before activation. It does not block activation, and it does not require a successor.
+The supplied clause's original wording, retained exactly, is: “Deposits are non-refundable.” This scenario keeps that sentence visible as history and replaces it with the governing refund rule: the Hotel refunds the agency on or before November 20, 2027, the amount actually paid toward the deposits minus the attrition shortfall. That clarification is recorded on the current draft before activation. It does not block activation, and it does not require a successor.
 
 ## 10. Attrition
 
@@ -205,7 +205,7 @@ When a date has zero utilized rooms, the shortfall uses each unsold room's contr
 
 The stated nightly minimums equal the full contracted block on each night: 7 of 7 and 15 of 15. This is a zero-attrition allowance under the stated formula. A release after cutoff does not reduce either minimum. Do not borrow an 80% or other allowance from a different agreement. Actual attrition tax belongs to the Group liability rather than an occupied guest's folio.
 
-**MVP representation:** retain this as structured policy attached to the Hotel Item. Do not materialize an attrition Obligation or charge before later Reservation facts establish actual utilized rooms, booking channels, rates, and taxes.
+**MVP representation:** retain this as version-owned agreement-reference wording on the Hotel Item. Do not materialize an attrition Obligation or charge before later Reservation facts establish actual utilized rooms, booking channels, rates, and taxes.
 
 ## 11. Early departure
 
@@ -248,7 +248,7 @@ November 4–6, 2027 · 2 nights · Draft · USD
 Deposit refund
 Hotel refunds the agency by November 20, 2027
 Amount paid minus the attrition shortfall
-Original nonrefundable sentence kept as history
+Original wording: Deposits are non-refundable.
 
 Rooms and inventory
 
@@ -276,7 +276,7 @@ Second deposit · $1,870.20 · Due May 7, 2027
 Room assignments/cutoff · Oct 3, 2027 at 5:00 p.m.
 Third/final block deposit · $1,870.20 · Due Oct 4, 2027
 Oct 4 is the scheduled deposit only. This scenario adds $0 that day.
-Refund to the agency by Nov 20, fourteen days after the Nov 6 departure.
+Refund to the agency on or before November 20, 2027.
 
 Attrition
 100% of per-date lost room revenue below the nightly minimum
@@ -312,7 +312,7 @@ At least one browser proof must use two Hotel Items, with navigation by stable I
 
 ## 16. Fixture assertions and behavior boundaries
 
-The commercial terms below are the Approved scenario values for this proof. The contract/signature date and Hotel group or confirmation number remain unspecified. Approval does not authorize Hotel implementation until an accepted Slice 3A plan names the facts it uses.
+The commercial terms below are the Approved scenario values for this proof. The contract/signature date and Hotel group or confirmation number remain unspecified. The accepted [Slice 3A plan](../m4-offers-and-pricing/m4d1-slice3a-hotel-supplier-composition.md) names the facts it uses. Slice 3A.0 recorded four incompatibilities. Slice 3A.1, Hotel Supplier-term persistence foundations, is Accepted 2026-09-30. The Slice 3A.1 compatibility proof is green. Slice 3A.2, Stay and nightly inventory, is implemented. Hotel Supplier rates are shipped. [Hotel Agreement](../m4-offers-and-pricing/hotel-agreement.md) is Shipped 2026-10-01. [Hotel Review and Activation](../m4-offers-and-pricing/hotel-review-and-activation.md) is Accepted 2026-10-01. Hotel Lifecycle is not authorized until its own accepted plan names that work.
 
 1. The contracted stay is November 4–6, 2027.
 2. Nightly inventory varies: 5 Standard/2 Deluxe, then 10 Standard/5 Deluxe.
@@ -326,7 +326,7 @@ The commercial terms below are the Approved scenario values for this proof. The 
 10. The room-assignment cutoff is October 3, 2027 at 5:00 p.m. America/New_York.
 11. Guests pay their occupied room and tax folios.
 12. The agency pays the three scheduled deposits, which total the original $4,156 pretax block. The Hotel refunds the agency the amount actually paid minus the attrition shortfall. Guests do not pay or receive that deposit.
-13. October 4 is the final scheduled deposit date for the original block. This scenario adds $0 for the pre-stay review. The refund date is on or before November 20, 2027, fourteen days after the November 6 departure.
+13. October 4 is the final scheduled deposit date for the original block. This scenario adds $0 for the pre-stay review. The governing refund date is on or before November 20, 2027.
 14. The original nonrefundable sentence stays visible as history. The refund rule in §9.3 is the governing outcome and does not block activation. A room released after cutoff does not reduce the nightly minimum or the deposit.
 15. Attrition is evaluated independently per stay date and remains structured policy until actual utilization exists.
 16. There is no separate supplied cancellation ladder.

@@ -1,7 +1,7 @@
 # M4D.1 Cruise composition UX — UX-5 Review and activate
 
 **Status:** Draft  
-**Parent:** `docs/planning/m4d1-cruise-composition-ux.md`  
+**Parent:** `docs/planning/m4-offers-and-pricing/m4d1-cruise-composition-ux.md`  
 **Depends on:** accepted UX-1 through UX-4 and the UX-4.5 nonnumeric opening-capacity remediation  
 **Scope:** Cruise-specific presentation and orchestration over existing Supplier activation authority  
 **Primary command:** `ActivateSupplierArrangementVersion`

@@ -1,0 +1,18 @@
+<% content_for :title, "#{HotelAgreementWorkspace::TERM_LABELS.fetch(@kind)} · #{@departure.name} · DepartureDesk" %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<%= render "hotel_setup/shell", current: "agreement", page_title: HotelAgreementWorkspace::TERM_LABELS.fetch(@kind), item: @arrangement_item %>
+
+<article class="dd-panel" id="hotel-agreement-term-form">
+  <div class="dd-panel-body dd-stack">
+    <%= render "hotel_stays/error_summary" %>
+    <% if confirmed_version? %>
+      <p id="hotel-term-confirmed">Supplier confirmed. Agreement terms on this version cannot be changed.</p>
+    <% end %>
+    <% guidance = HotelAgreementWorkspace::TERM_GUIDANCE[@kind] %>
+    <% if guidance.present? %>
+      <p class="dd-page-description"><%= guidance %></p>
+    <% end %>
+    <%= render "form" %>
+    <p><%= link_to "Return to Hotel Agreement", hotel_agreement_path_for %></p>
+  </div>
+</article>

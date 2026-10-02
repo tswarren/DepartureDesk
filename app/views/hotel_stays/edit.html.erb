@@ -1,0 +1,32 @@
+<% content_for :title, "Stay · #{@departure.name} · DepartureDesk" %>
+<% occurrence = (@occurrence_attributes || {}).with_indifferent_access %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<%= render "hotel_setup/shell", current: "stay", page_title: "Stay", item: @arrangement_item %>
+
+<article class="dd-panel" id="hotel-stay-form">
+  <div class="dd-panel-body dd-stack">
+    <% if @shape.blocked? %>
+      <%= render "hotel_setup/unsupported", shape: @shape, item: @arrangement_item %>
+    <% end %>
+
+    <% if @shape.stay_definition %>
+      <%= form_with url: item_stay_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
+            method: :patch, class: "dd-form dd-stack" do %>
+        <%= hidden_field_tag :definition_lock_version, @shape.stay_definition.lock_version %>
+        <% if hotel_agreement_return? %>
+          <%= hidden_field_tag :return_to, "hotel_agreement" %>
+        <% end %>
+        <%= render "hotel_stays/error_summary" %>
+        <section aria-labelledby="hotel-stay-edit-heading" class="dd-stack">
+          <h2 id="hotel-stay-edit-heading" class="dd-section-title"><%= @arrangement_item_definition.name %></h2>
+        <%= render "hotel_stays/fields", item: {}, occurrence: occurrence, show_item_name: false, editable: @editable %>
+        </section>
+        <% if @editable %>
+          <button type="submit" class="dd-button">Save stay</button>
+        <% end %>
+      <% end %>
+    <% elsif !@shape.blocked? %>
+      <p>No Stay is recorded for this Item.</p>
+    <% end %>
+  </div>
+</article>

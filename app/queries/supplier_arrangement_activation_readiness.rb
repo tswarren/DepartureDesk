@@ -46,6 +46,10 @@ class SupplierArrangementActivationReadiness
     SupplierCommitmentTriggerDefinition
   ].freeze
 
+  REQUIRED_COPY_MODELS = [
+    SupplierAgreementReference
+  ].freeze
+
   def verify_ownership
     ids = [ @agency.id, @departure.agency_id, @arrangement.agency_id, @version.agency_id ]
     raise ActiveRecord::RecordNotFound unless ids.uniq.one?
@@ -72,7 +76,7 @@ class SupplierArrangementActivationReadiness
         id: copied_ids, supplier_arrangement_version_id: predecessor.id
       ).count != copied_ids.uniq.size
     end
-    if invalid_lineage || retained_structure_lineage_missing?(predecessor)
+    if invalid_lineage || retained_structure_lineage_missing?(predecessor) || required_copy_missing?(predecessor)
       block(:lineage, :copied_lineage_invalid, "version",
         "Copied successor definitions must retain exact predecessor lineage.")
     end
@@ -96,6 +100,16 @@ class SupplierArrangementActivationReadiness
     if blocked_ids.any?
       block(:capacity, :carried_pool_omission_blocked, "capacity_pools",
         "Omitted numeric Pools must have zero effective quantity, no pending event, and clean reconciliation.")
+    end
+  end
+
+  def required_copy_missing?(predecessor)
+    REQUIRED_COPY_MODELS.any? do |model|
+      previous_ids = model.where(supplier_arrangement_version_id: predecessor.id).pluck(:id)
+      next false if previous_ids.empty?
+
+      copies = model.where(supplier_arrangement_version_id: @version.id, copied_from_id: previous_ids)
+      copies.count != previous_ids.size || copies.distinct.count(:copied_from_id) != previous_ids.size
     end
   end
 

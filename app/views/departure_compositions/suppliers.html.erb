@@ -7,24 +7,34 @@
       <h2 id="current-supplier-planning-heading" class="dd-section-title">Current Supplier planning</h2>
       <nav class="dd-inline-actions" aria-label="Supplier planning actions">
         <%= link_to "Set up a Cruise", new_departure_composition_suppliers_cruise_path(@departure), class: "dd-button" %>
+        <%= link_to "Add Hotel stay", new_departure_composition_suppliers_hotel_path(@departure), class: "dd-button" %>
         <%= link_to "Add Arrangement", new_departure_arrangement_path(@departure), class: "dd-button dd-button--quiet" %>
         <%= link_to "Supplier planning", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
       </nav>
 
       <% arrangements = Array(@arrangements) %>
       <% cruise_shapes = @cruise_shapes || {} %>
+      <% hotel_items = @hotel_items || {} %>
       <% if arrangements.blank? %>
         <p>No Supplier Arrangements yet.</p>
       <% else %>
         <ul>
           <% arrangements.each do |arrangement| %>
             <% shape = cruise_shapes[arrangement] %>
+            <% lodging_items = hotel_items[arrangement] || [] %>
             <li>
               <%= arrangement.name.presence || "Arrangement" %>
               · <%= arrangement.status.to_s.humanize %>
               <% if shape&.compatible? %>
                 · <%= link_to "Open Cruise setup", departure_arrangement_cruise_path(@departure, arrangement) %>
-              <% else %>
+              <% end %>
+              <% if lodging_items.one? %>
+                · <%= link_to "Open Hotel Agreement",
+                      item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, lodging_items.first) %>
+              <% elsif lodging_items.any? %>
+                · <%= link_to "Open Hotel Agreement", departure_arrangement_hotel_path(@departure, arrangement) %>
+              <% end %>
+              <% if !shape&.compatible? && lodging_items.empty? %>
                 · <%= link_to "Open advanced Arrangement", departure_arrangement_path(@departure, arrangement) %>
               <% end %>
             </li>
