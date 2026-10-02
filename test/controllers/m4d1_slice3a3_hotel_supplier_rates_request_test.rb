@@ -246,7 +246,6 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_select "#hotel-agreement-rates", text: /In progress/
     assert_select "#hotel-agreement-rate-authority", text: "Estimated"
     assert_match "$173", response.body
-
   end
 
   test "a category with no rooms on one night does not need a rate that night" do
