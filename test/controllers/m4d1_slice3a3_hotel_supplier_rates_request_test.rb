@@ -131,6 +131,16 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_no_match "$4,156.00", response.body
     assert_equal 17_300, component_amount(item, "November 4", "Standard", "Room night base")
     assert_equal evidence, pool.reload.evidence_reference_note
+    updated_assumption = draft_version(item).supplier_cost_usage_assumptions.find_by!(
+      arrangement_item: item,
+      service_occurrence_id: pool.service_occurrence_id,
+      supplier_resource_id: pool.supplier_resource_id
+    )
+    assert_equal 6, updated_assumption.supplier_cost_occupancy_profiles.sole.resource_unit_count
+    forecast = EvaluateSupplierCostForecast.new(
+      agency: @agency, departure: @departure, arrangement: arrangement
+    ).call
+    assert_equal 432_900, forecast.totals.forecast_supplier_cost_minor_units
     assert_equal 0, SupplierAgreementReference.where(supplier_arrangement_version: draft_version(item)).count
   end
 
