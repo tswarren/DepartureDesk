@@ -137,6 +137,7 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.deposits_materialized
     supplier_arrangement.deposit_attested_external
     supplier_arrangement.agreement_reference_recorded
+    supplier_arrangement.agreement_reference_removed
     supplier_arrangement.planning_milestone_recorded
     supplier_arrangement.exposure_qualified
     supplier_arrangement.commitments_disposed

@@ -3,12 +3,15 @@
 class RecordSupplierAgreementReference < AgencyCommand
   include SupplierTermRecordSupport
 
-  def initialize(agency:, actor:, arrangement_item:, kind:, governing_wording:, source_description:,
+  def initialize(agency:, actor:, kind:, governing_wording:, source_description:,
+    arrangement_item: nil, supplier_arrangement_version: nil, scope: nil,
     original_wording: nil, supplier_reference: nil, external_reference: nil, evidence_note: nil,
     lock_version: nil, idempotency_key: nil)
     @agency = agency
     @actor = actor
     @item = arrangement_item
+    @version = supplier_arrangement_version
+    @scope = scope
     @kind = kind
     @governing_wording = governing_wording
     @original_wording = original_wording
@@ -26,22 +29,17 @@ class RecordSupplierAgreementReference < AgencyCommand
       ActiveRecord::Base.transaction do
         lock_authorized_arrangement_agency!
         kind = normalize_kind!
-        raise Error.new("Choose the Arrangement Item.", code: :invalid) if @item.blank?
-
-        _departure, arrangement, version, item = lock_term_item!(@item)
-        if SupplierConfirmation.exists?(supplier_arrangement_version_id: version.id)
-          raise Error.new(
-            "Agreement references are immutable after Supplier confirmation.",
-            code: :invalid_state
-          )
-        end
+        scope = normalize_scope!(kind)
+        _departure, arrangement, version, item = lock_scope!(scope)
+        ensure_unconfirmed!(version)
         attrs = normalize_attrs!(kind)
-        payload = attrs.merge(arrangement_item_id: item.id)
+        item_id = item&.id
+        payload = attrs.merge(arrangement_item_id: item_id, scope: scope)
         if (replay = replay_recorded!(SupplierAgreementReference, payload))
           next replay
         end
 
-        existing = version.supplier_agreement_references.lock.find_by(arrangement_item_id: item.id, kind: kind)
+        existing = version.supplier_agreement_references.lock.find_by(arrangement_item_id: item_id, kind: kind)
         if existing
           ensure_current_lock_version!(existing, @lock_version)
           if same_reference?(existing, attrs)
@@ -55,6 +53,7 @@ class RecordSupplierAgreementReference < AgencyCommand
           )
           Result.new(status: :updated, record: existing)
         else
+          reject_other_scope!(version, kind, item_id)
           idempotent_create!(
             command_name: self.class.name, idempotency_key: @idempotency_key,
             payload: payload, result_class: SupplierAgreementReference
@@ -71,6 +70,13 @@ class RecordSupplierAgreementReference < AgencyCommand
         end
       end
     end
+  rescue ActiveRecord::StatementInvalid => error
+    raise unless error.message.include?("both Item scope and agreement-wide scope")
+
+    raise Error.new(
+      "This term is already recorded at the other scope.",
+      code: :invalid
+    )
   end
 
   private
@@ -80,11 +86,72 @@ class RecordSupplierAgreementReference < AgencyCommand
     unless SupplierAgreementReference::KINDS.include?(kind)
       raise Error.new("Choose an agreement reference kind.", code: :invalid)
     end
-    unless SupplierAgreementReference::ITEM_KINDS.include?(kind)
-      raise Error.new("That agreement reference is not recorded in this workflow.", code: :invalid)
-    end
 
     kind
+  end
+
+  def normalize_scope!(kind)
+    scope = @scope.to_s.strip
+    if SupplierAgreementReference::ITEM_KINDS.include?(kind)
+      if scope == "agreement"
+        raise Error.new("That agreement reference stays on this Hotel stay.", code: :invalid)
+      end
+      raise Error.new("Choose the Arrangement Item.", code: :invalid) if @item.blank?
+
+      "stay"
+    else
+      case scope
+      when "stay"
+        raise Error.new("Choose the Arrangement Item.", code: :invalid) if @item.blank?
+
+        "stay"
+      when "agreement"
+        raise Error.new("Choose the Supplier agreement version.", code: :invalid) if @version.blank?
+
+        "agreement"
+      else
+        raise Error.new(
+          "Choose whether this term covers this Hotel stay or the entire Supplier agreement.",
+          code: :invalid
+        )
+      end
+    end
+  end
+
+  def lock_scope!(scope)
+    if scope == "agreement"
+      _departure, arrangement, version = lock_explicit_version!
+      [ _departure, arrangement, version, nil ]
+    else
+      lock_term_item!(@item)
+    end
+  end
+
+  def lock_explicit_version!
+    found = @agency.supplier_arrangement_versions.find(@version.is_a?(SupplierArrangementVersion) ? @version.id : @version)
+    departure, arrangement, draft = lock_departure_arrangement_version!(found.supplier_arrangement)
+    unless draft.id == found.id
+      raise Error.new("Agreement references are recorded on the editable draft.", code: :invalid_state)
+    end
+
+    [ departure, arrangement, draft ]
+  end
+
+  def ensure_unconfirmed!(version)
+    return unless SupplierConfirmation.exists?(supplier_arrangement_version_id: version.id)
+
+    raise Error.new(
+      "Agreement references are immutable after Supplier confirmation.",
+      code: :invalid_state
+    )
+  end
+
+  def reject_other_scope!(version, kind, item_id)
+    opposite = version.supplier_agreement_references.where(kind: kind)
+    opposite = item_id.nil? ? opposite.where.not(arrangement_item_id: nil) : opposite.where(arrangement_item_id: nil)
+    return unless opposite.exists?
+
+    raise Error.new("This term is already recorded at the other scope.", code: :invalid)
   end
 
   def normalize_attrs!(kind)

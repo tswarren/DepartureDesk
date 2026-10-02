@@ -1,6 +1,6 @@
 # M4D.1 Slice 3A.2 — Stay and nightly inventory
 
-**Status:** Accepted 2026-09-30 and implemented. This is the only Slice 3A.2. It is the authorized implementation for the Hotel stay and nightly inventory. Hotel Supplier rates are shipped. Hotel Agreement, Hotel Review and Activation, and Hotel Lifecycle are not authorized until their own accepted plans name that work.
+**Status:** Accepted 2026-09-30 and implemented. This is the only Slice 3A.2. It is the authorized implementation for the Hotel stay and nightly inventory. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. Hotel Review and Activation and Hotel Lifecycle are not authorized until their own accepted plans name that work.
 
 **Parent:** [M4D.1 Slice 3A — Hotel Supplier Composition](m4d1-slice3a-hotel-supplier-composition.md), §6–§8 and §23.
 
@@ -10,7 +10,7 @@
 
 **Scope:** The first Hotel UI. Staff establish and reopen one Hotel Item’s guest stay and its date-varying nightly room supply through shipped Supplier commands.
 
-This acceptance does not amend the §23 order. Hotel Supplier rates are shipped under Slice 3A.3. Hotel Agreement, Hotel Review and Activation, and Hotel Lifecycle are not authorized. The discarded Agreement draft is not this slice and is not a Hotel Agreement plan.
+This acceptance does not amend the §23 order. Hotel Supplier rates are shipped under Slice 3A.3. Hotel Review and Activation and Hotel Lifecycle are not authorized. [Hotel Agreement](hotel-agreement.md) is Shipped under its own plan. The discarded Agreement draft is not this slice and is not that plan.
 
 ---
 
@@ -27,7 +27,7 @@ Slice 3A.2 establishes the Hotel’s temporal and inventory graph. Slice 3A.3 as
 | **3A.1** | Supplier-term persistence foundations. Implemented. |
 | **3A.2** | Stay and nightly inventory. This plan. |
 | **3A.3** | Supplier rates and economics. Shipped. |
-| Hotel Agreement | Not authorized. |
+| Hotel Agreement | Shipped 2026-10-01. [Hotel Agreement](hotel-agreement.md). |
 | Hotel Review and Activation | Not authorized. |
 | Hotel Lifecycle | Not authorized. |
 

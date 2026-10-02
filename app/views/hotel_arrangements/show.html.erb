@@ -29,9 +29,10 @@
               <%= render "hotel_setup/unsupported", shape: shape, item: item %>
             <% end %>
             <p>
-              <%= link_to "Stay", edit_item_stay_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item) %>
-              · <%= link_to "Room inventory", item_inventory_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item) %>
-              · <%= link_to "Supplier rates", item_rates_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item) %>
+              <%= link_to "Open Hotel Agreement", item_hotel_agreement_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item) %>
+              · <%= link_to "Edit stay", edit_item_stay_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item) %>
+              · <%= link_to "Edit room block", item_inventory_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item) %>
+              · <%= link_to "Edit rates", item_rates_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item) %>
             </p>
           </li>
         <% end %>

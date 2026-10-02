@@ -188,6 +188,7 @@ class M4d1Slice3a1HotelSupplierTermPersistenceTest < ActiveSupport::TestCase
       ).call
     end
     assert_equal :invalid, later_kind.code
+    assert_match "entire Supplier agreement", later_kind.message
 
     missing_item = assert_raises(AgencyCommand::Error) do
       RecordSupplierAgreementReference.new(

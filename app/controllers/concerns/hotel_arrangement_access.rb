@@ -6,10 +6,25 @@ module HotelArrangementAccess
   include SupplierArrangementAccess
   include HotelCompositionContext
 
+  included do
+    helper_method :hotel_editor_options, :hotel_agreement_path_for, :hotel_agreement_return?
+  end
+
   private
 
   def set_hotel_version
     version = @supplier_arrangement.editable_version
+    raise ActiveRecord::RecordNotFound if version.nil?
+
+    pin_authorized_version!(@supplier_arrangement, version)
+  end
+
+  def set_hotel_agreement_version
+    version = if params[:version_id].present?
+      @supplier_arrangement.versions.find(params[:version_id])
+    else
+      @supplier_arrangement.editable_version
+    end
     raise ActiveRecord::RecordNotFound if version.nil?
 
     pin_authorized_version!(@supplier_arrangement, version)
@@ -25,6 +40,33 @@ module HotelArrangementAccess
     @arrangement_item = @supplier_arrangement.arrangement_items.find(params[:item_id])
     @arrangement_item_definition = @supplier_arrangement_version.arrangement_item_definitions.find_by!(
       arrangement_item: @arrangement_item
+    )
+  end
+
+  def set_lodging_hotel_item
+    set_hotel_item
+    raise ActiveRecord::RecordNotFound unless @arrangement_item_definition.category == "lodging"
+  end
+
+  def hotel_agreement_path_for(item = @arrangement_item, version = @supplier_arrangement_version)
+    item_hotel_agreement_departure_arrangement_hotel_path(
+      @departure, @supplier_arrangement, item, version_id: version.id
+    )
+  end
+
+  def hotel_agreement_return?
+    params[:return_to] == "hotel_agreement"
+  end
+
+  def hotel_editor_options
+    hotel_agreement_return? || @hotel_agreement_page ? { return_to: "hotel_agreement" } : {}
+  end
+
+  def path_after_hotel_edit(default_path)
+    return default_path unless hotel_agreement_return? && @arrangement_item
+
+    item_hotel_agreement_departure_arrangement_hotel_path(
+      @departure, @supplier_arrangement, @arrangement_item
     )
   end
 
@@ -127,6 +169,12 @@ module HotelArrangementAccess
       :starts_on, :ends_on, :starts_at_local, :ends_at_local, :time_zone
     )
     occurrence.to_h
+  end
+
+  def hotel_agreement_editable?
+    @supplier_arrangement_version.draft? &&
+      @supplier_arrangement.editable_version&.id == @supplier_arrangement_version.id &&
+      Current.agency_user.permitted?(:manage_departures)
   end
 
   def classify_stay_resource!(item:, stay_definition:, resource:)

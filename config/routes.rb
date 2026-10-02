@@ -240,6 +240,22 @@ Rails.application.routes.draw do
         patch "items/:item_id/rates", to: "hotel_supplier_rates#update"
         post "items/:item_id/inventory/resources", to: "hotel_room_inventories#create_resource", as: :item_inventory_resources
         patch "items/:item_id/inventory/resources/:resource_id", to: "hotel_room_inventories#update_resource", as: :item_inventory_resource
+        get "items/:item_id/hotel_agreement", to: "hotel_agreements#show", as: :item_hotel_agreement
+        get "items/:item_id/hotel_agreement/deposits/new", to: "hotel_agreement_deposits#new", as: :new_item_hotel_agreement_deposit
+        post "items/:item_id/hotel_agreement/deposits", to: "hotel_agreement_deposits#create", as: :item_hotel_agreement_deposits
+        get "items/:item_id/hotel_agreement/deposits/:id/edit", to: "hotel_agreement_deposits#edit", as: :edit_item_hotel_agreement_deposit
+        patch "items/:item_id/hotel_agreement/deposits/:id", to: "hotel_agreement_deposits#update", as: :item_hotel_agreement_deposit
+        delete "items/:item_id/hotel_agreement/deposits/:id", to: "hotel_agreement_deposits#destroy"
+        get "items/:item_id/hotel_agreement/deadlines/new", to: "hotel_agreement_deadlines#new", as: :new_item_hotel_agreement_deadline
+        post "items/:item_id/hotel_agreement/deadlines", to: "hotel_agreement_deadlines#create", as: :item_hotel_agreement_deadlines
+        get "items/:item_id/hotel_agreement/deadlines/:id/edit", to: "hotel_agreement_deadlines#edit", as: :edit_item_hotel_agreement_deadline
+        patch "items/:item_id/hotel_agreement/deadlines/:id", to: "hotel_agreement_deadlines#update", as: :item_hotel_agreement_deadline
+        delete "items/:item_id/hotel_agreement/deadlines/:id", to: "hotel_agreement_deadlines#destroy"
+        get "items/:item_id/hotel_agreement/terms/:kind/new", to: "hotel_agreement_terms#new", as: :new_item_hotel_agreement_term
+        post "items/:item_id/hotel_agreement/terms/:kind", to: "hotel_agreement_terms#create", as: :item_hotel_agreement_terms
+        get "items/:item_id/hotel_agreement/terms/:id/edit", to: "hotel_agreement_terms#edit", as: :edit_item_hotel_agreement_term
+        patch "items/:item_id/hotel_agreement/terms/:id", to: "hotel_agreement_terms#update", as: :item_hotel_agreement_term
+        delete "items/:item_id/hotel_agreement/terms/:id", to: "hotel_agreement_terms#destroy"
       end
       resource :activation,
         only: %i[show create],

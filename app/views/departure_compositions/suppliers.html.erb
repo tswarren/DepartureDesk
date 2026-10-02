@@ -28,8 +28,11 @@
               <% if shape&.compatible? %>
                 · <%= link_to "Open Cruise setup", departure_arrangement_cruise_path(@departure, arrangement) %>
               <% end %>
-              <% if lodging_items.any? %>
-                · <%= link_to "Open Hotel", departure_arrangement_hotel_path(@departure, arrangement) %>
+              <% if lodging_items.one? %>
+                · <%= link_to "Open Hotel Agreement",
+                      item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, lodging_items.first) %>
+              <% elsif lodging_items.any? %>
+                · <%= link_to "Open Hotel Agreement", departure_arrangement_hotel_path(@departure, arrangement) %>
               <% end %>
               <% if !shape&.compatible? && lodging_items.empty? %>
                 · <%= link_to "Open advanced Arrangement", departure_arrangement_path(@departure, arrangement) %>

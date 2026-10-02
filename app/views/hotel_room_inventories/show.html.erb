@@ -99,6 +99,7 @@
           <%= form_with url: item_inventory_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
                 method: :patch, class: "dd-form dd-stack" do %>
             <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+            <%= render "hotel_setup/return_to" %>
             <%= matrix %>
             <% if evidence_needed %>
               <fieldset class="dd-stack">
@@ -138,6 +139,7 @@
                 <%= form_with url: item_inventory_resource_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, definition.supplier_resource_id),
                       method: :patch, class: "dd-form dd-stack" do %>
                   <%= hidden_field_tag :definition_lock_version, definition.lock_version %>
+                  <%= render "hotel_setup/return_to" %>
                   <div class="dd-field-group">
                     <label class="dd-label" for="resource_name_<%= definition.id %>">Room category</label>
                     <input id="resource_name_<%= definition.id %>" name="resource[name]" class="dd-field" required maxlength="160"
@@ -160,6 +162,7 @@
         <%= form_with url: item_inventory_resources_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
               method: :post, class: "dd-form dd-stack" do %>
           <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+          <%= render "hotel_setup/return_to" %>
           <div class="dd-field-group">
             <label class="dd-label" for="resource_name">Room category</label>
             <input id="resource_name" name="resource[name]" class="dd-field" required maxlength="160" value="<%= resource[:name] %>">

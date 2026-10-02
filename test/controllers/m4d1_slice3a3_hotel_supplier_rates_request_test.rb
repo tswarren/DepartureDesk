@@ -23,8 +23,8 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     end
 
     assert_response :success
-    assert_select "ol.dd-journey-strip .dd-journey-step", count: 4
-    assert_select "a", text: "Agreement", count: 0
+    assert_select "ol.dd-journey-strip .dd-journey-step", count: 5
+    assert_select "a", text: "Agreement", count: 1
     assert_select "a", text: "Review & activate", count: 0
     assert_select "button", text: "Save Supplier rates"
     assert_no_match(/\$4,156|\$685/, response.body)

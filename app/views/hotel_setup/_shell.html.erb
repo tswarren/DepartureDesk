@@ -33,6 +33,16 @@
 
 <nav aria-label="Hotel setup" id="hotel-setup-nav">
   <ol class="dd-journey-strip">
+    <% if item %>
+      <li>
+        <%= link_to item_hotel_agreement_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item),
+              class: "dd-journey-step",
+              id: "hotel-step-agreement",
+              aria: (current_key == "agreement" ? { current: "page" } : {}) do %>
+          <span class="dd-journey-step__title">Agreement</span>
+        <% end %>
+      </li>
+    <% end %>
     <li>
       <%= link_to departure_arrangement_hotel_path(@departure, @supplier_arrangement),
             class: "dd-journey-step",
@@ -43,27 +53,33 @@
     </li>
     <% if item %>
       <li>
-        <%= link_to edit_item_stay_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item),
+        <%= link_to edit_item_stay_departure_arrangement_hotel_path(
+              @departure, @supplier_arrangement, item, **hotel_editor_options
+            ),
               class: "dd-journey-step",
               id: "hotel-step-stay",
               aria: (current_key == "stay" ? { current: "page" } : {}) do %>
-          <span class="dd-journey-step__title">Stay</span>
+          <span class="dd-journey-step__title">Edit stay</span>
         <% end %>
       </li>
       <li>
-        <%= link_to item_inventory_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item),
+        <%= link_to item_inventory_departure_arrangement_hotel_path(
+              @departure, @supplier_arrangement, item, **hotel_editor_options
+            ),
               class: "dd-journey-step",
               id: "hotel-step-inventory",
               aria: (current_key == "inventory" ? { current: "page" } : {}) do %>
-          <span class="dd-journey-step__title">Room inventory</span>
+          <span class="dd-journey-step__title">Edit room block</span>
         <% end %>
       </li>
       <li>
-        <%= link_to item_rates_departure_arrangement_hotel_path(@departure, @supplier_arrangement, item),
+        <%= link_to item_rates_departure_arrangement_hotel_path(
+              @departure, @supplier_arrangement, item, **hotel_editor_options
+            ),
               class: "dd-journey-step",
               id: "hotel-step-rates",
               aria: (current_key == "rates" ? { current: "page" } : {}) do %>
-          <span class="dd-journey-step__title">Supplier rates</span>
+          <span class="dd-journey-step__title">Edit rates</span>
         <% end %>
       </li>
     <% end %>

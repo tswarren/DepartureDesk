@@ -1,6 +1,6 @@
 # M4D.1 Slice 3A.1 — Hotel Supplier-term persistence foundations
 
-**Status:** Accepted 2026-09-30 and implemented. This is the only Slice 3A.1. The compatibility proof is green. The [Supplier complexity rebaseline](supplier-complexity-rebaseline.md) replaces `SupplierDepositBasis`, structured Hotel attrition, and `SupplierDepositRefundClarification` with `SupplierAgreementReference`. This plan remains the historical record of the persistence that shipped first. `commission_treatment` and fixed Deposit Requirements are unchanged. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. Hotel Supplier rates are shipped. Hotel Agreement, Hotel Review and Activation, and Hotel Lifecycle are not authorized until their own accepted plans name that work.
+**Status:** Accepted 2026-09-30 and implemented. This is the only Slice 3A.1. The compatibility proof is green. The [Supplier complexity rebaseline](supplier-complexity-rebaseline.md) replaces `SupplierDepositBasis`, structured Hotel attrition, and `SupplierDepositRefundClarification` with `SupplierAgreementReference`. This plan remains the historical record of the persistence that shipped first. `commission_treatment` and fixed Deposit Requirements are unchanged. [Slice 3A.2](m4d1-slice3a2-hotel-stay-and-nightly-inventory.md), Stay and nightly inventory, is implemented. Hotel Supplier rates are shipped. [Hotel Agreement](hotel-agreement.md) is Shipped 2026-10-01. Hotel Review and Activation and Hotel Lifecycle are not authorized until their own accepted plans name that work.
 
 **Parent:** [M4D.1 Slice 3A — Hotel Supplier Composition](m4d1-slice3a-hotel-supplier-composition.md). Acceptance of this plan amends that document's §23.
 
@@ -54,7 +54,7 @@ Acceptance of this plan amends [Slice 3A §23](m4d1-slice3a-hotel-supplier-compo
 | **3A.1** | Supplier-term persistence foundations. This plan. |
 | **3A.2** | Stay and nightly inventory. Shipped. |
 | **3A.3** | Supplier rates and economics. Shipped. |
-| Hotel Agreement | Not authorized. |
+| Hotel Agreement | Shipped 2026-10-01. [Hotel Agreement](hotel-agreement.md). |
 | Hotel Review and Activation | Not authorized. |
 | Hotel Lifecycle | Not authorized. |
 

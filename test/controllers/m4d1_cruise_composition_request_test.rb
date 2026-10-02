@@ -234,7 +234,10 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "a", text: "Set up a Cruise"
     assert_select "a[href=?]", departure_arrangement_cruise_path(@departure, cruise), text: "Open Cruise setup"
-    assert_select "a[href=?]", departure_arrangement_hotel_path(@departure, lodging), text: "Open Hotel"
+    lodging_item = lodging.arrangement_items.order(:created_at).first
+    assert_select "a[href=?]",
+      item_hotel_agreement_departure_arrangement_hotel_path(@departure, lodging, lodging_item),
+      text: "Open Hotel Agreement"
     assert_select "a[href=?]", departure_arrangement_path(@departure, lodging), count: 0
     assert_select "a[href=?]", departure_arrangement_cruise_path(@departure, lodging), count: 0
     assert_select "a[href=?]", departure_arrangement_hotel_path(@departure, cruise), count: 0

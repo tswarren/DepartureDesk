@@ -146,6 +146,7 @@
         <%= form_with url: item_rates_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
               method: :patch, class: "dd-form dd-stack", id: "hotel-supplier-rates-form" do %>
           <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+          <%= render "hotel_setup/return_to" %>
           <% @rate_shape.contexts.each do |context| %>
             <% if context.definition %>
               <%= hidden_field_tag "definition_lock[#{context.definition.id}]", context.definition.lock_version %>

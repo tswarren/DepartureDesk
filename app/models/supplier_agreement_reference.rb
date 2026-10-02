@@ -10,6 +10,7 @@ class SupplierAgreementReference < ApplicationRecord
     destination_fee additional_nights early_departure cancellation
   ].freeze
   ITEM_KINDS = %w[deposit_derivation attrition deposit_refund].freeze
+  OPTIONAL_KINDS = %w[destination_fee additional_nights early_departure cancellation].freeze
 
   belongs_to :agency
   belongs_to :departure

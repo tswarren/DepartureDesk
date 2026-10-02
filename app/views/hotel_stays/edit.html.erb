@@ -13,6 +13,9 @@
       <%= form_with url: item_stay_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
             method: :patch, class: "dd-form dd-stack" do %>
         <%= hidden_field_tag :definition_lock_version, @shape.stay_definition.lock_version %>
+        <% if hotel_agreement_return? %>
+          <%= hidden_field_tag :return_to, "hotel_agreement" %>
+        <% end %>
         <%= render "hotel_stays/error_summary" %>
         <section aria-labelledby="hotel-stay-edit-heading" class="dd-stack">
           <h2 id="hotel-stay-edit-heading" class="dd-section-title"><%= @arrangement_item_definition.name %></h2>

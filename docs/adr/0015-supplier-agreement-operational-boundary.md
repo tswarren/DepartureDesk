@@ -380,7 +380,7 @@ DepartureDesk must preserve provenance sufficient to identify that source. Prove
 - an external or document reference when one is already known;
 - evidence the applicable command already supports.
 
-Attachment and document-storage behavior is governed by separately accepted document-storage work. This ADR does not authorize it. Cruise document storage remains Deferred. Hotel Agreement remains Not authorized.
+Attachment and document-storage behavior is governed by separately accepted document-storage work. This ADR does not authorize it. Cruise document storage remains Deferred. The shipped Hotel Agreement does not authorize document storage.
 
 Agreement-reference information must remain distinguishable from operational definitions and from contractual definitions.
 
@@ -510,7 +510,7 @@ Structured deposit-refund clarification
 
 This ADR does not require a later agreement to copy those three structures. The accepted Hilton fixture remains the canonical source of Hotel facts.
 
-Hotel Agreement remains Not authorized. This ADR does not accept that workflow and does not assign it a slice number.
+The [Hotel Agreement plan](../planning/m4-offers-and-pricing/hotel-agreement.md) is Shipped 2026-10-01. This ADR does not assign that workflow a slice number.
 
 ---
 
@@ -664,7 +664,7 @@ This rebaseline authority is limited to the three named Slice 3A.1 candidates. I
 
 Separate follow-up work may remove typed UI that exposes generic grammar, identify dormant generic machinery, rename or reorganize workflows, reconcile retired slice numbers, and plan document support under a separately accepted document-storage plan. A later milestone may also promote a contractual definition that satisfies [§3.2](#32-contractual-definition) into additional operational behavior. Those activities do not expand the rebaseline's authority to reconsider shipped Supplier-domain decisions.
 
-Hotel Agreement, Hotel Review and Activation, Hotel Lifecycle, Transportation, and M4E remain Not authorized until their own accepted plans name that work. Cruise document storage remains Deferred.
+[Hotel Agreement](../planning/m4-offers-and-pricing/hotel-agreement.md) is Shipped 2026-10-01. Hotel Review and Activation, Hotel Lifecycle, Transportation, and M4E remain Not authorized until their own accepted plans name that work. Cruise document storage remains Deferred.
 
 ---
 

@@ -518,9 +518,9 @@ The rebaseline implementation is complete when:
 
 ## 15. What comes next
 
-After this rebaseline is Accepted and its target representation is established, the next product plan is **Hotel Agreement**.
+Hotel Agreement is Shipped 2026-10-01: [Hotel Agreement](hotel-agreement.md).
 
-Hotel Agreement may present the operational Hotel facts and the agreement references this plan establishes. It is the plan that first records Destination Fee, additional-night, early-departure, and cancellation references. It still does not authorize document upload, a generalized Supplier contract-policy engine, refund calculations, attrition calculations, or new Deadline behavior.
+It presents the operational Hotel facts and the agreement references this plan establishes. It is the plan that first records Destination Fee, additional-night, early-departure, and cancellation references. It does not authorize document upload, a generalized Supplier contract-policy engine, refund calculations, attrition calculations, or new Deadline behavior.
 
 After Hotel Agreement, separate accepted plans remain required for:
 

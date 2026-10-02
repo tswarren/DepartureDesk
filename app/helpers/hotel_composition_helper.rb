@@ -94,4 +94,14 @@ module HotelCompositionHelper
     definitions = shape.supported_contexts.filter_map(&:definition)
     definitions.any? && definitions.all?(&:noncommissionable?)
   end
+
+  def hotel_agreement_money(minor, currency)
+    return "—" if minor.nil? || currency.blank?
+
+    Money.new(minor, currency).format
+  end
+
+  def hotel_local_clock(value)
+    hotel_local_time(value)
+  end
 end

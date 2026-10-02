@@ -64,7 +64,7 @@ class HotelStaysController < ApplicationController
         description: definition.description
       )
     ).call
-    redirect_to departure_arrangement_hotel_path(@departure, @supplier_arrangement),
+    redirect_to path_after_hotel_edit(departure_arrangement_hotel_path(@departure, @supplier_arrangement)),
       notice: "Stay saved."
   rescue AgencyCommand::Error => error
     @editable = hotel_editable?

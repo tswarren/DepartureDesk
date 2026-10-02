@@ -1,0 +1,315 @@
+<% content_for :title, "Hotel Agreement · #{@departure.name} · DepartureDesk" %>
+<% workspace = @agreement %>
+<% version = workspace.version %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<%= render "hotel_setup/shell", current: "agreement", page_title: "Hotel Agreement", item: @arrangement_item %>
+
+<article class="dd-panel" id="hotel-agreement">
+  <div class="dd-panel-body dd-stack">
+    <header class="dd-stack" id="hotel-agreement-header">
+      <p>
+        <%= workspace.supplier_name %>
+        · <%= workspace.arrangement_name %>
+        · <%= workspace.item_name %>
+        · <%= workspace.departure_name %>
+      </p>
+      <p>
+        Version <%= version.number %>
+        · <span id="hotel-agreement-role"><%= version.role %></span>
+        · <span id="hotel-agreement-confirmation"><%= version.confirmation %></span>
+        · <span id="hotel-agreement-activation"><%= version.activation %></span>
+      </p>
+      <% if workspace.stay.arrival_on %>
+        <p><%= hotel_stay_span(workspace.stay.definition) %></p>
+      <% end %>
+      <%= form_with url: item_hotel_agreement_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item),
+            method: :get, class: "dd-inline-actions" do %>
+        <label class="dd-label" for="hotel-agreement-version">Exact version</label>
+        <%= select_tag :version_id,
+              options_for_select(workspace.version_options, version.record.id),
+              id: "hotel-agreement-version",
+              class: "dd-field",
+              onchange: "this.form.requestSubmit()" %>
+        <button type="submit" class="dd-button dd-button--quiet">Show version</button>
+      <% end %>
+    </header>
+
+    <% if workspace.findings.any? %>
+      <section aria-labelledby="hotel-agreement-attention-heading" id="hotel-agreement-attention">
+        <h2 id="hotel-agreement-attention-heading" class="dd-section-title">Needs attention</h2>
+        <ul>
+          <% workspace.findings.each do |finding| %>
+            <li><%= finding %></li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+
+    <section aria-labelledby="hotel-agreement-stay-heading" id="hotel-agreement-stay">
+      <h2 id="hotel-agreement-stay-heading" class="dd-section-title">Stay</h2>
+      <p><%= workspace.stay.state %></p>
+      <% if workspace.stay.definition %>
+        <p>
+          Arrival <%= workspace.stay.arrival_on %>
+          · Departure <%= workspace.stay.departure_on %>
+          · Check-in <%= hotel_local_clock(workspace.stay.check_in) %>
+          · Checkout <%= hotel_local_clock(workspace.stay.check_out) %>
+          · <%= workspace.stay.time_zone %>
+        </p>
+      <% else %>
+        <p>No Stay is recorded for this Hotel.</p>
+      <% end %>
+      <% if @editable %>
+        <p><%= link_to "Edit stay",
+              edit_item_stay_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, return_to: "hotel_agreement") %></p>
+      <% end %>
+    </section>
+
+    <section aria-labelledby="hotel-agreement-block-heading" id="hotel-agreement-block">
+      <h2 id="hotel-agreement-block-heading" class="dd-section-title">Room block</h2>
+      <p><%= workspace.inventory.state %></p>
+      <% if workspace.inventory.categories.any? %>
+        <table class="dd-table">
+          <caption class="dd-visually-hidden">Nightly room block</caption>
+          <thead>
+            <tr>
+              <th scope="col">Room category</th>
+              <th scope="col">Night</th>
+              <th scope="col">Rooms</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% workspace.inventory.categories.each do |category| %>
+              <% category.nights.each do |night| %>
+                <tr>
+                  <th scope="row"><%= category.name %></th>
+                  <td><%= hotel_night_label(night.date) %></td>
+                  <td><%= night.attention ? "Needs attention" : night.quantity %></td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+        <p><%= workspace.inventory.room_night_count %> contracted room nights</p>
+      <% else %>
+        <p>No room block is recorded.</p>
+      <% end %>
+      <% if @editable %>
+        <p><%= link_to "Edit room block",
+              item_inventory_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, return_to: "hotel_agreement") %></p>
+      <% end %>
+    </section>
+
+    <section aria-labelledby="hotel-agreement-rates-heading" id="hotel-agreement-rates">
+      <h2 id="hotel-agreement-rates-heading" class="dd-section-title">Supplier rates</h2>
+      <p><%= workspace.rates.state %></p>
+      <% if workspace.rates.commission %>
+        <p>Commission treatment: <%= workspace.rates.commission %></p>
+      <% end %>
+      <% if workspace.rates.rows.any? %>
+        <table class="dd-table">
+          <caption class="dd-visually-hidden">Supplier rate matrix</caption>
+          <thead>
+            <tr>
+              <th scope="col">Room category</th>
+              <th scope="col">Night</th>
+              <th scope="col">Single</th>
+              <th scope="col">Double</th>
+              <th scope="col">Triple</th>
+              <th scope="col">Quad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% workspace.rates.rows.each do |row| %>
+              <tr>
+                <th scope="row"><%= row.category %></th>
+                <td><%= row.date ? hotel_night_label(row.date) : "Each night" %></td>
+                <td><%= hotel_agreement_money(row.single, workspace.rates.currency) %></td>
+                <td><%= hotel_agreement_money(row.double, workspace.rates.currency) %></td>
+                <td><%= hotel_agreement_money(row.triple, workspace.rates.currency) %></td>
+                <td><%= hotel_agreement_money(row.quad, workspace.rates.currency) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <p>No Supplier rates are recorded.</p>
+      <% end %>
+      <% if @editable %>
+        <p><%= link_to "Edit rates",
+              item_rates_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, return_to: "hotel_agreement") %></p>
+      <% end %>
+    </section>
+
+    <section aria-labelledby="hotel-agreement-deposits-heading" id="hotel-agreement-deposits">
+      <h2 id="hotel-agreement-deposits-heading" class="dd-section-title">Deposits</h2>
+      <% if workspace.deposits.empty? && workspace.unassigned_deposits.empty? %>
+        <p>Not started</p>
+      <% end %>
+      <% if workspace.deposits.any? %>
+        <table class="dd-table">
+          <caption class="dd-visually-hidden">Deposit schedule</caption>
+          <thead>
+            <tr>
+              <th scope="col">Due</th>
+              <th scope="col">Amount</th>
+              <th scope="col">Scope</th>
+              <th scope="col"><span class="dd-visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% workspace.deposits.each do |row| %>
+              <tr id="hotel-deposit-<%= row.definition.id %>">
+                <td><%= row.due_label %></td>
+                <td><%= row.amount_label || "Advanced configuration" %></td>
+                <td><%= row.shared ? "Shared across agreement" : "This stay" %></td>
+                <td>
+                  <% if row.advanced %>
+                    <%= link_to "Advanced configuration",
+                          edit_departure_arrangement_version_deposit_path(@departure, @supplier_arrangement, version.record, row.definition) %>
+                  <% elsif @editable && row.thin %>
+                    <%= link_to "Edit deposit",
+                          edit_item_hotel_agreement_deposit_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, row.definition, version_id: version.record.id) %>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+      <% if workspace.unassigned_deposits.any? %>
+        <p>Unassigned deposits stay off this schedule.</p>
+        <ul>
+          <% workspace.unassigned_deposits.each do |row| %>
+            <li>
+              <%= row.due_label %>
+              <% if row.amount_label %> · <%= row.amount_label %><% end %>
+              · <%= link_to "Advanced Supplier planning",
+                    edit_departure_arrangement_version_deposit_path(@departure, @supplier_arrangement, version.record, row.definition) %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+      <% derivation = workspace.terms.find { |term| term.kind == "deposit_derivation" } %>
+      <% if derivation %>
+        <p>
+          How the Supplier derived these deposits
+          · <%= derivation.state %>
+        </p>
+      <% end %>
+      <% if @editable %>
+        <p><%= link_to "Add deposit",
+              new_item_hotel_agreement_deposit_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, version_id: version.record.id),
+              class: "dd-button" %></p>
+      <% end %>
+    </section>
+
+    <section aria-labelledby="hotel-agreement-deadlines-heading" id="hotel-agreement-deadlines">
+      <h2 id="hotel-agreement-deadlines-heading" class="dd-section-title">Deadlines</h2>
+      <% if workspace.deadlines.empty? && workspace.unassigned_deadlines.empty? %>
+        <p>Not started</p>
+      <% end %>
+      <% if workspace.deadlines.any? %>
+        <ul>
+          <% workspace.deadlines.each do |row| %>
+            <li id="hotel-deadline-<%= row.definition.id %>">
+              <%= row.label %> — <%= row.due_label %>
+              <% if row.shared %> · Shared across agreement<% end %>
+              <% if row.advanced %>
+                · <%= link_to "Advanced configuration",
+                      edit_departure_arrangement_version_deadline_path(@departure, @supplier_arrangement, version.record, row.definition) %>
+              <% elsif @editable && row.thin %>
+                · <%= link_to "Edit deadline",
+                      edit_item_hotel_agreement_deadline_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, row.definition, version_id: version.record.id) %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+      <% if workspace.unassigned_deadlines.any? %>
+        <p>Unassigned deadlines stay off this list.</p>
+        <ul>
+          <% workspace.unassigned_deadlines.each do |row| %>
+            <li>
+              <%= row.label %> — <%= row.due_label %>
+              · <%= link_to "Advanced Supplier planning",
+                    edit_departure_arrangement_version_deadline_path(@departure, @supplier_arrangement, version.record, row.definition) %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+      <% if @editable %>
+        <p><%= link_to "Add deadline",
+              new_item_hotel_agreement_deadline_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, version_id: version.record.id),
+              class: "dd-button" %></p>
+      <% end %>
+    </section>
+
+    <section aria-labelledby="hotel-agreement-terms-heading" id="hotel-agreement-terms">
+      <h2 id="hotel-agreement-terms-heading" class="dd-section-title">Agreement terms</h2>
+      <% if workspace.version.confirmed %>
+        <p>Supplier confirmed. Agreement terms on this version cannot be changed.</p>
+      <% end %>
+      <ul>
+        <% workspace.terms.each do |term| %>
+          <% item_reference = term.reference if term.reference&.arrangement_item_id.present? %>
+          <li id="hotel-term-<%= term.kind %>">
+            <strong><%= term.label %></strong>
+            · <%= term.state %>
+            <% if term.agreement_wide %> · Agreement-wide term<% end %>
+            <% if term.hint %><span class="dd-page-description"> <%= term.hint %></span><% end %>
+            <% if item_reference %>
+              <p><%= item_reference.governing_wording %></p>
+            <% end %>
+            <% if term.wide_reference %>
+              <p>Agreement-wide term</p>
+              <p><%= term.wide_reference.governing_wording %></p>
+            <% end %>
+            <% if @editable && !workspace.version.confirmed %>
+              <% if term.reference.nil? %>
+                <p><%= link_to "Add term",
+                      new_item_hotel_agreement_term_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, term.kind, version_id: version.record.id) %></p>
+              <% else %>
+                <p><%= link_to "Edit term",
+                      edit_item_hotel_agreement_term_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, term.reference, version_id: version.record.id) %></p>
+                <% if term.wide_reference && term.wide_reference.id != term.reference.id %>
+                  <p><%= link_to "Edit agreement-wide term",
+                        edit_item_hotel_agreement_term_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, term.wide_reference, version_id: version.record.id) %></p>
+                <% end %>
+              <% end %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </section>
+
+    <section aria-labelledby="hotel-agreement-supplier-confirmation-heading" id="hotel-agreement-supplier-confirmation">
+      <h2 id="hotel-agreement-supplier-confirmation-heading" class="dd-section-title">Supplier confirmation</h2>
+      <% if workspace.confirmation.confirmed %>
+        <p>Supplier confirmed</p>
+        <p>
+          <%= workspace.confirmation.evidence_on %>
+          · <%= workspace.confirmation.channel %>
+          <% if workspace.confirmation.reference_note.present? %>
+            · <%= workspace.confirmation.reference_note %>
+          <% end %>
+        </p>
+      <% else %>
+        <p>Not confirmed</p>
+      <% end %>
+    </section>
+
+    <% if workspace.successor_available && Current.agency_user.permitted?(:manage_departures) %>
+      <%= form_with url: successor_departure_arrangement_path(@departure, @supplier_arrangement), method: :post, class: "dd-inline-actions" do %>
+        <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+        <%= hidden_field_tag :version_lock_version, version.record.lock_version %>
+        <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+        <%= hidden_field_tag :return_to, "hotel_agreement" %>
+        <%= hidden_field_tag :item_id, @arrangement_item.id %>
+        <button type="submit" class="dd-button">Create successor draft</button>
+      <% end %>
+    <% end %>
+
+    <p><%= link_to "Advanced Supplier planning", departure_arrangement_path(@departure, @supplier_arrangement) %></p>
+  </div>
+</article>

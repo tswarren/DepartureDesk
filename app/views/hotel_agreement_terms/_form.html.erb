@@ -1,0 +1,70 @@
+<% locked = confirmed_version? %>
+<% form_url = @reference ? item_hotel_agreement_term_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, @reference) : item_hotel_agreement_terms_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, @kind) %>
+<%= form_with url: form_url, method: (@reference ? :patch : :post), class: "dd-form dd-stack" do %>
+  <%= hidden_field_tag :version_id, @supplier_arrangement_version.id %>
+  <% if @reference.nil? %>
+    <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+  <% else %>
+    <%= hidden_field_tag :lock_version, @reference.lock_version %>
+  <% end %>
+
+  <% if optional_kind? && @reference.nil? && !locked %>
+    <fieldset class="dd-field-group">
+      <legend class="dd-label">Scope</legend>
+      <label class="dd-choice" for="term-scope-stay">
+        <input id="term-scope-stay" type="radio" name="scope" value="stay" <%= "checked" if @scope != "agreement" %>>
+        This Hotel stay
+      </label>
+      <label class="dd-choice" for="term-scope-agreement">
+        <input id="term-scope-agreement" type="radio" name="scope" value="agreement" <%= "checked" if @scope == "agreement" %>>
+        Entire Supplier agreement
+      </label>
+    </fieldset>
+  <% elsif @scope == "agreement" %>
+    <p>Agreement-wide term</p>
+    <%= hidden_field_tag :scope, "agreement" %>
+  <% end %>
+
+  <div class="dd-field-group">
+    <label class="dd-label" for="term-governing-wording">Governing wording</label>
+    <textarea id="term-governing-wording" name="governing_wording" class="dd-field" rows="5" <%= "readonly" if locked %> required><%= @governing_wording %></textarea>
+  </div>
+
+  <% if @kind == "deposit_refund" %>
+    <div class="dd-field-group">
+      <label class="dd-label" for="term-original-wording">Original wording</label>
+      <textarea id="term-original-wording" name="original_wording" class="dd-field" rows="4" <%= "readonly" if locked %> required><%= @original_wording %></textarea>
+    </div>
+  <% end %>
+
+  <div class="dd-field-group">
+    <label class="dd-label" for="term-source-description">Supplier source</label>
+    <input id="term-source-description" name="source_description" class="dd-field" value="<%= @source_description %>" <%= "readonly" if locked %> required>
+  </div>
+  <div class="dd-field-group">
+    <label class="dd-label" for="term-supplier-reference">Supplier reference</label>
+    <input id="term-supplier-reference" name="supplier_reference" class="dd-field" value="<%= @supplier_reference %>" <%= "readonly" if locked %>>
+  </div>
+  <div class="dd-field-group">
+    <label class="dd-label" for="term-external-reference">External reference</label>
+    <input id="term-external-reference" name="external_reference" class="dd-field" value="<%= @external_reference %>" <%= "readonly" if locked %>>
+  </div>
+  <div class="dd-field-group">
+    <label class="dd-label" for="term-evidence-note">Evidence note</label>
+    <textarea id="term-evidence-note" name="evidence_note" class="dd-field" rows="3" <%= "readonly" if locked %>><%= @evidence_note %></textarea>
+  </div>
+
+  <% unless locked %>
+    <button type="submit" class="dd-button">Save term</button>
+  <% end %>
+<% end %>
+
+<% if @reference && !locked %>
+  <% warning = @reference.copied_from_id.present? ? "Removing this copied term blocks activation until the copy exists again." : "Remove this agreement term?" %>
+  <%= button_to "Remove term",
+        item_hotel_agreement_term_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item, @reference),
+        method: :delete,
+        class: "dd-button dd-button--danger",
+        params: { version_id: @supplier_arrangement_version.id, lock_version: @reference.lock_version },
+        form: { data: { turbo_confirm: warning } } %>
+<% end %>

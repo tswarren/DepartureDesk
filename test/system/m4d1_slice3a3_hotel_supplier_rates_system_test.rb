@@ -49,12 +49,11 @@ class M4d1Slice3a3HotelSupplierRatesSystemTest < ApplicationSystemTestCase
     click_button "Save room inventory"
     assert_text "Room inventory saved."
 
-    click_link "Supplier rates"
+    click_link "Edit rates"
     assert_selector "h1", text: @departure.name
     assert_selector "h2", text: "Supplier rates"
     assert_selector "a.dd-skip-link[href='#main-content']", text: "Skip to main content", visible: :all
     assert_no_text "Review & activate"
-    assert_no_text "Agreement"
     assert_no_text "$685"
 
     find("#base_#{standard.supplier_resource_id}").click

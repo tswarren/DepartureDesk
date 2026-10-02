@@ -89,7 +89,8 @@ class HotelSupplierRatesController < ApplicationController
   end
 
   def rates_path
-    item_rates_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item)
+    default_path = item_rates_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item)
+    path_after_hotel_edit(default_path)
   end
 
   def locks_current?

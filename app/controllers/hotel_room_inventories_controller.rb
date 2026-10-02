@@ -98,7 +98,8 @@ class HotelRoomInventoriesController < ApplicationController
   end
 
   def inventory_path
-    item_inventory_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item)
+    default_path = item_inventory_departure_arrangement_hotel_path(@departure, @supplier_arrangement, @arrangement_item)
+    path_after_hotel_edit(default_path)
   end
 
   def resource_params
