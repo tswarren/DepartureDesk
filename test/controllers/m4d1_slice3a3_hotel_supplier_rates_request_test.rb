@@ -38,10 +38,8 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     deluxe = resource_named(item, "Deluxe")
 
     assert_no_difference -> { ServiceOffer.where(agency: @agency).count } do
-      assert_no_difference -> { SupplierCostUsageAssumption.where(agency: @agency).count } do
-        assert_no_difference -> { SupplierAgreementReference.where(agency: @agency).count } do
-          save_rates(arrangement, item, standard, deluxe)
-        end
+      assert_no_difference -> { SupplierAgreementReference.where(agency: @agency).count } do
+        save_rates(arrangement, item, standard, deluxe)
       end
     end
     assert_redirected_to item_rates_departure_arrangement_hotel_path(@departure, arrangement, item)
@@ -55,10 +53,15 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_equal [ 2_000 ], draft_version(item).supplier_cost_components.where(label: "Third occupant").map(&:amount_minor_units).uniq
     assert_equal [ 2_000 ], draft_version(item).supplier_cost_components.where(label: "Fourth occupant").map(&:amount_minor_units).uniq
     assert draft_version(item).supplier_cost_definitions.all?(&:noncommissionable?)
-    assert draft_version(item).supplier_cost_definitions.all?(&:working?)
+    assert draft_version(item).supplier_cost_definitions.all?(&:forecast_ready?)
+    assert draft_version(item).supplier_cost_definitions.all? { |definition|
+      definition.readiness_provenance == "Hotel contracted rate workspace"
+    }
     assert_equal 0, draft_version(item).supplier_cost_components.where(economic_role: "expected_commission").count
-    assert_equal 0, draft_version(item).supplier_cost_usage_assumptions.count
-    assert_equal 0, draft_version(item).supplier_cost_occupancy_profiles.count
+    assert_equal 4, draft_version(item).supplier_cost_usage_assumptions.count
+    assert_equal [ 1 ], draft_version(item).supplier_cost_usage_assumptions.pluck(:expected_billable_nights).uniq
+    assert_equal 4, draft_version(item).supplier_cost_occupancy_profiles.count
+    assert_equal 1, draft_version(item).supplier_cost_participant_categories.where(arrangement_item: item, label: "Hotel guest").count
     assert_equal 4, draft_version(item).supplier_cost_sources.where(arrangement_item: item).count
 
     assert_match "Standard: $173.00 / $173.00 / $193.00 / $213.00", response.body
@@ -75,9 +78,9 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     forecast = EvaluateSupplierCostForecast.new(
       agency: @agency, departure: @departure, arrangement: arrangement
     ).call
-    assert_equal 0, forecast.totals.forecast_supplier_cost_minor_units
+    assert_equal 415_600, forecast.totals.forecast_supplier_cost_minor_units
     draft_version(item).supplier_cost_sources.where(arrangement_item: item).each do |source|
-      assert_includes forecast.incomplete_source_ids, source.id
+      assert_not_includes forecast.incomplete_source_ids, source.id
     end
   end
 
@@ -169,12 +172,19 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
 
     assert_response :success
-    assert_select "#hotel-agreement-rates", text: /In progress/
-    assert_select "#hotel-agreement-rate-authority", count: 0
+    assert_select "#hotel-agreement-rates", text: /Recorded/
+    assert_select "#hotel-agreement-rate-authority", text: "Contracted"
     assert_match "$173", response.body
     assert_no_match(/No Supplier rates are recorded/, response.body)
 
     version = draft_version(item)
+    version.supplier_cost_definitions.where(stage: "contracted").update_all(
+      status: "working",
+      forecast_ready_by_id: nil,
+      forecast_ready_at: nil,
+      readiness_provenance: nil,
+      readiness_fingerprint: nil
+    )
     version.supplier_cost_sources.each do |source|
       contracted = source.supplier_cost_definitions.find(&:contracted?)
       estimate = CreateSupplierCostDefinition.new(
@@ -219,20 +229,6 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_select "#hotel-agreement-rate-authority", text: "Estimated"
     assert_match "$173", response.body
 
-    version.supplier_cost_definitions.where(stage: "contracted").each do |definition|
-      definition.update!(
-        status: "forecast_ready",
-        forecast_ready_by: @staff,
-        forecast_ready_at: Time.current,
-        readiness_provenance: "Hilton contracted rate",
-        readiness_fingerprint: "agreement-rate-#{definition.id}"
-      )
-    end
-
-    get item_hotel_agreement_departure_arrangement_hotel_path(@departure, arrangement, item)
-
-    assert_select "#hotel-agreement-rates", text: /Recorded/
-    assert_select "#hotel-agreement-rate-authority", text: "Contracted"
   end
 
   test "a stale definition lock rejects the whole rate save" do
