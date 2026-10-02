@@ -221,13 +221,13 @@ Resolve each agreement-wide-capable kind in this order:
 2. Agreement-wide Reviewed — none for that kind.
 3. Wording recorded on this Item.
 4. Reviewed — none recorded on this Item.
-5. Not recorded.
+5. Not reviewed.
 
 | Resolved fact | Label |
 | --- | --- |
 | Wording at the winning scope | The recorded governing wording |
 | An absence at the winning scope | Reviewed — none |
-| Neither | Not recorded |
+| Neither | Not reviewed |
 
 Not reviewed and Reviewed — none stay distinct. Reviewed — none is not a warning. Not reviewed blocks Supplier confirmation. Another Item’s wording or absence does not satisfy this Item. For the three Item-only kinds, resolve only this Item's wording, this Item's Reviewed — none, then Not reviewed.
 
@@ -268,9 +268,7 @@ When this Item has no rooming-list Deadline, the review says that none is record
 
 ### Optional
 
-Destination fee, additional nights, early departure, and cancellation are optional in the sense that wording is not required when Reviewed — none is recorded for this Item. They are not optional to leave as Not recorded.
-
-A recorded optional term and Reviewed — none are both sufficient. Neither is a warning.
+All seven Hotel agreement-reference kinds require an explicit review outcome before Supplier confirmation. Recorded wording and **Reviewed — none** are both sufficient at the kind's permitted scope. **Not reviewed** is incomplete. The three Item-only kinds remain this-stay-only; the other four retain Item or agreement-wide scope.
 
 ### Forecast readiness
 
@@ -321,11 +319,10 @@ Blockers:
 - unsupported stay, inventory, deposit, Deadline, or rate shape;
 - a missing stay or nightly inventory;
 - a working contracted rate, or a ready estimate used as the only authority;
-- a missing scheduled deposit or an unassigned deposit;
-- a missing Item-kind reference;
-- an optional kind that is Not recorded for this Item;
-- Supplier confirmation not yet recorded;
-- a generic readiness blocker, including a missing successor copy of a reference or an absence.
+- an unassigned, incomplete, or unsupported relevant Deposit; zero relevant Deposits is valid;
+- any Hotel agreement-reference kind that remains Not reviewed;
+- Supplier confirmation not yet recorded when evaluating activation;
+- after confirmation, a generic activation-readiness blocker, including a missing successor copy of a reference or an absence.
 
 Not blockers and not warnings:
 
@@ -407,7 +404,7 @@ This plan is accepted. Implementation is complete when:
 - before first activation, revising a Supplier-confirmed lodging draft abandons that version, retains its confirmation, and creates one editable unconfirmed copy;
 - the abandoned confirmed version cannot activate, and the revised draft activates only as the Arrangement’s first activation after its own confirmation;
 - an optional-kind absence is Item-scoped or agreement-wide under the same scope invariant as optional references;
-- optional kinds can be wording or Reviewed — none for this Item, and Not recorded remains distinct;
+- all seven Hotel agreement-reference kinds can be wording or Reviewed — none at their permitted scope, and Not reviewed remains distinct;
 - a missing rooming-list Deadline is not a blocker and is not labeled Reviewed — none;
 - the Hotel post calls the existing activation command only when §8 allows it;
 - a lodging version without confirmation is not generically ready;
