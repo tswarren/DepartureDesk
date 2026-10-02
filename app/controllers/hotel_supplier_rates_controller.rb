@@ -392,10 +392,14 @@ class HotelSupplierRatesController < ApplicationController
     ).call
     return if shape.blocked? || shape.contexts.any?(&:advanced)
 
+    contexts = shape.supported_contexts.select do |context|
+      context.definition&.contracted? && context.base
+    end
+    return if contexts.empty?
+
     category = hotel_rate_participant_category!
-    shape.supported_contexts.each do |context|
+    contexts.each do |context|
       definition = context.definition
-      next unless definition&.contracted? && context.base
 
       ensure_hotel_rate_usage_inputs!(context, category)
       definition.reload
@@ -443,12 +447,18 @@ class HotelSupplierRatesController < ApplicationController
           expected_billable_nights: 1
         }
       ).call.record
-    elsif assumption.expected_billable_nights != 1
+    elsif assumption.expected_billable_nights != 1 ||
+        assumption.expected_resource_units.present? ||
+        assumption.expected_persons.present?
       assumption = UpdateSupplierCostUsageAssumption.new(
         **hotel_command_context,
         assumption: assumption,
         lock_version: assumption.lock_version,
-        attributes: { expected_billable_nights: 1 }
+        attributes: {
+          expected_billable_nights: 1,
+          expected_resource_units: nil,
+          expected_persons: nil
+        }
       ).call.record
     end
 
