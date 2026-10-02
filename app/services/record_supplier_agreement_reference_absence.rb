@@ -58,15 +58,25 @@ class RecordSupplierAgreementReferenceAbsence < AgencyCommand
 
   def normalize_kind!
     kind = @kind.to_s.strip
-    unless SupplierAgreementReference::OPTIONAL_KINDS.include?(kind)
-      raise Error.new("Choose an optional agreement reference kind.", code: :invalid)
+    unless SupplierAgreementReference::KINDS.include?(kind)
+      raise Error.new("Choose an agreement reference kind.", code: :invalid)
     end
 
     kind
   end
 
   def normalize_scope!
-    case @scope.to_s.strip
+    scope = @scope.to_s.strip
+    if SupplierAgreementReference::ITEM_KINDS.include?(@kind.to_s.strip)
+      if scope == "agreement"
+        raise Error.new("That agreement reference stays on this Hotel stay.", code: :invalid)
+      end
+      raise Error.new("Choose the Arrangement Item.", code: :invalid) if @item.blank?
+
+      return "stay"
+    end
+
+    case scope
     when "stay"
       raise Error.new("Choose the Arrangement Item.", code: :invalid) if @item.blank?
 
