@@ -118,7 +118,12 @@ class HotelReviewAndActivationTest < ActiveSupport::TestCase
         rule_parameters: { "date" => "2027-05-07" },
         precision: "date_only",
         time_zone: "America/New_York",
-        coverage_links: [ { capacity_pool_id: pool.id } ],
+        coverage_links: [ {
+          arrangement_item_id: @item.id,
+          service_occurrence_id: @graph[:occurrence].id,
+          supplier_resource_id: @graph[:resource].id,
+          capacity_pool_id: pool.id
+        } ],
         cost_links: [],
         contributor_definition_ids: []
       }
@@ -127,9 +132,9 @@ class HotelReviewAndActivationTest < ActiveSupport::TestCase
     deadline_link = deadline.supplier_deadline_definition_coverage_links.sole
     deposit_link = deposit.supplier_deposit_requirement_definition_coverage_links.sole
     assert_equal pool.id, deposit_link.capacity_pool_id
-    assert_nil deposit_link.arrangement_item_id
-    assert_nil deposit_link.service_occurrence_id
-    assert_nil deposit_link.supplier_resource_id
+    assert_equal @item.id, deposit_link.arrangement_item_id
+    assert_equal @graph[:occurrence].id, deposit_link.service_occurrence_id
+    assert_equal @graph[:resource].id, deposit_link.supplier_resource_id
     confirm_directly!
 
     [
