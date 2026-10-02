@@ -48,7 +48,7 @@ class HotelAgreementWorkspace
   InventorySection = Data.define(:state, :categories, :room_night_count)
   InventoryCategory = Data.define(:name, :nights)
   InventoryNight = Data.define(:date, :quantity, :attention)
-  RateSection = Data.define(:state, :rows, :commission, :currency, :authority)
+  RateSection = Data.define(:state, :rows, :commission, :currency, :authority, :reasons)
   RateRow = Data.define(:category, :date, :single, :double, :triple, :quad, :authority)
   MoneyRow = Data.define(
     :definition, :label, :due_on, :due_label, :amount_label, :shared, :thin, :advanced, :unassigned
@@ -211,7 +211,8 @@ class HotelAgreementWorkspace
     end
     RateSection.new(
       state: state, rows: rows, commission: commission, currency: @departure.operating_currency,
-      authority: authorities.one? ? authorities.first : nil
+      authority: authorities.one? ? authorities.first : nil,
+      reasons: shape.contexts.select(&:advanced).filter_map(&:reason).uniq
     )
   end
 

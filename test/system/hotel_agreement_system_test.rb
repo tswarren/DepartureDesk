@@ -25,7 +25,7 @@ class HotelAgreementSystemTest < ApplicationSystemTestCase
     assert_selector "h2", text: "Hotel Agreement"
     assert_text "Arrival 2027-11-04"
     assert_text "Not confirmed"
-    assert_text "Not recorded"
+    assert_text "Not reviewed"
     assert_no_text "Review & activate"
     assert_no_button "Activate"
 
@@ -63,7 +63,7 @@ class HotelAgreementSystemTest < ApplicationSystemTestCase
       "cancellation" => "Cancellation follows the Hotel's governing provision."
     }
     terms.each do |kind, wording|
-      within("#hotel-term-#{kind}") { click_link "Add term" }
+      within("#hotel-term-#{kind}") { click_link "Add wording" }
       choose "This Hotel stay"
       fill_in "Governing wording", with: wording
       fill_in "Supplier source", with: "Hilton agreement"

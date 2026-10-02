@@ -104,6 +104,13 @@
     <section aria-labelledby="hotel-agreement-rates-heading" id="hotel-agreement-rates">
       <h2 id="hotel-agreement-rates-heading" class="dd-section-title">Supplier rates</h2>
       <p><%= workspace.rates.state %></p>
+      <% if workspace.rates.reasons.any? %>
+        <ul>
+          <% workspace.rates.reasons.each do |reason| %>
+            <li><%= reason %></li>
+          <% end %>
+        </ul>
+      <% end %>
       <% if workspace.rates.authority %>
         <p id="hotel-agreement-rate-authority"><%= workspace.rates.authority %></p>
       <% end %>
