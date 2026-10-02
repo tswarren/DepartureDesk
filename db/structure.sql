@@ -17756,6 +17756,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261002050000'),
 ('20261002040000'),
 ('20261002030000'),
 ('20261002020000'),
