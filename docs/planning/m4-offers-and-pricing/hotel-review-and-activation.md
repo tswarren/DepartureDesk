@@ -1,6 +1,6 @@
 # Hotel Review and Activation
 
-**Status:** Accepted 2026-10-01 · implementation amendment in progress 2026-10-02  
+**Status:** Shipped 2026-10-02  
 **Location:** `docs/planning/m4-offers-and-pricing/hotel-review-and-activation.md`  
 **Parent:** [Hotel Agreement](hotel-agreement.md)  
 **Authority:** [ADR 0015](../../adr/0015-supplier-agreement-operational-boundary.md) — Supplier agreement operational modeling boundary  
@@ -437,7 +437,7 @@ This plan is accepted. Implementation is complete when:
 
 Implementation of the first accepted Review and Activation contract exposed that treating confirmation as “generic activation readiness except confirmation” reintroduced generic M3 workflow into the normal Hotel path. This amendment is authoritative over conflicting earlier wording in this document.
 
-The remediation is not complete, and this capability must not be marked Shipped, until both of these end-to-end proofs pass without opening generic Supplier planning:
+This amendment is Shipped 2026-10-02. Both end-to-end proofs pass without opening generic Supplier planning:
 
 1. the Hilton fixture, including its three Deposits, October 3 rooming-list Deadline, explicit agreement review, Supplier confirmation, and activation; and
 2. a simpler Hotel with no Supplier deposits, no rooming-list Deadline, and explicit **Reviewed — none** outcomes where clauses do not exist.
