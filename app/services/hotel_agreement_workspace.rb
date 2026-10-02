@@ -385,7 +385,7 @@ class HotelAgreementWorkspace
       elsif item_absence
         [ "Reviewed — none", nil, item_absence, false ]
       else
-        [ "Not recorded", nil, nil, false ]
+        [ "Not reviewed", nil, nil, false ]
       end
       if item_row && wide_row
         resolved = [ "Needs attention", item_row, nil, false ]
