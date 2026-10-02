@@ -26,7 +26,7 @@ class HotelAgreementsRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h2", text: "Hotel Agreement"
     assert_select "#hotel-agreement-role", text: "Draft"
-    assert_select "#hotel-term-destination_fee", text: /Not recorded/
+    assert_select "#hotel-term-destination_fee", text: /Not reviewed/
     assert_select "a", text: "Advanced Supplier planning"
     assert_select "button", text: "Create successor draft", count: 0
   end
