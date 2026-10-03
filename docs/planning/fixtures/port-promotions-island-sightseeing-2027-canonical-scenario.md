@@ -2,9 +2,9 @@
 
 ## 1. Status and authority
 
-**Status:** Draft. Not implementation authority.
+**Status:** Approved 2026-10-02. The [Island Sightseeing Activity walkthrough](../m4-offers-and-pricing/island-sightseeing-activity-staff-walkthrough.md) is Accepted 2026-10-02. The [Activity Supplier Composition plan](../m4-offers-and-pricing/island-sightseeing-activity-supplier-composition.md) is Shipped 2026-10-02 and authorizes that Activity Agreement workflow only. The [supplier compatibility pass](../m4-offers-and-pricing/island-sightseeing-supplier-compatibility.md) remains the persistence evidence and authorizes no Activity code by itself.
 
-This document supersedes previously written Island Sightseeing fixture facts. No slice may rely on it until it is Approved and an accepted slice plan names it.
+The Shipped Activity Supplier Composition plan names these facts. This document supersedes previously written Island Sightseeing fixture facts.
 
 ## 2. Purpose
 
@@ -33,6 +33,8 @@ The Supplier contract date, confirmation or reference number, and exact port mee
 | Currency | USD |
 
 The time and date are local to CocoCay.
+
+Checked 2026-10-02 against the Approved [Hilton Fort Lauderdale Marina fixture](hilton-fort-lauderdale-marina-2027-canonical-scenario-draft.md) and the Celebrity sailing. The pre-cruise stay checks out November 6, 2027, and the sailing is November 6–13, 2027, so November 8 is during the cruise and does not overlap the Hotel stay. The cruise fixture does not name the CocoCay call. October 8, 2027 remains superseded history.
 
 ## 5. Supplier Arrangement topology
 
@@ -117,7 +119,7 @@ CocoCay, Bahamas · America/Nassau
 Capacity
 40 controlled participant spaces
 Minimum enrollment: 5 travelers
-Below minimum: Supplier may cancel at its discretion
+Below minimum: Supplier decides whether to operate
 
 Supplier cost
 $50.00 per confirmed participant
@@ -133,7 +135,7 @@ Booking becomes non-cancellable and non-refundable
 
 ## 11. Required proof
 
-A later Activity adapter walkthrough should prove through the browser that Staff can:
+The Shipped [Activity Supplier Composition plan](../m4-offers-and-pricing/island-sightseeing-activity-supplier-composition.md) proves through the browser that Staff can:
 
 1. Create Island Sightseeing as the exact Activity Item.
 2. Schedule it for November 8, 2027 from 9:30 a.m. to 3:00 p.m. in `America/Nassau`.

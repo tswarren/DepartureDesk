@@ -84,6 +84,9 @@ class SupplierConstraintsTest < ActiveSupport::TestCase
       supplier_exposure_summaries
       supplier_issued_identifiers
       supplier_locations
+      supplier_operating_threshold_definitions
+      supplier_operating_threshold_outcomes
+      supplier_payment_requirement_definitions
       supplier_phone_numbers
       supplier_planning_milestone_occurrences
       supplier_postal_addresses

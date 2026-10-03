@@ -3,6 +3,7 @@ class CapacityPoolDefinition < ApplicationRecord
   include DraftVersionDefinition
   include LodgingConfirmationFreeze::Model
   include TransportationConfirmationFreeze::Model
+  include ActivityConfirmationFreeze::Model
   EVIDENCE_KINDS = %w[
     contract
     supplier_confirmation

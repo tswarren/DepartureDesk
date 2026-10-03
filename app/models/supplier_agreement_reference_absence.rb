@@ -11,7 +11,7 @@ class SupplierAgreementReferenceAbsence < ApplicationRecord
   belongs_to :arrangement_item, optional: true
   belongs_to :recorded_by, class_name: "AgencyUser"
 
-  enum :kind, SupplierAgreementReference::KINDS.index_by(&:itself), validate: true
+  enum :kind, SupplierAgreementReference::HOTEL_KINDS.index_by(&:itself), validate: true
 
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id,
     :supplier_arrangement_version_id, :arrangement_item_id, :kind

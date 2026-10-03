@@ -371,7 +371,7 @@ class HotelAgreementWorkspace
   end
 
   def term_rows
-    SupplierAgreementReference::KINDS.map do |kind|
+    SupplierAgreementReference::HOTEL_KINDS.map do |kind|
       item_row = references.find { |reference| reference.kind == kind && reference.arrangement_item_id == @item.id }
       wide_row = references.find { |reference| reference.kind == kind && reference.arrangement_item_id.nil? }
       item_absence = absences.find { |absence| absence.kind == kind && absence.arrangement_item_id == @item.id }

@@ -58,7 +58,7 @@ class RecordSupplierAgreementReferenceAbsence < AgencyCommand
 
   def normalize_kind!
     kind = @kind.to_s.strip
-    unless SupplierAgreementReference::KINDS.include?(kind)
+    unless SupplierAgreementReference::HOTEL_KINDS.include?(kind)
       raise Error.new("Choose an agreement reference kind.", code: :invalid)
     end
 
