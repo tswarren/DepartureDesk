@@ -35,6 +35,8 @@ class CopySupplierArrangementVersionGraph
       supplier_agreement_reference_absences
       supplier_amount_due_definitions
       supplier_amount_due_contributors
+      supplier_operating_threshold_definitions
+      supplier_payment_requirement_definitions
     ].each { |association| @from.public_send(association).order(:id).lock.load }
     SupplierCostComponentBase.where(supplier_arrangement_version_id: @from.id).order(:id).lock.load
     SupplierCostOccupancyProfilePosition.where(
@@ -97,6 +99,7 @@ class CopySupplierArrangementVersionGraph
     copy_deadlines!(sources, definitions, components)
     copy_deposits!(sources, definitions, components)
     copy_amount_dues!(components)
+    copy_activity_terms!(components)
     copy_family(@from.supplier_agreement_references, @to.supplier_agreement_references)
     copy_family(@from.supplier_agreement_reference_absences, @to.supplier_agreement_reference_absences)
     copy_family(
@@ -221,6 +224,19 @@ class CopySupplierArrangementVersionGraph
           copied_from: contributor
         )
       )
+    end
+  end
+
+  def copy_activity_terms!(components)
+    copy_family(
+      @from.supplier_operating_threshold_definitions,
+      @to.supplier_operating_threshold_definitions
+    )
+    copy_family(
+      @from.supplier_payment_requirement_definitions,
+      @to.supplier_payment_requirement_definitions
+    ) do |record|
+      { supplier_cost_component_id: components.fetch(record.supplier_cost_component_id).id }
     end
   end
 

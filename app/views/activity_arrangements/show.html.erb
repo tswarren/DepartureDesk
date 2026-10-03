@@ -1,0 +1,194 @@
+<% content_for :title, "Activity Agreement · #{@departure.name} · DepartureDesk" %>
+<% agreement = @agreement %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+<article class="dd-panel" id="activity-agreement">
+  <div class="dd-panel-body dd-stack">
+    <header class="dd-stack">
+      <p class="dd-eyebrow"><%= @departure.name %></p>
+      <h2 class="dd-page-title">Activity Agreement</h2>
+      <p>
+        <%= @supplier_arrangement.contracting_supplier.display_name_for_directory %>
+        · <%= @supplier_arrangement.name %>
+        · Version <%= @supplier_arrangement_version.version_number %>
+        · <%= @supplier_arrangement_version.status.to_s.humanize %>
+        <% if agreement.confirmed %>· Supplier confirmed<% end %>
+        <% if @supplier_arrangement.governing_version == @supplier_arrangement_version && @supplier_arrangement.active? %>· Governing<% end %>
+        <% if @supplier_arrangement_version.draft? && @supplier_arrangement.governing_version && @supplier_arrangement.governing_version != @supplier_arrangement_version %>· Proposed successor<% end %>
+      </p>
+      <% if @supplier_arrangement.governing_version && @supplier_arrangement.governing_version != @supplier_arrangement_version %>
+        <p><%= link_to "View governing agreement", departure_arrangement_activity_path(@departure, @supplier_arrangement, version_id: @supplier_arrangement.governing_version_id) %></p>
+      <% end %>
+    </header>
+
+    <% if flash[:alert] %><p class="dd-alert dd-alert--danger" role="alert"><%= flash[:alert] %></p><% end %>
+    <% if flash[:notice] %><p class="dd-alert" role="status"><%= flash[:notice] %></p><% end %>
+
+    <% if agreement.confirmation_blocker %>
+      <p id="activity-review"><%= agreement.confirmation_blocker == ActivityAgreementShape::ADVANCED ? ActivityAgreementShape::ADVANCED : "Advanced Supplier planning · #{agreement.confirmation_blocker}" %></p>
+    <% end %>
+
+    <% if agreement.activities.empty? && @editable %>
+      <section class="dd-stack" aria-labelledby="new-activity-heading">
+        <h2 id="new-activity-heading" class="dd-section-title">Activity details</h2>
+        <%= render "form", activity: nil, url: departure_arrangement_activity_items_path(@departure, @supplier_arrangement) %>
+      </section>
+    <% end %>
+
+    <% agreement.activities.each do |activity| %>
+      <section class="dd-stack" id="activity-<%= activity.item.id %>">
+        <h2 class="dd-section-title"><%= activity.item_definition.name %></h2>
+        <p>Activity</p>
+        <% if activity.occurrence_definition %>
+          <p>
+            <%= activity.occurrence_definition.starts_on.strftime("%b %-d, %Y") %>
+            · <%= activity.occurrence_definition.starts_at_local&.strftime("%-I:%M %P") %>–<%= activity.occurrence_definition.ends_at_local&.strftime("%-I:%M %p") %>
+          </p>
+          <p>Location: <%= activity.occurrence_definition.origin_name %></p>
+          <p>Meeting point: Not provided</p>
+        <% end %>
+        <% if activity.pool_definition %>
+          <p><%= activity.pool_definition.proposed_opening_quantity %> participant spaces</p>
+        <% end %>
+        <% if activity.resource_definition %>
+          <p>Participant occupancy is not the group size.</p>
+        <% end %>
+        <% if activity.threshold %>
+          <p>Minimum enrollment: <%= activity.threshold.minimum_quantity %> travelers</p>
+          <p>Below minimum: Supplier decides whether to operate</p>
+        <% end %>
+        <% if activity.component %>
+          <p><%= format_offer_money(activity.component.amount_minor_units, @departure.operating_currency) %> per confirmed participant</p>
+          <p><%= activity.inclusion&.governing_wording %></p>
+          <p>Forecast illustration, not the payable quantity.</p>
+          <ul>
+            <% CompileActivityAgreement.illustrations(activity.component.amount_minor_units).each do |count, amount| %>
+              <li><%= count %> → <%= format_offer_money(amount, @departure.operating_currency) %></li>
+            <% end %>
+          </ul>
+          <% if activity.expected_persons %>
+            <p id="activity-forecast">Current forecast for <%= activity.expected_persons %> illustrated participants: <%= activity.forecast_minor_units ? format_offer_money(activity.forecast_minor_units, @departure.operating_currency) : "not ready" %></p>
+          <% end %>
+        <% end %>
+        <% if activity.review_deadline %>
+          <p>Review minimum enrollment <%= Date.iso8601(activity.review_deadline.rule_parameters["date"].to_s).strftime("%b %-d, %Y") %></p>
+        <% end %>
+        <% if activity.final_count_deadline %>
+          <p>Final participant count due <%= Date.iso8601(activity.final_count_deadline.rule_parameters["date"].to_s).strftime("%b %-d, %Y") %></p>
+        <% end %>
+        <% if activity.payment %>
+          <p>Full payment due <%= activity.payment.due_on.strftime("%b %-d, %Y") %></p>
+          <p id="payment-amount">Payment amount: Depends on confirmed participant count</p>
+        <% end %>
+        <% if activity.cutoff_deadline %>
+          <p>Booking becomes non-cancellable and non-refundable <%= Date.iso8601(activity.cutoff_deadline.rule_parameters["date"].to_s).strftime("%b %-d, %Y") %></p>
+        <% end %>
+        <% if activity.cancellation %>
+          <p><%= activity.cancellation.governing_wording %></p>
+        <% end %>
+        <% if activity.outcome %>
+          <p id="minimum-enrollment-outcome">
+            Minimum-enrollment outcome
+            <%= activity.outcome.operate? ? "Supplier confirmed activity will operate" : "Supplier cancelled activity" %>
+          </p>
+        <% end %>
+        <% if activity.advanced_reason %><p>Advanced Supplier planning · <%= activity.advanced_reason %></p><% end %>
+        <% if @editable %>
+          <%= render "form", activity: activity, url: departure_arrangement_activity_item_path(@departure, @supplier_arrangement, activity.item), id_prefix: "activity_#{activity.item.id}" %>
+        <% end %>
+      </section>
+    <% end %>
+
+    <% if @editable && agreement.activities.any? %>
+      <section class="dd-stack" aria-labelledby="another-activity-heading">
+        <h2 id="another-activity-heading" class="dd-section-title">Add another activity</h2>
+        <%= render "form", activity: nil, url: departure_arrangement_activity_items_path(@departure, @supplier_arrangement), id_prefix: "new_activity" %>
+      </section>
+    <% end %>
+
+    <% if @editable && agreement.confirmation_allowed %>
+      <section aria-labelledby="activity-confirm-heading" class="dd-stack">
+        <h2 id="activity-confirm-heading" class="dd-section-title">Supplier confirmation</h2>
+        <%= form_with url: departure_arrangement_activity_confirmation_path(@departure, @supplier_arrangement), method: :post, class: "dd-form dd-stack" do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <div class="dd-field"><label class="dd-label" for="confirmation_evidence_kind">Evidence</label>
+            <select id="confirmation_evidence_kind" name="confirmation[evidence_kind]" class="dd-input">
+              <option value="supplier_confirmation">Supplier confirmation</option>
+              <option value="contract">Contract</option>
+            </select>
+          </div>
+          <div class="dd-field"><label class="dd-label" for="confirmation_evidence_on">Evidence date</label><%= date_field_tag "confirmation[evidence_on]", Date.current, id: "confirmation_evidence_on", class: "dd-input", required: true %></div>
+          <div class="dd-field"><label class="dd-label" for="confirmation_channel">Channel</label><%= text_field_tag "confirmation[channel]", "email", id: "confirmation_channel", class: "dd-input", required: true %></div>
+          <div class="dd-field"><label class="dd-label" for="confirmation_reference_note">Reference note</label><%= text_field_tag "confirmation[reference_note]", nil, id: "confirmation_reference_note", class: "dd-input", required: true %></div>
+          <div class="dd-field"><label class="dd-label" for="confirmation_confirmed_without_identifier_reason">Confirmed without a Supplier identifier because</label><%= text_field_tag "confirmation[confirmed_without_identifier_reason]", nil, id: "confirmation_confirmed_without_identifier_reason", class: "dd-input", required: true %></div>
+          <button class="dd-button" type="submit">Confirm Activity agreement</button>
+        <% end %>
+      </section>
+    <% end %>
+
+    <% if agreement.confirmed && @supplier_arrangement_version.draft? && Current.agency_user.permitted?(:manage_departures) %>
+      <section aria-labelledby="activity-activate-heading" class="dd-stack">
+        <h2 id="activity-activate-heading" class="dd-section-title">Activation</h2>
+        <%= form_with url: departure_arrangement_activity_activation_path(@departure, @supplier_arrangement), method: :post do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+          <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+          <button class="dd-button" type="submit">Activate Activity agreement</button>
+        <% end %>
+        <%= form_with url: departure_arrangement_activity_revision_path(@departure, @supplier_arrangement), method: :post, class: "dd-form dd-stack" do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+          <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
+          <div class="dd-field"><label class="dd-label" for="revision_reason">Reason for a new unconfirmed draft</label><%= text_field_tag :reason, nil, id: "revision_reason", class: "dd-input" %></div>
+          <button class="dd-button dd-button--quiet" type="submit">Revise confirmed draft</button>
+        <% end %>
+      </section>
+    <% end %>
+
+    <% if @supplier_arrangement.active? && Current.agency_user.permitted?(:manage_departures) && @supplier_arrangement.versions.where(status: "draft").none? %>
+      <section aria-labelledby="activity-outcome-heading" class="dd-stack">
+        <h2 id="activity-outcome-heading" class="dd-section-title">Below-minimum Supplier decision</h2>
+        <%= form_with url: departure_arrangement_activity_outcome_path(@departure, @supplier_arrangement), method: :post, class: "dd-form dd-stack" do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <div class="dd-field"><label class="dd-label" for="arrangement_item_id">Activity</label>
+            <select id="arrangement_item_id" name="arrangement_item_id" class="dd-input">
+              <% agreement.activities.each do |activity| %>
+                <option value="<%= activity.item.id %>"><%= activity.item_definition.name %></option>
+              <% end %>
+            </select>
+          </div>
+          <div class="dd-field"><label class="dd-label" for="outcome">Supplier decision</label>
+            <select id="outcome" name="outcome" class="dd-input">
+              <option value="operate">Operate</option>
+              <option value="cancel">Cancel</option>
+            </select>
+          </div>
+          <div class="dd-field"><label class="dd-label" for="observed_quantity">Observed participant quantity</label><%= number_field_tag :observed_quantity, nil, id: "observed_quantity", class: "dd-input", min: 0 %></div>
+          <div class="dd-field"><label class="dd-label" for="evidence">Supplier evidence</label><%= text_field_tag :evidence, nil, id: "evidence", class: "dd-input", required: true %></div>
+          <div class="dd-field"><label class="dd-label" for="occurred_on">Decision date</label><%= date_field_tag :occurred_on, Date.current, id: "occurred_on", class: "dd-input", required: true %></div>
+          <button class="dd-button" type="submit">Record Supplier decision</button>
+        <% end %>
+        <%= form_with url: departure_arrangement_activity_final_count_path(@departure, @supplier_arrangement), method: :post, class: "dd-form dd-stack" do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <% if agreement.activities.many? %>
+            <div class="dd-field"><label class="dd-label" for="final_count_arrangement_item_id">Activity for the final count</label>
+              <select id="final_count_arrangement_item_id" name="arrangement_item_id" class="dd-input">
+                <% agreement.activities.each do |activity| %>
+                  <option value="<%= activity.item.id %>"><%= activity.item_definition.name %></option>
+                <% end %>
+              </select>
+            </div>
+          <% elsif agreement.activities.one? %>
+            <%= hidden_field_tag :arrangement_item_id, agreement.activities.first.item.id %>
+          <% end %>
+          <button class="dd-button dd-button--quiet" type="submit">Record final participant count</button>
+        <% end %>
+        <%= form_with url: departure_arrangement_activity_successor_path(@departure, @supplier_arrangement), method: :post do %>
+          <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
+          <%= hidden_field_tag :arrangement_lock_version, @supplier_arrangement.lock_version %>
+          <%= hidden_field_tag :version_lock_version, @supplier_arrangement.governing_version.lock_version %>
+          <button class="dd-button dd-button--quiet" type="submit">Create successor for a contractual change</button>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</article>

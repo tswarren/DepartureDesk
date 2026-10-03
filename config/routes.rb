@@ -157,6 +157,7 @@ Rails.application.routes.draw do
         resources :cruises, only: %i[new create], controller: "/composition_cruises"
         resources :hotels, only: %i[new create], controller: "/composition_hotels"
         resources :transportations, only: %i[new create], controller: "/composition_transportations"
+        resources :activities, only: %i[new create], controller: "/composition_activities"
       end
     end
     resource :builder, only: %i[show], controller: "departure_builders"
@@ -263,6 +264,15 @@ Rails.application.routes.draw do
         get "items/:item_id/hotel_agreement/terms/:id/edit", to: "hotel_agreement_terms#edit", as: :edit_item_hotel_agreement_term
         patch "items/:item_id/hotel_agreement/terms/:id", to: "hotel_agreement_terms#update", as: :item_hotel_agreement_term
         delete "items/:item_id/hotel_agreement/terms/:id", to: "hotel_agreement_terms#destroy"
+      end
+      resource :activity, only: :show, controller: "activity_arrangements" do
+        resources :items, only: %i[create update], controller: "activity_items"
+        resource :confirmation, only: :create, controller: "activity_confirmations"
+        resource :activation, only: :create, controller: "activity_activations"
+        resource :outcome, only: :create, controller: "activity_outcomes"
+        resource :successor, only: :create, controller: "activity_successors"
+        resource :revision, only: :create, controller: "activity_revisions"
+        resource :final_count, only: :create, controller: "activity_final_counts"
       end
       resource :transportation, only: :show, controller: "transportation_arrangements" do
         resources :segments, only: %i[new create edit update], controller: "transportation_segments"

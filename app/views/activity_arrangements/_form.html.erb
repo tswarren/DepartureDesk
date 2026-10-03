@@ -1,0 +1,22 @@
+<% row = local_assigns[:activity] %>
+<% occurrence = row&.occurrence_definition %>
+<% method = row ? :patch : :post %>
+<% prefix = local_assigns[:id_prefix].presence || "activity" %>
+<%= form_with url: url, method: method, class: "dd-form dd-stack" do %>
+  <%= hidden_field_tag :idempotency_key, "#{@idempotency_key}-#{prefix}" %>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_name">Activity name</label><%= text_field_tag "activity[name]", row&.item_definition&.name, id: "#{prefix}_name", class: "dd-input", required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_location">Location</label><%= text_field_tag "activity[location]", occurrence&.origin_name, id: "#{prefix}_location", class: "dd-input", required: true %></div>
+  <p>Meeting point: Not provided</p>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_starts_on">Service date</label><%= date_field_tag "activity[starts_on]", occurrence&.starts_on, id: "#{prefix}_starts_on", class: "dd-input", required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_starts_at_local">Start time</label><%= time_field_tag "activity[starts_at_local]", occurrence&.starts_at_local&.strftime("%H:%M"), id: "#{prefix}_starts_at_local", class: "dd-input", required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_ends_at_local">End time</label><%= time_field_tag "activity[ends_at_local]", occurrence&.ends_at_local&.strftime("%H:%M"), id: "#{prefix}_ends_at_local", class: "dd-input", required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_time_zone">Time zone</label><%= text_field_tag "activity[time_zone]", occurrence&.time_zone || "America/Nassau", id: "#{prefix}_time_zone", class: "dd-input", required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_participant_spaces">Participant spaces</label><%= number_field_tag "activity[participant_spaces]", row&.pool_definition&.proposed_opening_quantity || 40, id: "#{prefix}_participant_spaces", class: "dd-input", min: 1, required: true %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_rate_amount">Supplier rate per participant</label><%= text_field_tag "activity[rate_amount]", row&.component ? Money.new(row.component.amount_minor_units, @departure.operating_currency).format(symbol: false, thousands_separator: false) : "50.00", id: "#{prefix}_rate_amount", class: "dd-input" %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_expected_persons">Forecast illustration (expected persons)</label><%= number_field_tag "activity[expected_persons]", row&.expected_persons, id: "#{prefix}_expected_persons", class: "dd-input", min: 0 %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_minimum_quantity">Minimum enrollment</label><%= number_field_tag "activity[minimum_quantity]", row&.threshold&.minimum_quantity || 5, id: "#{prefix}_minimum_quantity", class: "dd-input", min: 1 %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_terms_on">November 1 requirements</label><%= date_field_tag "activity[terms_on]", row&.payment&.due_on, id: "#{prefix}_terms_on", class: "dd-input" %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_inclusion_wording">Rate inclusions</label><%= text_area_tag "activity[inclusion_wording]", row&.inclusion&.governing_wording || SaveActivity::INCLUSIONS, id: "#{prefix}_inclusion_wording", class: "dd-input" %></div>
+  <div class="dd-field"><label class="dd-label" for="<%= prefix %>_cancellation_wording">Cancellation wording</label><%= text_area_tag "activity[cancellation_wording]", row&.cancellation&.governing_wording || SaveActivity::CANCELLATION, id: "#{prefix}_cancellation_wording", class: "dd-input" %></div>
+  <button class="dd-button" type="submit">Save activity</button>
+<% end %>

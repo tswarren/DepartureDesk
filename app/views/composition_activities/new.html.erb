@@ -1,0 +1,33 @@
+<% content_for :title, "Add activity · #{@departure.name} · DepartureDesk" %>
+<% arrangement = (@arrangement_attributes || {}).with_indifferent_access %>
+<%= render "departure_compositions/shell", active_area: "suppliers" %>
+
+<article class="dd-panel" id="activity-arrangement-form">
+  <div class="dd-panel-body dd-stack">
+    <header class="dd-page-header">
+      <div class="dd-page-heading">
+        <p class="dd-eyebrow"><%= @departure.name %></p>
+        <h2 class="dd-page-title">Add activity</h2>
+        <p class="dd-page-description">Open the Activity Agreement, then record the activity.</p>
+      </div>
+    </header>
+    <%= form_with url: departure_composition_suppliers_activities_path(@departure), method: :post, class: "dd-form dd-stack" do %>
+      <%= hidden_field_tag :idempotency_key, @idempotency_key %>
+      <% if flash[:alert] %><p id="form-error-summary" class="dd-alert dd-alert--danger" role="alert"><%= flash[:alert] %></p><% end %>
+      <div class="dd-field">
+        <label class="dd-label" for="arrangement_name">Arrangement name</label>
+        <%= text_field_tag "arrangement[name]", arrangement[:name], id: "arrangement_name", class: "dd-input", required: true %>
+      </div>
+      <div class="dd-field">
+        <label class="dd-label" for="arrangement_contracting_supplier_id">Contracting Supplier</label>
+        <select id="arrangement_contracting_supplier_id" name="arrangement[contracting_supplier_id]" class="dd-input" required>
+          <option value="">Choose a supplier</option>
+          <% @suppliers.each do |supplier| %>
+            <option value="<%= supplier.id %>" <%= "selected" if arrangement[:contracting_supplier_id].to_s == supplier.id.to_s %>><%= supplier_option_label(supplier) %></option>
+          <% end %>
+        </select>
+      </div>
+      <button class="dd-button" type="submit">Open Activity Agreement</button>
+    <% end %>
+  </div>
+</article>

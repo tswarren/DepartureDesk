@@ -56,13 +56,15 @@ The on-request ceiling of two additional coaches is partial coverage of on-reque
 | Field | Value |
 | --- | --- |
 | Canonical file | [port-promotions-island-sightseeing-2027-canonical-scenario.md](port-promotions-island-sightseeing-2027-canonical-scenario.md) |
-| Status | Draft |
+| Status | Approved 2026-10-02 |
 | Facts | Illustrative. |
 | Layer | Supplier Composition. |
 | Proves | A per-participant Activity cost with a controlled maximum and an operating minimum that is not a guaranteed charge. |
 | Supersedes | Previously written Island Sightseeing fixture facts, including a $57.50 Client price. |
-| Unresolved | Contract date, confirmation number, and the exact port meeting point. |
-| Slices that may rely on it | None until this fixture is Approved and an accepted slice plan names it. |
+| Unresolved | Contract date, confirmation number, and the exact port meeting point. The November 8, 2027 activity date was checked 2026-10-02 against the Approved Hilton checkout on November 6 and the November 6–13 sailing. |
+| Compatibility | [Island Sightseeing supplier compatibility](../m4-offers-and-pricing/island-sightseeing-supplier-compatibility.md) is recorded 2026-10-02. It is persistence evidence and does not by itself authorize Activity code. |
+| Walkthrough | [Island Sightseeing Activity walkthrough](../m4-offers-and-pricing/island-sightseeing-activity-staff-walkthrough.md) is Accepted 2026-10-02. |
+| Slices that may rely on it | The Shipped [Activity Supplier Composition plan](../m4-offers-and-pricing/island-sightseeing-activity-supplier-composition.md). |
 
 ## Empire City DMC
 

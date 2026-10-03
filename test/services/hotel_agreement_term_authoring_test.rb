@@ -282,7 +282,7 @@ class HotelAgreementTermAuthoringTest < ActiveSupport::TestCase
     end
     assert_equal :invalid, wording.code
 
-    SupplierAgreementReference::ITEM_KINDS.each do |kind|
+    (SupplierAgreementReference::ITEM_KINDS - %w[rate_inclusions]).each do |kind|
       item_absence = RecordSupplierAgreementReferenceAbsence.new(
         agency: @agency, actor: @admin, arrangement_item: @item, scope: "stay", kind: kind,
         idempotency_key: SecureRandom.uuid

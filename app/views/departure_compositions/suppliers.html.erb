@@ -9,6 +9,7 @@
         <%= link_to "Set up a Cruise", new_departure_composition_suppliers_cruise_path(@departure), class: "dd-button" %>
         <%= link_to "Add Hotel stay", new_departure_composition_suppliers_hotel_path(@departure), class: "dd-button" %>
         <%= link_to "Add transportation", new_departure_composition_suppliers_transportation_path(@departure), class: "dd-button" %>
+        <%= link_to "Add activity", new_departure_composition_suppliers_activity_path(@departure), class: "dd-button" %>
         <%= link_to "Add Arrangement", new_departure_arrangement_path(@departure), class: "dd-button dd-button--quiet" %>
         <%= link_to "Supplier planning", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
       </nav>
@@ -17,6 +18,7 @@
       <% cruise_shapes = @cruise_shapes || {} %>
       <% hotel_items = @hotel_items || {} %>
       <% transportation_items = @transportation_items || {} %>
+      <% activity_items = @activity_items || {} %>
       <% if arrangements.blank? %>
         <p>No Supplier Arrangements yet.</p>
       <% else %>
@@ -25,6 +27,7 @@
             <% shape = cruise_shapes[arrangement] %>
             <% lodging_items = hotel_items[arrangement] || [] %>
             <% segments = transportation_items[arrangement] || [] %>
+            <% activities = activity_items[arrangement] || [] %>
             <li>
               <%= arrangement.name.presence || "Arrangement" %>
               · <%= arrangement.status.to_s.humanize %>
@@ -40,7 +43,10 @@
               <% if segments.any? %>
                 · <%= link_to "Open Transportation Agreement", departure_arrangement_transportation_path(@departure, arrangement) %>
               <% end %>
-              <% if !shape&.compatible? && lodging_items.empty? && segments.empty? %>
+              <% if activities.any? %>
+                · <%= link_to "Open Activity Agreement", departure_arrangement_activity_path(@departure, arrangement) %>
+              <% end %>
+              <% if !shape&.compatible? && lodging_items.empty? && segments.empty? && activities.empty? %>
                 · <%= link_to "Open advanced Arrangement", departure_arrangement_path(@departure, arrangement) %>
               <% end %>
             </li>

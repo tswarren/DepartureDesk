@@ -3,6 +3,7 @@ class SupplierCostComponent < ApplicationRecord
   include DraftVersionDefinition
   include LodgingConfirmationFreeze::Model
   include TransportationConfirmationFreeze::Model
+  include ActivityConfirmationFreeze::Model
   ECONOMIC_ROLES = %w[supplier_charge supplier_credit expected_commission informational_allocation].freeze
   CALCULATION_KINDS = %w[fixed unit_rate percentage minimum_amount_shortfall minimum_quantity_shortfall].freeze
   QUANTITY_BASES = %w[

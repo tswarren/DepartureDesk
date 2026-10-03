@@ -101,7 +101,7 @@ class HotelAgreementTermsController < ApplicationController
 
   def set_kind
     @kind = params[:kind].to_s
-    raise ActiveRecord::RecordNotFound unless SupplierAgreementReference::KINDS.include?(@kind)
+    raise ActiveRecord::RecordNotFound unless SupplierAgreementReference::HOTEL_KINDS.include?(@kind)
   end
 
   def set_reference
