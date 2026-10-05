@@ -71,7 +71,7 @@ class TransportationSupplierCompositionTest < ActiveSupport::TestCase
     assert_equal 37_500, forecast_total(version)
     assert_equal 37_500, amount_due(version).total_minor_units
 
-    change!(hotel, "increased", Date.current)
+    change!(hotel, "increased", charter_today)
     version = @arrangement.reload.governing_version
     assert_equal 40_000, segment_exposure(version, hotel)
     assert_equal 17_500, segment_exposure(version, other_item(hotel))
@@ -79,13 +79,13 @@ class TransportationSupplierCompositionTest < ActiveSupport::TestCase
     assert_equal 57_500, amount_due(version).total_minor_units
     assert_equal [ 40_000, 17_500 ], amount_due(version).lines.map(&:amount_minor_units)
 
-    travel_to(Date.current + 2) do
+    travel_to(charter_today.in_time_zone("America/New_York").change(hour: 12) + 2.days) do
       change!(hotel, "increased", Date.current + 30)
       assert_equal 57_500, forecast_total(@arrangement.reload.governing_version)
       assert_equal 77_500, amount_due(@arrangement.reload.governing_version).total_minor_units
     end
 
-    change!(hotel, "released", Date.current)
+    change!(hotel, "released", charter_today)
     version = @arrangement.reload.governing_version
     assert_equal 1, version.capacity_pool_definitions.find_by!(arrangement_item: hotel).capacity_pool.capacity_projection.current_supplier_capacity
     assert_equal 40_000, segment_exposure(version, hotel)
@@ -101,7 +101,7 @@ class TransportationSupplierCompositionTest < ActiveSupport::TestCase
     SaveTransportationAmountDue.new(agency: @agency, actor: @admin, arrangement: @arrangement, due_on: "2027-11-03", idempotency_key: SecureRandom.uuid).call
     confirm!
     activate!
-    change!(hotel, "increased", Date.current)
+    change!(hotel, "increased", charter_today)
     travel_to Time.zone.parse("2027-11-07 12:00") do
       change!(hotel, "increased", Date.new(2027, 11, 6))
       version = @arrangement.reload.governing_version
@@ -342,6 +342,10 @@ class TransportationSupplierCompositionTest < ActiveSupport::TestCase
         evidence_reference_note: "ABC coach update"
       }
     ).call
+  end
+
+  def charter_today
+    Time.current.in_time_zone("America/New_York").to_date
   end
 
   def forecast_total(version = draft)

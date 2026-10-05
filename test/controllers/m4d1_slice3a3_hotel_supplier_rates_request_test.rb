@@ -288,7 +288,7 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_response :redirect
 
     version = draft_version(item)
-    SupplierAgreementReference::KINDS.each do |kind|
+    SupplierAgreementReference::HOTEL_KINDS.each do |kind|
       RecordSupplierAgreementReferenceAbsence.new(
         agency: @agency,
         actor: @staff,
@@ -565,7 +565,7 @@ class M4d1Slice3a3HotelSupplierRatesRequestTest < ActionDispatch::IntegrationTes
     assert_response :redirect
 
     version = draft_version(item)
-    SupplierAgreementReference::KINDS.each do |kind|
+    SupplierAgreementReference::HOTEL_KINDS.each do |kind|
       RecordSupplierAgreementReferenceAbsence.new(
         agency: @agency,
         actor: @staff,

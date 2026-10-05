@@ -44,10 +44,10 @@ After this contract:
 4. The [ABC Motorcoach Transportation walkthrough](abc-motorcoach-transportation-staff-walkthrough.md) is Accepted 2026-10-02. The [supplier compatibility gate](abc-motorcoach-supplier-compatibility.md) records the charter against shipped Supplier commands. [Transportation Supplier Composition](transportation-supplier-composition.md) is Shipped 2026-10-02.
 5. Implement Transportation.
 6. Extract shared support only if Transportation repeats the same orchestration.
-7. Draft and accept the Activity, Meal, and Excursion workflow.
+7. The [Island Sightseeing Activity walkthrough](island-sightseeing-activity-staff-walkthrough.md) is Accepted 2026-10-02. [Activity Supplier Composition](island-sightseeing-activity-supplier-composition.md) is Shipped 2026-10-02 and authorizes that Activity Agreement workflow only. The Port Promotions fixture is Approved 2026-10-02. Meal and mixed-DMC workflows remain to be drafted. The [Island Sightseeing supplier compatibility pass](island-sightseeing-supplier-compatibility.md) is recorded 2026-10-02 and remains persistence evidence.
 8. Draft and accept mixed-DMC routing and its integrated proof.
 
-Transportation is not frozen inside Slice 3R. Activity and mixed-DMC walkthroughs wait until those verticals start.
+Transportation is not frozen inside Slice 3R. The Island Sightseeing Activity Agreement workflow is Shipped 2026-10-02. Meal and mixed-DMC walkthroughs wait until those verticals start.
 
 ## 4. When shared support may be extracted
 

@@ -5,7 +5,8 @@ class ReviseConfirmedSupplierArrangementVersion < AgencyCommand
 
   VERTICALS = {
     "lodging" => "Only a confirmed Hotel draft can be revised before the first activation.",
-    "ground_transportation" => "Only a confirmed Transportation draft can be revised before the first activation."
+    "ground_transportation" => "Only a confirmed Transportation draft can be revised before the first activation.",
+    "activity_attraction" => "Only a confirmed Activity draft can be revised before the first activation."
   }.freeze
 
   def initialize(agency:, actor:, arrangement:, reason:, idempotency_key:,

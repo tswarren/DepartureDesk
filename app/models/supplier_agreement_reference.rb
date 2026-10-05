@@ -5,11 +5,12 @@ class SupplierAgreementReference < ApplicationRecord
   include DraftVersionDefinition
 
   WORDING_LIMIT = 2_000
-  KINDS = %w[
+  HOTEL_KINDS = %w[
     deposit_derivation attrition deposit_refund
     destination_fee additional_nights early_departure cancellation
   ].freeze
-  ITEM_KINDS = %w[deposit_derivation attrition deposit_refund].freeze
+  KINDS = (HOTEL_KINDS + %w[rate_inclusions]).freeze
+  ITEM_KINDS = %w[deposit_derivation attrition deposit_refund rate_inclusions].freeze
   OPTIONAL_KINDS = %w[destination_fee additional_nights early_departure cancellation].freeze
 
   belongs_to :agency

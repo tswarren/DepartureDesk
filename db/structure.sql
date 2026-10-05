@@ -25,6 +25,22 @@ COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiS
 
 
 --
+-- Name: activity_attraction_item(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.activity_attraction_item(version_id uuid, item_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$
+        SELECT EXISTS (
+          SELECT 1 FROM arrangement_item_definitions definitions
+           WHERE definitions.supplier_arrangement_version_id = version_id
+             AND definitions.arrangement_item_id = item_id
+             AND definitions.category = 'activity_attraction'
+        );
+      $$;
+
+
+--
 -- Name: allow_deadline_occurrence_supersession_only(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -274,6 +290,19 @@ CREATE FUNCTION public.lodging_coverage_affects_version(p_version_id uuid, p_arr
        )
   );
 $$;
+
+
+--
+-- Name: reject_activity_outcome_revision(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_activity_outcome_revision() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        RAISE EXCEPTION 'activity operating outcomes are append-only history';
+      END;
+      $$;
 
 
 --
@@ -605,6 +634,77 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: reject_confirmed_activity_definition_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_confirmed_activity_definition_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      DECLARE
+  version_id uuid;
+  item_id uuid;
+  version_status text;
+  frozen boolean := false;
+  row_record record;
+BEGIN
+  row_record := CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  version_id := row_record.supplier_arrangement_version_id;
+
+  SELECT status INTO version_status
+    FROM supplier_arrangement_versions WHERE id = version_id FOR SHARE;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM supplier_confirmations WHERE supplier_arrangement_version_id = version_id
+  ) THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+
+  IF TG_TABLE_NAME IN (
+    'supplier_operating_threshold_definitions', 'supplier_payment_requirement_definitions'
+  ) THEN
+    frozen := true;
+  ELSIF version_status IS DISTINCT FROM 'draft' THEN
+    frozen := false;
+  ELSIF TG_TABLE_NAME = 'arrangement_item_definitions' THEN
+          frozen := row_record.category = 'activity_attraction'
+            OR (TG_OP = 'UPDATE' AND OLD.category = 'activity_attraction');
+        ELSIF TG_TABLE_NAME IN (
+          'service_occurrence_definitions', 'supplier_resource_definitions',
+          'capacity_pair_definitions', 'capacity_pool_definitions', 'supplier_cost_sources'
+        ) THEN
+          frozen := public.activity_attraction_item(version_id, row_record.arrangement_item_id);
+        ELSIF TG_TABLE_NAME = 'supplier_cost_definitions' THEN
+          SELECT arrangement_item_id INTO item_id
+            FROM supplier_cost_sources WHERE id = row_record.supplier_cost_source_id;
+          frozen := public.activity_attraction_item(version_id, item_id);
+        ELSIF TG_TABLE_NAME = 'supplier_cost_components' THEN
+          SELECT sources.arrangement_item_id INTO item_id
+            FROM supplier_cost_definitions definitions
+            JOIN supplier_cost_sources sources ON sources.id = definitions.supplier_cost_source_id
+           WHERE definitions.id = row_record.supplier_cost_definition_id;
+          frozen := public.activity_attraction_item(version_id, item_id);
+        ELSIF TG_TABLE_NAME = 'supplier_deadline_definitions' THEN
+          frozen := EXISTS (
+            SELECT 1 FROM supplier_deadline_definition_coverage_links links
+             WHERE links.supplier_deadline_definition_id = row_record.id
+               AND public.activity_attraction_item(version_id, links.arrangement_item_id)
+          );
+        ELSIF TG_TABLE_NAME = 'supplier_deadline_definition_coverage_links' THEN
+          frozen := public.activity_attraction_item(version_id, row_record.arrangement_item_id);
+        END IF;
+
+        IF frozen THEN
+          RAISE EXCEPTION 'activity agreement definitions are immutable after Supplier confirmation';
+        END IF;
+
+        IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+        RETURN NEW;
+      END;
+      $$;
 
 
 --
@@ -2369,6 +2469,38 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: reject_ungoverning_activity_outcome(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_ungoverning_activity_outcome() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      DECLARE
+        governing_id uuid;
+        definition_version_id uuid;
+        arrangement_status text;
+      BEGIN
+        SELECT governing_version_id, status INTO governing_id, arrangement_status
+          FROM supplier_arrangements WHERE id = NEW.supplier_arrangement_id;
+        SELECT supplier_arrangement_version_id INTO definition_version_id
+          FROM supplier_operating_threshold_definitions
+         WHERE id = NEW.supplier_operating_threshold_definition_id;
+
+        IF arrangement_status IS DISTINCT FROM 'active'
+          OR definition_version_id IS DISTINCT FROM governing_id
+          OR NOT EXISTS (
+            SELECT 1 FROM supplier_confirmations
+             WHERE supplier_arrangement_version_id = definition_version_id
+          ) THEN
+          RAISE EXCEPTION 'activity operating outcomes attach only to the Supplier-confirmed governing threshold';
+        END IF;
+
+        RETURN NEW;
+      END;
+      $$;
 
 
 --
@@ -4415,7 +4547,7 @@ CREATE TABLE public.supplier_agreement_reference_absences (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT agreement_reference_absences_kind CHECK ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[])) AND (((kind)::text <> ALL ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying])::text[])) OR (arrangement_item_id IS NOT NULL)))),
+    CONSTRAINT agreement_reference_absences_kind CHECK ((((kind)::text = ANY (ARRAY[('deposit_derivation'::character varying)::text, ('attrition'::character varying)::text, ('deposit_refund'::character varying)::text, ('destination_fee'::character varying)::text, ('additional_nights'::character varying)::text, ('early_departure'::character varying)::text, ('cancellation'::character varying)::text])) AND (((kind)::text <> ALL (ARRAY[('deposit_derivation'::character varying)::text, ('attrition'::character varying)::text, ('deposit_refund'::character varying)::text])) OR (arrangement_item_id IS NOT NULL)))),
     CONSTRAINT agreement_reference_absences_lock_version CHECK ((lock_version >= 0))
 );
 
@@ -4444,7 +4576,7 @@ CREATE TABLE public.supplier_agreement_references (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT agreement_references_kind CHECK ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[])) AND ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying])::text[])) AND (arrangement_item_id IS NOT NULL)) OR ((kind)::text = ANY ((ARRAY['destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[]))))),
+    CONSTRAINT agreement_references_kind CHECK ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'rate_inclusions'::character varying, 'destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[])) AND ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'rate_inclusions'::character varying])::text[])) AND (arrangement_item_id IS NOT NULL)) OR ((kind)::text = ANY ((ARRAY['destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[]))))),
     CONSTRAINT agreement_references_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT agreement_references_provenance CHECK ((((source_description)::text = btrim((source_description)::text)) AND ((char_length((source_description)::text) >= 1) AND (char_length((source_description)::text) <= 2000)) AND ((supplier_reference IS NULL) OR (((supplier_reference)::text = btrim((supplier_reference)::text)) AND ((char_length((supplier_reference)::text) >= 1) AND (char_length((supplier_reference)::text) <= 2000)))) AND ((external_reference IS NULL) OR (((external_reference)::text = btrim((external_reference)::text)) AND ((char_length((external_reference)::text) >= 1) AND (char_length((external_reference)::text) <= 2000)))) AND ((evidence_note IS NULL) OR (((evidence_note)::text = btrim((evidence_note)::text)) AND ((char_length((evidence_note)::text) >= 1) AND (char_length((evidence_note)::text) <= 2000)))))),
     CONSTRAINT agreement_references_wording CHECK ((((governing_wording)::text = btrim((governing_wording)::text)) AND ((char_length((governing_wording)::text) >= 1) AND (char_length((governing_wording)::text) <= 2000)) AND ((((kind)::text = 'deposit_refund'::text) AND (original_wording IS NOT NULL) AND ((original_wording)::text = btrim((original_wording)::text)) AND ((char_length((original_wording)::text) >= 1) AND (char_length((original_wording)::text) <= 2000))) OR (((kind)::text <> 'deposit_refund'::text) AND (original_wording IS NULL)))))
@@ -4591,7 +4723,7 @@ CREATE TABLE public.supplier_arrangement_commercial_benefit_definitions (
     CONSTRAINT commercial_benefit_defs_body CHECK (((btrim((body)::text) <> ''::text) AND (char_length((body)::text) <= 4000))),
     CONSTRAINT commercial_benefit_defs_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT commercial_benefit_defs_source_citation CHECK (((source_citation IS NULL) OR ((btrim((source_citation)::text) <> ''::text) AND (char_length((source_citation)::text) <= 160)))),
-    CONSTRAINT commercial_benefit_defs_term_type CHECK (((term_type)::text = ANY ((ARRAY['tour_conductor_credit'::character varying, 'group_amenity_program'::character varying])::text[])))
+    CONSTRAINT commercial_benefit_defs_term_type CHECK (((term_type)::text = ANY (ARRAY[('tour_conductor_credit'::character varying)::text, ('group_amenity_program'::character varying)::text])))
 );
 
 
@@ -4636,7 +4768,7 @@ CREATE TABLE public.supplier_arrangement_cruise_agreement_confirmations (
     CONSTRAINT cruise_agreement_confirmations_group_reference CHECK (((group_reference IS NULL) OR ((btrim((group_reference)::text) <> ''::text) AND (char_length((group_reference)::text) <= 80)))),
     CONSTRAINT cruise_agreement_confirmations_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT cruise_agreement_confirmations_note CHECK (((note IS NULL) OR ((btrim((note)::text) <> ''::text) AND (char_length((note)::text) <= 2000)))),
-    CONSTRAINT cruise_agreement_confirmations_status CHECK (((status)::text = ANY ((ARRAY['provisional'::character varying, 'confirmed'::character varying])::text[]))),
+    CONSTRAINT cruise_agreement_confirmations_status CHECK (((status)::text = ANY (ARRAY[('provisional'::character varying)::text, ('confirmed'::character varying)::text]))),
     CONSTRAINT cruise_agreement_confirmations_status_shape CHECK (((((status)::text = 'provisional'::text) AND (group_creation_date IS NOT NULL) AND (confirmed_at IS NULL) AND (confirmed_by_id IS NULL)) OR (((status)::text = 'confirmed'::text) AND (group_creation_date IS NOT NULL) AND (confirmed_at IS NOT NULL) AND (confirmed_by_id IS NOT NULL) AND (group_reference IS NOT NULL) AND (contract_date IS NOT NULL))))
 );
 
@@ -4689,7 +4821,7 @@ CREATE TABLE public.supplier_arrangement_cruise_term_definitions (
     CONSTRAINT cruise_term_definitions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT cruise_term_definitions_position CHECK (("position" > 0)),
     CONSTRAINT cruise_term_definitions_shape CHECK (((((term_type)::text = 'allocated_cabin_deposit'::text) AND ("position" = 1) AND (amount_minor_units > 0) AND (credit_minor_units >= 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (days_before_departure IS NULL)) OR (((term_type)::text = 'card_restrictions'::text) AND ("position" = 1) AND (amount_minor_units IS NULL) AND (credit_minor_units IS NULL) AND (currency IS NULL) AND (days_before_departure IS NULL)) OR (((term_type)::text = 'cancellation_step'::text) AND (days_before_departure >= 0) AND (amount_minor_units IS NULL) AND (credit_minor_units IS NULL) AND (currency IS NULL)))),
-    CONSTRAINT cruise_term_definitions_term_type CHECK (((term_type)::text = ANY ((ARRAY['allocated_cabin_deposit'::character varying, 'card_restrictions'::character varying, 'cancellation_step'::character varying])::text[])))
+    CONSTRAINT cruise_term_definitions_term_type CHECK (((term_type)::text = ANY (ARRAY[('allocated_cabin_deposit'::character varying)::text, ('card_restrictions'::character varying)::text, ('cancellation_step'::character varying)::text])))
 );
 
 
@@ -5413,7 +5545,7 @@ CREATE TABLE public.supplier_cost_definitions (
     updated_at timestamp(6) with time zone NOT NULL,
     copied_from_id uuid,
     commission_treatment character varying DEFAULT 'unspecified'::character varying NOT NULL,
-    CONSTRAINT supplier_cost_definitions_commission_treatment CHECK (((commission_treatment)::text = ANY ((ARRAY['unspecified'::character varying, 'noncommissionable'::character varying])::text[]))),
+    CONSTRAINT supplier_cost_definitions_commission_treatment CHECK (((commission_treatment)::text = ANY (ARRAY[('unspecified'::character varying)::text, ('noncommissionable'::character varying)::text]))),
     CONSTRAINT supplier_cost_definitions_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT supplier_cost_definitions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_cost_definitions_mode CHECK (((mode)::text = ANY (ARRAY[('calculated'::character varying)::text, ('zero_cost'::character varying)::text]))),
@@ -6105,6 +6237,80 @@ END) STORED,
     CONSTRAINT supplier_locations_phone_shape CHECK ((((phone_number IS NULL) AND (phone_normalized_number IS NULL) AND (phone_extension IS NULL) AND (phone_country_code IS NULL)) OR ((phone_number IS NOT NULL) AND (btrim((phone_number)::text) <> ''::text) AND (phone_normalized_number IS NOT NULL) AND ((phone_normalized_number)::text ~ '^\+[1-9][0-9]{0,14}$'::text) AND (phone_country_code IS NOT NULL) AND ((phone_country_code)::text ~ '^[A-Z]{2}$'::text) AND ((phone_extension IS NULL) OR ((phone_extension)::text ~ '^[0-9]{1,10}$'::text))))),
     CONSTRAINT supplier_locations_postal_shape CHECK ((((address_line_1 IS NULL) AND (address_line_2 IS NULL) AND (address_locality IS NULL) AND (address_region IS NULL) AND (address_postal_code IS NULL) AND (address_country_code IS NULL)) OR ((address_line_1 IS NOT NULL) AND (btrim((address_line_1)::text) <> ''::text) AND (address_country_code IS NOT NULL) AND ((address_country_code)::text ~ '^[A-Z]{2}$'::text)))),
     CONSTRAINT supplier_locations_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+);
+
+
+--
+-- Name: supplier_operating_threshold_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_operating_threshold_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_operating_threshold_d_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_operating_threshol_supplier_arrangement_versi_not_null NOT NULL,
+    arrangement_item_id uuid CONSTRAINT supplier_operating_threshold_defin_arrangement_item_id_not_null NOT NULL,
+    service_occurrence_id uuid,
+    threshold_kind character varying CONSTRAINT supplier_operating_threshold_definition_threshold_kind_not_null NOT NULL,
+    quantity_basis character varying CONSTRAINT supplier_operating_threshold_definition_quantity_basis_not_null NOT NULL,
+    minimum_quantity integer CONSTRAINT supplier_operating_threshold_definiti_minimum_quantity_not_null NOT NULL,
+    below_threshold_authority character varying CONSTRAINT supplier_operating_threshold_below_threshold_authority_not_null NOT NULL,
+    "position" integer NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    copied_from_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT operating_thresholds_activity_shape CHECK ((((threshold_kind)::text = 'minimum_enrollment'::text) AND ((quantity_basis)::text = 'persons'::text) AND ((below_threshold_authority)::text = 'supplier_decision'::text) AND (minimum_quantity > 0) AND (lock_version >= 0)))
+);
+
+
+--
+-- Name: supplier_operating_threshold_outcomes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_operating_threshold_outcomes (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_operating_threshold_o_supplier_arrangement_id_not_null NOT NULL,
+    arrangement_item_id uuid CONSTRAINT supplier_operating_threshold_outco_arrangement_item_id_not_null NOT NULL,
+    service_occurrence_id uuid CONSTRAINT supplier_operating_threshold_out_service_occurrence_id_not_null NOT NULL,
+    supplier_operating_threshold_definition_id uuid CONSTRAINT supplier_operating_threshol_supplier_operating_thresho_not_null NOT NULL,
+    observed_quantity integer,
+    outcome character varying NOT NULL,
+    evidence character varying(2000) NOT NULL,
+    occurred_on date NOT NULL,
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT operating_outcomes_shape CHECK ((((outcome)::text = ANY ((ARRAY['operate'::character varying, 'cancel'::character varying])::text[])) AND ((char_length(btrim((evidence)::text)) >= 1) AND (char_length(btrim((evidence)::text)) <= 2000)) AND ((observed_quantity IS NULL) OR (observed_quantity >= 0))))
+);
+
+
+--
+-- Name: supplier_payment_requirement_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_payment_requirement_definitions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid CONSTRAINT supplier_payment_requirement_d_supplier_arrangement_id_not_null NOT NULL,
+    supplier_arrangement_version_id uuid CONSTRAINT supplier_payment_requiremen_supplier_arrangement_versi_not_null NOT NULL,
+    arrangement_item_id uuid CONSTRAINT supplier_payment_requirement_defin_arrangement_item_id_not_null NOT NULL,
+    supplier_cost_component_id uuid CONSTRAINT supplier_payment_requiremen_supplier_cost_component_id_not_null NOT NULL,
+    kind character varying NOT NULL,
+    due_on date NOT NULL,
+    currency character varying(3) NOT NULL,
+    quantity_status character varying CONSTRAINT supplier_payment_requirement_definitio_quantity_status_not_null NOT NULL,
+    "position" integer NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    copied_from_id uuid,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT payment_requirements_unresolved_quantity CHECK ((((kind)::text = 'full_payment'::text) AND ((quantity_status)::text = 'authoritative_quantity_unavailable'::text) AND (char_length((currency)::text) = 3) AND (lock_version >= 0)))
 );
 
 
@@ -7540,6 +7746,30 @@ ALTER TABLE ONLY public.supplier_issued_identifiers
 
 ALTER TABLE ONLY public.supplier_locations
     ADD CONSTRAINT supplier_locations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_operating_threshold_definitions supplier_operating_threshold_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_operating_threshold_definitions
+    ADD CONSTRAINT supplier_operating_threshold_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_operating_threshold_outcomes supplier_operating_threshold_outcomes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_operating_threshold_outcomes
+    ADD CONSTRAINT supplier_operating_threshold_outcomes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_payment_requirement_definitions supplier_payment_requirement_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_requirement_definitions
+    ADD CONSTRAINT supplier_payment_requirement_definitions_pkey PRIMARY KEY (id);
 
 
 --
@@ -9394,7 +9624,7 @@ CREATE UNIQUE INDEX index_cruise_term_definitions_on_lineage ON public.supplier_
 -- Name: index_cruise_term_definitions_one_readable_term; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_cruise_term_definitions_one_readable_term ON public.supplier_arrangement_cruise_term_definitions USING btree (supplier_arrangement_version_id, term_type) WHERE ((term_type)::text = ANY ((ARRAY['allocated_cabin_deposit'::character varying, 'card_restrictions'::character varying])::text[]));
+CREATE UNIQUE INDEX index_cruise_term_definitions_one_readable_term ON public.supplier_arrangement_cruise_term_definitions USING btree (supplier_arrangement_version_id, term_type) WHERE ((term_type)::text = ANY (ARRAY[('allocated_cabin_deposit'::character varying)::text, ('card_restrictions'::character varying)::text]));
 
 
 --
@@ -10000,6 +10230,27 @@ CREATE UNIQUE INDEX index_offices_on_id_and_agency_id ON public.offices USING bt
 
 
 --
+-- Name: index_operating_outcomes_on_threshold; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_operating_outcomes_on_threshold ON public.supplier_operating_threshold_outcomes USING btree (supplier_operating_threshold_definition_id);
+
+
+--
+-- Name: index_operating_thresholds_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_operating_thresholds_on_lineage_owner ON public.supplier_operating_threshold_definitions USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_operating_thresholds_on_version_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_operating_thresholds_on_version_item ON public.supplier_operating_threshold_definitions USING btree (supplier_arrangement_version_id, arrangement_item_id);
+
+
+--
 -- Name: index_package_client_cancellation_policies_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10305,6 +10556,20 @@ CREATE UNIQUE INDEX index_packages_on_id_and_agency_id ON public.packages USING 
 --
 
 CREATE UNIQUE INDEX index_packages_on_id_departure_agency ON public.packages USING btree (id, departure_id, agency_id);
+
+
+--
+-- Name: index_payment_requirements_on_lineage_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_payment_requirements_on_lineage_owner ON public.supplier_payment_requirement_definitions USING btree (id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: index_payment_requirements_on_version_item_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_payment_requirements_on_version_item_kind ON public.supplier_payment_requirement_definitions USING btree (supplier_arrangement_version_id, arrangement_item_id, kind);
 
 
 --
@@ -12352,6 +12617,13 @@ CREATE TRIGGER agency_users_reject_agency_id_change BEFORE UPDATE ON public.agen
 
 
 --
+-- Name: arrangement_item_definitions arrangement_item_definitions_reject_confirmed_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER arrangement_item_definitions_reject_confirmed_activity BEFORE INSERT OR DELETE OR UPDATE ON public.arrangement_item_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
+
+
+--
 -- Name: arrangement_item_definitions arrangement_item_definitions_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12415,6 +12687,13 @@ CREATE TRIGGER capacity_events_reject_update BEFORE UPDATE ON public.capacity_ev
 
 
 --
+-- Name: capacity_pair_definitions capacity_pair_definitions_reject_confirmed_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pair_definitions_reject_confirmed_activity BEFORE INSERT OR DELETE OR UPDATE ON public.capacity_pair_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
+
+
+--
 -- Name: capacity_pair_definitions capacity_pair_definitions_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12447,6 +12726,13 @@ CREATE TRIGGER capacity_pair_definitions_reject_supplier_confirmed_lodging BEFOR
 --
 
 CREATE TRIGGER capacity_pairs_reject_cancelled_occurrence BEFORE INSERT OR UPDATE OF service_occurrence_id ON public.capacity_pair_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_pair_for_cancelled_occurrence();
+
+
+--
+-- Name: capacity_pool_definitions capacity_pool_definitions_reject_confirmed_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pool_definitions_reject_confirmed_activity BEFORE INSERT OR DELETE OR UPDATE ON public.capacity_pool_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
 
 
 --
@@ -12811,6 +13097,13 @@ CREATE TRIGGER reference_sequences_reject_identity_change BEFORE UPDATE ON publi
 --
 
 CREATE TRIGGER reject_arrangement_ending_mutation BEFORE DELETE OR UPDATE ON public.supplier_arrangement_endings FOR EACH ROW EXECUTE FUNCTION public.reject_m3d_immutable_mutation();
+
+
+--
+-- Name: service_occurrence_definitions service_occurrence_definitions_reject_confirmed_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER service_occurrence_definitions_reject_confirmed_activity BEFORE INSERT OR DELETE OR UPDATE ON public.service_occurrence_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
 
 
 --
@@ -13500,6 +13793,13 @@ CREATE TRIGGER supplier_cost_components_clear_bases_for_kind AFTER UPDATE OF cal
 
 
 --
+-- Name: supplier_cost_components supplier_cost_components_reject_confirmed_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_components_reject_confirmed_activity BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_components FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
+
+
+--
 -- Name: supplier_cost_components supplier_cost_components_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13532,6 +13832,13 @@ CREATE TRIGGER supplier_cost_components_reject_supplier_confirmed_lodging BEFORE
 --
 
 CREATE TRIGGER supplier_cost_components_validate_context BEFORE INSERT OR UPDATE ON public.supplier_cost_components FOR EACH ROW EXECUTE FUNCTION public.validate_supplier_cost_component();
+
+
+--
+-- Name: supplier_cost_definitions supplier_cost_definitions_reject_confirmed_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_definitions_reject_confirmed_activity BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
 
 
 --
@@ -13626,6 +13933,13 @@ CREATE TRIGGER supplier_cost_participant_categories_reject_owner_change BEFORE U
 
 
 --
+-- Name: supplier_cost_sources supplier_cost_sources_reject_confirmed_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_cost_sources_reject_confirmed_activity BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_cost_sources FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
+
+
+--
 -- Name: supplier_cost_sources supplier_cost_sources_reject_confirmed_transportation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13682,6 +13996,13 @@ CREATE TRIGGER supplier_deadline_commitment_definition_lines_reject_owner_chan B
 
 
 --
+-- Name: supplier_deadline_definition_coverage_links supplier_deadline_definition_coverage_links_reject_confirmed_ac; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_definition_coverage_links_reject_confirmed_ac BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_definition_coverage_links FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
+
+
+--
 -- Name: supplier_deadline_definition_coverage_links supplier_deadline_definition_coverage_links_reject_confirmed_tr; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13700,6 +14021,13 @@ CREATE TRIGGER supplier_deadline_definition_coverage_links_reject_non_draft_mu B
 --
 
 CREATE TRIGGER supplier_deadline_definition_coverage_links_reject_supplier_con BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_definition_coverage_links FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_lodging_definition_mutation();
+
+
+--
+-- Name: supplier_deadline_definitions supplier_deadline_definitions_reject_confirmed_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_deadline_definitions_reject_confirmed_activity BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_deadline_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
 
 
 --
@@ -13871,6 +14199,34 @@ CREATE TRIGGER supplier_locations_reject_owner_change BEFORE UPDATE ON public.su
 
 
 --
+-- Name: supplier_operating_threshold_definitions supplier_operating_threshold_definitions_reject_confirmed_activ; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_operating_threshold_definitions_reject_confirmed_activ BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_operating_threshold_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
+
+
+--
+-- Name: supplier_operating_threshold_outcomes supplier_operating_threshold_outcomes_append_only; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_operating_threshold_outcomes_append_only BEFORE DELETE OR UPDATE ON public.supplier_operating_threshold_outcomes FOR EACH ROW EXECUTE FUNCTION public.reject_activity_outcome_revision();
+
+
+--
+-- Name: supplier_operating_threshold_outcomes supplier_operating_threshold_outcomes_governing_only; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_operating_threshold_outcomes_governing_only BEFORE INSERT ON public.supplier_operating_threshold_outcomes FOR EACH ROW EXECUTE FUNCTION public.reject_ungoverning_activity_outcome();
+
+
+--
+-- Name: supplier_payment_requirement_definitions supplier_payment_requirement_definitions_reject_confirmed_activ; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_payment_requirement_definitions_reject_confirmed_activ BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_payment_requirement_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
+
+
+--
 -- Name: supplier_phone_numbers supplier_phone_numbers_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -13952,6 +14308,13 @@ CREATE TRIGGER supplier_reservation_scopes_require_pool_definition BEFORE INSERT
 --
 
 CREATE TRIGGER supplier_reservations_reject_owner_change BEFORE UPDATE ON public.supplier_reservations FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_reservation_owner_change();
+
+
+--
+-- Name: supplier_resource_definitions supplier_resource_definitions_reject_confirmed_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_resource_definitions_reject_confirmed_activity BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_resource_definitions FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_activity_definition_mutation();
 
 
 --
@@ -16140,6 +16503,14 @@ ALTER TABLE ONLY public.package_price_definitions
 
 
 --
+-- Name: supplier_operating_threshold_outcomes fk_rails_59337a79d4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_operating_threshold_outcomes
+    ADD CONSTRAINT fk_rails_59337a79d4 FOREIGN KEY (recorded_by_id) REFERENCES public.agency_users(id);
+
+
+--
 -- Name: supplier_arrangement_activations fk_rails_5bedb1c962; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16201,6 +16572,14 @@ ALTER TABLE ONLY public.supplier_arrangement_endings
 
 ALTER TABLE ONLY public.service_offers
     ADD CONSTRAINT fk_rails_709ec2c35a FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_payment_requirement_definitions fk_rails_70bd8870d7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_requirement_definitions
+    ADD CONSTRAINT fk_rails_70bd8870d7 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -16281,6 +16660,14 @@ ALTER TABLE ONLY public.supplier_cost_usage_assumptions
 
 ALTER TABLE ONLY public.supplier_agreement_reference_absences
     ADD CONSTRAINT fk_rails_8a728f6899 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_operating_threshold_definitions fk_rails_8a86af40ae; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_operating_threshold_definitions
+    ADD CONSTRAINT fk_rails_8a86af40ae FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -16513,6 +16900,14 @@ ALTER TABLE ONLY public.supplier_postal_addresses
 
 ALTER TABLE ONLY public.client_people
     ADD CONSTRAINT fk_rails_ca3cbcb220 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_operating_threshold_outcomes fk_rails_ca7b790758; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_operating_threshold_outcomes
+    ADD CONSTRAINT fk_rails_ca7b790758 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
 
 
 --
@@ -16804,6 +17199,30 @@ ALTER TABLE ONLY public.service_occurrence_definitions
 
 
 --
+-- Name: supplier_operating_threshold_outcomes operating_outcomes_threshold_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_operating_threshold_outcomes
+    ADD CONSTRAINT operating_outcomes_threshold_fk FOREIGN KEY (supplier_operating_threshold_definition_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_operating_threshold_definitions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_operating_threshold_definitions operating_thresholds_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_operating_threshold_definitions
+    ADD CONSTRAINT operating_thresholds_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_operating_threshold_definitions operating_thresholds_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_operating_threshold_definitions
+    ADD CONSTRAINT operating_thresholds_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
 -- Name: package_client_cancellation_policies package_client_cancellation_policies_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17009,6 +17428,30 @@ ALTER TABLE ONLY public.packages
 
 ALTER TABLE ONLY public.packages
     ADD CONSTRAINT packages_departure_agency_fk FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: supplier_payment_requirement_definitions payment_requirements_component_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_requirement_definitions
+    ADD CONSTRAINT payment_requirements_component_fk FOREIGN KEY (supplier_cost_component_id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_cost_components(id, supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_payment_requirement_definitions payment_requirements_item_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_requirement_definitions
+    ADD CONSTRAINT payment_requirements_item_fk FOREIGN KEY (arrangement_item_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.arrangement_items(id, supplier_arrangement_id, departure_id, agency_id);
+
+
+--
+-- Name: supplier_payment_requirement_definitions payment_requirements_version_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_payment_requirement_definitions
+    ADD CONSTRAINT payment_requirements_version_fk FOREIGN KEY (supplier_arrangement_version_id, supplier_arrangement_id, departure_id, agency_id) REFERENCES public.supplier_arrangement_versions(id, supplier_arrangement_id, departure_id, agency_id);
 
 
 --
@@ -18178,6 +18621,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261002270000'),
 ('20261002260000'),
 ('20261002250000'),
 ('20261002240000'),

@@ -49,6 +49,7 @@ class DepartureCompositionsController < ApplicationController
     end
     @hotel_items = @arrangements.index_with { |arrangement| hotel_lodging_items(arrangement) }
     @transportation_items = @arrangements.index_with { |arrangement| transportation_items(arrangement) }
+    @activity_items = @arrangements.index_with { |arrangement| activity_items(arrangement) }
     render :suppliers
   end
 
@@ -120,6 +121,17 @@ class DepartureCompositionsController < ApplicationController
     @workspace.editable_packages.empty? &&
       @departure.service_offers.none? { |offer| offer.editable_draft_version.present? } &&
       @departure.supplier_arrangements.none?
+  end
+
+  def activity_items(arrangement)
+    version = if arrangement.versions.loaded?
+      arrangement.versions.find { |candidate| candidate.status == "draft" } || arrangement.governing_version
+    else
+      arrangement.editable_version
+    end
+    return [] if version.nil?
+
+    version.arrangement_item_definitions.select { |definition| definition.category == "activity_attraction" }
   end
 
   def transportation_items(arrangement)

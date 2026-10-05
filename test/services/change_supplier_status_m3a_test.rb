@@ -34,7 +34,14 @@ class ChangeSupplierStatusM3aTest < ActiveSupport::TestCase
   test "effective provider fallback blocks current planned occurrence but unused default and past windows do not" do
     arrangement = create_arrangement(@contractor)
     item = create_item(arrangement, default_provider: @provider)
-    create_occurrence(item, idempotency_key: "future-occ", starts_on: "2026-10-01", ends_on: "2026-10-02")
+    # Dependency uses the occurrence zone's current date, which follows the Departure.
+    zone_today = Time.current.in_time_zone("America/New_York").to_date
+    create_occurrence(
+      item,
+      idempotency_key: "future-occ",
+      starts_on: zone_today.iso8601,
+      ends_on: (zone_today + 1).iso8601
+    )
 
     blocked = assert_raises(AgencyCommand::Error) do
       ChangeSupplierStatus.new(

@@ -52,3 +52,9 @@ This page is a reading list of the files in this folder. It does not establish s
 - [ABC Motorcoach Transportation staff walkthrough](abc-motorcoach-transportation-staff-walkthrough.md)
 - [ABC Motorcoach supplier compatibility](abc-motorcoach-supplier-compatibility.md)
 - [Transportation Supplier Composition](transportation-supplier-composition.md)
+
+## Activity
+
+- [Island Sightseeing supplier compatibility](island-sightseeing-supplier-compatibility.md)
+- [Island Sightseeing Activity staff walkthrough](island-sightseeing-activity-staff-walkthrough.md)
+- [Island Sightseeing Activity Supplier Composition](island-sightseeing-activity-supplier-composition.md)

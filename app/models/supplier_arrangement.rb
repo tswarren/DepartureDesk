@@ -9,6 +9,7 @@ class SupplierArrangement < ApplicationRecord
   belongs_to :governing_version, class_name: "SupplierArrangementVersion", optional: true
 
   has_many :versions, class_name: "SupplierArrangementVersion", dependent: :restrict_with_exception
+  has_many :supplier_operating_threshold_outcomes, dependent: :restrict_with_exception
   has_many :arrangement_items, dependent: :restrict_with_exception
   has_many :service_occurrences, dependent: :restrict_with_exception
   has_many :supplier_resources, dependent: :restrict_with_exception

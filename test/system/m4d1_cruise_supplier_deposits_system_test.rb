@@ -100,12 +100,12 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     visit_deposits_workspace
 
     click_on "Add deposit"
+    wait_for_turbo
     select "Initial deposit", from: "Template"
     assert_field "Name", with: "Initial deposit"
     select "Other deposit", from: "Template"
     assert_field "Name", with: ""
-    click_on "Cancel"
-    wait_for_turbo
+    dismiss_deposit_editor
 
     click_on "Add deposit"
     wait_for_turbo
@@ -277,6 +277,24 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
   end
 
   private
+
+  # A Turbo visit still in flight can drop the Cancel click and leave the editor open.
+  def dismiss_deposit_editor
+    TURBO_CLICK_ATTEMPTS.times do |attempt|
+      begin
+        wait_for_turbo
+        return if has_no_css?("#cruise-deposit-editor", wait: 0) && has_link?("Add deposit", wait: 0)
+
+        find("a", exact_text: "Cancel").click
+        wait_for_turbo
+        assert_no_selector "#cruise-deposit-editor"
+        assert_link "Add deposit"
+        return
+      rescue Capybara::ElementNotFound, Capybara::ExpectationNotMet, Minitest::Assertion
+        raise if attempt == TURBO_CLICK_ATTEMPTS - 1
+      end
+    end
+  end
 
   def visit_deposits_workspace
     visit departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)

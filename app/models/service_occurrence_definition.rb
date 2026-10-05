@@ -3,6 +3,7 @@ class ServiceOccurrenceDefinition < ApplicationRecord
   include DraftVersionDefinition
   include LodgingConfirmationFreeze::Model
   include TransportationConfirmationFreeze::Model
+  include ActivityConfirmationFreeze::Model
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
   PORT_NAME_LIMIT = 160
