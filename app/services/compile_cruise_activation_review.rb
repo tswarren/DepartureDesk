@@ -172,10 +172,20 @@ class CompileCruiseActivationReview
         resource_id: resource_definition&.supplier_resource_id
       )
     when :cruise_contracted_rates_missing
-      definition = resource_definition_from(version, blocker.path)
+      source = cost_source_from(version, blocker.path)
+      definition = if source
+        resource_definition_for(version, source.supplier_resource_id)
+      else
+        resource_definition_from(version, blocker.path)
+      end
+      message = if source
+        "#{cabin_label(definition)} has an additional Supplier cost source that needs a reviewed contracted rate."
+      else
+        "#{cabin_label(definition)} needs ready contracted Supplier rates."
+      end
       BlockerRow.new(
         code: blocker.code,
-        message: "#{cabin_label(definition)} needs ready contracted Supplier rates.",
+        message: message,
         destination: :supplier_rates,
         known?: true,
         resource_id: definition&.supplier_resource_id
@@ -443,6 +453,13 @@ class CompileCruiseActivationReview
     return nil if id.blank?
 
     version.capacity_pool_definitions.includes(:capacity_pool, :supplier_resource).find_by(id: id)
+  end
+
+  def cost_source_from(version, path)
+    id = path.to_s[/cost_sources\.([0-9a-f-]{36})\z/, 1]
+    return nil if id.blank?
+
+    version.supplier_cost_sources.find_by(id: id)
   end
 
   def resource_definition_from(version, path)

@@ -100,7 +100,7 @@ class CompileCruiseSupplierRatesWorkspace
       name: definition.name,
       stage: stage,
       stage_label: stage_label(stage),
-      status_label: preview.definition&.forecast_ready? ? "Ready" : "Needs review",
+      status_label: rate_status_label(preview.definition),
       advanced?: false,
       commission_label: commission_label_for(preview),
       **scenario_fields(illustrations_for(preview))
@@ -171,9 +171,18 @@ class CompileCruiseSupplierRatesWorkspace
       Illustration.new(key: keys.first, label: nil, gross_minor_units: nil, currency: nil, available?: false)
   end
 
+  def rate_status_label(definition)
+    return "Not recorded" unless definition
+    return "Ready" if definition.forecast_ready?
+    return "Reviewed" if definition.contract_review_current?
+
+    "Needs review"
+  end
+
   def commission_label_for(preview)
     method = preview.commission_method.to_s
     return "Not provided yet" if method.blank? || method == "not_provided"
+    return "No commission expected" if method == "none"
 
     definition = preview.definition
     components = definition&.supplier_cost_components.to_a.select { |component|

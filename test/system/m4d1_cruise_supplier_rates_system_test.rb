@@ -176,9 +176,9 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     select "Not provided yet", from: "Commission method"
 
     within "[data-cruise-rate-matrix-target='illustrations']" do
-      assert_text(/Single occupancy/i, wait: 5)
+      assert_text(/Single occupancy/i)
       assert_no_text(/Illustration preview unavailable/i)
-      assert_text(/\$1,?724\.00|1724/, wait: 5)
+      assert_text(/\$1,?724\.00|1724/)
     end
     assert_no_text "Supplier rates saved"
   end
@@ -218,10 +218,10 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     check "Commissionable · Base Fare"
     check "Commissionable · Discount"
 
-    assert_text "Anonymous occupants by position", wait: 5
+    assert_text "Anonymous occupants by position"
     select "Child", from: "Position 2"
     within "[data-cruise-rate-matrix-target='illustrations']" do
-      assert_text(/Adult \+ Child/i, wait: 5)
+      assert_text(/Adult \+ Child/i)
       assert_no_text(/Illustration preview unavailable/i)
     end
 

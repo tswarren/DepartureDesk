@@ -101,7 +101,10 @@ class EvaluateSupplierCostForecastTest < ActiveSupport::TestCase
     assert_equal 5_000, explanation[:unit_rate_minor_units]
     assert_equal 10_000, explanation[:monetary_shortfall_minor_units]
     assert_equal 25_000, source_result.totals.forecast_supplier_cost_minor_units
-    assert_equal 25_000, result.totals.expected_net_cost_after_commission_minor_units
+    assert_nil source_result.totals.expected_commission_minor_units
+    assert_nil source_result.totals.expected_net_cost_after_commission_minor_units
+    assert_equal 25_000, result.totals.forecast_supplier_cost_minor_units
+    assert_nil result.totals.expected_net_cost_after_commission_minor_units
     assert_equal audit_count, AuditEvent.count
     assert_equal timestamps, [ source.reload.updated_at, definition.reload.updated_at, assumption.reload.updated_at ]
     assert sql.any? { |statement| statement.match?(/REPEATABLE READ/i) }

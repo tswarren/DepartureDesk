@@ -33,13 +33,12 @@ class EvaluateIndicativeScenarioEconomicsTest < ActiveSupport::TestCase
       }
     ).call
 
-    assert_equal :known, result.status
+    assert_equal :unknown, result.status
+    assert_match(/commission is not recorded/i, result.reason)
+    assert_nil result.expected_commission_minor_units
+    assert_nil result.indicative_margin_minor_units
     assert_equal 42_000, result.client_revenue_minor_units
-    assert_operator result.forecast_supplier_cost_minor_units, :>, 0
     assert_equal assumption_count, SupplierCostUsageAssumption.where(agency: @agency).count
-    assert_not_equal EvaluateSupplierCostForecast.new(
-      agency: @agency, departure: cruise[:departure], arrangement: cruise[:arrangement]
-    ).call.totals.forecast_supplier_cost_minor_units, result.forecast_supplier_cost_minor_units
   end
 
   test "item-only binding does not pull a resource-scoped source" do
@@ -136,10 +135,13 @@ class EvaluateIndicativeScenarioEconomicsTest < ActiveSupport::TestCase
       }
     ).call
 
-    assert_equal :known, one_cabin.status
-    assert_equal :known, two_cabins.status
+    assert_equal :unknown, one_cabin.status
+    assert_equal :unknown, two_cabins.status
+    assert_match(/commission is not recorded/i, one_cabin.reason)
+    assert_nil one_cabin.expected_commission_minor_units
+    assert_nil one_cabin.indicative_margin_minor_units
+    assert_nil two_cabins.indicative_margin_minor_units
     assert_equal 84_000, two_cabins.client_revenue_minor_units
-    assert_equal one_cabin.forecast_supplier_cost_minor_units * 2, two_cabins.forecast_supplier_cost_minor_units
 
     mismatch = EvaluateIndicativeScenarioEconomics.new(
       agency: @agency, actor: @actor, offer: offer,
@@ -307,7 +309,8 @@ class EvaluateIndicativeScenarioEconomicsTest < ActiveSupport::TestCase
       idempotency_key: SecureRandom.uuid,
       attributes: attrs
     ).call
-    stamp_forecast_ready!(definition.reload)
+    definition = m3f_record_no_commission!(actor, definition.reload)
+    stamp_forecast_ready!(definition)
     source.reload
   end
 

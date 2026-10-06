@@ -79,7 +79,7 @@ class M4d1CruiseSupplierDepositsSystemTest < ApplicationSystemTestCase
     check "V1 · pool"
     select "Fixed date", from: "Timing rule"
     fill_deposit_date "Date", "2026-09-20"
-    assert_text "$1,200.00", wait: 5
+    assert_text "$1,200.00"
     click_on "Save deposit"
     assert_text "Deposit requirement saved"
     assert_text "Initial deposit"

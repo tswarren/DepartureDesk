@@ -8,6 +8,10 @@ module CostCommandSupport
     status: "working", forecast_ready_by_id: nil, forecast_ready_at: nil,
     readiness_provenance: nil, readiness_fingerprint: nil
   }.freeze
+  CONTRACT_REVIEW_FIELDS = {
+    contract_reviewed_by_id: nil, contract_reviewed_at: nil,
+    contract_review_fingerprint: nil, contract_review_provenance: nil
+  }.freeze
 
   private
 
@@ -404,15 +408,31 @@ module CostCommandSupport
     definition.update!(READINESS_FIELDS)
   end
 
+  def clear_contract_review!(definition)
+    return unless contract_review_recorded?(definition)
+
+    definition.update!(CONTRACT_REVIEW_FIELDS)
+  end
+
   def touch_definition_after_change!(definition)
-    definition.forecast_ready? ? definition.update!(READINESS_FIELDS) : definition.touch
+    changes = {}
+    changes.merge!(READINESS_FIELDS) if definition.forecast_ready?
+    changes.merge!(CONTRACT_REVIEW_FIELDS) if contract_review_recorded?(definition)
+    changes.any? ? definition.update!(changes) : definition.touch
+  end
+
+  def contract_review_recorded?(definition)
+    definition.contract_reviewed_by_id.present? ||
+      definition.contract_reviewed_at.present? ||
+      definition.contract_review_fingerprint.present? ||
+      definition.contract_review_provenance.present?
   end
 
   def definition_fingerprint(definition)
     SupplierCostDefinitionFingerprint.call(definition)
   end
 
-  def validate_ready!(definition)
+  def validate_ready!(definition, require_usage: true)
     source = definition.supplier_cost_source
     departure = definition.departure
     normalize_currency(definition.currency, departure)
@@ -467,8 +487,10 @@ module CostCommandSupport
           code: :invalid
         )
       end
-      validate_required_usage!(source, components)
-      validate_ready_evaluation!(definition)
+      if require_usage
+        validate_required_usage!(source, components)
+        validate_ready_evaluation!(definition)
+      end
     elsif components.any?
       raise AgencyCommand::Error.new("Zero-cost definitions cannot contain components.", code: :invalid)
     end

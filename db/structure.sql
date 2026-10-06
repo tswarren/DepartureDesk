@@ -4576,7 +4576,7 @@ CREATE TABLE public.supplier_agreement_references (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT agreement_references_kind CHECK ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'rate_inclusions'::character varying, 'destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[])) AND ((((kind)::text = ANY ((ARRAY['deposit_derivation'::character varying, 'attrition'::character varying, 'deposit_refund'::character varying, 'rate_inclusions'::character varying])::text[])) AND (arrangement_item_id IS NOT NULL)) OR ((kind)::text = ANY ((ARRAY['destination_fee'::character varying, 'additional_nights'::character varying, 'early_departure'::character varying, 'cancellation'::character varying])::text[]))))),
+    CONSTRAINT agreement_references_kind CHECK ((((kind)::text = ANY (ARRAY[('deposit_derivation'::character varying)::text, ('attrition'::character varying)::text, ('deposit_refund'::character varying)::text, ('rate_inclusions'::character varying)::text, ('destination_fee'::character varying)::text, ('additional_nights'::character varying)::text, ('early_departure'::character varying)::text, ('cancellation'::character varying)::text])) AND ((((kind)::text = ANY (ARRAY[('deposit_derivation'::character varying)::text, ('attrition'::character varying)::text, ('deposit_refund'::character varying)::text, ('rate_inclusions'::character varying)::text])) AND (arrangement_item_id IS NOT NULL)) OR ((kind)::text = ANY (ARRAY[('destination_fee'::character varying)::text, ('additional_nights'::character varying)::text, ('early_departure'::character varying)::text, ('cancellation'::character varying)::text]))))),
     CONSTRAINT agreement_references_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT agreement_references_provenance CHECK ((((source_description)::text = btrim((source_description)::text)) AND ((char_length((source_description)::text) >= 1) AND (char_length((source_description)::text) <= 2000)) AND ((supplier_reference IS NULL) OR (((supplier_reference)::text = btrim((supplier_reference)::text)) AND ((char_length((supplier_reference)::text) >= 1) AND (char_length((supplier_reference)::text) <= 2000)))) AND ((external_reference IS NULL) OR (((external_reference)::text = btrim((external_reference)::text)) AND ((char_length((external_reference)::text) >= 1) AND (char_length((external_reference)::text) <= 2000)))) AND ((evidence_note IS NULL) OR (((evidence_note)::text = btrim((evidence_note)::text)) AND ((char_length((evidence_note)::text) >= 1) AND (char_length((evidence_note)::text) <= 2000)))))),
     CONSTRAINT agreement_references_wording CHECK ((((governing_wording)::text = btrim((governing_wording)::text)) AND ((char_length((governing_wording)::text) >= 1) AND (char_length((governing_wording)::text) <= 2000)) AND ((((kind)::text = 'deposit_refund'::text) AND (original_wording IS NOT NULL) AND ((original_wording)::text = btrim((original_wording)::text)) AND ((char_length((original_wording)::text) >= 1) AND (char_length((original_wording)::text) <= 2000))) OR (((kind)::text <> 'deposit_refund'::text) AND (original_wording IS NULL)))))
@@ -5545,7 +5545,13 @@ CREATE TABLE public.supplier_cost_definitions (
     updated_at timestamp(6) with time zone NOT NULL,
     copied_from_id uuid,
     commission_treatment character varying DEFAULT 'unspecified'::character varying NOT NULL,
+    contract_reviewed_by_id uuid,
+    contract_reviewed_at timestamp with time zone,
+    contract_review_fingerprint character varying(128),
+    contract_review_provenance character varying(500),
+    omitted_commission_means_none boolean DEFAULT false CONSTRAINT supplier_cost_definitions_omitted_commission_means_non_not_null NOT NULL,
     CONSTRAINT supplier_cost_definitions_commission_treatment CHECK (((commission_treatment)::text = ANY (ARRAY[('unspecified'::character varying)::text, ('noncommissionable'::character varying)::text]))),
+    CONSTRAINT supplier_cost_definitions_contract_review_shape CHECK ((((contract_reviewed_by_id IS NULL) AND (contract_reviewed_at IS NULL) AND (contract_review_fingerprint IS NULL) AND (contract_review_provenance IS NULL)) OR (((stage)::text = 'contracted'::text) AND (contract_reviewed_by_id IS NOT NULL) AND (contract_reviewed_at IS NOT NULL) AND (contract_review_fingerprint IS NOT NULL) AND (btrim((contract_review_fingerprint)::text) <> ''::text) AND (char_length((contract_review_fingerprint)::text) <= 128) AND (contract_review_provenance IS NOT NULL) AND (btrim((contract_review_provenance)::text) <> ''::text) AND (char_length((contract_review_provenance)::text) <= 500)))),
     CONSTRAINT supplier_cost_definitions_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT supplier_cost_definitions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT supplier_cost_definitions_mode CHECK (((mode)::text = ANY (ARRAY[('calculated'::character varying)::text, ('zero_cost'::character varying)::text]))),
@@ -6285,7 +6291,7 @@ CREATE TABLE public.supplier_operating_threshold_outcomes (
     recorded_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT operating_outcomes_shape CHECK ((((outcome)::text = ANY ((ARRAY['operate'::character varying, 'cancel'::character varying])::text[])) AND ((char_length(btrim((evidence)::text)) >= 1) AND (char_length(btrim((evidence)::text)) <= 2000)) AND ((observed_quantity IS NULL) OR (observed_quantity >= 0))))
+    CONSTRAINT operating_outcomes_shape CHECK ((((outcome)::text = ANY (ARRAY[('operate'::character varying)::text, ('cancel'::character varying)::text])) AND ((char_length(btrim((evidence)::text)) >= 1) AND (char_length(btrim((evidence)::text)) <= 2000)) AND ((observed_quantity IS NULL) OR (observed_quantity >= 0))))
 );
 
 
@@ -18327,6 +18333,14 @@ ALTER TABLE ONLY public.supplier_cost_components
 
 
 --
+-- Name: supplier_cost_definitions supplier_cost_definitions_contract_reviewer_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_cost_definitions
+    ADD CONSTRAINT supplier_cost_definitions_contract_reviewer_fk FOREIGN KEY (contract_reviewed_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
 -- Name: supplier_cost_definitions supplier_cost_definitions_copied_from_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -18621,6 +18635,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261005220000'),
 ('20261002270000'),
 ('20261002260000'),
 ('20261002250000'),

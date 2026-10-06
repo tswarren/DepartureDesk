@@ -87,6 +87,7 @@ class PreviewCruiseSupplierRateMatrix
         arrangement: @arrangement,
         resource: @resource,
         version: @arrangement.versions.order(:version_number).last,
+        stage: @stage,
         illustration_occupants: @illustration_occupants
       ).call
 

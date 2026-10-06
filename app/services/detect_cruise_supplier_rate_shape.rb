@@ -302,7 +302,7 @@ class DetectCruiseSupplierRateShape
 
   def reconstruct_commission(components, categories_by_id, cell_key_by_component_id)
     commissions = components.select { |c| c.economic_role == "expected_commission" }
-    return { method: "not_provided" } if commissions.empty?
+    return absence_commission_method(components) if commissions.empty?
 
     percentage = commissions.select { |c| c.calculation_kind == "percentage" }
     if percentage.size == 1 && commissions.size == 1
@@ -405,7 +405,7 @@ class DetectCruiseSupplierRateShape
 
   def project_legacy_commission(components, cells)
     commissions = components.select { |c| c.label == COMMISSION_LABEL || c.economic_role == "expected_commission" }
-    return { method: "not_provided" } if commissions.empty?
+    return absence_commission_method(components) if commissions.empty?
 
     if commissions.size == 1 && commissions.first.calculation_kind == "percentage"
       add_cells = []
@@ -704,10 +704,23 @@ class DetectCruiseSupplierRateShape
     end.first(3)
   end
 
+  def absence_commission_method(components)
+    definition = components.first&.supplier_cost_definition
+    if definition&.noncommissionable? || definition&.omitted_commission_means_none?
+      { method: "none" }
+    else
+      { method: "not_provided" }
+    end
+  end
+
   def build_summary(resource_definition, definition, components, legacy:, matrix:)
     commissions = components.select { |c| c.economic_role == "expected_commission" }
     commission_mode = if commissions.empty?
-      "not_provided"
+      if definition&.noncommissionable? || definition&.omitted_commission_means_none?
+        "none"
+      else
+        "not_provided"
+      end
     elsif commissions.any? { |c| c.calculation_kind == "percentage" }
       "percentage"
     else

@@ -144,6 +144,7 @@ class M4d1CruiseWorkspaceClosureSystemTest < ApplicationSystemTestCase
     fill_in_html_date "Evidence date", with: Date.current.iso8601
     fill_in "Evidence note", with: "Supplier added four O1 cabins"
     click_on "Review this increase"
+    assert_text "The original Initial Deposit will not change."
     click_on "Record capacity increase"
     assert_text "Current active capacity: 12 cabins"
     assert_text "Original opening quantity: 8 cabins"
@@ -227,14 +228,22 @@ class M4d1CruiseWorkspaceClosureSystemTest < ApplicationSystemTestCase
       idempotency_key: SecureRandom.uuid
     ).call
     definition = @version.reload.supplier_cost_definitions.find_by!(stage: "contracted")
-    MarkCruiseSupplierRateScheduleForecastReady.new(
+    ready = MarkCruiseSupplierRateScheduleForecastReady.new(
       agency: @agency,
       actor: @staff,
       arrangement: @arrangement,
       resource: @resource,
       definition_lock_version: definition.lock_version,
       readiness_provenance: "Signed terms",
-      confirm_omissions: true,
+      stage: "contracted"
+    ).call
+    MarkCruiseSupplierRateScheduleContractReviewed.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource: @resource,
+      definition_lock_version: ready.record.lock_version,
+      contract_review_provenance: "Signed terms",
       stage: "contracted"
     ).call
   end

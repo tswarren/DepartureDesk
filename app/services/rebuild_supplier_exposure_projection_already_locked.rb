@@ -151,6 +151,26 @@ class RebuildSupplierExposureProjectionAlreadyLocked
     end
 
     totals = source.totals
+    if totals.expected_commission_minor_units.nil? || totals.expected_net_cost_after_commission_minor_units.nil?
+      drafts << ComponentDraft.new(
+        source_kind: "supplier_cost_source",
+        source_id: source.source_id,
+        qualification_band: "forecast",
+        completeness: "incomplete",
+        qualification_reason: "cost_forecast_commission_unresolved",
+        gross_minor_units: nil,
+        expected_commission_minor_units: nil,
+        expected_net_minor_units: nil,
+        currency:,
+        source_fingerprint: fingerprint(
+          "cost", source.source_id, "commission_unresolved", source.definition_id
+        ),
+        effective_at:,
+        economic_cost_source_id: source.source_id
+      )
+      return drafts
+    end
+
     drafts << ComponentDraft.new(
       source_kind: "supplier_cost_source",
       source_id: source.source_id,

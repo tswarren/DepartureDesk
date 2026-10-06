@@ -250,7 +250,7 @@ Hide the percentage-base grid. Enter one expected commission amount per applicab
 
 ### 10.6 Not provided / method changes
 
-Not provided: gross visible when calculable; commission and net Pending; no fabricated commission component. Forecast-ready with commission omitted: confirmation states omitted commission means **no expected commission**, not unknown.
+Not provided: gross visible when calculable; commission and net Pending; no fabricated commission component. Forecast-ready with commission omitted: confirmation states omitted commission means **no expected commission**, not unknown. Superseded for new Cruise reviews by [Cruise contracted-rate readiness](cruise-contracted-rate-readiness.md). A definition already forecast-ready with commission omitted keeps that older attestation.
 
 Method changes atomically replace only expected-commission components and their base links.
 

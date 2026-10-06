@@ -209,8 +209,7 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
       arrangement: @arrangement,
       resource: @resource,
       definition_lock_version: current_definition.lock_version,
-      readiness_provenance: "Includes contractual zero",
-      confirm_omissions: true
+      readiness_provenance: "Includes contractual zero"
     ).call
     assert current_definition.reload.forecast_ready?
     assert_equal 0, zero.reload.amount_minor_units
@@ -267,8 +266,7 @@ class CruiseSupplierRateScheduleTest < ActiveSupport::TestCase
       arrangement: @arrangement,
       resource: @resource,
       definition_lock_version: current_definition.lock_version,
-      readiness_provenance: "Smith O1 confirmed",
-      confirm_omissions: true
+      readiness_provenance: "Smith O1 confirmed"
     ).call
     assert current_definition.reload.forecast_ready?
 
