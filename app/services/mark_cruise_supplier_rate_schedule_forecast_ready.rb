@@ -5,27 +5,19 @@ class MarkCruiseSupplierRateScheduleForecastReady < AgencyCommand
   include CruiseSupplierRateBuilders
 
   def initialize(agency:, actor:, arrangement:, resource:, definition_lock_version:,
-    readiness_provenance: nil, confirm_omissions: false, stage: nil)
+    readiness_provenance: nil, stage: nil)
     @agency = agency
     @actor = actor
     @arrangement = arrangement
     @resource = resource
     @definition_lock_version = definition_lock_version
     @readiness_provenance = readiness_provenance
-    @confirm_omissions = confirm_omissions
     @stage = stage
   end
 
   def call
     ensure_arrangement_actor!
     safely_command do
-      unless ActiveModel::Type::Boolean.new.cast(@confirm_omissions)
-        raise Error.new(
-          "Confirm that blank Supplier terms are not applicable and omitted commission means no expected commission.",
-          code: :invalid
-        )
-      end
-
       shape = DetectCruiseSupplierRateShape.new(
         agency: @agency, arrangement: @arrangement, resource: @resource, stage: @stage
       ).call

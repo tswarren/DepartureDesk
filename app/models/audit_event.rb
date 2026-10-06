@@ -104,6 +104,7 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.cost_definition_updated
     supplier_arrangement.cost_definition_removed
     supplier_arrangement.cost_definition_forecast_ready
+    supplier_arrangement.cost_definition_contract_reviewed
     supplier_arrangement.cost_definition_commission_treatment_set
     supplier_arrangement.cost_component_created
     supplier_arrangement.cost_component_updated

@@ -95,6 +95,7 @@ class CopySupplierArrangementVersionGraph
     end
     copy_component_bases!(definitions, components)
     carry_cost_readiness!(definitions)
+    carry_contract_review!(definitions)
     copy_triggers!(sources, definitions, components)
     copy_deadlines!(sources, definitions, components)
     copy_deposits!(sources, definitions, components)
@@ -167,6 +168,15 @@ class CopySupplierArrangementVersionGraph
 
       fingerprint = SupplierCostDefinitionFingerprint.call(copy)
       copy.update_columns(readiness_fingerprint: fingerprint, updated_at: Time.current)
+    end
+  end
+
+  def carry_contract_review!(definitions)
+    definitions.each do |_source_id, copy|
+      next if copy.contract_review_fingerprint.blank?
+
+      fingerprint = SupplierCostDefinitionFingerprint.call(copy)
+      copy.update_columns(contract_review_fingerprint: fingerprint, updated_at: Time.current)
     end
   end
 

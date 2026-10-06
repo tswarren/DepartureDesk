@@ -140,7 +140,7 @@ Form semantics:
 - Zero means a known zero.
 - While the definition is working, omitted common terms remain visibly pending.
 - Commission is never inferred.
-- When Staff marks the schedule forecast-ready, Staff confirms that remaining omissions are not applicable, including that omitted commission means **no expected commission**—not an unknown value.
+- When Staff marks the schedule forecast-ready, Staff confirms that remaining omissions are not applicable, including that omitted commission means **no expected commission**—not an unknown value. Superseded for new Cruise reviews by [Cruise contracted-rate readiness](cruise-contracted-rate-readiness.md): unknown commission stays unknown, and a definition already forecast-ready with commission omitted keeps that older attestation.
 
 Commission and net display states:
 

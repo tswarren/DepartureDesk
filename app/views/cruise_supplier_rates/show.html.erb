@@ -160,12 +160,16 @@
                       data-cruise-rate-matrix-target="commissionMethod"
                       data-action="change->cruise-rate-matrix#selectCommissionMethod">
                 <option value="not_provided" <%= "selected" if (commission[:method] || "not_provided") == "not_provided" %>>Not provided yet</option>
+                <option value="none" <%= "selected" if commission[:method].to_s == "none" %>>No commission expected</option>
                 <option value="dollar" <%= "selected" if commission[:method].to_s == "dollar" %>>Dollar amount</option>
                 <option value="percentage" <%= "selected" if commission[:method].to_s == "percentage" %>>Percentage</option>
               </select>
             </div>
             <p class="dd-help" data-cruise-rate-matrix-target="commissionNotProvided">
               Expected commission stays not recorded until a method is chosen. It is not treated as $0.
+            </p>
+            <p class="dd-help" data-cruise-rate-matrix-target="commissionNone" hidden>
+              No expected commission is recorded. This is not $0, and it is not an unknown omission.
             </p>
           </fieldset>
 
@@ -306,6 +310,8 @@
             <div data-cruise-rate-matrix-target="illustrations">
               <% if @preview.commission_method == "not_provided" %>
                 <p>Expected commission is not recorded.</p>
+              <% elsif @preview.commission_method == "none" %>
+                <p>No commission is expected.</p>
               <% elsif @preview.profile_commissions.any? %>
                 <div class="dd-table-wrap">
                   <table class="dd-table">
@@ -343,7 +349,7 @@
                       <% else %>
                         gross pending
                       <% end %>
-                      · commission <%= row.commission_state == "pending" ? "not recorded" : row.commission_state %>
+                      · commission <%= cruise_rate_illustration_commission(row, @preview.currency || @departure.operating_currency) %>
                       · net <%= row.net_state == "shown" && row.net_minor_units ? Money.new(row.net_minor_units, @preview.currency || @departure.operating_currency).format : row.net_state %>
                     </li>
                   <% end %>
@@ -379,7 +385,7 @@
                   <% else %>
                     gross pending
                   <% end %>
-                  · commission <%= row.commission_state %>
+                  · commission <%= cruise_rate_illustration_commission(row, @preview.currency || @departure.operating_currency) %>
                   · net <%= row.net_state == "shown" && row.net_minor_units ? Money.new(row.net_minor_units, @preview.currency || @departure.operating_currency).format : row.net_state %>
                 </li>
               <% end %>
@@ -416,11 +422,39 @@
         <% end %>
       </section>
 
+      <% if @form_stage == "contracted" && @rate_shape.definition %>
+        <section class="dd-stack" aria-labelledby="contract-review-heading">
+          <h2 id="contract-review-heading" class="dd-section-title">Review contracted terms</h2>
+          <p>
+            Review records that these contracted terms are complete for activation.
+            Commission may be unknown, explicitly none, or a known amount.
+          </p>
+          <% if @rate_shape.definition.contract_review_current? %>
+            <p>These contracted terms are reviewed for activation.</p>
+            <% unless @rate_shape.definition.forecast_ready? %>
+              <p>Forecast occupancy is incomplete. Activation does not require it.</p>
+            <% end %>
+          <% elsif @editable %>
+            <%= form_with url: contract_review_departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
+                  method: :post, class: "dd-stack", html: { id: "cruise-rate-contract-review" } do %>
+              <%= hidden_field_tag :definition_lock_version, @rate_shape.definition.lock_version %>
+              <div class="dd-field">
+                <label class="dd-label" for="contract_review_provenance">Contract review note</label>
+                <%= text_field_tag :contract_review_provenance, nil, id: "contract_review_provenance", class: "dd-input" %>
+              </div>
+              <div class="dd-actions">
+                <%= submit_tag "Review contracted terms", class: "dd-button dd-button-primary" %>
+              </div>
+            <% end %>
+          <% end %>
+        </section>
+      <% end %>
+
       <section class="dd-stack" aria-labelledby="rate-ready-heading">
-        <h2 id="rate-ready-heading" class="dd-section-title">Review and mark forecast-ready</h2>
+        <h2 id="rate-ready-heading" class="dd-section-title">Mark forecast-ready</h2>
         <p>
-          Blank Supplier terms will be treated as not applicable. Omitted expected commission will be treated as
-          no expected commission—not as an unknown value.
+          A forecast uses expected cabin counts and the occupancy mix.
+          Unknown commission stays unknown.
         </p>
         <% if @preview.pending_fields.any? && @rate_shape.definition&.working? %>
           <p>Still pending: <%= @preview.pending_fields.map(&:humanize).to_sentence %>.</p>
@@ -434,10 +468,6 @@
               <label class="dd-label" for="readiness_provenance">Readiness provenance</label>
               <%= text_field_tag :readiness_provenance, nil, id: "readiness_provenance", class: "dd-input" %>
             </div>
-            <label>
-              <%= check_box_tag :confirm_omissions, "1", false, id: "confirm_omissions" %>
-              I confirm blank terms are not applicable and omitted commission means no expected commission.
-            </label>
             <div class="dd-actions">
               <%= submit_tag "Mark terms forecast-ready", class: "dd-button dd-button-primary" %>
             </div>

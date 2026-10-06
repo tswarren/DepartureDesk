@@ -7,7 +7,7 @@ module CruiseSupplierRateSupport
   PARTICIPANT_CATEGORY_LABEL = "Traveler"
   ADULT_CATEGORY_LABEL = "Adult"
   COMMISSION_LABEL = "Expected commission"
-  COMMISSION_METHODS = %w[not_provided dollar percentage].freeze
+  COMMISSION_METHODS = %w[not_provided none dollar percentage].freeze
   OVERLAP_RESOLUTIONS = %w[scope_existing_to_adult keep_every_traveler edit_profiles].freeze
   CUSTOM_ROW_ROLES = %w[supplier_charge supplier_credit].freeze
   PROFILE_CATEGORY_SEPARATOR = "__"

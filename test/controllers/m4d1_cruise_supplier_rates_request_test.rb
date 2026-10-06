@@ -30,8 +30,9 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-supplier-rate-terms"
     assert_select "a[href=?]", departure_arrangement_cruise_supplier_rates_path(@departure, @arrangement), text: "Supplier rates"
     assert_select "#cruise-rate-stage-status", text: /Not recorded/
-    assert_select "#commission_method option", count: 3
+    assert_select "#commission_method option", count: 4
     assert_select "#commission_method option", text: "Not provided yet"
+    assert_select "#commission_method option", text: "No commission expected"
     assert_select "#commission_method option", text: "Dollar amount"
     assert_select "#commission_method option", text: "Percentage"
     assert_select "button", text: "Add rate profile"
@@ -117,6 +118,68 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     assert_equal 1, commissions.count
     assert_equal "percentage", commissions.first.calculation_kind
     assert_in_delta 0.15, commissions.first.rate.to_f, 0.0001
+  end
+
+  test "contracted percentage preview shows commission from that stage" do
+    sign_in_as @staff
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource: @resource,
+      profiles: [
+        { family: "first_second", key: "first_second" },
+        { family: "additional", key: "additional" },
+        { family: "single_supplement", key: "single_supplement" }
+      ],
+      cells: {
+        "base_fare:first_second" => "1500.00",
+        "base_fare:additional" => "500.00",
+        "base_fare:single_supplement" => "1500.00"
+      },
+      commission: { method: "not_provided" },
+      stage: "estimate",
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    RecordCruiseContractedRates.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource: @resource,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    contracted = DetectCruiseSupplierRateShape.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource, stage: "contracted"
+    ).call.definition
+
+    post preview_departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: contracted_percentage_params(contracted), headers: { "Accept" => "application/json" }
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal "percentage", body["commission_method"]
+    double = body.fetch("illustrations").find { |row| row["key"] == "double" }
+    assert_equal "shown", double["commission_state"]
+    assert_equal "$450.00", double["commission"]
+    assert_equal "$2,550.00", double["net"]
+
+    estimate = DetectCruiseSupplierRateShape.new(
+      agency: @agency, arrangement: @arrangement, resource: @resource, stage: "estimate"
+    ).call.definition
+    assert_empty estimate.supplier_cost_components.where(economic_role: "expected_commission")
+
+    patch departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: contracted_percentage_params(contracted.reload).merge(idempotency_key: SecureRandom.uuid)
+    assert_redirected_to departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource, stage: "contracted"
+    )
+    follow_redirect!
+    assert_response :success
+    assert_match "$450.00", response.body
+    assert_no_match(/commission shown/, response.body)
   end
 
   test "dollar commission preview shows the entered amount without a basis" do
@@ -223,8 +286,7 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
       arrangement: @arrangement,
       resource: @resource,
       definition_lock_version: definition.lock_version,
-      readiness_provenance: "Signed terms",
-      confirm_omissions: true
+      readiness_provenance: "Signed terms"
     ).call
 
     get departure_arrangement_cruise_supplier_rates_path(@departure, @arrangement)
@@ -255,6 +317,62 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
         @departure, @arrangement, @resource, stage: "estimate"
       ),
       text: "Open Supplier rates"
+  end
+
+  test "contracted rate page reviews terms without treating omitted commission as none" do
+    sign_in_as @staff
+    CreateCruiseSupplierRateSchedule.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource: @resource,
+      terms: {
+        first_second_fare: "1624.00",
+        additional_fare: "406.00",
+        single_supplement: "1624.00",
+        nccf: "320.00",
+        taxes_fees: "137.00"
+      },
+      commission: { method: "not_provided" },
+      stage: "estimate",
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    RecordCruiseContractedRates.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      resource: @resource,
+      version_lock_version: @version.reload.lock_version,
+      idempotency_key: SecureRandom.uuid
+    ).call
+    definition = @version.supplier_cost_definitions.find_by!(stage: "contracted")
+
+    get departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource, stage: "contracted"
+    )
+    assert_response :success
+    assert_select "#contract-review-heading", text: "Review contracted terms"
+    assert_select "#cruise-rate-contract-review"
+    assert_select "input[type=submit][value=?]", "Review contracted terms"
+    assert_select "#rate-ready-heading", text: "Mark forecast-ready"
+    assert_no_match(/omitted commission means no expected commission/, response.body)
+    assert_match "Unknown commission stays unknown.", response.body
+
+    post contract_review_departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: {
+      definition_lock_version: definition.lock_version,
+      contract_review_provenance: "Signed group contract"
+    }
+    assert_redirected_to departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource, stage: "contracted"
+    )
+    follow_redirect!
+    assert_match "These contracted terms are reviewed for activation.", response.body
+    assert_match "Forecast occupancy is incomplete. Activation does not require it.", response.body
+    refute definition.reload.forecast_ready?
+    assert definition.contract_review_current?
   end
 
   test "cross-agency supplier rates return not found" do
@@ -298,6 +416,30 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def contracted_percentage_params(definition)
+    {
+      version_lock_version: @version.reload.lock_version,
+      definition_lock_version: definition.lock_version,
+      stage: "contracted",
+      profiles: {
+        "0" => { family: "first_second", key: "first_second" },
+        "1" => { family: "additional", key: "additional" },
+        "2" => { family: "single_supplement", key: "single_supplement" }
+      },
+      cells: {
+        "base_fare:first_second" => "1500.00",
+        "base_fare:additional" => "500.00",
+        "base_fare:single_supplement" => "1500.00"
+      },
+      commission: {
+        method: "percentage",
+        shared: "1",
+        percentage: "15",
+        add_cells: %w[base_fare:first_second base_fare:additional base_fare:single_supplement]
+      }
+    }
+  end
 
   def canonical_percentage_params
     {

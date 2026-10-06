@@ -292,7 +292,6 @@ class CompileCruiseSupplierRatesWorkspaceTest < ActiveSupport::TestCase
       resource: resource,
       definition_lock_version: definition.lock_version,
       readiness_provenance: "Signed terms",
-      confirm_omissions: true,
       stage: stage
     ).call
   end

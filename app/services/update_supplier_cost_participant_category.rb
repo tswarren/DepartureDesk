@@ -23,7 +23,10 @@ class UpdateSupplierCostParticipantCategory < AgencyCommand
         dependent_definitions = SupplierCostDefinition.where(id: dependent_definition_ids)
           .order(:id).lock.to_a
         category.update!(label: label)
-        dependent_definitions.each { |definition| clear_readiness!(definition) }
+        dependent_definitions.each do |definition|
+          clear_readiness!(definition)
+          clear_contract_review!(definition.reload)
+        end
         audit_cost!("supplier_arrangement.cost_participant_category_updated", arrangement, version, {
           "supplier_cost_participant_category_id" => category.id,
           "arrangement_item_id" => category.arrangement_item_id,

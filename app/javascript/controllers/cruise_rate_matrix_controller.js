@@ -48,6 +48,7 @@ export default class extends Controller {
     "editRowKey",
     "commissionMethod",
     "commissionNotProvided",
+    "commissionNone",
     "commissionPercentagePanel",
     "commissionDollarPanel",
     "commissionSharedField",
@@ -1068,6 +1069,9 @@ export default class extends Controller {
     }
     if (this.hasCommissionNotProvidedTarget) {
       this.commissionNotProvidedTarget.hidden = method !== "not_provided"
+    }
+    if (this.hasCommissionNoneTarget) {
+      this.commissionNoneTarget.hidden = method !== "none"
     }
     if (this.hasCommissionPercentagePanelTarget) {
       this.commissionPercentagePanelTarget.hidden = method !== "percentage"

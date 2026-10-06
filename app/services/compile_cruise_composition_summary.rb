@@ -159,7 +159,7 @@ class CompileCruiseCompositionSummary
     return [ :missing, false ] if shape.empty? || shape.summary[:state] == "missing"
 
     definitions = shape.source&.supplier_cost_definitions.to_a
-    if definitions.any? { |definition| definition.contracted? && definition.forecast_ready? }
+    if definitions.any? { |definition| definition.contracted? && definition.contract_review_current? }
       [ :contracted_ready, false ]
     elsif definitions.any?(&:contracted?)
       [ :contracted_working, false ]

@@ -217,15 +217,26 @@ class SupplierArrangementActivationReadiness
           "Every retained Item requires an Item-level Supplier cost source.")
       end
     end
+    cruise_item_ids = @version.arrangement_item_definitions
+      .select { |item| item.category == "cruise" }
+      .map(&:arrangement_item_id)
     sources.each do |source|
-      selection = source.supplier_cost_definitions.find { |definition|
-        definition.contracted? && definition.forecast_ready?
-      } || source.supplier_cost_definitions.find { |definition|
-        definition.estimate? && definition.forecast_ready?
-      }
+      selection = if cruise_cabin_source?(source, cruise_item_ids)
+        source.supplier_cost_definitions.find { |definition|
+          definition.contracted? && definition.contract_review_current?
+        }
+      else
+        source.supplier_cost_definitions.find { |definition|
+          definition.contracted? && definition.forecast_ready?
+        } || source.supplier_cost_definitions.find { |definition|
+          definition.estimate? && definition.forecast_ready?
+        }
+      end
       unless selection
-        block(:cost, :ready_definition_missing, "cost_sources.#{source.id}",
-          "Each declared cost source needs one complete forecast-ready stage.")
+        unless cruise_cabin_source?(source, cruise_item_ids)
+          block(:cost, :ready_definition_missing, "cost_sources.#{source.id}",
+            "Each declared cost source needs one complete forecast-ready stage.")
+        end
         next
       end
       unless source.charging_supplier.active? && selection.currency == @departure.operating_currency
@@ -261,7 +272,9 @@ class SupplierArrangementActivationReadiness
         service_occurrence_id: occurrence&.service_occurrence_id,
         supplier_resource_id: resource_definition.supplier_resource_id
       )
-      ready = source&.supplier_cost_definitions&.any? { |definition| definition.contracted? && definition.forecast_ready? }
+      ready = source&.supplier_cost_definitions&.any? { |definition|
+        definition.contracted? && definition.contract_review_current?
+      }
       next if ready
 
       code = resource_definition.supplier_code.presence || resource_definition.name
@@ -303,6 +316,10 @@ class SupplierArrangementActivationReadiness
           "Monetary trigger authority must be a ready contracted Supplier charge.")
       end
     end
+  end
+
+  def cruise_cabin_source?(source, cruise_item_ids)
+    source.supplier_resource_id.present? && cruise_item_ids.include?(source.arrangement_item_id)
   end
 
   def effective_provider(item, occurrence_id)

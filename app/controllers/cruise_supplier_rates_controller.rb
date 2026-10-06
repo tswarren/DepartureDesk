@@ -9,7 +9,9 @@ class CruiseSupplierRatesController < ApplicationController
   before_action :set_supplier_arrangement
   before_action :require_compatible_cruise_shape!
   before_action :set_cabin_category
-  before_action :require_editable_draft!, only: %i[create update occupancy_plan forecast_readiness preview record_contracted]
+  before_action :require_editable_draft!, only: %i[
+    create update occupancy_plan forecast_readiness contract_review preview record_contracted
+  ]
   before_action :assign_rate_shape_for_preview, only: :preview
   before_action :assign_rate_workspace, except: %i[preview]
 
@@ -110,7 +112,7 @@ class CruiseSupplierRatesController < ApplicationController
       idempotency_key: params.require(:idempotency_key)
     ).call
     redirect_to departure_arrangement_cruise_cabin_category_supplier_rates_path(
-      @departure, @supplier_arrangement, @supplier_resource
+      @departure, @supplier_arrangement, @supplier_resource, **saved_rate_stage_params
     ), notice: "Supplier rates saved."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
@@ -140,7 +142,7 @@ class CruiseSupplierRatesController < ApplicationController
       idempotency_key: params[:idempotency_key]
     ).call
     redirect_to departure_arrangement_cruise_cabin_category_supplier_rates_path(
-      @departure, @supplier_arrangement, @supplier_resource
+      @departure, @supplier_arrangement, @supplier_resource, **saved_rate_stage_params
     ), notice: "Supplier rates updated."
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
@@ -180,7 +182,6 @@ class CruiseSupplierRatesController < ApplicationController
       resource: @supplier_resource,
       definition_lock_version: params.require(:definition_lock_version),
       readiness_provenance: params[:readiness_provenance],
-      confirm_omissions: params[:confirm_omissions],
       stage: params[:stage]
     ).call
     redirect_to departure_arrangement_cruise_cabin_category_supplier_rates_path(
@@ -194,7 +195,34 @@ class CruiseSupplierRatesController < ApplicationController
     ), alert: error.message
   end
 
+  def contract_review
+    MarkCruiseSupplierRateScheduleContractReviewed.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      arrangement: @supplier_arrangement,
+      resource: @supplier_resource,
+      definition_lock_version: params.require(:definition_lock_version),
+      contract_review_provenance: params[:contract_review_provenance],
+      stage: "contracted"
+    ).call
+    redirect_to departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @supplier_arrangement, @supplier_resource, stage: "contracted"
+    ), notice: "Contracted rates reviewed for activation."
+  rescue AgencyCommand::Error => error
+    raise ActiveRecord::RecordNotFound if error.code == :not_found
+
+    redirect_to departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @supplier_arrangement, @supplier_resource, stage: "contracted"
+    ), alert: error.message
+  end
+
   private
+
+  def saved_rate_stage_params
+    return { stage: "contracted" } if params[:stage].to_s == "contracted"
+
+    {}
+  end
 
   def assign_rate_shape_for_preview
     @rate_shape = DetectCruiseSupplierRateShape.new(
@@ -323,6 +351,8 @@ class CruiseSupplierRatesController < ApplicationController
         )
       end
       form
+    when "none"
+      { method: "none", shared: true }
     else
       { method: "not_provided", shared: true }
     end

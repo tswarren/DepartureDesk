@@ -16,7 +16,11 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       options.add_argument("--disable-renderer-backgrounding")
       options.add_argument("--disable-backgrounding-occluded-windows")
     end
-    Capybara.default_max_wait_time = 5
+    # Parallel system tests share the Harbor agency row. A save can spend well
+    # over five seconds waiting on that lock, and Turbo keeps the previous page
+    # visible until the response is applied. Negative assertions still return
+    # as soon as the text or element is absent.
+    Capybara.default_max_wait_time = 30
   else
     driven_by :rack_test
 

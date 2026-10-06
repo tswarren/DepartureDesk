@@ -348,7 +348,7 @@ module CruiseSupplierRateBuilders
     end
 
     case method
-    when "not_provided"
+    when "not_provided", "none"
       { method: method }
     when "dollar"
       amounts = {}
@@ -646,19 +646,18 @@ module CruiseSupplierRateBuilders
   end
 
   def sync_matrix_commission!(definition, commission, cell_to_component, start_position, profiles)
-    if definition.noncommissionable? && commission.fetch(:method) != "not_provided"
-      raise AgencyCommand::Error.new(
-        "Noncommissionable definitions cannot contain expected commission.",
-        code: :invalid_state
-      )
-    end
-
     components = definition.supplier_cost_components.reload.lock.to_a
     commission_components = components.select { |c| c.economic_role == "expected_commission" }
+    method = commission.fetch(:method)
 
-    if commission.fetch(:method) == "not_provided"
+    if method == "not_provided" || method == "none"
       commission_components.each { |c| destroy_component_and_dependent_bases!(definition, c) }
+      restate_recorded_commission_absence!(definition, method == "none" ? "noncommissionable" : "unspecified")
       return
+    end
+
+    if definition.noncommissionable? || definition.omitted_commission_means_none?
+      definition.update!(commission_treatment: "unspecified", omitted_commission_means_none: false)
     end
 
     if commission.fetch(:method) == "percentage"
@@ -878,6 +877,12 @@ module CruiseSupplierRateBuilders
     definition.supplier_cost_components.order(:position, :id).lock.each_with_index do |component, index|
       component.update!(position: index + 1) if component.position != index + 1
     end
+  end
+
+  def restate_recorded_commission_absence!(definition, treatment)
+    return if definition.commission_treatment == treatment && !definition.omitted_commission_means_none?
+
+    definition.update!(commission_treatment: treatment, omitted_commission_means_none: false)
   end
 
   def clear_readiness_for_context!(version, item:, occurrence:, resource:)

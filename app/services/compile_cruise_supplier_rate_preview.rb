@@ -177,19 +177,26 @@ class CompileCruiseSupplierRatePreview
     fields = []
     charge_credit = definition.supplier_cost_components.reject { |c| c.economic_role == "expected_commission" }
     fields << "matrix" if charge_credit.empty?
-    fields << "commission" unless definition.supplier_cost_components.any? { |c| c.economic_role == "expected_commission" }
+    unless definition.supplier_cost_components.any? { |c| c.economic_role == "expected_commission" } ||
+        recorded_absent_commission?(definition)
+      fields << "commission"
+    end
     fields
   end
 
   def commission_display_states(definition, commission_method)
     has_commission = definition.supplier_cost_components.any? { |c| c.economic_role == "expected_commission" }
-    if definition.forecast_ready? && !has_commission
+    if commission_method == "none" || recorded_absent_commission?(definition)
       [ "none", "shown" ]
     elsif !has_commission || commission_method == "not_provided"
       [ "pending", "pending" ]
     else
       [ "shown", "shown" ]
     end
+  end
+
+  def recorded_absent_commission?(definition)
+    definition.noncommissionable? || definition.omitted_commission_means_none?
   end
 
   def empty_illustrations(resource_definition)

@@ -450,6 +450,17 @@ module CruiseCompositionHelper
     end
   end
 
+  def cruise_rate_illustration_commission(row, currency)
+    case row.commission_state
+    when "pending"
+      "not recorded"
+    when "none"
+      "none"
+    else
+      row.commission_minor_units ? Money.new(row.commission_minor_units, currency).format : row.commission_state
+    end
+  end
+
   def cruise_supplier_rate_illustration_amount(illustration)
     return "Unavailable" unless illustration.available?
 

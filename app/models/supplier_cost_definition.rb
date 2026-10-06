@@ -18,6 +18,7 @@ class SupplierCostDefinition < ApplicationRecord
   belongs_to :supplier_arrangement_version
   belongs_to :supplier_cost_source
   belongs_to :forecast_ready_by, class_name: "AgencyUser", optional: true
+  belongs_to :contract_reviewed_by, class_name: "AgencyUser", optional: true
 
   has_many :supplier_cost_components, dependent: :restrict_with_exception
 
@@ -32,15 +33,29 @@ class SupplierCostDefinition < ApplicationRecord
 
   normalizes :currency, with: ->(value) { value.to_s.strip.upcase }
   normalizes :zero_cost_reason, :readiness_provenance, :readiness_fingerprint,
+    :contract_review_provenance, :contract_review_fingerprint,
     with: ->(value) { value.to_s.strip.presence }
 
   validates :currency, presence: true, format: { with: Agency::CURRENCY_FORMAT }
   validates :zero_cost_reason, length: { maximum: ZERO_COST_REASON_LIMIT }, allow_nil: true
   validates :readiness_provenance, length: { maximum: READINESS_PROVENANCE_LIMIT }, allow_nil: true
+  validates :contract_review_provenance, length: { maximum: READINESS_PROVENANCE_LIMIT }, allow_nil: true
   validate :currency_is_known_and_matches_departure
   validate :zero_cost_reason_matches_mode
   validate :readiness_fields_match_status
+  validate :contract_review_fields_match
   validate :noncommissionable_excludes_expected_commission, if: :noncommissionable?
+
+  def contract_review_current?
+    return false unless contracted?
+    return false if contract_reviewed_by_id.blank? || contract_reviewed_at.blank?
+    return false if contract_review_fingerprint.blank? || contract_review_provenance.blank?
+
+    current = SupplierCostDefinitionFingerprint.call(self)
+    return false unless current.bytesize == contract_review_fingerprint.bytesize
+
+    ActiveSupport::SecurityUtils.secure_compare(contract_review_fingerprint, current)
+  end
 
   private
 
@@ -77,5 +92,16 @@ class SupplierCostDefinition < ApplicationRecord
     elsif readiness.any?(&:present?) || readiness_provenance.present?
       errors.add(:base, "Working definitions cannot retain forecast readiness evidence")
     end
+  end
+
+  def contract_review_fields_match
+    fields = [
+      contract_reviewed_by_id, contract_reviewed_at,
+      contract_review_fingerprint, contract_review_provenance
+    ]
+    return if fields.all?(&:blank?)
+
+    errors.add(:base, "Contract review evidence is incomplete") if fields.any?(&:blank?)
+    errors.add(:base, "Contract review applies to contracted terms") unless contracted?
   end
 end
