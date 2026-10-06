@@ -135,10 +135,10 @@ class EvaluateSupplierCostForecast
 
     profile_previews = profiles.map do |profile|
       per_cabin = evaluate_slice_for_profile(
-        assumption_record, components, profile, resource_unit_count: 1
+        assumption_record, definition, components, profile, resource_unit_count: 1
       )
       contribution = evaluate_slice_for_profile(
-        assumption_record, components, profile, resource_unit_count: profile.resource_unit_count
+        assumption_record, definition, components, profile, resource_unit_count: profile.resource_unit_count
       )
       OccupancyProfilePreview.new(
         profile_id: profile.id,
@@ -173,16 +173,19 @@ class EvaluateSupplierCostForecast
     )
   end
 
-  def evaluate_slice_for_profile(assumption, components, profile, resource_unit_count:)
+  def evaluate_slice_for_profile(assumption, definition, components, profile, resource_unit_count:)
     @profiles_by_assumption[assumption.id] = [
       PreviewProfile.new(id: profile.id, resource_unit_count: resource_unit_count)
     ]
     component_results, warnings = evaluate_components(components, assumption)
     blockers = warnings.map { |warning| warning[:message] }
     complete = blockers.empty?
+    totals = if complete
+      apply_commission_meaning!(totals_for(component_results), definition, components)
+    end
     OccupancySlice.new(
       complete: complete,
-      totals: complete ? totals_for(component_results) : nil,
+      totals: totals,
       components: complete ? component_results : [],
       blockers: blockers
     )
@@ -190,14 +193,23 @@ class EvaluateSupplierCostForecast
 
   def rounding_differences(illustrated, combined)
     {
-      forecast_supplier_cost_minor_units:
-        illustrated.forecast_supplier_cost_minor_units - combined.forecast_supplier_cost_minor_units,
-      expected_commission_minor_units:
-        illustrated.expected_commission_minor_units - combined.expected_commission_minor_units,
-      expected_net_cost_after_commission_minor_units:
-        illustrated.expected_net_cost_after_commission_minor_units -
-          combined.expected_net_cost_after_commission_minor_units
-    }.reject { |_key, value| value.zero? }
+      forecast_supplier_cost_minor_units: optional_difference(
+        illustrated.forecast_supplier_cost_minor_units, combined.forecast_supplier_cost_minor_units
+      ),
+      expected_commission_minor_units: optional_difference(
+        illustrated.expected_commission_minor_units, combined.expected_commission_minor_units
+      ),
+      expected_net_cost_after_commission_minor_units: optional_difference(
+        illustrated.expected_net_cost_after_commission_minor_units,
+        combined.expected_net_cost_after_commission_minor_units
+      )
+    }.compact.reject { |_key, value| value.zero? }
+  end
+
+  def optional_difference(left, right)
+    return nil if left.nil? || right.nil?
+
+    left - right
   end
 
   def apply_ephemeral_usage!(sources, usage, profiles, positions_by_profile)
@@ -399,11 +411,12 @@ class EvaluateSupplierCostForecast
     assumption = @assumptions_by_context[context_key(source)]
     component_results, evaluation_warnings = evaluate_components(components, assumption)
     warnings.concat(evaluation_warnings)
-    totals = totals_for(component_results)
+    totals = apply_commission_meaning!(totals_for(component_results), selected, components)
     if totals.forecast_supplier_cost_minor_units.negative?
       warnings << warning(:negative_supplier_cost, "Forecast Supplier cost cannot be negative.")
     end
-    if totals.expected_net_cost_after_commission_minor_units.negative?
+    net = totals.expected_net_cost_after_commission_minor_units
+    if net&.negative?
       warnings << warning(:negative_net_cost, "Expected net cost after commission cannot be negative.")
     end
     source_result(source, selected, selection_reason, warnings.empty?, component_results, totals, warnings)
@@ -598,18 +611,44 @@ class EvaluateSupplierCostForecast
     )
   end
 
+  def apply_commission_meaning!(totals, definition, components)
+    return totals unless commission_unresolved?(definition, components)
+
+    totals.with(
+      expected_commission_minor_units: nil,
+      expected_net_cost_after_commission_minor_units: nil
+    )
+  end
+
+  def commission_unresolved?(definition, components)
+    return false if definition.nil? || definition.zero_cost?
+    return false if definition.noncommissionable? || definition.omitted_commission_means_none?
+
+    components.none? { |component| component.economic_role == "expected_commission" }
+  end
+
   def role_total(results, role)
     results.select { |result| result.economic_role == role }.sum(&:rounded_minor_units)
   end
 
   def sum_totals(totals)
+    totals = Array(totals)
     Totals.new(
       supplier_charges_minor_units: totals.sum(&:supplier_charges_minor_units),
       supplier_credits_minor_units: totals.sum(&:supplier_credits_minor_units),
       forecast_supplier_cost_minor_units: totals.sum(&:forecast_supplier_cost_minor_units),
-      expected_commission_minor_units: totals.sum(&:expected_commission_minor_units),
-      expected_net_cost_after_commission_minor_units: totals.sum(&:expected_net_cost_after_commission_minor_units)
+      expected_commission_minor_units: sum_resolved(totals, :expected_commission_minor_units),
+      expected_net_cost_after_commission_minor_units: sum_resolved(
+        totals, :expected_net_cost_after_commission_minor_units
+      )
     )
+  end
+
+  def sum_resolved(totals, key)
+    values = totals.map(&key)
+    return nil if values.any?(&:nil?)
+
+    values.sum
   end
 
   def context_warnings(arrangement, version, source)

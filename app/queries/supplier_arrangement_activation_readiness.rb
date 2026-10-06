@@ -233,7 +233,10 @@ class SupplierArrangementActivationReadiness
         }
       end
       unless selection
-        unless cruise_cabin_source?(source, cruise_item_ids)
+        if cruise_cabin_source?(source, cruise_item_ids)
+          block(:cost, :cruise_contracted_rates_missing, "cost_sources.#{source.id}",
+            "Each declared Cruise cabin source needs a reviewed contracted rate.")
+        else
           block(:cost, :ready_definition_missing, "cost_sources.#{source.id}",
             "Each declared cost source needs one complete forecast-ready stage.")
         end
@@ -266,16 +269,19 @@ class SupplierArrangementActivationReadiness
     end
 
     occurrence = @version.service_occurrence_definitions.order(:id).first
+    cabin_sources = @version.supplier_cost_sources.includes(:supplier_cost_definitions).to_a
     @version.supplier_resource_definitions.each do |resource_definition|
-      source = @version.supplier_cost_sources.find_by(
-        arrangement_item_id: resource_definition.arrangement_item_id,
-        service_occurrence_id: occurrence&.service_occurrence_id,
-        supplier_resource_id: resource_definition.supplier_resource_id
-      )
-      ready = source&.supplier_cost_definitions&.any? { |definition|
-        definition.contracted? && definition.contract_review_current?
+      matches = cabin_sources.select { |source|
+        source.arrangement_item_id == resource_definition.arrangement_item_id &&
+          source.service_occurrence_id == occurrence&.service_occurrence_id &&
+          source.supplier_resource_id == resource_definition.supplier_resource_id
       }
-      next if ready
+      reviewed = matches.any? { |source|
+        source.supplier_cost_definitions.any? { |definition|
+          definition.contracted? && definition.contract_review_current?
+        }
+      }
+      next if reviewed
 
       code = resource_definition.supplier_code.presence || resource_definition.name
       block(:cost, :cruise_contracted_rates_missing, "resources.#{resource_definition.id}",

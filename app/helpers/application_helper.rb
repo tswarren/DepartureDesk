@@ -397,6 +397,12 @@ module ApplicationHelper
     Money.new(minor_units, currency).format
   end
 
+  def forecast_money_or_unresolved(minor_units, currency)
+    return "Not recorded" if minor_units.nil?
+
+    Money.new(minor_units, currency).format
+  end
+
   def price_quantity_basis_options
     ServiceOfferPriceComponent::QUANTITY_BASES.map { |value| [ value.humanize, value ] }
   end

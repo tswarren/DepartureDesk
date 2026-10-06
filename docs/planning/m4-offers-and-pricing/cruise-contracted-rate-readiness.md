@@ -34,10 +34,12 @@ A contracted Cruise definition that is already `forecast_ready`, has no expected
 
 | Caller | Needs | Cruise rule after this amendment |
 | --- | --- | --- |
-| `SupplierArrangementActivationReadiness#cruise_agreement_readiness` | Contractual usability | A current contract review on the contracted definition. Forecast readiness is not required. |
-| `SupplierArrangementActivationReadiness#cost_readiness` for a Cruise cabin source | Contractual usability | Select that contract-reviewed contracted definition. Other sources still need a forecast-ready stage. |
+| `SupplierArrangementActivationReadiness#cruise_agreement_readiness` | Contractual usability | A current contract review on a contracted definition for the cabin. Forecast readiness is not required. The cabin blocker remains only when no matching source is reviewed. |
+| `SupplierArrangementActivationReadiness#cost_readiness` for a Cruise cabin source | Contractual usability | Select that contract-reviewed contracted definition. A cabin source without one blocks activation. Other sources still need a forecast-ready stage. |
 | Commitment triggers, deadline commitments, and commitment opening | A completed forecast when they use a contracted amount as monetary authority | Unchanged. They still require `forecast_ready`. |
-| `EvaluateSupplierCostForecast` | A completed forecast | Unchanged. A reviewed rate with no occupancy mix is not a selected forecast stage. |
+| `EvaluateSupplierCostForecast` | A completed forecast | Gross stays available. Unknown commission and net stay unresolved. Explicit none and a historical omission stay zero commission with net equal to gross. A reviewed rate with no occupancy mix is still not a selected forecast stage. |
+| Indicative scenario economics | A commission-dependent margin | Unknown commission leaves the scenario unknown. Margin is not calculated from zero. |
+| Supplier exposure projection | A known exposure amount | Unknown commission is an incomplete component. It is not stored as known commission of zero. |
 | `SupplierDepositAmountEvaluator` forecast-ready lookup | A completed forecast when a deposit calculates from a cost definition | Unchanged. |
 | Cruise rate preview commission display | Commission meaning | `none` or the historical omission flag shows no commission. `not_provided` stays pending, including after forecast readiness. |
 | Successor copy | The same fingerprint refresh already used for forecast readiness | A current contract review is copied and its fingerprint is refreshed on the copy. |

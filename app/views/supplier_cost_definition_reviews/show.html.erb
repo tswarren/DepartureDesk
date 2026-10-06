@@ -73,8 +73,8 @@
       <p>✓ Forecast evaluates successfully.</p>
       <dl class="dd-definition-list">
         <div><dt>Forecast Supplier cost (authoritative for this assumption)</dt><dd><%= Money.new(@review.totals.forecast_supplier_cost_minor_units, @supplier_cost_definition.currency).format %></dd></div>
-        <div><dt>Expected commission</dt><dd><%= Money.new(@review.totals.expected_commission_minor_units, @supplier_cost_definition.currency).format %></dd></div>
-        <div><dt>Expected net cost after commission</dt><dd><%= Money.new(@review.totals.expected_net_cost_after_commission_minor_units, @supplier_cost_definition.currency).format %></dd></div>
+        <div><dt>Expected commission</dt><dd><%= forecast_money_or_unresolved(@review.totals.expected_commission_minor_units, @supplier_cost_definition.currency) %></dd></div>
+        <div><dt>Expected net cost after commission</dt><dd><%= forecast_money_or_unresolved(@review.totals.expected_net_cost_after_commission_minor_units, @supplier_cost_definition.currency) %></dd></div>
       </dl>
     <% else %>
       <p>⚠ Resolve these blockers before marking this definition ready:</p>
@@ -157,8 +157,8 @@
                 </td>
                 <% if profile_preview.per_cabin.complete %>
                   <td><%= Money.new(profile_preview.per_cabin.totals.forecast_supplier_cost_minor_units, currency).format %></td>
-                  <td><%= Money.new(profile_preview.per_cabin.totals.expected_commission_minor_units, currency).format %></td>
-                  <td><%= Money.new(profile_preview.per_cabin.totals.expected_net_cost_after_commission_minor_units, currency).format %></td>
+                  <td><%= forecast_money_or_unresolved(profile_preview.per_cabin.totals.expected_commission_minor_units, currency) %></td>
+                  <td><%= forecast_money_or_unresolved(profile_preview.per_cabin.totals.expected_net_cost_after_commission_minor_units, currency) %></td>
                 <% else %>
                   <td colspan="3">Blocked — expand profile for details</td>
                 <% end %>

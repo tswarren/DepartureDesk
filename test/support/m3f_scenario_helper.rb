@@ -427,8 +427,9 @@ module M3fScenarioHelper
         quantity_basis: "persons", pass_through: false
       }
     ).call
+    definition = m3f_record_no_commission!(actor, definition.reload)
     MarkCostDefinitionForecastReady.new(
-      agency: @agency, actor:, definition: definition.reload,
+      agency: @agency, actor:, definition: definition,
       lock_version: definition.lock_version,
       readiness_provenance: "M3F.2 confirmed excursion shortfall"
     ).call
@@ -436,6 +437,16 @@ module M3fScenarioHelper
   end
 
   # Illustrative Vineyard fixed coach + per-person tasting (not confirmed worksheet amounts).
+  def m3f_record_no_commission!(actor, definition)
+    SetSupplierCostCommissionTreatment.new(
+      agency: @agency,
+      actor: actor,
+      definition: definition,
+      commission_treatment: "noncommissionable",
+      lock_version: definition.lock_version
+    ).call.record
+  end
+
   def m3f_create_vineyard_costs!(graph)
     actor = graph[:actor] || @actor
     CreateSupplierCostUsageAssumption.new(
@@ -471,8 +482,9 @@ module M3fScenarioHelper
         calculation_kind: "fixed", amount_minor_units: 120_000, pass_through: false
       }
     ).call
+    coach_def = m3f_record_no_commission!(actor, coach_def.reload)
     MarkCostDefinitionForecastReady.new(
-      agency: @agency, actor:, definition: coach_def.reload,
+      agency: @agency, actor:, definition: coach_def,
       lock_version: coach_def.lock_version,
       readiness_provenance: "M3F.2 illustrative coach"
     ).call
@@ -505,8 +517,9 @@ module M3fScenarioHelper
         quantity_basis: "persons", pass_through: false
       }
     ).call
+    person_def = m3f_record_no_commission!(actor, person_def.reload)
     MarkCostDefinitionForecastReady.new(
-      agency: @agency, actor:, definition: person_def.reload,
+      agency: @agency, actor:, definition: person_def,
       lock_version: person_def.lock_version,
       readiness_provenance: "M3F.2 illustrative tasting"
     ).call

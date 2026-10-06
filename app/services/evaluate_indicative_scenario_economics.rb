@@ -71,6 +71,9 @@ class EvaluateIndicativeScenarioEconomics
     if source_results.size != attributed.size || source_results.any? { |result| !result.complete }
       return unknown("Attributed Supplier cost is incomplete or ambiguous.", price: price)
     end
+    if source_results.any? { |result| result.totals.expected_commission_minor_units.nil? }
+      return unknown("Expected commission is not recorded.", price: price)
+    end
     if source_results.map(&:currency).uniq != [ price.currency.presence || offer.departure.operating_currency ]
       return unknown("Supplier cost currency does not match the Client price.", price: price)
     end
