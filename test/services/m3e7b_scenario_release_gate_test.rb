@@ -608,6 +608,7 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       supplier_cost_source: source,
       stage: "contracted", status: "forecast_ready", mode: "calculated",
       currency: "USD",
+      commission_treatment: commission.positive? ? "unspecified" : "noncommissionable",
       forecast_ready_by: @actor, forecast_ready_at: Time.current,
       readiness_fingerprint: "sha256:calc-#{SecureRandom.hex(4)}",
       readiness_provenance: "Signed"
@@ -684,8 +685,9 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
         quantity_basis: "persons", pass_through: false
       }
     ).call
+    definition = record_no_commission!(definition.reload)
     MarkCostDefinitionForecastReady.new(
-      agency: @agency, actor: @actor, definition: definition.reload,
+      agency: @agency, actor: @actor, definition: definition,
       lock_version: definition.lock_version,
       readiness_provenance: "Signed excursion terms"
     ).call
@@ -726,8 +728,9 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
         calculation_kind: "fixed", amount_minor_units: 120_000, pass_through: false
       }
     ).call
+    coach_def = record_no_commission!(coach_def.reload)
     MarkCostDefinitionForecastReady.new(
-      agency: @agency, actor: @actor, definition: coach_def.reload,
+      agency: @agency, actor: @actor, definition: coach_def,
       lock_version: coach_def.lock_version,
       readiness_provenance: "Signed coach terms"
     ).call
@@ -760,8 +763,9 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
         quantity_basis: "persons", pass_through: false
       }
     ).call
+    person_def = record_no_commission!(person_def.reload)
     MarkCostDefinitionForecastReady.new(
-      agency: @agency, actor: @actor, definition: person_def.reload,
+      agency: @agency, actor: @actor, definition: person_def,
       lock_version: person_def.lock_version,
       readiness_provenance: "Signed tasting terms"
     ).call
@@ -819,6 +823,16 @@ class M3e7bScenarioReleaseGateTest < ActiveSupport::TestCase
       readiness_provenance: "Signed cabin terms"
     ).call
     source.reload
+  end
+
+  def record_no_commission!(definition)
+    SetSupplierCostCommissionTreatment.new(
+      agency: @agency,
+      actor: @actor,
+      definition: definition,
+      commission_treatment: "noncommissionable",
+      lock_version: definition.lock_version
+    ).call.record
   end
 
   def create_confirmation_trigger!(graph, description: "Confirm", fixed_quantity: 1)
