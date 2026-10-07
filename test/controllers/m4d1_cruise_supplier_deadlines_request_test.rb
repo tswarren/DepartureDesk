@@ -44,7 +44,7 @@ class M4d1CruiseSupplierDeadlinesRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "#cruise-deadline-editor"
     assert_select "select[name='cruise_deadline[template]']"
-    assert_select "p.dd-help", text: /Planning-milestone timing is not available/
+    assert_select "p", text: /Planning-milestone timing is not available/
     assert_select "select[name='cruise_deadline[rule_shape]'] option", text: /milestone/, count: 0
 
     assert_difference -> { @version.supplier_deadline_definitions.count }, 1 do

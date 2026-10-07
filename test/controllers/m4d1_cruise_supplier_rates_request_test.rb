@@ -415,6 +415,27 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "a command error keeps submitted rate values in the summary" do
+    sign_in_as @staff
+    post departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: {
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      stage: "not-a-stage",
+      notes: "Keep this note",
+      cells: { "base_fare:first_second" => "1624.00" },
+      commission: { method: "not_provided" }
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "#form-error-summary", text: /Choose estimate or contracted/
+    assert_select "textarea#notes", text: "Keep this note"
+    form = css_select("#cruise-supplier-rate-terms").first
+    state = JSON.parse(form["data-cruise-rate-matrix-initial-state-value"])
+    assert_equal "1624.00", state["cells"]["base_fare:first_second"]
+  end
+
   private
 
   def contracted_percentage_params(definition)

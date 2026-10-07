@@ -23,11 +23,11 @@
     <% else %>
       <%= form_with url: same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),
             method: :get, class: "dd-form", html: { id: "cruise-same-terms-category" } do %>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="increase_pool">Cabin category</label>
           <%= select_tag :capacity_pool_id,
                 options_for_select(@pool_options, @selected_pool_id),
-                id: "increase_pool", class: "dd-input",
+                id: "increase_pool", class: "dd-field",
                 onchange: "this.form.requestSubmit()" %>
         </div>
       <% end %>
@@ -47,25 +47,25 @@
             method: :post, class: "dd-form dd-stack", html: { id: "cruise-same-terms-increase" } do %>
         <%= hidden_field_tag :idempotency_key, @idempotency_key %>
         <%= hidden_field_tag :capacity_pool_id, @selected_pool_id %>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="increase_quantity">Additional cabins</label>
-          <%= number_field_tag :quantity, params[:quantity], id: "increase_quantity", class: "dd-input", min: 1 %>
+          <%= number_field_tag :quantity, params[:quantity], id: "increase_quantity", class: "dd-field", min: 1 %>
         </div>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="increase_rate">Deposit per additional cabin (<%= @departure.operating_currency %>)</label>
-          <%= text_field_tag :rate_amount, params[:rate_amount], id: "increase_rate", class: "dd-input" %>
+          <%= text_field_tag :rate_amount, params[:rate_amount], id: "increase_rate", class: "dd-field" %>
         </div>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="increase_effective_on">Effective date</label>
-          <%= date_field_tag :effective_on, params[:effective_on], id: "increase_effective_on", class: "dd-input" %>
+          <%= date_field_tag :effective_on, params[:effective_on], id: "increase_effective_on", class: "dd-field" %>
         </div>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="increase_evidence_on">Evidence date</label>
-          <%= date_field_tag :evidence_on, params[:evidence_on], id: "increase_evidence_on", class: "dd-input" %>
+          <%= date_field_tag :evidence_on, params[:evidence_on], id: "increase_evidence_on", class: "dd-field" %>
         </div>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="increase_evidence_note">Evidence note</label>
-          <%= text_field_tag :evidence_reference_note, params[:evidence_reference_note], id: "increase_evidence_note", class: "dd-input" %>
+          <%= text_field_tag :evidence_reference_note, params[:evidence_reference_note], id: "increase_evidence_note", class: "dd-field" %>
         </div>
         <% if @preview %>
           <p id="cruise-increase-deposit-preview">

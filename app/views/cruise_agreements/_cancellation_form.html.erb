@@ -19,13 +19,13 @@
   <% rows.each_with_index do |step, index| %>
     <% visible = adding ? index == rows.length - 1 : index + 1 == editing_position %>
     <% if visible %>
-      <div class="dd-field">
+      <div class="dd-field-group">
         <label class="dd-label" for="cancellation_days_<%= index %>">Days before departure</label>
-        <%= number_field_tag "cancellation_steps[][days_before_departure]", step[:days_before_departure] || step["days_before_departure"], id: "cancellation_days_#{index}", class: "dd-input", min: 0, required: true %>
+        <%= number_field_tag "cancellation_steps[][days_before_departure]", step[:days_before_departure] || step["days_before_departure"], id: "cancellation_days_#{index}", class: "dd-field", min: 0, required: true %>
       </div>
-      <div class="dd-field">
+      <div class="dd-field-group">
         <label class="dd-label" for="cancellation_body_<%= index %>">Policy wording</label>
-        <%= text_area_tag "cancellation_steps[][body]", step[:body] || step["body"], id: "cancellation_body_#{index}", class: "dd-input", rows: 4, maxlength: SupplierArrangementCruiseTermDefinition::BODY_LIMIT, required: true %>
+        <%= text_area_tag "cancellation_steps[][body]", step[:body] || step["body"], id: "cancellation_body_#{index}", class: "dd-field", rows: 4, maxlength: SupplierArrangementCruiseTermDefinition::BODY_LIMIT, required: true %>
       </div>
     <% else %>
       <%= hidden_field_tag "cancellation_steps[][days_before_departure]", step[:days_before_departure] || step["days_before_departure"], id: nil %>

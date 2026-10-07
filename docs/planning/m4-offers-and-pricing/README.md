@@ -32,6 +32,7 @@ This page is a reading list of the files in this folder. It does not establish s
 - [Cruise rework](m4d1-cruise-rework.md)
 - [Cruise composition UX](m4d1-cruise-composition-ux.md)
 - [UX-7 cruise supplier workspace consolidation](m4d1-cruise-composition-ux7.md)
+- [Cruise form clarity](cruise-form-clarity.md)
 
 ## Hotel
 

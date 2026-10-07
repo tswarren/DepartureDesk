@@ -1619,8 +1619,23 @@
 
   .dd-label {
     color: var(--dd-text);
-    font-size: 11px;
+    font-size: 12.5px;
     font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .dd-label--compact {
+    font-size: 11px;
+  }
+
+  .dd-section-title {
+    margin: 0;
+    color: var(--dd-navy);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--dd-border);
   }
 
   .dd-required {
@@ -1685,7 +1700,14 @@
   .dd-field[readonly] {
     background: var(--dd-neutral-surface);
     color: var(--dd-text-faint);
+  }
+
+  .dd-field:disabled {
     cursor: not-allowed;
+  }
+
+  .dd-field[readonly] {
+    cursor: text;
   }
 
   .dd-field[aria-invalid="true"] {
@@ -1724,13 +1746,18 @@
 
   .dd-field-error {
     color: var(--dd-danger-text);
-    font-size: 11px;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.4;
   }
 
-  .dd-field-hint {
+  .dd-field-hint,
+  .dd-help {
     margin: 0;
     color: var(--dd-text-muted);
-    font-size: 11px;
+    font-size: 11.5px;
+    font-weight: 400;
+    line-height: 1.4;
   }
 
   .dd-field--code {
@@ -2554,8 +2581,22 @@
     gap: 0.25rem;
   }
 
-  .dd-cruise-rate-cell .dd-input {
+  .dd-cruise-rate-cell .dd-input,
+  .dd-cruise-rate-cell .dd-field--numeric {
     min-width: 5rem;
+    width: 100%;
+  }
+
+  .dd-cruise-rate-cell .dd-field--numeric {
+    min-height: 30px;
+    text-align: right;
+    font-family: var(--font-mono);
+  }
+
+  @media (max-width: 768px) {
+    .dd-cruise-rate-cell .dd-field--numeric {
+      min-height: 40px;
+    }
   }
 
   .dd-cruise-rate-add-profile,
