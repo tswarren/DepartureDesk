@@ -44,7 +44,7 @@ class ConfirmAndActivateCruiseGroup < AgencyCommand
     end
 
     key = normalize_idempotency_key(@idempotency_key)
-    ActiveRecord::Base.transaction do
+    result = ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!
       arrangement = @agency.supplier_arrangements.lock.find(@arrangement.id)
       version = arrangement.versions.lock.find(@version.id)
@@ -90,6 +90,30 @@ class ConfirmAndActivateCruiseGroup < AgencyCommand
       link_opening_confirmation!(arrangement, version, confirmation)
       claim_idempotency!(key, payload, result.record)
       result
+    end
+    result
+  rescue ActiveRecord::RecordInvalid => error
+    raise Error.new(error.record.errors.full_messages.to_sentence, code: :invalid)
+  end
+
+  def replay_if_recorded
+    ensure_arrangement_actor!
+    unless @terms_acknowledged
+      raise Error.new(
+        "Confirm that the displayed inventory and rates are the Supplier agreement for this exact version.",
+        code: :invalid
+      )
+    end
+    if @forged_evidence_policy
+      raise Error.new("That confirmation evidence policy cannot be selected.", code: :invalid)
+    end
+
+    key = normalize_idempotency_key(@idempotency_key)
+    ActiveRecord::Base.transaction do
+      lock_authorized_arrangement_agency!
+      arrangement = @agency.supplier_arrangements.lock.find(@arrangement.id)
+      version = arrangement.versions.lock.find(@version.id)
+      replay_idempotency(key, submitted_payload(arrangement, version))
     end
   end
 
@@ -288,11 +312,16 @@ class ConfirmAndActivateCruiseGroup < AgencyCommand
   end
 
   def evidence_note(confirmation)
-    reference = confirmation.supplier_issued_identifiers.order(:created_at, :id).pick(:display_value)
-    wording = [ reference, confirmation.reference_note ].compact_blank.uniq.join("\n").presence
-    return [ wording, "supplier" ] if wording
+    reference = confirmation.supplier_issued_identifiers.order(:created_at, :id).pick(:display_value).to_s.strip.presence
+    note = confirmation.reference_note.to_s.strip.presence
+    combined = [ reference, note ].compact.uniq.join("\n")
+    limit = CapacityPoolDefinition::EVIDENCE_REFERENCE_NOTE_LIMIT
+    return [ combined, "supplier" ] if combined.present? && combined.length <= limit
+    return [ reference, "supplier" ] if reference.present? && reference.length <= limit
+    return [ note, "supplier" ] if note.present? && note.length <= limit
+    return [ ATTESTATION_NOTE, "activation_attestation" ] if combined.blank?
 
-    [ ATTESTATION_NOTE, "activation_attestation" ]
+    [ "Recorded on the Supplier confirmation for this activation.", "activation_attestation" ]
   end
 
   def opening_authority?(definition)

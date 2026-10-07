@@ -21,6 +21,28 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
     request_reservation(@reservation)
   end
 
+  test "reservation reuse rejects a relaxed cruise confirmation and accepts complete proof" do
+    relaxed = confirmation_for(evidence_kind: "supplier_confirmation")
+    assert_no_difference "SupplierReservationEvent.count" do
+      error = assert_raises(AgencyCommand::Error) do
+        respond_reservation(@reservation, existing_confirmation_id: relaxed.id, evidence: nil)
+      end
+      assert_match "Supplier evidence requirements", error.message
+    end
+
+    strict = confirmation_for(
+      evidence_kind: "supplier_confirmation",
+      evidence_on: Date.current,
+      channel: "portal",
+      reference_note: "Confirmed allotment",
+      confirmed_without_identifier_reason: "Supplier will issue later"
+    )
+    result = respond_reservation(@reservation, existing_confirmation_id: strict.id, evidence: nil)
+    assert_equal :created, result.status
+    link = SupplierConfirmationReservationResponseLink.find_by!(supplier_reservation_event_id: result.record.id)
+    assert_equal strict.id, link.supplier_confirmation_id
+  end
+
   test "confirmed response creates evidence links projection and blocks ordinary inactivation" do
     key = SecureRandom.uuid
     result = respond_reservation(@reservation, idempotency_key: key)
@@ -507,7 +529,22 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
     ).call
   end
 
-  def respond_reservation(reservation, idempotency_key: SecureRandom.uuid, outcomes: nil)
+  def confirmation_for(**attributes)
+    SupplierConfirmation.create!(
+      {
+        agency: @agency,
+        departure: @departure,
+        supplier_arrangement: @arrangement,
+        supplier_arrangement_version: @version,
+        confirming_supplier: @supplier,
+        actor: @actor,
+        recorded_at: Time.current,
+        evidence_kind: "supplier_confirmation"
+      }.merge(attributes)
+    )
+  end
+
+  def respond_reservation(reservation, idempotency_key: SecureRandom.uuid, outcomes: nil, existing_confirmation_id: nil, evidence: :default)
     scopes = reservation.revisions.where(status: "requested").sole.scopes.order(:position)
     outcomes ||= scopes.map { |scope| [ scope.id, { outcome_kind: "confirmed" } ] }.to_h
     RecordSupplierReservationResponse.new(
@@ -516,13 +553,18 @@ class SupplierReservationResponseCommandsTest < ActiveSupport::TestCase
         channel: "portal",
         reference_note: "Confirmed allotment",
         outcomes: outcomes,
-        evidence: {
-          evidence_kind: "supplier_confirmation",
-          evidence_on: Date.current,
-          channel: "portal",
-          reference_note: "Confirmed allotment",
-          confirmed_without_identifier_reason: "Supplier will issue later"
-        }
+        existing_confirmation_id: existing_confirmation_id,
+        evidence: if evidence == :default
+                    {
+                      evidence_kind: "supplier_confirmation",
+                      evidence_on: Date.current,
+                      channel: "portal",
+                      reference_note: "Confirmed allotment",
+                      confirmed_without_identifier_reason: "Supplier will issue later"
+                    }
+                  else
+                    evidence
+                  end
       },
       idempotency_key: idempotency_key
     ).call

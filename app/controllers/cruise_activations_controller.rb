@@ -25,6 +25,13 @@ class CruiseActivationsController < ApplicationController
       return
     end
 
+    command = cruise_activation_command
+    if (replay = command.replay_if_recorded)
+      redirect_to departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement),
+        notice: "Cruise supplier arrangement was already activated."
+      return
+    end
+
     unless post_allowed?
       refuse_cruise_post("This Cruise review cannot activate these terms. Use Advanced Supplier planning.")
       return
@@ -36,25 +43,7 @@ class CruiseActivationsController < ApplicationController
       return
     end
 
-    result = ConfirmAndActivateCruiseGroup.new(
-      agency: Current.agency,
-      actor: Current.agency_user,
-      arrangement: @supplier_arrangement,
-      version: @supplier_arrangement_version,
-      arrangement_lock_version: params[:arrangement_lock_version],
-      version_lock_version: params[:version_lock_version],
-      idempotency_key: params[:idempotency_key],
-      terms_acknowledged: params[:terms_acknowledged],
-      existing_confirmation_id: reuse_confirmation_id,
-      evidence_attributes: new_proof? ? confirmation_params : {},
-      supplier_reference: new_proof? ? params[:supplier_reference] : nil,
-      opening_overrides: opening_override_params,
-      elapsed_deadlines_acknowledged: elapsed_acknowledged?,
-      confirmed_quantities: keyed_commitment_params(:confirmed_quantities),
-      confirmed_amounts_minor_units: keyed_commitment_params(:confirmed_amounts_minor_units),
-      duplicate_acknowledgement_token: params[:duplicate_acknowledgement_token],
-      forged_evidence_policy: forged_evidence_policy?
-    ).call
+    result = command.call
     redirect_to departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement),
       notice: result.status == :replayed ? "Cruise supplier arrangement was already activated." : "Cruise supplier arrangement activated."
   rescue AgencyCommand::DuplicateReviewRequired => error
@@ -100,14 +89,38 @@ class CruiseActivationsController < ApplicationController
     @review.activation_confirmable?
   end
 
+  def cruise_activation_command
+    ConfirmAndActivateCruiseGroup.new(
+      agency: Current.agency,
+      actor: Current.agency_user,
+      arrangement: @supplier_arrangement,
+      version: @supplier_arrangement_version,
+      arrangement_lock_version: params[:arrangement_lock_version],
+      version_lock_version: params[:version_lock_version],
+      idempotency_key: params[:idempotency_key],
+      terms_acknowledged: params[:terms_acknowledged],
+      existing_confirmation_id: reuse_confirmation_id,
+      evidence_attributes: new_proof? ? confirmation_params : {},
+      supplier_reference: new_proof? ? params[:supplier_reference] : nil,
+      opening_overrides: opening_override_params,
+      elapsed_deadlines_acknowledged: elapsed_acknowledged?,
+      confirmed_quantities: keyed_commitment_params(:confirmed_quantities),
+      confirmed_amounts_minor_units: keyed_commitment_params(:confirmed_amounts_minor_units),
+      duplicate_acknowledgement_token: params[:duplicate_acknowledgement_token],
+      forged_evidence_policy: forged_evidence_policy?
+    )
+  end
+
   def forged_evidence_policy?
     params.key?(:allow_relaxed_confirmation) || params.key?(:evidence_policy)
   end
 
   def new_proof?
-    return true if @existing_confirmations.blank?
+    return false if params[:proof_choice] == "reuse"
+    return true if params[:proof_choice] == "new"
+    return true if confirmation_params[:evidence_kind].present?
 
-    params[:proof_choice] == "new"
+    @existing_confirmations.blank?
   end
 
   def reuse_confirmation_id

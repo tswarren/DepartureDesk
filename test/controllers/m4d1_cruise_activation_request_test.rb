@@ -61,6 +61,22 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     )
   end
 
+  test "an identical activation post replays after the group is activated" do
+    sign_in_as @staff
+    params = activation_params
+    assert_difference -> { SupplierConfirmation.count }, 1 do
+      post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: params
+    end
+    assert_redirected_to departure_arrangement_cruise_activation_path(@departure, @arrangement)
+
+    assert_no_difference [ "SupplierConfirmation.count", "SupplierArrangementActivation.count", "AuditEvent.count" ] do
+      post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: params
+    end
+    assert_redirected_to departure_arrangement_cruise_activation_path(@departure, @arrangement)
+    follow_redirect!
+    assert_match "already activated", response.body
+  end
+
   test "a post-eligible cruise activates through the existing command without acknowledging an estimate" do
     sign_in_as @staff
     get departure_arrangement_cruise_activation_path(@departure, @arrangement)
@@ -70,6 +86,7 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     assert_match "No confirmation-triggered commitments are declared.", response.body
     assert_select "input#supplier_reference[value='1119999']"
     assert_select "table"
+    assert_match "Contracted terms", response.body
     assert_select "input[type=submit][value=?]", "Confirm and activate group"
     assert_no_match "provisional_costs_acknowledged", response.body
     assert_no_match "I confirm the entered cost-source list is complete.", response.body

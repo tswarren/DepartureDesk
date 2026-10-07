@@ -549,15 +549,64 @@ class CompileCruiseActivationReview
       contracted = source.supplier_cost_definitions.find(&:contracted?)
       next [] unless contracted
 
-      contracted.supplier_cost_components.select { |component| component.economic_role == "supplier_charge" }.map do |component|
-        if component.amount_minor_units
-          "#{component.label.presence || "Supplier charge"} #{Money.new(component.amount_minor_units, contracted.currency).format}"
-        else
-          component.label.presence || component.calculation_kind.to_s.humanize
-        end
+      rows = contracted.supplier_cost_components.sort_by { |component| [ component.position, component.id ] }.map do |component|
+        contracted_component_label(component, contracted)
       end
+      meaning = commission_meaning(contracted)
+      rows << meaning if meaning && rows.any?
+      rows
     end
-    labels.presence&.join(", ") || "No contracted charge"
+    labels.presence&.join("; ") || "No contracted charge"
+  end
+
+  def contracted_component_label(component, definition)
+    role = {
+      "supplier_credit" => "Credit",
+      "expected_commission" => "Expected commission",
+      "informational_allocation" => "Informational"
+    }[component.economic_role]
+    name = component.label.presence || component.economic_role.to_s.humanize
+    name = nil if role && name.casecmp?(role)
+    [ role, name, component_applicability(component), component_amount_text(component, definition) ].compact.join(" · ")
+  end
+
+  def component_applicability(component)
+    key = CruiseSupplierRateSupport.profile_key_for_component(component)
+    return CruiseSupplierRateSupport.profile_display_label(key) if key
+
+    parts = []
+    parts << component.quantity_basis.to_s.tr("_", " ") if component.quantity_basis.present?
+    if component.occupancy_position_from.present?
+      to = component.occupancy_position_to
+      parts << (to.present? ? "positions #{component.occupancy_position_from}–#{to}" : "position #{component.occupancy_position_from}+")
+    end
+    category = component.participant_category&.label
+    parts << category if category.present?
+    parts.join(", ").presence
+  end
+
+  def component_amount_text(component, definition)
+    if component.percentage? && component.rate.present?
+      percent = component.rate.to_d * 100
+      formatted = percent == percent.to_i ? percent.to_i.to_s : percent.round(4).to_s("F").sub(/0+\z/, "").sub(/\.\z/, "")
+      text = "#{formatted}%"
+      text = "#{text} #{component.percentage_treatment}" if component.percentage_treatment.present?
+      text
+    elsif component.amount_minor_units
+      Money.new(component.amount_minor_units, definition.currency).format
+    else
+      component.calculation_kind.to_s.humanize
+    end
+  end
+
+  def commission_meaning(definition)
+    return if definition.supplier_cost_components.any?(&:expected_commission?)
+
+    if definition.noncommissionable? || definition.omitted_commission_means_none?
+      "Commission: noncommissionable"
+    else
+      "Commission: not recorded"
+    end
   end
 
   def inventory_label(pool)

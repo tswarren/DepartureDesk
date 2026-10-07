@@ -53,6 +53,55 @@ class ConfirmAndActivateCruiseGroupTest < ActiveSupport::TestCase
     assert cruise.version.reload.activated?
   end
 
+  test "a long supplier note stays on the confirmation and the opening note stays bounded" do
+    cruise = build_confirmable_cruise!
+    note = "N" * SupplierConfirmation::TEXT_LIMIT
+    activate!(cruise, supplier_reference: "1119999", evidence: {
+      evidence_kind: "supplier_confirmation",
+      reference_note: note
+    })
+
+    confirmation = cruise.version.supplier_confirmations.sole
+    assert_equal note, confirmation.reference_note
+    assert_equal "1119999", confirmation.supplier_issued_identifiers.sole.display_value
+    pool_definition = cruise.version.capacity_pool_definitions.find_by!(capacity_pool: cruise.pool)
+    assert_operator pool_definition.evidence_reference_note.length, :<=, CapacityPoolDefinition::EVIDENCE_REFERENCE_NOTE_LIMIT
+    assert_equal "1119999", pool_definition.evidence_reference_note
+    assert_equal "supplier", pool_definition.evidence_reference_origin
+  end
+
+  test "the activation review shows credits applicability and commission meaning" do
+    cruise = build_confirmable_cruise!(rates: :none)
+    record_rates!(cruise, cruise.resource, cells: {
+      "base_fare:first_second" => "1500.00",
+      "base_fare:additional" => "500.00",
+      "base_fare:single_supplement" => "1500.00",
+      "discount:first_second" => "150.00"
+    }, commission: {
+      method: "percentage",
+      percentage: "10",
+      add_cells: %w[base_fare:first_second],
+      subtract_cells: %w[discount:first_second]
+    })
+    label = activation_review(cruise).cabins.sole.charges_label
+    assert_match "Base Fare", label
+    assert_match "First/Second", label
+    assert_match "$1,500", label
+    assert_match "Credit", label
+    assert_match "Discount", label
+    assert_match "Expected commission", label
+    assert_match "10%", label
+
+    plain = build_confirmable_cruise!
+    plain_label = activation_review(plain).cabins.sole.charges_label
+    assert_match "Commission: not recorded", plain_label
+
+    noncommissionable = build_confirmable_cruise!(rates: :none)
+    record_rates!(noncommissionable, noncommissionable.resource, commission: { method: "none" })
+    assert noncommissionable.version.supplier_cost_definitions.find_by!(stage: "contracted").noncommissionable?
+    assert_match "Commission: noncommissionable", activation_review(noncommissionable).cabins.sole.charges_label
+  end
+
   test "a supplied reference is a group number and a cleared reference needs no absence reason" do
     cruise = build_confirmable_cruise!
     activate!(cruise, supplier_reference: "1119999", evidence: {
@@ -365,7 +414,7 @@ class ConfirmAndActivateCruiseGroupTest < ActiveSupport::TestCase
     assert cruise.version.reload.draft?
   end
 
-  def build_confirmable_cruise!(quantity: 8, confirm_agreement: true, usable_rates: true, reviewed: false, evidenced: false)
+  def build_confirmable_cruise!(quantity: 8, confirm_agreement: true, usable_rates: true, reviewed: false, evidenced: false, rates: nil)
     contractor = create_capacity_supplier(@agency, "Celebrity Cruises")
     departure = create_capacity_departure(@agency, name: "Smith Family Cruise")
     departure.update!(
@@ -434,10 +483,13 @@ class ConfirmAndActivateCruiseGroupTest < ActiveSupport::TestCase
       ).call
       version.reload
     end
-    if reviewed
+    rate_mode = rates || (reviewed ? :reviewed : usable_rates ? :usable : :incomplete)
+    if rate_mode == :reviewed
       satisfy_cruise_activation_gate!(agency: @agency, actor: @staff, arrangement: arrangement, version: version.reload)
-    elsif usable_rates
+    elsif rate_mode == :usable
       record_rates!(cruise, cabin.record.resource)
+    elsif rate_mode == :none
+      nil
     else
       source = version.supplier_cost_sources.create!(
         agency: @agency, departure: departure, supplier_arrangement: arrangement,
@@ -459,7 +511,13 @@ class ConfirmAndActivateCruiseGroupTest < ActiveSupport::TestCase
     cruise
   end
 
-  def record_rates!(cruise, resource)
+  def activation_review(cruise)
+    CompileCruiseActivationReview.new(
+      agency: @agency, arrangement: cruise.arrangement, version: cruise.version.reload
+    ).call
+  end
+
+  def record_rates!(cruise, resource, cells: nil, commission: nil)
     CreateCruiseSupplierRateSchedule.new(
       agency: @agency,
       actor: @staff,
@@ -470,12 +528,12 @@ class ConfirmAndActivateCruiseGroupTest < ActiveSupport::TestCase
         { family: "additional", key: "additional" },
         { family: "single_supplement", key: "single_supplement" }
       ],
-      cells: {
+      cells: cells || {
         "base_fare:first_second" => "1500.00",
         "base_fare:additional" => "500.00",
         "base_fare:single_supplement" => "1500.00"
       },
-      commission: { method: "not_provided" },
+      commission: commission || { method: "not_provided" },
       stage: "estimate",
       version_lock_version: cruise.version.reload.lock_version,
       idempotency_key: SecureRandom.uuid

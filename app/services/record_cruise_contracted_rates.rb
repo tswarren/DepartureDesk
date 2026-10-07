@@ -64,6 +64,8 @@ class RecordCruiseContractedRates < AgencyCommand
           currency: estimate.currency,
           rounding_mode: estimate.rounding_mode,
           zero_cost_reason: estimate.zero_cost_reason,
+          commission_treatment: estimate.commission_treatment,
+          omitted_commission_means_none: estimate.omitted_commission_means_none,
           copied_from: estimate
         }
       )
