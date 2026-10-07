@@ -353,6 +353,19 @@ class RecordSupplierReservationResponse < AgencyCommand
     unless compatible
       raise Error.new("That confirmation is not compatible with this reservation.", code: :invalid)
     end
+    return if strict_supplier_confirmation?(confirmation)
+
+    raise Error.new("That confirmation does not meet the Supplier evidence requirements.", code: :invalid)
+  end
+
+  def strict_supplier_confirmation?(confirmation)
+    confirmation.evidence_on.present? &&
+      confirmation.channel.present? &&
+      confirmation.reference_note.present? &&
+      (
+        confirmation.confirmed_without_identifier_reason.present? ||
+        confirmation.supplier_issued_identifiers.exists?
+      )
   end
 
   def resolve_identifier!(confirmation, arrangement, reservation, booking_supplier)

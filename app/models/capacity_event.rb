@@ -36,6 +36,8 @@ class CapacityEvent < ApplicationRecord
     foreign_key: :corrects_event_id,
     dependent: :restrict_with_exception,
     inverse_of: :corrects_event
+  has_many :supplier_confirmation_capacity_event_links, dependent: :restrict_with_exception
+  has_many :supplier_confirmations, through: :supplier_confirmation_capacity_event_links
 
   enum :event_type, EVENT_TYPES.index_by(&:itself), validate: true
   enum :measurement_basis, MEASUREMENT_BASES.index_by(&:itself), validate: true
@@ -46,7 +48,8 @@ class CapacityEvent < ApplicationRecord
     :event_type, :quantity, :measurement_basis, :effective_on,
     :effective_time_zone, :applies_at, :effective_sequence, :recorded_at,
     :evidence_kind, :evidence_on, :evidence_reference_note,
-    :evidence_external_reference, :override, :override_reason,
+    :evidence_external_reference, :evidence_on_origin, :evidence_reference_origin,
+    :override, :override_reason,
     :reinstates_event_id, :corrects_event_id, :capacity_reconciliation_id,
     :actor_id, :agency_command_idempotency_key_id
 
@@ -58,6 +61,8 @@ class CapacityEvent < ApplicationRecord
   validates :effective_on, :effective_time_zone, :applies_at, :recorded_at, presence: true
   validates :effective_sequence, numericality: { only_integer: true, greater_than: 0 }
   validates :evidence_kind, inclusion: { in: EVIDENCE_KINDS }, allow_nil: true
+  validates :evidence_on_origin, inclusion: { in: CapacityPoolDefinition::EVIDENCE_ON_ORIGINS }, allow_nil: true
+  validates :evidence_reference_origin, inclusion: { in: CapacityPoolDefinition::EVIDENCE_REFERENCE_ORIGINS }, allow_nil: true
   validate :evidence_or_override_is_consistent
   validate :lineage_matches_event_type
 

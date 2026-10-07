@@ -162,7 +162,12 @@ class CompileCruiseCompositionSummary
     if definitions.any? { |definition| definition.contracted? && definition.contract_review_current? }
       [ :contracted_ready, false ]
     elsif definitions.any?(&:contracted?)
-      [ :contracted_working, false ]
+      definition = definitions.find(&:contracted?)
+      if CruiseContractedRateStructuralValidity.new(agency: @agency, definition: definition).call
+        [ :contracted_usable, false ]
+      else
+        [ :contracted_working, false ]
+      end
     elsif definitions.any?(&:estimate?)
       [ :estimated, false ]
     else

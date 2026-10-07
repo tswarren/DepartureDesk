@@ -211,9 +211,9 @@ class M4d1CruiseWorkspaceClosureRequestTest < ActionDispatch::IntegrationTest
     assert_select "a#cruise-step-rates", count: 0
     assert_select "a#cruise-step-agreement"
     assert_select "a#cruise-step-review"
-    hrefs = css_select("#cruise-attention a").map { |link| link["href"] }
-    assert_includes hrefs, departure_arrangement_cruise_path(@departure, @arrangement)
-    assert hrefs.none? { |href| href.to_s.include?("#cruise-rates") }
+    assert_select "#cruise-attention a[href*='cabin-categories']", count: 0
+    assert_select "#cruise-attention a[href*='supplier-rates']", count: 0
+    assert_select "#cruise-attention a[href*='#cruise-rates']", count: 0
 
     get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
     assert_response :success

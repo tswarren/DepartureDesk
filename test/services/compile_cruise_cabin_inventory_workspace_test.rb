@@ -56,15 +56,25 @@ class CompileCruiseCabinInventoryWorkspaceTest < ActiveSupport::TestCase
     assert_equal "8 cabins", workspace.rows.sole.quantity_label
   end
 
-  test "incomplete opening authority is cabin attention and still counts the proposed quantity" do
+  test "a recorded quantity without opening evidence is not cabin attention" do
+    add_cabin!(quantity: 8, evidence: false)
+
+    workspace = compile
+
+    assert_empty workspace.attention_items
+    assert_equal 8, workspace.tracked_cabin_count
+  end
+
+  test "a numeric cabin without a quantity stays cabin attention" do
     cabin = add_cabin!(quantity: 8, evidence: false)
+    @version.capacity_pool_definitions.find_by!(capacity_pool: cabin.record.pool)
+      .update!(proposed_opening_quantity: nil)
 
     workspace = compile
     item = workspace.attention_items.sole
 
     assert_equal :opening_authority_incomplete, item.code
     assert_equal cabin.record.resource.id, item.resource_id
-    assert_equal 8, workspace.tracked_cabin_count
   end
 
   test "nonnumeric inventory is not tracked and is not cabin attention" do

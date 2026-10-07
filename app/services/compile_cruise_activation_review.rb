@@ -19,7 +19,10 @@ class CompileCruiseActivationReview
   RECOGNIZED_REQUIREMENTS = %w[initial_deposit hard_stop final_payment].freeze
 
   BlockerRow = Data.define(:code, :message, :destination, :known?, :resource_id)
-  CabinRow = Data.define(:resource_id, :code, :name, :inventory_label, :quantity_label, :status_label)
+  CabinRow = Data.define(
+    :resource_id, :pool_definition_id, :code, :name, :inventory_label,
+    :quantity_label, :numeric?, :opening_authority?, :charges_label, :status_label
+  )
   CostRow = Data.define(:source_id, :label, :stage_label, :represented?)
   TriggerRow = Data.define(
     :id, :description, :kind, :authority_shape, :represented?,
@@ -42,7 +45,8 @@ class CompileCruiseActivationReview
     :elapsed,
     :sailing,
     :agreement,
-    :unsupported_reasons
+    :unsupported_reasons,
+    :activation_confirmable?
   )
 
   def initialize(agency:, arrangement:, version: nil, presentation: true, readiness: nil)
@@ -109,11 +113,60 @@ class CompileCruiseActivationReview
       elapsed: @presentation ? elapsed_rows_for(version) : [],
       sailing: @presentation ? sailing_facts(shape, version) : {},
       agreement: @presentation ? agreement_facts(version) : {},
-      unsupported_reasons: unsupported.uniq
+      unsupported_reasons: unsupported.uniq,
+      activation_confirmable?: activation_confirmable?(
+        version, shape, readiness, unsupported, estimate_selected
+      )
     )
   end
 
   private
+
+  def activation_confirmable?(version, shape, readiness, unsupported, estimate_selected)
+    return false unless version&.draft? && shape.compatible? && unsupported.empty? && !estimate_selected
+    return false unless readiness.blockers.all? { |blocker| confirmable_blocker?(blocker, version) }
+
+    cost_rows = cost_rows_for(readiness)
+    triggers = trigger_rows_for(version)
+    cost_rows.all?(&:represented?) && triggers.all?(&:represented?)
+  end
+
+  def confirmable_blocker?(blocker, version)
+    case blocker.code
+    when :opening_authority_incomplete
+      pool_definition_from(version, blocker.path)&.proposed_opening_quantity.to_i.positive?
+    when :cruise_contracted_rates_missing
+      structurally_reviewable_rate?(blocker, version)
+    else
+      false
+    end
+  end
+
+  def structurally_reviewable_rate?(blocker, version)
+    source = cost_source_from(version, blocker.path)
+    if source
+      definition = source.supplier_cost_definitions.find(&:contracted?)
+      return false if definition.nil? || definition.contract_review_current?
+
+      return CruiseContractedRateStructuralValidity.new(agency: @agency, definition: definition).call
+    end
+
+    definition = resource_definition_from(version, blocker.path)
+    return false if definition.nil?
+
+    occurrence_id = version.service_occurrence_definitions.order(:id).pick(:service_occurrence_id)
+    sources = version.supplier_cost_sources.includes(:supplier_cost_definitions).where(
+      arrangement_item_id: definition.arrangement_item_id,
+      service_occurrence_id: occurrence_id,
+      supplier_resource_id: definition.supplier_resource_id
+    ).to_a
+    return false if sources.empty?
+
+    sources.all? do |cabin_source|
+      contracted = cabin_source.supplier_cost_definitions.find(&:contracted?)
+      contracted && CruiseContractedRateStructuralValidity.new(agency: @agency, definition: contracted).call
+    end
+  end
 
   def incompatible_result(shape)
     Result.new(
@@ -131,7 +184,8 @@ class CompileCruiseActivationReview
       elapsed: [],
       sailing: {},
       agreement: {},
-      unsupported_reasons: shape.reasons.presence || [ "This arrangement is not a Cruise review." ]
+      unsupported_reasons: shape.reasons.presence || [ "This arrangement is not a Cruise review." ],
+      activation_confirmable?: false
     )
   end
 
@@ -225,21 +279,25 @@ class CompileCruiseActivationReview
       else
         pool_definition.proposed_opening_quantity&.to_s || "—"
       end
-      status = if pool.nil?
+      numeric = pool&.numeric_inventory? || false
+      positive_quantity = numeric && pool_definition.proposed_opening_quantity.to_i.positive?
+      status = if pool.nil? || (numeric && !positive_quantity)
         "Needs attention"
-      elsif !pool.numeric_inventory?
+      elsif !numeric
         "Quantity not tracked"
-      elsif pool_definition.proposed_opening_quantity.to_i.positive? && opening_evidence?(pool_definition)
-        "Ready"
       else
-        "Needs attention"
+        "Ready"
       end
       CabinRow.new(
         resource_id: resource.id,
+        pool_definition_id: pool_definition&.id,
         code: definition.supplier_code,
         name: definition.name,
         inventory_label: inventory_label(pool),
         quantity_label: quantity,
+        numeric?: numeric,
+        opening_authority?: pool_definition.present? && opening_evidence?(pool_definition),
+        charges_label: contracted_charge_labels(version, definition, occurrence_id),
         status_label: status
       )
     end
@@ -479,6 +537,76 @@ class CompileCruiseActivationReview
     return "Cabin category" if definition.nil?
 
     [ definition.supplier_code.presence, definition.name.presence ].compact.join(" ").presence || "Cabin category"
+  end
+
+  def contracted_charge_labels(version, resource_definition, occurrence_id)
+    sources = version.supplier_cost_sources.includes(supplier_cost_definitions: :supplier_cost_components).where(
+      arrangement_item_id: resource_definition.arrangement_item_id,
+      service_occurrence_id: occurrence_id,
+      supplier_resource_id: resource_definition.supplier_resource_id
+    )
+    labels = sources.flat_map do |source|
+      contracted = source.supplier_cost_definitions.find(&:contracted?)
+      next [] unless contracted
+
+      rows = contracted.supplier_cost_components.sort_by { |component| [ component.position, component.id ] }.map do |component|
+        contracted_component_label(component, contracted)
+      end
+      meaning = commission_meaning(contracted)
+      rows << meaning if meaning && rows.any?
+      rows
+    end
+    labels.presence&.join("; ") || "No contracted charge"
+  end
+
+  def contracted_component_label(component, definition)
+    role = {
+      "supplier_credit" => "Credit",
+      "expected_commission" => "Expected commission",
+      "informational_allocation" => "Informational"
+    }[component.economic_role]
+    name = component.label.presence || component.economic_role.to_s.humanize
+    name = nil if role && name.casecmp?(role)
+    [ role, name, component_applicability(component), component_amount_text(component, definition) ].compact.join(" · ")
+  end
+
+  def component_applicability(component)
+    key = CruiseSupplierRateSupport.profile_key_for_component(component)
+    return CruiseSupplierRateSupport.profile_display_label(key) if key
+
+    parts = []
+    parts << component.quantity_basis.to_s.tr("_", " ") if component.quantity_basis.present?
+    if component.occupancy_position_from.present?
+      to = component.occupancy_position_to
+      parts << (to.present? ? "positions #{component.occupancy_position_from}–#{to}" : "position #{component.occupancy_position_from}+")
+    end
+    category = component.participant_category&.label
+    parts << category if category.present?
+    parts.join(", ").presence
+  end
+
+  def component_amount_text(component, definition)
+    if component.percentage? && component.rate.present?
+      percent = component.rate.to_d * 100
+      formatted = percent == percent.to_i ? percent.to_i.to_s : percent.round(4).to_s("F").sub(/0+\z/, "").sub(/\.\z/, "")
+      text = "#{formatted}%"
+      text = "#{text} #{component.percentage_treatment}" if component.percentage_treatment.present?
+      text
+    elsif component.amount_minor_units
+      Money.new(component.amount_minor_units, definition.currency).format
+    else
+      component.calculation_kind.to_s.humanize
+    end
+  end
+
+  def commission_meaning(definition)
+    return if definition.supplier_cost_components.any?(&:expected_commission?)
+
+    if definition.noncommissionable? || definition.omitted_commission_means_none?
+      "Commission: noncommissionable"
+    else
+      "Commission: not recorded"
+    end
   end
 
   def inventory_label(pool)

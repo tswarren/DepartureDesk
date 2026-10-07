@@ -52,7 +52,11 @@
     <div class="dd-panel-body dd-stack">
       <h2 id="cruise-attention-heading" class="dd-panel-title">Needs attention</h2>
       <ul>
+        <% cabins_complete = navigation.areas.find { |area| area.key == :cabins }.status == "Complete" %>
+        <% rates_complete = navigation.areas.find { |area| area.key == :rates }.status == "Complete" %>
         <% @review.blockers.each do |blocker| %>
+          <% next if blocker.code == :opening_authority_incomplete && cabins_complete %>
+          <% next if blocker.code == :cruise_contracted_rates_missing && rates_complete %>
           <li>
             <p><%= blocker.message %></p>
             <% destination = cruise_activation_blocker_path(blocker) %>
@@ -141,69 +145,127 @@
         </div>
       <% end %>
 
-      <section class="dd-panel" aria-labelledby="cruise-evidence-heading">
+      <section class="dd-panel" aria-labelledby="cruise-terms-heading">
         <div class="dd-panel-body dd-stack">
-          <h2 id="cruise-evidence-heading" class="dd-panel-title">Activation evidence</h2>
+          <h2 id="cruise-terms-heading" class="dd-panel-title">Terms to confirm</h2>
+          <h3>Cabin inventory</h3>
+          <table class="dd-table">
+            <thead>
+              <tr>
+                <th scope="col">Category</th>
+                <th scope="col">Treatment</th>
+                <th scope="col">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @review.cabins.each do |cabin| %>
+                <tr>
+                  <td><%= cabin.name %></td>
+                  <td><%= cabin.inventory_label %></td>
+                  <td><%= cabin.numeric? ? cabin.quantity_label : "Quantity not tracked" %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+          <h3>Contracted rates</h3>
+          <table class="dd-table">
+            <thead>
+              <tr>
+                <th scope="col">Category</th>
+                <th scope="col">Contracted terms</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @review.cabins.each do |cabin| %>
+                <tr>
+                  <td><%= cabin.name %></td>
+                  <td><%= cabin.charges_label %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="dd-field-group">
+        <%= check_box_tag :terms_acknowledged, "1", params[:terms_acknowledged] == "1", required: true, id: "terms_acknowledged" %>
+        <%= label_tag :terms_acknowledged, "The inventory and rates shown are the Supplier agreement being activated for this exact version.", class: "dd-label" %>
+      </div>
+
+      <section class="dd-panel" aria-labelledby="cruise-evidence-heading" data-controller="cruise-activation-proof">
+        <div class="dd-panel-body dd-stack">
+          <h2 id="cruise-evidence-heading" class="dd-panel-title">Supplier proof</h2>
           <p>Record or reuse the Supplier evidence supporting activation of these terms. The Cruise agreement confirmation is a separate record.</p>
           <% if @existing_confirmations.any? %>
-            <div class="dd-field-group">
-              <%= label_tag :existing_confirmation_id, "Existing compatible evidence", class: "dd-label" %>
-              <%= select_tag :existing_confirmation_id,
-                    options_for_select([["Create new evidence", ""]] + @existing_confirmations.map { |entry| [ "#{entry.evidence_on}: #{entry.reference_note}", entry.id ] }, params[:existing_confirmation_id]),
-                    id: "activation_existing_confirmation_id" %>
+            <fieldset>
+              <legend class="dd-label">Supplier proof</legend>
+              <label>
+                <%= radio_button_tag :proof_choice, "reuse", params[:proof_choice] != "new", data: { action: "cruise-activation-proof#toggle" } %>
+                Reuse Supplier proof
+              </label>
+              <label>
+                <%= radio_button_tag :proof_choice, "new", params[:proof_choice] == "new", data: { action: "cruise-activation-proof#toggle" } %>
+                Record new Supplier proof
+              </label>
+            </fieldset>
+            <div data-cruise-activation-proof-target="reuse">
+              <div class="dd-field-group">
+                <%= label_tag :existing_confirmation_id, "Existing compatible evidence", class: "dd-label" %>
+                <%= select_tag :existing_confirmation_id,
+                      options_for_select(@existing_confirmations.map { |entry| [ supplier_confirmation_choice_label(entry), entry.id ] }, params[:existing_confirmation_id]),
+                      id: "activation_existing_confirmation_id" %>
+              </div>
             </div>
           <% end %>
-          <div class="dd-field-group">
-            <%= label_tag "confirmation_evidence_kind", "Evidence kind", class: "dd-label" %>
-            <%= select_tag "confirmation[evidence_kind]",
-                  options_for_select(SupplierConfirmation::BOOKING_EVIDENCE_KINDS.map { |kind| [ kind.humanize, kind ] }, params.dig(:confirmation, :evidence_kind)),
-                  include_blank: "Choose evidence", id: "confirmation_evidence_kind" %>
-          </div>
-          <div class="dd-field-group">
-            <%= label_tag "confirmation_evidence_on", "Evidence date", class: "dd-label" %>
-            <%= date_field_tag "confirmation[evidence_on]", params.dig(:confirmation, :evidence_on), id: "confirmation_evidence_on" %>
-          </div>
-          <div class="dd-field-group">
-            <%= label_tag "confirmation_channel", "Channel", class: "dd-label" %>
-            <%= text_field_tag "confirmation[channel]", params.dig(:confirmation, :channel), id: "confirmation_channel", maxlength: 80 %>
-          </div>
-          <div class="dd-field-group">
-            <%= label_tag "confirmation_reference_note", "Reference note", class: "dd-label" %>
-            <%= text_area_tag "confirmation[reference_note]", params.dig(:confirmation, :reference_note), id: "confirmation_reference_note", maxlength: 500 %>
-          </div>
-          <div class="dd-field-group">
-            <%= label_tag "confirmation_confirmed_without_identifier_reason", "Reason no Supplier identifier was issued", class: "dd-label" %>
-            <%= text_area_tag "confirmation[confirmed_without_identifier_reason]", params.dig(:confirmation, :confirmed_without_identifier_reason), id: "confirmation_confirmed_without_identifier_reason", maxlength: 500 %>
-          </div>
-          <details <%= "open".html_safe if @command_form&.errors&.any? { |error| %w[display_value identifier_type issuer_context other_type_label].include?(error.attribute.to_s) } %>>
-            <summary>Add a Supplier-issued identifier</summary>
+          <div data-cruise-activation-proof-target="fresh">
             <div class="dd-field-group">
-              <%= label_tag "identifier_identifier_type", "Identifier type", class: "dd-label" %>
-              <%= select_tag "identifier[identifier_type]",
-                    options_for_select([[ "No identifier", "" ]] + SupplierIssuedIdentifier::IDENTIFIER_TYPES.map { |kind| [ kind.humanize, kind ] }, params.dig(:identifier, :identifier_type)),
-                    id: "identifier_identifier_type" %>
+              <%= label_tag "confirmation_evidence_kind", "Proof type", class: "dd-label" %>
+              <%= select_tag "confirmation[evidence_kind]",
+                    options_for_select(SupplierConfirmation::BOOKING_EVIDENCE_KINDS.map { |kind| [ kind.humanize, kind ] }, params.dig(:confirmation, :evidence_kind)),
+                    include_blank: "Choose proof", id: "confirmation_evidence_kind",
+                    data: { cruise_activation_proof_target: "kind", action: "cruise-activation-proof#toggle" } %>
+            </div>
+            <div class="dd-field-group" data-cruise-activation-proof-target="other" hidden>
+              <%= label_tag "confirmation_other_evidence_label", "Other proof description", class: "dd-label" %>
+              <%= text_field_tag "confirmation[other_evidence_label]", params.dig(:confirmation, :other_evidence_label), id: "confirmation_other_evidence_label", maxlength: 80 %>
             </div>
             <div class="dd-field-group">
-              <%= label_tag "identifier_other_type_label", "Other identifier label", class: "dd-label" %>
-              <%= text_field_tag "identifier[other_type_label]", params.dig(:identifier, :other_type_label), id: "identifier_other_type_label", maxlength: 80 %>
+              <%= label_tag :supplier_reference, "Supplier reference", class: "dd-label" %>
+              <%= text_field_tag :supplier_reference, supplier_reference_value, id: "supplier_reference", maxlength: 160 %>
             </div>
             <div class="dd-field-group">
-              <%= label_tag "identifier_issuer_context", "Issuer context", class: "dd-label" %>
-              <%= text_field_tag "identifier[issuer_context]", params.dig(:identifier, :issuer_context), id: "identifier_issuer_context", maxlength: 80 %>
-              <% if @command_form&.errors&.[](:issuer_context)&.any? %>
-                <p class="dd-field-error" id="identifier_issuer_context_error"><%= @command_form.errors[:issuer_context].to_sentence %></p>
-              <% end %>
+              <%= label_tag "confirmation_evidence_on", "Proof date", class: "dd-label" %>
+              <%= date_field_tag "confirmation[evidence_on]", params.dig(:confirmation, :evidence_on), id: "confirmation_evidence_on" %>
             </div>
             <div class="dd-field-group">
-              <%= label_tag "confirmation_display_value", "Identifier", class: "dd-label" %>
-              <%= text_field_tag "identifier[display_value]", params.dig(:identifier, :display_value), id: "confirmation_display_value", maxlength: 160 %>
+              <%= label_tag "confirmation_channel", "Channel", class: "dd-label" %>
+              <%= text_field_tag "confirmation[channel]", params.dig(:confirmation, :channel), id: "confirmation_channel", maxlength: 80 %>
             </div>
-          </details>
+            <div class="dd-field-group">
+              <%= label_tag "confirmation_reference_note", "Notes", class: "dd-label" %>
+              <%= text_area_tag "confirmation[reference_note]", params.dig(:confirmation, :reference_note), id: "confirmation_reference_note", maxlength: 500 %>
+            </div>
+          </div>
+          <% if Current.agency_user.permitted?(:override_supplier_planning_terms) %>
+            <% overridable = @review.cabins.select { |cabin| cabin.numeric? && cabin.pool_definition_id && !cabin.opening_authority? && cabin.quantity_label.to_i.positive? } %>
+            <% if overridable.any? %>
+              <fieldset>
+                <legend class="dd-label">Administrator override</legend>
+                <p>Use an override only when ordinary Supplier proof should not establish opening authority for a named cabin.</p>
+                <% overridable.each do |cabin| %>
+                  <div class="dd-field-group">
+                    <%= label_tag "opening_override_#{cabin.pool_definition_id}", "Override explanation · #{cabin.name}", class: "dd-label" %>
+                    <%= text_area_tag "opening_overrides[#{cabin.pool_definition_id}]", params.dig(:opening_overrides, cabin.pool_definition_id.to_s), id: "opening_override_#{cabin.pool_definition_id}", maxlength: CapacityPoolDefinition::OVERRIDE_REASON_LIMIT %>
+                  </div>
+                <% end %>
+              </fieldset>
+            <% end %>
+          <% end %>
           <div class="dd-page-actions">
             <% if @supplier_arrangement_version&.draft? && @supplier_arrangement_version.copied_from_id.present? %>
               <p>Activating Draft Version <%= @supplier_arrangement_version.version_number %>. Active Version <%= @supplier_arrangement_version.copied_from.version_number %> remains in effect until activation succeeds.</p>
             <% end %>
-            <%= submit_tag "Activate Supplier terms", class: "dd-button" %>
+            <%= submit_tag "Confirm and activate group", class: "dd-button" %>
           </div>
         </div>
       </section>

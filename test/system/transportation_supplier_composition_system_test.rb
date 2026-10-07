@@ -85,6 +85,7 @@ class TransportationSupplierCompositionSystemTest < ApplicationSystemTestCase
 
     select "Hotel → Port", from: "Segment"
     select "Confirm another motorcoach", from: "Change"
+    fill_in_html_date "Effective date", Time.find_zone!("America/New_York").today.iso8601
     fill_in "Reference note", with: "Second coach"
     click_button "Record coach change"
     assert_text "2 motorcoaches confirmed"
@@ -95,6 +96,7 @@ class TransportationSupplierCompositionSystemTest < ApplicationSystemTestCase
     assert_text "$575.00"
 
     select "Release a motorcoach", from: "Change"
+    fill_in_html_date "Effective date", Time.find_zone!("America/New_York").today.iso8601
     fill_in "Reference note", with: "Released the extra coach"
     click_button "Record coach change"
     assert_no_text "2 motorcoaches confirmed"

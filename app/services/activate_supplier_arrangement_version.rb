@@ -13,7 +13,8 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     elapsed_deadlines_acknowledged: false,
     confirmed_quantity: nil, confirmed_amount_minor_units: nil,
     confirmed_quantities: nil, confirmed_amounts_minor_units: nil,
-    acknowledgments: nil, duplicate_acknowledgement_token: nil)
+    acknowledgments: nil, duplicate_acknowledgement_token: nil,
+    allow_relaxed_confirmation: false)
     @agency = agency
     @actor = actor
     @arrangement = arrangement
@@ -43,6 +44,7 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     @confirmed_quantities = (confirmed_quantities || {}).to_h.with_indifferent_access
     @confirmed_amounts_minor_units = (confirmed_amounts_minor_units || {}).to_h.with_indifferent_access
     @duplicate_acknowledgement_token = duplicate_acknowledgement_token
+    @allow_relaxed_confirmation = allow_relaxed_confirmation
   end
 
   def call
@@ -330,6 +332,20 @@ class ActivateSupplierArrangementVersion < AgencyCommand
     unless compatible
       raise Error.new("That confirmation is not compatible with this exact version.", code: :invalid)
     end
+    return if @allow_relaxed_confirmation
+    return if strict_confirmation?(confirmation)
+
+    raise Error.new("That confirmation does not meet the Supplier evidence requirements.", code: :invalid)
+  end
+
+  def strict_confirmation?(confirmation)
+    confirmation.evidence_on.present? &&
+      confirmation.channel.present? &&
+      confirmation.reference_note.present? &&
+      (
+        confirmation.confirmed_without_identifier_reason.present? ||
+        confirmation.supplier_issued_identifiers.exists?
+      )
   end
 
   def create_manifest!(

@@ -35,7 +35,8 @@ class SupplierConfirmation < ApplicationRecord
   normalizes :other_evidence_label, :channel, :reference_note,
     :confirmed_without_identifier_reason, with: ->(value) { value.to_s.strip.presence }
 
-  validates :evidence_on, :channel, :reference_note, :recorded_at, presence: true
+  validates :recorded_at, presence: true
+  validates :channel, length: { maximum: 80 }, allow_nil: true
   validates :reference_note, :confirmed_without_identifier_reason,
     length: { maximum: TEXT_LIMIT }, allow_nil: true
   validates :other_evidence_label, length: { maximum: 80 }, allow_nil: true

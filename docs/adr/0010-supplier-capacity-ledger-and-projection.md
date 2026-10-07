@@ -94,6 +94,8 @@ Every event retains direct Agency and Departure ownership; stable Pool, Arrangem
 
 Ordinary events require structured evidence kind, evidence date, and reference note. External reference is optional. Evidence is attachment-ready, but M3B does not add file storage or require an upload.
 
+Amended 2026-10-06 by [Cruise activation review](../planning/m4-offers-and-pricing/cruise-activation-review.md): opening evidence written by that Cruise activation records whether the evidence date was supplied by Staff or taken from the agreement contract date, and whether the reference note is Supplier wording or a system attestation. History shows that origin. A blank proof date is not presented as a date Staff entered, and the system attestation is not presented as Supplier wording. Direct evidence recorded on the cabin editor stays Staff-supplied Supplier wording.
+
 An Administrator with `override_supplier_planning_terms` may omit ordinary Supplier evidence only for an otherwise valid event and only with a required reason and visible override marking. Override cannot bypass ownership, activation, basis, nonnegative replay, lineage, idempotency, or immutability.
 
 ### Effective dates and deterministic ordering

@@ -33,6 +33,8 @@ class EstablishCapacityAlreadyLocked
       evidence_on: @definition.evidence_on,
       evidence_reference_note: @definition.evidence_reference_note,
       evidence_external_reference: @definition.evidence_external_reference,
+      evidence_on_origin: @definition.evidence_on_origin,
+      evidence_reference_origin: @definition.evidence_reference_origin,
       override: @definition.override?,
       override_reason: @definition.override_reason,
       actor: @actor

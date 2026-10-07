@@ -12,6 +12,8 @@ class CapacityPoolDefinition < ApplicationRecord
     verbal_confirmation
     other
   ].freeze
+  EVIDENCE_ON_ORIGINS = %w[supplied agreement_contract_date].freeze
+  EVIDENCE_REFERENCE_ORIGINS = %w[supplier activation_attestation].freeze
   LABEL_LIMIT = 120
   NOTES_LIMIT = 2_000
   UNIT_LABEL_LIMIT = 40
@@ -28,6 +30,7 @@ class CapacityPoolDefinition < ApplicationRecord
   belongs_to :supplier_resource
   belongs_to :capacity_pair_definition
   belongs_to :capacity_pool
+  belongs_to :opening_authority_confirmation, class_name: "SupplierConfirmation", optional: true
   has_many :service_offer_source_bindings, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :departure_id, :supplier_arrangement_id,
@@ -52,6 +55,8 @@ class CapacityPoolDefinition < ApplicationRecord
     allow_nil: true
   validate :maximum_total_covers_opening
   validates :evidence_kind, inclusion: { in: EVIDENCE_KINDS }, allow_nil: true
+  validates :evidence_on_origin, inclusion: { in: EVIDENCE_ON_ORIGINS }, allow_nil: true
+  validates :evidence_reference_origin, inclusion: { in: EVIDENCE_REFERENCE_ORIGINS }, allow_nil: true
   validates :evidence_reference_note,
     length: { maximum: EVIDENCE_REFERENCE_NOTE_LIMIT },
     allow_nil: true

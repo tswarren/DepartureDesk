@@ -66,7 +66,7 @@ class M4d1CruiseActivationSystemTest < ApplicationSystemTestCase
     click_on "Review & activate"
     assert_text "does not have an opening cabin quantity"
     assert_text "Needs attention"
-    assert_no_button "Activate Supplier terms"
+    assert_no_button "Confirm and activate group"
     assert_no_selector "table"
     assert_no_page_overflow
 
@@ -80,18 +80,15 @@ class M4d1CruiseActivationSystemTest < ApplicationSystemTestCase
     resize_window(1280)
     visit departure_arrangement_cruise_activation_path(@departure, @arrangement)
     assert_text "Ready to review"
-    assert_no_selector "table"
+    assert_selector "table"
     [ 375, 768, 1280, 1400 ].each do |width|
       resize_window(width)
       assert_no_page_overflow
     end
     resize_window(1280)
-    select "Supplier confirmation", from: "Evidence kind"
-    fill_in_html_date "Evidence date", with: Date.current.iso8601
-    fill_in "Channel", with: "portal"
-    fill_in "Reference note", with: "Supplier approved the terms"
-    fill_in "Reason no Supplier identifier was issued", with: "Supplier did not issue one"
-    click_on "Activate Supplier terms"
+    select "Supplier confirmation", from: "Proof type"
+    check "The inventory and rates shown are the Supplier agreement being activated for this exact version."
+    click_on "Confirm and activate group"
     assert_text "Version #{@version.reload.version_number} became governing"
     click_on "Connect to Client service"
     assert_current_path departure_arrangement_cruise_service_connection_path(@departure, @arrangement)

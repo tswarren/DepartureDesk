@@ -61,9 +61,9 @@ class CompileCruiseSetupNavigationTest < ActiveSupport::TestCase
     codes = navigation.attention_items.map(&:code)
 
     assert_equal "Needs attention", status_for(navigation, :agreement)
-    assert_equal "Needs attention", status_for(navigation, :cabins)
+    assert_equal "Complete", status_for(navigation, :cabins)
     assert_includes codes, :cruise_agreement_unconfirmed
-    assert_includes codes, :opening_authority_incomplete
+    assert_not_includes codes, :opening_authority_incomplete
     assert_not_includes codes, :cruise_contracted_rates_missing
   end
 

@@ -32,7 +32,7 @@
             <option value="">Choose evidence</option>
             <% @confirmations.each do |confirmation| %>
               <option value="<%= confirmation.id %>" <%= "selected" if confirmation.id.to_s == @selected_confirmation_id.to_s %>>
-                <%= confirmation.evidence_kind.humanize %> · <%= confirmation.reference_note %> · <%= l(confirmation.evidence_on) %>
+                <%= confirmation.evidence_kind.humanize %><% if confirmation.reference_note.present? %> · <%= confirmation.reference_note %><% end %><% if confirmation.evidence_on.present? %> · <%= l(confirmation.evidence_on) %><% end %>
                 · <%= supplier_option_label(confirmation.confirming_supplier) %>
               </option>
             <% end %>

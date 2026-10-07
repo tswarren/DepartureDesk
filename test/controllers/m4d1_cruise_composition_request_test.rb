@@ -600,7 +600,7 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Add cabins under same Supplier terms"
   end
 
-  test "attention lists an unconfirmed agreement and incomplete opening together" do
+  test "attention lists an unconfirmed agreement without a quantity activation can confirm" do
     sign_in_as @staff
     arrangement = create_cruise_sailing.record.arrangement
     version = arrangement.versions.sole
@@ -626,7 +626,8 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     get departure_arrangement_cruise_path(@departure, arrangement)
     assert_response :success
     assert_select "#cruise-attention", text: /Confirm the Cruise supplier agreement/
-    assert_select "#cruise-attention", text: /opening cabin quantity|opening evidence/
+    assert_select "#cruise-attention", text: /opening evidence/, count: 0
+    assert_select "#cruise-step-cabins .dd-journey-step__status", text: "Complete"
     assert_select "#cruise-step-agreement .dd-journey-step__status", text: "Needs attention"
   end
 
@@ -697,12 +698,8 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
 
     get departure_arrangement_cruise_cabin_categories_path(@departure, arrangement)
     assert_response :success
-    assert_select "#cruise-step-cabins .dd-journey-step__status", text: "Needs attention"
-    oceanview = arrangement.versions.sole.supplier_resource_definitions.find_by!(supplier_code: "O1")
-    assert_select "#cruise-cabin-attention a[href=?]",
-      edit_departure_arrangement_cruise_cabin_category_path(
-        @departure, arrangement, oceanview.supplier_resource_id
-      )
+    assert_select "#cruise-step-cabins .dd-journey-step__status", text: "Complete"
+    assert_select "#cruise-cabin-attention", count: 0
     assert_match "2 categories · 8 tracked cabins · 1 quantity not tracked", response.body
     assert_select "#cruise-cabin-table th", text: "Opening authority"
     assert_match "Quantity not tracked", response.body
