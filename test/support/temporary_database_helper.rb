@@ -28,7 +28,9 @@ module TemporaryDatabaseHelper
   end
 
   def migrate_to!(version)
-    ActiveRecord::Base.connection_pool.migration_context.migrate(version)
+    ActiveRecord::Migration.suppress_messages do
+      ActiveRecord::Base.connection_pool.migration_context.migrate(version)
+    end
   end
 
   private
