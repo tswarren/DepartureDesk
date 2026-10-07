@@ -546,6 +546,44 @@ module ApplicationHelper
     pool_definition.proposed_opening_quantity.presence || "Proposed opening quantity missing"
   end
 
+  def supplier_confirmation_choice_label(confirmation)
+    [
+      confirmation.evidence_kind.to_s.humanize,
+      confirmation.evidence_on,
+      confirmation.channel,
+      confirmation.reference_note
+    ].compact_blank.join(" · ")
+  end
+
+  def supplier_reference_value
+    return params[:supplier_reference] if params.key?(:supplier_reference)
+
+    @review.agreement[:group_reference]
+  end
+
+  def capacity_evidence_history_label(event)
+    return "Administrator override: #{event.override_reason}" if event.override?
+    return "#{event.evidence_kind.to_s.humanize}: #{event.evidence_reference_note}" if event.evidence_on_origin.blank? && event.evidence_reference_origin.blank?
+
+    confirmation = event.supplier_confirmations.first
+    kind = if event.evidence_kind == "other" && confirmation&.other_evidence_label.present?
+      confirmation.other_evidence_label
+    else
+      event.evidence_kind.to_s.humanize
+    end
+    date = if event.evidence_on_origin == "agreement_contract_date"
+      "Agreement contract date #{event.evidence_on.to_fs(:long)}"
+    else
+      event.evidence_on&.to_fs(:long)
+    end
+    note = if event.evidence_reference_origin == "activation_attestation"
+      "System attestation: #{event.evidence_reference_note}"
+    else
+      event.evidence_reference_note
+    end
+    [ kind, date, note ].compact_blank.join(" · ")
+  end
+
   def capacity_evidence_label(pool_definition)
     if pool_definition.override?
       "Administrator override recorded"

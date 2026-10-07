@@ -200,7 +200,7 @@
         <div class="dd-field-group">
           <%= label_tag :existing_confirmation_id, "Existing compatible evidence", class: "dd-label" %>
           <%= select_tag :existing_confirmation_id,
-            options_for_select([["Create new evidence", ""]] + @existing_confirmations.map { |entry| ["#{entry.evidence_on}: #{entry.reference_note}", entry.id] }, params[:existing_confirmation_id]),
+            options_for_select([["Create new evidence", ""]] + @existing_confirmations.map { |entry| [supplier_confirmation_choice_label(entry), entry.id] }, params[:existing_confirmation_id]),
             **dd_tag_field_options(@command_form, :existing_confirmation_id, id: "activation_existing_confirmation_id") %>
         </div>
       <% end %>

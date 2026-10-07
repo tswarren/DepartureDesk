@@ -89,7 +89,7 @@ class M4d1CruiseWorkspaceClosureSystemTest < ApplicationSystemTestCase
     assert_workspace_page("Cabin inventory", current: "cabins")
     assert_text "8 cabins"
     assert_no_selector "#cruise-supplier-rate-terms"
-    assert_no_button "Activate Supplier terms"
+    assert_no_button "Confirm and activate group"
     assert_no_page_overflow_at_widths
 
     find("#cruise-step-rates").click
@@ -105,7 +105,7 @@ class M4d1CruiseWorkspaceClosureSystemTest < ApplicationSystemTestCase
     assert_text "Contract date"
     assert_no_link "Change inventory"
     assert_no_link "Open deposits and deadlines"
-    assert_no_button "Activate Supplier terms"
+    assert_no_button "Confirm and activate group"
     assert_no_page_overflow_at_widths
 
     find("#cruise-step-review").click
@@ -114,12 +114,9 @@ class M4d1CruiseWorkspaceClosureSystemTest < ApplicationSystemTestCase
     assert_no_text "Advanced structure"
     assert_no_text "Blocked"
     assert_no_page_overflow_at_widths
-    select "Supplier confirmation", from: "Evidence kind"
-    fill_in_html_date "Evidence date", with: Date.current.iso8601
-    fill_in "Channel", with: "portal"
-    fill_in "Reference note", with: "Supplier approved the terms"
-    fill_in "Reason no Supplier identifier was issued", with: "Supplier did not issue one"
-    click_on "Activate Supplier terms"
+    select "Supplier confirmation", from: "Proof type"
+    check "The inventory and rates shown are the Supplier agreement being activated for this exact version."
+    click_on "Confirm and activate group"
     assert_text "became governing"
     assert_equal before_activation, client_snapshot(@offer)
 
@@ -175,7 +172,7 @@ class M4d1CruiseWorkspaceClosureSystemTest < ApplicationSystemTestCase
     assert_text "A proposed successor exists."
     assert_no_text "Supplemental O1 block"
     assert_no_text "Proposed · 4 cabins"
-    assert_no_button "Activate Supplier terms"
+    assert_no_button "Confirm and activate group"
   end
 
   private

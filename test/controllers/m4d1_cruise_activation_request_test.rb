@@ -68,10 +68,9 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-activation-status", text: "Ready to review"
     assert_match "No confirmation-triggered commitments will open.", response.body
     assert_match "No confirmation-triggered commitments are declared.", response.body
-    assert_select "input#confirmation_display_value[value='1119999']", count: 0
-    assert_select "input#confirmation_display_value"
-    assert_select "table", count: 0
-    assert_select "input[type=submit][value=?]", "Activate Supplier terms"
+    assert_select "input#supplier_reference[value='1119999']"
+    assert_select "table"
+    assert_select "input[type=submit][value=?]", "Confirm and activate group"
     assert_no_match "provisional_costs_acknowledged", response.body
     assert_no_match "I confirm the entered cost-source list is complete.", response.body
 
@@ -92,7 +91,7 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     assert_match "Version #{@version.version_number} became governing", response.body
     assert_match "Activated by Sam Carter", response.body
     assert_no_match "Supplier-issued identifier", response.body
-    assert_no_match "Activate Supplier terms", response.body
+    assert_no_match "Confirm and activate group", response.body
   end
 
   test "cruise agreement confirmation is not reused as supplier confirmation" do
@@ -132,7 +131,7 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-activation-status", text: "Requires Advanced"
     assert_match "The Supplier setup is ready", response.body
     assert_match "cannot safely represent the activation", response.body
-    assert_no_match "Activate Supplier terms", response.body
+    assert_no_match "Confirm and activate group", response.body
     assert_select "a[href=?]", departure_arrangement_activation_path(@departure, @arrangement), text: "Open Advanced Supplier planning"
 
     post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params
@@ -162,7 +161,7 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     assert_no_match "#cruise-rates", response.body
     assert_no_match "deposits-and-deadlines", response.body
     assert_no_match "What activation will do", response.body
-    assert_no_match "Activate Supplier terms", response.body
+    assert_no_match "Confirm and activate group", response.body
   end
 
   test "an unknown blocker links to advanced supplier planning" do
@@ -187,7 +186,7 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     assert_match "Add at least one Arrangement Item.", response.body
     assert_no_match "The Supplier setup is ready", response.body
     assert_select "a[href=?]", departure_arrangement_activation_path(@departure, @arrangement), text: "Open Advanced Supplier planning"
-    assert_no_match "Activate Supplier terms", response.body
+    assert_no_match "Confirm and activate group", response.body
   end
 
   test "a confirmed agreement stays complete while another blocker keeps review in needs attention" do
@@ -233,8 +232,8 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     get departure_arrangement_cruise_activation_path(@departure, @arrangement)
     assert_select "#cruise-activation-status", text: "Ready to review"
     assert_match "remains in effect until activation succeeds", response.body
-    assert_select "input[type=submit][value=?]", "Activate Supplier terms"
-    assert_select "input#confirmation_display_value[value='2228888']", count: 0
+    assert_select "input[type=submit][value=?]", "Confirm and activate group"
+    assert_select "input#supplier_reference[value='2228888']"
   end
 
   test "a viewer can read the review and cannot activate" do
@@ -242,7 +241,7 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     get departure_arrangement_cruise_activation_path(@departure, @arrangement)
     assert_response :success
     assert_select "#cruise-activation-status", text: "Ready to review"
-    assert_no_match "Activate Supplier terms", response.body
+    assert_no_match "Confirm and activate group", response.body
     assert_select "a[href=?]", departure_arrangement_cruise_cabin_categories_path(@departure, @arrangement), count: 0
 
     post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params
@@ -387,6 +386,51 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     assert @version.reload.draft?
   end
 
+  test "a direct post without the acknowledgement writes nothing" do
+    sign_in_as @staff
+    assert_no_difference [ "SupplierConfirmation.count", "AuditEvent.count" ] do
+      post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params(
+        terms_acknowledged: "0"
+      )
+    end
+    assert_response :unprocessable_entity
+    assert @version.reload.draft?
+  end
+
+  test "a cleared supplier reference survives a failed post" do
+    sign_in_as @staff
+    post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params(
+      supplier_reference: "",
+      version_lock_version: @version.lock_version.to_i + 5
+    )
+    assert_response :unprocessable_entity
+    assert_select "input#supplier_reference[value='1119999']", count: 0
+    assert_select "input#supplier_reference"
+  end
+
+  test "other proof without a description writes nothing" do
+    sign_in_as @staff
+    assert_no_difference "SupplierConfirmation.count" do
+      post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params(
+        confirmation: { evidence_kind: "other", other_evidence_label: "" }
+      )
+    end
+    assert_response :unprocessable_entity
+    assert @version.reload.draft?
+  end
+
+  test "a forged relaxed confirmation flag is rejected" do
+    sign_in_as @staff
+    assert_no_difference [ "SupplierConfirmation.count", "SupplierArrangementActivation.count" ] do
+      post departure_arrangement_cruise_activation_path(@departure, @arrangement), params: activation_params(
+        allow_relaxed_confirmation: "1"
+      )
+    end
+    assert_response :unprocessable_entity
+    assert_match "cannot be selected", response.body
+    assert @version.reload.draft?
+  end
+
   private
 
   def with_constructor(klass, replacement)
@@ -450,12 +494,12 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
       idempotency_key: SecureRandom.uuid,
       arrangement_lock_version: @arrangement.reload.lock_version,
       version_lock_version: @version.reload.lock_version,
+      terms_acknowledged: "1",
       confirmation: {
         evidence_kind: "supplier_confirmation",
         evidence_on: Date.current.to_s,
         channel: "portal",
-        reference_note: "Supplier approved the terms",
-        confirmed_without_identifier_reason: "Supplier did not issue one"
+        reference_note: "Supplier approved the terms"
       }
     }.deep_merge(overrides)
   end

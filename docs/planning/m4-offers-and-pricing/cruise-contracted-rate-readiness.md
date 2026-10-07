@@ -1,6 +1,6 @@
 # Cruise contracted-rate readiness
 
-**Status:** Shipped 2026-10-05. Authority for Cruise activation on a reviewed contracted rate while the forecast stays incomplete. Not authority for Hotel, Transportation, Activity, inventory-mode changes, unpriced on-request categories, evidence reuse, traveler-rate shapes, name suggestions, or opening-evidence navigation.
+**Status:** Shipped 2026-10-05. Authority for Cruise activation on a reviewed contracted rate while the forecast stays incomplete. Not authority for Hotel, Transportation, Activity, inventory-mode changes, unpriced on-request categories, evidence reuse, traveler-rate shapes, or name suggestions. [Cruise activation review](cruise-activation-review.md) may record this contract-review stamp and the numeric opening authority during activation.
 
 **Amends:** the activation row in [Cruise rework](m4d1-cruise-rework.md). The omission sentences in [Slice 2A.2](m4d1-slice2a2-cruise-supplier-rates-and-occupancy-totals.md) and [Slice 2A.2R](m4d1-slice2a2r-cruise-supplier-rate-matrix.md) no longer govern a new Cruise review.
 

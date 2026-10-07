@@ -170,7 +170,7 @@ class M4d1CruiseInventoryMaintenanceRequestTest < ActionDispatch::IntegrationTes
     assert_match "These Supplier terms currently govern.", response.body
     assert_match "View proposed Version #{successor.version_number}", response.body
     assert_no_match "Supplemental O1 block", response.body
-    assert_no_match "Activate Supplier terms", response.body
+    assert_no_match "Confirm and activate group", response.body
     assert_select "a", text: "Open deposits and deadlines", count: 0
     assert_select "a", text: "Edit", count: 0
     assert_select "a", text: "Add cabins under same Supplier terms", count: 1

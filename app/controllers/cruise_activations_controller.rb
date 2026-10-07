@@ -20,6 +20,11 @@ class CruiseActivationsController < ApplicationController
     @review = compile_review
     @idempotency_key = params[:idempotency_key]
     prepare_review_form
+    if forged_evidence_policy?
+      refuse_cruise_post("That confirmation evidence policy cannot be selected.")
+      return
+    end
+
     unless post_allowed?
       refuse_cruise_post("This Cruise review cannot activate these terms. Use Advanced Supplier planning.")
       return
@@ -31,7 +36,7 @@ class CruiseActivationsController < ApplicationController
       return
     end
 
-    result = ActivateSupplierArrangementVersion.new(
+    result = ConfirmAndActivateCruiseGroup.new(
       agency: Current.agency,
       actor: Current.agency_user,
       arrangement: @supplier_arrangement,
@@ -39,16 +44,16 @@ class CruiseActivationsController < ApplicationController
       arrangement_lock_version: params[:arrangement_lock_version],
       version_lock_version: params[:version_lock_version],
       idempotency_key: params[:idempotency_key],
-      existing_confirmation_id: params[:existing_confirmation_id],
-      evidence_attributes: confirmation_params,
-      identifier_attributes: identifier_params.presence,
-      cost_source_coverage_acknowledged: true,
-      provisional_costs_acknowledged: false,
-      commitment_trigger_coverage_acknowledged: true,
+      terms_acknowledged: params[:terms_acknowledged],
+      existing_confirmation_id: reuse_confirmation_id,
+      evidence_attributes: new_proof? ? confirmation_params : {},
+      supplier_reference: new_proof? ? params[:supplier_reference] : nil,
+      opening_overrides: opening_override_params,
       elapsed_deadlines_acknowledged: elapsed_acknowledged?,
       confirmed_quantities: keyed_commitment_params(:confirmed_quantities),
       confirmed_amounts_minor_units: keyed_commitment_params(:confirmed_amounts_minor_units),
-      duplicate_acknowledgement_token: params[:duplicate_acknowledgement_token]
+      duplicate_acknowledgement_token: params[:duplicate_acknowledgement_token],
+      forged_evidence_policy: forged_evidence_policy?
     ).call
     redirect_to departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement),
       notice: result.status == :replayed ? "Cruise supplier arrangement was already activated." : "Cruise supplier arrangement activated."
@@ -92,9 +97,31 @@ class CruiseActivationsController < ApplicationController
   end
 
   def post_allowed?
-    @review.cruise_post_allowed? &&
-      @review.cost_sources_completely_represented? &&
-      @review.triggers_completely_represented?
+    @review.activation_confirmable?
+  end
+
+  def forged_evidence_policy?
+    params.key?(:allow_relaxed_confirmation) || params.key?(:evidence_policy)
+  end
+
+  def new_proof?
+    return true if @existing_confirmations.blank?
+
+    params[:proof_choice] == "new"
+  end
+
+  def reuse_confirmation_id
+    return if new_proof?
+
+    params[:existing_confirmation_id]
+  end
+
+  def opening_override_params
+    raw = params[:opening_overrides]
+    return {} if raw.blank?
+    return raw.to_unsafe_h if raw.respond_to?(:to_unsafe_h)
+
+    raw.to_h
   end
 
   def prepare_review_form
@@ -168,17 +195,7 @@ class CruiseActivationsController < ApplicationController
 
   def confirmation_params
     params.fetch(:confirmation, ActionController::Parameters.new).permit(
-      :evidence_kind, :other_evidence_label, :evidence_on, :channel,
-      :reference_note, :confirmed_without_identifier_reason
+      :evidence_kind, :other_evidence_label, :evidence_on, :channel, :reference_note
     )
-  end
-
-  def identifier_params
-    raw = params.fetch(:identifier, ActionController::Parameters.new).permit(
-      :identifier_type, :other_type_label, :issuer_context, :display_value
-    )
-    return nil if raw.to_h.values.all?(&:blank?)
-
-    raw
   end
 end

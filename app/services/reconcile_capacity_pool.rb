@@ -18,7 +18,9 @@ class ReconcileCapacityPool < AgencyCommand
     observed_quantity = normalize_observed_capacity_quantity(@observed_quantity)
     observed_at = normalize_observed_at(@observed_at)
     submitted_recorded_at = @recorded_at
-    evidence_attrs = normalize_capacity_event_evidence_or_override(@attributes)
+    evidence_attrs = normalize_capacity_event_evidence_or_override(@attributes).except(
+      :evidence_on_origin, :evidence_reference_origin
+    )
 
     ActiveRecord::Base.transaction do
       lock_authorized_arrangement_agency!

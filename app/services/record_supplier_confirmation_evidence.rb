@@ -6,7 +6,8 @@ require "ostruct"
 # Activation and Hotel confirmation both use this construction.
 class RecordSupplierConfirmationEvidence < AgencyCommand
   def initialize(agency:, actor:, arrangement:, version:, recorded_at:,
-    evidence_attributes:, identifier_attributes: nil, duplicate_acknowledgement_token: nil)
+    evidence_attributes:, identifier_attributes: nil, duplicate_acknowledgement_token: nil,
+    evidence_policy: :strict)
     @agency = agency
     @actor = actor
     @arrangement = arrangement
@@ -16,6 +17,10 @@ class RecordSupplierConfirmationEvidence < AgencyCommand
     identifier_input = identifier_attributes&.to_h&.with_indifferent_access
     @identifier_attributes = identifier_input if identifier_input&.values&.any?(&:present?)
     @duplicate_acknowledgement_token = duplicate_acknowledgement_token
+    @evidence_policy = evidence_policy
+    return if %i[strict cruise_activation].include?(@evidence_policy)
+
+    raise ArgumentError, "Unknown confirmation evidence policy."
   end
 
   def call
@@ -50,16 +55,18 @@ class RecordSupplierConfirmationEvidence < AgencyCommand
       raise Error.new("Enter an other evidence label only for other evidence.", code: :invalid)
     end
     evidence_on = parse_date(@evidence_attributes[:evidence_on], "Evidence date")
-    channel = @evidence_attributes[:channel].to_s.strip
-    note = @evidence_attributes[:reference_note].to_s.strip
+    channel = @evidence_attributes[:channel].to_s.strip.presence
+    note = @evidence_attributes[:reference_note].to_s.strip.presence
     reason = @evidence_attributes[:confirmed_without_identifier_reason].to_s.strip.presence
-    if evidence_on.blank? || channel.blank? || note.blank?
-      raise Error.new("Enter complete Supplier confirmation evidence.", code: :invalid)
-    end
-    if @identifier_attributes.blank? && reason.blank?
-      raise Error.new(
-        "Enter a Supplier identifier or explain why this is confirmed without one.", code: :invalid
-      )
+    if @evidence_policy != :cruise_activation
+      if evidence_on.blank? || channel.blank? || note.blank?
+        raise Error.new("Enter complete Supplier confirmation evidence.", code: :invalid)
+      end
+      if @identifier_attributes.blank? && reason.blank?
+        raise Error.new(
+          "Enter a Supplier identifier or explain why this is confirmed without one.", code: :invalid
+        )
+      end
     end
     {
       evidence_kind: kind, other_evidence_label: other_label, evidence_on: evidence_on,

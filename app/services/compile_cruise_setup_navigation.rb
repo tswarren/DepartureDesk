@@ -58,7 +58,7 @@ class CompileCruiseSetupNavigation
     confirmation = version.supplier_arrangement_cruise_agreement_confirmations.find_by(current: true)
     statuses = {
       sailing: "Complete",
-      cabins: cabin_status(rows, codes),
+      cabins: cabin_status(rows, version),
       rates: rates_status(rows, codes),
       agreement: agreement_status(confirmation, codes),
       review: review_status(version, codes, review)
@@ -66,7 +66,7 @@ class CompileCruiseSetupNavigation
 
     Result.new(
       areas: AREAS.map { |key, label| Area.new(key: key, label: label, status: statuses.fetch(key)) },
-      attention_items: attention_items(review, rows, statuses[:rates], confirmation)
+      attention_items: attention_items(review, rows, statuses[:rates], confirmation, version)
     )
   end
 
@@ -86,21 +86,25 @@ class CompileCruiseSetupNavigation
     )
   end
 
-  def cabin_status(rows, codes)
+  def cabin_status(rows, version)
     return "Not started" if rows.empty?
-    return "Needs attention" if codes.include?(:opening_authority_incomplete)
+
+    definitions = version.capacity_pool_definitions.includes(:capacity_pool).to_a
+    return "Needs attention" if definitions.empty?
+    return "Needs attention" if definitions.any? { |definition|
+      definition.capacity_pool.numeric_inventory? && definition.proposed_opening_quantity.to_i <= 0
+    }
 
     "Complete"
   end
 
-  def rates_status(rows, codes)
+  def rates_status(rows, _codes)
     return "Advanced" if rows.any? && rows.all?(&:advanced_rates)
     return "Not started" if rows.empty? || rows.all? { |row| row.rate_posture == :missing }
 
-    scheduled = rows.any? { |row| row.rate_posture != :missing }
-    mixed = rows.any? { |row| SCHEDULED_ATTENTION_POSTURES.include?(row.rate_posture) }
-    return "Needs attention" if scheduled && (mixed || codes.include?(:cruise_contracted_rates_missing))
-    return "Complete" if rows.all? { |row| row.rate_posture == :contracted_ready } && rows.none?(&:advanced_rates)
+    incomplete = rows.any? { |row| %i[contracted_working working estimated missing].include?(row.rate_posture) }
+    return "Needs attention" if incomplete
+    return "Complete" if rows.all? { |row| %i[contracted_ready contracted_usable].include?(row.rate_posture) } && rows.none?(&:advanced_rates)
 
     "Needs attention"
   end
@@ -121,6 +125,7 @@ class CompileCruiseSetupNavigation
     if version&.activated? && version.id == @arrangement.governing_version_id
       return "Active"
     end
+    return "Ready to review" if review.activation_confirmable?
     if codes.any?
       return "Needs attention" if codes.any? { |code| RECOGNIZED_ATTENTION_CODES.include?(code) }
 
@@ -131,7 +136,7 @@ class CompileCruiseSetupNavigation
     "Requires Advanced"
   end
 
-  def attention_items(review, rows, rates_status, confirmation)
+  def attention_items(review, rows, rates_status, confirmation, version)
     estimate_only = rates_status == "Needs attention" && rows.none? { |row|
       SCHEDULED_ATTENTION_POSTURES.include?(row.rate_posture)
     }
@@ -139,6 +144,8 @@ class CompileCruiseSetupNavigation
     review.blockers.filter_map do |blocker|
       case blocker.code
       when :opening_authority_incomplete
+        next if positive_opening_quantity?(version, blocker)
+
         AttentionItem.new(
           code: blocker.code,
           message: blocker.message,
@@ -148,6 +155,7 @@ class CompileCruiseSetupNavigation
       when :cruise_contracted_rates_missing
         next unless rates_status == "Needs attention"
         next if estimate_only
+        next if reviewable_contracted_rate?(blocker, rows)
 
         row = rows.find { |candidate| candidate.resource_id == blocker.resource_id }
         AttentionItem.new(
@@ -183,5 +191,20 @@ class CompileCruiseSetupNavigation
         resource_id: nil
       )
     end
+  end
+
+  def positive_opening_quantity?(version, blocker)
+    return false if blocker.resource_id.blank?
+
+    version.capacity_pool_definitions.includes(:capacity_pool).any? { |definition|
+      definition.supplier_resource_id == blocker.resource_id &&
+        definition.capacity_pool.numeric_inventory? &&
+        definition.proposed_opening_quantity.to_i.positive?
+    }
+  end
+
+  def reviewable_contracted_rate?(blocker, rows)
+    row = rows.find { |candidate| candidate.resource_id == blocker.resource_id }
+    row && %i[contracted_usable contracted_ready].include?(row.rate_posture)
   end
 end

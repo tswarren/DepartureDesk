@@ -106,6 +106,11 @@ class CompileCruiseCabinInventoryWorkspace
     ).call
     review.blockers.filter_map do |blocker|
       next unless blocker.code == :opening_authority_incomplete
+      next if version.capacity_pool_definitions.includes(:capacity_pool).any? { |definition|
+        definition.supplier_resource_id == blocker.resource_id &&
+          definition.capacity_pool.numeric_inventory? &&
+          definition.proposed_opening_quantity.to_i.positive?
+      }
 
       AttentionItem.new(code: blocker.code, message: blocker.message, resource_id: blocker.resource_id)
     end

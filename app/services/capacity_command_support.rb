@@ -359,6 +359,8 @@ module CapacityCommandSupport
         evidence_on: nil,
         evidence_reference_note: nil,
         evidence_external_reference: nil,
+        evidence_on_origin: nil,
+        evidence_reference_origin: nil,
         override: true,
         override_reason: reason
       }
@@ -373,6 +375,10 @@ module CapacityCommandSupport
       evidence_on: parse_date(attrs[:evidence_on], "Evidence date"),
       evidence_reference_note: normalize_evidence_reference_note(attrs[:evidence_reference_note]),
       evidence_external_reference: normalize_evidence_external_reference(attrs[:evidence_external_reference]),
+      evidence_on_origin: normalize_evidence_origin(attrs[:evidence_on_origin], CapacityPoolDefinition::EVIDENCE_ON_ORIGINS),
+      evidence_reference_origin: normalize_evidence_origin(
+        attrs[:evidence_reference_origin], CapacityPoolDefinition::EVIDENCE_REFERENCE_ORIGINS
+      ),
       override: false,
       override_reason: nil
     }
@@ -385,11 +391,21 @@ module CapacityCommandSupport
       evidence_on: definition.evidence_on,
       evidence_reference_note: definition.evidence_reference_note,
       evidence_external_reference: definition.evidence_external_reference,
+      evidence_on_origin: definition.evidence_on_origin,
+      evidence_reference_origin: definition.evidence_reference_origin,
       override: definition.override?,
       override_reason: definition.override_reason
     } unless evidence_keys.any? { |key| attrs.key?(key) }
 
     normalize_evidence_or_override(attrs)
+  end
+
+  def normalize_evidence_origin(value, allowed)
+    origin = value.to_s.strip.presence
+    return nil if origin.blank?
+    return origin if allowed.include?(origin)
+
+    raise AgencyCommand::Error.new("Choose a valid evidence origin.", code: :invalid)
   end
 
   def normalize_evidence_kind(value)

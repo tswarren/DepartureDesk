@@ -201,7 +201,7 @@
               <td><%= event.effective_on.to_fs(:long) %> · sequence <%= event.effective_sequence %></td>
               <td><%= event.event_type.humanize %></td>
               <td><%= CapacityTimelineReplay::DIRECTIONS.fetch(event.event_type).sign.positive? ? "+" : "−" %><%= event.quantity %></td>
-              <td><%= event.override? ? "Administrator override: #{event.override_reason}" : "#{event.evidence_kind.humanize}: #{event.evidence_reference_note}" %></td>
+              <td><%= capacity_evidence_history_label(event) %></td>
               <td><%= event.actor.display_name %></td>
             </tr>
           <% end %>

@@ -34,7 +34,7 @@ module EffectiveCapacityAccess
       pool: @capacity_pool
     ).call
     @capacity_projection = @capacity_pool.reload.capacity_projection
-    @capacity_events = @capacity_pool.capacity_events
+    @capacity_events = @capacity_pool.capacity_events.includes(:supplier_confirmations)
       .includes(:actor, :reinstates_event, :corrects_event, :capacity_reconciliation)
       .order(effective_on: :desc, effective_sequence: :desc, recorded_at: :desc, id: :desc)
       .to_a
