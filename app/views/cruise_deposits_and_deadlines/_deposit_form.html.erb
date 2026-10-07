@@ -48,9 +48,9 @@ end %>
             CruiseDepositTemplateSupport.template_options,
             { include_blank: "Choose a template", selected: form[:template] },
             required: true,
-            class: "dd-input",
+            class: "dd-field",
             data: { cruise_deposit_editor_target: "template" } %>
-      <p class="dd-help">
+      <p class="dd-field-hint">
         Choose the kind of deposit required by the Supplier agreement.
       </p>
     </div>
@@ -74,7 +74,7 @@ end %>
       <%= f.text_field :description,
             value: description_value,
             maxlength: 500,
-            class: "dd-input",
+            class: "dd-field",
             data: {
               cruise_deposit_editor_target: "description",
               staff_authored: staff_authored,
@@ -91,7 +91,7 @@ end %>
               [ "Amount × quantity", "quantity_times_rate" ]
             ],
             { include_blank: "Choose amount", selected: form[:amount_shape] },
-            class: "dd-input",
+            class: "dd-field",
             data: {
               cruise_deposit_editor_target: "amountShape",
               action: "change->cruise-deposit-editor#schedulePreview"
@@ -104,7 +104,7 @@ end %>
                 form[:fixed_amount_minor_units].present? ?
                   Money.new(form[:fixed_amount_minor_units], @departure.operating_currency).amount : nil
               ),
-              class: "dd-input",
+              class: "dd-field",
               data: { cruise_deposit_editor_target: "fixedAmount" } %>
       </div>
 
@@ -115,7 +115,7 @@ end %>
                 form[:rate_minor_units].present? ?
                   Money.new(form[:rate_minor_units], @departure.operating_currency).amount : nil
               ),
-              class: "dd-input",
+              class: "dd-field",
               data: { cruise_deposit_editor_target: "rateAmount" } %>
       </div>
 
@@ -127,7 +127,7 @@ end %>
                 [ "Amount per explicit quantity", "explicit" ]
               ],
               { selected: form[:quantity_basis] || "capacity_pool_units" },
-              class: "dd-input",
+              class: "dd-field",
               data: {
                 cruise_deposit_editor_target: "quantityBasis",
                 action: "change->cruise-deposit-editor#schedulePreview"
@@ -139,7 +139,7 @@ end %>
         <%= f.number_field :explicit_quantity,
               value: form[:explicit_quantity],
               min: 1,
-              class: "dd-input",
+              class: "dd-field",
               data: { cruise_deposit_editor_target: "explicitQuantity" } %>
       </div>
     </fieldset>
@@ -154,7 +154,7 @@ end %>
               [ "Selected cabin Capacity Pools", "capacity_pool" ]
             ],
             { selected: form[:coverage_scope] || "arrangement" },
-            class: "dd-input",
+            class: "dd-field",
             data: { cruise_deposit_editor_target: "coverageScope" } %>
     </fieldset>
 
@@ -204,7 +204,7 @@ end %>
           </label>
         <% end %>
         <% if Array(@contributor_options).empty? %>
-          <p class="dd-help">Add the opening deposit for the initially blocked cabins. A later increase is recorded separately.</p>
+          <p class="dd-field-hint">Add the opening deposit for the initially blocked cabins. A later increase is recorded separately.</p>
         <% end %>
       </div>
     </fieldset>
@@ -224,25 +224,25 @@ end %>
             ],
             { include_blank: "Choose timing", selected: form[:rule_shape] },
             required: true,
-            class: "dd-input",
+            class: "dd-field",
             data: { cruise_deposit_editor_target: "ruleShape" } %>
 
       <div class="dd-field-group" data-cruise-deposit-editor-target="fixedDateGroup" hidden>
         <%= f.label :fixed_date, "Date", class: "dd-label" %>
-        <%= f.date_field :fixed_date, value: form[:fixed_date], class: "dd-input",
+        <%= f.date_field :fixed_date, value: form[:fixed_date], class: "dd-field",
               data: { cruise_deposit_editor_target: "fixedDate" } %>
       </div>
       <div class="dd-field-group" data-cruise-deposit-editor-target="fixedDatetimeGroup" hidden>
         <%= f.label :fixed_datetime, "Local date and time", class: "dd-label" %>
-        <%= f.datetime_local_field :fixed_datetime, value: form[:fixed_datetime], class: "dd-input" %>
+        <%= f.datetime_local_field :fixed_datetime, value: form[:fixed_datetime], class: "dd-field" %>
       </div>
       <div class="dd-field-group" data-cruise-deposit-editor-target="offsetDaysGroup" hidden>
         <%= f.label :offset_days, "Days", class: "dd-label" %>
-        <%= f.number_field :offset_days, value: form[:offset_days], min: 0, class: "dd-input" %>
+        <%= f.number_field :offset_days, value: form[:offset_days], min: 0, class: "dd-field" %>
       </div>
       <div class="dd-field-group" data-cruise-deposit-editor-target="offsetHoursGroup" hidden>
         <%= f.label :offset_hours, "Hours", class: "dd-label" %>
-        <%= f.number_field :offset_hours, value: form[:offset_hours], min: 0, class: "dd-input" %>
+        <%= f.number_field :offset_hours, value: form[:offset_hours], min: 0, class: "dd-field" %>
       </div>
 
       <div class="dd-stack" data-cruise-deposit-editor-target="compositeGroup" hidden>
@@ -251,15 +251,15 @@ end %>
           <%= f.select :arm1_rule_shape,
                 composite_arm_options,
                 { include_blank: "Choose arm", selected: form[:arm1_rule_shape] },
-                class: "dd-input",
+                class: "dd-field",
                 data: { cruise_deposit_editor_target: "arm1RuleShape" } %>
           <%= f.hidden_field :arm1_milestone_kind,
                 value: form[:arm1_milestone_kind].presence || CruiseDepositTemplateSupport::MILESTONE_KIND %>
           <div data-cruise-deposit-editor-target="arm1FixedDateGroup" hidden>
-            <%= f.date_field :arm1_fixed_date, value: form[:arm1_fixed_date], class: "dd-input" %>
+            <%= f.date_field :arm1_fixed_date, value: form[:arm1_fixed_date], class: "dd-field" %>
           </div>
           <div data-cruise-deposit-editor-target="arm1OffsetDaysGroup" hidden>
-            <%= f.number_field :arm1_offset_days, value: form[:arm1_offset_days], min: 0, class: "dd-input" %>
+            <%= f.number_field :arm1_offset_days, value: form[:arm1_offset_days], min: 0, class: "dd-field" %>
           </div>
         </fieldset>
         <fieldset class="dd-field-group" id="cruise-deposit-arm2">
@@ -267,15 +267,15 @@ end %>
           <%= f.select :arm2_rule_shape,
                 composite_arm_options,
                 { include_blank: "Choose arm", selected: form[:arm2_rule_shape] },
-                class: "dd-input",
+                class: "dd-field",
                 data: { cruise_deposit_editor_target: "arm2RuleShape" } %>
           <%= f.hidden_field :arm2_milestone_kind,
                 value: form[:arm2_milestone_kind].presence || CruiseDepositTemplateSupport::MILESTONE_KIND %>
           <div data-cruise-deposit-editor-target="arm2FixedDateGroup" hidden>
-            <%= f.date_field :arm2_fixed_date, value: form[:arm2_fixed_date], class: "dd-input" %>
+            <%= f.date_field :arm2_fixed_date, value: form[:arm2_fixed_date], class: "dd-field" %>
           </div>
           <div data-cruise-deposit-editor-target="arm2OffsetDaysGroup" hidden>
-            <%= f.number_field :arm2_offset_days, value: form[:arm2_offset_days], min: 0, class: "dd-input" %>
+            <%= f.number_field :arm2_offset_days, value: form[:arm2_offset_days], min: 0, class: "dd-field" %>
           </div>
         </fieldset>
       </div>

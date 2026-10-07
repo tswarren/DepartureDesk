@@ -445,6 +445,23 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
     assert_nil deposit.explicit_quantity
   end
 
+  test "a command error keeps submitted agreement values in the summary" do
+    sign_in_as @staff
+    post confirm_departure_arrangement_cruise_agreement_path(@departure, @arrangement), params: {
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      group_creation_date: "2026-09-01",
+      group_reference: "",
+      contract_date: "2026-09-02",
+      note: "Hold this note"
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "#form-error-summary", text: /Enter the group reference/
+    assert_select "textarea#agreement_note", text: "Hold this note"
+    assert_select "input#agreement_group_creation_date_confirm[value=?]", "2026-09-01"
+  end
+
   private
 
   def cancellation_bodies

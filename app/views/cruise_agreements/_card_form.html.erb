@@ -7,9 +7,9 @@
   <%= hidden_field_tag :term_scope, "card" %>
   <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
   <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
-  <div class="dd-field">
+  <div class="dd-field-group">
     <label class="dd-label" for="card_restrictions">Payment restrictions</label>
-    <%= text_area_tag :card_restrictions, body_value, id: "card_restrictions", class: "dd-input", rows: 5, maxlength: SupplierArrangementCruiseTermDefinition::BODY_LIMIT, required: true %>
+    <%= text_area_tag :card_restrictions, body_value, id: "card_restrictions", class: "dd-field", rows: 5, maxlength: SupplierArrangementCruiseTermDefinition::BODY_LIMIT, required: true %>
   </div>
   <div class="dd-form-actions">
     <%= submit_tag term ? "Save payment restrictions" : "Add payment restrictions", class: "dd-button" %>

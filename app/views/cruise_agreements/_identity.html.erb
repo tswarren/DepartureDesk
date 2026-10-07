@@ -36,30 +36,30 @@
             method: :post, class: "dd-stack", html: { id: "cruise-agreement-confirm" } do %>
         <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
         <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="agreement_group_creation_date_confirm">Group creation date</label>
           <%= date_field_tag :group_creation_date, params[:group_creation_date].presence || confirmation&.group_creation_date,
-                id: "agreement_group_creation_date_confirm", class: "dd-input", required: true %>
+                id: "agreement_group_creation_date_confirm", class: "dd-field", required: true %>
         </div>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="agreement_group_reference">Supplier group number</label>
           <%= text_field_tag :group_reference, params[:group_reference].presence || confirmation&.group_reference,
-                id: "agreement_group_reference", class: "dd-input", required: true %>
+                id: "agreement_group_reference", class: "dd-field", required: true %>
         </div>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="agreement_contract_date">Contract date</label>
           <%= date_field_tag :contract_date, params[:contract_date].presence || confirmation&.contract_date,
-                id: "agreement_contract_date", class: "dd-input", required: true %>
+                id: "agreement_contract_date", class: "dd-field", required: true %>
         </div>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="agreement_note">Note</label>
           <%= text_area_tag :note, params.key?(:note) ? params[:note] : confirmation&.note,
-                id: "agreement_note", class: "dd-input", rows: 4, maxlength: SupplierArrangementCruiseAgreementConfirmation::NOTE_LIMIT %>
+                id: "agreement_note", class: "dd-field", rows: 4, maxlength: SupplierArrangementCruiseAgreementConfirmation::NOTE_LIMIT %>
         </div>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="agreement_deposit_treatment">Deposit treatment for a supplemental block</label>
           <%= text_area_tag :deposit_treatment, params.key?(:deposit_treatment) ? params[:deposit_treatment] : confirmation&.deposit_treatment,
-                id: "agreement_deposit_treatment", class: "dd-input", rows: 3, maxlength: SupplierArrangementCruiseAgreementConfirmation::NOTE_LIMIT %>
+                id: "agreement_deposit_treatment", class: "dd-field", rows: 3, maxlength: SupplierArrangementCruiseAgreementConfirmation::NOTE_LIMIT %>
         </div>
         <div class="dd-form-actions">
           <% unless confirmed %>

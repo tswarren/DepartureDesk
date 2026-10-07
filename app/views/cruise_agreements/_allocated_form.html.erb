@@ -10,17 +10,17 @@
   <%= hidden_field_tag :term_scope, "allocated" %>
   <%= hidden_field_tag :version_lock_version, @supplier_arrangement_version.lock_version %>
   <%= hidden_field_tag :idempotency_key, SecureRandom.uuid %>
-  <div class="dd-field">
+  <div class="dd-field-group">
     <label class="dd-label" for="allocated_amount">Amount per allocated cabin (<%= currency %>)</label>
-    <%= text_field_tag :allocated_amount, amount_value, id: "allocated_amount", class: "dd-input", required: true %>
+    <%= text_field_tag :allocated_amount, amount_value, id: "allocated_amount", class: "dd-field", required: true %>
   </div>
-  <div class="dd-field">
+  <div class="dd-field-group">
     <label class="dd-label" for="allocated_credit">Attributable initial-deposit credit (<%= currency %>)</label>
-    <%= text_field_tag :allocated_credit, credit_value, id: "allocated_credit", class: "dd-input", required: true %>
+    <%= text_field_tag :allocated_credit, credit_value, id: "allocated_credit", class: "dd-field", required: true %>
   </div>
-  <div class="dd-field">
+  <div class="dd-field-group">
     <label class="dd-label" for="allocated_body">Policy details</label>
-    <%= text_area_tag :allocated_body, body_value, id: "allocated_body", class: "dd-input", rows: 5, maxlength: SupplierArrangementCruiseTermDefinition::BODY_LIMIT, required: true %>
+    <%= text_area_tag :allocated_body, body_value, id: "allocated_body", class: "dd-field", rows: 5, maxlength: SupplierArrangementCruiseTermDefinition::BODY_LIMIT, required: true %>
   </div>
   <div class="dd-form-actions">
     <%= submit_tag term ? "Save allocated cabin deposit" : "Add allocated cabin deposit", class: "dd-button" %>

@@ -156,7 +156,7 @@ Superseded as primary Staff chrome by Composition Slice 1. Retained for historic
 
 ## Forms and validation
 
-- Use `.dd-field` anatomy with a visible label, optional hint, control, and field-specific error.
+- Field anatomy is wrapper `.dd-field-group`, label `.dd-label`, control `.dd-field`, hint `.dd-field-hint`, and error `.dd-field-error`. `.dd-field` is the bordered control. A label sits outside that border.
 - Preserve submitted values after validation failure.
 - Invalid command forms render `#form-error-summary` with `role="alert"`, `tabindex="-1"`, Stimulus `form-error-summary` focusing the summary after render, the title “Please fix the following:”, and links to `#{param_key}_#{attribute}` that focus the associated field.
 - Focus the error summary or first invalid field according to the surface's established pattern.

@@ -23,19 +23,19 @@
         <%= hidden_field_tag :arrangement_lock_version, params[:arrangement_lock_version].presence || @supplier_arrangement.lock_version %>
         <%= hidden_field_tag :version_lock_version, params[:version_lock_version].presence || @governing_version.lock_version %>
         <%= hidden_field_tag :idempotency_key, @idempotency_key %>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="supplemental_category">Cabin category</label>
           <%= select_tag :supplier_resource_id,
                 options_for_select(@category_options, @selected_category_id),
-                id: "supplemental_category", class: "dd-input" %>
+                id: "supplemental_category", class: "dd-field" %>
         </div>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="supplemental_occupancy">Maximum occupancy</label>
-          <%= number_field_tag :maximum_occupancy, params[:maximum_occupancy], id: "supplemental_occupancy", class: "dd-input", min: 1 %>
+          <%= number_field_tag :maximum_occupancy, params[:maximum_occupancy], id: "supplemental_occupancy", class: "dd-field", min: 1 %>
         </div>
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="supplemental_quantity">Cabins proposed</label>
-          <%= number_field_tag :opening_quantity, params[:opening_quantity], id: "supplemental_quantity", class: "dd-input", min: 1 %>
+          <%= number_field_tag :opening_quantity, params[:opening_quantity], id: "supplemental_quantity", class: "dd-field", min: 1 %>
         </div>
         <%= button_tag "Propose changed terms", class: "dd-button" %>
       <% end %>

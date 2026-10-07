@@ -936,7 +936,7 @@ export default class extends Controller {
             </label>
             <div class="dd-cruise-rate-cell">
               <span aria-hidden="true">${this.escape(prefix)}</span>
-              <input type="text" class="dd-input" inputmode="decimal"
+              <input type="text" class="dd-field dd-field--numeric" inputmode="decimal"
                 id="cell_${this.escapeAttr(key.replace(/:/g, "_"))}"
                 name="cells[${this.escapeAttr(key)}]"
                 value="${this.escapeAttr(value)}"
@@ -993,11 +993,13 @@ export default class extends Controller {
             <label class="dd-visually-hidden" for="${this.escapeAttr(inputId)}">
               Commission rate · ${this.escape(this.profileLabel(profile))}
             </label>
-            <input type="text" class="dd-input" inputmode="decimal"
-              id="${this.escapeAttr(inputId)}"
-              value="${this.escapeAttr(this.state.commission.rates[profile.key] || "")}"
-              data-profile="${this.escapeAttr(profile.key)}"
-              data-action="input->cruise-rate-matrix#commissionRateInput">
+            <div class="dd-cruise-rate-cell">
+              <input type="text" class="dd-field dd-field--numeric" inputmode="decimal"
+                id="${this.escapeAttr(inputId)}"
+                value="${this.escapeAttr(this.state.commission.rates[profile.key] || "")}"
+                data-profile="${this.escapeAttr(profile.key)}"
+                data-action="input->cruise-rate-matrix#commissionRateInput">
+            </div>
           </td>
         `
       }).join("")
@@ -1019,7 +1021,7 @@ export default class extends Controller {
             </label>
             <div class="dd-cruise-rate-cell">
               <span aria-hidden="true">${this.escape(this.currencySymbolPrefix("supplier_charge"))}</span>
-              <input type="text" class="dd-input" inputmode="decimal"
+              <input type="text" class="dd-field dd-field--numeric" inputmode="decimal"
                 id="${this.escapeAttr(inputId)}"
                 value="${this.escapeAttr(this.state.commission.amounts[profile.key] || "")}"
                 data-profile="${this.escapeAttr(profile.key)}"
@@ -1091,31 +1093,35 @@ export default class extends Controller {
     if (this.hasCommissionRatesTarget) {
       this.commissionRatesTarget.hidden = this.state.commission.shared
       this.commissionRatesTarget.innerHTML = this.state.profiles.map((profile) => `
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="commission_rate_${this.escapeAttr(profile.key.replace(/:/g, "_"))}">
             ${this.escape(this.profileLabel(profile))}
           </label>
-          <input type="text" class="dd-input" inputmode="decimal"
-            id="commission_rate_${this.escapeAttr(profile.key.replace(/:/g, "_"))}"
-            value="${this.escapeAttr(this.state.commission.rates[profile.key] || "")}"
-            data-profile="${this.escapeAttr(profile.key)}"
-            data-action="input->cruise-rate-matrix#commissionRateInput"
-            ${this.state.commission.shared ? "disabled" : ""}>
+          <div class="dd-cruise-rate-cell">
+            <input type="text" class="dd-field dd-field--numeric" inputmode="decimal"
+              id="commission_rate_${this.escapeAttr(profile.key.replace(/:/g, "_"))}"
+              value="${this.escapeAttr(this.state.commission.rates[profile.key] || "")}"
+              data-profile="${this.escapeAttr(profile.key)}"
+              data-action="input->cruise-rate-matrix#commissionRateInput"
+              ${this.state.commission.shared ? "disabled" : ""}>
+          </div>
         </div>
       `).join("")
     }
 
     if (this.hasCommissionAmountsTarget) {
       this.commissionAmountsTarget.innerHTML = this.state.profiles.map((profile) => `
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="commission_amount_${this.escapeAttr(profile.key.replace(/:/g, "_"))}">
             ${this.escape(this.profileLabel(profile))}
           </label>
-          <input type="text" class="dd-input" inputmode="decimal"
-            id="commission_amount_${this.escapeAttr(profile.key.replace(/:/g, "_"))}"
-            value="${this.escapeAttr(this.state.commission.amounts[profile.key] || "")}"
-            data-profile="${this.escapeAttr(profile.key)}"
-            data-action="input->cruise-rate-matrix#commissionAmountInput">
+          <div class="dd-cruise-rate-cell">
+            <input type="text" class="dd-field dd-field--numeric" inputmode="decimal"
+              id="commission_amount_${this.escapeAttr(profile.key.replace(/:/g, "_"))}"
+              value="${this.escapeAttr(this.state.commission.amounts[profile.key] || "")}"
+              data-profile="${this.escapeAttr(profile.key)}"
+              data-action="input->cruise-rate-matrix#commissionAmountInput">
+          </div>
         </div>
       `).join("")
     }
@@ -1141,13 +1147,13 @@ export default class extends Controller {
     })
 
     if (populated.length === 0) {
-      this.commissionTreatmentsTarget.innerHTML = `<p class="dd-help">Populate rate cells to choose Include or Subtract treatments.</p>`
+      this.commissionTreatmentsTarget.innerHTML = `<p class="dd-field-hint">Populate rate cells to choose Include or Subtract treatments.</p>`
       return
     }
 
     this.commissionTreatmentsTarget.innerHTML = `
       <p class="dd-label">Which amounts affect the commissionable base?</p>
-      <p class="dd-help">Charges: check Include. Credits: check Subtract. Unchecked means Ignore.</p>
+      <p class="dd-field-hint">Charges: check Include. Credits: check Subtract. Unchecked means Ignore.</p>
       <div class="dd-table-wrap">
         <table class="dd-table">
           <thead>
@@ -1209,11 +1215,11 @@ export default class extends Controller {
     const categories = this.uniqueCategories()
     this.occupantEditorTarget.innerHTML = `
       <p class="dd-label">Anonymous occupants by position</p>
-      <p class="dd-help">Used only for live illustrations. Not a forecast occupancy plan.</p>
+      <p class="dd-field-hint">Used only for live illustrations. Not a forecast occupancy plan.</p>
       ${this.state.occupants.map((value, index) => `
-        <div class="dd-field">
+        <div class="dd-field-group">
           <label class="dd-label" for="occupant_pos_${index + 1}">Position ${index + 1}</label>
-          <select class="dd-input" id="occupant_pos_${index + 1}"
+          <select class="dd-field" id="occupant_pos_${index + 1}"
             data-position="${index + 1}"
             data-action="change->cruise-rate-matrix#occupantChanged">
             ${categories.map((category) => `

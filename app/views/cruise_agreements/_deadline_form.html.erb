@@ -33,15 +33,15 @@
   <% if coverage[:capacity_pool_id].present? %>
     <%= hidden_field_tag "cruise_deadline[capacity_pool_id]", coverage[:capacity_pool_id] %>
   <% end %>
-  <div class="dd-field">
+  <div class="dd-field-group">
     <label class="dd-label" for="deadline_date_<%= focus_key %>">Date</label>
-    <%= date_field_tag "cruise_deadline[fixed_date]", date_value, id: "deadline_date_#{focus_key}", class: "dd-input", required: true %>
+    <%= date_field_tag "cruise_deadline[fixed_date]", date_value, id: "deadline_date_#{focus_key}", class: "dd-field", required: true %>
   </div>
   <% if show_description %>
-    <div class="dd-field">
+    <div class="dd-field-group">
       <label class="dd-label" for="deadline_description_<%= focus_key %>">Required action</label>
-      <%= text_area_tag "cruise_deadline[description]", description_value, id: "deadline_description_#{focus_key}", class: "dd-input", rows: 4, maxlength: SupplierDeadlineDefinition::DESCRIPTION_LIMIT %>
-      <p class="dd-help">This sentence does not release inventory.</p>
+      <%= text_area_tag "cruise_deadline[description]", description_value, id: "deadline_description_#{focus_key}", class: "dd-field", rows: 4, maxlength: SupplierDeadlineDefinition::DESCRIPTION_LIMIT %>
+      <p class="dd-field-hint">This sentence does not release inventory.</p>
     </div>
   <% end %>
   <div class="dd-form-actions">

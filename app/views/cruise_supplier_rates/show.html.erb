@@ -113,6 +113,9 @@
         <% end %>
       <% end %>
       <% if @editable %>
+        <% if @form_error.present? %>
+          <p id="form-error-summary" role="alert" tabindex="-1" data-controller="form-error-summary"><%= @form_error %></p>
+        <% end %>
         <%= form_with url: departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
               method: (@rate_shape.empty? ? :post : :patch),
               class: "dd-stack",
@@ -139,24 +142,24 @@
             </label>
           <% end %>
 
-          <div class="dd-field">
+          <div class="dd-field-group">
             <label class="dd-label" for="stage">Terms stage</label>
             <% if @rate_shape.empty? %>
               <%= select_tag :stage,
                     options_for_select([ [ "Estimate", "estimate" ], [ "Contracted", "contracted" ] ], @form_stage),
-                    id: "stage", class: "dd-input" %>
+                    id: "stage", class: "dd-field" %>
             <% else %>
               <%= hidden_field_tag :stage, @form_stage %>
               <p id="stage" class="dd-help"><%= @form_stage.to_s.humanize %></p>
-              <p class="dd-help">This stage stays in place. Record contracted rates to add the other stage.</p>
+              <p class="dd-field-hint">This stage stays in place. Record contracted rates to add the other stage.</p>
             <% end %>
           </div>
 
           <fieldset class="dd-stack">
             <legend class="dd-label">How is expected commission stated?</legend>
-            <div class="dd-field">
+            <div class="dd-field-group">
               <label class="dd-label" for="commission_method">Commission method</label>
-              <select id="commission_method" class="dd-input"
+              <select id="commission_method" class="dd-field"
                       data-cruise-rate-matrix-target="commissionMethod"
                       data-action="change->cruise-rate-matrix#selectCommissionMethod">
                 <option value="not_provided" <%= "selected" if (commission[:method] || "not_provided") == "not_provided" %>>Not provided yet</option>
@@ -165,10 +168,10 @@
                 <option value="percentage" <%= "selected" if commission[:method].to_s == "percentage" %>>Percentage</option>
               </select>
             </div>
-            <p class="dd-help" data-cruise-rate-matrix-target="commissionNotProvided">
+            <p class="dd-field-hint" data-cruise-rate-matrix-target="commissionNotProvided">
               Expected commission stays not recorded until a method is chosen. It is not treated as $0.
             </p>
-            <p class="dd-help" data-cruise-rate-matrix-target="commissionNone" hidden>
+            <p class="dd-field-hint" data-cruise-rate-matrix-target="commissionNone" hidden>
               No expected commission is recorded. This is not $0, and it is not an unknown omission.
             </p>
           </fieldset>
@@ -194,9 +197,9 @@
 
               <div class="dd-cruise-rate-add-profile dd-stack" data-cruise-rate-matrix-target="profilePanel" hidden>
                 <input type="hidden" data-cruise-rate-matrix-target="editProfileIndex" value="">
-                <div class="dd-field">
+                <div class="dd-field-group">
                   <label class="dd-label" for="add_profile_family">Profile family</label>
-                  <select id="add_profile_family" class="dd-input"
+                  <select id="add_profile_family" class="dd-field"
                           data-cruise-rate-matrix-target="profileFamily"
                           data-action="change->cruise-rate-matrix#profileFamilyChanged">
                     <% family_options.each do |label, key| %>
@@ -204,21 +207,21 @@
                     <% end %>
                   </select>
                 </div>
-                <div class="dd-field" data-cruise-rate-matrix-target="profileCategoryField">
+                <div class="dd-field-group" data-cruise-rate-matrix-target="profileCategoryField">
                   <label class="dd-label" for="add_profile_category">Traveler category (optional)</label>
-                  <input type="text" id="add_profile_category" class="dd-input"
+                  <input type="text" id="add_profile_category" class="dd-field"
                          data-cruise-rate-matrix-target="profileCategory"
                          placeholder="Adult, Child, …">
                 </div>
                 <div class="dd-cruise-rate-bounded-fields" data-cruise-rate-matrix-target="profileBoundedFields" hidden>
-                  <div class="dd-field">
+                  <div class="dd-field-group">
                     <label class="dd-label" for="add_profile_from">Starting position</label>
-                    <input type="number" id="add_profile_from" class="dd-input" min="1"
+                    <input type="number" id="add_profile_from" class="dd-field" min="1"
                            data-cruise-rate-matrix-target="profileFrom" value="1">
                   </div>
-                  <div class="dd-field">
+                  <div class="dd-field-group">
                     <label class="dd-label" for="add_profile_to">Ending position (optional)</label>
-                    <input type="number" id="add_profile_to" class="dd-input" min="1"
+                    <input type="number" id="add_profile_to" class="dd-field" min="1"
                            data-cruise-rate-matrix-target="profileTo" placeholder="Open-ended">
                   </div>
                 </div>
@@ -256,7 +259,7 @@
               <div class="dd-cruise-rate-narrow-controls">
                 <button type="button" class="dd-button dd-button-secondary"
                         data-action="cruise-rate-matrix#previousProfile">Previous profile</button>
-                <select id="cruise_rate_profile_select" class="dd-input"
+                <select id="cruise_rate_profile_select" class="dd-field"
                         data-cruise-rate-matrix-target="narrowSelect"
                         data-action="change->cruise-rate-matrix#selectProfile">
                 </select>
@@ -272,7 +275,7 @@
                 <tbody data-cruise-rate-matrix-target="matrixBody"></tbody>
               </table>
             </div>
-            <p class="dd-help">Blank means pending. Enter 0.00 when the Supplier has confirmed a zero amount.</p>
+            <p class="dd-field-hint">Blank means pending. Enter 0.00 when the Supplier has confirmed a zero amount.</p>
 
             <div class="dd-actions">
               <button type="button" class="dd-button dd-button-secondary"
@@ -282,14 +285,14 @@
             </div>
             <div class="dd-stack" data-cruise-rate-matrix-target="componentPanel" hidden>
               <input type="hidden" data-cruise-rate-matrix-target="editRowKey" value="">
-              <div class="dd-field">
+              <div class="dd-field-group">
                 <label class="dd-label" for="component_label">Component description</label>
-                <input type="text" id="component_label" class="dd-input"
+                <input type="text" id="component_label" class="dd-field"
                        data-cruise-rate-matrix-target="componentLabel">
               </div>
-              <div class="dd-field">
+              <div class="dd-field-group">
                 <label class="dd-label" for="component_role">Component kind</label>
-                <select id="component_role" class="dd-input"
+                <select id="component_role" class="dd-field"
                         data-cruise-rate-matrix-target="componentRole">
                   <option value="supplier_charge">Supplier charge</option>
                   <option value="supplier_credit">Supplier credit</option>
@@ -362,9 +365,9 @@
 
           <div data-cruise-rate-matrix-target="formFields" class="dd-visually-hidden" aria-hidden="true"></div>
 
-          <div class="dd-field">
+          <div class="dd-field-group">
             <label class="dd-label" for="notes">Notes</label>
-            <%= text_area_tag :notes, @form_notes, id: "notes", class: "dd-input", rows: 2 %>
+            <%= text_area_tag :notes, @form_notes, id: "notes", class: "dd-field", rows: 2 %>
           </div>
 
           <div class="dd-actions">
@@ -407,12 +410,12 @@
               <%= hidden_field_tag :assumption_lock_version, @assumption.lock_version %>
             <% end %>
             <% CruiseSupplierRateSupport.occupancy_keys_for_maximum(@resource_definition.maximum_occupancy).each do |key| %>
-              <div class="dd-field">
+              <div class="dd-field-group">
                 <label class="dd-label" for="expected_<%= key %>">
                   <%= CruiseSupplierRateSupport::OCCUPANCY_PROFILE_SPECS.fetch(key).fetch(:label) %> expected cabins
                 </label>
                 <%= number_field_tag "expected_cabins[#{key}]", @form_occupancy[key] || @form_occupancy[key.to_s],
-                      id: "expected_#{key}", class: "dd-input", min: 1 %>
+                      id: "expected_#{key}", class: "dd-field", min: 1 %>
               </div>
             <% end %>
             <div class="dd-actions">
@@ -438,9 +441,9 @@
             <%= form_with url: contract_review_departure_arrangement_cruise_cabin_category_supplier_rates_path(@departure, @supplier_arrangement, @supplier_resource),
                   method: :post, class: "dd-stack", html: { id: "cruise-rate-contract-review" } do %>
               <%= hidden_field_tag :definition_lock_version, @rate_shape.definition.lock_version %>
-              <div class="dd-field">
+              <div class="dd-field-group">
                 <label class="dd-label" for="contract_review_provenance">Contract review note</label>
-                <%= text_field_tag :contract_review_provenance, nil, id: "contract_review_provenance", class: "dd-input" %>
+                <%= text_field_tag :contract_review_provenance, nil, id: "contract_review_provenance", class: "dd-field" %>
               </div>
               <div class="dd-actions">
                 <%= submit_tag "Review contracted terms", class: "dd-button dd-button-primary" %>
@@ -464,9 +467,9 @@
                 method: :post, class: "dd-stack", html: { id: "cruise-rate-forecast-ready" } do %>
             <%= hidden_field_tag :definition_lock_version, @rate_shape.definition.lock_version %>
             <%= hidden_field_tag :stage, @form_stage %>
-            <div class="dd-field">
+            <div class="dd-field-group">
               <label class="dd-label" for="readiness_provenance">Readiness provenance</label>
-              <%= text_field_tag :readiness_provenance, nil, id: "readiness_provenance", class: "dd-input" %>
+              <%= text_field_tag :readiness_provenance, nil, id: "readiness_provenance", class: "dd-field" %>
             </div>
             <div class="dd-actions">
               <%= submit_tag "Mark terms forecast-ready", class: "dd-button dd-button-primary" %>

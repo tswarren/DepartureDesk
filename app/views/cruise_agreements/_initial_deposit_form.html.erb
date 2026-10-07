@@ -27,13 +27,13 @@
   <% Array(pool_ids).each do |pool_id| %>
     <%= hidden_field_tag "cruise_deposit[capacity_pool_ids][]", pool_id, id: nil %>
   <% end %>
-  <div class="dd-field">
+  <div class="dd-field-group">
     <label class="dd-label" for="initial_deposit_rate">Amount per opening cabin (<%= currency %>)</label>
-    <%= text_field_tag "cruise_deposit[rate_amount]", rate_value, id: "initial_deposit_rate", class: "dd-input", required: true %>
+    <%= text_field_tag "cruise_deposit[rate_amount]", rate_value, id: "initial_deposit_rate", class: "dd-field", required: true %>
   </div>
-  <div class="dd-field">
+  <div class="dd-field-group">
     <label class="dd-label" for="initial_deposit_due">Due date</label>
-    <%= date_field_tag "cruise_deposit[fixed_date]", date_value, id: "initial_deposit_due", class: "dd-input", required: true %>
+    <%= date_field_tag "cruise_deposit[fixed_date]", date_value, id: "initial_deposit_due", class: "dd-field", required: true %>
   </div>
   <div class="dd-form-actions">
     <%= submit_tag definition ? "Save Initial Deposit" : "Add Initial Deposit", class: "dd-button" %>

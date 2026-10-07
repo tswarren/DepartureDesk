@@ -129,9 +129,9 @@
               <%= label_tag :occurred_on, "Names assigned to Supplier on", class: "dd-label" %>
               <%= date_field_tag :occurred_on, milestone_local_today,
                     required: true,
-                    class: "dd-input" %>
+                    class: "dd-field" %>
               <%= label_tag :note, "Note (optional)", class: "dd-label" %>
-              <%= text_field_tag :note, nil, class: "dd-input", maxlength: 2000 %>
+              <%= text_field_tag :note, nil, class: "dd-field", maxlength: 2000 %>
             </div>
             <%= submit_tag "Record names assigned to Supplier", class: "dd-button" %>
           <% end %>
