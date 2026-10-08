@@ -82,11 +82,11 @@ Present category name and code, maximum occupancy, currency, stage, contract rev
 
 Leave `rate_status_label` and the `"Needs review"` attention filter unchanged. Do not restyle `cruise_supplier_rate_summaries/show.html.erb` in this slice.
 
-On an editable draft, keep the Stimulus matrix as the entry surface, including Commissionable and Include / Subtract / Ignore. A static matrix is the read-only presentation of a saved compatible shape. Include all stored profiles and custom components, and preserve charge and credit meaning. Derive any read-only Commissionable indicator from the saved shape. Do not reconstruct commission from illustration totals. Do not add a second persisted summary.
+On an editable draft, keep the Stimulus matrix as the entry surface, including Commissionable and Include / Subtract / Ignore. A static matrix is the read-only presentation of a saved compatible shape. Include all stored profiles and custom components, and preserve charge and credit meaning. Show the saved percentage, including a percentage for each profile when they differ, and a read-only treatment table of Include, Subtract, and Ignore derived from the saved cells. Do not reconstruct commission from illustration totals. Do not add a second persisted summary.
 
 If the existing projection cannot represent a stored shape without loss, retain the advanced explanation and link. Do not omit components to force a table.
 
-Convert per-cabin illustrations to a table: occupancy, gross Supplier cost, expected commission, and net Supplier cost. Reuse the existing calculation and state helpers. Keep illustrations distinct from an expected sales mix or a payable invoice total.
+Convert per-cabin illustrations to a table: occupancy, gross Supplier cost, expected commission, and net Supplier cost. Reuse the existing calculation and state helpers. A known gross with commission not recorded shows **Pending—commission not recorded** for the net. A missing gross shows **Pending — rate amounts are incomplete**. The expected-commission column stays **Not recorded** when that fact was not entered. Keep illustrations distinct from an expected sales mix or a payable invoice total.
 
 Put forecast explanation and existing forecast content in an optional disclosure. Keep the existing forecast actions available on editable drafts. A forecast finding that blocks the requested action stays outside the disclosure.
 

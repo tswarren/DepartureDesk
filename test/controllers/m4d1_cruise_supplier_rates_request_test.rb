@@ -30,6 +30,7 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-supplier-rate-terms"
     assert_select "a[href=?]", departure_arrangement_cruise_supplier_rates_path(@departure, @arrangement), text: "Supplier rates"
     assert_select "#cruise-rate-stage-status", text: /Not recorded/
+    assert_match "Pending — rate amounts are incomplete", response.body
     assert_select "#commission_method option", count: 4
     assert_select "#commission_method option", text: "Not provided yet"
     assert_select "#commission_method option", text: "No commission expected"
@@ -63,6 +64,11 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     body = JSON.parse(response.body)
     assert body["illustrations"].is_a?(Array)
     assert body["illustrations"].any?
+    assert body["illustrations"].any? { |row| row["net"] == "Pending—commission not recorded" }
+    assert body["illustrations"].all? { |row|
+      expected = row["gross"].present? ? "Pending—commission not recorded" : "Pending — rate amounts are incomplete"
+      row["net"] == expected
+    }
 
     post departure_arrangement_cruise_cabin_category_supplier_rates_path(
       @departure, @arrangement, @resource
@@ -90,6 +96,7 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match(/\$3,862\.00|386200/, response.body)
     assert_match(/Expected commission is not recorded/, response.body)
+    assert_match "Pending—commission not recorded", response.body
     assert_no_match(/\$0\.00/, response.body)
   end
 
@@ -462,12 +469,18 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "#cruise-supplier-rate-terms", count: 0
     assert_select "#saved-supplier-rates-heading", text: "Saved Supplier rates"
+    assert_select "#saved-commission-percentage", text: "15%"
     assert_select "table" do
       assert_select "th", text: "Base Fare"
       assert_select "td", text: "Supplier charge"
-      assert_select "td", text: "Commissionable"
       assert_select "td", text: "$2,533.00"
       assert_select "td", text: "Supplier credit"
+    end
+    assert_select "th", text: "Commissionable", count: 0
+    assert_select "#saved-commission-treatments" do
+      assert_select "td", text: "Include"
+      assert_select "td", text: "Subtract"
+      assert_select "td", text: "Ignore"
     end
     assert_select "#rate-illustrations-heading", text: "Per-cabin illustrations"
     assert_select "th", text: "Occupancy"
@@ -479,6 +492,77 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-rate-stage-status", text: /Forecast readiness not recorded|Expected cabin counts are not recorded/
     assert_select "summary", text: "Occupancy planning"
     assert_select "button", text: "Mark terms forecast-ready", count: 0
+  end
+
+  test "an activated profile-specific percentage shows each rate and treatment" do
+    sign_in_as @staff
+    post departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: {
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      stage: "estimate",
+      profiles: {
+        "0" => { family: "first_second", key: "first_second" },
+        "1" => { family: "additional", key: "additional" }
+      },
+      cells: {
+        "base_fare:first_second" => "1000.00",
+        "base_fare:additional" => "400.00",
+        "discount:first_second" => "100.00",
+        "nccf:first_second" => "50.00"
+      },
+      commission: {
+        method: "percentage",
+        shared: "0",
+        rates: { "first_second" => "10", "additional" => "5" },
+        add_cells: %w[base_fare:first_second base_fare:additional],
+        subtract_cells: %w[discount:first_second]
+      }
+    }
+    assert_response :redirect
+    SupplierArrangementVersion.where(id: @version.id).update_all(
+      status: "activated",
+      activated_at: Time.current
+    )
+    @arrangement.update_columns(governing_version_id: @version.id)
+
+    get departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    )
+    assert_response :success
+    assert_select "#saved-commission-percentages" do
+      assert_select "dt", text: "First/Second"
+      assert_select "dd", text: "10%"
+      assert_select "dt", text: "Additional"
+      assert_select "dd", text: "5%"
+    end
+    assert_select "#saved-commission-percentage", count: 0
+    rows = css_select("#saved-commission-treatments tbody tr").map { |row| row.text.squish }
+    assert_includes rows, "Base Fare First/Second Include"
+    assert_includes rows, "Base Fare Additional Include"
+    assert_includes rows, "Discount First/Second Subtract"
+    assert_includes rows, "NCCF First/Second Ignore"
+  end
+
+  test "a preview with no rate amounts reports an incomplete net" do
+    sign_in_as @staff
+    post preview_departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: {
+      version_lock_version: @version.lock_version,
+      stage: "estimate",
+      profiles: {
+        "0" => { family: "first_second", key: "first_second" }
+      },
+      cells: {},
+      commission: { method: "not_provided" }
+    }, headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert body.fetch("illustrations").any?
+    assert body.fetch("illustrations").all? { |row| row["net"] == "Pending — rate amounts are incomplete" }
   end
 
   private

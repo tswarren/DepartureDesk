@@ -1519,7 +1519,7 @@ export default class extends Controller {
                 <td>${this.escape(row.label)}</td>
                 <td class="num">${this.escape(row.gross || "Not recorded")}</td>
                 <td class="num">${this.escape(this.illustrationCommission(row))}</td>
-                <td class="num">${this.escape(row.net || "Not recorded")}</td>
+                <td class="num">${this.escape(row.net || "Pending — rate amounts are incomplete")}</td>
               </tr>
             `).join("")}
           </tbody>

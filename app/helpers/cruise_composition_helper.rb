@@ -640,13 +640,54 @@ module CruiseCompositionHelper
     economic_role.to_s == "supplier_credit" ? "Supplier credit" : "Supplier charge"
   end
 
-  def cruise_saved_row_commissionable?(row_key)
-    commission = (@form_commission || {}).with_indifferent_access
-    return false unless commission[:method].to_s == "percentage"
+  def cruise_saved_shared_percentage?
+    commission = cruise_saved_commission
+    commission[:method].to_s == "percentage" &&
+      commission[:shared] != false &&
+      commission[:shared].to_s != "0" &&
+      commission[:percentage].present?
+  end
 
-    (Array(commission[:add_cells]) + Array(commission[:subtract_cells])).any? { |key|
-      key.to_s.start_with?("#{row_key}:")
-    }
+  def cruise_saved_profile_percentages
+    commission = cruise_saved_commission
+    rates = (commission[:rates].presence || commission[:percentages] || {}).to_h
+    rates = rates.transform_keys(&:to_s)
+    cruise_saved_rate_profiles.map do |profile|
+      key = profile[:key].to_s
+      {
+        label: CruiseSupplierRateSupport.profile_display_label(key),
+        percentage: rates[key].presence
+      }
+    end
+  end
+
+  def cruise_saved_commission_treatments
+    commission = cruise_saved_commission
+    add_cells = Array(commission[:add_cells]).map(&:to_s)
+    subtract_cells = Array(commission[:subtract_cells]).map(&:to_s)
+    cruise_saved_rate_rows.flat_map do |row|
+      cruise_saved_rate_profiles.filter_map do |profile|
+        cell_key = "#{row[:key]}:#{profile[:key]}"
+        next if (@form_cells || {})[cell_key].blank?
+
+        treatment = if add_cells.include?(cell_key)
+          "Include"
+        elsif subtract_cells.include?(cell_key)
+          "Subtract"
+        else
+          "Ignore"
+        end
+        {
+          component: row[:label],
+          profile: CruiseSupplierRateSupport.profile_display_label(profile[:key]),
+          treatment: treatment
+        }
+      end
+    end
+  end
+
+  def cruise_saved_commission
+    (@form_commission || {}).with_indifferent_access
   end
 
   def cruise_saved_commission_fact
@@ -660,9 +701,13 @@ module CruiseCompositionHelper
   end
 
   def cruise_rate_illustration_net(row, currency)
-    return "Not recorded" unless row.net_state == "shown" && row.net_minor_units
-
-    Money.new(row.net_minor_units, currency).format
+    if row.net_state.to_s == "shown" && !row.net_minor_units.nil?
+      Money.new(row.net_minor_units, currency).format
+    elsif !row.gross_minor_units.nil? && row.commission_state.to_s == "pending"
+      "Pending—commission not recorded"
+    else
+      "Pending — rate amounts are incomplete"
+    end
   end
 
   def cruise_cabin_evidence_status(row, workspace)
