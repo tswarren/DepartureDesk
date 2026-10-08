@@ -2632,6 +2632,21 @@
       display: block;
     }
 
+    .dd-cruise-rate-matrix .dd-table {
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    .dd-cruise-rate-matrix .dd-table th,
+    .dd-cruise-rate-matrix .dd-table td {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .dd-cruise-rate-matrix .dd-cruise-rate-cell .dd-field--numeric {
+      min-width: 0;
+    }
+
     .dd-cruise-rate-matrix th[data-profile-column].is-inactive-profile,
     .dd-cruise-rate-matrix td[data-profile-column].is-inactive-profile {
       display: none;
