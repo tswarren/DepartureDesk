@@ -16,7 +16,9 @@
             <% navigation.attention_items.each do |item| %>
               <li>
                 <%= item.message %>
-                <%= link_to "Open", cruise_setup_attention_path(item, @supplier_arrangement_version), class: "dd-link" %>
+                <%= link_to cruise_setup_attention_label(item),
+                      cruise_setup_attention_path(item, @supplier_arrangement_version),
+                      class: "dd-link" %>
               </li>
             <% end %>
           </ul>
@@ -28,21 +30,7 @@
       <section id="cruise-sailing" class="dd-panel" aria-labelledby="cruise-sailing-heading">
         <div class="dd-panel-body dd-stack">
           <h2 id="cruise-sailing-heading" class="dd-section-title">Sailing</h2>
-          <p>
-            <%= @shape.summary["ship_name"] %>
-            · <%= @shape.summary["sailing_name"] %>
-            · <%= cruise_sailing_date_range(@shape.occurrence_definition) %>
-            · <%= @shape.summary["time_zone"] %>
-          </p>
-          <% if @shape.summary["departure_port_name"].present? %>
-            <p>Departs <%= @shape.summary["departure_port_name"] %></p>
-          <% end %>
-          <% if @shape.summary["return_port_name"].present? %>
-            <p>Returns <%= @shape.summary["return_port_name"] %></p>
-          <% end %>
-          <% if @shape.summary["itinerary_notes"].present? %>
-            <p>Itinerary notes: <%= @shape.summary["itinerary_notes"] %></p>
-          <% end %>
+          <%= render "cruise_arrangements/sailing_facts", shape: @shape %>
           <% if @editable %>
             <%= link_to "Edit sailing", edit_departure_arrangement_cruise_sailing_path(@departure, @supplier_arrangement), class: "dd-button dd-button--quiet" %>
           <% end %>
@@ -92,14 +80,21 @@
       <div class="dd-panel-body dd-stack">
         <h2 id="cruise-client-heading" class="dd-section-title">Client service</h2>
         <% if @connection_workspace %>
-          <p><%= cruise_connection_status_label(@connection_workspace.status) %></p>
+          <% client_title = if @connection_workspace.definition && @connection_workspace.status.in?([ :connected, :decide_later ])
+               @connection_workspace.definition.client_title
+             end %>
+          <dl class="dd-fact-grid">
+            <div>
+              <dt>Connection</dt>
+              <dd><%= cruise_connection_status_label(@connection_workspace.status) %></dd>
+            </div>
+            <div>
+              <dt>Client title</dt>
+              <dd><%= cruise_recorded_fact(client_title) %></dd>
+            </div>
+          </dl>
           <% if @connection_workspace.status == :connected && @supplier_arrangement_version&.draft? && @supplier_arrangement_version.copied_from_id.present? %>
             <p>Supplier inventory has changed. Client offering has not been changed automatically. This draft is not available to Clients.</p>
-          <% end %>
-          <% if @connection_workspace.status == :connected && @connection_workspace.definition %>
-            <p><%= @connection_workspace.definition.client_title %></p>
-          <% elsif @connection_workspace.status == :decide_later && @connection_workspace.definition %>
-            <p><%= @connection_workspace.definition.client_title %></p>
           <% end %>
           <p>
             <%= link_to "Open client service",

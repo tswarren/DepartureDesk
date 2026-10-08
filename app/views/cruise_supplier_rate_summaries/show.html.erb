@@ -14,11 +14,11 @@
               <li>
                 <%= item.message %>
                 <% if item.advanced? && @item %>
-                  <%= link_to "Open",
+                  <%= link_to "Open Advanced Supplier planning",
                         departure_arrangement_item_costs_workspace_path(@departure, @supplier_arrangement, @item),
                         class: "dd-link" %>
                 <% elsif item.resource_id.present? %>
-                  <%= link_to "Open",
+                  <%= link_to "Open Supplier rates",
                         cruise_supplier_rate_editor_path(item.resource_id, stage: item.stage),
                         class: "dd-link" %>
                 <% end %>
@@ -28,18 +28,19 @@
         </section>
       <% end %>
       <% if @workspace.rows.any? %>
-        <p class="dd-field-hint">Illustrative cabin totals</p>
         <div class="dd-table-wrap">
           <table class="dd-table dd-rates-table" id="cruise-supplier-rates-table">
+            <caption>Gross Supplier cost illustrations. These amounts are not an expected sales mix.</caption>
             <thead>
               <tr>
                 <th scope="col">Code</th>
                 <th scope="col">Cabin category</th>
                 <th scope="col">Stage</th>
-                <th scope="col">Status</th>
-                <th scope="col">Single</th>
-                <th scope="col">Double</th>
-                <th scope="col">Triple</th>
+                <th scope="col">Contract review</th>
+                <th scope="col">Forecast readiness</th>
+                <th scope="col" class="num">Single</th>
+                <th scope="col" class="num">Double</th>
+                <th scope="col" class="num">Triple</th>
                 <th scope="col">Commission</th>
               </tr>
             </thead>
@@ -67,11 +68,15 @@
                     <%= row.stage_label %>
                   </td>
                   <td>
-                    <span class="dd-visually-hidden dd-cabin-field-label">Status</span>
-                    <%= row.status_label %>
+                    <span class="dd-visually-hidden dd-cabin-field-label">Contract review</span>
+                    <%= row.contract_review_label %>
+                  </td>
+                  <td>
+                    <span class="dd-visually-hidden dd-cabin-field-label">Forecast readiness</span>
+                    <%= row.forecast_readiness_label %>
                   </td>
                   <% [ [ "Single", row.single ], [ "Double", row.double ], [ "Triple", row.triple ] ].each do |label, illustration| %>
-                    <td>
+                    <td class="num">
                       <span class="dd-visually-hidden dd-cabin-field-label"><%= label %></span>
                       <%= cruise_supplier_rate_scenario_amount(row, illustration) %>
                     </td>

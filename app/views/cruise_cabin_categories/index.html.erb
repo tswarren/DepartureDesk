@@ -25,7 +25,7 @@
                 <li>
                   <%= item.message %>
                   <% if item.resource_id.present? && @editable %>
-                    <%= link_to "Open",
+                    <%= link_to "Open Cabin inventory",
                           edit_departure_arrangement_cruise_cabin_category_path(@departure, @supplier_arrangement, item.resource_id),
                           class: "dd-link" %>
                   <% end %>
@@ -43,7 +43,8 @@
                   <th scope="col">Cabin category</th>
                   <th scope="col">Max occupancy</th>
                   <th scope="col">Inventory</th>
-                  <th scope="col">Quantity</th>
+                  <th scope="col">Opening quantity</th>
+                  <th scope="col">Current projected capacity</th>
                   <th scope="col">Rates</th>
                   <th scope="col">Opening authority</th>
                 </tr>
@@ -74,14 +75,12 @@
                       <%= row.inventory_label %>
                     </td>
                     <td>
-                      <span class="dd-visually-hidden dd-cabin-field-label">Quantity</span>
-                      <%= cruise_cabin_inventory_quantity(row, @workspace) %>
-                      <% if row.current_capacity_label.present? %>
-                        <span class="dd-field-hint"><%= row.current_capacity_label %></span>
-                      <% end %>
-                      <% if row.opening_quantity_label.present? %>
-                        <span class="dd-field-hint"><%= row.opening_quantity_label %></span>
-                      <% end %>
+                      <span class="dd-visually-hidden dd-cabin-field-label">Opening quantity</span>
+                      <%= cruise_cabin_opening_quantity(row, @workspace) %>
+                    </td>
+                    <td>
+                      <span class="dd-visually-hidden dd-cabin-field-label">Current projected capacity</span>
+                      <%= cruise_cabin_current_capacity(row, @workspace) %>
                     </td>
                     <td>
                       <span class="dd-visually-hidden dd-cabin-field-label">Rates</span>

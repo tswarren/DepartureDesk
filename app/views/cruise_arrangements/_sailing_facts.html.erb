@@ -1,0 +1,30 @@
+<dl class="dd-fact-grid">
+  <div>
+    <dt>Ship</dt>
+    <dd><%= cruise_recorded_fact(shape.summary["ship_name"]) %></dd>
+  </div>
+  <div>
+    <dt>Sailing</dt>
+    <dd><%= cruise_recorded_fact(shape.summary["sailing_name"]) %></dd>
+  </div>
+  <div>
+    <dt>Dates</dt>
+    <dd><%= cruise_recorded_fact(cruise_sailing_date_range(shape.occurrence_definition)) %></dd>
+  </div>
+  <div>
+    <dt>Time zone</dt>
+    <dd><%= cruise_recorded_fact(shape.summary["time_zone"]) %></dd>
+  </div>
+  <div>
+    <dt>Departure port</dt>
+    <dd><%= cruise_recorded_fact(shape.summary["departure_port_name"]) %></dd>
+  </div>
+  <div>
+    <dt>Return port</dt>
+    <dd><%= cruise_recorded_fact(shape.summary["return_port_name"]) %></dd>
+  </div>
+  <div>
+    <dt>Itinerary notes</dt>
+    <dd><%= cruise_recorded_fact(shape.summary["itinerary_notes"]) %></dd>
+  </div>
+</dl>

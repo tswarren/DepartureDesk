@@ -296,6 +296,23 @@ module CruiseCompositionHelper
     end
   end
 
+  def cruise_setup_attention_label(item)
+    case item.destination
+    when :cabin_editor, :cabin_card
+      "Open Cabin inventory"
+    when :supplier_rates
+      "Open Supplier rates"
+    when :advanced_costs, :advanced_planning
+      "Open Advanced Supplier planning"
+    when :agreement
+      "Open Agreement"
+    when :activation
+      "Open Review & activate"
+    else
+      "Open"
+    end
+  end
+
   def cruise_setup_attention_path(item, version)
     case item.destination
     when :cabin_editor
@@ -509,6 +526,44 @@ module CruiseCompositionHelper
     else
       row.quantity_label
     end
+  end
+
+  def cruise_cabin_opening_quantity(row, workspace = nil)
+    quantity = cruise_cabin_quantity_text(row, workspace)
+    return "Quantity not tracked" if cruise_cabin_quantity_untracked?(quantity)
+    return row.opening_quantity_label if row.opening_quantity_label.present?
+    return quantity if cruise_cabin_opening_figure?(quantity)
+
+    "Not recorded"
+  end
+
+  def cruise_cabin_current_capacity(row, workspace = nil)
+    quantity = cruise_cabin_quantity_text(row, workspace)
+    return "Quantity not tracked" if cruise_cabin_quantity_untracked?(quantity)
+    return row.current_capacity_label if row.current_capacity_label.present?
+    return quantity if quantity.start_with?("Current active capacity:")
+
+    "Not recorded"
+  end
+
+  def cruise_cabin_quantity_text(row, workspace)
+    text = workspace ? cruise_cabin_inventory_quantity(row, workspace) : row.quantity_label
+    text.to_s
+  end
+
+  def cruise_cabin_quantity_untracked?(quantity)
+    quantity == "Quantity not tracked"
+  end
+
+  def cruise_cabin_opening_figure?(quantity)
+    return false if quantity.blank?
+    return false if quantity.start_with?("Current active capacity:")
+
+    true
+  end
+
+  def cruise_recorded_fact(value)
+    value.presence || "Not recorded"
   end
 
   def cruise_rate_category_label

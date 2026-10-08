@@ -1428,6 +1428,17 @@
     border-bottom: none;
   }
 
+  .dd-rates-table caption {
+    caption-side: top;
+    padding: 0 0 0.65rem;
+    color: var(--dd-text-muted);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-align: left;
+    text-transform: none;
+  }
+
   .dd-cabin-table .dd-field {
     min-width: 0;
     width: 100%;
@@ -2568,13 +2579,19 @@
   }
 
   @media (max-width: 768px) {
-    .dd-agreement-section .dd-table {
+    .dd-agreement-section .dd-table,
+    .dd-cabin-table,
+    .dd-rates-table {
       width: 100%;
       table-layout: fixed;
     }
 
     .dd-agreement-section .dd-table th,
-    .dd-agreement-section .dd-table td {
+    .dd-agreement-section .dd-table td,
+    .dd-cabin-table th,
+    .dd-cabin-table td,
+    .dd-rates-table th,
+    .dd-rates-table td {
       white-space: normal;
       overflow-wrap: anywhere;
     }

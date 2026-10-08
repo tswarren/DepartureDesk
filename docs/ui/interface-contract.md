@@ -233,7 +233,7 @@ Authority: [Cruise rework](../planning/m4-offers-and-pricing/m4d1-cruise-rework.
 
 ## Cruise summary presentation (Slice 1 shipped)
 
-Authority: [Cruise summary presentation](../planning/m4-offers-and-pricing/cruise-summary-presentation.md). Slice 1 covers one cabin category’s Supplier rates and the Agreement summaries. Later slices are not implementation authority.
+Authority: [Cruise summary presentation](../planning/m4-offers-and-pricing/cruise-summary-presentation.md). Slice 1 covers one cabin category’s Supplier rates and the Agreement summaries.
 
 - Category facts use `.dd-fact-grid`: category name and code, maximum occupancy, currency, stage, contract review, and forecast readiness. A missing schedule says **Not recorded**. Contract review and forecast readiness stay separate. When expected cabin counts are absent, say that. Otherwise say **Forecast readiness not recorded**. The sentence that activation does not require forecast readiness stays beside contract review, outside the occupancy disclosure.
 - An editable draft keeps the Stimulus rate matrix, Commissionable checkboxes, and Include / Subtract / Ignore controls. A saved compatible shape that is not being edited uses a static `.dd-table` of stored profiles, components, charge or credit meaning, and, for percentage commission, Commissionable derived from the saved include and subtract cells. Read-only amounts use `.dd-type-mono` and `Money` formatting. Do not put `.dd-field` on saved facts. An incompatible shape keeps its explanation and advanced link.
@@ -241,6 +241,18 @@ Authority: [Cruise summary presentation](../planning/m4-offers-and-pricing/cruis
 - Unrecorded named Agreement rows gather into one compact list per section, with each draft **Add** or **Add step** and its existing focus target. Recorded deposits and deadlines stay in schedule tables with Edit, Correct, and Remove. A suggested date is not shown as a saved date.
 - Cancellation steps are a table: **Days before departure** and **Recorded policy wording**, in saved order, with the existing edit and remove actions.
 - The recorded confirmation event is labeled **Confirmation recorded**. Group creation date and contract date stay separate facts. The panel badge still says Confirmed or Provisional. Prior confirmations are a table inside the existing history disclosure: state, confirmation recorded date, actor, group number, group creation date, and contract date. A provisional row says **Not confirmed**. The note and supplemental deposit treatment sit in a row disclosure. Do not add a time of day or invent rows.
+
+## Cruise summary presentation (Slice 2 shipped)
+
+Authority: [Cruise summary presentation](../planning/m4-offers-and-pricing/cruise-summary-presentation.md). Slice 2 covers the Cruise overview, cabin inventory, category rate summary, governing Active terms, the inventory-change chooser, and the shell review action. Slices 3 and 4 are not implementation authority.
+
+- Overview sailing facts use `.dd-fact-grid`: ship, sailing, dates, time zone, departure port, return port, and itinerary notes. A missing fact says **Not recorded**. Cabin, rate, and agreement cards stay one-line summaries. Client connection state and Client title are facts. The earlier-version warning stays visible.
+- Attention links name the destination: **Open Cabin inventory**, **Open Supplier rates**, **Open Agreement**, **Open Advanced Supplier planning**, or **Open Review & activate**. The URL and permission stay the existing path.
+- Cabin inventory keeps one table. **Inventory** is the treatment. **Opening quantity** and **Current projected capacity** are separate columns, using the existing quantity sentences. On-request and external inventory stay **Quantity not tracked**. **Carried from active terms** stays visible and is not shown as a number. The governing Active cabin list uses the same two quantity columns.
+- The category rate summary keeps Stage and replaces the combined status column with **Contract review** and **Forecast readiness**. `rate_status_label` and the **"Needs review"** attention filter stay unchanged. Single, Double, and Triple amounts are gross Supplier cost illustrations, right-aligned, and captioned so they are not an expected sales mix.
+- Active Supplier terms show version, governing statement, activation date, and actor as facts. A Supplier-issued identifier appears only when one is recorded. A proposed successor is a separate link and is not mixed into the governing cabin table.
+- The inventory-change chooser labels governing inventory against a proposed version. When a successor already exists, another proposed block stays unavailable.
+- The shell action is **Review & activate** for a draft presented version and **View activation review** for an activated presented version. Both use the existing activation path. The journey step label stays **Review & activate**.
 
 ## Responsive and accessibility gate
 

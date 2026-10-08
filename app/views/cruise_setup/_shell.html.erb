@@ -28,7 +28,7 @@
     <% end %>
   </div>
   <div class="dd-page-actions">
-    <%= link_to "Review & activate",
+    <%= link_to (presented&.activated? ? "View activation review" : "Review & activate"),
           departure_arrangement_cruise_activation_path(@departure, @supplier_arrangement),
           class: "dd-button",
           id: "cruise-review-activate" %>
