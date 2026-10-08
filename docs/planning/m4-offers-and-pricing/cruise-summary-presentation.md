@@ -1,6 +1,6 @@
 # Cruise summary presentation
 
-**Status:** Slice 1 Shipped 2026-10-07. Slices 2–4 are recorded here and have no implementation authority until each is separately accepted in this plan.
+**Status:** Slice 1 Shipped 2026-10-07. Slice 2 Shipped 2026-10-07. Slices 3–4 are recorded here and have no implementation authority until each is separately accepted in this plan.
 
 **Baseline:** Inspected at `e64ff758210522240340cf6abf89cacd5b32ba5b`, the main merge of PR #226. Implement Slice 1 from current `main`.
 
@@ -20,9 +20,11 @@ This is a presentation refactor over existing records, commands, and calculation
 
 Slice 1 is Shipped. Its category-rate and Agreement presentation is the implementation authority for that slice.
 
-Slices 2, 3, and 4 stay in this document so their scope is not lost. They do not authorize code. Each later slice becomes implementation authority only when this plan is amended to accept that slice. Do not index them as Accepted before that amendment.
+Slice 2 is Shipped 2026-10-07. Its overview, inventory, category-rate summary, governing-terms, and shell-action presentation is the implementation authority for that slice.
 
-The shell label stays **Review & activate** during Slice 1. **View activation review**, for an activated presented version, is a Slice 2 decision. It keeps the existing destination and access rules when that slice is accepted.
+Slices 3 and 4 stay in this document so their scope is not lost. They do not authorize code. Each later slice becomes implementation authority only when this plan is amended to accept that slice. Do not index them as Accepted before that amendment.
+
+The shell label stays **Review & activate** on a draft presented version. **View activation review**, for an activated presented version, is the Accepted Slice 2 label. It keeps the existing destination and access rules.
 
 ## Decisions
 
@@ -137,7 +139,7 @@ Run focused affected tests, the full application suite, system tests, the Tailwi
 
 ## Slice 2 — Operational overview, inventory, and governing terms
 
-**Standing:** Recorded. No implementation authority until this slice is separately accepted.
+**Standing:** Shipped 2026-10-07.
 
 **Pages:** `cruise_arrangements/show.html.erb`, `cruise_active_versions/show.html.erb`, `cruise_cabin_categories/index.html.erb`, `cruise_supplier_rate_summaries/show.html.erb`, and `cruise_inventory_changes/show.html.erb`. Supporting contextual readouts may change only to stay consistent with an already-present fact: sailing edit, cabin category new and edit, and the same-terms and changed-terms inventory forms.
 
@@ -195,7 +197,7 @@ These templates stay in place. Slice 1 changes one only when an already-present 
 - `cruise_sailings/edit.html.erb`
 - `cruise_cabin_categories/new.html.erb` and `edit.html.erb`
 - `cruise_inventory_changes/same_terms.html.erb` and `changed_terms.html.erb`
-- `cruise_setup/_shell.html.erb`, except the review-action label, which waits for Slice 2
+- `cruise_setup/_shell.html.erb`. Slice 2 sets the review-action label from the presented version.
 - `cruise_arrangements/_version_context.html.erb`
 
 `builder/components/edit_cruise_setup.html.erb` is excluded.
@@ -208,9 +210,9 @@ It does not refactor advanced Supplier planning, capacity event history, cost pl
 
 ## Sequence
 
-1. Slice 1 was accepted, then Shipped 2026-10-07. That shipment does not authorize Slices 2–4.
+1. Slice 1 was accepted, then Shipped 2026-10-07. That shipment does not authorize Slices 2–4. Slice 2 is separately Accepted.
 2. Slice 1 is Shipped 2026-10-07, including the interface-contract rules for its facts, tables, wording, and disclosures.
-3. Accept Slices 2, 3, and 4 separately, in that order, by amending this plan after the preceding slice is Shipped.
+3. Slice 2 is Shipped 2026-10-07. Accept Slices 3 and 4 separately, in that order, by amending this plan after the preceding slice is Shipped.
 4. Within an accepted slice, inspect the owning controllers, compilers, helpers, projections, and tests before changing markup. Add thin read-only display support only where necessary. Do not parse summary prose back into structured fields or recompute money in JavaScript.
 5. Update `docs/ui/interface-contract.md` with the fact, table, wording, disclosure, and status rules as a slice ships.
 6. Mark the whole plan Shipped only after all four slices are Shipped.

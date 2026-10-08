@@ -40,9 +40,9 @@ class M4d1CruisePortsAndBenefitsSystemTest < ApplicationSystemTestCase
     fill_in "Itinerary notes", with: "Sea day after leaving port"
     click_button_and_expect "Save sailing", text: "Sailing updated."
 
-    assert_text "Departs Barcelona"
-    assert_text "Returns Civitavecchia"
-    assert_text "Itinerary notes: Sea day after leaving port"
+    assert_text "Barcelona"
+    assert_text "Civitavecchia"
+    assert_text "Sea day after leaving port"
 
     click_link "Open agreement"
     assert_selector "h2", text: "Benefits"

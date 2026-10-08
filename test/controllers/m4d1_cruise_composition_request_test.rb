@@ -570,6 +570,8 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".dd-cruise-version-badge", text: "Active"
     assert_select "#cruise-step-review .dd-journey-step__status", text: "Active"
+    assert_select "#cruise-step-review .dd-journey-step__title", text: "Review & activate"
+    assert_select "#cruise-review-activate", text: "View activation review"
     assert_select "button", text: "Create successor draft"
 
     get same_terms_departure_arrangement_cruise_inventory_change_path(@departure, arrangement)
@@ -588,6 +590,7 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     }
     follow_redirect!
     assert_select ".dd-cruise-version-badge", text: "Draft · Version 2"
+    assert_select "#cruise-review-activate", text: "Review & activate"
     assert_match "Proposed changes to Active Version 1", response.body
     assert_select "a", text: "View active version"
     assert_select "#cruise-step-review .dd-journey-step__status", text: "Active", count: 0
@@ -701,6 +704,8 @@ class M4d1CruiseCompositionRequestTest < ActionDispatch::IntegrationTest
     assert_select "#cruise-step-cabins .dd-journey-step__status", text: "Complete"
     assert_select "#cruise-cabin-attention", count: 0
     assert_match "2 categories · 8 tracked cabins · 1 quantity not tracked", response.body
+    assert_select "#cruise-cabin-table th", text: "Opening quantity"
+    assert_select "#cruise-cabin-table th", text: "Current projected capacity"
     assert_select "#cruise-cabin-table th", text: "Opening authority"
     assert_match "Quantity not tracked", response.body
     assert_select "a", text: /Not entered|Estimated|Contracted/

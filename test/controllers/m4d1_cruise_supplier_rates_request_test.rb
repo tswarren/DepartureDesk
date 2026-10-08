@@ -292,8 +292,12 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     get departure_arrangement_cruise_supplier_rates_path(@departure, @arrangement)
     assert_response :success
     assert_match "1 cabin category · 1 estimate", response.body
+    assert_select "#cruise-supplier-rates-table th", text: "Contract review"
+    assert_select "#cruise-supplier-rates-table th", text: "Forecast readiness"
+    assert_select "#cruise-supplier-rates-table caption", text: /Gross Supplier cost illustrations/
+    assert_select "#cruise-supplier-rates-table td", text: /Not applicable/
+    assert_select "#cruise-supplier-rates-table td", text: /Forecast-ready/
     assert_select "#cruise-supplier-rates-table td", text: /Estimate/
-    assert_select "#cruise-supplier-rates-table td", text: /Ready/
     assert_select "#cruise-supplier-rates-attention", text: /Record contracted Supplier rates for O1/
     assert_select "a[href=?]",
       departure_arrangement_cruise_cabin_category_supplier_rates_path(

@@ -1,5 +1,4 @@
 <% ship_name = @shape.summary["ship_name"].presence || @supplier_arrangement.name %>
-<% sailing = @summary.sections.find { |section| section.key == "sailing" } %>
 <% content_for :title, "Active Supplier terms · #{ship_name} · DepartureDesk" %>
 
 <%= render "cruise_setup/shell", page_title: "Active Supplier terms", version: @supplier_arrangement_version %>
@@ -8,15 +7,33 @@
   <section class="dd-panel" aria-labelledby="active-terms-heading">
     <div class="dd-panel-body dd-stack">
       <h2 id="active-terms-heading" class="dd-section-title">Active · Version <%= @supplier_arrangement_version.version_number %></h2>
-      <p>These Supplier terms currently govern.</p>
-      <% if @activation %>
-        <p>Version <%= @supplier_arrangement_version.version_number %> became governing on <%= cruise_activation_recorded_on(@activation) %>.</p>
-        <p>Activated by <%= @activation.actor.display_name %>.</p>
-        <% identifier = cruise_activation_identifier(@activation) %>
-        <% if identifier.present? %>
-          <p>Supplier-issued identifier <%= identifier %></p>
+      <dl class="dd-fact-grid">
+        <div>
+          <dt>Version</dt>
+          <dd>Active · Version <%= @supplier_arrangement_version.version_number %></dd>
+        </div>
+        <div>
+          <dt>Governing</dt>
+          <dd>These Supplier terms currently govern.</dd>
+        </div>
+        <% if @activation %>
+          <div>
+            <dt>Activation recorded</dt>
+            <dd>Version <%= @supplier_arrangement_version.version_number %> became governing on <%= cruise_activation_recorded_on(@activation) %>.</dd>
+          </div>
+          <div>
+            <dt>Activated by</dt>
+            <dd>Activated by <%= @activation.actor.display_name %>.</dd>
+          </div>
+          <% identifier = cruise_activation_identifier(@activation) %>
+          <% if identifier.present? %>
+            <div>
+              <dt>Supplier-issued identifier</dt>
+              <dd><%= identifier %></dd>
+            </div>
+          <% end %>
         <% end %>
-      <% end %>
+      </dl>
       <% if @draft_version %>
         <p>
           A proposed successor exists.
@@ -31,25 +48,47 @@
   <section class="dd-panel" aria-labelledby="active-sailing-heading">
     <div class="dd-panel-body dd-stack">
       <h2 id="active-sailing-heading" class="dd-section-title">Sailing</h2>
-      <p><%= sailing&.detail %></p>
+      <%= render "cruise_arrangements/sailing_facts", shape: @shape %>
     </div>
   </section>
 
   <section class="dd-panel" aria-labelledby="active-cabins-heading">
     <div class="dd-panel-body dd-stack">
       <h2 id="active-cabins-heading" class="dd-section-title">Cabin inventory</h2>
-      <ul class="dd-stack">
-        <% @summary.cabin_rows.each do |row| %>
-          <li>
-            <strong><%= [ row.code, row.name ].compact_blank.join(" · ") %></strong>
-            · <%= row.inventory_label %>
-            · <%= row.quantity_label %>
-            <% if row.opening_quantity_label.present? %>
-              · <%= row.opening_quantity_label %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-cabin-table">
+          <thead>
+            <tr>
+              <th scope="col">Cabin category</th>
+              <th scope="col">Inventory</th>
+              <th scope="col">Opening quantity</th>
+              <th scope="col">Current projected capacity</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @summary.cabin_rows.each do |row| %>
+              <tr>
+                <td>
+                  <span class="dd-visually-hidden dd-cabin-field-label">Cabin category</span>
+                  <%= [ row.code, row.name ].compact_blank.join(" · ") %>
+                </td>
+                <td>
+                  <span class="dd-visually-hidden dd-cabin-field-label">Inventory</span>
+                  <%= row.inventory_label %>
+                </td>
+                <td>
+                  <span class="dd-visually-hidden dd-cabin-field-label">Opening quantity</span>
+                  <%= cruise_cabin_opening_quantity(row) %>
+                </td>
+                <td>
+                  <span class="dd-visually-hidden dd-cabin-field-label">Current projected capacity</span>
+                  <%= cruise_cabin_current_capacity(row) %>
+                </td>
+              </tr>
             <% end %>
-          </li>
-        <% end %>
-      </ul>
+          </tbody>
+        </table>
+      </div>
       <% if @can_manage %>
         <%= link_to "Add cabins under same Supplier terms",
               same_terms_departure_arrangement_cruise_inventory_change_path(@departure, @supplier_arrangement),

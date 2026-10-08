@@ -6,6 +6,16 @@
   <section class="dd-panel">
     <div class="dd-panel-body dd-stack">
       <h2 class="dd-section-title">Same Supplier terms</h2>
+      <dl class="dd-fact-grid">
+        <div>
+          <dt>What changes</dt>
+          <dd>Governing inventory</dd>
+        </div>
+        <div>
+          <dt>Supplier terms</dt>
+          <dd>The governing version stays in effect.</dd>
+        </div>
+      </dl>
       <p>Add cabins to the governing Supplier terms. The change becomes part of current Supplier capacity and does not create a new Supplier-terms version.</p>
       <% if @successor %>
         <p>This changes the governing Active inventory, not the proposed Draft.</p>
@@ -19,6 +29,16 @@
   <section class="dd-panel">
     <div class="dd-panel-body dd-stack">
       <h2 class="dd-section-title">Changed Supplier terms</h2>
+      <dl class="dd-fact-grid">
+        <div>
+          <dt>What changes</dt>
+          <dd>A proposed version</dd>
+        </div>
+        <div>
+          <dt>Supplier terms</dt>
+          <dd>The current Active terms stay in effect.</dd>
+        </div>
+      </dl>
       <p>Record additional cabins that have different Supplier terms. DepartureDesk keeps the current Active terms in effect and records the changed inventory as proposed terms.</p>
       <% if @successor %>
         <p>Proposed Version <%= @successor.version_number %> already exists. Another proposed block is not available.</p>

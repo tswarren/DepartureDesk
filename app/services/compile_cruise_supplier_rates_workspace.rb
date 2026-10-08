@@ -11,6 +11,7 @@ class CompileCruiseSupplierRatesWorkspace
   AttentionItem = Data.define(:code, :message, :resource_id, :stage, :advanced?)
   Row = Data.define(
     :resource_id, :code, :name, :stage, :stage_label, :status_label,
+    :contract_review_label, :forecast_readiness_label,
     :advanced?, :commission_label, :illustrations, :single, :double, :triple
   )
   Result = Data.define(
@@ -101,6 +102,7 @@ class CompileCruiseSupplierRatesWorkspace
       stage: stage,
       stage_label: stage_label(stage),
       status_label: rate_status_label(preview.definition),
+      **rate_review_facts(preview.definition, advanced: false),
       advanced?: false,
       commission_label: commission_label_for(preview),
       **scenario_fields(illustrations_for(preview))
@@ -151,6 +153,7 @@ class CompileCruiseSupplierRatesWorkspace
       stage: nil,
       stage_label: "—",
       status_label: advanced ? "Advanced" : "Not recorded",
+      **rate_review_facts(nil, advanced: advanced),
       advanced?: advanced,
       commission_label: advanced ? "Advanced" : "—",
       **scenario_fields([])
@@ -169,6 +172,23 @@ class CompileCruiseSupplierRatesWorkspace
   def scenario_for(illustrations, keys)
     illustrations.find { |illustration| keys.include?(illustration.key) } ||
       Illustration.new(key: keys.first, label: nil, gross_minor_units: nil, currency: nil, available?: false)
+  end
+
+  def rate_review_facts(definition, advanced:)
+    if advanced
+      return { contract_review_label: "Advanced", forecast_readiness_label: "Advanced" }
+    end
+    unless definition
+      return { contract_review_label: "Not recorded", forecast_readiness_label: "Not recorded" }
+    end
+
+    contract_review_label = if definition.contracted?
+      definition.contract_review_current? ? "Reviewed for activation" : "Not reviewed"
+    else
+      "Not applicable"
+    end
+    forecast_readiness_label = definition.forecast_ready? ? "Forecast-ready" : "Forecast readiness not recorded"
+    { contract_review_label: contract_review_label, forecast_readiness_label: forecast_readiness_label }
   end
 
   def rate_status_label(definition)
