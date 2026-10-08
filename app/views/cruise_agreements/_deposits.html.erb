@@ -6,56 +6,74 @@
     <p class="dd-agreement-description">Recording a Supplier requirement does not record that the Agency has satisfied it. The opening quantity and amount are a live evaluation.</p>
 
     <% workspace = @requirements_workspace %>
+    <% omissions = [] %>
+    <% recorded_initial = [] %>
     <% if workspace&.compatible? %>
       <% initial_rows = workspace.deposit_rows.select { |row| cruise_preset_initial_deposit?(row) } %>
       <% additional_rows = workspace.deposit_rows.reject { |row| cruise_preset_initial_deposit?(row) } %>
 
       <% if initial_rows.empty? %>
-        <div class="dd-agreement-row" id="deposit-new-initial">
-          <% if cruise_agreement_focused?("deposit-new-initial") %>
+        <% if cruise_agreement_focused?("deposit-new-initial") %>
+          <div class="dd-agreement-row" id="deposit-new-initial">
             <%= cruise_marked_heading(:h3, "initial-deposit", "Initial group deposit", class: "dd-agreement-row-heading") %>
             <%= render "cruise_agreements/initial_deposit_form", definition: nil %>
-          <% else %>
-            <div class="dd-agreement-row-head">
-              <%= cruise_marked_heading(:h3, "initial-deposit", "Initial group deposit", class: "dd-agreement-row-heading") %>
-              <%= cruise_status_badge("Not recorded", :neutral) %>
-              <% suggested = cruise_suggested_deposit_due_on %>
-              <% if suggested %>
-                <p class="dd-agreement-meta">Suggested due date: <%= cruise_calendar_date(suggested) %>. Based on group creation date + 30 days.</p>
-              <% end %>
-              <% if @editable %>
-                <div class="dd-agreement-row-actions">
-                  <%= cruise_row_link "Add", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "deposit-new-initial") %>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
-        </div>
+          </div>
+        <% else %>
+          <% suggested = cruise_suggested_deposit_due_on %>
+          <% omissions << {
+            anchor: "deposit-new-initial",
+            heading_id: "initial-deposit",
+            label: "Initial group deposit",
+            detail: (suggested ? "Suggested due date: #{cruise_calendar_date(suggested)}. Based on group creation date + 30 days." : nil),
+            href: departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "deposit-new-initial")
+          } %>
+        <% end %>
       <% else %>
         <% initial_rows.each do |row| %>
           <% definition = row.definition %>
           <% focus_key = "deposit-#{definition.id}" %>
-          <div class="dd-agreement-row">
-            <% if cruise_agreement_focused?(focus_key) %>
+          <% if cruise_agreement_focused?(focus_key) %>
+            <div class="dd-agreement-row">
               <%= cruise_marked_heading(:h3, focus_key, "Initial group deposit", class: "dd-agreement-row-heading") %>
               <%= render "cruise_agreements/initial_deposit_form", definition: definition %>
-            <% else %>
-              <div class="dd-agreement-row-head">
-                <%= cruise_marked_heading(:h3, focus_key, "Initial group deposit", class: "dd-agreement-row-heading") %>
-                <% if (due = cruise_fixed_due_date(definition)) %>
-                  <p class="dd-agreement-meta">Due <%= cruise_calendar_date(due) %></p>
-                <% end %>
-                <% sentence = cruise_opening_deposit_sentence(definition) %>
-                <p class="dd-agreement-meta"><%= sentence.presence || "#{cruise_minor_amount_field(definition.rate_minor_units, definition.currency)} per opening cabin" %></p>
-                <% if @editable %>
-                  <div class="dd-agreement-row-actions">
-                    <%= cruise_row_link "Edit", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: focus_key) %>
-                  </div>
-                <% end %>
-              </div>
-            <% end %>
-          </div>
+            </div>
+          <% else %>
+            <% recorded_initial << row %>
+          <% end %>
         <% end %>
+      <% end %>
+
+      <% if recorded_initial.any? %>
+        <div class="dd-table-wrap">
+          <table class="dd-table">
+            <thead>
+              <tr>
+                <th scope="col">Requirement</th>
+                <th scope="col">Amount / basis</th>
+                <th scope="col">Due</th>
+                <th scope="col">Scope</th>
+                <% if @editable %><th scope="col"><span class="dd-visually-hidden">Actions</span></th><% end %>
+              </tr>
+            </thead>
+            <tbody>
+              <% recorded_initial.each do |row| %>
+                <% definition = row.definition %>
+                <% focus_key = "deposit-#{definition.id}" %>
+                <% due = cruise_fixed_due_date(definition) %>
+                <% sentence = cruise_opening_deposit_sentence(definition) %>
+                <tr>
+                  <th scope="row" id="<%= focus_key %>">Initial group deposit</th>
+                  <td><%= sentence.presence || "#{cruise_minor_amount_field(definition.rate_minor_units, definition.currency)} per opening cabin" %></td>
+                  <td><%= due ? "Due #{cruise_calendar_date(due)}" : "Not recorded" %></td>
+                  <td><%= row.coverage_label.presence || row.coverage_summary.presence || "Not recorded" %></td>
+                  <% if @editable %>
+                    <td><%= cruise_row_link "Edit", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: focus_key) %></td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
       <% end %>
 
       <% additional_rows.each do |row| %>
@@ -78,12 +96,14 @@
     <% end %>
 
     <% allocated = cruise_term("allocated_cabin_deposit") %>
-    <div class="dd-agreement-row">
-      <% if cruise_agreement_focused?("term-allocated") && @editable %>
+    <% if cruise_agreement_focused?("term-allocated") && @editable %>
+      <div class="dd-agreement-row">
         <%= cruise_marked_heading(:h3, "term-allocated", "Allocated-cabin deposit", class: "dd-agreement-row-heading") %>
         <p class="dd-agreement-secondary">Agreement term. DepartureDesk does not calculate an allocated total.</p>
         <%= render "cruise_agreements/allocated_form", term: allocated %>
-      <% elsif allocated %>
+      </div>
+    <% elsif allocated %>
+      <div class="dd-agreement-row">
         <div class="dd-agreement-row-head">
           <div>
             <%= cruise_marked_heading(:h3, "term-allocated", "Allocated-cabin deposit", class: "dd-agreement-row-heading") %>
@@ -107,20 +127,17 @@
             <%= cruise_row_link "Edit", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "term-allocated") %>
           </div>
         <% end %>
-      <% else %>
-        <div class="dd-agreement-row-head">
-          <div>
-            <%= cruise_marked_heading(:h3, "term-allocated", "Allocated-cabin deposit", class: "dd-agreement-row-heading") %>
-            <p class="dd-agreement-secondary">Agreement term. DepartureDesk does not calculate an allocated total.</p>
-          </div>
-          <%= cruise_status_badge("Not recorded", :neutral) %>
-          <% if @editable %>
-            <div class="dd-agreement-row-actions">
-              <%= cruise_row_link "Add", departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "term-allocated") %>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
-    </div>
+      </div>
+    <% else %>
+      <% omissions << {
+        anchor: "term-allocated-omission",
+        heading_id: "term-allocated",
+        label: "Allocated-cabin deposit",
+        detail: "Agreement term. DepartureDesk does not calculate an allocated total.",
+        href: departure_arrangement_cruise_agreement_path(@departure, @supplier_arrangement, focus: "term-allocated")
+      } %>
+    <% end %>
+
+    <%= render "cruise_agreements/omissions", items: omissions %>
   </div>
 </section>

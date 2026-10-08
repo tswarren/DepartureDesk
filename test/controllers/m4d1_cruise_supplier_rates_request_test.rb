@@ -370,7 +370,9 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     )
     follow_redirect!
     assert_match "These contracted terms are reviewed for activation.", response.body
-    assert_match "Forecast occupancy is incomplete. Activation does not require it.", response.body
+    assert_match "Expected cabin counts are not recorded. Activation does not require forecast readiness.", response.body
+    assert_select "#cruise-rate-stage-status", text: /Reviewed for activation/
+    assert_select "#cruise-rate-stage-status", text: /Expected cabin counts are not recorded/
     refute definition.reload.forecast_ready?
     assert definition.contract_review_current?
   end
@@ -434,6 +436,45 @@ class M4d1CruiseSupplierRatesRequestTest < ActionDispatch::IntegrationTest
     form = css_select("#cruise-supplier-rate-terms").first
     state = JSON.parse(form["data-cruise-rate-matrix-initial-state-value"])
     assert_equal "1624.00", state["cells"]["base_fare:first_second"]
+  end
+
+  test "an activated compatible schedule shows a saved matrix and separate readiness facts" do
+    sign_in_as @staff
+    post departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource
+    ), params: canonical_percentage_params.merge(idempotency_key: SecureRandom.uuid)
+    assert_response :redirect
+    follow_redirect!
+    assert_response :success
+    SupplierArrangementVersion.where(id: @version.id).update_all(
+      status: "activated",
+      activated_at: Time.current
+    )
+    @arrangement.update_columns(governing_version_id: @version.id)
+
+    get departure_arrangement_cruise_cabin_category_supplier_rates_path(
+      @departure, @arrangement, @resource, stage: "estimate"
+    )
+    assert_response :success
+    assert_select "#cruise-supplier-rate-terms", count: 0
+    assert_select "#saved-supplier-rates-heading", text: "Saved Supplier rates"
+    assert_select "table" do
+      assert_select "th", text: "Base Fare"
+      assert_select "td", text: "Supplier charge"
+      assert_select "td", text: "Commissionable"
+      assert_select "td", text: "$2,533.00"
+      assert_select "td", text: "Supplier credit"
+    end
+    assert_select "#rate-illustrations-heading", text: "Per-cabin illustrations"
+    assert_select "th", text: "Occupancy"
+    assert_select "th", text: "Gross Supplier cost"
+    assert_select "th", text: "Expected commission"
+    assert_select "th", text: "Net Supplier cost"
+    assert_select "#cruise-rate-stage-status", text: /Estimate/
+    assert_select "#cruise-rate-stage-status", text: /Not applicable/
+    assert_select "#cruise-rate-stage-status", text: /Forecast readiness not recorded|Expected cabin counts are not recorded/
+    assert_select "summary", text: "Occupancy planning"
+    assert_select "button", text: "Mark terms forecast-ready", count: 0
   end
 
   private

@@ -23,13 +23,8 @@
   <% end %>
   <% if confirmation.confirmed? && confirmation.confirmed_at.present? %>
     <div>
-      <dt>Confirmed</dt>
-      <dd>
-        <%= cruise_confirmation_recorded_on(confirmation) %>
-        <% if confirmation.confirmed_by %>
-          by <%= confirmation.confirmed_by.display_name %>
-        <% end %>
-      </dd>
+      <dt>Confirmation recorded</dt>
+      <dd><%= cruise_confirmation_recorded_on(confirmation) %></dd>
     </div>
   <% end %>
 </dl>
@@ -53,21 +48,50 @@
 <% if priors.any? %>
   <details class="dd-agreement-note">
     <summary>View history</summary>
-    <ol class="dd-agreement-ladder">
-      <% priors.each do |prior| %>
-        <li>
-          <p class="dd-agreement-threshold"><%= prior.confirmed? ? "Confirmed" : "Provisional" %></p>
-          <% if prior.group_reference.present? %>
-            <p class="dd-agreement-meta">Group <%= prior.group_reference %></p>
+    <div class="dd-table-wrap">
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">State</th>
+            <th scope="col">Confirmation recorded</th>
+            <th scope="col">Actor</th>
+            <th scope="col">Group number</th>
+            <th scope="col">Group creation date</th>
+            <th scope="col">Contract date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% priors.each do |prior| %>
+            <tr>
+              <td><%= prior.confirmed? ? "Confirmed" : "Provisional" %></td>
+              <td><%= prior.confirmed? && prior.confirmed_at.present? ? cruise_confirmation_recorded_on(prior) : "Not confirmed" %></td>
+              <td><%= prior.confirmed_by&.display_name.presence || "Not recorded" %></td>
+              <td><%= prior.group_reference.present? ? "Group #{prior.group_reference}" : "Not recorded" %></td>
+              <td><%= prior.group_creation_date.present? ? cruise_calendar_date(prior.group_creation_date) : "Not recorded" %></td>
+              <td><%= prior.contract_date.present? ? cruise_calendar_date(prior.contract_date) : "Not recorded" %></td>
+            </tr>
+            <% if prior.note.present? || prior.deposit_treatment.present? %>
+              <tr>
+                <td colspan="6">
+                  <details>
+                    <summary>Note and supplemental deposit treatment</summary>
+                    <% if prior.note.present? %>
+                      <div class="dd-reference-text"><%= formatted_reference_text(prior.note) %></div>
+                    <% else %>
+                      <p>Note not recorded.</p>
+                    <% end %>
+                    <% if prior.deposit_treatment.present? %>
+                      <div class="dd-reference-text"><%= formatted_reference_text(prior.deposit_treatment) %></div>
+                    <% else %>
+                      <p>Supplemental deposit treatment not recorded.</p>
+                    <% end %>
+                  </details>
+                </td>
+              </tr>
+            <% end %>
           <% end %>
-          <% if prior.group_creation_date.present? %>
-            <p class="dd-agreement-meta">Group creation date <%= cruise_calendar_date(prior.group_creation_date) %></p>
-          <% end %>
-          <% if prior.contract_date.present? %>
-            <p class="dd-agreement-meta">Contract date <%= cruise_calendar_date(prior.contract_date) %></p>
-          <% end %>
-        </li>
-      <% end %>
-    </ol>
+        </tbody>
+      </table>
+    </div>
   </details>
 <% end %>

@@ -1,0 +1,57 @@
+<% currency = @preview.currency || @departure.operating_currency %>
+<% if @preview.commission_method == "not_provided" %>
+  <p>Expected commission is not recorded.</p>
+<% elsif @preview.commission_method == "none" %>
+  <p>No commission is expected.</p>
+<% elsif @preview.profile_commissions.any? %>
+  <div class="dd-table-wrap">
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th scope="col">Rate profile</th>
+          <% if @preview.profile_commissions.any?(&:basis_recorded) %>
+            <th scope="col" class="num">Commissionable amount</th>
+          <% end %>
+          <th scope="col" class="num">Expected commission</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @preview.profile_commissions.each do |row| %>
+          <tr>
+            <td><%= row.label %></td>
+            <% if row.basis_recorded %>
+              <td class="num"><%= row.commissionable_minor_units ? Money.new(row.commissionable_minor_units, currency).format : "—" %></td>
+            <% end %>
+            <td class="num"><%= row.expected_commission_minor_units ? Money.new(row.expected_commission_minor_units, currency).format : "Not recorded" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+<% if @preview.illustrations.any? %>
+  <div class="dd-table-wrap">
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th scope="col">Occupancy</th>
+          <th scope="col" class="num">Gross Supplier cost</th>
+          <th scope="col" class="num">Expected commission</th>
+          <th scope="col" class="num">Net Supplier cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @preview.illustrations.each do |row| %>
+          <tr>
+            <td><%= row.label %></td>
+            <td class="num"><%= row.gross_minor_units ? Money.new(row.gross_minor_units, currency).format : "Not recorded" %></td>
+            <td class="num"><%= cruise_rate_illustration_commission(row, currency) %></td>
+            <td class="num"><%= cruise_rate_illustration_net(row, currency) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% elsif local_assigns[:prompt] %>
+  <p class="dd-help">Enter amounts to see per-cabin illustrations.</p>
+<% end %>

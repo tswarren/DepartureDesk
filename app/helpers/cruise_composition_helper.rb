@@ -511,6 +511,105 @@ module CruiseCompositionHelper
     end
   end
 
+  def cruise_rate_category_label
+    code = @resource_definition.supplier_code.presence
+    name = @resource_definition.name.presence
+    [ code, name ].compact.uniq.join(" · ").presence || "Not recorded"
+  end
+
+  def cruise_rate_stage_fact(definition)
+    return "Not recorded" unless definition
+
+    definition.contracted? ? "Contracted" : "Estimate"
+  end
+
+  def cruise_rate_contract_review_fact(definition)
+    return "Not recorded" unless definition
+    return "Not applicable" unless definition.contracted?
+
+    definition.contract_review_current? ? "Reviewed for activation" : "Not reviewed"
+  end
+
+  def cruise_rate_forecast_fact(definition)
+    return "Not recorded" unless definition
+    return "Forecast-ready" if definition.forecast_ready?
+
+    cruise_expected_cabin_counts_absent? ? "Expected cabin counts are not recorded" : "Forecast readiness not recorded"
+  end
+
+  def cruise_rate_forecast_review_sentence
+    omission = if cruise_expected_cabin_counts_absent?
+      "Expected cabin counts are not recorded."
+    else
+      "Forecast readiness not recorded."
+    end
+    "#{omission} Activation does not require forecast readiness."
+  end
+
+  def cruise_expected_cabin_counts_absent?
+    keys = CruiseSupplierRateSupport.occupancy_keys_for_maximum(@resource_definition.maximum_occupancy)
+    occupancy = @form_occupancy || {}
+    keys.all? { |key| occupancy[key].blank? && occupancy[key.to_s].blank? }
+  end
+
+  def cruise_saved_rate_rows
+    rows = CruiseSupplierRateSupport::STATIC_ROWS.map { |key, spec|
+      { key: key.to_s, label: spec.fetch(:label), economic_role: spec.fetch(:economic_role) }
+    }
+    Array(@form_custom_rows).each do |row|
+      data = row.with_indifferent_access
+      rows << {
+        key: data[:key].to_s,
+        label: data[:label].to_s,
+        economic_role: data[:economic_role].to_s
+      }
+    end
+    rows
+  end
+
+  def cruise_saved_rate_profiles
+    Array(@form_profiles).map(&:with_indifferent_access)
+  end
+
+  def cruise_saved_rate_amount(row_key, profile_key)
+    cruise_saved_money((@form_cells || {})["#{row_key}:#{profile_key}"])
+  end
+
+  def cruise_saved_money(amount)
+    return "Not recorded" if amount.blank?
+
+    Money.from_amount(BigDecimal(amount.to_s), @departure.operating_currency).format
+  end
+
+  def cruise_saved_rate_role(economic_role)
+    economic_role.to_s == "supplier_credit" ? "Supplier credit" : "Supplier charge"
+  end
+
+  def cruise_saved_row_commissionable?(row_key)
+    commission = (@form_commission || {}).with_indifferent_access
+    return false unless commission[:method].to_s == "percentage"
+
+    (Array(commission[:add_cells]) + Array(commission[:subtract_cells])).any? { |key|
+      key.to_s.start_with?("#{row_key}:")
+    }
+  end
+
+  def cruise_saved_commission_fact
+    commission = (@form_commission || {}).with_indifferent_access
+    case commission[:method].to_s
+    when "none" then "No commission expected"
+    when "dollar" then "Dollar amount"
+    when "percentage" then "Percentage"
+    else "Not provided yet"
+    end
+  end
+
+  def cruise_rate_illustration_net(row, currency)
+    return "Not recorded" unless row.net_state == "shown" && row.net_minor_units
+
+    Money.new(row.net_minor_units, currency).format
+  end
+
   def cruise_cabin_evidence_status(row, workspace)
     if workspace.attention_items.any? { |item| item.resource_id == row.resource_id }
       "Needs attention"
