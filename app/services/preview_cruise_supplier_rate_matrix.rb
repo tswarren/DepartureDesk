@@ -3,6 +3,7 @@
 # Draft-only evaluation of an unsaved Cruise Supplier rate matrix.
 # Compiles through the shipped create/update path inside a rolled-back
 # transaction so M3C forecast math stays authoritative (2A.2R2 §9).
+# A blank matrix on an empty schedule uses the empty preview directly.
 class PreviewCruiseSupplierRateMatrix
   Result = Data.define(:ok?, :error, :preview)
 
@@ -43,6 +44,24 @@ class PreviewCruiseSupplierRateMatrix
   end
 
   def call
+    preview = if @empty_schedule && blank_matrix?
+      compile_preview
+    else
+      compile_preview_in_rollback
+    end
+
+    Result.new(ok?: true, error: nil, preview: preview)
+  rescue AgencyCommand::Error => error
+    Result.new(ok?: false, error: error.message, preview: nil)
+  end
+
+  private
+
+  def blank_matrix?
+    @cells.to_h.values.all?(&:blank?)
+  end
+
+  def compile_preview_in_rollback
     preview = nil
 
     ActiveRecord::Base.transaction(requires_new: true) do
@@ -82,20 +101,22 @@ class PreviewCruiseSupplierRateMatrix
         ).call
       end
 
-      preview = CompileCruiseSupplierRatePreview.new(
-        agency: @agency,
-        arrangement: @arrangement,
-        resource: @resource,
-        version: @arrangement.versions.order(:version_number).last,
-        stage: @stage,
-        illustration_occupants: @illustration_occupants
-      ).call
+      preview = compile_preview
 
       raise ActiveRecord::Rollback
     end
 
-    Result.new(ok?: true, error: nil, preview: preview)
-  rescue AgencyCommand::Error => error
-    Result.new(ok?: false, error: error.message, preview: nil)
+    preview
+  end
+
+  def compile_preview
+    CompileCruiseSupplierRatePreview.new(
+      agency: @agency,
+      arrangement: @arrangement,
+      resource: @resource,
+      version: @arrangement.versions.order(:version_number).last,
+      stage: @stage,
+      illustration_occupants: @illustration_occupants
+    ).call
   end
 end

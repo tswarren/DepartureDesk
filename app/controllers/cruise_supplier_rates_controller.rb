@@ -87,8 +87,7 @@ class CruiseSupplierRatesController < ApplicationController
           commission_state: row.commission_state,
           commission: row.commission_minor_units && Money.new(row.commission_minor_units, currency).format,
           net_state: row.net_state,
-          net: row.net_state == "shown" && row.net_minor_units ?
-            Money.new(row.net_minor_units, currency).format : row.net_state,
+          net: helpers.cruise_rate_illustration_net(row, currency),
           complete: row.complete
         }
       }
