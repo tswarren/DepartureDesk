@@ -370,6 +370,7 @@ class M4d1CruiseSupplierRatesSystemTest < ApplicationSystemTestCase
     end
     assert_selector "#cruise-supplier-rate-terms"
     assert_text "Forecast occupancy"
+    find("summary", text: "Occupancy planning").click
     assert_text "It does not assign travelers or reserve cabins."
   end
 

@@ -1,0 +1,51 @@
+<% profiles = cruise_saved_rate_profiles %>
+<% rows = cruise_saved_rate_rows %>
+<% commission = (@form_commission || {}).with_indifferent_access %>
+<section class="dd-stack" aria-labelledby="saved-supplier-rates-heading">
+  <h2 id="saved-supplier-rates-heading" class="dd-section-title">Saved Supplier rates</h2>
+  <p>Commission: <%= cruise_saved_commission_fact %></p>
+  <% if commission[:method].to_s == "percentage" && commission[:percentage].present? %>
+    <p class="dd-type-mono"><%= commission[:percentage] %>%</p>
+  <% end %>
+  <div class="dd-table-wrap">
+    <table class="dd-table">
+      <thead>
+        <tr>
+          <th scope="col">Component</th>
+          <th scope="col">Meaning</th>
+          <% if commission[:method].to_s == "percentage" %>
+            <th scope="col">Commissionable</th>
+          <% end %>
+          <% profiles.each do |profile| %>
+            <th scope="col" class="num"><%= CruiseSupplierRateSupport.profile_display_label(profile[:key]) %></th>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.each do |row| %>
+          <tr>
+            <th scope="row"><%= row[:label] %></th>
+            <td><%= cruise_saved_rate_role(row[:economic_role]) %></td>
+            <% if commission[:method].to_s == "percentage" %>
+              <td><%= cruise_saved_row_commissionable?(row[:key]) ? "Commissionable" : "Not commissionable" %></td>
+            <% end %>
+            <% profiles.each do |profile| %>
+              <td class="num"><%= cruise_saved_rate_amount(row[:key], profile[:key]) %></td>
+            <% end %>
+          </tr>
+        <% end %>
+        <% if commission[:method].to_s == "dollar" %>
+          <tr>
+            <th scope="row">Expected commission</th>
+            <td>Dollar amount</td>
+            <% profiles.each do |profile| %>
+              <% amount = commission.dig(:amounts, profile[:key].to_s) %>
+              <td class="num"><%= cruise_saved_money(amount) %></td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <p>Create a successor draft to edit Supplier rates.</p>
+</section>

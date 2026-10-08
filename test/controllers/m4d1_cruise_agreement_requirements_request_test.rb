@@ -411,6 +411,57 @@ class M4d1CruiseAgreementRequirementsRequestTest < ActionDispatch::IntegrationTe
     assert_equal "1119999", @version.supplier_arrangement_cruise_agreement_confirmations.find_by!(current: false).group_reference
   end
 
+  test "unrecorded agreement rows stay in one list and provisional history stays undated" do
+    sign_in_as @staff
+    get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "section[aria-labelledby=deposits] h3", text: "Not recorded"
+    assert_select "a[href=?]", departure_arrangement_cruise_agreement_path(@departure, @arrangement, focus: "deposit-new-initial"), text: "Add"
+    assert_select "a[href=?]", departure_arrangement_cruise_agreement_path(@departure, @arrangement, focus: "term-allocated"), text: "Add"
+    assert_select "section[aria-labelledby=deadlines] a[href=?]", departure_arrangement_cruise_agreement_path(@departure, @arrangement, focus: "deadline-new-hard-stop"), text: "Add"
+    assert_select "section[aria-labelledby=deadlines] a[href=?]", departure_arrangement_cruise_agreement_path(@departure, @arrangement, focus: "deadline-new-final-payment"), text: "Add"
+    assert_select "a[href=?]", departure_arrangement_cruise_agreement_path(@departure, @arrangement, focus: "cancellation-new"), text: "Add step"
+    assert_no_match(/Suggested due date:/, response.body)
+
+    RecordCruiseSupplierAgreement.new(
+      agency: @agency,
+      actor: @staff,
+      arrangement: @arrangement,
+      intent: "confirm",
+      version_lock_version: @version.lock_version,
+      idempotency_key: SecureRandom.uuid,
+      group_reference: "1119998",
+      group_creation_date: "2026-09-01",
+      contract_date: "2026-09-13",
+      note: "Current note"
+    ).call
+    current = @version.supplier_arrangement_cruise_agreement_confirmations.find_by!(current: true)
+    SupplierArrangementCruiseAgreementConfirmation.create!(
+      agency: @agency,
+      departure: @departure,
+      supplier_arrangement: @arrangement,
+      supplier_arrangement_version: @version,
+      status: "provisional",
+      current: false,
+      group_creation_date: Date.new(2026, 8, 1),
+      group_reference: "1119000",
+      note: "Earlier provisional note",
+      corrects: nil
+    )
+
+    get departure_arrangement_cruise_agreement_path(@departure, @arrangement)
+    assert_response :success
+    assert_select "dt", text: "Confirmation recorded"
+    assert_select "summary", text: "View history"
+    assert_match "Suggested due date:", response.body
+    assert_no_match(/<td>\s*Suggested due date/m, response.body)
+    assert_match "Not confirmed", response.body
+    assert_match "Group 1119000", response.body
+    assert_match "Earlier provisional note", response.body
+    assert_no_match(/Not confirmed.+(\d{1,2}:\d{2})/m, response.body)
+    assert current.confirmed?
+  end
+
   test "an all-nonnumeric initial deposit does not evaluate to zero" do
     sign_in_as @staff
     cabin = CreateCruiseCabinCategorySetup.new(

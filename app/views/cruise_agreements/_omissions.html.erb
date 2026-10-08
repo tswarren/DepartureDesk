@@ -1,0 +1,15 @@
+<% return if items.blank? %>
+<h3 class="dd-section-title">Not recorded</h3>
+<ul>
+  <% items.each do |item| %>
+    <li id="<%= item[:anchor] %>">
+      <span id="<%= item[:heading_id] %>"><%= item[:label] %></span>
+      <% if item[:detail].present? %>
+        <span><%= item[:detail] %></span>
+      <% end %>
+      <% if item[:href].present? && @editable %>
+        <%= cruise_row_link(item[:action].presence || "Add", item[:href]) %>
+      <% end %>
+    </li>
+  <% end %>
+</ul>

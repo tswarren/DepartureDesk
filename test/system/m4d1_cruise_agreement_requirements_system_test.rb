@@ -174,36 +174,36 @@ class M4d1CruiseAgreementRequirementsSystemTest < ApplicationSystemTestCase
     fill_in "Days before departure", with: "120"
     fill_in "Policy wording", with: "Deposit becomes non-refundable."
     click_on "Save step"
-    assert_text "120 days before departure"
+    assert_text(/days before departure/i)
+    assert_text(/recorded policy wording/i)
     assert_text "Deposit becomes non-refundable."
 
     click_link "Add step"
     fill_in "Days before departure", with: "90"
     fill_in "Policy wording", with: "Additional penalties apply."
     click_on "Save step"
-    assert_text "120 days before departure"
-    assert_text "90 days before departure"
-    within "ol.dd-agreement-ladder" do
-      items = all("li").map(&:text)
-      assert_match(/120 days before departure/, items.first)
-      assert_match(/Deposit becomes non-refundable/, items.first)
-      assert_match(/90 days before departure/, items.last)
+    within "#cancellation-ladder" do
+      rows = all("tbody tr").map(&:text)
+      assert_includes rows.first, "120"
+      assert_includes rows.first, "Deposit becomes non-refundable."
+      assert_includes rows.last, "90"
+      assert_includes rows.last, "Additional penalties apply."
       all("a", text: "Edit").last.click
     end
     fill_in "Policy wording", with: "Penalties revised."
     click_on "Save step"
-    within "ol.dd-agreement-ladder" do
-      items = all("li").map(&:text)
-      assert_match(/Deposit becomes non-refundable/, items.first)
-      assert_match(/Penalties revised/, items.last)
+    within "#cancellation-ladder" do
+      rows = all("tbody tr").map(&:text)
+      assert_includes rows.first, "Deposit becomes non-refundable."
+      assert_includes rows.last, "Penalties revised."
     end
 
     accept_confirm do
-      within("ol.dd-agreement-ladder") { first(:button, "Remove").click }
+      within("#cancellation-ladder") { first(:button, "Remove").click }
     end
-    within "ol.dd-agreement-ladder" do
+    within "#cancellation-ladder" do
       assert_no_text "Deposit becomes non-refundable."
-      assert_text "90 days before departure"
+      assert_text "90"
       assert_text "Penalties revised."
     end
 

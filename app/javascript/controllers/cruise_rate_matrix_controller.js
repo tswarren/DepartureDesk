@@ -899,7 +899,7 @@ export default class extends Controller {
         <th scope="col">Component</th>
         ${showCommissionable ? `<th scope="col">Commissionable</th>` : ""}
         ${profiles.map((profile) => `
-          <th scope="col" data-profile-column="${this.escapeAttr(profile.key)}">
+          <th scope="col" class="num" data-profile-column="${this.escapeAttr(profile.key)}">
             ${this.escape(this.profileLabel(profile))}
           </th>
         `).join("")}
@@ -930,7 +930,7 @@ export default class extends Controller {
         const value = this.state.cells[key] || ""
         const prefix = this.currencySymbolPrefix(row.economic_role)
         return `
-          <td data-profile-column="${this.escapeAttr(profile.key)}">
+          <td class="num" data-profile-column="${this.escapeAttr(profile.key)}">
             <label class="dd-visually-hidden" for="cell_${this.escapeAttr(key.replace(/:/g, "_"))}">
               ${this.escape(row.label)} · ${this.escape(this.profileLabel(profile))}
             </label>
@@ -965,7 +965,7 @@ export default class extends Controller {
     }).join("")
 
     const subtotalCells = profiles.map((profile) => `
-      <td data-profile-column="${this.escapeAttr(profile.key)}"
+      <td class="num" data-profile-column="${this.escapeAttr(profile.key)}"
           data-cruise-rate-matrix-target="subtotal"
           data-profile="${this.escapeAttr(profile.key)}">—</td>
     `).join("")
@@ -989,7 +989,7 @@ export default class extends Controller {
       const inputs = profiles.map((profile) => {
         const inputId = `commission_rate_${profile.key.replace(/[^a-zA-Z0-9]+/g, "_")}`
         return `
-          <td data-profile-column="${this.escapeAttr(profile.key)}">
+          <td class="num" data-profile-column="${this.escapeAttr(profile.key)}">
             <label class="dd-visually-hidden" for="${this.escapeAttr(inputId)}">
               Commission rate · ${this.escape(this.profileLabel(profile))}
             </label>
@@ -1015,7 +1015,7 @@ export default class extends Controller {
       const inputs = profiles.map((profile) => {
         const inputId = `commission_amount_${profile.key.replace(/[^a-zA-Z0-9]+/g, "_")}`
         return `
-          <td data-profile-column="${this.escapeAttr(profile.key)}">
+          <td class="num" data-profile-column="${this.escapeAttr(profile.key)}">
             <label class="dd-visually-hidden" for="${this.escapeAttr(inputId)}">
               Commission · ${this.escape(this.profileLabel(profile))}
             </label>
@@ -1507,19 +1507,19 @@ export default class extends Controller {
         <table class="dd-table">
           <thead>
             <tr>
-              <th scope="col">Illustration</th>
-              <th scope="col">Gross Supplier cost</th>
-              <th scope="col">Commission</th>
-              <th scope="col">Net after commission</th>
+              <th scope="col">Occupancy</th>
+              <th scope="col" class="num">Gross Supplier cost</th>
+              <th scope="col" class="num">Expected commission</th>
+              <th scope="col" class="num">Net Supplier cost</th>
             </tr>
           </thead>
           <tbody>
             ${rows.map((row) => `
               <tr>
                 <td>${this.escape(row.label)}</td>
-                <td>${this.escape(row.gross || "Pending")}</td>
-                <td>${this.escape(this.illustrationCommission(row))}</td>
-                <td>${this.escape(row.net || row.net_state || "Pending")}</td>
+                <td class="num">${this.escape(row.gross || "Not recorded")}</td>
+                <td class="num">${this.escape(this.illustrationCommission(row))}</td>
+                <td class="num">${this.escape(row.net || "Not recorded")}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -1549,16 +1549,16 @@ export default class extends Controller {
           <thead>
             <tr>
               <th scope="col">Rate profile</th>
-              ${showBasis ? `<th scope="col">Commissionable amount</th>` : ""}
-              <th scope="col">Expected commission</th>
+              ${showBasis ? `<th scope="col" class="num">Commissionable amount</th>` : ""}
+              <th scope="col" class="num">Expected commission</th>
             </tr>
           </thead>
           <tbody>
             ${rows.map((row) => `
               <tr>
                 <td>${this.escape(row.label)}</td>
-                ${showBasis ? `<td>${this.escape(row.commissionable || "—")}</td>` : ""}
-                <td>${this.escape(row.expected_commission || "Not recorded")}</td>
+                ${showBasis ? `<td class="num">${this.escape(row.commissionable || "—")}</td>` : ""}
+                <td class="num">${this.escape(row.expected_commission || "Not recorded")}</td>
               </tr>
             `).join("")}
           </tbody>

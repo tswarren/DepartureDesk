@@ -2550,9 +2550,12 @@
   }
 
   .dd-cruise-rate-editor .dd-panel-body > *,
+  .dd-cruise-rate-editor .dd-stack > *,
   #cruise-supplier-rate-terms > *,
   #cruise-supplier-rate-terms section,
-  #cruise-supplier-rate-terms fieldset {
+  #cruise-supplier-rate-terms section > *,
+  #cruise-supplier-rate-terms fieldset,
+  .dd-agreement-section .dd-panel-body > * {
     min-width: 0;
     max-width: 100%;
   }
@@ -2562,6 +2565,19 @@
     width: 100%;
     max-width: 100%;
     min-width: 0;
+  }
+
+  @media (max-width: 768px) {
+    .dd-agreement-section .dd-table {
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    .dd-agreement-section .dd-table th,
+    .dd-agreement-section .dd-table td {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
   }
 
   .dd-cruise-rate-narrow {
@@ -2616,6 +2632,21 @@
       display: block;
     }
 
+    .dd-cruise-rate-matrix .dd-table {
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    .dd-cruise-rate-matrix .dd-table th,
+    .dd-cruise-rate-matrix .dd-table td {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .dd-cruise-rate-matrix .dd-cruise-rate-cell .dd-field--numeric {
+      min-width: 0;
+    }
+
     .dd-cruise-rate-matrix th[data-profile-column].is-inactive-profile,
     .dd-cruise-rate-matrix td[data-profile-column].is-inactive-profile {
       display: none;
@@ -2635,11 +2666,19 @@
     max-width: 100%;
   }
 
+  .dd-cruise-agreement-review > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .dd-agreement-section .dd-panel-header {
     flex-wrap: wrap;
   }
 
   .dd-agreement-section .dd-panel-body {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
     padding: 0.85rem 1rem 1rem;
   }
 
