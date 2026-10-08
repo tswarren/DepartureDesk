@@ -1,0 +1,11 @@
+<% compare = local_assigns.fetch(:compare) %>
+<% label = local_assigns.fetch(:label) %>
+<details>
+  <summary>Governing and proposed terms</summary>
+  <div class="dd-stack" aria-label="Successor compare for <%= label %>">
+    <p><strong>Governing term</strong> · <%= compare.governing_term_summary %></p>
+    <p><strong>Proposed term</strong> · <%= compare.proposed_term_summary %></p>
+    <p><strong>Current materialized</strong> · <%= compare.governing_operational_summary %></p>
+    <p><strong>Reconcile foreshadow</strong> · <%= compare.reconcile_foreshadow_label %></p>
+  </div>
+</details>

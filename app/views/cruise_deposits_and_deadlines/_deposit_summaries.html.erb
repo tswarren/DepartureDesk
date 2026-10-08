@@ -1,0 +1,159 @@
+<div class="dd-table-wrap">
+  <table class="dd-table" id="cruise-deposit-summaries">
+    <thead>
+      <tr>
+        <th scope="col">Requirement</th>
+        <th scope="col">Amount</th>
+        <th scope="col">Due</th>
+        <th scope="col">Scope</th>
+        <th scope="col">Workspace</th>
+        <th scope="col">Operational state</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @workspace.deposit_rows.each do |row| %>
+        <% workspace_label = cruise_schedule_workspace_label(row.status_label) %>
+        <tr id="cruise-deposit-<%= row.definition.id %>"
+            tabindex="-1"
+            <% if params[:focus_deposit_id].to_s == row.definition.id.to_s %>
+              data-controller="form-error-summary"
+            <% end %>>
+          <td>
+            <%= row.display_label %>
+            <p><%= row.semantic_type_label %></p>
+          </td>
+          <td><%= row.amount_label %></td>
+          <td>
+            <%= row.due_label %>
+            <% if row.operational&.occurrence_due_sentence.present? %>
+              <p>Materialized due <%= row.operational.occurrence_due_sentence %></p>
+            <% end %>
+          </td>
+          <td><%= row.coverage_label %></td>
+          <td>
+            <% if workspace_label %>
+              <%= cruise_definition_status_badge(workspace_label) %>
+            <% end %>
+          </td>
+          <td>
+            <% if row.operational %>
+              <% if row.operational.term_summary.present? %>
+                <p><%= row.operational.term_summary %></p>
+              <% end %>
+              <% if row.operational.tranche_amount_sentence.present? %>
+                <p>Tranche <%= row.operational.tranche_amount_sentence %></p>
+              <% end %>
+              <% if row.operational.projection_status.present? %>
+                <p><%= row.operational.projection_status %></p>
+              <% end %>
+              <p><%= row.operational.commitment_state_label %></p>
+            <% end %>
+          </td>
+          <td>
+            <div class="dd-inline-actions">
+              <% if row.operational %>
+                <%= link_to "Open commitment",
+                      row.operational.commitments_path,
+                      class: "dd-link" %>
+                <% if row.operational.attest_path.present? %>
+                  <%= link_to "Record handled externally",
+                        row.operational.attest_path,
+                        class: "dd-link" %>
+                <% end %>
+              <% end %>
+              <% if row.compatible? && @editable %>
+                <% remove_label = row.definition.copied_from_id.present? ? "Remove from successor" : "Remove" %>
+                <%= link_to cruise_icon_label("pencil_simple", "Edit"),
+                      departure_arrangement_cruise_deposits_and_deadlines_path(
+                        @departure, @supplier_arrangement,
+                        deposit_editor: "edit", deposit_id: row.definition.id
+                      ),
+                      class: "dd-button dd-button--quiet" %>
+                <%= button_to departure_arrangement_cruise_deposits_and_deadlines_deposit_path(
+                      @departure, @supplier_arrangement, row.definition
+                    ),
+                      method: :delete,
+                      class: "dd-row-action dd-row-action--danger",
+                      form: {
+                        class: "dd-inline-form",
+                        data: {
+                          turbo_confirm:
+                            "#{remove_label} #{row.display_label}? This deletes only this draft definition and its children."
+                        }
+                      },
+                      params: { version_lock_version: @supplier_arrangement_version.lock_version } do %>
+                  <%= cruise_icon_label("trash", remove_label) %>
+                <% end %>
+              <% elsif !row.compatible? %>
+                <%= link_to "Open advanced deposit",
+                      row.advanced_path,
+                      class: "dd-link" %>
+              <% end %>
+            </div>
+            <% if row.compatible? && @workspace.governing_read_only? %>
+              <p class="dd-help">
+                Activated definitions cannot be edited or removed. Use operational actions above,
+                or create a successor draft to propose future terms.
+              </p>
+            <% end %>
+          </td>
+        </tr>
+        <% unless row.compatible? %>
+          <tr>
+            <td colspan="7">
+              <p>This deposit uses an advanced shape.</p>
+              <% if row.shape.reasons.any? %>
+                <ul>
+                  <% row.shape.reasons.each do |reason| %>
+                    <li><%= reason %></li>
+                  <% end %>
+                </ul>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+        <% if row.row_blocker %>
+          <tr>
+            <td colspan="7">
+              <div class="dd-attention-callout" role="status">
+                <div>
+                  <p class="dd-icon-label">
+                    <%= icon_tag "warning_circle", html_class: "dd-icon dd-icon--sm" %>
+                    <span><%= row.row_blocker.message %></span>
+                  </p>
+                  <% if row.row_blocker.corrective_path.present? %>
+                    <p>
+                      <%= link_to row.row_blocker.corrective_label.presence || "Review issue",
+                            row.row_blocker.corrective_path,
+                            class: "dd-link" %>
+                    </p>
+                  <% end %>
+                </div>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+        <% if row.successor_compare %>
+          <tr>
+            <td colspan="7">
+              <%= render "cruise_deposits_and_deadlines/successor_compare",
+                    compare: row.successor_compare,
+                    label: row.display_label %>
+            </td>
+          </tr>
+        <% end %>
+        <% if row.compatible? && @editable && open_deposit_edit_id == row.definition.id %>
+          <tr>
+            <td colspan="7">
+              <%= render "cruise_deposits_and_deadlines/deposit_form",
+                    form: deposit_form,
+                    mode: :edit,
+                    definition: row.definition %>
+            </td>
+          </tr>
+        <% end %>
+      <% end %>
+    </tbody>
+  </table>
+</div>

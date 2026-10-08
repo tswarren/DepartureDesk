@@ -3,6 +3,7 @@ module ApplicationHelper
     house users briefcase boat calendar_blank suitcase coins gear dots_three list x
     envelope phone map_pin caret_down warning_circle check_circle lock_simple plus
     pencil_simple users_two file_text magnifying_glass info spinner globe star
+    clock trash
   ].freeze
   IANA_TIMEZONE_IDENTIFIERS = TZInfo::Timezone.all_identifiers.sort.freeze
 

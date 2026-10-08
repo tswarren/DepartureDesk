@@ -193,6 +193,21 @@ module CruiseCompositionHelper
     tag.span(status_label, class: "dd-badge dd-badge--#{modifier}")
   end
 
+  def cruise_schedule_workspace_label(status_label)
+    label = status_label.to_s
+    label if [ "Ready", "Blocked", "Open advanced" ].include?(label)
+  end
+
+  def cruise_icon_label(icon, label)
+    tag.span(class: "dd-icon-label") do
+      safe_join([ icon_tag(icon, html_class: "dd-icon dd-icon--sm"), label ])
+    end
+  end
+
+  def cruise_activation_category_label(cabin)
+    [ cabin.code.presence, cabin.name.presence ].compact.join(" · ")
+  end
+
   def cruise_setup_navigation(version: nil)
     presented = cruise_setup_presented_version(version)
     @cruise_setup_navigations ||= {}

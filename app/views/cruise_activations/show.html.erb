@@ -1,27 +1,40 @@
-<% content_for :title, "Review & activate #{@supplier_arrangement.name} · DepartureDesk" %>
+<% activation_title = @supplier_arrangement_version&.activated? ? "View activation review" : "Review & activate" %>
+<% content_for :title, "#{activation_title} #{@supplier_arrangement.name} · DepartureDesk" %>
 <% navigation = cruise_setup_navigation %>
 <% review_status = navigation.areas.find { |area| area.key == :review }.status %>
 <% setup_areas = navigation.areas.reject { |area| area.key == :review } %>
 
-<%= render "cruise_setup/shell", current: :review, page_title: "Review & activate" %>
+<%= render "cruise_setup/shell", current: :review, page_title: activation_title %>
 
 <p id="cruise-activation-status"><%= review_status %></p>
 
 <section class="dd-panel" aria-labelledby="cruise-activation-setup-heading">
   <div class="dd-panel-body">
     <h2 id="cruise-activation-setup-heading" class="dd-panel-title">Supplier setup</h2>
-    <ul id="cruise-activation-setup">
-      <% setup_areas.each do |area| %>
-        <li>
-          <% if cruise_setup_area_available?(area) %>
-            <%= link_to area.label, cruise_setup_area_path(area, @supplier_arrangement_version) %>
-          <% else %>
-            <%= area.label %>
+    <div class="dd-table-wrap">
+      <table class="dd-table" id="cruise-activation-setup">
+        <thead>
+          <tr>
+            <th scope="col">Area</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% setup_areas.each do |area| %>
+            <tr>
+              <td>
+                <% if cruise_setup_area_available?(area) %>
+                  <%= link_to area.label, cruise_setup_area_path(area, @supplier_arrangement_version) %>
+                <% else %>
+                  <%= area.label %>
+                <% end %>
+              </td>
+              <td><%= area.status %></td>
+            </tr>
           <% end %>
-          <span><%= area.status %></span>
-        </li>
-      <% end %>
-    </ul>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 
@@ -30,15 +43,28 @@
 <% if @review.activated? %>
   <section class="dd-panel" aria-labelledby="cruise-activated-heading">
     <div class="dd-panel-body dd-stack">
-      <h2 id="cruise-activated-heading" class="dd-panel-title">Supplier terms are active</h2>
-      <p>Version <%= @supplier_arrangement_version.version_number %> became governing<% if @activation %> on <%= cruise_activation_recorded_on(@activation) %><% end %>.</p>
-      <% if @activation %>
-        <p>Activated by <%= @activation.actor.display_name %>.</p>
-        <% identifier = cruise_activation_identifier(@activation) %>
-        <% if identifier.present? %>
-          <p>Supplier-issued identifier <%= identifier %></p>
+      <h2 id="cruise-activated-heading" class="dd-panel-title">
+        <span class="dd-icon-label"><%= icon_tag "check_circle", html_class: "dd-icon dd-icon--sm" %> Supplier terms are active</span>
+      </h2>
+      <dl class="dd-fact-grid">
+        <div>
+          <dt>Version</dt>
+          <dd>Version <%= @supplier_arrangement_version.version_number %> became governing<% if @activation %> on <%= cruise_activation_recorded_on(@activation) %><% end %>.</dd>
+        </div>
+        <% if @activation %>
+          <div>
+            <dt>Activated by</dt>
+            <dd>Activated by <%= @activation.actor.display_name %>.</dd>
+          </div>
+          <% identifier = cruise_activation_identifier(@activation) %>
+          <% if identifier.present? %>
+            <div>
+              <dt>Supplier-issued identifier</dt>
+              <dd><%= identifier %></dd>
+            </div>
+          <% end %>
         <% end %>
-      <% end %>
+      </dl>
       <%= link_to "Connect to Client service",
             departure_arrangement_cruise_service_connection_path(@departure, @supplier_arrangement),
             class: "dd-button" %>
@@ -50,7 +76,9 @@
 <% elsif review_status == "Needs attention" %>
   <section class="dd-panel" aria-labelledby="cruise-attention-heading">
     <div class="dd-panel-body dd-stack">
-      <h2 id="cruise-attention-heading" class="dd-panel-title">Needs attention</h2>
+      <h2 id="cruise-attention-heading" class="dd-panel-title">
+        <span class="dd-icon-label"><%= icon_tag "warning_circle", html_class: "dd-icon dd-icon--sm" %> Needs attention</span>
+      </h2>
       <ul>
         <% cabins_complete = navigation.areas.find { |area| area.key == :cabins }.status == "Complete" %>
         <% rates_complete = navigation.areas.find { |area| area.key == :rates }.status == "Complete" %>
@@ -117,7 +145,9 @@
       <% if @review.elapsed.any? %>
         <section class="dd-panel" aria-labelledby="cruise-elapsed-heading">
           <div class="dd-panel-body dd-stack">
-            <h2 id="cruise-elapsed-heading" class="dd-panel-title">A Supplier requirement is already past due</h2>
+            <h2 id="cruise-elapsed-heading" class="dd-panel-title">
+              <span class="dd-icon-label"><%= icon_tag "clock", html_class: "dd-icon dd-icon--sm" %> A Supplier requirement is already past due</span>
+            </h2>
             <ul>
               <% @review.elapsed.each do |row| %>
                 <li><%= row.label %><% if row.due_label.present? %> — due <%= row.due_label %><% end %></li>
@@ -149,41 +179,41 @@
         <div class="dd-panel-body dd-stack">
           <h2 id="cruise-terms-heading" class="dd-panel-title">Terms to confirm</h2>
           <h3>Cabin inventory</h3>
-          <table class="dd-table">
-            <thead>
-              <tr>
-                <th scope="col">Category</th>
-                <th scope="col">Treatment</th>
-                <th scope="col">Quantity</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% @review.cabins.each do |cabin| %>
+          <table class="dd-table" id="cruise-activation-inventory">
+              <thead>
                 <tr>
-                  <td><%= cabin.name %></td>
-                  <td><%= cabin.inventory_label %></td>
-                  <td><%= cabin.numeric? ? cabin.quantity_label : "Quantity not tracked" %></td>
+                  <th scope="col">Category</th>
+                  <th scope="col">Treatment</th>
+                  <th scope="col">Opening quantity</th>
                 </tr>
-              <% end %>
+              </thead>
+              <tbody>
+                <% @review.cabins.each do |cabin| %>
+                  <tr>
+                    <td><%= cruise_activation_category_label(cabin) %></td>
+                    <td><%= cabin.inventory_label %></td>
+                    <td><%= cabin.numeric? ? cabin.quantity_label : "Quantity not tracked" %></td>
+                  </tr>
+                <% end %>
             </tbody>
           </table>
           <h3>Contracted rates</h3>
-          <table class="dd-table">
-            <thead>
-              <tr>
-                <th scope="col">Category</th>
-                <th scope="col">Contracted terms</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% @review.cabins.each do |cabin| %>
+          <table class="dd-table" id="cruise-activation-rates">
+              <thead>
                 <tr>
-                  <td><%= cabin.name %></td>
-                  <td><%= cabin.charges_label %></td>
+                  <th scope="col">Category</th>
+                  <th scope="col">Contracted terms</th>
                 </tr>
-              <% end %>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <% @review.cabins.each do |cabin| %>
+                  <tr>
+                    <td><%= cruise_activation_category_label(cabin) %></td>
+                    <td><%= cabin.charges_label %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
         </div>
       </section>
 

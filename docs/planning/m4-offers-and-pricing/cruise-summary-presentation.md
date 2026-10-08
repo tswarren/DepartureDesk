@@ -1,6 +1,6 @@
 # Cruise summary presentation
 
-**Status:** Slice 1 Shipped 2026-10-07. Slice 2 Shipped 2026-10-07. Slices 3–4 are recorded here and have no implementation authority until each is separately accepted in this plan.
+**Status:** Slice 1 Shipped 2026-10-07. Slice 2 Shipped 2026-10-07. Slice 3 Shipped 2026-10-08. Slice 4 is recorded here and has no implementation authority until it is separately accepted in this plan.
 
 **Baseline:** Inspected at `e64ff758210522240340cf6abf89cacd5b32ba5b`, the main merge of PR #226. Implement Slice 1 from current `main`.
 
@@ -22,7 +22,7 @@ Slice 1 is Shipped. Its category-rate and Agreement presentation is the implemen
 
 Slice 2 is Shipped 2026-10-07. Its overview, inventory, category-rate summary, governing-terms, and shell-action presentation is the implementation authority for that slice.
 
-Slices 3 and 4 stay in this document so their scope is not lost. They do not authorize code. Each later slice becomes implementation authority only when this plan is amended to accept that slice. Do not index them as Accepted before that amendment.
+Slice 3 is Shipped 2026-10-08. Its activation-review, operational-schedule, and icon presentation is the implementation authority for that slice. Slice 4 stays in this document so its scope is not lost. It does not authorize code until this plan is amended to accept it.
 
 The shell label stays **Review & activate** on a draft presented version. **View activation review**, for an activated presented version, is the Accepted Slice 2 label. It keeps the existing destination and access rules.
 
@@ -154,20 +154,21 @@ Run focused affected tests, the full application suite, system tests, the Tailwi
 
 ## Slice 3 — Activation review and operational schedules
 
-**Standing:** Recorded. No implementation authority until this slice is separately accepted.
+**Standing:** Shipped 2026-10-08.
 
 **Pages:** `cruise_activations/show.html.erb` and `cruise_deposits_and_deadlines/show.html.erb`, including `_activation_details.html.erb`.
 
-- Retain the inventory and contracted-rate review tables. Refine headings, labels, and spacing.
-- Present setup status as a compact list or table. Present blockers with their existing corrective actions. Do not invent readiness states or aggregate away blockers.
-- Keep elapsed requirements, confirmation triggers, duplicate-identifier review, administrator overrides, and acknowledgements visible.
-- Preserve the atomic confirmation and activation operation.
-- Display successful activation metadata as key/value facts.
-- Use separate compact schedule tables. Deposit columns can show requirement, amount or basis, due timing, scope, and definition status. Deadline columns can show name, due timing, purpose, scope, and status.
-- Put occurrence, tranche, commitment or disposition, evidence, and historical detail in labeled row details when present. Definition status is not commitment state or overdue state.
-- Keep row blockers and time-sensitive warnings visible without expanding a disclosure. Preserve existing handled-externally, commitment, milestone, edit, and remove actions.
-- Preserve focused row IDs and editor reopening. If a target is inside a disclosure, reveal it before the existing focus behavior runs.
-- Reuse display support from Agreement only where meanings and orchestration already match. Do not create a universal deposit or payment requirement record.
+- Activation document title and heading follow the shell action: **Review & activate** on a draft presented version, **View activation review** when that version is activated. The journey step stays **Review & activate**.
+- Supplier setup is an Area / Status table with the existing labels, statuses, and links. Blockers and their corrective actions stay visible. Do not invent readiness states.
+- Inventory columns are category (code and name), treatment, and opening quantity. Numeric quantity is the existing `quantity_label`. An unset numeric quantity stays the current dash. On-request and external inventory stay **Quantity not tracked**. The contracted-rate table is category plus the existing contracted-terms description. No current-capacity column and no corrective-destination column on that table.
+- Keep elapsed requirements, confirmation triggers, duplicate-identifier review, administrator overrides, acknowledgements, and **Confirm and activate group**. Preserve the atomic confirmation and activation operation.
+- Successful activation metadata is a fact grid: version, recorded date, actor, and Supplier-issued identifier when present.
+- Deposit and deadline schedules are separate `.dd-table` tables inside `.dd-table-wrap`. They do not use the narrow fixed-layout rule used by cabin and rate tables. Deposit columns are requirement and type (`semantic_type_label`), amount or basis, due timing, scope, the draft workspace label when that label is **Ready**, **Blocked**, or **Open advanced**, operational state, and actions. Deadline columns are deadline and effect (`semantic_type_label`), due timing, scope, that same workspace label, operational state, and actions. Deadline rows have no amount.
+- `status_label` is not definition status. On a governing version, operational state uses `projection_status` and `commitment_state_label` only when `operational` is present. Successor reconcile text stays in a comparison disclosure that may start closed, not in the status column.
+- Row blockers, time-sensitive projection status, materialized due timing, commitment or disposition, and the existing commitment, handled-externally, edit, and remove actions stay visible without expanding a disclosure. An open editor renders in a following full-width row. Focus targets stay on the main row.
+- The elapsed-acknowledgement sentence appears on the readiness banner when the existing preview requires it. Blockers stay on the banner. The activation preview is a table of definition, amount or basis, due timing, scope, commitment effect, attention, and the existing editor link. It remains a definition-level preview and creates no Supplier Payment, Obligation, or paid record.
+- Icons are curated Phosphor Regular partials through `icon_tag` at `dd-icon dd-icon--sm`: `warning_circle` on the needs-attention heading and a row blocker, `clock` on the elapsed heading, `check_circle` on the recorded-activation heading, `pencil_simple` on Edit, and `trash` on remove. `check_circle` means activation is recorded for the displayed version. Do not add category, draft, upcoming, or next-action icons, and do not install an icon package or font.
+- Reuse Agreement display support only where meanings and orchestration already match. Do not create a universal deposit or payment requirement record. Leave `form-error-summary` `connect()` unchanged.
 
 **Exit:** Activation and later requirement review stay reachable, with the same gates, actions, and consequential information.
 
@@ -212,7 +213,7 @@ It does not refactor advanced Supplier planning, capacity event history, cost pl
 
 1. Slice 1 was accepted, then Shipped 2026-10-07. That shipment does not authorize Slices 2–4. Slice 2 is separately Accepted.
 2. Slice 1 is Shipped 2026-10-07, including the interface-contract rules for its facts, tables, wording, and disclosures.
-3. Slice 2 is Shipped 2026-10-07. Accept Slices 3 and 4 separately, in that order, by amending this plan after the preceding slice is Shipped.
+3. Slice 2 is Shipped 2026-10-07. Slice 3 is Shipped 2026-10-08. Accept Slice 4 separately by amending this plan.
 4. Within an accepted slice, inspect the owning controllers, compilers, helpers, projections, and tests before changing markup. Add thin read-only display support only where necessary. Do not parse summary prose back into structured fields or recompute money in JavaScript.
 5. Update `docs/ui/interface-contract.md` with the fact, table, wording, disclosure, and status rules as a slice ships.
 6. Mark the whole plan Shipped only after all four slices are Shipped.

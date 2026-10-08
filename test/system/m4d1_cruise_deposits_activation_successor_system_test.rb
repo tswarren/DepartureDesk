@@ -158,6 +158,7 @@ class M4d1CruiseDepositsActivationSuccessorSystemTest < ApplicationSystemTestCas
     visit_deposits_workspace
 
     assert_text "Proposed successor terms"
+    find("summary", text: "Governing and proposed terms").click
     assert_text "Governing term"
     assert_text "Proposed term"
     assert_text "Reconcile foreshadow"
@@ -173,6 +174,7 @@ class M4d1CruiseDepositsActivationSuccessorSystemTest < ApplicationSystemTestCas
     assert_equal due_before, governing.calculated_on
     assert governing.current?
     assert_text "2027-05-01"
+    find("summary", text: "Governing and proposed terms").click
     assert_text "Reconcile foreshadow"
   end
 
