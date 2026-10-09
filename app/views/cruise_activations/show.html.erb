@@ -179,7 +179,8 @@
         <div class="dd-panel-body dd-stack">
           <h2 id="cruise-terms-heading" class="dd-panel-title">Terms to confirm</h2>
           <h3>Cabin inventory</h3>
-          <table class="dd-table" id="cruise-activation-inventory">
+          <div class="dd-table-wrap">
+            <table class="dd-table" id="cruise-activation-inventory">
               <thead>
                 <tr>
                   <th scope="col">Category</th>
@@ -195,10 +196,12 @@
                     <td><%= cabin.numeric? ? cabin.quantity_label : "Quantity not tracked" %></td>
                   </tr>
                 <% end %>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
           <h3>Contracted rates</h3>
-          <table class="dd-table" id="cruise-activation-rates">
+          <div class="dd-table-wrap">
+            <table class="dd-table" id="cruise-activation-rates">
               <thead>
                 <tr>
                   <th scope="col">Category</th>
@@ -214,6 +217,7 @@
                 <% end %>
               </tbody>
             </table>
+          </div>
         </div>
       </section>
 

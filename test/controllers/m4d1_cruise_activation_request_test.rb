@@ -84,6 +84,8 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     assert_select "h1", text: "Review & activate"
     assert_select "#cruise-activation-status", text: "Ready to review"
     assert_select "#cruise-activation-inventory th", text: "Opening quantity"
+    assert_select ".dd-table-wrap #cruise-activation-inventory"
+    assert_select ".dd-table-wrap #cruise-activation-rates"
     assert_match "No confirmation-triggered commitments will open.", response.body
     assert_match "No confirmation-triggered commitments are declared.", response.body
     assert_select "input#supplier_reference[value='1119999']"
