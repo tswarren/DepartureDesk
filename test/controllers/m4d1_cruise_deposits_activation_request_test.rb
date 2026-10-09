@@ -27,7 +27,7 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "#cruise-readiness-banner"
     assert_select "#cruise-activation-details"
-    assert_select "#cruise-activation-preview-rows li", minimum: 1
+    assert_select "#cruise-activation-preview-rows tbody tr", minimum: 1
     assert_select "a", text: "Activate Arrangement"
     assert_select "a", text: "Open definition"
 
@@ -133,14 +133,14 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Back to Cruise"
     assert_select "#cruise-deposit-requirements-heading"
     assert_select "#cruise-supplier-deadlines-heading"
-    assert_select ".dd-definition-card", minimum: 1
+    assert_select "#cruise-deposit-summaries tbody tr", minimum: 1
     assert_select "a", text: "Add deposit"
     assert_select "a", text: "Add deadline"
     assert_select "#cruise-deposit-editor", count: 0
     assert_select "#cruise-deadline-editor", count: 0
-    assert_select "dt", text: "Type"
+    assert_select "#cruise-deposit-summaries th", text: "Requirement"
+    assert_select "#cruise-deposit-summaries th", text: "Amount"
     assert_select "dt", text: "Semantic type", count: 0
-    assert_select "dt", text: "Amount"
     assert_select ".dd-badge", minimum: 1
     assert_no_match(/Template choice is a creation affordance/, response.body)
   end
@@ -174,8 +174,8 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Activate Arrangement", count: 0
     assert_select "a", text: "Review issues", count: 0
     assert_select "#cruise-readiness-issues"
-    assert_select ".dd-definition-card .dd-attention-callout"
-    assert_select ".dd-definition-card a", text: "Open cabin inventory"
+    assert_select "#cruise-deposit-summaries .dd-attention-callout"
+    assert_select "#cruise-deposit-summaries a", text: "Open cabin inventory"
   end
 
   test "activation details do not duplicate the time zone" do
@@ -219,8 +219,8 @@ class M4d1CruiseDepositsActivationRequestTest < ActionDispatch::IntegrationTest
     sign_in_as @staff
     get departure_arrangement_cruise_deposits_and_deadlines_path(@departure, @arrangement)
     assert_response :success
-    assert_select "#cruise-deposit-#{final.id} h3", text: "Final deposit"
-    assert_select "#cruise-deposit-#{final.id} dd", text: "Final"
+    assert_select "#cruise-deposit-#{final.id} td", text: /Final deposit/
+    assert_select "#cruise-deposit-#{final.id} td p", text: "Final"
     assert_equal "Initial deposit", final.reload.description
   end
 

@@ -81,7 +81,11 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     sign_in_as @staff
     get departure_arrangement_cruise_activation_path(@departure, @arrangement)
     assert_response :success
+    assert_select "h1", text: "Review & activate"
     assert_select "#cruise-activation-status", text: "Ready to review"
+    assert_select "#cruise-activation-inventory th", text: "Opening quantity"
+    assert_select ".dd-table-wrap #cruise-activation-inventory"
+    assert_select ".dd-table-wrap #cruise-activation-rates"
     assert_match "No confirmation-triggered commitments will open.", response.body
     assert_match "No confirmation-triggered commitments are declared.", response.body
     assert_select "input#supplier_reference[value='1119999']"
@@ -104,7 +108,10 @@ class M4d1CruiseActivationRequestTest < ActionDispatch::IntegrationTest
     assert @version.reload.activated?
     follow_redirect!
     assert_match "Connect to Client service", response.body
+    assert_select "h1", text: "View activation review"
     assert_select "#cruise-activation-status", text: "Active"
+    assert_select "#cruise-activated-heading"
+    assert_select "dl.dd-fact-grid"
     assert_match "Version #{@version.version_number} became governing", response.body
     assert_match "Activated by Sam Carter", response.body
     assert_no_match "Supplier-issued identifier", response.body

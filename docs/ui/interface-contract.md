@@ -244,7 +244,7 @@ Authority: [Cruise summary presentation](../planning/m4-offers-and-pricing/cruis
 
 ## Cruise summary presentation (Slice 2 shipped)
 
-Authority: [Cruise summary presentation](../planning/m4-offers-and-pricing/cruise-summary-presentation.md). Slice 2 covers the Cruise overview, cabin inventory, category rate summary, governing Active terms, the inventory-change chooser, and the shell review action. Slices 3 and 4 are not implementation authority.
+Authority: [Cruise summary presentation](../planning/m4-offers-and-pricing/cruise-summary-presentation.md). Slice 2 covers the Cruise overview, cabin inventory, category rate summary, governing Active terms, the inventory-change chooser, and the shell review action. Slice 3 is Shipped 2026-10-08. Slice 4 is not implementation authority.
 
 - Overview sailing facts use `.dd-fact-grid`: ship, sailing, dates, time zone, departure port, return port, and itinerary notes. A missing fact says **Not recorded**. Cabin, rate, and agreement cards stay one-line summaries. Client connection state and Client title are facts. The earlier-version warning stays visible.
 - Attention links name the destination: **Open Cabin inventory**, **Open Supplier rates**, **Open Agreement**, **Open Advanced Supplier planning**, or **Open Review & activate**. The URL and permission stay the existing path.
@@ -253,6 +253,18 @@ Authority: [Cruise summary presentation](../planning/m4-offers-and-pricing/cruis
 - Active Supplier terms show version, governing statement, activation date, and actor as facts. A Supplier-issued identifier appears only when one is recorded. A proposed successor is a separate link and is not mixed into the governing cabin table.
 - The inventory-change chooser labels governing inventory against a proposed version. When a successor already exists, another proposed block stays unavailable.
 - The shell action is **Review & activate** for a draft presented version and **View activation review** for an activated presented version. Both use the existing activation path. The journey step label stays **Review & activate**.
+
+## Cruise summary presentation (Slice 3 shipped)
+
+Authority: [Cruise summary presentation](../planning/m4-offers-and-pricing/cruise-summary-presentation.md). Slice 3 covers the activation review, deposit and deadline schedules, the activation preview, and five curated icons. Slice 4 is not implementation authority.
+
+- The activation document title and heading follow the shell action. A draft presented version says **Review & activate**. An activated presented version says **View activation review**. The journey step stays **Review & activate**.
+- Supplier setup is an Area / Status table with the existing labels, statuses, and links. Inventory columns are category (code and name), treatment, and opening quantity, inside `.dd-table-wrap`. Numeric quantity uses the existing quantity sentence, and an unset numeric quantity stays the current dash. On-request and external inventory stay **Quantity not tracked**. The contracted-rate table, also inside `.dd-table-wrap`, is category plus the existing contracted-terms description.
+- Recorded activation is a `.dd-fact-grid`: version, recorded date, actor, and Supplier-issued identifier when one is present. Client connection and overview actions stay.
+- Deposit and deadline schedules are separate `.dd-table` tables inside `.dd-table-wrap`. They do not use the narrow fixed-layout rule used by cabin and rate tables. Deposit columns are requirement and type, amount or basis, due timing, scope, the draft workspace label when it is **Ready**, **Blocked**, or **Open advanced**, operational state, and actions. Deadline columns are deadline and effect, due timing, scope, that same workspace label, operational state, and actions. Deadline rows have no amount.
+- On a governing version, operational state shows projection status and commitment or disposition when those operational facts are present. Successor comparison starts closed. Row blockers, materialized due timing, and the existing commitment, handled-externally, edit, and remove actions stay visible. An open editor is a following full-width row. The focus target stays on the main row.
+- When the activation preview requires elapsed acknowledgement, that sentence is on the readiness banner. The preview is a table of definition, amount or basis, due timing, scope, commitment effect, attention, and the existing editor link. Activation still creates no Supplier Payment, Obligation, or paid record.
+- Icons are `warning_circle`, `clock`, `check_circle`, `pencil_simple`, and `trash`, each `dd-icon dd-icon--sm`. `check_circle` means activation is recorded for the displayed version. One warning icon marks a warning group. Submit stays text. Decorative icons are hidden from assistive technology.
 
 ## Responsive and accessibility gate
 
