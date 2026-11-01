@@ -2,6 +2,7 @@
 
 - Status: Accepted. [M4A](../planning/m4-offers-and-pricing/m4a-service-definitions-and-sources.md), [M4B](../planning/m4-offers-and-pricing/m4b-client-pricing-and-anonymous-preview.md), and [M4C](../planning/m4-offers-and-pricing/m4c-packages-choices-and-client-terms.md) are shipped. [M4D](../planning/m4-offers-and-pricing/m4d-publication-and-live-feasibility.md) is shipped. [M4D.0](../planning/m4-offers-and-pricing/m4d0-narrow-group-departure-builder.md) and interim [M4D.0R](../planning/m4-offers-and-pricing/m4d0r-builder-interface-remediation.md) are shipped. [M4D.1](../planning/m4-offers-and-pricing/m4d1-departure-composition-workspace.md) is Accepted (not shipped). Not implementation authority for M4E until that plan is accepted. Later M4D.1 sub-slices may require ADR amendment for draft choice-rate linkage or Client price provenance; this ADR is not that authority until amended with the implementing slice.
 - Date: 2026-09-20
+- Superseded 2026-11-01 for new work by the [first-slice charter](../planning/first-slice/first-slice-charter.md). Still governs the shipped M4 code until charter Phase 1 deletes it (D-66). Do not build new features on it.
 - Decision owners: DepartureDesk maintainers
 - Parent: [M4 — Offers and pricing](../planning/m4-offers-and-pricing/m4-offers-and-pricing.md)
 - Task-flow gate: [M4.0](../planning/m4-offers-and-pricing/m40-task-flow-and-contract.md)

@@ -1,6 +1,8 @@
 # DepartureDesk roadmap
 
-**Status:** Accepted sequencing guide
+**Status:** Superseded 2026-11-01 (was: Accepted sequencing guide)
+
+> **Superseded 2026-11-01.** M1–M4 below record what shipped. Work after M4 follows the [first-slice charter](first-slice/first-slice-charter.md) and the next slices it proposes, not M5–M8. Kept for history.
 
 **Purpose:** Order implementation around demonstrable business capabilities without treating unbuilt product requirements as shipped behavior.
 

@@ -2,6 +2,7 @@
 
 - Status: Accepted. Implemented by shipped [M3D](../planning/m3-supplier-planning/m3d-activation-reservations-confirmations.md). Sole-editable-draft is the shipped rule after M3D.3 remediation.
 - Date: 2026-09-17
+- Superseded for new work 2026-11-01 by [ADR 0018](0018-arrangement-history-by-dated-adjustment.md). Still governs the shipped M3 and M4 code until the [first-slice charter](../planning/first-slice/first-slice-charter.md) Phase 1 deletes it (D-66). Do not build new features on it.
 - Decision owners: DepartureDesk maintainers
 - Parent: [M3 — Supplier planning](../planning/m3-supplier-planning/m3-supplier-planning.md)
 - Architecture: [ADR 0008](0008-supplier-arrangement-version-topology.md), [ADR 0009](0009-supplier-contracting-and-service-provider-roles.md), [ADR 0010](0010-supplier-capacity-ledger-and-projection.md), and [ADR 0011](0011-supplier-cost-definitions-and-forecast-evaluation.md)

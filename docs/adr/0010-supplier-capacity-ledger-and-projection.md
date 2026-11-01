@@ -2,6 +2,7 @@
 
 - Status: Accepted. Implemented by shipped [M3B](../planning/m3-supplier-planning/m3b-supplier-capacity.md). Arrangement activation and Staff-facing effective-capacity controls remain M3D.
 - Date: 2026-09-16
+- Partly superseded for new work 2026-11-01 by [ADR 0018](0018-arrangement-history-by-dated-adjustment.md): version provenance, per-version Pool definitions, pair classification and Pool modes are dropped; the append-only ledger, nonnegative replay, correction, reconciliation and projection principles carry over. Still governs the shipped M3 and M4 code until charter Phase 1 deletes it (D-66), except ledger code the hold-and-reserve spike keeps and adapts under ADR 0018.
 - Amended: 2026-09-27. An evidenced increase under unchanged governing terms is a capacity event on the existing Pool. Inventory with different rates, deposit treatment, or release terms uses a successor and a distinct Resource, Pool, and rate source. Passing a deadline does not itself release capacity.
 - Decision owners: DepartureDesk maintainers
 

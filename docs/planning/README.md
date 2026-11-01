@@ -12,11 +12,24 @@ A milestone-folder `README.md` is a reading list. It does not establish status o
 
 Plans created after this reorganization use descriptive filenames within their milestone folder. Existing historical milestone and slice identifiers remain valid for existing documents, but new plans do not extend those identifier trees. Dependencies and sequencing are stated explicitly in plan metadata rather than encoded in filenames.
 
-Milestone numbers such as M5 and M6 stay. A new plan must not be named `M4D.1 Slice 3B` or `3A.4`.
+Work after M4 is organized in slices named by the [first-slice charter](first-slice/first-slice-charter.md) (Slice 1, Slice 1b, Slice 2, and so on), not milestones. A new plan must not be named `M5`, `M4D.1 Slice 3B` or `3A.4`.
 
 ## Where we stand
 
-M1, M2, and M3 are complete. M4 offers through M4D.0 are shipped. Cruise Supplier Composition through the workspace consolidation is shipped, except Cruise document storage, which is Deferred. Cruise contracted-rate readiness is Shipped. Cruise activation review is Shipped 2026-10-06. Cruise form clarity is Shipped 2026-10-07. Cruise summary presentation Slices 1 and 2 are Shipped 2026-10-07. Slice 3 is Shipped 2026-10-08. Slice 4 has no implementation authority until separately accepted. Hotel persistence, foundations, stay and inventory, supplier rates, the Supplier complexity rebaseline, and Hotel Agreement are shipped. Hotel Review and Activation is Shipped. Hotel Lifecycle is Shipped 2026-10-02. The ABC Motorcoach Transportation walkthrough is Accepted 2026-10-02 and its fixture is Approved. The [ABC Motorcoach supplier compatibility gate](m4-offers-and-pricing/abc-motorcoach-supplier-compatibility.md) records which charter facts fit shipped Supplier commands. [Transportation Supplier Composition](m4-offers-and-pricing/transportation-supplier-composition.md) is Shipped 2026-10-02 and authorizes that Transportation Agreement workspace only. The [Island Sightseeing supplier compatibility pass](m4-offers-and-pricing/island-sightseeing-supplier-compatibility.md) is recorded 2026-10-02. The [Island Sightseeing Activity walkthrough](m4-offers-and-pricing/island-sightseeing-activity-staff-walkthrough.md) is Accepted 2026-10-02. [Activity Supplier Composition](m4-offers-and-pricing/island-sightseeing-activity-supplier-composition.md) is Shipped 2026-10-02 and authorizes that Activity Agreement workflow only. The Port Promotions fixture is Approved 2026-10-02. M4E and M5 are Not authorized.
+The [first-slice charter](first-slice/first-slice-charter.md) is Accepted 2026-10-31 (D-64), amended 2026-11-01 (D-66), and is the only active work. It is in Phase 0 (Decide). No Slice 1 build step starts until the Phase 0 checkpoint: B10, B11 and M1–M4 settled and logged (B1 and the three code conflicts already are, as D-61 to D-63 and D-65), and the Slice 1 data model and screen inventory reviewed. Fixture values B2–B9 are settled before the step each blocks. Open decisions are in [pending decision log entries](../spec/pending-decision-log-entries.md).
+
+Agency identity, M1 (directories) and M2 (Departures) are kept and built on. The shipped M3 and M4 layers, including Cruise, Hotel, Transportation and Activity Supplier Composition, are frozen: fix defects only, and add no features. Charter Phase 1 deletes them right after the hold-and-reserve spike, keeping only capacity ledger code the spike chooses to adapt. M4E and M5–M8 are Superseded by the charter and must not be implemented. Cruise document storage and the M4D.1 Cruise summary presentation Slice 4 are not authorized.
+
+## First slice
+
+| Phase | State | Checkpoint |
+| --- | --- | --- |
+| 0. Decide | Active | Data-model decisions logged; data model and screens reviewed |
+| 1. Prepare | Not started | Spike decides adapt or replace for capacity; M3 and M4 layers deleted; remaining tests pass |
+| 2. Slice 1 | Not authorized until Phase 0 and Phase 1 close | Staff walkthrough after step 6; final walkthrough by a staff user and a reseller user who did not build it |
+| 3. Slice 1b | Not authorized | All demonstration cases pass |
+
+Record a phase change here, with its date. The charter stays the authority for scope.
 
 ## Milestones
 
@@ -25,15 +38,15 @@ M1, M2, and M3 are complete. M4 offers through M4D.0 are shipped. Cruise Supplie
 | M0 — Agency identity | Complete | [Roadmap](roadmap.md) |
 | M1 — Directories | Complete | [M1](m1-separate-directories/m1-client-and-supplier-directories.md) |
 | M2 — Departure core | Complete | [M2](m2-departure-core/m2-departure-core.md) |
-| M3 — Supplier planning | Complete | [M3](m3-supplier-planning/m3-supplier-planning.md) |
-| M4 — Offers and pricing | Accepted; later standing is this index | [M4](m4-offers-and-pricing/m4-offers-and-pricing.md) |
-| M5 — Client Trips and fulfillment | Not authorized | [Roadmap](roadmap.md) sequences it after M4 |
-| M6A — Client subledger | Not authorized | [Roadmap](roadmap.md) |
-| M6B — Supplier subledger | Not authorized | [Roadmap](roadmap.md) |
-| M7 — Changes and operations | Not authorized | [Roadmap](roadmap.md) |
-| M8 — Reconciliation and pilot readiness | Not authorized | [Roadmap](roadmap.md) |
+| M3 — Supplier planning | Complete; frozen; deleted in charter Phase 1 (D-66) | [M3](m3-supplier-planning/m3-supplier-planning.md) |
+| M4 — Offers and pricing | Shipped parts frozen; deleted in charter Phase 1 (D-66) | [M4](m4-offers-and-pricing/m4-offers-and-pricing.md) |
+| M5 — Client Trips and fulfillment | Superseded | [First-slice charter](first-slice/first-slice-charter.md) |
+| M6A — Client subledger | Superseded | [First-slice charter](first-slice/first-slice-charter.md) |
+| M6B — Supplier subledger | Superseded | [First-slice charter](first-slice/first-slice-charter.md) |
+| M7 — Changes and operations | Superseded | [First-slice charter](first-slice/first-slice-charter.md) |
+| M8 — Reconciliation and pilot readiness | Superseded | [First-slice charter](first-slice/first-slice-charter.md) |
 
-Roadmap **Planned** means the milestone comes later. It does not authorize code.
+The milestone and capability tables below record shipped history. "Authorizes" in them describes what each plan allowed at the time; none of it authorizes new work.
 
 ## M4 — Offers
 
@@ -96,15 +109,15 @@ Roadmap **Planned** means the milestone comes later. It does not authorize code.
 | Island Sightseeing supplier compatibility | Recorded 2026-10-02 | [Compatibility pass](m4-offers-and-pricing/island-sightseeing-supplier-compatibility.md). Persistence evidence. Authorizes no Activity code |
 | Island Sightseeing Activity walkthrough | Accepted 2026-10-02 | [Walkthrough](m4-offers-and-pricing/island-sightseeing-activity-staff-walkthrough.md) and the Approved [Port Promotions fixture](fixtures/port-promotions-island-sightseeing-2027-canonical-scenario.md) |
 | Island Sightseeing Activity Supplier Composition | Shipped 2026-10-02 | [Activity Supplier Composition](m4-offers-and-pricing/island-sightseeing-activity-supplier-composition.md). Authorizes that Activity Agreement workflow only |
-| M4E — acceptance and hardening | Not authorized | — |
+| M4E — acceptance and hardening | Superseded | [First-slice charter](first-slice/first-slice-charter.md) |
 
 Unmerged branch `m4d1-slice3-hotel-transport-activity` and PR #156 are prototype evidence and are not an implementation source. Supplier Composition fixtures are indexed in [fixtures/README.md](fixtures/README.md).
 
 ## Product authority
 
-- [MVP](departure-desk-mvp.md) — product scope.
-- [Commercial decision register](commercial-domain-decision-register.md) — commercial and financial rules.
-- [Roadmap](roadmap.md) — milestone sequence. It does not authorize a plan.
+- [Product Specification](../spec/README.md): every product rule, and the decision log. The master copy is a Google Doc.
+- [First-slice charter](first-slice/first-slice-charter.md): what is in scope now.
+- [MVP](departure-desk-mvp.md), [Commercial decision register](commercial-domain-decision-register.md) and [Roadmap](roadmap.md): Superseded 2026-11-01, kept for history.
 
 ## Drafts
 
