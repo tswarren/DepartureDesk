@@ -1,5 +1,7 @@
 # **DepartureDesk MVP Requirements**
 
+> **Superseded 2026-11-01** by the [Product Specification](../spec/README.md) and the [first-slice charter](first-slice/first-slice-charter.md). Kept for history. Do not implement from it.
+
 ## **Version 0.6 Organized Requirements Draft**
 
 This document is the current working specification for the DepartureDesk MVP. It consolidates accepted requirements into the sections they govern, identifies the few remaining choices, and records exclusions in the deferred-scope section. Appendix B retains a compact index of earlier scoping decisions without functioning as a second requirements source.
@@ -12,7 +14,7 @@ DepartureDesk explains the departure. It calculates deterministic results from r
 
 | Field | Current requirement |
 | :---- | :---- |
-| Document status | Working specification for acceptance, version 0.6 |
+| Document status | Superseded 2026-11-01 (was: working specification for acceptance, version 0.6) |
 | Primary audience | Product, design, engineering, implementation planning, and acceptance-test authors |
 | Supersedes within the compiled notes | The Legacy Infrastructure section and embedded Party-based terminology standard |
 | Preserved authorities | Agency isolation, auditability, immutable posted money, explicit currency, historical snapshots, and command-level authorization unless amended here |

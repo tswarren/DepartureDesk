@@ -1,6 +1,8 @@
 # DepartureDesk Commercial Domain Decision Register
 
-**Status:** Accepted planning contract
+**Status:** Superseded 2026-11-01 (was: Accepted planning contract)
+
+> **Superseded 2026-11-01** by the [Product Specification](../spec/README.md) and the [first-slice charter](first-slice/first-slice-charter.md). Kept for history. Do not implement from it.
 
 **Scope:** Departure, Client Trip, Supplier planning, capacity, commercial terms, financial ledgers, amendments, documents, reporting, and closeout
 

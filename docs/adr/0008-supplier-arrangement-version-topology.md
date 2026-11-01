@@ -2,6 +2,7 @@
 
 - Status: Accepted. Not implementation authority.
 - Date: 2026-09-16
+- Superseded for new work 2026-11-01 by [ADR 0018](0018-arrangement-history-by-dated-adjustment.md). Still governs the shipped M3 and M4 code until the [first-slice charter](../planning/first-slice/first-slice-charter.md) Phase 1 deletes it (D-66). Do not build new features on it.
 - Amended: 2026-09-27. The accepted Cruise rework adds an exact-version Supplier agreement confirmation distinct from Reservation confirmation. A governing confirmed version may coexist with an unconfirmed successor. Confirmation facts are immutable. An explicit correction supersedes the previous confirmation without erasing it. An amendment has its own date and does not rewrite the original contract date. Activation does not rewrite prior activated definitions or confirmation history.
 - Amended: 2026-10-02. [Transportation Supplier Composition](../planning/m4-offers-and-pricing/transportation-supplier-composition.md) adds optional `origin_name` and `destination_name` on an Occurrence definition. Cruise sailing ports stay on `departure_port_name` and `return_port_name`. Local start and end times may each be omitted. When both are present on a same-day occurrence, the end is at or after the start. Hotel stay and Cruise sailing commands still require their existing paired times.
 - Decision owners: DepartureDesk maintainers

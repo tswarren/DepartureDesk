@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-13
+- Partly superseded 2026-11-01: office time zones and required offices by [ADR 0016](0016-agency-time-zone-and-optional-offices.md); access roles and the role-to-permission catalog by [ADR 0017](0017-user-types-permissions-and-reseller-users.md). Everything else stands.
 - Decision owners: DepartureDesk maintainers
 
 ## Context

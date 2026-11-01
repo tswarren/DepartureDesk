@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-01
+- Superseded 2026-11-01 for new work by the [first-slice charter](../planning/first-slice/first-slice-charter.md). Still governs the shipped M4 code until charter Phase 1 deletes it (D-66). Do not build new features on it.
 - **Decision owners:** DepartureDesk maintainers
 - **Scope:** MVP Supplier planning and typed Supplier Composition workflows
 - **Related:** ADR 0008, ADR 0011, ADR 0012, ADR 0013, ADR 0014, [Slice 3A.1](../planning/m4-offers-and-pricing/m4d1-slice3a1-hotel-supplier-term-persistence.md)
