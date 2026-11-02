@@ -23,6 +23,7 @@ The proposed defaults are working assumptions. Placeholder values are test input
 | D-71 | INV-16 extended to activities sold per resource; INV-12 activity row (was M2) | [Spec](product-specification.md) |
 | D-72 | SUP-35: supplier rate table; SUP-21 and SMN-32 amended (was M3) | [Spec](product-specification.md) |
 | D-73 | CMN-09: template lines per traveler, unit, booking or percentage (was M4) | [Spec](product-specification.md) |
+| D-74 | Editorial cleanup, and D-35, D-62, D-68, D-70 and CMN-49 carried into ACC-05, CLT-35, DEP-07, DEP-22 and INV-12; the three review tabs moved to an [archive copy](https://docs.google.com/document/d/1VOYdCGadWNOIJ9bqM6I0SgbOmHmsl7OIHyYY3h-g2io/edit) | [Spec](product-specification.md) |
 
 ## Blocking decisions
 
@@ -64,10 +65,6 @@ Found in the 2026-11-01 review of the whole specification; the evidence is in th
 | R13 | The commission lifecycle reaches Received only through later-phase SMN-35 | Later | SMN-35's later phase covers line-by-line matching only; recording a commission receipt manually is in MVP. |
 | R14 | SET-06 and SET-07 cover four of the nine catalog documents | Later | Each other document inherits the confirmation settings, except cancellation notices and postponement offers, which inherit the financial-document settings. |
 
-## Propagating logged decisions
+## Left for Slice 2
 
-These apply decisions already logged, so they need no new choice. They are made in one editorial pass with one decision log entry: D-62's user types into ACC-05; D-68's one channel per relationship into ACC-13 and DEP-07; D-70's exception into INV-12's activity row; D-35's retirement of CLT-35, with SC-CLT-13; CMN-49's fourth initiator into DEP-22.
-
-## Editorial fixes
-
-These change no rule's meaning and are made in the same pass: the separate Financial review queue wording (Operations context, SMN-05, SC-BKG-07, the amount-due and installment lifecycles; the OPS table title stays, since OPS-27 defines it); the stale Departures open-questions note; the DEP-60 typo; the audit-retention citations (RPT-16 and its open question cite ACC-36); the adviser appendix's Review count (four rules; SMN-46 is Agreed and awaits confirmation); cross-references (BKG-52 to CMN-22, DEP-23 to CMN-43, DEP-30 to DOC-05, the CLT context's area name); completed migration reminders; the glossary's allocation citation (INV-18) and Group benefit entry; rule spacing and full-bold formatting; the "Draft area" introductions; and moving the Reconciliation, Working end-to-end journey and Overall assessment tabs out of the specification. Two need a choice and wait for Slice 2: "client summary" or "proposal" as the display name, and what the decision log's "Rules affected" column includes.
+The propagation and editorial fixes from the review were applied as D-74. Two choices remain, and neither blocks Slice 1: "client summary" or "proposal" as the display name (BKG-37, DOC-01, the glossary), and whether the decision log's "Rules affected" column lists only amended rules or related rules too.
