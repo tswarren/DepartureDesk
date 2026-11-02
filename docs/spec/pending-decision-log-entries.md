@@ -32,8 +32,8 @@ Settle B10, B11 and the model additions before Phase 0 closes, because they shap
 | B7 | Client deposit under Agreement B | 7 | Same $500 per cabin, so the two branches differ only in supplier terms. |
 | B8 | Opening excursion resources | 5 | One confirmed resource; the second only through demonstration case D7. |
 | B9 | Final-count deadline time | 4 | 14 calendar days: Oct 22, 2027 at 11:59 p.m. agency time (SET-10). |
-| B10 | Resellers in Slice 1 | 2, 9, 10 | Yes, a thin path: one reseller holds and confirms one assigned booking. |
-| B11 | Design tokens and status labels | UI | Adopt the `--dd-*` tokens from the form sample, light theme only; status labels follow DEP-04; interface rules in the charter's UI acceptance. |
+| B10 | Resellers in Slice 1 | 2, 9, 10 | Yes, a thin path: one reseller holds and confirms one assigned booking. Each reseller relationship has exactly one channel, and offers (not Departures) are published to channels (ACC-14, DEP-07). A channel shared by several resellers is later scope. |
+| B11 | Design tokens and status labels | UI | Keep the existing `--dd-*` tokens in `app/assets/tailwind/application.css` (the form sample uses the same tokens), light theme only. Add the form sample's error icon on `.dd-field-error`, which the charter's UI acceptance requires. Status labels come from DEP-04, BKG-06, INV-18 and INV-34; Departure moves to the three statuses of DEP-03 with a derived label in step 2. |
 
 ## Model additions
 
@@ -41,9 +41,9 @@ Each adds a rule. Approving one adds the rule with status Agreed and a decision 
 
 | Ref | Gap | Proposed rule | Amends |
 | --- | --- | --- | --- |
-| M1 | Children 0–4 take part in the excursion but use no position | A supplier rule on an inventory group may name traveler types that participate without using capacity. They count in participant headcount and appear on lists, but not in positions used. | INV-12 (activity), INV-07 |
-| M2 | The excursion is sold per resource, not per place | An activity group may use resource shells, each with a position count and a fixed cost per resource. A new resource is a dated capacity increase recorded only after supplier confirmation. | INV-12, INV-16, INV-26 |
-| M3 | Supplier rates vary by occupancy position, with components | An arrangement may hold a supplier rate table by inventory group and occupancy position: base fare, non-commissionable fees, taxes, discount and commission. Confirmation proposes cost lines and expected commission from it; staff may override. | SUP-21, SMN-02, SMN-32 |
+| M1 | Children 0–4 take part in the excursion but use no position | A supplier rule on an inventory group may name traveler types that participate without using capacity. They count in participant headcount and appear on lists, but not in positions used. Traveler type is the one staff choose on the booking (BKG-21); choosing it from age stays deferred (BKG-27). | INV-12 (activity), INV-07 |
+| M2 | The excursion is sold per resource, not per place | INV-16 also applies to activities: when the supplier sells per resource, each resource is a shell with a linked position pool and a fixed cost per resource, and capacity is never counted twice. A new resource is a dated capacity increase recorded only after supplier confirmation. INV-12's activity row adds this as the alternative to a capacity pool. | INV-12, INV-16, INV-26 |
+| M3 | Supplier rates vary by occupancy position, with components | An arrangement may hold a supplier rate table by inventory group and occupancy position: base fare, non-commissionable fees, taxes, discount and commission. Confirmation proposes cost lines and expected commission from it; staff may override. This lifts SUP-21's deferral only for deriving cost lines and commission from components staff enter; automatically splitting a single rate into components stays deferred. | SUP-21, SMN-02, SMN-32 |
 | M4 | The client deposit is $500 per cabin, not per traveler | A payment schedule template line may be a fixed amount per traveler, per unit or per booking, or a percentage. | CMN-09 |
 
 ## Spec fixes before Slice 2

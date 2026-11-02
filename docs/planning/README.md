@@ -24,7 +24,7 @@ Agency identity, M1 (directories) and M2 (Departures) are kept and built on. The
 
 | Phase | State | Checkpoint |
 | --- | --- | --- |
-| 0. Decide | Active | Data-model decisions logged; data model and screens reviewed |
+| 0. Decide | Active; see the [Phase 0 decision brief](first-slice/phase-0-decision-brief.md) | Data-model decisions logged; data model and screens reviewed |
 | 1. Prepare | Not started | Spike decides adapt or replace for capacity; M3 and M4 layers deleted; remaining tests pass |
 | 2. Slice 1 | Not authorized until Phase 0 and Phase 1 close | Staff walkthrough after step 6; final walkthrough by a staff user and a reseller user who did not build it |
 | 3. Slice 1b | Not authorized | All demonstration cases pass |
