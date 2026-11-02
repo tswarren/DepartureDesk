@@ -10,18 +10,20 @@ Phase 0 closes only when these six data-model decisions are logged, along with a
 
 | Ref | Recommendation | Data-model consequence | Cases that depend on it |
 | --- | --- | --- | --- |
-| B10 | Accept the default | Reseller relationship, channel, publication, booking owner and seller of record | D4, D15 |
-| B11 | Accept, widened to all four status tables, with the form sample confirmed | Departure moves from one stored `status` to three statuses and a derived label | D16, every screen |
-| M1 | Accept | A per-group rule naming traveler types that use no capacity | D6 |
-| M2 | Accept, written as an extension of INV-16 | Resource shells, each with a linked position pool and a cost per resource | D6, D7 |
-| M3 | Accept, with the SUP-21 reversal stated | Supplier rate table with components; confirmation proposes cost lines and commission | D1, D2, D4, D10 |
-| M4 | Accept | Template lines with a basis of per traveler, per unit, per booking or percentage | D9 |
+| B10 | Accept, as worded in the pending entries | Reseller relationship (one channel each), offer publication, booking owner and seller of record | D4, D15 |
+| B11 | Accept, as worded in the pending entries | Departure moves from one stored `status` to three statuses and a derived label; field errors gain an icon | D16, every screen |
+| M1 | Accept, as worded in the pending entries | A per-group rule naming traveler types that use no capacity | D6 |
+| M2 | Accept, as worded in the pending entries | Resource shells, each with a linked position pool and a cost per resource (INV-16) | D6, D7 |
+| M3 | Accept, as worded in the pending entries | Supplier rate table with components; confirmation proposes cost lines and commission | D1, D2, D4, D10 |
+| M4 | Accept, as worded in the pending entries | Template lines with a basis of per traveler, per unit, per booking or percentage | D9 |
+
+The pending entries already incorporate this brief's earlier findings: the INV-16 wording for M2, the SUP-21 carve-out for M3, the four status tables and existing tokens for B11, and staff-chosen traveler type for M1.
 
 ## B10: Resellers in Slice 1
 
 **The default commits the data model to:**
 - **Reseller users:** `AgencyUser.user_type = reseller` plus a required reseller relationship, each with a check constraint and a same-agency foreign key (ADR 0017).
-- **Publication:** a reseller channel per relationship, and publication rows from Departure to channel (DEP-07).
+- **Publication:** exactly one channel per relationship, and publication rows from offer to channel (DEP-07, ACC-14). Since a channel is one-to-one with its relationship, the data model can treat the relationship as the channel; a shared channel is later scope.
 - **Bookings:** a booking owner separate from the seller of record and the booking creator (ACC-18, FIN-05).
 
 These all have to exist from step 2 (publishing) through step 9 (the reseller path). The reseller namespace and query scope are code-only.
@@ -36,15 +38,13 @@ These all have to exist from step 2 (publishing) through step 9 (the reseller pa
 
 **What the repo already has:**
 - [application.css](../../../app/assets/tailwind/application.css) defines `--dd-*` custom properties on `:root` (brand, surfaces, text, structure, interaction) and `--color-dd-*` Tailwind theme colors. There is no dark theme.
-- The "form sample" the default names is not in the repo. Before logging, confirm whether its `--dd-*` set matches these tokens or replaces them.
+- The form sample uses the same `--dd-*` tokens, so B11 keeps them. `.dd-field-error` has no icon, and the charter's UI acceptance requires one; B11 adds it.
 
-**Status labels.** The default names DEP-04 only. The charter's UI acceptance requires spec labels from DEP-04, BKG-06, INV-18 and INV-34. Shipped Departures store one `status` column (`draft`, `active`, `departed`). DEP-03 requires three independent statuses: sales status, operating decision and completion. DEP-04 requires the summary label to be derived and never stored. Slice 1 step 2 therefore replaces the stored column with three status columns and a computed label. Kept M2 lifecycle code and its tests change in that step.
+**Status labels.** B11 takes labels from DEP-04, BKG-06, INV-18 and INV-34, the four tables the charter's UI acceptance cites. Shipped Departures store one `status` column (`draft`, `active`, `departed`). DEP-03 requires three independent statuses: sales status, operating decision and completion. DEP-04 requires the summary label to be derived and never stored. Slice 1 step 2 therefore replaces the stored column with three status columns and a computed label. Kept M2 lifecycle code and its tests change in that step.
 
 **Alternative:** keep the shipped Departure status and map it to labels for display. This contradicts DEP-03 and DEP-04 and the technical baseline's "Derived status", so it is not recommended.
 
-**Recommendation:**
-- Accept the tokens and the light theme, once the form sample is confirmed against the existing tokens.
-- Widen the status-label clause to name all four tables the UI acceptance cites.
+**Recommendation:** accept: existing tokens, light theme, the field-error icon, and labels from all four tables.
 
 ## M1: Children who take part without using a position
 
@@ -54,7 +54,7 @@ These all have to exist from step 2 (publishing) through step 9 (the reseller pa
 - *What it saves:* no new rule.
 - *What it costs:* the supplier's terms are no longer recorded where they apply, so every booking depends on staff remembering the age rule. This conflicts with keeping supplier terms on the arrangement.
 
-**Recommendation:** accept. The rule keys off the traveler type that staff choose (CLT-08, still Proposed), not a computed age. Date of birth is already a Slice 1 traveler field (CLT-06). If CLT-08 is later approved with computed age, M1 needs no change.
+**Recommendation:** accept. The rule keys off the traveler type staff choose on the booking (BKG-21). Choosing type from age stays deferred (BKG-27), so M1 needs no change if that is later adopted. Age is shown from date of birth (CLT-06, CLT-08) but does not drive the rule.
 
 ## M2: The excursion sold per resource
 
@@ -66,7 +66,7 @@ These all have to exist from step 2 (publishing) through step 9 (the reseller pa
 - *What it saves:* no new rule.
 - *What it costs:* nothing in the structure ties the cost to the 10 positions it buys. D7's "blocked until a second resource is confirmed" becomes a convention rather than a constraint.
 
-**Recommendation:** accept, worded as an extension of INV-16 rather than a new representation.
+**Recommendation:** accept. Applying INV-16 also brings its whole-vehicle clause, so a private booking may take a whole resource. That fits a private excursion.
 
 ## M3: Supplier rates by occupancy position, with components
 
@@ -76,13 +76,13 @@ These all have to exist from step 2 (publishing) through step 9 (the reseller pa
 
 D1, D2, D4 and D10 need these amounts. B6 (an S01 discount that looks wrong, and $0 single-occupancy taxes) is a fixture value inside this table.
 
-**Conflict to state in the log entry:** SUP-21 lets staff record components but defers *automatically splitting* rates into commissionable, non-commissionable, tax and fee parts. M3 does not split rates automatically, because staff enter the components. It does, however, *derive* cost lines and commission from them. M3 already lists SUP-21 under "Amends". The decision log entry should say which part of SUP-21's deferral it lifts, so the snapshot does not hold two contradicting rules.
+**SUP-21 carve-out:** SUP-21 lets staff record components but defers *automatically splitting* rates into commissionable, non-commissionable, tax and fee parts. M3 lifts that deferral only for deriving cost lines and commission from components staff enter. Splitting a single rate into components stays deferred. The pending entry states this, so the snapshot will not hold two contradicting rules.
 
 **Alternative:** a single amount per group and position, with staff entering the commissionable amount and rate on each booking (SMN-32 as written).
 - *What it saves:* the rate-table entity and the derivation.
 - *What it costs:* commission entered by hand on every booking, and the four component columns in the Alpha schedule flattened away. Rework follows when Slice 2 needs them.
 
-**Recommendation:** accept, with the SUP-21 amendment written out.
+**Recommendation:** accept.
 
 ## M4: Client deposit per cabin
 
