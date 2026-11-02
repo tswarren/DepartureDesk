@@ -17,10 +17,16 @@ The proposed defaults are working assumptions. Placeholder values are test input
 | D-65 | Keep the existing Rails and Tailwind app (was B1) | [Charter](../planning/first-slice/first-slice-charter.md#build-plan) |
 | D-66 | Amend the charter: delete M3 and M4 in Phase 1 after the spike; staff walkthrough after step 6; data-model decisions before Phase 0 closes, fixture values before their step | [Charter](../planning/first-slice/first-slice-charter.md#build-plan) |
 | D-67 | Render issued documents once and store them as immutable versions in Active Storage | [ADR 0019](../adr/0019-issued-document-storage.md) |
+| D-68 | Resellers in Slice 1, one channel per relationship (was B10) | [Charter](../planning/first-slice/first-slice-charter.md) |
+| D-69 | Existing design tokens, error icon, spec status labels (was B11) | [Charter](../planning/first-slice/first-slice-charter.md#ui-acceptance) |
+| D-70 | INV-39: traveler types that take part without using capacity (was M1) | [Spec](product-specification.md) |
+| D-71 | INV-16 extended to activities sold per resource; INV-12 activity row (was M2) | [Spec](product-specification.md) |
+| D-72 | SUP-35: supplier rate table; SUP-21 and SMN-32 amended (was M3) | [Spec](product-specification.md) |
+| D-73 | CMN-09: template lines per traveler, unit, booking or percentage (was M4) | [Spec](product-specification.md) |
 
 ## Blocking decisions
 
-Settle B10, B11 and the model additions before Phase 0 closes, because they shape the data model. Settle B2 to B9 before the step each blocks.
+B10, B11 and the model additions are logged (D-68 to D-73). Settle B2 to B9 before the step each blocks.
 
 | Ref | Decision | Blocks charter step | Proposed default |
 | --- | --- | --- | --- |
@@ -32,26 +38,36 @@ Settle B10, B11 and the model additions before Phase 0 closes, because they shap
 | B7 | Client deposit under Agreement B | 7 | Same $500 per cabin, so the two branches differ only in supplier terms. |
 | B8 | Opening excursion resources | 5 | One confirmed resource; the second only through demonstration case D7. |
 | B9 | Final-count deadline time | 4 | 14 calendar days: Oct 22, 2027 at 11:59 p.m. agency time (SET-10). |
-| B10 | Resellers in Slice 1 | 2, 9, 10 | Yes, a thin path: one reseller holds and confirms one assigned booking. Each reseller relationship has exactly one channel, and offers (not Departures) are published to channels (ACC-14, DEP-07). A channel shared by several resellers is later scope. |
-| B11 | Design tokens and status labels | UI | Keep the existing `--dd-*` tokens in `app/assets/tailwind/application.css` (the form sample uses the same tokens), light theme only. Add the form sample's error icon on `.dd-field-error`, which the charter's UI acceptance requires. Status labels come from DEP-04, BKG-06, INV-18 and INV-34; Departure moves to the three statuses of DEP-03 with a derived label in step 2. |
 
 ## Model additions
 
-Each adds a rule. Approving one adds the rule with status Agreed and a decision log entry.
+All four were approved and logged as D-70 to D-73.
 
-| Ref | Gap | Proposed rule | Amends |
+## Specification review
+
+Found in the 2026-11-01 review of the whole specification; the evidence is in the [requirements review draft](../planning/drafts/requirements-review-2026-11-01.md). Each changes what a rule means, so each needs its own decision log entry. Settle R1 to R10 before the Slice 1 data model and screen inventory are reviewed; R11 to R14 before the slice that needs them.
+
+| Ref | Decision | Blocks build step | Proposed default |
 | --- | --- | --- | --- |
-| M1 | Children 0–4 take part in the excursion but use no position | A supplier rule on an inventory group may name traveler types that participate without using capacity. They count in participant headcount and appear on lists, but not in positions used. Traveler type is the one staff choose on the booking (BKG-21); choosing it from age stays deferred (BKG-27). | INV-12 (activity), INV-07 |
-| M2 | The excursion is sold per resource, not per place | INV-16 also applies to activities: when the supplier sells per resource, each resource is a shell with a linked position pool and a fixed cost per resource, and capacity is never counted twice. A new resource is a dated capacity increase recorded only after supplier confirmation. INV-12's activity row adds this as the alternative to a capacity pool. | INV-12, INV-16, INV-26 |
-| M3 | Supplier rates vary by occupancy position, with components | An arrangement may hold a supplier rate table by inventory group and occupancy position: base fare, non-commissionable fees, taxes, discount and commission. Confirmation proposes cost lines and expected commission from it; staff may override. This lifts SUP-21's deferral only for deriving cost lines and commission from components staff enter; automatically splitting a single rate into components stays deferred. | SUP-21, SMN-02, SMN-32 |
-| M4 | The client deposit is $500 per cabin, not per traveler | A payment schedule template line may be a fixed amount per traveler, per unit or per booking, or a percentage. | CMN-09 |
+| R1 | SUP-35 names one "confirmation" for two events, and gives no basis for costing unsold cabins | 3, 4 (D1, D2) | Arrangement confirmation proposes committed cost lines per shell at the basis the supplier's terms commit to; booking confirmation proposes expected commission (SMN-32) and any cost for positions beyond that basis. Supplier cost is recorded gross with commission separate, so FIN-03 counts it once. Double occupancy is the working basis for Alpha until Agreement A confirms it. |
+| R2 | CMN-09 "per unit" does not say which units are counted | 5 (D9) | Each template line names the choice it counts, and "per unit" counts the distinct shells allocated under that choice. Check: one cabin plus hotel and excursion proposes $500; two cabins propose $1,000. |
+| R3 | A reseller creating client and traveler profiles rests only on CLT-25, which is Proposed | 9 (D15) | Approve CLT-25 narrowly: a reseller creates profiles only while creating an assigned booking and sees them only through it, with no directory search, other trips or history. Alternative: staff create BK-105's profiles. |
+| R4 | The summary label ignores agency Sales paused (SET-16), and DEP-05 lacks the agency guard | 2 | Add the agency guard to DEP-05. Completion labels, Postponed and Cancelling keep precedence; otherwise a Departure is Not on sale while the agency is Sales paused. Building Sales paused itself stays out of Slice 1. |
+| R5 | "Booking owner" notices have no person when the agency owns the booking; OPS-11's "staff owner" is undefined | 6 (BKG-10) | For an agency-owned booking on a Departure, booking-owner notices go to the Departure's default task owner, else its team (OPS-11, OPS-12). In Slice 1 only the hold-expired notice is built, in the app; admitting it needs a decision log entry naming the charter. Standalone trips are later scope. |
+| R6 | SMN-11's "Names submitted" trigger cites Proposed CLT-14, and D2 posts per cabin | 4 (D2) | A names submission names the shells it covers; a per-shell schedule line posts once per shell when a submission first covers it, and a later resubmission posts nothing. Slice 1 records the submission date and reference only; CLT-14's snapshot stays Proposed. B2 stays a fixture value. |
+| R7 | BKG-03's Client Trip statuses overlap | 6 | Evaluate in order: Travelled (a confirmed, uncancelled booking exists and all its services have ended); Booked (a confirmed, uncancelled booking exists); Quote (a draft exists); Cancelled (a cancelled booking exists); Not booked (otherwise, including no bookings). |
+| R8 | Departed: DEP-42 has staff mark it after a prompt the day after the last service date; the shipped sweep marks it automatically from the start date | 11 (D14) | Keep DEP-42. Step 11 replaces the sweep with a staff task due the day after the last service date. |
+| R9 | Departure references: REF uses `DEP-0042`; shipped code issues `D-000001` | 1, 2 | Adopt `DEP-` from step 1. Recreate development data rather than renumber; if any issued reference must be kept, REF-03 keeps it unchanged. |
+| R10 | D1 closes at build step 3, but committed cost is built in step 4 | 3, 4 | Move D1 to step 4 by a decision log entry naming the charter. |
+| R11 | Completion holds both "Departed" and "Financially reconciled", while DEP-43 and DEP-45 keep the Departure operationally Departed | 11 | Keep one completion status. Financially reconciled records the state it came from, which reopening restores (the completion table's "Previous status"); the label is Reconciled. No fourth status. |
+| R12 | Whether a confirmed supplier compensation claim (OPS-34) is non-blocking like other confirmed receivables (D-60) | Later | A confirmed, quantified and attributed claim is a supplier receivable under D-60 and does not block; a pending claim blocks. Update OPS-34, SC-OPS-11 and the financial-condition table together. |
+| R13 | The commission lifecycle reaches Received only through later-phase SMN-35 | Later | SMN-35's later phase covers line-by-line matching only; recording a commission receipt manually is in MVP. |
+| R14 | SET-06 and SET-07 cover four of the nine catalog documents | Later | Each other document inherits the confirmation settings, except cancellation notices and postponement offers, which inherit the financial-document settings. |
 
-## Spec fixes before Slice 2
+## Propagating logged decisions
 
-These don't block Slice 1.
+These apply decisions already logged, so they need no new choice. They are made in one editorial pass with one decision log entry: D-62's user types into ACC-05; D-68's one channel per relationship into ACC-13 and DEP-07; D-70's exception into INV-12's activity row; D-35's retirement of CLT-35, with SC-CLT-13; CMN-49's fourth initiator into DEP-22.
 
-| Ref | Fix |
-| --- | --- |
-| F1 | Remove stale references to a separate Financial review queue: SC-BKG-07, the SMN amount-due lifecycle table, and the OPS "Financial review" table title. OPS-27 already puts financial follow-up in the single staff task queue. |
-| F2 | Align OPS-34 (a pending supplier compensation claim blocks reconciliation) with D-60 (confirmed, quantified, attributed supplier receivables may stay in follow-up without blocking). |
-| F3 | Close the stale open-questions note in the Departures area. |
+## Editorial fixes
+
+These change no rule's meaning and are made in the same pass: the separate Financial review queue wording (Operations context, SMN-05, SC-BKG-07, the amount-due and installment lifecycles; the OPS table title stays, since OPS-27 defines it); the stale Departures open-questions note; the DEP-60 typo; the audit-retention citations (RPT-16 and its open question cite ACC-36); the adviser appendix's Review count (four rules; SMN-46 is Agreed and awaits confirmation); cross-references (BKG-52 to CMN-22, DEP-23 to CMN-43, DEP-30 to DOC-05, the CLT context's area name); completed migration reminders; the glossary's allocation citation (INV-18) and Group benefit entry; rule spacing and full-bold formatting; the "Draft area" introductions; and moving the Reconciliation, Working end-to-end journey and Overall assessment tabs out of the specification. Two need a choice and wait for Slice 2: "client summary" or "proposal" as the display name, and what the decision log's "Rules affected" column includes.

@@ -63,12 +63,12 @@ The first slice has fifteen workflow steps. Work marked 1b is built in Slice 1b;
 2. **Departure.** Record identity, dates, currency, time zone and team; set Ready to sell; publish the package to one reseller channel. DEP-01, DEP-03 to DEP-07; FIN-22.
 3. **Suppliers and arrangements.** Alpha Cruises, the package hotel and Shore Excursions Group, each with one payee account and one arrangement, Draft then Confirmed. SUP-01, SUP-02, SUP-06, SUP-07, SUP-09, SUP-11, SUP-15 to SUP-18.
 4. **Supplier deadlines and tasks.** Deposit, names, final payment and final count, each creating a task; the option cutoff in 1b. SUP-22 to SUP-25; OPS-01 to OPS-05.
-5. **Inventory.** Cabin shells per category; Nov 5 room shells; Nov 4 as a limited group; Nov 1–3 on request; the excursion as resource shells with positions (M2). INV-01 to INV-05, INV-07, INV-09, INV-12, INV-38.
-6. **Supplier cost and schedule.** Cost lines, schedule lines and amounts due for Agreement A and the $1,000 resource; Agreement B in 1b. SMN-01 to SMN-06, SMN-08, SMN-10, SMN-11, SMN-13, SMN-14, SMN-17; supplier rate table per M3.
-7. **Package and client terms.** Cabin as a required single choice per unit; Nov 5 hotel included; extension nights and the excursion as add-ons; cancellation schedule and payment schedule template. BKG-13 to BKG-16, BKG-21, BKG-28, BKG-31; CMN-09 with M4.
+5. **Inventory.** Cabin shells per category; Nov 5 room shells; Nov 4 as a limited group; Nov 1–3 on request; the excursion as resource shells with positions (INV-16). INV-01 to INV-05, INV-07, INV-09, INV-12, INV-16, INV-38, INV-39.
+6. **Supplier cost and schedule.** Cost lines, schedule lines and amounts due for Agreement A and the $1,000 resource; Agreement B in 1b. SMN-01 to SMN-06, SMN-08, SMN-10, SMN-11, SMN-13, SMN-14, SMN-17; supplier rate table (SUP-35).
+7. **Package and client terms.** Cabin as a required single choice per unit; Nov 5 hotel included; extension nights and the excursion as add-ons; cancellation schedule and payment schedule template. BKG-13 to BKG-16, BKG-21, BKG-28, BKG-31; CMN-09.
 8. **Clients and travelers.** Responsible clients and travelers, with placeholders allowed on holds; no passport fields. CLT-01, CLT-02, CLT-05, CLT-06, CLT-09, CLT-11, CLT-13, CLT-15.
 9. **Reseller relationship.** Authorize one reseller, assign BK-105 to it, and record the seller of record. ACC-13, ACC-14, ACC-18; FIN-05 seller of record only.
-10. **Hold, accept and confirm.** Staff confirm BK-101 and BK-104; the reseller holds and confirms BK-105 at the published price. Conditional holds on courtesy space in 1b. BKG-05, BKG-06, BKG-09 to BKG-11, BKG-25, BKG-39, BKG-41, BKG-45, BKG-46; ACC-15; DEP-10; INV-17 to INV-23; M1.
+10. **Hold, accept and confirm.** Staff confirm BK-101 and BK-104; the reseller holds and confirms BK-105 at the published price. Conditional holds on courtesy space in 1b. BKG-05, BKG-06, BKG-09 to BKG-11, BKG-25, BKG-39, BKG-41, BKG-45, BKG-46; ACC-15; DEP-10; INV-17 to INV-23; INV-39.
 11. **Supplier follow-up.** Supplier requests for on-request hotel nights, accepted with a reference; names submission. A declined night and the second excursion resource in 1b. INV-26, INV-33 to INV-37; SMN-11, SMN-12.
 12. **Client money.** Charge lines, installments, payments to the agency and to a supplier, and receipts. The reseller sees balances and passes on payment details but enters nothing. CMN-01 to CMN-03, CMN-06, CMN-08, CMN-12, CMN-18, CMN-19, CMN-21, CMN-23, CMN-24, CMN-28, CMN-29, CMN-52, CMN-55.
 13. **Supplier money.** Supplier payments applied to amounts due, plus expected commission. SMN-18, SMN-19, SMN-22, SMN-23, SMN-32, SMN-33.
@@ -99,7 +99,7 @@ One shared-cabin booking is the first case for Slice 2, since the roster has no 
 
 ## Model additions
 
-The fixture needs four rules the spec does not have yet. Each is proposed wording; approving it adds a rule and a decision log entry. The wording is in [pending decision log entries](../../spec/pending-decision-log-entries.md#model-additions).
+The fixture needed four rules the spec did not have. All four were approved on 2026-11-01 and are now spec rules: M1 is INV-39 (D-70), M2 extends INV-16 and INV-12 (D-71), M3 is SUP-35 with SUP-21 and SMN-32 amended (D-72), and M4 amends CMN-09 (D-73).
 
 | ID | Gap | Amends |
 | --- | --- | --- |
@@ -112,7 +112,7 @@ Hotel extensions need no new rule: each extension date is its own inventory grou
 
 ## Blocking decisions
 
-Each decision has a proposed default so work can start; placeholder values are test inputs only. Decisions that shape the data model are settled before Phase 0 closes: B1 (logged as D-65), B10 and B11, and the model additions M1 to M4. The fixture values B2 to B9 are settled before the step they block. The decisions and defaults are in [pending decision log entries](../../spec/pending-decision-log-entries.md#blocking-decisions).
+Each decision has a proposed default so work can start; placeholder values are test inputs only. Decisions that shape the data model are settled before Phase 0 closes: B1 (D-65), B10 (D-68), B11 (D-69) and the model additions M1 to M4 (D-70 to D-73). The fixture values B2 to B9 are settled before the step they block. The decisions and defaults are in [pending decision log entries](../../spec/pending-decision-log-entries.md#blocking-decisions).
 
 | ID | Decision | Blocks step |
 | --- | --- | --- |
@@ -125,8 +125,8 @@ Each decision has a proposed default so work can start; placeholder values are t
 | B7 | Client deposit under Agreement B | 7 |
 | B8 | Opening excursion resources | 5 |
 | B9 | Final-count deadline time | 4 |
-| B10 | Resellers in Slice 1 | 2, 9, 10 |
-| B11 | Design tokens and status labels | UI |
+| B10 | Resellers in Slice 1 (D-68) | 2, 9, 10 |
+| B11 | Design tokens and status labels (D-69) | UI |
 
 Three spec fixes do not block the slice but should be made before Slice 2: remove stale references to a separate Financial review queue (SC-BKG-07, the SMN amount-due table, the OPS table title); align OPS-34 with D-60; and close the stale Departures open-questions note.
 
@@ -146,7 +146,7 @@ These choices hold whatever stack B1 picks; they are expensive to change later.
 | Sign-in | Email and password with sessions for staff and reseller users; MFA is decided before any real agency data is loaded |
 | Sensitive data | No passport fields in the first slice; field-level encryption is designed before they are added |
 | Documents | Rendered once at issue, server-side HTML to PDF, and stored as immutable versions through Active Storage per [ADR 0019](../../adr/0019-issued-document-storage.md) (DOC-11, DOC-12); previews may render on demand; no email sending |
-| Interface | WCAG 2.2 AA; tokens per B11; standards in UI acceptance |
+| Interface | WCAG 2.2 AA; tokens per D-69; standards in UI acceptance |
 | Tests | The fixture loads from one seed script; each demonstration case is an automated end-to-end test named by its ID |
 
 ## UI acceptance
@@ -179,8 +179,8 @@ Seventeen cases prove the first slice. Each becomes an automated test; the Slice
 | D3 | 1b | Agreement B; staff hold a cabin | The hold is conditional, shows the Mar 1 cutoff, and a cutoff task exists; no initial deposit is due | INV-22, SUP-23 |
 | D4 | 1 | Staff confirm BK-101 and BK-104; the reseller confirms BK-105 | Cruise subtotals total $26,400; cabins left: V01 7, O01 7, I01 8, S01 7. In 1b all five total $34,820 | BKG-25, BKG-45, INV-38 |
 | D5 | 1 | Anyone tries to confirm without recorded acceptance | Confirmation is refused; a deposit counts as acceptance only when the terms say so | BKG-39, BKG-41 |
-| D6 | 1 | Excursion choices are recorded for the Slice 1 bookings | 9 participants, 7 positions used, 3 left; Luca and Milo listed without positions. In 1b all five use all 10 | M1, BKG-16 |
-| D7 | 1b | Elena Rivera adds the excursion after confirmation | Blocked for lack of capacity until staff record a confirmed second resource; then capacity is 20, supplier cost $2,000 and excursion margin −$350 | M2, BKG-17, INV-23, INV-26 |
+| D6 | 1 | Excursion choices are recorded for the Slice 1 bookings | 9 participants, 7 positions used, 3 left; Luca and Milo listed without positions. In 1b all five use all 10 | INV-39, BKG-16 |
+| D7 | 1b | Elena Rivera adds the excursion after confirmation | Blocked for lack of capacity until staff record a confirmed second resource; then capacity is 20, supplier cost $2,000 and excursion margin −$350 | INV-16, BKG-17, INV-23, INV-26 |
 | D8 | 1, 1b | BK-104 is confirmed with Nov 2–3 on request | Those nights show Awaiting supplier; in Slice 1 the hotel accepts and its reference is recorded. In 1b a decline is flagged, acceptance is kept and nothing cancels | INV-33 to INV-37 |
 | D9 | 1 | BK-101 and BK-104 pay $500 each to the agency; BK-105 pays $500 to Alpha | Agency receipts total $1,000; the receivable drops by $1,500; the Alpha payment has no receipt and is not agency cash | CMN-06, CMN-29, CMN-55 |
 | D10 | 1 | Staff pay Alpha the amounts due | Amounts due are settled; the deposit is never added to cost | SMN-03, SMN-19 |

@@ -1,6 +1,6 @@
 # Phase 0 decision brief: B10, B11, M1–M4
 
-**Status:** Draft, 2026-11-01. Not implementation authority. This brief is input to decisions that are logged in the [Product Specification](../../spec/README.md). It decides nothing itself.
+**Status:** Historical, 2026-11-01. All six recommendations were approved and logged as D-68 (B10), D-69 (B11), D-70 (M1, INV-39), D-71 (M2, INV-16 and INV-12), D-72 (M3, SUP-35, SUP-21 and SMN-32) and D-73 (M4, CMN-09). The [Product Specification](../../spec/README.md) holds the rules; this brief records the reasoning.
 
 **Reads with:** [first-slice charter](first-slice-charter.md), [pending decision log entries](../../spec/pending-decision-log-entries.md), [ADR 0017](../../adr/0017-user-types-permissions-and-reseller-users.md).
 
