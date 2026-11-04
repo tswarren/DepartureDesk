@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Departure inventory</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f7f5}
+a{color:#006270}a:hover{color:#004f5b}
+:focus-visible{outline:2px solid #f49a00;outline-offset:2px}
+.nav a{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:7px;color:#c9d6e2;text-decoration:none;box-sizing:border-box}
+.nav a:hover{color:#ffffff;background:#0b3556}
+.nav a.on{background:#007080;color:#ffffff;font-weight:500}
+.badge{display:inline-flex;align-items:center;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:500;line-height:1.5;white-space:nowrap}
+.ok{background:#e6f3eb;color:#24523d}.warn{background:#fff2d6;color:#694400}.info{background:#e7f1f7;color:#264f67}.neu{background:#edf0f2;color:#46525a}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:4px;border:1px solid #006270;background:#006270;color:#ffffff;font:inherit;font-weight:500;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn:hover{background:#004f5b;color:#ffffff}
+.btn2{background:#ffffff;color:#17212b;border-color:#aababd}
+.btn2:hover{background:#eef2f1;color:#17212b}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.02em;color:#52616d;text-align:left;padding:8px 12px;background:#eef2f1;border-bottom:1px solid #d4dedf;font-weight:600;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid #eef2f1;vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+.tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid #d4dedf}
+.tabs a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;color:#52616d;text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent;box-sizing:border-box}
+.tabs a:hover{color:#002340}
+.tabs a.on{color:#002340;font-weight:600;border-bottom-color:#007080}
+.num{text-align:right;font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.shell{border:1px solid #d4dedf;border-radius:7px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;background:#ffffff;min-height:64px;box-sizing:border-box}
+.shell.ok{background:#e6f3eb;border-color:#9fc9b0}.shell.info{background:#e7f1f7;border-color:#9cc0d6}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; line-height: 1.45; color: #17212b; background: #f6f7f5">
+  <nav aria-label="Main" style="flex: 1 1 220px; background: #002340; color: #ffffff; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px">
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 0 12px">
+      <span style="font-size: 16px; font-weight: 700; letter-spacing: -0.01em">DepartureDesk</span>
+      <span style="font-size: 12px; color: #c9d6e2">[Agency name]</span>
+    </div>
+    <div class="nav" style="display: flex; flex-direction: column; gap: 2px">
+      <a href="#">My tasks</a>
+      <a href="Main.dc.html" class="on" aria-current="page">Departures</a>
+      <a href="#">Clients</a>
+      <a href="#">Suppliers</a>
+      <a href="#">Resellers</a>
+      <a href="#">Agency settings</a>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 22px 32px 56px; box-sizing: border-box">
+    <div style="max-width: 1160px; display: flex; flex-direction: column; gap: 20px">
+      <nav aria-label="Breadcrumb" style="font-size: 12px; color: #52616d; display: flex; gap: 6px; flex-wrap: wrap">
+        <a href="Main.dc.html" style="color: #52616d">Alpha Omega · Nov 6–13, 2027</a><span aria-hidden="true">/</span><span aria-current="page">Inventory</span>
+      </nav>
+
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+          <a href="Main.dc.html" style="font-size: 16px; font-weight: 600; color: #002340; text-decoration: none">Alpha Omega · Port Everglades round trip</a>
+          <span class="badge ok">On sale</span>
+          <span style="font-size: 12px; color: #52616d">Nov 6–13, 2027 · DEP-0001</span>
+        </div>
+        <nav aria-label="Departure" class="tabs">
+          <a href="Main.dc.html">Overview</a>
+          <a href="#">Bookings</a>
+          <a href="Inventory.dc.html" class="on" aria-current="page">Inventory</a>
+          <a href="#">Suppliers</a>
+          <a href="#">Supplier money</a>
+          <a href="#">Tasks</a>
+          <a href="#">Closeout</a>
+        </nav>
+      </div>
+
+      <header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+        <div style="min-width: 0; display: flex; flex-direction: column; gap: 6px">
+          <p style="margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: #007080">Departure inventory</p>
+          <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #002340; letter-spacing: -0.01em">Cabins, rooms and excursion positions</h1>
+          <p style="margin: 0; color: #52616d">Status is worked out from allocations and never edited here. Changes to supply are dated inventory events.</p>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <a href="#" class="btn btn2">Record inventory event</a>
+        </div>
+      </header>
+
+      <section aria-labelledby="cabins" style="background: #ffffff; border: 1px solid #d4dedf; border-radius: 10px">
+        <div style="padding: 12px 16px; border-bottom: 1px solid #d4dedf; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap">
+          <h2 id="cabins" style="margin: 0; font-size: 14px; font-weight: 600">Alpha Cruises · 32 cabin shells</h2>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; align-items: center">
+            <span class="badge ok">Reserved</span><span class="badge info">Held</span><span class="badge neu">Available</span><span style="color: #52616d">Firm · Agreement A</span>
+          </div>
+        </div>
+        <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 18px">
+          <sc-for list="{{groups}}" as="g" hint-placeholder-count="4">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <div style="display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap">
+                <h3 style="margin: 0; font-size: 13px; font-weight: 600">{{g.name}}</h3>
+                <span style="font-size: 12px; color: #52616d">{{g.summary}}</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px">
+                <sc-for list="{{g.shells}}" as="s" hint-placeholder-count="8">
+                  <div class="shell {{s.cls}}">
+                    <span style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; font-weight: 500">{{s.label}}</span>
+                    <span style="font-size: 12px; color: #2e3b45">{{s.who}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 16px">
+        <section aria-labelledby="hotel" style="background: #ffffff; border: 1px solid #d4dedf; border-radius: 10px; min-width: 0">
+          <div style="padding: 12px 16px; border-bottom: 1px solid #d4dedf; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap">
+            <h2 id="hotel" style="margin: 0; font-size: 14px; font-weight: 600">Sablewater Harbor Hotel</h2>
+            <span style="font-size: 12px; color: #52616d">One group per date</span>
+          </div>
+          <div style="overflow-x: auto">
+            <table>
+              <thead><tr><th scope="col">Night</th><th scope="col">Promise</th><th scope="col">Garden Queen</th><th scope="col">Harbor Double</th></tr></thead>
+              <tbody>
+                <tr><td>Nov 5 (included)</td><td>Firm</td><td>1 reserved · 1 held · 2 left of 4</td><td>1 reserved · 3 left of 4</td></tr>
+                <tr><td>Nov 4</td><td>Firm</td><td>1 reserved · 1 left of 2</td><td>1 reserved · 0 left of 1</td></tr>
+                <tr><td>Nov 3</td><td>On request</td><td>—</td><td><span class="badge warn">1 awaiting supplier</span></td></tr>
+                <tr><td>Nov 2</td><td>On request</td><td>—</td><td><span class="badge warn">1 awaiting supplier</span></td></tr>
+                <tr><td>Nov 1</td><td>On request</td><td>—</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section aria-labelledby="exc" style="background: #ffffff; border: 1px solid #d4dedf; border-radius: 10px; min-width: 0">
+          <div style="padding: 12px 16px; border-bottom: 1px solid #d4dedf; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap">
+            <h2 id="exc" style="margin: 0; font-size: 14px; font-weight: 600">Private Miami tour · Nov 5, 2:00–6:30 p.m.</h2>
+            <span style="font-size: 12px; color: #52616d">Shore Excursions Group</span>
+          </div>
+          <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap">
+              <span style="font-weight: 600">Resource 1 · confirmed</span>
+              <span class="num">7 of 10 positions used · 3 left</span>
+            </div>
+            <div role="img" aria-label="7 of 10 positions used" style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px">
+              <span style="height: 14px; border-radius: 3px; background: #2f6b4f"></span><span style="height: 14px; border-radius: 3px; background: #2f6b4f"></span><span style="height: 14px; border-radius: 3px; background: #2f6b4f"></span><span style="height: 14px; border-radius: 3px; background: #2f6b4f"></span><span style="height: 14px; border-radius: 3px; background: #2f6b4f"></span><span style="height: 14px; border-radius: 3px; background: #2f6b4f"></span><span style="height: 14px; border-radius: 3px; background: #326a8a"></span><span style="height: 14px; border-radius: 3px; background: #edf0f2; border: 1px solid #aababd; box-sizing: border-box"></span><span style="height: 14px; border-radius: 3px; background: #edf0f2; border: 1px solid #aababd; box-sizing: border-box"></span><span style="height: 14px; border-radius: 3px; background: #edf0f2; border: 1px solid #aababd; box-sizing: border-box"></span>
+            </div>
+            <div style="overflow-x: auto">
+              <table>
+                <thead><tr><th scope="col">Booking</th><th scope="col" class="num">Positions</th><th scope="col">Free participants</th></tr></thead>
+                <tbody>
+                  <tr><td>BK-101 Rowan · reserved</td><td class="num">3</td><td>—</td></tr>
+                  <tr><td>BK-104 Bennett · reserved</td><td class="num">3</td><td>Milo, age 2</td></tr>
+                  <tr><td>BK-105 Rivera · held</td><td class="num">1</td><td>Luca, age 3</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
+              <a href="#" class="btn btn2">Add a resource</a>
+              <span style="font-size: 12px; color: #52616d">Record only after Shore Excursions confirms it: +10 positions, +$1,000.</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1520}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const make = (code, special) => Array.from({ length: 8 }, (_, i) => {
+      const s = special[i + 1];
+      return s
+        ? { label: code + '-' + (i + 1), cls: s.cls, who: s.who }
+        : { label: code + '-' + (i + 1), cls: '', who: 'Available' };
+    });
+    return {
+      groups: [
+        { name: 'V01 Deluxe Veranda · max 3', summary: '1 reserved · 7 left', shells: make('V01', { 1: { cls: 'ok', who: 'BK-101 Rowan' } }) },
+        { name: 'O01 Deluxe Oceanview · max 3', summary: '1 held · 7 left', shells: make('O01', { 1: { cls: 'info', who: 'BK-105 held to Nov 11' } }) },
+        { name: 'I01 Deluxe Interior · max 3', summary: '8 left', shells: make('I01', {}) },
+        { name: 'S01 Deluxe Suite · max 4', summary: '1 reserved · 7 left', shells: make('S01', { 1: { cls: 'ok', who: 'BK-104 Bennett' } }) }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

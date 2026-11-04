@@ -6,7 +6,7 @@ AGENTS.md (imported above) is the binding repository contract: scope boundary, i
 
 ## Before any change
 
-1. Check the scope boundary in AGENTS.md "Current boundary". The charter is in Phase 0. M1 directories and M2 Departures are built on; the M3/M4 layers (Supplier Arrangements, capacity, costs, Reservations, Service Offers, Packages, and the Cruise/Hotel/Transportation/Activity workflows) are **frozen: fix defects only, add nothing, and keep their tests passing**.
+1. Check the scope boundary in AGENTS.md "Current boundary". Phase 0 closed 2026-11-03; the charter is in Phase 1 (Prepare). M1 directories and M2 Departures are built on; the M3/M4 layers (Supplier Arrangements, capacity, costs, Reservations, Service Offers, Packages, and the Cruise/Hotel/Transportation/Activity workflows) are **frozen: fix defects only, add nothing, and keep their tests passing**.
 2. Product rules come from [docs/spec/product-specification.md](docs/spec/product-specification.md) (read-only snapshot) and are cited by rule ID, never copied. Do not resolve anything listed in [docs/spec/pending-decision-log-entries.md](docs/spec/pending-decision-log-entries.md) in code.
 3. Read the relevant ADR in [docs/adr/](docs/adr/) and the current code before you design anything.
 
