@@ -27,90 +27,7 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
     suppliers
   ].freeze
 
-  CURRENT_SUPPLIER_TABLES = %w[
-    supplier_agreement_reference_absences
-    supplier_agreement_references
-    supplier_amount_due_contributors
-    supplier_amount_due_definitions
-    supplier_arrangement_activation_capacity_entries
-    supplier_arrangement_activation_cost_selections
-    supplier_arrangement_activations
-    supplier_arrangement_commercial_benefit_definitions
-    supplier_arrangement_commercial_benefits
-    supplier_arrangement_cruise_agreement_confirmations
-    supplier_arrangement_cruise_capacity_deposit_requirements
-    supplier_arrangement_cruise_term_definitions
-    supplier_arrangement_ending_previews
-    supplier_arrangement_endings
-    supplier_arrangement_versions
-    supplier_arrangements
-    supplier_attention_findings
-    supplier_category_assignments
-    supplier_commitment_dispositions
-    supplier_commitment_evidence_coverage_members
-    supplier_commitment_evidence_coverage_revocations
-    supplier_commitment_evidence_coverages
-    supplier_commitment_evidence_member_disqualifications
-    supplier_commitment_reopenings
-    supplier_commitment_trigger_definitions
-    supplier_commitments
-    supplier_confirmation_activation_links
-    supplier_confirmation_capacity_event_links
-    supplier_confirmation_commitment_links
-    supplier_confirmation_identifier_links
-
-    supplier_confirmation_reservation_response_links
-
-    supplier_confirmation_reservation_scope_links
-    supplier_confirmations
-    supplier_contact_email_addresses
-    supplier_contact_phone_numbers
-    supplier_contacts
-    supplier_cost_component_bases
-    supplier_cost_components
-    supplier_cost_definitions
-    supplier_cost_occupancy_profile_positions
-    supplier_cost_occupancy_profiles
-    supplier_cost_participant_categories
-    supplier_cost_sources
-    supplier_cost_usage_assumptions
-    supplier_deadline_commitment_definition_lines
-    supplier_deadline_definition_coverage_links
-    supplier_deadline_definitions
-    supplier_deadline_occurrences
-    supplier_deadline_projections
-    supplier_deposit_external_attestations
-    supplier_deposit_requirement_definition_contributor_links
-    supplier_deposit_requirement_definition_cost_links
-    supplier_deposit_requirement_definition_coverage_links
-    supplier_deposit_requirement_definitions
-    supplier_deposit_requirement_tranche_components
-    supplier_deposit_requirement_tranches
-    supplier_email_addresses
-    supplier_exposure_components
-    supplier_exposure_source_qualifications
-    supplier_exposure_summaries
-    supplier_issued_identifiers
-    supplier_locations
-    supplier_operating_threshold_definitions
-    supplier_operating_threshold_outcomes
-    supplier_payment_requirement_definitions
-    supplier_phone_numbers
-    supplier_planning_milestone_occurrences
-    supplier_postal_addresses
-    supplier_reservation_event_scope_outcomes
-    supplier_reservation_events
-    supplier_reservation_projections
-    supplier_reservation_revisions
-    supplier_reservation_scopes
-    supplier_reservations
-    supplier_resource_definitions
-    supplier_resources
-    supplier_websites
-    suppliers
-  ].freeze
-
-  test "structure.sql loads cleanly with current supplier tables and no extra gist exclusions" do
+  test "structure.sql loads cleanly with M1D supplier tables and no extra gist exclusions" do
     with_temporary_database("m1d_structure") do
       ActiveRecord::Tasks::DatabaseTasks.structure_load(
         ActiveRecord::Base.connection_db_config.configuration_hash,
@@ -118,7 +35,7 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
       )
 
       tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
-      assert_equal CURRENT_SUPPLIER_TABLES, tables
+      assert_equal M1D_TABLES, tables
 
       exclusions = ActiveRecord::Base.connection.select_values(<<~SQL)
         SELECT c.conname

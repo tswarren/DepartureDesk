@@ -1,6 +1,7 @@
 # ADR 0012: Arrangement activation, Reservation history, and Supplier confirmation evidence
 
 - Status: Accepted. Implemented by shipped [M3D](../planning/m3-supplier-planning/m3d-activation-reservations-confirmations.md). Sole-editable-draft is the shipped rule after M3D.3 remediation.
+- Code: deleted in charter Phase 1 (D-66, 2026-11-04). Tag `pre-m3-m4-deletion` holds the last commit that has it. For new work, [ADR 0018](0018-arrangement-history-by-dated-adjustment.md) governs.
 - Date: 2026-09-17
 - Superseded for new work 2026-11-01 by [ADR 0018](0018-arrangement-history-by-dated-adjustment.md). Still governs the shipped M3 and M4 code until the [first-slice charter](../planning/first-slice/first-slice-charter.md) Phase 1 deletes it (D-66). Do not build new features on it.
 - Decision owners: DepartureDesk maintainers

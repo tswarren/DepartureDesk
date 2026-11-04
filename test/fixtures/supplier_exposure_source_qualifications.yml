@@ -1,2 +1,0 @@
-# Empty fixture so Rails truncates qualification rows between tests.
-# Qualifications are created by QualifySupplierContingentExposure in tests.

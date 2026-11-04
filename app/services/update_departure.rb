@@ -1,7 +1,7 @@
 class UpdateDeparture < AgencyCommand
   include DepartureCommandSupport
 
-  EDITABLE_FIELDS = %i[name description target_timing_text starts_on ends_on time_zone operating_currency].freeze
+  EDITABLE_FIELDS = %i[name description starts_on ends_on time_zone operating_currency].freeze
   DEPARTED_EDITABLE_FIELDS = %i[name description].freeze
 
   def initialize(agency:, actor:, departure:, attributes:, lock_version:)
@@ -21,7 +21,6 @@ class UpdateDeparture < AgencyCommand
       departure = lock_departure!
       ensure_current_lock_version!(departure)
       reject_departed_operating_changes!(departure, attrs)
-      reject_currency_change_with_monetary_definitions!(departure, attrs[:operating_currency], verb: "changed")
       ensure_non_draft_completeness!(departure, attrs)
       return Result.new(status: :noop, record: departure) if unchanged?(departure, attrs)
 
@@ -49,7 +48,6 @@ class UpdateDeparture < AgencyCommand
     {
       name: normalize_name(raw_attribute(:name)),
       description: normalize_description(raw_attribute(:description)),
-      target_timing_text: normalize_target_timing_text(raw_attribute(:target_timing_text)),
       starts_on:,
       ends_on:,
       time_zone: normalize_time_zone(raw_attribute(:time_zone)),

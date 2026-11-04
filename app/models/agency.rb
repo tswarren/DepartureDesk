@@ -21,49 +21,6 @@ class Agency < ApplicationRecord
   has_many :supplier_websites, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
   has_many :departures, dependent: :restrict_with_exception
-  has_many :agency_command_idempotency_keys, dependent: :restrict_with_exception
-  has_many :arrangement_item_setup_results, dependent: :restrict_with_exception
-  has_many :supplier_arrangements, dependent: :restrict_with_exception
-  has_many :supplier_arrangement_versions, dependent: :restrict_with_exception
-  has_many :arrangement_items, dependent: :restrict_with_exception
-  has_many :arrangement_item_definitions, dependent: :restrict_with_exception
-  has_many :service_occurrences, dependent: :restrict_with_exception
-  has_many :service_occurrence_definitions, dependent: :restrict_with_exception
-  has_many :supplier_resources, dependent: :restrict_with_exception
-  has_many :supplier_resource_definitions, dependent: :restrict_with_exception
-  has_many :capacity_pair_definitions, dependent: :restrict_with_exception
-  has_many :capacity_pools, dependent: :restrict_with_exception
-  has_many :capacity_pool_definitions, dependent: :restrict_with_exception
-  has_many :capacity_events, dependent: :restrict_with_exception
-  has_many :capacity_projections, dependent: :restrict_with_exception
-  has_many :capacity_reconciliations, dependent: :restrict_with_exception
-  has_many :capacity_reconciliation_resolutions, dependent: :restrict_with_exception
-  has_many :supplier_cost_sources, dependent: :restrict_with_exception
-  has_many :supplier_cost_definitions, dependent: :restrict_with_exception
-  has_many :supplier_cost_components, dependent: :restrict_with_exception
-  has_many :supplier_cost_component_bases, dependent: :restrict_with_exception
-  has_many :supplier_cost_participant_categories, dependent: :restrict_with_exception
-  has_many :supplier_cost_usage_assumptions, dependent: :restrict_with_exception
-  has_many :supplier_cost_occupancy_profiles, dependent: :restrict_with_exception
-  has_many :supplier_cost_occupancy_profile_positions, dependent: :restrict_with_exception
-  has_many :supplier_reservations, dependent: :restrict_with_exception
-  has_many :supplier_reservation_revisions, dependent: :restrict_with_exception
-  has_many :supplier_reservation_scopes, dependent: :restrict_with_exception
-  has_many :supplier_reservation_events, dependent: :restrict_with_exception
-  has_many :supplier_reservation_event_scope_outcomes, dependent: :restrict_with_exception
-  has_many :supplier_reservation_projections, dependent: :restrict_with_exception
-  has_many :supplier_attention_findings, dependent: :restrict_with_exception
-  has_many :service_offers, dependent: :restrict_with_exception
-  has_many :service_offer_versions, dependent: :restrict_with_exception
-  has_many :service_offer_definitions, dependent: :restrict_with_exception
-  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
-  has_many :service_offer_price_definitions, dependent: :restrict_with_exception
-  has_many :service_offer_price_components, dependent: :restrict_with_exception
-  has_many :service_offer_price_component_bases, class_name: "ServiceOfferPriceComponentBase",
-    dependent: :restrict_with_exception
-  has_many :packages, dependent: :restrict_with_exception
-  has_many :package_versions, dependent: :restrict_with_exception
-  has_many :package_inclusions, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 
@@ -80,9 +37,6 @@ class Agency < ApplicationRecord
   validates :workspace_code, uniqueness: true, format: { with: WORKSPACE_CODE_FORMAT }
   validates :country_code, format: { with: COUNTRY_CODE_FORMAT }
   validates :default_currency, format: { with: CURRENCY_FORMAT }
-  validates :attention_warning_lead_days,
-    numericality: { only_integer: true, greater_than_or_equal_to: 0 },
-    allow_nil: true
   validate :timezone_is_iana
   validate :currency_is_known
 
