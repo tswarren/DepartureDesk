@@ -1,6 +1,6 @@
 # Phase 1 spike: hold and reserve on the existing capacity pools
 
-**Status:** Complete 2026-11-03. Findings accepted and recorded as the [ADR 0018 spike amendment](../../adr/0018-arrangement-history-by-dated-adjustment.md#spike-amendment-2026-11-03). Timebox: 3 working days. Spike code is throwaway: it lives on the `spike/hold-and-reserve` branch and is not merged. Only this document's findings and the ADR 0018 amendment they produce are kept.
+**Status:** Complete 2026-11-03. Findings accepted, logged as D-88 and recorded as the [ADR 0018 spike amendment](../../adr/0018-arrangement-history-by-dated-adjustment.md#spike-amendment-2026-11-03). Timebox: 3 working days. Spike code is throwaway: it lives on the `spike/hold-and-reserve` branch and is not merged. Only this document's findings and the ADR 0018 amendment they produce are kept.
 
 **Reads with:** [first-slice charter](first-slice-charter.md) Phase 1, [ADR 0018](../../adr/0018-arrangement-history-by-dated-adjustment.md) "Left to the spike", [ADR 0010](../../adr/0010-supplier-capacity-ledger-and-projection.md), [Slice 1 data model](slice-1-data-model.md).
 
@@ -80,7 +80,7 @@ The capacity tables are dropped with the M3/M4 layers anyway (D-66). So the adap
 
 The shipped rule (`resolve_capacity_applies_at`): an adjustment dated on or before the local recording date applies at once, at `recorded_at`. One dated later applies at the end of its effective date, which is midnight starting the next day in the pool's IANA zone. The pool copies that zone from its service occurrence.
 
-**Recommendation:** keep "end of the effective date", but use the agency's zone instead of the pool's, and snapshot it on the event (`effective_time_zone`, as today). A supplier release dated Nov 15 then returns the space at the same moment the SET-10 deadline ends (11:59 p.m. agency time), so a deadline task and the capacity change agree. The snapshot keeps past events fixed if the agency's zone later changes. Pools no longer have occurrences to take a zone from in the new model, so this also removes a dependency.
+**Recommendation:** keep "end of the effective date", but resolve it like a SET-10 date-only deadline, at 11:59 p.m. agency local time, and snapshot the zone on the event (`effective_time_zone`, as today). A supplier release dated Nov 15 then returns the space at the same instant as a deadline on Nov 15, so a deadline task and the capacity change agree. The snapshot keeps past events fixed if the agency's zone later changes. Pools no longer have occurrences to take a zone from in the new model, so this also removes a dependency.
 
 ### Gaps the spike found (Slice 1 work)
 
@@ -92,4 +92,4 @@ The shipped rule (`resolve_capacity_applies_at`): an adjustment dated on or befo
 
 1. Adapt: keep the replay, projection, rebuild and reconciliation code; rewrite command support; recreate the capacity tables without version provenance in Slice 1 step 3.
 2. Holds and allocations get their own table, serialized with supply by the pool row lock, with forward-only transitions.
-3. A future-dated adjustment applies at the end of its effective date in the agency's zone, snapshotted on the event.
+3. A future-dated adjustment applies at the end of its effective date, resolved like a SET-10 deadline (11:59 p.m. agency local time), snapshotted on the event.

@@ -1,6 +1,6 @@
 # ADR 0018: Supplier arrangement history by dated adjustment
 
-- Status: Accepted 2026-11-01. Decision log entry D-63. Amended 2026-11-03 with the hold-and-reserve spike result (see "Spike amendment").
+- Status: Accepted 2026-11-01. Decision log entry D-63. Amended 2026-11-03 with the hold-and-reserve spike result (see "Spike amendment"), decision log entry D-88.
 - Date: 2026-11-01
 - Decision owners: DepartureDesk maintainers
 - Supersedes, for the new supplier, inventory and booking layer: [ADR 0008](0008-supplier-arrangement-version-topology.md); the version-provenance, per-version definition, pair-classification and mode parts of [ADR 0010](0010-supplier-capacity-ledger-and-projection.md); and [ADR 0011](0011-supplier-cost-definitions-and-forecast-evaluation.md), [ADR 0012](0012-arrangement-activation-reservations-and-confirmations.md) and [ADR 0013](0013-supplier-operational-commitments-deadlines-exposure-and-ending.md). Those ADRs keep governing the shipped M3 and M4 code until charter Phase 1 deletes it (D-66).
@@ -108,7 +108,7 @@ The spike ran on the existing pools ([findings](../planning/first-slice/phase-1-
 
 ### Effective date of a date-only adjustment
 
-An adjustment dated on or before the local recording date applies at once, at its recorded time. One dated later applies at the end of its effective date, which is midnight starting the next day, in the agency's time zone. That is the same moment a SET-10 deadline on that date ends. The zone is snapshotted on the event, so a later change to the agency's zone does not move past events.
+An adjustment dated on or before the local recording date applies at once, at its recorded time. One dated later applies at the end of its effective date, resolved like a date-only deadline (SET-10): 11:59 p.m. agency local time. A supplier release and a deadline on the same date therefore resolve to the same instant. The zone is snapshotted on the event, so a later change to the agency's zone does not move past events. This replaces the shipped rule, which used midnight starting the next day in the pool's zone. Decision log entry D-88.
 
 ## Consequences
 
