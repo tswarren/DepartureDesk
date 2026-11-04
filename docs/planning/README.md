@@ -25,7 +25,7 @@ Agency identity, M1 (directories) and M2 (Departures) are kept and built on. The
 | Phase | State | Checkpoint |
 | --- | --- | --- |
 | 0. Decide | Closed 2026-11-03; see the [Phase 0 decision brief](first-slice/phase-0-decision-brief.md) | Data-model decisions logged; data model and screens reviewed |
-| 1. Prepare | In progress; spike done 2026-11-03 (adapt; ADR 0018 amended); M3 and M4 deleted 2026-11-04 | Spike decides adapt or replace for capacity; M3 and M4 layers deleted; remaining tests pass |
+| 1. Prepare | In progress; spike done 2026-11-03 (adapt; ADR 0018 amended); M3 and M4 deleted 2026-11-04; injectable clock, pending tests D1 to D17 and the Alpha seed script added 2026-11-04 | Spike decides adapt or replace for capacity; M3 and M4 layers deleted; remaining tests pass |
 | 2. Slice 1 | Not authorized until Phase 0 and Phase 1 close | Staff walkthrough after step 6; final walkthrough by a staff user and a reseller user who did not build it |
 | 3. Slice 1b | Not authorized | All demonstration cases pass |
 
