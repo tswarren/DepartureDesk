@@ -4,7 +4,7 @@
 
 | File | Purpose |
 | --- | --- |
-| [`product-specification.md`](product-specification.md) | Markdown export of every tab of the [DepartureDesk Product Specification](https://docs.google.com/document/d/1qdqOTMWcSWClAojGeB8NsYYunzJlTDcmgXp_S1Se-CQ/edit), including its decision log (D-01 to D-73) and the advisers' questions appendix. Do not edit it. |
+| [`product-specification.md`](product-specification.md) | Markdown export of every tab of the [DepartureDesk Product Specification](https://docs.google.com/document/d/1qdqOTMWcSWClAojGeB8NsYYunzJlTDcmgXp_S1Se-CQ/edit), including its decision log (D-01 to D-87) and the advisers' questions appendix. Do not edit it. |
 | [`pending-decision-log-entries.md`](pending-decision-log-entries.md) | Decision log entries proposed by the [first-slice charter](../planning/first-slice/first-slice-charter.md) that are not yet in the Google Doc. |
 
 ## How the specification is organized
