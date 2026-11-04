@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Booking BK-104</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f7f5}
+a{color:#006270}a:hover{color:#004f5b}
+:focus-visible{outline:2px solid #f49a00;outline-offset:2px}
+.nav a{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:7px;color:#c9d6e2;text-decoration:none;box-sizing:border-box}
+.nav a:hover{color:#ffffff;background:#0b3556}
+.nav a.on{background:#007080;color:#ffffff;font-weight:500}
+.badge{display:inline-flex;align-items:center;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:500;line-height:1.5;white-space:nowrap}
+.ok{background:#e6f3eb;color:#24523d}.warn{background:#fff2d6;color:#694400}.info{background:#e7f1f7;color:#264f67}.neu{background:#edf0f2;color:#46525a}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:4px;border:1px solid #006270;background:#006270;color:#ffffff;font:inherit;font-weight:500;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn:hover{background:#004f5b;color:#ffffff}
+.btn2{background:#ffffff;color:#17212b;border-color:#aababd}
+.btn2:hover{background:#eef2f1;color:#17212b}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.02em;color:#52616d;text-align:left;padding:8px 12px;background:#eef2f1;border-bottom:1px solid #d4dedf;font-weight:600;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid #eef2f1;vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+.tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid #d4dedf}
+.tabs a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;color:#52616d;text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent;box-sizing:border-box}
+.tabs a:hover{color:#002340}
+.tabs a.on{color:#002340;font-weight:600;border-bottom-color:#007080}
+.num{text-align:right;font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; line-height: 1.45; color: #17212b; background: #f6f7f5">
+  <nav aria-label="Main" style="flex: 1 1 220px; background: #002340; color: #ffffff; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px">
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 0 12px">
+      <span style="font-size: 16px; font-weight: 700; letter-spacing: -0.01em">DepartureDesk</span>
+      <span style="font-size: 12px; color: #c9d6e2">[Agency name]</span>
+    </div>
+    <div class="nav" style="display: flex; flex-direction: column; gap: 2px">
+      <a href="#">My tasks</a>
+      <a href="Main.dc.html" class="on" aria-current="page">Departures</a>
+      <a href="#">Clients</a>
+      <a href="#">Suppliers</a>
+      <a href="#">Resellers</a>
+      <a href="#">Agency settings</a>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 22px 32px 56px; box-sizing: border-box">
+    <div style="max-width: 1160px; display: flex; flex-direction: column; gap: 20px">
+      <nav aria-label="Breadcrumb" style="font-size: 12px; color: #52616d; display: flex; gap: 6px; flex-wrap: wrap">
+        <a href="Main.dc.html" style="color: #52616d">Alpha Omega · Nov 6–13, 2027</a><span aria-hidden="true">/</span><a href="#" style="color: #52616d">Client Trip T-0002 · Sofia Bennett</a><span aria-hidden="true">/</span><span aria-current="page">Booking T-0002-1</span>
+      </nav>
+
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+          <a href="Main.dc.html" style="font-size: 16px; font-weight: 600; color: #002340; text-decoration: none">Alpha Omega · Port Everglades round trip</a>
+          <span class="badge ok">On sale</span>
+          <span style="font-size: 12px; color: #52616d">Nov 6–13, 2027 · DEP-0001</span>
+        </div>
+        <nav aria-label="Departure" class="tabs">
+          <a href="Main.dc.html">Overview</a>
+          <a href="#" class="on" aria-current="true">Bookings</a>
+          <a href="Inventory.dc.html">Inventory</a>
+          <a href="#">Suppliers</a>
+          <a href="#">Supplier money</a>
+          <a href="#">Tasks</a>
+          <a href="#">Closeout</a>
+        </nav>
+      </div>
+
+      <header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+        <div style="min-width: 0; display: flex; flex-direction: column; gap: 6px">
+          <p style="margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: #007080">Client booking · BK-104</p>
+          <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #002340; letter-spacing: -0.01em">The Bennett Party · S01 Suite, 4 travelers</h1>
+          <p style="margin: 0; color: #52616d">Alpha Omega package · Responsible client Sofia Bennett · Owner: agency · Seller of record: agency</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12px; color: #52616d">
+            <span>Booking</span><span class="badge ok">Confirmed</span>
+            <span>Cabin</span><span class="badge ok">Reserved</span>
+            <span>Nov 2–3 hotel nights</span><span class="badge warn">Awaiting supplier</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <a href="#" class="btn btn2">Issue document</a>
+          <a href="#" class="btn">Record payment</a>
+        </div>
+      </header>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+        <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+          <section aria-labelledby="trav" style="background: #ffffff; border: 1px solid #d4dedf; border-radius: 10px">
+            <div style="padding: 12px 16px; border-bottom: 1px solid #d4dedf; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap">
+              <h2 id="trav" style="margin: 0; font-size: 14px; font-weight: 600">Travelers and cabin positions</h2>
+              <span style="font-size: 12px; color: #52616d">Cabin S01-1 · max 4</span>
+            </div>
+            <div style="overflow-x: auto">
+              <table>
+                <thead><tr><th scope="col">Position</th><th scope="col">Traveler as booked</th><th scope="col">Traveler type</th><th scope="col" class="num">Cruise fare</th></tr></thead>
+                <tbody>
+                  <tr><td>1st</td><td>Sofia Bennett</td><td>Adult</td><td class="num">$5,085</td></tr>
+                  <tr><td>2nd</td><td>Marcus Bennett</td><td>Adult</td><td class="num">$5,085</td></tr>
+                  <tr><td>Additional</td><td>Ava Bennett</td><td>Child · age 11 at sailing</td><td class="num">$535</td></tr>
+                  <tr><td>Additional</td><td>Milo Bennett</td><td>Child 0–4 · age 2 at sailing</td><td class="num">$535</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section aria-labelledby="choices" style="background: #ffffff; border: 1px solid #d4dedf; border-radius: 10px">
+            <div style="padding: 12px 16px; border-bottom: 1px solid #d4dedf">
+              <h2 id="choices" style="margin: 0; font-size: 14px; font-weight: 600">Hotel and excursion</h2>
+            </div>
+            <div style="overflow-x: auto">
+              <table>
+                <thead><tr><th scope="col">Service</th><th scope="col">Detail</th><th scope="col">Supply</th><th scope="col" class="num">Price</th></tr></thead>
+                <tbody>
+                  <tr><td>Hotel, Nov 5 (included)</td><td>Harbor Double, 1st guest pays the room</td><td><span class="badge ok">Reserved</span></td><td class="num">$220</td></tr>
+                  <tr><td>Hotel extension, Nov 4</td><td>Harbor Double</td><td><span class="badge ok">Reserved</span></td><td class="num">$220</td></tr>
+                  <tr><td>Hotel extensions, Nov 2–3</td><td>Harbor Double, on request · requested Nov 9</td><td><span class="badge warn">Awaiting supplier</span></td><td class="num">$440</td></tr>
+                  <tr><td>Private Miami tour, Nov 5</td><td>Sofia, Marcus, Ava: 3 positions · Milo takes part free, no position</td><td><span class="badge ok">Reserved</span></td><td class="num">$450</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p style="margin: 0; padding: 10px 16px 14px; font-size: 12px; color: #52616d; border-top: 1px solid #eef2f1">The hotel's answer on Nov 2–3 is recorded with its reference on Supplier reservations. A decline is flagged here; the client's acceptance stays and nothing is cancelled.</p>
+          </section>
+
+          <section aria-labelledby="sched" style="background: #ffffff; border: 1px solid #d4dedf; border-radius: 10px">
+            <div style="padding: 12px 16px; border-bottom: 1px solid #d4dedf; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap">
+              <h2 id="sched" style="margin: 0; font-size: 14px; font-weight: 600">Installments and payments</h2>
+              <span style="font-size: 12px; color: #52616d">Schedule from Alpha Omega 2027 client terms v1</span>
+            </div>
+            <div style="overflow-x: auto">
+              <table>
+                <thead><tr><th scope="col">Installment</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col" class="num">Amount</th></tr></thead>
+                <tbody>
+                  <tr><td>Deposit, $500 per cabin</td><td>Nov 9, 2026, at confirmation</td><td><span class="badge ok">Paid to the agency Nov 9 · receipt RCT-0002</span></td><td class="num">$500</td></tr>
+                  <tr><td>Balance</td><td>Jul 18, 2027 (14 days before Alpha's final payment)</td><td><span class="badge neu">Scheduled</span></td><td class="num">$12,070</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <aside style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+          <section aria-labelledby="total" style="background: #ffffff; border: 1px solid #d4dedf; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px">
+            <h2 id="total" style="margin: 0; font-size: 14px; font-weight: 600">Accepted price</h2>
+            <div style="display: flex; justify-content: space-between; gap: 8px"><span>Cruise</span><span class="num">$11,240</span></div>
+            <div style="display: flex; justify-content: space-between; gap: 8px"><span>Hotel, 4 nights</span><span class="num">$880</span></div>
+            <div style="display: flex; justify-content: space-between; gap: 8px"><span>Excursion</span><span class="num">$450</span></div>
+            <div style="display: flex; justify-content: space-between; gap: 8px; font-weight: 600; border-top: 1px solid #d4dedf; padding-top: 8px"><span>Total</span><span class="num">$12,570</span></div>
+            <div style="display: flex; justify-content: space-between; gap: 8px"><span>Paid</span><span class="num">$500</span></div>
+            <div style="display: flex; justify-content: space-between; gap: 8px; font-weight: 600"><span>Balance</span><span class="num">$12,070</span></div>
+          </section>
+
+          <section aria-labelledby="acc" style="background: #ffffff; border: 1px solid #d4dedf; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px">
+            <h2 id="acc" style="margin: 0; font-size: 14px; font-weight: 600">Client acceptance</h2>
+            <p style="margin: 0">Sofia Bennett accepted by email on Nov 9, 2026 at 2:14 p.m.</p>
+            <p style="margin: 0; font-size: 12px; color: #52616d">Terms: Alpha Omega 2027 client terms v1 · Recorded by [staff user] · Evidence attached</p>
+          </section>
+
+          <section aria-labelledby="supside" style="background: #ffffff; border: 1px solid #d4dedf; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap">
+              <h2 id="supside" style="margin: 0; font-size: 14px; font-weight: 600">Supplier side</h2>
+              <span class="badge neu">Financial records</span>
+            </div>
+            <p style="margin: 0; font-size: 12px; color: #52616d">Proposed at confirmation from Alpha's rate table (D-75)</p>
+            <div style="display: flex; justify-content: space-between; gap: 8px"><span>Alpha supplier price</span><span class="num">$10,840</span></div>
+            <div style="display: flex; justify-content: space-between; gap: 8px"><span>Expected commission</span><span class="num">$1,820</span></div>
+            <div style="display: flex; justify-content: space-between; gap: 8px"><span>Hotel, Nov 2–3 if accepted</span><span class="num">$350</span></div>
+            <p style="margin: 0; font-size: 12px; color: #52616d">Nov 4–5 rooms and the excursion resource are already committed, so this booking adds no cost for them. Confirming posted Alpha's $450 full deposit for cabin S01-1.</p>
+          </section>
+
+          <section aria-labelledby="docs" style="background: #ffffff; border: 1px solid #d4dedf; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px">
+            <h2 id="docs" style="margin: 0; font-size: 14px; font-weight: 600">Documents</h2>
+            <a href="#">Confirmation · v1 · Nov 9, 2026</a>
+            <a href="#">Invoice INV-0002 · v1 · Nov 9, 2026</a>
+            <a href="#">Receipt RCT-0002 · Nov 9, 2026</a>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1680}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

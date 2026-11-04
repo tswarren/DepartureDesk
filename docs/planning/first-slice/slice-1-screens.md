@@ -10,7 +10,7 @@ Kind is Page (its own URL), Panel (a section inside a page) or Dialog. Who is Ad
 
 ![Slice 1 screen map · 36 staff, 4 reseller](images/slice-1-screen-map.png)
 
-Agency-wide screens sit outside any Departure; everything else opens from the overview. Indented grey lines are panels and dialogs inside the screen above them. S-05 Change history appears on every record.
+Agency-wide screens sit outside any Departure. Inside a Departure, a tab bar under its header links the areas: Overview, Bookings, Inventory, Suppliers, Supplier money, Tasks and Closeout, each its own page. Indented grey lines are panels and dialogs inside the screen above them. S-05 Change history appears on every record.
 
 ## Foundation and access
 
@@ -109,7 +109,7 @@ Slice 1b adds no new pages. Each case adds an action or a state to a Slice 1 scr
 
 ## Open screen questions
 
-- [ ] **Departure areas as tabs or pages:** should inventory, roster, supplier money and tasks sit as tabs under S-07, or as their own pages reached from it?
+- [x] **Departure areas as tabs or pages:** settled 2026-11-03: tabs, each its own page with its own URL, under a persistent Departure header. Tabs: Overview, Bookings, Inventory, Suppliers, Supplier money (hidden without Financial records), Tasks, Closeout. The booking workspace is a drill-down page under Bookings; the reseller view has no tabs; at 375px the tab bar scrolls inside its own strip.
 - [ ] **Reuse of existing views:** which existing screens (client and supplier directories, sign-in, audit) carry over unchanged, and which cruise and hotel screens are frozen with M3?
 - [ ] **Wide grids at 375px:** the rate table already switches to one profile column; do the inventory shell grid (S-17) and roster (S-25) need the same pattern?
 - [ ] **Booking workspace shape:** one long page with sections, or steps (travelers, choices, price, acceptance) for the hold-to-confirm path?
