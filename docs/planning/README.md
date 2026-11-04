@@ -16,7 +16,7 @@ Work after M4 is organized in slices named by the [first-slice charter](first-sl
 
 ## Where we stand
 
-The [first-slice charter](first-slice/first-slice-charter.md) is Accepted 2026-10-31 (D-64), amended 2026-11-01 (D-66), and is the only active work. It is in Phase 0 (Decide). No Slice 1 build step starts until the Phase 0 checkpoint: B10, B11 and M1–M4 settled and logged (B1 and the three code conflicts already are, as D-61 to D-63 and D-65), and the Slice 1 data model and screen inventory reviewed. Fixture values B2–B9 are settled before the step each blocks. Open decisions are in [pending decision log entries](../spec/pending-decision-log-entries.md).
+The [first-slice charter](first-slice/first-slice-charter.md) is Accepted 2026-10-31 (D-64), amended 2026-11-01 (D-66), and is the only active work. Phase 0 (Decide) closed 2026-11-03: every blocking decision and the specification review items R1–R11 are logged (D-61 to D-87), and the [Slice 1 data model](first-slice/slice-1-data-model.md) and [screen inventory](first-slice/slice-1-screens.md) were reviewed against D1–D17. Phase 1 (Prepare) is next; no Slice 1 build step starts until Phase 1 closes. R12–R14 remain in the [pending entries](../spec/pending-decision-log-entries.md#specification-review) for later slices.
 
 Agency identity, M1 (directories) and M2 (Departures) are kept and built on. The shipped M3 and M4 layers, including Cruise, Hotel, Transportation and Activity Supplier Composition, are frozen: fix defects only, and add no features. Charter Phase 1 deletes them right after the hold-and-reserve spike, keeping only capacity ledger code the spike chooses to adapt. M4E and M5–M8 are Superseded by the charter and must not be implemented. Cruise document storage and the M4D.1 Cruise summary presentation Slice 4 are not authorized.
 
@@ -24,8 +24,8 @@ Agency identity, M1 (directories) and M2 (Departures) are kept and built on. The
 
 | Phase | State | Checkpoint |
 | --- | --- | --- |
-| 0. Decide | Active | Data-model decisions logged; data model and screens reviewed |
-| 1. Prepare | Not started | Spike decides adapt or replace for capacity; M3 and M4 layers deleted; remaining tests pass |
+| 0. Decide | Closed 2026-11-03; see the [Phase 0 decision brief](first-slice/phase-0-decision-brief.md) | Data-model decisions logged; data model and screens reviewed |
+| 1. Prepare | Next; not started | Spike decides adapt or replace for capacity; M3 and M4 layers deleted; remaining tests pass |
 | 2. Slice 1 | Not authorized until Phase 0 and Phase 1 close | Staff walkthrough after step 6; final walkthrough by a staff user and a reseller user who did not build it |
 | 3. Slice 1b | Not authorized | All demonstration cases pass |
 
