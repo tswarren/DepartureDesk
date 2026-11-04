@@ -4,6 +4,7 @@ require "rails/test_help"
 require_relative "test_helpers/session_test_helper"
 require_relative "test_helpers/m1_directory_scenario"
 require_relative "test_helpers/m2_departure_scenario"
+require_relative "../db/seeds/alpha_fixture"
 
 module ActiveSupport
   class TestCase
@@ -15,6 +16,17 @@ module ActiveSupport
 
     setup do
       Rails.cache.clear
+      Clock.reset!
+    end
+
+    teardown do
+      Clock.reset!
+    end
+
+    # Fixes Clock.current at an instant for the rest of the test and returns
+    # the clock, which the test can advance.
+    def set_clock(at)
+      Clock.current = Clock.fixed(at)
     end
   end
 end

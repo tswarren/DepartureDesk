@@ -1,3 +1,5 @@
+require_relative "seeds/alpha_fixture"
+
 if Rails.env.development?
   # Development-only credential. Never print this value.
   seed_password = "ChangeMe123!"
@@ -34,4 +36,9 @@ if Rails.env.development?
   puts "Seed administrator ready:"
   puts "  Email: #{administrator.email_address}"
   puts "  ID: #{administrator.id}"
+
+  alpha = AlphaFixture.load!(agency:, actor: administrator, office:)
+  puts "Alpha fixture ready:"
+  alpha.suppliers.each_value { |supplier| puts "  Supplier: #{supplier.display_name} (#{supplier.supplier_reference})" }
+  puts "  Departure: #{alpha.departure.name} (#{alpha.departure.status})"
 end

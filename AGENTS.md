@@ -29,6 +29,7 @@ There is no migration path from the Party and membership schema. Do not add a co
 - Only one slice is active at a time. A need found during the build goes to the backlog with the rule ID it touches.
 - Follow the charter's [technical baseline](docs/planning/first-slice/first-slice-charter.md#technical-baseline). Where it is stricter than a section below, it wins for new code.
 - Each demonstration case (D1–D17) is an automated end-to-end test named by its ID, run against the Alpha fixture loaded from one seed script, with an injectable clock.
+- New domain code reads the time from `Clock.current` (`lib/clock.rb`), not `Time.current`, `Time.now` or `Date.today`. Tests fix it with `set_clock`, which resets after each test. Shipped code moves to the clock only when a charter step touches it.
 - Every first-slice screen meets the charter's [UI acceptance](docs/planning/first-slice/first-slice-charter.md#ui-acceptance) standards at desktop width and 375px before its step is done.
 
 ## Architecture decisions
