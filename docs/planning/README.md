@@ -18,14 +18,14 @@ Work after M4 is organized in slices named by the [first-slice charter](first-sl
 
 The [first-slice charter](first-slice/first-slice-charter.md) is Accepted 2026-10-31 (D-64), amended 2026-11-01 (D-66), and is the only active work. Phase 0 (Decide) closed 2026-11-03: every blocking decision and the specification review items R1–R11 are logged (D-61 to D-87), and the [Slice 1 data model](first-slice/slice-1-data-model.md) and [screen inventory](first-slice/slice-1-screens.md) were reviewed against D1–D17. Phase 1 (Prepare) is next; no Slice 1 build step starts until Phase 1 closes. R12–R14 remain in the [pending entries](../spec/pending-decision-log-entries.md#specification-review) for later slices.
 
-Agency identity, M1 (directories) and M2 (Departures) are kept and built on. The shipped M3 and M4 layers, including Cruise, Hotel, Transportation and Activity Supplier Composition, are frozen: fix defects only, and add no features. Charter Phase 1 deletes them right after the hold-and-reserve spike, keeping only capacity ledger code the spike chooses to adapt. M4E and M5–M8 are Superseded by the charter and must not be implemented. Cruise document storage and the M4D.1 Cruise summary presentation Slice 4 are not authorized.
+Agency identity, M1 (directories) and M2 (Departures) are kept and built on. The shipped M3 and M4 layers, including Cruise, Hotel, Transportation and Activity Supplier Composition, were deleted in charter Phase 1 on 2026-11-04 ([inventory](first-slice/phase-1-m3-m4-deletion-inventory.md)). Tag `pre-m3-m4-deletion` holds them; Slice 1 step 3 restores only the capacity replay and projection code the spike chose to adapt. M4E and M5–M8 are Superseded by the charter and must not be implemented. Cruise document storage and the M4D.1 Cruise summary presentation Slice 4 are not authorized.
 
 ## First slice
 
 | Phase | State | Checkpoint |
 | --- | --- | --- |
 | 0. Decide | Closed 2026-11-03; see the [Phase 0 decision brief](first-slice/phase-0-decision-brief.md) | Data-model decisions logged; data model and screens reviewed |
-| 1. Prepare | In progress; spike done 2026-11-03 (adapt; ADR 0018 amended) | Spike decides adapt or replace for capacity; M3 and M4 layers deleted; remaining tests pass |
+| 1. Prepare | In progress; spike done 2026-11-03 (adapt; ADR 0018 amended); M3 and M4 deleted 2026-11-04 | Spike decides adapt or replace for capacity; M3 and M4 layers deleted; remaining tests pass |
 | 2. Slice 1 | Not authorized until Phase 0 and Phase 1 close | Staff walkthrough after step 6; final walkthrough by a staff user and a reseller user who did not build it |
 | 3. Slice 1b | Not authorized | All demonstration cases pass |
 
@@ -38,8 +38,8 @@ Record a phase change here, with its date. The charter stays the authority for s
 | M0 — Agency identity | Complete | [Roadmap](roadmap.md) |
 | M1 — Directories | Complete | [M1](m1-separate-directories/m1-client-and-supplier-directories.md) |
 | M2 — Departure core | Complete | [M2](m2-departure-core/m2-departure-core.md) |
-| M3 — Supplier planning | Complete; frozen; deleted in charter Phase 1 (D-66) | [M3](m3-supplier-planning/m3-supplier-planning.md) |
-| M4 — Offers and pricing | Shipped parts frozen; deleted in charter Phase 1 (D-66) | [M4](m4-offers-and-pricing/m4-offers-and-pricing.md) |
+| M3 — Supplier planning | Code deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` | [M3](m3-supplier-planning/m3-supplier-planning.md) |
+| M4 — Offers and pricing | Code deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` | [M4](m4-offers-and-pricing/m4-offers-and-pricing.md) |
 | M5 — Client Trips and fulfillment | Superseded | [First-slice charter](first-slice/first-slice-charter.md) |
 | M6A — Client subledger | Superseded | [First-slice charter](first-slice/first-slice-charter.md) |
 | M6B — Supplier subledger | Superseded | [First-slice charter](first-slice/first-slice-charter.md) |

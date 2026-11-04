@@ -3,45 +3,10 @@ class Departure < ApplicationRecord
   REFERENCE_FORMAT = /\AD-[0-9]{6}\z/
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
-  TARGET_TIMING_LIMIT = 160
 
   belongs_to :agency
   belongs_to :responsible_office, class_name: "Office", optional: true
   belongs_to :responsible_agency_user, class_name: "AgencyUser", optional: true
-  has_many :supplier_arrangements, dependent: :restrict_with_exception
-  has_many :supplier_arrangement_versions, dependent: :restrict_with_exception
-  has_many :arrangement_items, dependent: :restrict_with_exception
-  has_many :arrangement_item_definitions, dependent: :restrict_with_exception
-  has_many :service_occurrences, dependent: :restrict_with_exception
-  has_many :service_occurrence_definitions, dependent: :restrict_with_exception
-  has_many :supplier_resources, dependent: :restrict_with_exception
-  has_many :supplier_resource_definitions, dependent: :restrict_with_exception
-  has_many :supplier_cost_sources, dependent: :restrict_with_exception
-  has_many :supplier_cost_definitions, dependent: :restrict_with_exception
-  has_many :supplier_cost_components, dependent: :restrict_with_exception
-  has_many :supplier_cost_component_bases, dependent: :restrict_with_exception
-  has_many :supplier_cost_participant_categories, dependent: :restrict_with_exception
-  has_many :supplier_cost_usage_assumptions, dependent: :restrict_with_exception
-  has_many :supplier_cost_occupancy_profiles, dependent: :restrict_with_exception
-  has_many :supplier_cost_occupancy_profile_positions, dependent: :restrict_with_exception
-  has_many :supplier_arrangement_activations, dependent: :restrict_with_exception
-  has_many :supplier_confirmations, dependent: :restrict_with_exception
-  has_many :supplier_commitment_trigger_definitions, dependent: :restrict_with_exception
-  has_many :supplier_deadline_definitions, dependent: :restrict_with_exception
-  has_many :supplier_deadline_occurrences, dependent: :restrict_with_exception
-  has_many :supplier_commitments, dependent: :restrict_with_exception
-  has_many :supplier_issued_identifiers, dependent: :restrict_with_exception
-  has_many :service_offers, dependent: :restrict_with_exception
-  has_many :service_offer_versions, dependent: :restrict_with_exception
-  has_many :service_offer_definitions, dependent: :restrict_with_exception
-  has_many :service_offer_source_bindings, dependent: :restrict_with_exception
-  has_many :service_offer_price_definitions, dependent: :restrict_with_exception
-  has_many :service_offer_price_components, dependent: :restrict_with_exception
-  has_many :service_offer_price_component_bases, class_name: "ServiceOfferPriceComponentBase",
-    dependent: :restrict_with_exception
-  has_many :packages, dependent: :restrict_with_exception
-  has_many :package_versions, dependent: :restrict_with_exception
-  has_many :package_inclusions, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
 
@@ -49,12 +14,11 @@ class Departure < ApplicationRecord
   attr_accessor :reason
 
   normalizes :name, with: ->(value) { value.to_s.strip }
-  normalizes :description, :time_zone, :target_timing_text, with: ->(value) { value.to_s.strip.presence }
+  normalizes :description, :time_zone, with: ->(value) { value.to_s.strip.presence }
   normalizes :operating_currency, with: ->(value) { value.to_s.strip.upcase.presence }
 
   validates :name, presence: true, length: { maximum: NAME_LIMIT }
   validates :description, length: { maximum: DESCRIPTION_LIMIT }, allow_nil: true
-  validates :target_timing_text, length: { maximum: TARGET_TIMING_LIMIT }, allow_nil: true
   validates :departure_reference, format: { with: REFERENCE_FORMAT }, allow_nil: true
   validates :operating_currency, format: { with: Agency::CURRENCY_FORMAT }, allow_nil: true
   validate :dates_are_paired_and_ordered
@@ -71,12 +35,9 @@ class Departure < ApplicationRecord
   end
 
   def schedule_label
-    if starts_on.present? && ends_on.present?
-      return "#{starts_on.to_fs(:long)} – #{ends_on.to_fs(:long)}"
-    end
-    return target_timing_text if target_timing_text.present?
+    return "Dates not set" if starts_on.blank? || ends_on.blank?
 
-    "Dates not set"
+    "#{starts_on.to_fs(:long)} – #{ends_on.to_fs(:long)}"
   end
 
   def activation_blockers
@@ -98,12 +59,6 @@ class Departure < ApplicationRecord
 
   def eligible_to_depart?(at:)
     active? && starts_on.present? && time_zone.present? && starts_on <= local_date(at:)
-  end
-
-  # Permanent downstream-history latch. Activation rows are append-only and
-  # indexed by Departure, so this cannot drift like a mutable boolean.
-  def supplier_arrangement_activation_history?
-    supplier_arrangement_activations.exists?
   end
 
   def lifecycle_correction_allowed?(at:)

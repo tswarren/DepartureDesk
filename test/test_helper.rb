@@ -4,11 +4,6 @@ require "rails/test_help"
 require_relative "test_helpers/session_test_helper"
 require_relative "test_helpers/m1_directory_scenario"
 require_relative "test_helpers/m2_departure_scenario"
-require_relative "support/capacity_graph_helper"
-require_relative "support/capacity_activated_graph_helper"
-require_relative "support/m3c_cost_scenario_helper"
-require_relative "support/m3f_scenario_helper"
-require_relative "support/cruise_activation_gate_helper"
 
 module ActiveSupport
   class TestCase
@@ -21,10 +16,5 @@ module ActiveSupport
     setup do
       Rails.cache.clear
     end
-
-    include CapacityGraphHelper
-    include CapacityActivatedGraphHelper
-    include M3CCostScenarioHelper
-    include CruiseActivationGateHelper
   end
 end

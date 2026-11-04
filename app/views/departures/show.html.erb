@@ -9,10 +9,7 @@
   </div>
   <% if manage %>
     <div class="dd-page-actions">
-      <% if @departure.draft? || @departure.active? %>
-        <%= link_to "Open builder", departure_builder_path(@departure), class: "dd-button" %>
-      <% end %>
-      <%= link_to "Edit departure", edit_departure_path(@departure), class: "dd-button dd-button--quiet" %>
+      <%= link_to "Edit departure", edit_departure_path(@departure), class: "dd-button" %>
       <%= link_to "Edit responsibility", edit_departure_responsibility_path(@departure), class: "dd-button dd-button--quiet" %>
       <% if @departure.draft? %>
         <%= link_to "Activate", departure_activation_path(@departure), class: "dd-button dd-button--quiet" %>
@@ -55,12 +52,6 @@
         <dt>Dates</dt>
         <dd><%= @departure.schedule_label %></dd>
       </div>
-      <% if @departure.target_timing_text.present? %>
-        <div>
-          <dt>Target timing</dt>
-          <dd><%= @departure.target_timing_text %></dd>
-        </div>
-      <% end %>
       <div>
         <dt>Time zone</dt>
         <dd><%= @departure.time_zone.presence || "—" %></dd>
@@ -88,116 +79,3 @@
     </dl>
   </div>
 </article>
-
-<article class="dd-panel">
-  <header class="dd-panel-header">
-    <div>
-      <h2 class="dd-panel-title">Supplier planning</h2>
-      <p>Arrangements for this Departure. Needs-attention counts roll up from Arrangement projections.</p>
-    </div>
-    <div class="dd-inline-actions">
-      <%= link_to "View all", departure_arrangements_path(@departure), class: "dd-button dd-button--quiet" %>
-      <% if manage && (@departure.draft? || @departure.active?) %>
-        <%= link_to "Add arrangement", new_departure_arrangement_path(@departure), class: "dd-button" %>
-        <%= link_to "Add service from Supplier planning", from_source_departure_service_offers_path(@departure), class: "dd-button" %>
-      <% end %>
-    </div>
-  </header>
-  <% if @supplier_planning.records.any? %>
-    <table class="dd-table">
-      <thead>
-        <tr>
-          <th scope="col">Arrangement</th>
-          <th scope="col">Contracting supplier</th>
-          <th scope="col">Status</th>
-          <th scope="col">Version</th>
-          <th scope="col">Needs attention</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @supplier_planning.records.each do |arrangement| %>
-          <% version = arrangement.versions.find(&:draft?) ||
-            arrangement.versions.find { |candidate| candidate.id == arrangement.governing_version_id } %>
-          <% findings = @attention_findings_by_arrangement_id.fetch(arrangement.id, []) %>
-          <tr class="<%= "is-inactive" if arrangement.abandoned? %>">
-            <td><%= link_to arrangement.name, departure_arrangement_path(@departure, arrangement) %></td>
-            <td><%= supplier_option_label(arrangement.contracting_supplier) %></td>
-            <td><%= supplier_arrangement_status_badge(arrangement.status) %></td>
-            <td><%= version ? version.status.titleize : "Draft" %></td>
-            <td>
-              <% if findings.any? %>
-                <%= link_to pluralize(findings.size, "finding"),
-                  departure_arrangement_path(@departure, arrangement, anchor: "needs-attention"),
-                  class: "dd-link" %>
-                <% overdue = findings.count { |finding| finding.overdue? } %>
-                <% if overdue.positive? %>
-                  <span class="dd-field-hint"><%= pluralize(overdue, "overdue") %></span>
-                <% end %>
-              <% else %>
-                —
-              <% end %>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-    <% if @supplier_planning.truncated %>
-      <div class="dd-panel-body">
-        <p>Showing the first 50 arrangements. Open the supplier planning list to filter.</p>
-      </div>
-    <% end %>
-  <% else %>
-    <div class="dd-panel-body">
-      <p class="<%= empty_state_classes.join(" ") %>">No tentative supplier arrangements yet.</p>
-    </div>
-  <% end %>
-</article>
-
-<% if manage && @client_offers %>
-  <article class="dd-panel">
-    <header class="dd-panel-header">
-      <div>
-        <h2 class="dd-panel-title">Client offers (draft)</h2>
-        <p>Unpublished Service Offer drafts for this Departure. They are not selectable and have no published price.</p>
-      </div>
-      <div class="dd-inline-actions">
-        <%= link_to "View all", departure_service_offers_path(@departure), class: "dd-button dd-button--quiet" %>
-        <%= link_to "Packages", departure_packages_path(@departure), class: "dd-button dd-button--quiet" %>
-        <% if @departure.draft? || @departure.active? %>
-          <%= link_to "Add service from Supplier planning", from_source_departure_service_offers_path(@departure), class: "dd-button" %>
-          <%= link_to "Add explicit-basis service", new_departure_service_offer_path(@departure), class: "dd-button dd-button--quiet" %>
-        <% end %>
-      </div>
-    </header>
-    <% if @client_offers.records.any? %>
-      <table class="dd-table">
-        <thead>
-          <tr>
-            <th scope="col">Service</th>
-            <th scope="col">Basis</th>
-            <th scope="col">Version</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% @client_offers.records.each do |offer| %>
-            <% version = offer.versions.find(&:draft?) || offer.versions.max_by(&:version_number) %>
-            <tr class="<%= "is-inactive" if version&.abandoned? %>">
-              <td><%= link_to offer.name, departure_service_offer_path(@departure, offer) %></td>
-              <td><%= version&.definition ? fulfillment_basis_label(version.definition.fulfillment_basis) : "—" %></td>
-              <td><%= version ? service_offer_status_badge(version.status) : "—" %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-      <% if @client_offers.truncated %>
-        <div class="dd-panel-body">
-          <p>Showing the first 50 service offers. Open the list to review the rest.</p>
-        </div>
-      <% end %>
-    <% else %>
-      <div class="dd-panel-body">
-        <p class="<%= empty_state_classes.join(" ") %>">No unpublished service offers yet.</p>
-      </div>
-    <% end %>
-  </article>
-<% end %>

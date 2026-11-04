@@ -1,14 +1,10 @@
 class ChangeSupplierStatus < AgencyCommand
-  include DepartureCommandSupport
-
-  def initialize(agency:, actor:, supplier:, status:, lock_version:, force: false, force_reason: nil)
+  def initialize(agency:, actor:, supplier:, status:, lock_version:)
     @agency = agency
     @actor = actor
     @supplier = supplier
     @status = status.to_s
     @lock_version = lock_version
-    @force = force
-    @force_reason = force_reason
   end
 
   def call
@@ -18,43 +14,13 @@ class ChangeSupplierStatus < AgencyCommand
 
     ActiveRecord::Base.transaction do
       @agency.lock!
-      @agency.reload
-      ensure_active_agency!(@agency)
-      @actor = @agency.agency_users.find_by(id: @actor&.id)
-      ensure_directory_actor!(@actor, @agency, :manage_supplier_directory)
       supplier = @agency.suppliers.lock.find(@supplier.id)
       raise ActiveRecord::StaleObjectError.new(supplier, "lock_version") if @lock_version.nil?
       raise ActiveRecord::StaleObjectError.new(supplier, "lock_version") if supplier.lock_version != @lock_version.to_i
       return Result.new(status: :noop, record: supplier) if supplier.status == @status
 
       supplier.lock_version = @lock_version
-      affected = if @status == "inactive"
-        ensure_force_allowed! if @force
-        dependency_ids = m3a_dependency_arrangement_ids(supplier)
-        lock_m3a_dependencies!(dependency_ids)
-        commitment_ids = unresolved_commitment_ids(supplier)
-        commitment_ids = lock_unresolved_commitments!(commitment_ids)
-        reservation_ids = nonterminal_reservation_ids(supplier)
-        lock_nonterminal_reservations!(reservation_ids)
-        if dependency_ids.any? || commitment_ids.any? || reservation_ids.any?
-          unless @force
-            message = if commitment_ids.any?
-              "This supplier has unresolved supplier commitments."
-            elsif reservation_ids.any?
-              "This supplier has open supplier reservations."
-            else
-              "This supplier is used by active supplier arrangement planning."
-            end
-            raise Error.new(message, code: :dependency_exists)
-          end
-          ensure_force_allowed!
-        end
-        cascade_descendants!(supplier).merge(
-          force_details(supplier, dependency_ids, commitment_ids, reservation_ids)
-        )
-      else
-        empty_affected
-      end
+      affected = @status == "inactive" ? cascade_descendants!(supplier) : empty_affected
       supplier.update!(status: @status)
       audit!(
         agency: @agency,
@@ -70,135 +36,6 @@ class ChangeSupplierStatus < AgencyCommand
   end
 
   private
-
-  def ensure_force_allowed!
-    ensure_directory_actor!(@actor, @agency, :force_inactivate_supplier_with_dependencies)
-    normalize_reason(@force_reason)
-  end
-
-  def force_details(supplier, dependency_ids, commitment_ids, reservation_ids = [])
-    capacity_pool_ids = affected_capacity_pool_ids(supplier)
-    if dependency_ids.empty? && commitment_ids.empty? && reservation_ids.empty?
-      return {
-        "forced" => false,
-        "force_reason" => nil,
-        "affected_supplier_arrangement_ids" => [],
-        "affected_capacity_pool_ids" => capacity_pool_ids,
-        "preserved_supplier_commitment_ids" => [],
-        "preserved_supplier_reservation_ids" => []
-      }
-    end
-
-    {
-      "forced" => true,
-      "force_reason" => normalize_reason(@force_reason),
-      "affected_supplier_arrangement_ids" => dependency_ids,
-      "affected_capacity_pool_ids" => capacity_pool_ids,
-      "preserved_supplier_commitment_ids" => commitment_ids,
-      "preserved_supplier_reservation_ids" => reservation_ids
-    }
-  end
-
-  def unresolved_commitment_ids(supplier)
-    open_commitment_scope(supplier).order(:id).pluck(:id)
-  end
-
-  def open_commitment_scope(supplier)
-    SupplierCommitment.where(agency_id: @agency.id, committed_supplier_id: supplier.id)
-      .where(<<~SQL.squish)
-        NOT EXISTS (
-          SELECT 1
-          FROM supplier_commitment_dispositions dispositions
-          LEFT JOIN supplier_commitment_reopenings reopenings
-            ON reopenings.supplier_commitment_disposition_id = dispositions.id
-          WHERE dispositions.supplier_commitment_id = supplier_commitments.id
-            AND reopenings.id IS NULL
-        )
-      SQL
-  end
-
-  def nonterminal_reservation_ids(supplier)
-    SupplierReservationProjection
-      .joins(:supplier_reservation)
-      .where(agency_id: @agency.id)
-      .where(supplier_reservations: { booking_supplier_id: supplier.id })
-      .where(state: %w[planned requested partially_confirmed confirmed])
-      .order("supplier_reservations.id")
-      .pluck("supplier_reservations.id")
-  end
-
-  def lock_nonterminal_reservations!(reservation_ids)
-    return if reservation_ids.empty?
-
-    @agency.supplier_reservations.where(id: reservation_ids).order(:id).lock.to_a
-    SupplierReservationProjection.where(agency_id: @agency.id, supplier_reservation_id: reservation_ids)
-      .order(:id).lock.to_a
-  end
-
-  def lock_unresolved_commitments!(commitment_ids)
-    return [] if commitment_ids.empty?
-
-    locked = SupplierCommitment.where(agency_id: @agency.id, id: commitment_ids)
-      .order(:id).lock.to_a
-    locked.select(&:open_state?).map(&:id)
-  end
-
-  def affected_capacity_pool_ids(supplier)
-    @agency.capacity_pools
-      .where(supplying_supplier_id: supplier.id)
-      .order(:id)
-      .pluck(:id)
-  end
-
-  def m3a_dependency_arrangement_ids(supplier)
-    ids = contracted_dependency_ids(supplier) |
-      occurrence_dependency_ids(supplier) |
-      charging_cost_dependency_ids(supplier)
-    ids.sort
-  end
-
-  def charging_cost_dependency_ids(supplier)
-    SupplierCostSource
-      .joins(:supplier_arrangement)
-      .where(agency_id: @agency.id, charging_supplier_id: supplier.id)
-      .where(supplier_arrangements: { status: %w[draft active] })
-      .distinct
-      .pluck(:supplier_arrangement_id)
-  end
-
-  def contracted_dependency_ids(supplier)
-    @agency.supplier_arrangements
-      .where(contracting_supplier_id: supplier.id, status: %w[draft active])
-      .pluck(:id)
-  end
-
-  def occurrence_dependency_ids(supplier)
-    ServiceOccurrenceDefinition
-      .joins(:service_occurrence, :supplier_arrangement)
-      .joins(<<~SQL.squish)
-        JOIN arrangement_item_definitions
-          ON arrangement_item_definitions.supplier_arrangement_version_id = service_occurrence_definitions.supplier_arrangement_version_id
-         AND arrangement_item_definitions.arrangement_item_id = service_occurrence_definitions.arrangement_item_id
-      SQL
-      .where(agency_id: @agency.id)
-      .where(service_occurrences: { status: "planned" })
-      .where(supplier_arrangements: { status: %w[draft active] })
-      .where("service_occurrence_definitions.ends_on >= (CURRENT_TIMESTAMP AT TIME ZONE service_occurrence_definitions.time_zone)::date")
-      .where(
-        "COALESCE(service_occurrence_definitions.service_provider_id, arrangement_item_definitions.default_service_provider_id, supplier_arrangements.contracting_supplier_id) = ?",
-        supplier.id
-      )
-      .distinct
-      .pluck(:supplier_arrangement_id)
-  end
-
-  def lock_m3a_dependencies!(arrangement_ids)
-    return if arrangement_ids.empty?
-
-    departures = @agency.supplier_arrangements.where(id: arrangement_ids).distinct.order(:departure_id).pluck(:departure_id)
-    @agency.departures.where(id: departures).order(:id).lock.to_a
-    @agency.supplier_arrangements.where(id: arrangement_ids).order(:id).lock.to_a
-  end
 
   def cascade_descendants!(supplier)
     affected = empty_affected

@@ -1,6 +1,7 @@
 # ADR 0009: Supplier contracting, service-provider, and operational-contact roles
 
 - Status: Accepted. Not implementation authority.
+- Code: deleted in charter Phase 1 (D-66, 2026-11-04). Tag `pre-m3-m4-deletion` holds the last commit that has it. For new work, [ADR 0018](0018-arrangement-history-by-dated-adjustment.md) governs.
 - Date: 2026-09-16
 - Decision owners: DepartureDesk maintainers
 

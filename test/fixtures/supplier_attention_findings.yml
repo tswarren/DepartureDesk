@@ -1,2 +1,0 @@
-# Empty fixture so Rails truncates projection rows between tests.
-# Attention findings are rebuildable projections, not seeded facts.

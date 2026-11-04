@@ -87,19 +87,15 @@ class SuppliersController < ApplicationController
   end
 
   def update_status
-    force_allowed = Current.agency_user.permitted?(:force_inactivate_supplier_with_dependencies)
     ChangeSupplierStatus.new(
       agency: Current.agency,
       actor: Current.agency_user,
       supplier: @supplier,
       status: params.expect(:status),
-      lock_version: params.expect(:lock_version),
-      force: force_allowed && ActiveModel::Type::Boolean.new.cast(params[:force]),
-      force_reason: (params[:force_reason] if force_allowed)
+      lock_version: params.expect(:lock_version)
     ).call
     redirect_to supplier_path(@supplier), notice: "Supplier status updated."
   rescue AgencyCommand::Error => error
-    @force_reason = params[:force_reason]
     load_status_inventory
     rescue_supplier_directory_error(error, :edit_status)
   end
@@ -141,33 +137,6 @@ class SuppliersController < ApplicationController
     @affected_contact_destinations = contacts.flat_map { |contact|
       contact.email_addresses.to_a + contact.phone_numbers.to_a
     }.select(&:active?)
-    @affected_supplier_arrangements = @supplier.contracted_supplier_arrangements
-      .includes(:departure)
-      .where(status: %w[draft active])
-      .order(:name, :id)
-      .to_a
-    @affected_effective_provider_arrangements = ServiceOccurrenceDefinition
-      .joins(:service_occurrence, :supplier_arrangement)
-      .joins(<<~SQL.squish)
-        JOIN arrangement_item_definitions
-          ON arrangement_item_definitions.supplier_arrangement_version_id = service_occurrence_definitions.supplier_arrangement_version_id
-         AND arrangement_item_definitions.arrangement_item_id = service_occurrence_definitions.arrangement_item_id
-      SQL
-      .includes(:departure, :supplier_arrangement)
-      .where(agency_id: Current.agency.id)
-      .where(service_occurrences: { status: "planned" })
-      .where(supplier_arrangements: { status: %w[draft active] })
-      .where("service_occurrence_definitions.ends_on >= (CURRENT_TIMESTAMP AT TIME ZONE service_occurrence_definitions.time_zone)::date")
-      .where(
-        "COALESCE(service_occurrence_definitions.service_provider_id, arrangement_item_definitions.default_service_provider_id, supplier_arrangements.contracting_supplier_id) = ?",
-        @supplier.id
-      )
-      .distinct
-      .order(:supplier_arrangement_id, :id)
-      .to_a
-    @offer_path_consequences = ListPublishedOfferPathConsequences.new(
-      agency: Current.agency, supplier: @supplier
-    ).call
   end
 
   def supplier_owned_contact_points

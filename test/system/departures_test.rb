@@ -1,59 +1,48 @@
 require "application_system_test_case"
 
 class DeparturesTest < ApplicationSystemTestCase
-  test "an administrator creates via composition, activates, and returns a departure to draft" do
+  test "an administrator creates, activates, and returns a departure to draft" do
     sign_in_from_browser(agency_users(:harbor_admin))
 
     open_departures
     click_link "New Departure"
-    assert_selector "h1.dd-page-title", exact_text: "Create group departure"
+    assert_selector "h1.dd-page-title", exact_text: "New departure"
 
-    fill_in "Departure name", with: "Harbor Reunion"
-    choose "Exact dates"
+    fill_in "Name", with: "Harbor Reunion"
     fill_in_html_date "Start date", "2026-12-01"
     fill_in_html_date "End date", "2026-12-08"
-    find("summary", text: "Advanced").click
     fill_in "Operating currency", with: "USD"
-    click_button "Save for later"
+    click_button "Save departure"
 
-    assert_text "Your departure concept is saved"
+    assert_text "Departure saved."
     assert_text "Harbor Reunion"
     assert_text "Draft"
-    assert_text "What are you starting with?"
-    assert_text "Add Service"
 
     click_link "Activate"
     assert_selector "h1.dd-page-title", exact_text: "Activate departure"
     click_button "Activate departure"
 
     assert_text "Departure activated."
-    assert_text "Harbor Reunion"
-    assert_text "Active"
-    click_link "Departure details"
     assert_text "D-000001"
-    click_link "Cancel"
+    assert_text "Active"
 
     click_link "Return to draft"
     fill_in "Reason", with: "Hold for a later sailing"
     click_button "Return to draft"
 
     assert_text "Departure returned to draft."
-    assert_text "Draft"
-    click_link "Departure details"
     assert_text "D-000001"
+    assert_text "Draft"
   end
 
   test "invalid create preserves submitted values in the error summary" do
     sign_in_from_browser(agency_users(:harbor_admin))
     open_departures
     click_link "New Departure"
-    find("summary", text: "Advanced").click
     select "America/Chicago", from: "Time zone"
-    page.execute_script("document.querySelector('form.dd-form')?.setAttribute('novalidate','novalidate')")
-    click_button "Save for later"
+    click_button "Save departure"
 
     assert_selector "#form-error-summary"
-    find("summary", text: "Advanced").click
     assert_field "Time zone", with: "America/Chicago"
   end
 
@@ -72,47 +61,6 @@ class DeparturesTest < ApplicationSystemTestCase
     assert_text "Draft"
     assert_no_text "Edit departure"
     assert_no_text "Activate"
-  end
-
-  test "composition journey saves services without expanded create on Services" do
-    sign_in_from_browser(agency_users(:harbor_admin))
-    open_departures
-    click_link "New Departure"
-    fill_in "Departure name", with: "Composition Journey"
-    choose "Month, season, or possible dates"
-    fill_in "Target timing", with: "Late June 2027"
-    find("summary", text: "Advanced").click
-    fill_in "Operating currency", with: "USD"
-    click_button "Save and add components"
-
-    assert_selector "h1.dd-page-title", exact_text: "Add the first Service"
-    fill_in "Service name", with: "Coach transfer"
-    fill_in "When Clients see it", with: "Day 1 morning"
-    choose "Yes, create the main package"
-    fill_in "Package name", with: "Main trip"
-    click_button "Save Service"
-
-    assert_text "Coach transfer"
-    assert_selector "nav[aria-label='Composition areas']"
-    assert_text "Service Map"
-    assert_no_selector "input#component_name"
-    assert_selector "a", text: "Decide how provided"
-
-    click_link "Add Service"
-    fill_in "Service name", with: "Optional dinner"
-    select "Optional", from: "Placement"
-    click_button "Save Service"
-
-    assert_text "Optional dinner"
-    within "nav[aria-label='Composition areas']" do
-      click_link "Package & Client terms"
-    end
-    assert_text "Main trip"
-    within "nav[aria-label='Preparation outcome']" do
-      click_link "Pricing review"
-    end
-    assert_text "Pending"
-    assert_no_text "$0.00"
   end
 
   test "an administrator marks an eligible departure departed and corrects its schedule" do

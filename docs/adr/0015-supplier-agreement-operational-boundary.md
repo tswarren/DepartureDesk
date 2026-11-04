@@ -1,6 +1,7 @@
 # ADR 0015 — Supplier agreement operational modeling boundary
 
 - **Status:** Accepted
+- **Code:** deleted in charter Phase 1 (D-66, 2026-11-04). Tag `pre-m3-m4-deletion` holds the last commit that has it. For new work, [ADR 0018](0018-arrangement-history-by-dated-adjustment.md) governs.
 - **Date:** 2026-10-01
 - Superseded 2026-11-01 for new work by the [first-slice charter](../planning/first-slice/first-slice-charter.md). Still governs the shipped M4 code until charter Phase 1 deletes it (D-66). Do not build new features on it.
 - **Decision owners:** DepartureDesk maintainers

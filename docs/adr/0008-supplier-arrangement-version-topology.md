@@ -1,6 +1,7 @@
 # ADR 0008: Stable Supplier Arrangement identity and immutable version topology
 
 - Status: Accepted. Not implementation authority.
+- Code: deleted in charter Phase 1 (D-66, 2026-11-04). Tag `pre-m3-m4-deletion` holds the last commit that has it. For new work, [ADR 0018](0018-arrangement-history-by-dated-adjustment.md) governs.
 - Date: 2026-09-16
 - Superseded for new work 2026-11-01 by [ADR 0018](0018-arrangement-history-by-dated-adjustment.md). Still governs the shipped M3 and M4 code until the [first-slice charter](../planning/first-slice/first-slice-charter.md) Phase 1 deletes it (D-66). Do not build new features on it.
 - Amended: 2026-09-27. The accepted Cruise rework adds an exact-version Supplier agreement confirmation distinct from Reservation confirmation. A governing confirmed version may coexist with an unconfirmed successor. Confirmation facts are immutable. An explicit correction supersedes the previous confirmation without erasing it. An amendment has its own date and does not rewrite the original contract date. Activation does not rewrite prior activated definitions or confirmation history.
