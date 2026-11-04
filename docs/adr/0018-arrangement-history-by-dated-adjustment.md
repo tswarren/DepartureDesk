@@ -1,6 +1,6 @@
 # ADR 0018: Supplier arrangement history by dated adjustment
 
-- Status: Accepted 2026-11-01. Decision log entry D-63. The charter's Phase 1 hold-and-reserve spike decides code reuse and is recorded as an amendment.
+- Status: Accepted 2026-11-01. Decision log entry D-63. Amended 2026-11-03 with the hold-and-reserve spike result (see "Spike amendment").
 - Date: 2026-11-01
 - Decision owners: DepartureDesk maintainers
 - Supersedes, for the new supplier, inventory and booking layer: [ADR 0008](0008-supplier-arrangement-version-topology.md); the version-provenance, per-version definition, pair-classification and mode parts of [ADR 0010](0010-supplier-capacity-ledger-and-projection.md); and [ADR 0011](0011-supplier-cost-definitions-and-forecast-evaluation.md), [ADR 0012](0012-arrangement-activation-reservations-and-confirmations.md) and [ADR 0013](0013-supplier-operational-commitments-deadlines-exposure-and-ending.md). Those ADRs keep governing the shipped M3 and M4 code until charter Phase 1 deletes it (D-66).
@@ -84,7 +84,31 @@ The charter's 2–3 day hold-and-reserve spike runs on the existing capacity poo
 - when a date-only capacity adjustment takes effect, and in which zone; and
 - whether holds and allocations share the capacity event table or have their own table on the same timeline.
 
-Its result is recorded as an amendment to this ADR before Slice 1 step 3. Either outcome must satisfy every rule above.
+Its result is recorded as an amendment to this ADR before Slice 1 step 3. Either outcome must satisfy every rule above. The result is below.
+
+## Spike amendment (2026-11-03)
+
+The spike ran on the existing pools ([findings](../planning/first-slice/phase-1-hold-and-reserve-spike.md#findings)). Hold, reserve, release, expiry and a supplier reduction below allocations all worked without changing any existing table, trigger or service, and two holds racing for the last units serialized on the pool row lock. By the spike's decision rule, the ledger is adapted.
+
+### Ledger code: adapted
+
+- Kept: `CapacityTimelineReplay` and `CapacityProjectionRefresher` unchanged (they have no version dependence), the event types and their directions, the `applies_at` rule (amended below), command idempotency keys and the projection `lock_version` check.
+- Kept with version lookups removed: projection rebuild and due refresh, and reconciliation as observations.
+- Rewritten: `CapacityCommandSupport`. Its activated-version checks and eight-row lock chain become a short lock order that always takes the pool row last.
+- Recreated: the capacity pool, event, projection and reconciliation tables, in Slice 1 step 3, after the M3 and M4 tables are dropped (D-66). They have no version columns or version foreign keys. A pool belongs to an inventory group and carries its availability promise (SUP-15) instead of a mode. The trigger functions that still apply are carried over: append-only events and reconciliations, refusal of numeric records on pools without numeric inventory, valid zone, and no owner change.
+
+### Holds and allocations: their own table
+
+- Holds and Reserved allocations live in an allocations table beside the capacity events, not in it. Each references its pool (or shell) and has a quantity, a holder, a state (Held, Reserved or Released) and, while Held, an expiry.
+- Each transition sets its own timestamp once and never clears it. A trigger allows only forward moves: Held to Reserved, and Held or Reserved to Released.
+- Every allocation command and every supply command locks the pool row, so both are ordered on one timeline (INV-26).
+- Remaining capacity is derived, never stored: supply from the projection less the allocations that consume now, meaning Reserved, or Held with an expiry still ahead. A hold past its expiry stops counting at read time, with no job and no event.
+- A new hold or allocation must fit the lowest scheduled supply from now on, not only current supply.
+- An agency-initiated reduction (release, downward correction) below active allocations is refused. A supplier-driven reduction is recorded and the conflict is derived (INV-27). The pool lock makes both checks race-free.
+
+### Effective date of a date-only adjustment
+
+An adjustment dated on or before the local recording date applies at once, at its recorded time. One dated later applies at the end of its effective date, which is midnight starting the next day, in the agency's time zone. That is the same moment a SET-10 deadline on that date ends. The zone is snapshotted on the event, so a later change to the agency's zone does not move past events.
 
 ## Consequences
 
@@ -98,7 +122,7 @@ Its result is recorded as an amendment to this ADR before Slice 1 step 3. Either
 
 - "What were the terms on date X?" is answered by effective-dated queries over term rows, not by loading one version. These queries need care and tests.
 - Retiring the M3 and M4 layers early removes the shipped Cruise, Hotel, Transportation and Activity workflows before their replacements exist. No real agency data depends on them.
-- ADR 0010's ledger engine may need rework to drop version keys, depending on the spike.
+- The capacity tables are recreated and `CapacityCommandSupport` is rewritten without version keys. The replay and projection engine carries over (spike amendment).
 
 ## Alternatives rejected
 
