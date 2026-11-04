@@ -37,6 +37,7 @@ The proposed defaults are working assumptions. Placeholder values are test input
 | D-85 | Amend the charter: D1, D4, expected commission in build step 4 (was R10) | [Charter](../planning/first-slice/first-slice-charter.md) |
 | D-86 | Financial reconciliation is a record, not a completion value (was R11) | [Spec](product-specification.md) |
 | D-87 | First-slice fixture values B2 to B9 settled, with B13 and B14 added | [Charter](../planning/first-slice/first-slice-charter.md) |
+| D-88 | Hold-and-reserve spike result: adapt the capacity ledger, holds in their own table, end-of-date effect | [ADR 0018](../adr/0018-arrangement-history-by-dated-adjustment.md#spike-amendment-2026-11-03) |
 
 ## Blocking decisions
 
