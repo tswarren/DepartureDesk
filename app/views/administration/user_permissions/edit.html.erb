@@ -1,0 +1,45 @@
+<% content_for :title, "Permissions for #{@agency_user.display_name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Administration", administration_agency_path ], [ "Users", administration_agency_users_path ], [ @agency_user.display_name, administration_agency_user_path(@agency_user) ], [ "Permissions", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">Permissions for <%= @agency_user.display_name %></h1>
+    <p class="dd-page-description">Every staff user can work with clients, suppliers and bookings. These add more, across the whole agency.</p>
+  </div>
+</header>
+
+<%= render "administration/shared/subnav", current: :users %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @agency_user, url: administration_agency_user_permissions_path(@agency_user), method: :patch, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <%= hidden_field_tag "agency_user[permissions][]", "", id: nil %>
+      <% invalid = @agency_user.errors[:permissions].any? %>
+      <fieldset class="dd-form-section" id="agency_user_permissions" tabindex="-1" <%= tag.attributes(aria: { invalid: (true if invalid), describedby: ("agency_user_permissions_error" if invalid) }) %>>
+        <legend class="dd-section-title">Permissions</legend>
+        <div class="dd-choice-group">
+          <% held = @submitted_permissions || @agency_user.granted_permissions %>
+          <% AccessPermission::PERMISSIONS.each do |permission| %>
+            <% input_id = "agency_user_permission_#{permission}" %>
+            <label class="dd-choice" for="<%= input_id %>">
+              <%= check_box_tag "agency_user[permissions][]", permission, held.include?(permission), id: input_id, aria: { describedby: "#{input_id}_hint" } %>
+              <span>
+                <%= permission_label(permission) %>
+                <span class="dd-field-hint" id="<%= input_id %>_hint"><%= permission_hint(permission) %></span>
+              </span>
+            </label>
+          <% end %>
+        </div>
+        <%= dd_field_error(form, :permissions) %>
+      </fieldset>
+      <div class="dd-form-actions">
+        <%= form.submit "Save permissions", class: "dd-button" %>
+        <%= link_to "Cancel", administration_agency_user_path(@agency_user), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

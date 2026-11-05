@@ -1,10 +1,12 @@
 <% content_for :title, "Agency profile · DepartureDesk" %>
 
+<%= render "shared/breadcrumbs", trail: [ [ "Administration", administration_agency_path ], [ "Agency profile", nil ] ] %>
+
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title">Agency profile</h1>
-    <p class="dd-page-description">Identity and defaults for <%= @agency.name %>.</p>
+    <p class="dd-page-description">What clients see on documents, and the defaults new work starts from.</p>
   </div>
   <div class="dd-page-actions">
     <%= link_to "Edit profile", edit_administration_agency_path, class: "dd-button" %>
@@ -13,7 +15,22 @@
 
 <%= render "administration/shared/subnav", current: :agency %>
 
+<% blockers = @agency.document_profile_blockers %>
+<% if blockers.any? %>
+  <div class="dd-alert dd-alert--warning" role="status">
+    <p class="dd-alert-title">Client documents can't be generated yet</p>
+    <ul class="dd-error-list">
+      <% blockers.each do |blocker| %>
+        <li><%= blocker %> <%= link_to "Edit profile", edit_administration_agency_path %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
 <article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Client-facing profile</h2>
+  </header>
   <div class="dd-panel-body">
     <dl class="dd-definition-list">
       <div>
@@ -21,19 +38,121 @@
         <dd><%= @agency.name %></dd>
       </div>
       <div>
-        <dt>Legal name</dt>
-        <dd><%= @agency.legal_name.presence || "Not provided" %></dd>
+        <dt>Contact email</dt>
+        <dd><%= @agency.contact_email || "Not provided" %></dd>
+      </div>
+      <div>
+        <dt>Agency contact name</dt>
+        <dd><%= @agency.agency_contact_name || "Not provided" %></dd>
+      </div>
+      <div>
+        <dt>Legal or business name</dt>
+        <dd><%= @agency.legal_name || "Not provided" %></dd>
+      </div>
+      <div>
+        <dt>Phone</dt>
+        <dd><%= agency_phone_display(@agency) || "Not provided" %></dd>
+      </div>
+      <div>
+        <dt>Mailing address</dt>
+        <dd>
+          <% lines = agency_mailing_address_lines(@agency) %>
+          <% if lines.any? %>
+            <%= safe_join(lines, tag.br) %>
+          <% else %>
+            Not provided
+          <% end %>
+        </dd>
+      </div>
+      <div>
+        <dt>Seller-of-travel disclosure</dt>
+        <dd><%= @agency.seller_of_travel_disclosure ? simple_format(@agency.seller_of_travel_disclosure, {}, wrapper_tag: "span") : "Not provided" %></dd>
       </div>
       <div>
         <dt>Workspace code</dt>
         <dd class="dd-type-mono"><%= @agency.workspace_code %></dd>
       </div>
       <div>
-        <dt>Country code</dt>
-        <dd><%= @agency.country_code %></dd>
+        <dt>Status</dt>
+        <dd><%= agency_status_badge(@agency) %></dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Logo</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <% if @agency.logo.attached? %>
+      <img src="<%= agency_logo_path %>" alt="<%= @agency.name %> logo" class="dd-agency-logo">
+    <% else %>
+      <p class="dd-page-description">No logo. Documents show the display name instead.</p>
+    <% end %>
+    <%= form_with model: @agency, url: administration_agency_logo_path, method: :patch, class: "dd-inline-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :logo, @agency.logo.attached? ? "Replace logo" : "Upload a logo", class: "dd-label" %>
+        <%= form.file_field :logo, accept: Agency::LOGO_CONTENT_TYPES.join(","), required: true, aria: { describedby: "agency_logo_hint" }, class: "dd-field" %>
+        <p class="dd-field-hint" id="agency_logo_hint">PNG, JPEG or WebP, up to 2 MB.</p>
+      </div>
+      <%= form.submit "Upload", class: "dd-button dd-button--secondary" %>
+    <% end %>
+    <% if @agency.logo.attached? %>
+      <%= button_to "Remove logo", administration_agency_logo_path, method: :delete, class: "dd-button dd-button--quiet", form: { data: { turbo_confirm: "Remove the agency logo?" } } %>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">What each document shows</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <div class="dd-table-wrap">
+      <table class="dd-table">
+        <caption class="dd-visually-hidden">Profile fields included on each document type</caption>
+        <thead>
+          <tr>
+            <th scope="col">Field</th>
+            <% AgencyDocumentInclusion::FAMILIES.each do |family| %>
+              <th scope="col"><%= document_family_label(family) %></th>
+            <% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% AgencyDocumentInclusion::FIELDS.each do |field| %>
+            <tr>
+              <th scope="row"><%= profile_field_label(field) %></th>
+              <% AgencyDocumentInclusion::FAMILIES.each do |family| %>
+                <td><%= @document_inclusions.fetch(family).includes?(field) ? "Shown" : "Not shown" %></td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Confirmation footer</dt>
+        <dd><%= @agency.confirmation_footer ? FooterMarkdown.render(@agency.confirmation_footer) : "None" %></dd>
       </div>
       <div>
-        <dt>Default timezone</dt>
+        <dt>Invoice, receipt and statement footer</dt>
+        <dd><%= @agency.financial_document_footer ? FooterMarkdown.render(@agency.financial_document_footer) : "None" %></dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Defaults</h2>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Agency time zone</dt>
         <dd><%= @agency.default_timezone %></dd>
       </div>
       <div>
@@ -41,9 +160,68 @@
         <dd><%= @agency.default_currency %></dd>
       </div>
       <div>
-        <dt>Status</dt>
-        <dd><%= agency_status_badge(@agency) %></dd>
+        <dt>Agency country</dt>
+        <dd><%= @agency.country_code %></dd>
+      </div>
+      <div>
+        <dt>Client hold duration</dt>
+        <dd><%= pluralize(@agency.hold_duration_days, "day") %></dd>
+      </div>
+      <div>
+        <dt>Buffer before supplier deadlines</dt>
+        <dd><%= pluralize(@agency.installment_buffer_days, "day") %></dd>
       </div>
     </dl>
+  </div>
+</article>
+
+<article class="dd-panel" id="traveler-types">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Traveler types</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-page-description">Staff choose one for each traveler when booking. Inactive types stay on existing bookings.</p>
+    <div class="dd-table-wrap">
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="dd-col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @traveler_types.each_with_index do |traveler_type, index| %>
+            <tr>
+              <th scope="row"><%= traveler_type.name %></th>
+              <td><%= status_badge(traveler_type.status.titleize, modifier: traveler_type.active? ? "success" : "neutral") %></td>
+              <td class="dd-col-actions">
+                <div class="dd-inline-actions">
+                  <%= link_to "Rename", edit_administration_traveler_type_path(traveler_type), class: "dd-row-action dd-row-action--text", aria: { label: "Rename #{traveler_type.name}" } %>
+                  <% unless index.zero? %>
+                    <%= button_to "Move up", administration_traveler_type_position_path(traveler_type), method: :patch, params: { direction: "up" }, class: "dd-row-action dd-row-action--text", form_class: "dd-inline-form", aria: { label: "Move #{traveler_type.name} up" } %>
+                  <% end %>
+                  <% unless index == @traveler_types.size - 1 %>
+                    <%= button_to "Move down", administration_traveler_type_position_path(traveler_type), method: :patch, params: { direction: "down" }, class: "dd-row-action dd-row-action--text", form_class: "dd-inline-form", aria: { label: "Move #{traveler_type.name} down" } %>
+                  <% end %>
+                  <% next_status = traveler_type.active? ? "inactive" : "active" %>
+                  <%= button_to traveler_type.active? ? "Inactivate" : "Reactivate", administration_traveler_type_path(traveler_type), method: :patch,
+                    params: { traveler_type: { status: next_status, lock_version: traveler_type.lock_version } },
+                    class: "dd-row-action dd-row-action--text", form_class: "dd-inline-form",
+                    aria: { label: "#{traveler_type.active? ? "Inactivate" : "Reactivate"} #{traveler_type.name}" } %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= form_with url: administration_traveler_types_path, scope: :traveler_type, class: "dd-inline-form" do |form| %>
+      <div class="dd-field-group">
+        <%= form.label :name, "New traveler type", class: "dd-label" %>
+        <%= form.text_field :name, required: true, maxlength: TravelerType::NAME_LIMIT, class: "dd-field" %>
+      </div>
+      <%= form.submit "Add traveler type", class: "dd-button dd-button--secondary" %>
+    <% end %>
   </div>
 </article>

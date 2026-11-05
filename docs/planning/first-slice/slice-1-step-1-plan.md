@@ -1,6 +1,6 @@
 # Slice 1 step 1: foundation changes
 
-**Status:** Draft 2026-11-04, for review before the build starts. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) step 1, [ADR 0016](../../adr/0016-agency-time-zone-and-optional-offices.md), [ADR 0017](../../adr/0017-user-types-permissions-and-reseller-users.md) D-84 and D-89.
+**Status:** Built 2026-11-04 on branch `slice-1/step-1-foundation`, in review. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) step 1, [ADR 0016](../../adr/0016-agency-time-zone-and-optional-offices.md), [ADR 0017](../../adr/0017-user-types-permissions-and-reseller-users.md) D-84 and D-89.
 
 Charter step 1: permissions, reseller user type, agency profile fields, more reference types, one agency time zone. No D-cases close in this step; it is the base for D15 (step 9), D13 (step 10) and every staff screen after it.
 
@@ -49,7 +49,7 @@ Behavior:
 
 ## 3. Reseller schema (ADR 0017, schema only)
 
-- New `resellers`: `agency_id`, `name`, `status` (`active`, `booking_paused`, `suspended`, `ended`), `direct_contact_allowed` (default false), `lock_version`, timestamps (ACC-13, ACC-16, DOC-08).
+- New `resellers`: `agency_id`, `name`, `status` (`active`, `booking_paused`, `suspended`, `ended`), `direct_contact_allowed` (default true, as DOC-08 says), `lock_version`, timestamps (ACC-13, ACC-16, DOC-08).
 - `agency_users.reseller_id`, with a check that it is present exactly when `user_type = 'reseller'` and a same-agency composite foreign key.
 - No reseller controllers, invitations, screens or commands in this step. Pause and suspension behavior is not authorized (ADR 0017).
 
@@ -117,3 +117,13 @@ One pull request for the step (AGENTS.md working rules), in reviewable commits:
 6. Traveler types.
 7. Logo (installs Active Storage's tables).
 8. S-02 and S-03 screens, AGENTS.md invariants and vocabulary, and the planning index.
+
+## Build notes (2026-11-04)
+
+Choices made while building that the plan did not settle:
+
+- `agencies.name` is the S-02 display name; no second column. It is required at provisioning, so the display name is always present and only the contact email can block documents.
+- The logo accepts PNG, JPEG or WebP up to 2 MB, checked against the file bytes. SVG is excluded because it can carry script. The spec sets no limits; change them by decision log entry.
+- Traveler types are renamed, reordered and inactivated by an Agency Admin and audited. BKG-21 does not name these actions; they follow the plan's S-02 scope.
+- Departure responsible users are limited to Agency Admins and staff, ahead of reseller users in step 9.
+- Active Storage uses local disk in every environment until ADR 0019's production service is chosen.

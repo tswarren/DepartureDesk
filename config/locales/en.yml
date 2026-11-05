@@ -29,3 +29,13 @@
 
 en:
   hello: "Hello world"
+  activerecord:
+    attributes:
+      agency:
+        name: "Display name"
+        legal_name: "Legal or business name"
+        address_line_1: "Address line 1"
+        address_country_code: "Mailing address country"
+        default_timezone: "Agency time zone"
+        hold_duration_days: "Client hold duration"
+        installment_buffer_days: "Buffer before supplier deadlines"

@@ -40,6 +40,70 @@ module ApplicationHelper
     { "agency_admin" => "Agency Admin", "staff" => "Staff", "reseller" => "Reseller" }.fetch(user_type.to_s)
   end
 
+  PROFILE_FIELD_LABELS = {
+    "display_name" => "Display name",
+    "contact_email" => "Contact email",
+    "phone" => "Phone",
+    "legal_name" => "Legal or business name",
+    "mailing_address" => "Mailing address",
+    "agency_contact_name" => "Agency contact name",
+    "seller_of_travel_disclosure" => "Seller-of-travel disclosure",
+    "footer" => "Footer"
+  }.freeze
+
+  DOCUMENT_FAMILY_LABELS = {
+    "confirmation" => "Confirmations",
+    "invoice" => "Invoices",
+    "receipt" => "Receipts",
+    "statement" => "Statements"
+  }.freeze
+
+  PERMISSION_LABELS = {
+    "departure_management" => [ "Departure management", "Departures, offerings, prices, client terms and publishing" ],
+    "supplier_arrangements" => [ "Supplier arrangements", "Arrangements, inventory and supplier deadlines" ],
+    "financial_records" => [ "Financial records", "Client and supplier payments, refunds, credits and financial reports" ],
+    "passport_access" => [ "Passport access", "Viewing, downloading and sharing passport details" ],
+    "reseller_relationships" => [ "Reseller relationships", "Inviting and managing resellers" ]
+  }.freeze
+
+  def profile_field_label(field)
+    PROFILE_FIELD_LABELS.fetch(field)
+  end
+
+  def document_family_label(family)
+    DOCUMENT_FAMILY_LABELS.fetch(family)
+  end
+
+  def permission_label(permission)
+    PERMISSION_LABELS.fetch(permission).first
+  end
+
+  def permission_hint(permission)
+    PERMISSION_LABELS.fetch(permission).last
+  end
+
+  def agency_mailing_address_lines(agency)
+    return [] if agency.address_line_1.blank?
+
+    city_line = [ agency.address_locality, agency.address_region, agency.address_postal_code ].compact_blank.join(" ")
+    [ agency.address_line_1, agency.address_line_2, city_line, agency.address_country_code ].compact_blank
+  end
+
+  def agency_phone_display(agency)
+    return if agency.phone_normalized_number.blank?
+
+    PhoneNumberNormalizer.display(
+      normalized_number: agency.phone_normalized_number, country_code: agency.phone_country_code, extension: agency.phone_extension
+    )
+  end
+
+  def agency_user_permission_summary(agency_user)
+    return "All" if agency_user.agency_admin?
+
+    labels = agency_user.granted_permissions.sort.map { |permission| permission_label(permission) }
+    labels.any? ? labels.to_sentence : "Baseline only"
+  end
+
   def user_type_options
     AgencyUser::STAFF_USER_TYPES.map { |user_type| [ user_type_label(user_type), user_type ] }
   end

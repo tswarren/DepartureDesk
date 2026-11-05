@@ -292,6 +292,13 @@
   }
 
   /* logo.png canvas is 2172×724; opaque artwork is ~1849×316. Cover crops the padding. */
+  .dd-agency-logo {
+    display: block;
+    max-height: 4rem;
+    max-width: min(12rem, 100%);
+    object-fit: contain;
+  }
+
   .dd-brand-logo {
     --dd-logo-height: 1.75rem;
     --dd-logo-art-ratio: 5.85;
@@ -749,6 +756,7 @@
 
   .dd-stack {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 1rem;
   }
 
@@ -1343,6 +1351,7 @@
   }
 
   .dd-table-wrap {
+    position: relative; /* keeps visually hidden labels inside the scroll area */
     overflow-x: auto;
     max-width: 100%;
     min-width: 0;
@@ -1428,6 +1437,19 @@
     border-bottom: 1px solid var(--dd-surface-subtle);
     font-size: 12.5px;
     vertical-align: middle;
+  }
+
+  /* Row headers name a record or field; they read as body text, not as column labels. */
+  .dd-table tbody th[scope="row"] {
+    background: transparent;
+    color: var(--dd-text);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: normal;
+    text-transform: none;
+    text-align: left;
+    white-space: normal;
+    border-bottom: 1px solid var(--dd-surface-subtle);
   }
 
   .dd-table tbody tr:last-child td {
@@ -1598,8 +1620,14 @@
 
   .dd-form {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     max-width: 40rem;
     gap: 1rem;
+  }
+
+  /* A form made of several panels, such as the agency profile, uses the page width. */
+  .dd-form--panels {
+    max-width: none;
   }
 
   .dd-form-surface {
@@ -1792,6 +1820,11 @@
     gap: 0.5rem;
     color: var(--dd-text);
     font-weight: 600;
+  }
+
+  .dd-choice .dd-field-hint {
+    display: block;
+    font-weight: 400;
   }
 
   .dd-choice input {

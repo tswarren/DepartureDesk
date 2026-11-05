@@ -1,43 +1,209 @@
 <% content_for :title, "Edit agency profile · DepartureDesk" %>
 
+<%= render "shared/breadcrumbs", trail: [ [ "Administration", administration_agency_path ], [ "Agency profile", administration_agency_path ], [ "Edit", nil ] ] %>
+
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title">Edit agency profile</h1>
-    <p class="dd-page-description">Workspace code cannot be changed.</p>
+    <p class="dd-page-description">What clients see on documents, and the defaults new work starts from. Changing a default never changes existing bookings.</p>
   </div>
 </header>
 
 <%= render "administration/shared/subnav", current: :agency %>
 
-<article class="dd-panel">
-  <div class="dd-panel-body">
-    <%= form_with model: @agency, url: administration_agency_path, class: "dd-form" do |form| %>
-      <%= form.hidden_field :lock_version %>
+<%= form_with model: @agency, url: administration_agency_path, method: :patch, class: "dd-form dd-form--panels", data: { controller: "unsaved-changes" } do |form| %>
+  <%= render "shared/form_errors", object: form.object %>
+  <%= form.hidden_field :lock_version %>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Client-facing profile</h2>
+    </header>
+    <div class="dd-panel-body dd-stack">
+      <p class="dd-field-hint" id="agency_profile_hint">Display name and contact email are needed before client documents can be generated. Everything here can be saved incomplete.</p>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :name, "Display name", class: "dd-label" %>
+          <%= form.text_field :name, **dd_field_options(form, :name, aria_describedby_extra: "agency_profile_hint") %>
+          <%= dd_field_error(form, :name) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :contact_email, "Contact email", class: "dd-label" %>
+          <%= form.email_field :contact_email, autocomplete: "email", **dd_field_options(form, :contact_email, aria_describedby_extra: "agency_profile_hint") %>
+          <%= dd_field_error(form, :contact_email) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :agency_contact_name, "Agency contact name", class: "dd-label" %>
+          <%= form.text_field :agency_contact_name, **dd_field_options(form, :agency_contact_name) %>
+          <%= dd_field_error(form, :agency_contact_name) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :legal_name, "Legal or business name", class: "dd-label" %>
+          <%= form.text_field :legal_name, **dd_field_options(form, :legal_name) %>
+          <%= dd_field_error(form, :legal_name) %>
+        </div>
+      </div>
+
+      <fieldset class="dd-form-section">
+        <legend class="dd-section-title">Phone</legend>
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <%= form.label :phone_number, "Phone number", class: "dd-label" %>
+            <%= form.telephone_field :phone_number, autocomplete: "tel", **dd_field_options(form, :phone_number) %>
+            <%= dd_field_error(form, :phone_number) %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :phone_extension, "Extension", class: "dd-label" %>
+            <%= form.text_field :phone_extension, inputmode: "numeric", **dd_field_options(form, :phone_extension, class: "dd-field--narrow") %>
+            <%= dd_field_error(form, :phone_extension) %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :phone_country_code, "Phone country", class: "dd-label" %>
+            <%= form.text_field :phone_country_code, maxlength: 2, placeholder: @agency.country_code, aria: { describedby: "agency_phone_country_hint" }, class: "dd-field dd-field--code" %>
+            <p class="dd-field-hint" id="agency_phone_country_hint">Two letters. Leave blank to use the agency country.</p>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="dd-form-section">
+        <legend class="dd-section-title">Mailing address</legend>
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <%= form.label :address_line_1, "Address line 1", class: "dd-label" %>
+            <%= form.text_field :address_line_1, autocomplete: "address-line1", **dd_field_options(form, :address_line_1) %>
+            <%= dd_field_error(form, :address_line_1) %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :address_line_2, "Address line 2", class: "dd-label" %>
+            <%= form.text_field :address_line_2, autocomplete: "address-line2", **dd_field_options(form, :address_line_2) %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :address_locality, "City or town", class: "dd-label" %>
+            <%= form.text_field :address_locality, autocomplete: "address-level2", **dd_field_options(form, :address_locality) %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :address_region, "State, province or region", class: "dd-label" %>
+            <%= form.text_field :address_region, autocomplete: "address-level1", **dd_field_options(form, :address_region) %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :address_postal_code, "Postal code", class: "dd-label" %>
+            <%= form.text_field :address_postal_code, autocomplete: "postal-code", **dd_field_options(form, :address_postal_code, class: "dd-field--narrow") %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :address_country_code, "Country", class: "dd-label" %>
+            <%= form.text_field :address_country_code, maxlength: 2, **dd_field_options(form, :address_country_code, class: "dd-field--code") %>
+            <%= dd_field_error(form, :address_country_code) %>
+          </div>
+        </div>
+      </fieldset>
+
       <div class="dd-field-group">
-        <%= form.label :name, "Display name", class: "dd-label" %>
-        <%= form.text_field :name, required: true, class: "dd-field" %>
+        <%= form.label :seller_of_travel_disclosure, "Seller-of-travel disclosure", class: "dd-label" %>
+        <%= form.text_area :seller_of_travel_disclosure, rows: 4, **dd_field_options(form, :seller_of_travel_disclosure, aria_describedby_extra: "agency_disclosure_hint") %>
+        <p class="dd-field-hint" id="agency_disclosure_hint">Shown exactly as typed, line breaks included. Left out of documents when blank. Your legal adviser decides what it must say.</p>
       </div>
-      <div class="dd-field-group">
-        <%= form.label :legal_name, "Legal name", class: "dd-label" %>
-        <%= form.text_field :legal_name, class: "dd-field" %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Footers</h2>
+    </header>
+    <div class="dd-panel-body dd-stack">
+      <p class="dd-field-hint" id="agency_footer_hint">Bold (**text**), italic (*text*), bulleted or numbered lists and web links. Headings, tables, images and HTML are removed.</p>
+      <% [ [ :confirmation_footer, "Confirmation footer" ], [ :financial_document_footer, "Invoice, receipt and statement footer" ] ].each do |attribute, label| %>
+        <div class="dd-field-group" data-controller="markdown-preview" data-markdown-preview-url-value="<%= administration_footer_preview_path %>">
+          <%= form.label attribute, label, class: "dd-label" %>
+          <%= form.text_area attribute, rows: 4, data: { markdown_preview_target: "source" }, **dd_field_options(form, attribute, aria_describedby_extra: "agency_footer_hint") %>
+          <div>
+            <button type="button" class="dd-button dd-button--secondary dd-button--small" data-action="markdown-preview#preview" aria-controls="<%= attribute %>_preview">Preview</button>
+          </div>
+          <div class="dd-info-callout" id="<%= attribute %>_preview" aria-live="polite" aria-label="<%= label %> preview" hidden data-markdown-preview-target="output"></div>
+        </div>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">What each document shows</h2>
+    </header>
+    <div class="dd-panel-body dd-stack">
+      <p class="dd-field-hint">A blank field is left out even when it is selected.</p>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <caption class="dd-visually-hidden">Profile fields included on each document type</caption>
+          <thead>
+            <tr>
+              <th scope="col">Field</th>
+              <% AgencyDocumentInclusion::FAMILIES.each do |family| %>
+                <th scope="col"><%= document_family_label(family) %></th>
+              <% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% AgencyDocumentInclusion::FIELDS.each do |field| %>
+              <tr>
+                <th scope="row"><%= profile_field_label(field) %></th>
+                <% AgencyDocumentInclusion::FAMILIES.each do |family| %>
+                  <% submitted = @submitted_inclusions&.dig(family, field) %>
+                  <% checked = submitted.nil? ? @document_inclusions.fetch(family).includes?(field) : submitted == "1" %>
+                  <% input_id = "agency_inclusions_#{family}_#{field}" %>
+                  <td>
+                    <%= hidden_field_tag "agency[inclusions][#{family}][#{field}]", "0", id: nil %>
+                    <label class="dd-choice" for="<%= input_id %>">
+                      <%= check_box_tag "agency[inclusions][#{family}][#{field}]", "1", checked, id: input_id %>
+                      <span class="dd-visually-hidden"><%= profile_field_label(field) %> on <%= document_family_label(family).downcase %></span>
+                    </label>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
       </div>
-      <div class="dd-field-group">
-        <%= form.label :country_code, "Country code", class: "dd-label" %>
-        <%= form.text_field :country_code, required: true, maxlength: 2, class: "dd-field dd-field--code" %>
+    </div>
+  </article>
+
+  <article class="dd-panel">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Defaults</h2>
+    </header>
+    <div class="dd-panel-body dd-stack">
+      <p class="dd-field-hint">Defaults apply to new work only. Existing Departures and bookings keep what they were given.</p>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :default_timezone, "Agency time zone", class: "dd-label" %>
+          <%= form.select :default_timezone, iana_timezone_options, {}, **dd_field_options(form, :default_timezone) %>
+          <%= dd_field_error(form, :default_timezone) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :default_currency, "Default currency", class: "dd-label" %>
+          <%= form.text_field :default_currency, maxlength: 3, **dd_field_options(form, :default_currency, class: "dd-field--code") %>
+          <%= dd_field_error(form, :default_currency) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :country_code, "Agency country", class: "dd-label" %>
+          <%= form.text_field :country_code, maxlength: 2, **dd_field_options(form, :country_code, class: "dd-field--code") %>
+          <%= dd_field_error(form, :country_code) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :hold_duration_days, "Client hold duration (days)", class: "dd-label" %>
+          <%= form.number_field :hold_duration_days, min: 1, step: 1, **dd_field_options(form, :hold_duration_days, class: "dd-field--numeric dd-field--narrow") %>
+          <%= dd_field_error(form, :hold_duration_days) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :installment_buffer_days, "Buffer before supplier deadlines (days)", class: "dd-label" %>
+          <%= form.number_field :installment_buffer_days, min: 0, step: 1, **dd_field_options(form, :installment_buffer_days, class: "dd-field--numeric dd-field--narrow") %>
+          <%= dd_field_error(form, :installment_buffer_days) %>
+        </div>
       </div>
-      <div class="dd-field-group">
-        <%= form.label :default_currency, "Default currency", class: "dd-label" %>
-        <%= form.text_field :default_currency, required: true, maxlength: 3, class: "dd-field dd-field--code" %>
-      </div>
-      <div class="dd-field-group">
-        <%= form.label :default_timezone, "Default timezone", class: "dd-label" %>
-        <%= form.text_field :default_timezone, required: true, class: "dd-field" %>
-      </div>
-      <div class="dd-form-actions">
-        <%= form.submit "Save profile", class: "dd-button" %>
-        <%= link_to "Cancel", administration_agency_path, class: "dd-button dd-button--quiet" %>
-      </div>
-    <% end %>
+    </div>
+  </article>
+
+  <div class="dd-form-actions dd-form-actions--sticky">
+    <%= form.submit "Save profile", class: "dd-button" %>
+    <%= link_to "Cancel", administration_agency_path, class: "dd-button dd-button--quiet" %>
   </div>
-</article>
+<% end %>
