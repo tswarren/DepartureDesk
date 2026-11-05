@@ -354,7 +354,7 @@ module ApplicationHelper
   end
 
   def departure_user_options(departure)
-    records = Current.agency.agency_users.where(status: "active").order(:last_name, :first_name).to_a
+    records = Current.agency.agency_users.agency_staff.where(status: "active").order(:last_name, :first_name).to_a
     current = departure.responsible_agency_user
     records.unshift(current) if current && records.none? { |user| user.id == current.id }
     records.map { |user| [ user.display_name, user.id ] }

@@ -14,22 +14,31 @@
 <%= render "administration/shared/subnav", current: :offices %>
 
 <article class="dd-panel">
-  <table class="dd-table">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Code</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% @offices.each do |office| %>
+  <% if @offices.none? %>
+    <div class="dd-panel-body">
+      <div class="dd-empty-state">
+        <h2 class="dd-empty-title">No offices</h2>
+        <p class="dd-empty-copy">Offices are optional. Add one if the agency assigns or reports work by office; an office never limits what anyone can see.</p>
+      </div>
+    </div>
+  <% else %>
+    <table class="dd-table">
+      <thead>
         <tr>
-          <td><%= link_to office.name, administration_office_path(office) %></td>
-          <td class="dd-type-mono"><%= office.code %></td>
-          <td><%= office_status_badge(office) %></td>
+          <th>Name</th>
+          <th>Code</th>
+          <th>Status</th>
         </tr>
-      <% end %>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        <% @offices.each do |office| %>
+          <tr>
+            <td><%= link_to office.name, administration_office_path(office) %></td>
+            <td class="dd-type-mono"><%= office.code %></td>
+            <td><%= office_status_badge(office) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
 </article>

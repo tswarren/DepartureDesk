@@ -134,6 +134,7 @@ module DepartureCommandSupport
     return if uuid.blank?
     user = @agency.agency_users.find_by(id: uuid)
     raise AgencyCommand::Error.new("That agency user was not found.", code: :not_found) if user.nil?
+    raise AgencyCommand::Error.new("Choose an Agency Admin or Staff user.", code: :invalid) if user.reseller?
 
     user
   end

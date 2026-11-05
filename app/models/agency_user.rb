@@ -18,6 +18,10 @@ class AgencyUser < ApplicationRecord
   enum :status, STATUSES.index_by(&:itself), validate: true
   enum :user_type, USER_TYPES.index_by(&:itself), validate: true
 
+  # Agency Admins and staff: the users who may hold agency work, such as a
+  # Departure's responsibility. Reseller users never do (ADR 0017).
+  scope :agency_staff, -> { where(user_type: STAFF_USER_TYPES) }
+
   attr_readonly :agency_id
 
   normalizes :email_address, with: ->(value) { normalize_email(value) }

@@ -123,7 +123,30 @@ class AdministrationAccessTest < ActionDispatch::IntegrationTest
     get root_path
 
     assert_response :success
-    assert_match(/No active office/, response.body)
+    assert_match(/No office selected/, response.body)
+  end
+
+  test "an agency with no offices opens the workspace without an office panel (ADR 0016)" do
+    agency = ProvisionAgency.new(
+      name: "No Office Travel", workspace_code: "nooffice", country_code: "US", default_currency: "USD",
+      default_timezone: "America/New_York", administrator_email: "admin@nooffice.example", administrator_first_name: "Nia",
+      administrator_last_name: "Noel", administrator_password: TEST_PASSWORD, actor_identifier: "test:no-office"
+    ).call.record
+    assert_empty agency.offices
+    sign_in_as agency.agency_users.sole
+
+    get root_path
+    assert_response :success
+    assert_select "h2", text: "Current office", count: 0
+
+    get administration_offices_path
+    assert_response :success
+    assert_select "h2", text: "No offices"
+    assert_select "a", text: "New office"
+
+    get departures_path
+    assert_response :success
+    assert_select "select[name='responsible_office_id']", count: 0
   end
 
   test "a query parameter does not select an office" do

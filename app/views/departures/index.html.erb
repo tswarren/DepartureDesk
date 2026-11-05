@@ -24,13 +24,16 @@
         <%= form.label :status, "Status", class: "dd-label" %>
         <%= form.select :status, [ [ "All", "all" ], [ "Draft", "draft" ], [ "Active", "active" ], [ "Departed", "departed" ] ], { selected: @status }, class: "dd-field" %>
       </div>
-      <div class="dd-field-group">
-        <%= form.label :responsible_office_id, "Responsible office", class: "dd-label" %>
-        <%= form.select :responsible_office_id, Current.agency.offices.order(:name).map { |office| [ office_choice_label(office), office.id ] }, { include_blank: "All offices", selected: params[:responsible_office_id] }, class: "dd-field" %>
-      </div>
+      <% office_options = Current.agency.offices.order(:name).map { |office| [ office_choice_label(office), office.id ] } %>
+      <% if office_options.any? %>
+        <div class="dd-field-group">
+          <%= form.label :responsible_office_id, "Responsible office", class: "dd-label" %>
+          <%= form.select :responsible_office_id, office_options, { include_blank: "All offices", selected: params[:responsible_office_id] }, class: "dd-field" %>
+        </div>
+      <% end %>
       <div class="dd-field-group">
         <%= form.label :responsible_agency_user_id, "Responsible user", class: "dd-label" %>
-        <%= form.select :responsible_agency_user_id, Current.agency.agency_users.order(:last_name, :first_name).map { |user| [ user.display_name, user.id ] }, { include_blank: "All users", selected: params[:responsible_agency_user_id] }, class: "dd-field" %>
+        <%= form.select :responsible_agency_user_id, Current.agency.agency_users.agency_staff.order(:last_name, :first_name).map { |user| [ user.display_name, user.id ] }, { include_blank: "All users", selected: params[:responsible_agency_user_id] }, class: "dd-field" %>
       </div>
       <div class="dd-field-group">
         <%= form.label :starts_on_from, "Starts on from", class: "dd-label" %>

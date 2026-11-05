@@ -217,6 +217,21 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_equal @office.id, activated.responsible_office_id
   end
 
+  test "a reseller user cannot be a departure's responsible user or appear as a choice (ADR 0017)" do
+    reseller = @agency.resellers.create!(name: "Harbor Partners")
+    reseller_user = @agency.agency_users.create!(
+      email_address: "partner@example.com", first_name: "Pat", last_name: "Partner", user_type: "reseller",
+      reseller:, status: "active", password: TEST_PASSWORD, credential_version: 1
+    )
+
+    error = assert_raises(AgencyCommand::Error) do
+      CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Reseller Owned", responsible_agency_user_id: reseller_user.id }).call
+    end
+    assert_equal :invalid, error.code
+    assert_not_includes @agency.agency_users.agency_staff, reseller_user
+    assert_includes @agency.agency_users.agency_staff, @staff
+  end
+
   test "an active departure may clear its responsible office but not its agency user" do
     departure = activate_departure!(create_complete_draft("Clear Office"))
     UpdateDepartureResponsibility.new(
