@@ -160,12 +160,7 @@ BEGIN
   IF NEW.agency_id IS DISTINCT FROM OLD.agency_id THEN
     RAISE EXCEPTION 'departure identity is immutable';
   END IF;
-  IF OLD.departure_reference IS NOT NULL
-    AND NEW.departure_reference IS DISTINCT FROM OLD.departure_reference THEN
-    RAISE EXCEPTION 'departure identity is immutable';
-  END IF;
-  IF OLD.first_activated_at IS NOT NULL
-    AND NEW.first_activated_at IS DISTINCT FROM OLD.first_activated_at THEN
+  IF NEW.departure_reference IS DISTINCT FROM OLD.departure_reference THEN
     RAISE EXCEPTION 'departure identity is immutable';
   END IF;
   RETURN NEW;
@@ -801,7 +796,7 @@ CREATE TABLE public.clients (
 CREATE TABLE public.departures (
     id uuid DEFAULT uuidv7() NOT NULL,
     agency_id uuid NOT NULL,
-    departure_reference character varying,
+    departure_reference character varying NOT NULL,
     name character varying(160) NOT NULL,
     description character varying(2000),
     starts_on date,
@@ -810,7 +805,6 @@ CREATE TABLE public.departures (
     operating_currency character varying(3),
     responsible_office_id uuid,
     responsible_agency_user_id uuid,
-    first_activated_at timestamp with time zone,
     departed_at timestamp with time zone,
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
@@ -826,11 +820,9 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
     CONSTRAINT departures_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT departures_name CHECK (((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
-    CONSTRAINT departures_non_draft_has_reference CHECK (((((sales_status)::text = 'draft'::text) AND ((completion_status)::text = 'active'::text)) OR ((departure_reference IS NOT NULL) AND (first_activated_at IS NOT NULL)))),
     CONSTRAINT departures_operating_currency CHECK (((operating_currency IS NULL) OR ((operating_currency)::text ~ '^[A-Z]{3}$'::text))),
     CONSTRAINT departures_operating_decision CHECK (((operating_decision)::text = ANY ((ARRAY['undecided'::character varying, 'proceed'::character varying, 'postpone'::character varying, 'cancel'::character varying])::text[]))),
     CONSTRAINT departures_ready_to_sell_completeness CHECK ((((sales_status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL) AND (responsible_agency_user_id IS NOT NULL)))),
-    CONSTRAINT departures_reference_activation_pair CHECK (((departure_reference IS NULL) = (first_activated_at IS NULL))),
     CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^DEP-[0-9]{4,}$'::text))),
     CONSTRAINT departures_sales_status CHECK (((sales_status)::text = ANY ((ARRAY['draft'::character varying, 'ready_to_sell'::character varying])::text[])))
 );
@@ -3339,6 +3331,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105130000'),
 ('20261105120000'),
 ('20261104190000'),
 ('20261104180000'),

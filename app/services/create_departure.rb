@@ -1,5 +1,6 @@
 class CreateDeparture < AgencyCommand
   include DepartureCommandSupport
+  include DepartureReferenceIssuance
 
   def initialize(agency:, actor:, attributes:)
     @agency = agency
@@ -21,6 +22,7 @@ class CreateDeparture < AgencyCommand
       ensure_active_target!(locked_user, "That agency user is not active.") if user.present?
 
       departure = @agency.departures.create!(
+        departure_reference: issue_departure_reference!(@agency),
         name: attrs[:name],
         description: attrs[:description],
         starts_on: attrs[:starts_on],
@@ -91,6 +93,7 @@ class CreateDeparture < AgencyCommand
   def audit_details(departure)
     {
       "departure_id" => departure.id,
+      "departure_reference" => departure.departure_reference,
       "sales_status" => departure.sales_status,
       "operating_decision" => departure.operating_decision,
       "completion_status" => departure.completion_status,

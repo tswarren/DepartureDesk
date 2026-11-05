@@ -1,6 +1,5 @@
 class ActivateDeparture < AgencyCommand
   include DepartureCommandSupport
-  include DepartureReferenceIssuance
 
   def initialize(agency:, actor:, departure:, lock_version:)
     @agency = agency
@@ -24,11 +23,6 @@ class ActivateDeparture < AgencyCommand
       user = lock_agency_user!(departure.responsible_agency_user)
       ensure_activation_complete!(departure, user)
 
-      first_activation = departure.departure_reference.blank?
-      if first_activation
-        departure.departure_reference = issue_departure_reference!(@agency)
-        departure.first_activated_at = Time.current
-      end
       departure.sales_status = "ready_to_sell"
       departure.save!
       audit!(
@@ -39,7 +33,6 @@ class ActivateDeparture < AgencyCommand
         details: {
           "departure_id" => departure.id,
           "departure_reference" => departure.departure_reference,
-          "first_activation" => first_activation,
           "starts_on" => departure.starts_on&.iso8601,
           "ends_on" => departure.ends_on&.iso8601,
           "time_zone" => departure.time_zone,

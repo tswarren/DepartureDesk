@@ -9,7 +9,7 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     assert_equal Date.new(2027, 11, 6), celebrity.departure.starts_on
     assert_equal Date.new(2027, 11, 13), celebrity.departure.ends_on
     assert celebrity.departure.draft?
-    assert_nil celebrity.departure.departure_reference
+    assert_match Departure::REFERENCE_FORMAT, celebrity.departure.departure_reference
     assert_equal celebrity.directory.agency.default_currency, celebrity.fixture_operating_currency
     assert_equal celebrity.directory.agency.default_timezone, celebrity.fixture_time_zone
     assert_equal celebrity.directory.agency.offices.sole.id, celebrity.fixture_responsible_office.id
@@ -19,7 +19,7 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     assert_equal Date.new(2027, 6, 5), vineyard.departure.starts_on
     assert_equal Date.new(2027, 6, 7), vineyard.departure.ends_on
     assert vineyard.departure.draft?
-    assert_nil vineyard.departure.departure_reference
+    assert_match Departure::REFERENCE_FORMAT, vineyard.departure.departure_reference
     assert_not_equal celebrity.directory.agency.id, vineyard.directory.agency.id
 
     assert_equal 1, celebrity.directory.agency.departures.count

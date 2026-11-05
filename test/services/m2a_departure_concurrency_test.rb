@@ -151,7 +151,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
       assert_equal "DEP-0001", departure.departure_reference
     else
       assert_equal "not_on_sale", departure.summary_label
-      assert_nil departure.departure_reference
+      assert_equal "DEP-0001", departure.departure_reference
       assert_includes outcomes.grep(AgencyCommand::Error).map(&:code), :invalid_state
     end
   end

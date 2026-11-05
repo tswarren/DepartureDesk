@@ -35,7 +35,7 @@ class Departure < ApplicationRecord
 
   validates :name, presence: true, length: { maximum: NAME_LIMIT }
   validates :description, length: { maximum: DESCRIPTION_LIMIT }, allow_nil: true
-  validates :departure_reference, format: { with: REFERENCE_FORMAT }, allow_nil: true
+  validates :departure_reference, presence: true, format: { with: REFERENCE_FORMAT }
   validates :operating_currency, format: { with: Agency::CURRENCY_FORMAT }, allow_nil: true
   validate :dates_are_paired_and_ordered
   validate :timezone_is_iana
@@ -94,7 +94,7 @@ class Departure < ApplicationRecord
   end
 
   def display_reference
-    departure_reference.presence || "Draft"
+    departure_reference
   end
 
   def schedule_label

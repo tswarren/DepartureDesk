@@ -18,7 +18,7 @@ class DepartureStatusesTest < ActiveSupport::TestCase
   }.freeze
 
   test "a new Departure is Draft, Undecided and Active, labelled Not on sale" do
-    departure = agencies(:harbor).departures.new(name: "New")
+    departure = agencies(:harbor).departures.new(name: "New", departure_reference: "DEP-7000")
     assert departure.sales_draft?
     assert departure.decision_undecided?
     assert departure.completion_active?
@@ -45,13 +45,11 @@ class DepartureStatusesTest < ActiveSupport::TestCase
     agency = agencies(:harbor)
     user = agency_users(:harbor_admin)
     rows = LABELS.keys.each_with_index.map do |(sales, decision, completion), index|
-      complete = sales == "ready_to_sell" || completion != "active"
       agency.departures.create!(
         name: "Label #{index}", starts_on: Date.new(2027, 1, 1), ends_on: Date.new(2027, 1, 8),
         time_zone: "UTC", operating_currency: "USD", responsible_agency_user: user,
         sales_status: sales, operating_decision: decision, completion_status: completion,
-        departure_reference: (format("DEP-%04d", 9000 + index) if complete),
-        first_activated_at: (Time.current if complete),
+        departure_reference: format("DEP-%04d", 9000 + index),
         departed_at: (Time.current if completion == "departed")
       )
     end
@@ -63,8 +61,8 @@ class DepartureStatusesTest < ActiveSupport::TestCase
     assert_equal rows.select(&:on_sale?).map(&:id).sort, agency.departures.on_sale.where(id: rows.map(&:id)).pluck(:id).sort
   end
 
-  test "the database refuses unknown statuses and an incomplete Ready to sell" do
-    departure = agencies(:harbor).departures.create!(name: "Checks")
+  test "the database refuses unknown statuses, an incomplete Ready to sell and a missing reference (D-91)" do
+    departure = agencies(:harbor).departures.create!(name: "Checks", departure_reference: "DEP-8000")
     { sales_status: "published", operating_decision: "maybe", completion_status: "reconciled" }.each do |column, value|
       assert_raises(ActiveRecord::StatementInvalid, column.to_s) do
         Departure.transaction(requires_new: true) { Departure.where(id: departure.id).update_all(column => value) }
@@ -72,11 +70,17 @@ class DepartureStatusesTest < ActiveSupport::TestCase
     end
     assert_raises(ActiveRecord::StatementInvalid) do
       Departure.transaction(requires_new: true) do
-        Departure.where(id: departure.id).update_all(sales_status: "ready_to_sell", departure_reference: "DEP-8888", first_activated_at: Time.current)
+        Departure.where(id: departure.id).update_all(sales_status: "ready_to_sell")
       end
     end
     assert_raises(ActiveRecord::StatementInvalid) do
       Departure.transaction(requires_new: true) { Departure.where(id: departure.id).update_all(departed_at: Time.current) }
+    end
+    assert_raises(ActiveRecord::StatementInvalid) do
+      Departure.transaction(requires_new: true) { Departure.where(id: departure.id).update_all(departure_reference: nil) }
+    end
+    assert_raises(ActiveRecord::StatementInvalid) do
+      Departure.transaction(requires_new: true) { Departure.where(id: departure.id).update_all(departure_reference: "DEP-8001") }
     end
   end
 end

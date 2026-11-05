@@ -21,7 +21,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     ).call.record
 
     assert_equal "not_on_sale", departure.summary_label
-    assert_nil departure.departure_reference
+    assert_equal "DEP-0001", departure.departure_reference
     assert_nil departure.responsible_office_id
     assert_equal @admin.id, departure.responsible_agency_user_id
     assert_equal @agency.default_timezone, departure.time_zone
@@ -104,14 +104,13 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     end
   end
 
-  test "activation issues a reference, reactivation reuses it, and return to draft retains it" do
+  test "a draft has its reference from creation; activation, return to draft and reactivation keep it (D-91)" do
     departure = create_complete_draft("Caribbean Week")
+    assert_equal "DEP-0001", departure.departure_reference
     activated = ActivateDeparture.new(agency: @agency, actor: @staff, departure:, lock_version: departure.lock_version).call.record
 
     assert_equal "on_sale", activated.summary_label
     assert_equal "DEP-0001", activated.departure_reference
-    first_activated_at = activated.reload.first_activated_at
-    assert_not_nil first_activated_at
     assert_equal 1, AuditEvent.where(agency: @agency, action: "departure.activated", subject_id: activated.id).count
 
     returned = ReturnDepartureToDraft.new(
@@ -119,14 +118,12 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     ).call.record
     assert_equal "not_on_sale", returned.summary_label
     assert_equal "DEP-0001", returned.departure_reference
-    assert_equal first_activated_at, returned.first_activated_at
     returned.update!(starts_on: nil, ends_on: nil)
     assert_nil returned.reload.starts_on
     returned.update!(starts_on: Date.new(2026, 6, 1), ends_on: Date.new(2026, 6, 8))
 
     reactivated = ActivateDeparture.new(agency: @agency, actor: @staff, departure: returned, lock_version: returned.lock_version).call.record
     assert_equal "DEP-0001", reactivated.departure_reference
-    assert_equal first_activated_at, reactivated.first_activated_at
     assert_equal 2, AuditEvent.where(agency: @agency, action: "departure.activated", subject_id: reactivated.id).count
   end
 
@@ -305,24 +302,21 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_equal @office.id, departure.reload.responsible_office_id
   end
 
-  test "activation completeness, widening, and missing sequence use documented codes" do
+  test "activation completeness, creation widening, and a missing sequence use documented codes" do
     incomplete = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Incomplete" }).call.record
     invalid = assert_raises(AgencyCommand::Error) do
       ActivateDeparture.new(agency: @agency, actor: @admin, departure: incomplete, lock_version: incomplete.lock_version).call
     end
     assert_equal :invalid, invalid.code
 
-    departure = create_complete_draft("Widened")
     @agency.reference_sequences.find_by!(namespace: ReferenceSequence::DEPARTURE_NAMESPACE)
       .update!(next_value: ReferenceSequence::EXHAUSTED_AT)
-    assert_equal "DEP-1000000", activate_departure!(departure).departure_reference
+    assert_equal "DEP-1000000", create_complete_draft("Widened").departure_reference
 
-    missing = create_complete_draft("Missing Sequence")
     @agency.reference_sequences.find_by!(namespace: ReferenceSequence::DEPARTURE_NAMESPACE).delete
-    integrity = assert_raises(AgencyCommand::Error) do
-      ActivateDeparture.new(agency: @agency, actor: @admin, departure: missing, lock_version: missing.lock_version).call
-    end
+    integrity = assert_raises(AgencyCommand::Error) { create_complete_draft("Missing Sequence") }
     assert_equal :invalid, integrity.code
+    assert_not @agency.departures.exists?(name: "Missing Sequence")
   end
 
   test "departed rows cannot activate or return to draft" do

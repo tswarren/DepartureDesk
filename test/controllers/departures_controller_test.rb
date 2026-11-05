@@ -76,7 +76,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     post activate_departure_path(complete), params: { lock_version: complete.lock_version }
     assert_redirected_to departure_path(complete)
     assert_equal "on_sale", complete.reload.summary_label
-    assert_equal "DEP-0001", complete.departure_reference
+    assert_equal "DEP-0003", complete.departure_reference, "issued at creation, after the two drafts above (D-91)"
   end
 
   test "staff without departure management can browse but cannot mutate or open editors" do

@@ -69,10 +69,6 @@
         <dd><%= @departure.responsible_agency_user&.display_name || "—" %></dd>
       </div>
       <div>
-        <dt>First activated</dt>
-        <dd><%= @departure.first_activated_at&.to_fs(:long) || "—" %></dd>
-      </div>
-      <div>
         <dt>Departed at</dt>
         <dd><%= @departure.departed_at&.to_fs(:long) || "—" %></dd>
       </div>

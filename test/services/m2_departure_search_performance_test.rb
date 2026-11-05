@@ -196,8 +196,7 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
         responsible_office_id: office.id,
         responsible_agency_user_id: user.id,
         sales_status: "ready_to_sell",
-        departure_reference: format("DEP-%04d", index + 10),
-        first_activated_at: now,
+        departure_reference: format("DEP-%04d", index + 50_000),
         lock_version: 0,
         created_at: now,
         updated_at: now

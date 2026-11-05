@@ -9,6 +9,7 @@ class AgencyTimeZoneTest < ActiveSupport::TestCase
   test "the database accepts an active departure without a responsible office" do
     departure = agencies(:harbor).departures.create!(
       name: "No Office Week",
+      departure_reference: "DEP-9999",
       starts_on: Date.new(2027, 3, 1),
       ends_on: Date.new(2027, 3, 8),
       time_zone: "America/New_York",
@@ -18,7 +19,7 @@ class AgencyTimeZoneTest < ActiveSupport::TestCase
 
     assert_nothing_raised do
       Departure.where(id: departure.id).update_all(
-        sales_status: "ready_to_sell", departure_reference: "DEP-9999", first_activated_at: Time.current
+        sales_status: "ready_to_sell"
       )
     end
     assert_nil departure.reload.responsible_office_id
@@ -27,6 +28,7 @@ class AgencyTimeZoneTest < ActiveSupport::TestCase
   test "the database still requires a responsible agency user to leave draft" do
     departure = agencies(:harbor).departures.create!(
       name: "No User Week",
+      departure_reference: "DEP-9998",
       starts_on: Date.new(2027, 3, 1),
       ends_on: Date.new(2027, 3, 8),
       time_zone: "America/New_York",
@@ -36,7 +38,7 @@ class AgencyTimeZoneTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::StatementInvalid) do
       Departure.transaction(requires_new: true) do
         Departure.where(id: departure.id).update_all(
-          sales_status: "ready_to_sell", departure_reference: "DEP-9998", first_activated_at: Time.current
+          sales_status: "ready_to_sell"
         )
       end
     end
