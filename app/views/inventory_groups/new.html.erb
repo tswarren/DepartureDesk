@@ -1,0 +1,25 @@
+<% content_for :title, "New inventory group · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", departure_arrangements_path(@departure) ], [ @arrangement.arrangement_reference, departure_arrangement_path(@departure, @arrangement) ], [ "New group", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Arrangement · <%= @arrangement.supplier.display_name_for_directory %></p>
+    <h1 class="dd-page-title">New inventory group</h1>
+    <p class="dd-page-description">Shells and pools are created when the arrangement is confirmed.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @group, url: departure_arrangement_groups_path(@departure, @arrangement), scope: :inventory_group, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version if form.object.persisted? %>
+      <%= render "form", form:, group: @group, structural: true %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save group", class: "dd-button" %>
+        <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "inventory"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

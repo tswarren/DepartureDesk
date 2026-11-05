@@ -1,0 +1,61 @@
+<% content_for :title, "#{@group.label} · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_arrangements) && !@departure.departed? %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", departure_arrangements_path(@departure) ], [ @arrangement.arrangement_reference, departure_arrangement_path(@departure, @arrangement) ], [ @group.label, nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Inventory group · <%= @arrangement.supplier.display_name_for_directory %></p>
+    <h1 class="dd-page-title"><%= @group.label %></h1>
+    <p class="dd-page-description"><%= service_category_label(@group.service_category) %> · <%= availability_promise_label(@group.availability_promise) %></p>
+  </div>
+  <% if manage && !@arrangement.cancelled? %>
+    <div class="dd-page-actions">
+      <%= link_to "Edit group", edit_departure_arrangement_group_path(@departure, @arrangement, @group), class: "dd-button" %>
+      <% if @arrangement.draft? %>
+        <%= button_to "Remove group", departure_arrangement_group_path(@departure, @arrangement, @group), method: :delete, class: "dd-button dd-button--quiet",
+              form: { data: { turbo_confirm: "Remove #{@group.label} from this draft arrangement?" } } %>
+      <% end %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Setup</h2></header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div><dt>Representation</dt><dd><%= representation_label(@group.representation) %></dd></div>
+      <div><dt>Quantity</dt><dd><%= group_quantity_label(@group) %></dd></div>
+      <div><dt>Service dates</dt><dd><%= group_service_dates(@group) %></dd></div>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel" id="capacity-rules">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Who uses capacity</h2></header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-page-description">Traveler types marked "No" take part and count in the headcount, but use no position (INV-39).</p>
+    <div class="dd-table-wrap">
+      <table class="dd-table">
+        <thead><tr><th scope="col">Traveler type</th><th scope="col">Uses capacity</th><% if manage && @arrangement.draft? %><th scope="col" class="dd-col-actions">Actions</th><% end %></tr></thead>
+        <tbody>
+          <% exempt = @group.capacity_rules.map(&:traveler_type_id) %>
+          <% Current.agency.traveler_types.ordered.each do |traveler_type| %>
+            <% uses = !exempt.include?(traveler_type.id) %>
+            <tr>
+              <th scope="row"><%= traveler_type.name %></th>
+              <td><%= uses ? "Yes" : status_badge("No", modifier: "info") %></td>
+              <% if manage && @arrangement.draft? %>
+                <td class="dd-col-actions">
+                  <%= button_to (uses ? "Mark as not using capacity" : "Mark as using capacity"), departure_arrangement_group_capacity_rule_path(@departure, @arrangement, @group),
+                        method: :patch, params: { traveler_type_id: traveler_type.id, uses_capacity: !uses },
+                        class: "dd-row-action dd-row-action--text", form_class: "dd-inline-form", aria: { label: "#{traveler_type.name}: #{uses ? "mark as not using capacity" : "mark as using capacity"}" } %>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</article>

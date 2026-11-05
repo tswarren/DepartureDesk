@@ -13,6 +13,7 @@ class SupplierArrangement < ApplicationRecord
   belongs_to :departure
   belongs_to :supplier
   belongs_to :payee_account, optional: true
+  has_many :inventory_groups, -> { ordered }, inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
   has_many :documents, -> { order(created_at: :desc) }, class_name: "ArrangementDocument", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
@@ -38,6 +39,8 @@ class SupplierArrangement < ApplicationRecord
     blockers = []
     blockers << "Enter the supplier's group or confirmation reference." if group_reference.blank?
     blockers << "Choose a payee account." if payee_account_id.blank?
+    blockers << "Add at least one inventory group." if inventory_groups.empty?
+    inventory_groups.each { |group| blockers.concat(group.confirmation_blockers) }
     blockers
   end
 

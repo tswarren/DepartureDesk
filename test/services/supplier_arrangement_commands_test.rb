@@ -16,7 +16,8 @@ class SupplierArrangementCommandsTest < ActiveSupport::TestCase
     assert_equal "ARR-0001", arrangement.arrangement_reference
     assert_equal "USD", arrangement.currency
     assert_nil arrangement.group_reference
-    assert_equal [ "Enter the supplier's group or confirmation reference.", "Choose a payee account." ], arrangement.confirmation_blockers
+    assert_equal [ "Enter the supplier's group or confirmation reference.", "Choose a payee account.", "Add at least one inventory group." ],
+      arrangement.confirmation_blockers
     assert_equal 1, AuditEvent.where(subject_id: arrangement.id, action: "supplier_arrangement.created").count
   end
 
@@ -36,7 +37,7 @@ class SupplierArrangementCommandsTest < ActiveSupport::TestCase
     update!(arrangement, group_reference: "GRP-ALPHA", payee_account_id: @payee.id, obligation_shape: "committed_quantity")
     arrangement.reload
     assert_equal "GRP-ALPHA", arrangement.group_reference
-    assert_empty arrangement.confirmation_blockers
+    assert_equal [ "Add at least one inventory group." ], arrangement.confirmation_blockers
     assert_includes AuditEvent.where(subject_id: arrangement.id, action: "supplier_arrangement.updated").sole.details["changed"], "payee_account_id"
 
     other = CreateSupplier.new(agency: @agency, actor: @admin, kind: "organization", names: { display_name: "Other" }, categories: [ "lodging" ]).call.record

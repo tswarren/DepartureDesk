@@ -545,6 +545,21 @@ CREATE TABLE public.audit_events (
 
 
 --
+-- Name: capacity_rules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_rules (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    inventory_group_id uuid NOT NULL,
+    traveler_type_id uuid NOT NULL,
+    uses_capacity boolean DEFAULT false NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
 -- Name: client_organization_contacts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -894,6 +909,42 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_ready_to_sell_completeness CHECK ((((sales_status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL)))),
     CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^DEP-[0-9]{4,}$'::text))),
     CONSTRAINT departures_sales_status CHECK (((sales_status)::text = ANY ((ARRAY['draft'::character varying, 'ready_to_sell'::character varying])::text[])))
+);
+
+
+--
+-- Name: inventory_groups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.inventory_groups (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    label character varying NOT NULL,
+    service_category character varying NOT NULL,
+    representation character varying NOT NULL,
+    availability_promise character varying NOT NULL,
+    quantity integer,
+    positions_per_unit integer,
+    starts_on date,
+    starts_at_time time without time zone,
+    ends_on date,
+    ends_at_time time without time zone,
+    time_zone character varying,
+    "position" integer DEFAULT 0 NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT inventory_groups_availability_promise CHECK (((availability_promise)::text = ANY ((ARRAY['firm_block'::character varying, 'releasable_block'::character varying, 'courtesy_option'::character varying, 'on_request'::character varying, 'rate_only'::character varying])::text[]))),
+    CONSTRAINT inventory_groups_counters CHECK ((("position" >= 0) AND (lock_version >= 0))),
+    CONSTRAINT inventory_groups_dates CHECK ((((starts_on IS NULL) = (ends_on IS NULL)) AND ((starts_on IS NULL) OR (starts_on <= ends_on)))),
+    CONSTRAINT inventory_groups_end_time_needs_date CHECK (((ends_at_time IS NULL) OR (ends_on IS NOT NULL))),
+    CONSTRAINT inventory_groups_label CHECK (((btrim((label)::text) <> ''::text) AND (char_length((label)::text) <= 120))),
+    CONSTRAINT inventory_groups_positions CHECK (((positions_per_unit IS NULL) OR ((positions_per_unit >= 1) AND ((representation)::text = 'unit_shells'::text)))),
+    CONSTRAINT inventory_groups_quantity_only_when_numeric CHECK (((quantity IS NULL) OR ((quantity >= 1) AND ((representation)::text <> 'none'::text) AND ((availability_promise)::text <> ALL ((ARRAY['on_request'::character varying, 'rate_only'::character varying])::text[]))))),
+    CONSTRAINT inventory_groups_representation CHECK (((representation)::text = ANY ((ARRAY['unit_shells'::character varying, 'capacity_pool'::character varying, 'none'::character varying])::text[]))),
+    CONSTRAINT inventory_groups_service_category CHECK (((service_category)::text = ANY ((ARRAY['hotel'::character varying, 'all_inclusive_resort'::character varying, 'cruise'::character varying, 'air'::character varying, 'rail'::character varying, 'transportation'::character varying, 'activity'::character varying, 'meal'::character varying, 'insurance'::character varying])::text[]))),
+    CONSTRAINT inventory_groups_start_time_needs_date CHECK (((starts_at_time IS NULL) OR (starts_on IS NOT NULL)))
 );
 
 
@@ -1433,6 +1484,14 @@ ALTER TABLE ONLY public.audit_events
 
 
 --
+-- Name: capacity_rules capacity_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_rules
+    ADD CONSTRAINT capacity_rules_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: client_organization_contacts client_org_contacts_no_overlapping_history; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1550,6 +1609,14 @@ ALTER TABLE ONLY public.departure_team_members
 
 ALTER TABLE ONLY public.departures
     ADD CONSTRAINT departures_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: inventory_groups inventory_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_groups
+    ADD CONSTRAINT inventory_groups_pkey PRIMARY KEY (id);
 
 
 --
@@ -1814,6 +1881,13 @@ CREATE INDEX index_audit_events_on_agency_id ON public.audit_events USING btree 
 --
 
 CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_events USING btree (agency_id, created_at);
+
+
+--
+-- Name: index_capacity_rules_on_group_and_traveler_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_rules_on_group_and_traveler_type ON public.capacity_rules USING btree (inventory_group_id, traveler_type_id);
 
 
 --
@@ -2304,6 +2378,20 @@ CREATE INDEX index_departures_on_agency_statuses_starts_on_id ON public.departur
 --
 
 CREATE UNIQUE INDEX index_departures_on_id_and_agency_id ON public.departures USING btree (id, agency_id);
+
+
+--
+-- Name: index_inventory_groups_on_arrangement_and_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_inventory_groups_on_arrangement_and_position ON public.inventory_groups USING btree (supplier_arrangement_id, "position");
+
+
+--
+-- Name: index_inventory_groups_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_inventory_groups_on_id_and_agency_id ON public.inventory_groups USING btree (id, agency_id);
 
 
 --
@@ -3227,6 +3315,30 @@ ALTER TABLE ONLY public.arrangement_documents
 
 
 --
+-- Name: capacity_rules fk_capacity_rules_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_rules
+    ADD CONSTRAINT fk_capacity_rules_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: capacity_rules fk_capacity_rules_group_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_rules
+    ADD CONSTRAINT fk_capacity_rules_group_same_agency FOREIGN KEY (inventory_group_id, agency_id) REFERENCES public.inventory_groups(id, agency_id);
+
+
+--
+-- Name: capacity_rules fk_capacity_rules_traveler_type_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_rules
+    ADD CONSTRAINT fk_capacity_rules_traveler_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
 -- Name: departure_decisions fk_departure_decisions_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3272,6 +3384,22 @@ ALTER TABLE ONLY public.departure_team_members
 
 ALTER TABLE ONLY public.departure_team_members
     ADD CONSTRAINT fk_departure_team_members_user_same_agency FOREIGN KEY (agency_user_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: inventory_groups fk_inventory_groups_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_groups
+    ADD CONSTRAINT fk_inventory_groups_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: inventory_groups fk_inventory_groups_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_groups
+    ADD CONSTRAINT fk_inventory_groups_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
 
 
 --
@@ -3681,6 +3809,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105200000'),
 ('20261105190000'),
 ('20261105180000'),
 ('20261105170000'),

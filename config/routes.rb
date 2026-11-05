@@ -156,6 +156,9 @@ Rails.application.routes.draw do
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
       resource :discard, only: :create, controller: "supplier_arrangement_discards"
       resources :documents, only: %i[show create destroy], controller: "arrangement_documents"
+      resources :groups, only: %i[show new create edit update destroy], controller: "inventory_groups" do
+        resource :capacity_rule, only: :update, controller: "capacity_rules"
+      end
     end
     # The team member id in these routes is the agency user's id.
     resources :team_members, only: %i[create destroy], controller: "departure_team_members" do
