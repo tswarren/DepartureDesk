@@ -39,6 +39,8 @@ The proposed defaults are working assumptions. Placeholder values are test input
 | D-87 | First-slice fixture values B2 to B9 settled, with B13 and B14 added | [Charter](../planning/first-slice/first-slice-charter.md) |
 | D-88 | Hold-and-reserve spike result: adapt the capacity ledger, holds in their own table, end-of-date effect | [ADR 0018](../adr/0018-arrangement-history-by-dated-adjustment.md#spike-amendment-2026-11-03) |
 | D-89 | Client and supplier references keep the shipped CL- and SUP- formats | [Spec](product-specification.md) |
+| D-90 | Amend the charter: publishing to a reseller channel moves from build step 2 to build step 9 | [Charter](../planning/first-slice/first-slice-charter.md#build-plan) |
+| D-91 | A Departure's reference is issued at creation | [Spec](product-specification.md), [ADR 0004](../adr/0004-human-readable-references.md) |
 
 ## Blocking decisions
 

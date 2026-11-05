@@ -1,6 +1,6 @@
 # DepartureDesk First-Slice Charter
 
-**Status:** Accepted 2026-10-31 for scope (D-64). Amended 2026-11-01 (D-66): the old supplier and offer layers retire in Phase 1, Slice 1 gains a staff checkpoint after step 6, and the Phase 0 decision rule is split. Amended 2026-11-03: CLT-25 joins steps 8 and 9 (D-78), D1 and D4 follow D-75 and expected commission moves to step 4 (D-85), and the fixture values are settled (D-87). No Slice 1 build step starts before the Phase 0 checkpoint.
+**Status:** Accepted 2026-10-31 for scope (D-64). Amended 2026-11-01 (D-66): the old supplier and offer layers retire in Phase 1, Slice 1 gains a staff checkpoint after step 6, and the Phase 0 decision rule is split. Amended 2026-11-03: CLT-25 joins steps 8 and 9 (D-78), D1 and D4 follow D-75 and expected commission moves to step 4 (D-85), and the fixture values are settled (D-87). Amended 2026-11-05: publishing to a reseller channel moves from build step 2 to build step 9 (D-90). No Slice 1 build step starts before the Phase 0 checkpoint.
 **Owner:** Tom
 **Product authority:** [Product Specification](../../spec/README.md). Decisions this charter needs are in [pending decision log entries](../../spec/pending-decision-log-entries.md).
 
@@ -209,14 +209,14 @@ The build keeps the existing Rails app's foundation (D-65): agency identity, the
 | Order | Step | Cases closed |
 | ---: | --- | --- |
 | 1 | Foundation changes: permissions, reseller user type, agency profile fields, more reference types, one agency time zone | |
-| 2 | Departure statuses, Ready to sell, publishing to a reseller channel | |
+| 2 | Departure statuses, Ready to sell (publishing moved to step 9, D-90) | |
 | 3 | Arrangements, inventory groups, shells, pools and resources, supplier rate table, deadlines that create tasks | D1, D12 |
 | 4 | Supplier cost, schedule lines, amounts due and expected commission | D2 |
 | 5 | Package, scoped choices, client terms, per-cabin deposit | |
 | 6 | Travelers, Client Trips, bookings; hold, accept and confirm; draft saving | D4, D5, D6, D16 |
 | 7 | Supplier reservations that can stand alone | D8 |
 | 8 | Client charges, installments, payments by route, receipts; supplier payments | D9, D10 |
-| 9 | The reseller path | D15 |
+| 9 | The reseller path, including publishing to a reseller channel (D-90) | D15 |
 | 10 | Confirmation, invoice and receipt PDFs | D13 |
 | 11 | Departed and reconciliation | D14 |
 
