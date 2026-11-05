@@ -119,7 +119,7 @@ module DepartureCommandSupport
       raise AgencyCommand::Error.new("Enter a supported operating currency.", code: :invalid)
     end
 
-    Money::Currency.find(code)
+    Money::Currency.new(code)
     code
   rescue Money::Currency::UnknownCurrency
     raise AgencyCommand::Error.new("Enter a supported operating currency.", code: :invalid)

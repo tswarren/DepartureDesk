@@ -103,7 +103,7 @@ class Agency < ApplicationRecord
   def currency_is_known
     return if default_currency.blank?
 
-    Money::Currency.find(default_currency)
+    Money::Currency.new(default_currency)
   rescue Money::Currency::UnknownCurrency
     errors.add(:default_currency, "is not a supported currency")
   end
