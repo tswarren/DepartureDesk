@@ -6,7 +6,7 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     @agency = @shell.directory.agency
     @actor = @shell.directory.actor
     @office = @shell.fixture_responsible_office
-    @west = CreateOffice.new(agency: @agency, actor: @actor, name: "West Desk", code: "WEST", default_timezone: "UTC").call.record
+    @west = CreateOffice.new(agency: @agency, actor: @actor, name: "West Desk", code: "WEST").call.record
     @staff = @agency.agency_users.create!(
       email_address: "staff-#{@shell.directory.suffix}@example.test",
       first_name: "Sid",

@@ -18,10 +18,6 @@
         <%= form.label :name, class: "dd-label" %>
         <%= form.text_field :name, required: true, class: "dd-field" %>
       </div>
-      <div class="dd-field-group">
-        <%= form.label :default_timezone, "Timezone", class: "dd-label" %>
-        <%= form.text_field :default_timezone, required: true, class: "dd-field" %>
-      </div>
       <div class="dd-form-actions">
         <%= form.submit "Save office", class: "dd-button" %>
         <%= link_to "Cancel", administration_office_path(@office), class: "dd-button dd-button--quiet" %>

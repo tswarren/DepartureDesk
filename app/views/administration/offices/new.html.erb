@@ -21,10 +21,6 @@
         <%= form.label :code, "Office code", class: "dd-label" %>
         <%= form.text_field :code, required: true, maxlength: 10, class: "dd-field dd-field--code" %>
       </div>
-      <div class="dd-field-group">
-        <%= form.label :default_timezone, "Timezone", class: "dd-label" %>
-        <%= form.text_field :default_timezone, required: true, value: @office.default_timezone.presence || Current.agency.default_timezone, class: "dd-field" %>
-      </div>
       <div class="dd-form-actions">
         <%= form.submit "Create office", class: "dd-button" %>
         <%= link_to "Cancel", administration_offices_path, class: "dd-button dd-button--quiet" %>

@@ -179,8 +179,8 @@ module DepartureCommandSupport
     if attrs[:operating_currency].blank?
       raise AgencyCommand::Error.new("Enter a supported operating currency.", code: :invalid)
     end
-    if departure.responsible_office_id.blank? || departure.responsible_agency_user_id.blank?
-      raise AgencyCommand::Error.new("Active and departed departures require a responsible office and agency user.", code: :invalid)
+    if departure.responsible_agency_user_id.blank?
+      raise AgencyCommand::Error.new("Active and departed departures require a responsible agency user.", code: :invalid)
     end
   end
 

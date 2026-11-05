@@ -15,7 +15,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     get new_departure_path
     assert_response :success
     assert_select "select[name='departure[time_zone]'] option[selected][value=?]", @agency.default_timezone
-    assert_select "select[name='departure[time_zone]'] option[selected][value=?]", offices(:harbor_west).default_timezone, count: 0
+    assert_select "select[name='departure[responsible_office_id]'] option[selected]", count: 0
     assert_select "input[name='departure[operating_currency]'][value=?]", @agency.default_currency
 
     assert_difference -> { @agency.departures.count }, 1 do

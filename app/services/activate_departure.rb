@@ -24,9 +24,8 @@ class ActivateDeparture < AgencyCommand
       end
 
       ensure_current_lock_version!(departure)
-      office = lock_office!(departure.responsible_office)
       user = lock_agency_user!(departure.responsible_agency_user)
-      ensure_activation_complete!(departure, office, user)
+      ensure_activation_complete!(departure, user)
 
       first_activation = departure.departure_reference.blank?
       if first_activation
@@ -60,7 +59,7 @@ class ActivateDeparture < AgencyCommand
 
   private
 
-  def ensure_activation_complete!(departure, office, user)
+  def ensure_activation_complete!(departure, user)
     blockers = []
     blockers << "Enter a name." if departure.name.blank?
     if departure.starts_on.blank? || departure.ends_on.blank?
@@ -70,11 +69,6 @@ class ActivateDeparture < AgencyCommand
     end
     blockers << "Enter a recognized time zone." if time_zone_invalid?(departure.time_zone)
     blockers << "Enter a supported operating currency." if currency_invalid?(departure.operating_currency)
-    if office.nil?
-      blockers << "Choose an active responsible office."
-    elsif !office.active?
-      raise Error.new("That office is not active.", code: :invalid_state)
-    end
     if user.nil?
       blockers << "Choose an active responsible agency user."
     elsif !user.active?

@@ -2,19 +2,16 @@ harbor_main:
   agency: harbor
   name: Harbor Main
   code: MAIN
-  default_timezone: America/New_York
   status: active
 
 harbor_west:
   agency: harbor
   name: Harbor West
   code: WEST
-  default_timezone: America/Los_Angeles
   status: active
 
 cove_main:
   agency: cove
   name: Cove Main
   code: MAIN
-  default_timezone: America/Chicago
   status: active

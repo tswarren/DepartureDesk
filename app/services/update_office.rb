@@ -1,9 +1,8 @@
 class UpdateOffice < AgencyCommand
-  def initialize(office:, actor:, name:, default_timezone:, lock_version: nil)
+  def initialize(office:, actor:, name:, lock_version: nil)
     @office = office
     @actor = actor
     @name = name
-    @default_timezone = default_timezone
     @lock_version = lock_version
   end
 
@@ -14,7 +13,7 @@ class UpdateOffice < AgencyCommand
         @office.reload
         ensure_permitted!(@actor, :manage_offices)
         raise Error.new("This office was updated by someone else.", code: :conflict) if stale?
-        @office.update!(name: @name, default_timezone: @default_timezone)
+        @office.update!(name: @name)
         audit!(agency: @office.agency, action: "office.updated", subject: @office, actor: @actor, details: { "office_id" => @office.id })
       end
     end

@@ -207,9 +207,6 @@ module M1DirectoryScenario
       country_code: "US",
       default_currency: "USD",
       default_timezone: "UTC",
-      office_name: "Main Office",
-      office_code: "MAIN",
-      office_timezone: "UTC",
       administrator_email: "admin-#{suffix}@example.test",
       administrator_first_name: "Pat",
       administrator_last_name: "Harbor",
@@ -217,6 +214,8 @@ module M1DirectoryScenario
       actor_identifier: "test:m1e-#{suffix}"
     ).call.record
     actor = agency.agency_users.sole
+    office = agency.offices.create!(name: "Main Office", code: "MAIN", status: "active")
+    actor.update!(default_office: office)
     viewer = agency.agency_users.create!(
       email_address: "viewer-#{suffix}@example.test",
       first_name: "Vera",
@@ -224,7 +223,7 @@ module M1DirectoryScenario
       password: PASSWORD,
       access_role: "viewer",
       status: "active",
-      default_office: agency.offices.sole,
+      default_office: office,
       credential_version: 1
     )
     [ agency, actor, viewer ]

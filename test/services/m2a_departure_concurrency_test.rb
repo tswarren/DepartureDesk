@@ -11,9 +11,6 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
       country_code: "US",
       default_currency: "USD",
       default_timezone: "UTC",
-      office_name: "Race Office",
-      office_code: "RACE",
-      office_timezone: "UTC",
       administrator_email: "admin-#{suffix}@example.test",
       administrator_first_name: "Race",
       administrator_last_name: "Admin",
@@ -21,7 +18,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
       actor_identifier: "test:m2a-#{suffix}"
     ).call.record
     @actor = @agency.agency_users.sole
-    @office = @agency.offices.sole
+    @office = @agency.offices.create!(name: "Race Office", code: "RACE", status: "active")
   end
 
   teardown do
@@ -94,9 +91,9 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     end
   end
 
-  test "activation versus office inactivation leaves a valid outcome" do
+  test "activation and office inactivation both succeed (ADR 0016)" do
     departure = complete_draft("Office Race")
-    outcomes = race(2, allowed_error_codes: %i[invalid_state conflict]) do |index|
+    race(2, allowed_error_codes: []) do |index|
       if index.zero?
         ActivateDeparture.new(
           agency: Agency.find(@agency.id),
@@ -114,17 +111,9 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
       end
     end
 
-    departure.reload
-    @office.reload
-    if departure.active?
-      assert_equal "D-000001", departure.departure_reference
-      assert_includes %w[active inactive], @office.status
-    else
-      assert_equal "draft", departure.status
-      assert_nil departure.departure_reference
-      assert_equal "inactive", @office.status
-      assert_includes outcomes.grep(AgencyCommand::Error).map(&:code), :invalid_state
-    end
+    assert_equal "active", departure.reload.status
+    assert_equal "D-000001", departure.departure_reference
+    assert_equal "inactive", @office.reload.status
   end
 
   test "activation versus agency user suspension leaves a valid outcome" do
@@ -206,7 +195,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
   end
 
   test "responsibility reassignment versus target inactivation leaves a valid outcome" do
-    other_office = @agency.offices.create!(name: "Second Office", code: "SEC", default_timezone: "UTC", status: "active")
+    other_office = @agency.offices.create!(name: "Second Office", code: "SEC", status: "active")
     departure = complete_draft("Responsibility Race")
     outcomes = race(2, allowed_error_codes: %i[invalid_state conflict]) do |index|
       if index.zero?
