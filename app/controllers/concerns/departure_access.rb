@@ -38,6 +38,8 @@ module DepartureAccess
     when /end date/i then :ends_on
     when /time zone|timezone/i then :time_zone
     when /currency/i then :operating_currency
+    when /hold duration/i then :hold_duration_days
+    when /buffer/i then :installment_buffer_days
     when /reason/i then :reason
     else :base
     end
@@ -46,7 +48,7 @@ module DepartureAccess
   def departure_params
     params.fetch(:departure, {}).permit(
       :name, :description, :starts_on, :ends_on, :time_zone, :operating_currency,
-      :lock_version, :reason
+      :hold_duration_days, :installment_buffer_days, :lock_version, :reason
     )
   end
 

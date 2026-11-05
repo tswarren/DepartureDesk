@@ -39,6 +39,8 @@ class Departure < ApplicationRecord
   validates :description, length: { maximum: DESCRIPTION_LIMIT }, allow_nil: true
   validates :departure_reference, presence: true, format: { with: REFERENCE_FORMAT }
   validates :operating_currency, format: { with: Agency::CURRENCY_FORMAT }, allow_nil: true
+  validates :hold_duration_days, numericality: { only_integer: true, greater_than_or_equal_to: 1 }, allow_nil: true
+  validates :installment_buffer_days, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
   validate :dates_are_paired_and_ordered
   validate :timezone_is_iana
   validate :currency_is_known
@@ -93,6 +95,15 @@ class Departure < ApplicationRecord
 
   def departed?
     completion_departed?
+  end
+
+  # The override if staff entered one, else the agency default (SET-14).
+  def effective_hold_duration_days
+    hold_duration_days || agency.hold_duration_days
+  end
+
+  def effective_installment_buffer_days
+    installment_buffer_days || agency.installment_buffer_days
   end
 
   def default_task_owner

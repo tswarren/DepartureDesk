@@ -54,6 +54,14 @@
         <dd><%= @departure.operating_currency.presence || "—" %></dd>
       </div>
       <div>
+        <dt>Client hold duration</dt>
+        <dd><%= pluralize(@departure.effective_hold_duration_days, "day") %> <span class="dd-cell-subtext">(<%= @departure.hold_duration_days ? "this departure" : "agency default" %>)</span></dd>
+      </div>
+      <div>
+        <dt>Buffer before supplier deadlines</dt>
+        <dd><%= pluralize(@departure.effective_installment_buffer_days, "day") %> <span class="dd-cell-subtext">(<%= @departure.installment_buffer_days ? "this departure" : "agency default" %>)</span></dd>
+      </div>
+      <div>
         <dt>Departed at</dt>
         <dd><%= @departure.departed_at&.to_fs(:long) || "—" %></dd>
       </div>

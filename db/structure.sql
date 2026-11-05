@@ -858,11 +858,15 @@ CREATE TABLE public.departures (
     sales_status character varying DEFAULT 'draft'::character varying NOT NULL,
     operating_decision character varying DEFAULT 'undecided'::character varying NOT NULL,
     completion_status character varying DEFAULT 'active'::character varying NOT NULL,
+    hold_duration_days integer,
+    installment_buffer_days integer,
     CONSTRAINT departures_completion_status CHECK (((completion_status)::text = ANY ((ARRAY['active'::character varying, 'departed'::character varying, 'cancelled'::character varying, 'superseded'::character varying])::text[]))),
     CONSTRAINT departures_date_order CHECK (((starts_on IS NULL) OR (starts_on <= ends_on))),
     CONSTRAINT departures_dates_paired CHECK (((starts_on IS NULL) = (ends_on IS NULL))),
     CONSTRAINT departures_departed_at_pair CHECK ((((completion_status)::text = 'departed'::text) = (departed_at IS NOT NULL))),
     CONSTRAINT departures_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
+    CONSTRAINT departures_hold_duration_positive CHECK (((hold_duration_days IS NULL) OR (hold_duration_days >= 1))),
+    CONSTRAINT departures_installment_buffer_nonnegative CHECK (((installment_buffer_days IS NULL) OR (installment_buffer_days >= 0))),
     CONSTRAINT departures_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT departures_name CHECK (((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
     CONSTRAINT departures_operating_currency CHECK (((operating_currency IS NULL) OR ((operating_currency)::text ~ '^[A-Z]{3}$'::text))),
@@ -3445,6 +3449,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105160000'),
 ('20261105150000'),
 ('20261105140000'),
 ('20261105130000'),

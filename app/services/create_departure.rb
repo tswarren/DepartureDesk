@@ -22,7 +22,9 @@ class CreateDeparture < AgencyCommand
         starts_on: attrs[:starts_on],
         ends_on: attrs[:ends_on],
         time_zone: attrs[:time_zone],
-        operating_currency: attrs[:operating_currency]
+        operating_currency: attrs[:operating_currency],
+        hold_duration_days: attrs[:hold_duration_days],
+        installment_buffer_days: attrs[:installment_buffer_days]
       )
       # OPS-12: the creator starts as the team's default task owner.
       departure.team_members.create!(agency: @agency, agency_user: @actor, default_task_owner: true)
@@ -72,7 +74,7 @@ class CreateDeparture < AgencyCommand
       ends_on:,
       time_zone:,
       operating_currency: currency
-    }
+    }.merge(normalize_overrides)
   end
 
   def audit_details(departure)
@@ -87,6 +89,8 @@ class CreateDeparture < AgencyCommand
       "ends_on" => departure.ends_on&.iso8601,
       "time_zone" => departure.time_zone,
       "operating_currency" => departure.operating_currency,
+      "hold_duration_days" => departure.hold_duration_days,
+      "installment_buffer_days" => departure.installment_buffer_days,
       "default_task_owner_id" => @actor.id
     }
   end

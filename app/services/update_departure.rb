@@ -1,7 +1,7 @@
 class UpdateDeparture < AgencyCommand
   include DepartureCommandSupport
 
-  EDITABLE_FIELDS = %i[name description starts_on ends_on time_zone operating_currency].freeze
+  EDITABLE_FIELDS = %i[name description starts_on ends_on time_zone operating_currency hold_duration_days installment_buffer_days].freeze
 
   def initialize(agency:, actor:, departure:, attributes:, lock_version:)
     @agency = agency
@@ -51,7 +51,7 @@ class UpdateDeparture < AgencyCommand
       ends_on:,
       time_zone: normalize_time_zone(raw_attribute(:time_zone)),
       operating_currency: normalize_currency(raw_attribute(:operating_currency))
-    }
+    }.merge(normalize_overrides)
   end
 
   def unchanged?(departure, attrs)

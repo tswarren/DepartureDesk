@@ -94,6 +94,24 @@ module DepartureCommandSupport
     raise AgencyCommand::Error.new("Enter a recognized time zone.", code: :invalid)
   end
 
+  # A whole number of days, or nil when blank so the agency default applies.
+  def normalize_days(value, label, minimum:)
+    text = value.to_s.strip
+    return if text.empty?
+    unless text.match?(/\A\d+\z/) && text.to_i >= minimum
+      raise AgencyCommand::Error.new("#{label} must be a whole number of days, #{minimum} or more.", code: :invalid)
+    end
+
+    text.to_i
+  end
+
+  def normalize_overrides
+    {
+      hold_duration_days: normalize_days(raw_attribute(:hold_duration_days), "Client hold duration", minimum: 1),
+      installment_buffer_days: normalize_days(raw_attribute(:installment_buffer_days), "Buffer before supplier deadlines", minimum: 0)
+    }
+  end
+
   def normalize_currency(value)
     code = value.to_s.strip.upcase.presence
     return if code.blank?

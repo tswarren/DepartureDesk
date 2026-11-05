@@ -10,7 +10,7 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <%= form_with model: @departure, class: "dd-form" do |form| %>
+    <%= form_with model: @departure, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
       <%= render "shared/form_errors", object: form.object %>
       <%= render "form", form: form %>
       <div class="dd-form-actions">
