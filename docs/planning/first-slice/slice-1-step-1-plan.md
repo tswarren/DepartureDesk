@@ -1,6 +1,6 @@
 # Slice 1 step 1: foundation changes
 
-**Status:** Draft 2026-11-04, for review before the build starts. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) step 1, [ADR 0016](../../adr/0016-agency-time-zone-and-optional-offices.md), [ADR 0017](../../adr/0017-user-types-permissions-and-reseller-users.md) and D-84.
+**Status:** Draft 2026-11-04, for review before the build starts. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) step 1, [ADR 0016](../../adr/0016-agency-time-zone-and-optional-offices.md), [ADR 0017](../../adr/0017-user-types-permissions-and-reseller-users.md) D-84 and D-89.
 
 Charter step 1: permissions, reseller user type, agency profile fields, more reference types, one agency time zone. No D-cases close in this step; it is the base for D15 (step 9), D13 (step 10) and every staff screen after it.
 
@@ -9,7 +9,7 @@ Charter step 1: permissions, reseller user type, agency profile fields, more ref
 | Question | Choice |
 | --- | --- |
 | Reseller users in step 1 | Schema only: the reseller table, the `reseller` user type, its check and foreign key. Invitations, the reseller namespace, its query scope and S-04 stay in step 9, as ADR 0017's implementation boundary says |
-| Shipped reference formats | Departures move to `DEP-` per D-84. Clients (`CL-000001`) and suppliers (`SUP-000001`) keep their shipped formats; this needs the pending entry "Client and supplier reference formats" before the code. New record types use the references table's prefixes |
+| Shipped reference formats | Departures move to `DEP-` per D-84. Clients (`CL-000001`) and suppliers (`SUP-000001`) keep their shipped formats (D-89). New record types use the references table's prefixes |
 | Agency profile scope | All of S-02 in step 1: profile fields, footers with Markdown preview, per-document inclusion flags, logo, traveler types, hold duration and installment buffer |
 
 ## 1. One agency time zone (ADR 0016)
@@ -73,13 +73,13 @@ Traveler types (BKG-21) are an agency-owned list on S-02: `traveler_types` with 
 
 Changing a default affects only new or explicitly amended work (SET-11, SET-14). No step 1 record copies a default yet.
 
-## 5. Reference types (REF-02, REF-03, REF-05, D-84)
+## 5. Reference types (REF-02, REF-03, REF-05, D-84, D-89)
 
 | Namespace | Format | Used from |
 | --- | --- | --- |
 | `departure` | `DEP-` and at least 4 digits (D-84) | Now; replaces `D-000001` |
-| `client` | `CL-000001`, unchanged | Pending entry |
-| `supplier` | `SUP-000001`, unchanged | Pending entry |
+| `client` | `CL-000001`, unchanged (D-89) | Now |
+| `supplier` | `SUP-000001`, unchanged (D-89) | Now |
 | `trip` | `T-` and at least 5 digits; bookings are the trip reference plus a sequence, such as T-24817-2 (REF-04) | Step 6 |
 | `client_payment` | `PAY-`, at least 5 digits | Step 8 |
 | `arrangement` | `ARR-`, at least 4 digits | Step 3 |

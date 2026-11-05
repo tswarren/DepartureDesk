@@ -38,6 +38,7 @@ The proposed defaults are working assumptions. Placeholder values are test input
 | D-86 | Financial reconciliation is a record, not a completion value (was R11) | [Spec](product-specification.md) |
 | D-87 | First-slice fixture values B2 to B9 settled, with B13 and B14 added | [Charter](../planning/first-slice/first-slice-charter.md) |
 | D-88 | Hold-and-reserve spike result: adapt the capacity ledger, holds in their own table, end-of-date effect | [ADR 0018](../adr/0018-arrangement-history-by-dated-adjustment.md#spike-amendment-2026-11-03) |
+| D-89 | Client and supplier references keep the shipped CL- and SUP- formats | [Spec](product-specification.md) |
 
 ## Blocking decisions
 
@@ -56,14 +57,6 @@ Found in the 2026-11-01 review of the whole specification; the evidence is in th
 | R12 | Whether a confirmed supplier compensation claim (OPS-34) is non-blocking like other confirmed receivables (D-60) | Later | Extend D-60 explicitly: a supplier-acknowledged, quantified and attributed compensation claim may stay unpaid in follow-up without blocking reconciliation, and counts in actual margin only when received or offset. A submitted, disputed or unquantified claim still blocks. Update OPS-34, SC-OPS-11 and the condition table together. |
 | R13 | The commission lifecycle reaches Received only through later-phase SMN-35 | Later | MVP lets staff record a commission receipt and apply it manually to identified commission receivables, including partially; applied amounts become Received, and unapplied cash settles nothing. Automated matching and statement reconciliation stay later. Commission receipts stay outside Slice 1 until the charter admits them. |
 | R14 | SET-06 and SET-07 cover four of the nine catalog documents | Later | Client summary, confirmation, cancellation notice and postponement offer use the confirmation flags and footer. Invoice, receipt, itinerary and statement, and client-account statement use the financial-document flags and footer. A generated acknowledgment uses the confirmation flags, with its wording from the template; an uploaded acknowledgment PDF is kept as supplied, with no branding or footer added. Issued versions keep the settings they were issued with (DOC-11). The client summary row follows whichever display name is chosen. |
-
-## Slice 1 build
-
-Raised while planning the build. Settle each before the step that needs it.
-
-| Ref | Decision | Blocks build step | Proposed default |
-| --- | --- | --- | --- |
-| Client and supplier reference formats | REF-02's references table gives client profiles the prefix C, such as C-10233, and lists no supplier reference. The shipped app issues `CL-000001` and `SUP-000001`. | 1 | Keep both shipped formats in MVP and add Supplier, prefix SUP, six digits, to the references table. Change client profiles to `CL-` and six digits in the table. Departures follow REF-02 as D-84 already decided. |
 
 ## Left for Slice 2
 
