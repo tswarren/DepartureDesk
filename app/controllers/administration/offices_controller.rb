@@ -18,8 +18,7 @@ module Administration
         agency: Current.agency,
         actor: Current.agency_user,
         name: office_params[:name],
-        code: office_params[:code],
-        default_timezone: office_params[:default_timezone]
+        code: office_params[:code]
       ).call
       redirect_to administration_office_path(result.record), notice: "Office created."
     rescue AgencyCommand::Error => error
@@ -36,7 +35,6 @@ module Administration
         office: @office,
         actor: Current.agency_user,
         name: office_params[:name],
-        default_timezone: office_params[:default_timezone],
         lock_version: office_params[:lock_version]
       ).call
       redirect_to administration_office_path(@office), notice: "Office updated."
@@ -66,7 +64,7 @@ module Administration
     end
 
     def office_params
-      params.require(:office).permit(:name, :code, :default_timezone, :lock_version)
+      params.require(:office).permit(:name, :code, :lock_version)
     end
   end
 end

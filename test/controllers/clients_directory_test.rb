@@ -3,23 +3,22 @@ require "test_helper"
 class ClientsDirectoryTest < ActionDispatch::IntegrationTest
   setup do
     @admin = agency_users(:harbor_admin)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @staff = agency_users(:harbor_staff)
   end
 
-  test "an administrator creates a person and client and a viewer cannot" do
-    sign_in_as @viewer
-    assert_no_difference -> { Client.count } do
-      post clients_path, params: { client_person: { first_name: "Viewer", last_name: "Blocked" } }
+  test "an administrator creates a person and client, and so does staff with no grants (ADR 0017 baseline)" do
+    sign_in_as @baseline_staff
+    assert_difference -> { Client.count }, 1 do
+      post clients_path, params: { client_person: { first_name: "Baseline", last_name: "Allowed" } }
     end
-    assert_redirected_to root_path
 
     sign_in_as @admin
     post clients_path, params: { client_person: { first_name: "Ada", last_name: "Lovelace" } }
     person = agencies(:harbor).client_people.find_by!(last_name: "Lovelace")
     assert_redirected_to client_person_path(person)
     follow_redirect!
-    assert_match "CL-000001", response.body
+    assert_match "CL-000002", response.body
     assert_select "dl.dd-definition-list"
     assert_select "table.dd-table--channels", 3
   end
@@ -51,27 +50,27 @@ class ClientsDirectoryTest < ActionDispatch::IntegrationTest
     assert_redirected_to client_organization_path(organization)
   end
 
-  test "a viewer profile omits contact destinations" do
+  test "a profile shows contact destinations to staff with no grants (ADR 0017 baseline)" do
     person = CreateClientPerson.new(agency: agencies(:harbor), actor: @admin, names: { first_name: "Shown", last_name: "Name" }).call.record
     CreateClientPersonEmailAddress.new(agency: agencies(:harbor), actor: @admin, client_person: person, attributes: { address: "secret@example.com" }).call
 
-    sign_in_as @viewer
+    sign_in_as @baseline_staff
     get client_person_path(person)
     assert_response :success
     assert_match "Shown", response.body
-    assert_no_match "secret@example.com", response.body
+    assert_match "secret@example.com", response.body
   end
 
-  test "a viewer organization profile omits contact destinations" do
+  test "an organization profile shows contact destinations to staff with no grants (ADR 0017 baseline)" do
     organization = CreateClientOrganization.new(agency: agencies(:harbor), actor: @admin, names: { display_name: "Private Org" }).call.record
     CreateClientOrganizationEmailAddress.new(agency: agencies(:harbor), actor: @admin, client_organization: organization, attributes: { address: "private@example.com" }).call
 
-    sign_in_as @viewer
+    sign_in_as @baseline_staff
     get client_organization_path(organization)
 
     assert_response :success
     assert_match "Private Org", response.body
-    assert_no_match "private@example.com", response.body
+    assert_match "private@example.com", response.body
   end
 
   test "another agency's person is not found" do

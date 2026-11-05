@@ -4,7 +4,7 @@ class DepartureCorrectionsTest < ActiveSupport::TestCase
   setup do
     @agency = agencies(:harbor)
     @admin = agency_users(:harbor_admin)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @office = offices(:harbor_main)
   end
 
@@ -87,7 +87,7 @@ class DepartureCorrectionsTest < ActiveSupport::TestCase
     departure.reload
     assert_equal "active", departure.status
     assert_nil departure.departed_at
-    assert_equal "D-000001", departure.departure_reference
+    assert_equal "DEP-0001", departure.departure_reference
     event = AuditEvent.find_by!(action: "departure.lifecycle_corrected", subject_id: departure.id)
     assert_equal "departed", event.details["prior_status"]
     assert_nil event.details["departed_at"]
@@ -113,11 +113,11 @@ class DepartureCorrectionsTest < ActiveSupport::TestCase
     assert_equal 0, AuditEvent.where(action: "departure.lifecycle_corrected", subject_id: departure.id).count
   end
 
-  test "viewer cannot correct a departed departure" do
+  test "staff without departure management cannot correct a departed departure" do
     departure = departed_record("Viewer Correction")
     error = assert_raises(AgencyCommand::Error) do
       CorrectDepartureCurrency.new(
-        agency: @agency, actor: @viewer, departure:, operating_currency: "EUR",
+        agency: @agency, actor: @baseline_staff, departure:, operating_currency: "EUR",
         reason: "nope", lock_version: departure.lock_version
       ).call
     end

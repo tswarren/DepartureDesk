@@ -10,9 +10,13 @@ DepartureDesk ships agency identity, administration, the complete M1 Client and 
 
 | Record | Current responsibility |
 | --- | --- |
-| `Agency` | Tenant, workspace-code identity, lifecycle, locale defaults, and ownership root. |
-| `Office` | Agency-owned operating and reporting context. It grants no permission. |
-| `AgencyUser` | One agency-scoped login account with independent credentials, lifecycle, and access role. |
+| `Agency` | Tenant, workspace-code identity, lifecycle, the one agency time zone, locale defaults, the client-facing profile, footers, hold duration, installment buffer, optional logo (Active Storage, served by `AgencyLogosController`), and ownership root. |
+| `Office` | Optional agency-owned assignment and reporting context with no time zone (ADR 0016). It grants no permission. |
+| `AgencyUser` | One agency-scoped login account with independent credentials, lifecycle, and user type (`agency_admin`, `staff`, `reseller`). |
+| `UserPermission` | A staff user's grant from the five-permission catalog; the database refuses it for any other user type (ADR 0017). |
+| `Reseller` | A reseller relationship; `reseller` users belong to one. Schema only until Slice 1 step 9. |
+| `AgencyDocumentInclusion` | Per agency and document family, which profile fields and footer a document shows (SET-06, SET-07). |
+| `TravelerType` | The agency's ordered traveler types, seeded Adult, Child and Child 0–4 (BKG-21). |
 | `Session` | Authentication root and optional current-Office preference. It derives Agency through AgencyUser. |
 | `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, Client, ClientOrganization, Supplier, SupplierLocation, SupplierContact, Departure, SupplierArrangement, SupplierReservation, ServiceOffer, and Package commands. |
 | `ClientPerson` | Agency-scoped person known to the directory. Not a Client, AgencyUser, or Traveler. |
@@ -56,7 +60,7 @@ DepartureDesk ships agency identity, administration, the complete M1 Client and 
 | `ServiceOfferChoiceGroup`, `ServiceOfferChoiceOption`, `ServiceOfferChoiceOptionSourceActivation` | Version-owned Client choice templates and same-version source activations. |
 | `PackageClientPaymentSchedule`, `PackageClientCancellationPolicy`, `PackageClientStatedCondition`, `PackageClientTermResolution` | Named Client term records on a Package version. Preview discloses them; they do not invoice. |
 | `ReferenceSequence` | Agency-scoped `client`, `supplier`, and `departure` reference counters. Issuance does not create a missing row. |
-| `AccessPermission` module | Closed permission catalog mapping administrator, staff, and viewer roles to capabilities. It is application code, not a persisted record. |
+| `AccessPermission` module | Closed action catalog: each action requires baseline, admin-only, a permission or reseller, checked against the user type and `UserPermission` grants (ADR 0017). It is application code, not a persisted record. |
 
 Invitation and password-reset token facts are stored on `AgencyUser`; they are not separate identity records.
 
@@ -94,7 +98,7 @@ Office is operational context, not authorization. `Current.office` resolves from
 | Force inactivate Supplier with dependencies | Yes | No | No |
 | Override Supplier planning terms | Yes | No | No |
 
-Application code checks named permissions, not role strings.
+Application code checks catalog actions, not user types or grant names.
 
 ## Persistence and command boundaries
 

@@ -4,7 +4,7 @@ class SuppliersDirectoryTest < ActionDispatch::IntegrationTest
   setup do
     @agency = agencies(:harbor)
     @admin = agency_users(:harbor_admin)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     ensure_supplier_sequence!(@agency)
     ensure_supplier_sequence!(agencies(:cove))
   end
@@ -49,7 +49,7 @@ class SuppliersDirectoryTest < ActionDispatch::IntegrationTest
     assert email.reload.preferred?
   end
 
-  test "viewer sees supplier identity and categories but not destinations" do
+  test "staff with no grants sees supplier identity, categories and destinations (ADR 0017 baseline)" do
     supplier = create_supplier("Visible Supplier")
     CreateSupplierEmailAddress.new(
       agency: @agency,
@@ -58,13 +58,12 @@ class SuppliersDirectoryTest < ActionDispatch::IntegrationTest
       attributes: { address: "hidden-supplier@example.com" }
     ).call
 
-    sign_in_as @viewer
+    sign_in_as @baseline_staff
     get supplier_path(supplier)
     assert_response :success
     assert_match "Visible Supplier", response.body
     assert_match "Air", response.body
-    assert_no_match "hidden-supplier@example.com", response.body
-    assert_select "th", text: "Destination", count: 0
+    assert_match "hidden-supplier@example.com", response.body
   end
 
   test "cross-agency supplier is not found on get and patch" do

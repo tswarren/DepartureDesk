@@ -5,27 +5,28 @@
     <p class="dd-eyebrow">Workspace</p>
     <h1 class="dd-page-title">Dashboard</h1>
     <p class="dd-page-description">
-      <%= Current.agency.name %> · <%= Current.agency_user.access_role.titleize %>
+      <%= Current.agency.name %> · <%= user_type_label(Current.agency_user.user_type) %>
     </p>
   </div>
 </header>
 
-<section class="dd-grid dd-grid--main">
-  <article class="dd-panel">
-    <header class="dd-panel-header">
-      <h2 class="dd-panel-title">Current office</h2>
-    </header>
-    <div class="dd-panel-body">
-      <% if Current.office %>
-        <p><%= office_choice_label(Current.office) %></p>
-        <p class="dd-page-description"><%= Current.office.default_timezone %></p>
-      <% else %>
-        <div class="dd-empty-state">
-          <h3 class="dd-empty-title">No active office</h3>
-          <p class="dd-empty-copy">This workspace has no active office selected. You can still sign in.</p>
-        </div>
-      <% end %>
-      <%= link_to "Change current office", edit_current_office_path, class: "dd-button dd-button--secondary" %>
-    </div>
-  </article>
-</section>
+<% if Current.agency.offices.exists? %>
+  <section class="dd-grid dd-grid--main">
+    <article class="dd-panel">
+      <header class="dd-panel-header">
+        <h2 class="dd-panel-title">Current office</h2>
+      </header>
+      <div class="dd-panel-body">
+        <% if Current.office %>
+          <p><%= office_choice_label(Current.office) %></p>
+        <% else %>
+          <div class="dd-empty-state">
+            <h3 class="dd-empty-title">No office selected</h3>
+            <p class="dd-empty-copy">The current office only sets display defaults. It never changes what you can see or do.</p>
+          </div>
+        <% end %>
+        <%= link_to "Change current office", edit_current_office_path, class: "dd-button dd-button--secondary" %>
+      </div>
+    </article>
+  </section>
+<% end %>

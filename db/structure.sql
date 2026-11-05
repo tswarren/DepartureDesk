@@ -331,6 +331,48 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: active_storage_attachments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.active_storage_attachments (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying NOT NULL,
+    record_type character varying NOT NULL,
+    record_id uuid NOT NULL,
+    blob_id uuid NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: active_storage_blobs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.active_storage_blobs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    key character varying NOT NULL,
+    filename character varying NOT NULL,
+    content_type character varying,
+    metadata text,
+    service_name character varying NOT NULL,
+    byte_size bigint NOT NULL,
+    checksum character varying,
+    created_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: active_storage_variant_records; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.active_storage_variant_records (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    blob_id uuid NOT NULL,
+    variation_digest character varying NOT NULL
+);
+
+
+--
 -- Name: agencies; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -346,12 +388,57 @@ CREATE TABLE public.agencies (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    contact_email character varying,
+    agency_contact_name character varying,
+    phone_number character varying,
+    phone_normalized_number character varying,
+    phone_extension character varying,
+    phone_country_code character varying,
+    address_line_1 character varying,
+    address_line_2 character varying,
+    address_locality character varying,
+    address_region character varying,
+    address_postal_code character varying,
+    address_country_code character varying,
+    seller_of_travel_disclosure text,
+    confirmation_footer text,
+    financial_document_footer text,
+    hold_duration_days integer DEFAULT 2 NOT NULL,
+    installment_buffer_days integer DEFAULT 14 NOT NULL,
+    CONSTRAINT agencies_address_complete CHECK ((((address_line_1 IS NULL) AND (address_line_2 IS NULL) AND (address_locality IS NULL) AND (address_region IS NULL) AND (address_postal_code IS NULL) AND (address_country_code IS NULL)) OR ((address_line_1 IS NOT NULL) AND (btrim((address_line_1)::text) <> ''::text) AND (address_country_code IS NOT NULL) AND ((address_country_code)::text ~ '^[A-Z]{2}$'::text)))),
+    CONSTRAINT agencies_contact_email_normalized CHECK (((contact_email IS NULL) OR ((contact_email)::text = lower(btrim((contact_email)::text))))),
     CONSTRAINT agencies_country_code_format CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
     CONSTRAINT agencies_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT agencies_hold_duration_positive CHECK ((hold_duration_days >= 1)),
+    CONSTRAINT agencies_installment_buffer_nonnegative CHECK ((installment_buffer_days >= 0)),
     CONSTRAINT agencies_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT agencies_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT agencies_phone_complete CHECK (((phone_number IS NULL) OR ((phone_normalized_number IS NOT NULL) AND ((phone_normalized_number)::text ~ '^\+[1-9][0-9]{0,14}$'::text) AND (phone_country_code IS NOT NULL) AND ((phone_country_code)::text ~ '^[A-Z]{2}$'::text)))),
+    CONSTRAINT agencies_phone_extension_needs_number CHECK (((phone_extension IS NULL) OR (phone_number IS NOT NULL))),
     CONSTRAINT agencies_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text]))),
     CONSTRAINT agencies_workspace_code_format CHECK (((workspace_code)::text ~ '^[a-z][a-z0-9-]{1,39}$'::text))
+);
+
+
+--
+-- Name: agency_document_inclusions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agency_document_inclusions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    document_family character varying NOT NULL,
+    include_display_name boolean NOT NULL,
+    include_contact_email boolean NOT NULL,
+    include_phone boolean NOT NULL,
+    include_legal_name boolean NOT NULL,
+    include_mailing_address boolean NOT NULL,
+    include_agency_contact_name boolean NOT NULL,
+    include_seller_of_travel_disclosure boolean CONSTRAINT agency_document_inclusions_include_seller_of_travel_di_not_null NOT NULL,
+    include_footer boolean NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT agency_document_inclusions_family_valid CHECK (((document_family)::text = ANY ((ARRAY['confirmation'::character varying, 'invoice'::character varying, 'receipt'::character varying, 'statement'::character varying])::text[])))
 );
 
 
@@ -371,7 +458,7 @@ CREATE TABLE public.agency_users (
     title character varying,
     phone character varying,
     relationship character varying,
-    access_role character varying NOT NULL,
+    user_type character varying CONSTRAINT agency_users_access_role_not_null NOT NULL,
     status character varying DEFAULT 'invited'::character varying NOT NULL,
     invitation_token_digest character varying,
     invitation_sent_at timestamp with time zone,
@@ -383,14 +470,16 @@ CREATE TABLE public.agency_users (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT agency_users_access_role_valid CHECK (((access_role)::text = ANY (ARRAY[('administrator'::character varying)::text, ('staff'::character varying)::text, ('viewer'::character varying)::text]))),
+    reseller_id uuid,
     CONSTRAINT agency_users_credential_version_nonnegative CHECK ((credential_version >= 0)),
     CONSTRAINT agency_users_email_normalized CHECK (((email_address)::text = lower(btrim((email_address)::text)))),
     CONSTRAINT agency_users_email_not_blank CHECK ((btrim((email_address)::text) <> ''::text)),
     CONSTRAINT agency_users_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT agency_users_name_not_blank CHECK (((btrim((first_name)::text) <> ''::text) AND (btrim((last_name)::text) <> ''::text))),
+    CONSTRAINT agency_users_reseller_iff_reseller_type CHECK ((((user_type)::text = 'reseller'::text) = (reseller_id IS NOT NULL))),
     CONSTRAINT agency_users_status_credentials CHECK (((((status)::text = 'invited'::text) AND (invitation_token_digest IS NOT NULL) AND (invitation_expires_at IS NOT NULL) AND (password_digest IS NULL)) OR (((status)::text = 'active'::text) AND (password_digest IS NOT NULL) AND (invitation_token_digest IS NULL)) OR (((status)::text = ANY (ARRAY[('suspended'::character varying)::text, ('closed'::character varying)::text])) AND (invitation_token_digest IS NULL)))),
-    CONSTRAINT agency_users_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text])))
+    CONSTRAINT agency_users_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text]))),
+    CONSTRAINT agency_users_user_type_valid CHECK (((user_type)::text = ANY ((ARRAY['agency_admin'::character varying, 'staff'::character varying, 'reseller'::character varying])::text[])))
 );
 
 
@@ -712,7 +801,7 @@ CREATE TABLE public.clients (
 CREATE TABLE public.departures (
     id uuid DEFAULT uuidv7() NOT NULL,
     agency_id uuid NOT NULL,
-    departure_reference character varying(8),
+    departure_reference character varying,
     name character varying(160) NOT NULL,
     description character varying(2000),
     starts_on date,
@@ -728,7 +817,7 @@ CREATE TABLE public.departures (
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     name_search_key text GENERATED ALWAYS AS (public.dd_search_normalize((name)::text)) STORED,
-    CONSTRAINT departures_activation_completeness CHECK ((((status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL) AND (responsible_office_id IS NOT NULL) AND (responsible_agency_user_id IS NOT NULL)))),
+    CONSTRAINT departures_activation_completeness CHECK ((((status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL) AND (responsible_agency_user_id IS NOT NULL)))),
     CONSTRAINT departures_date_order CHECK (((starts_on IS NULL) OR (starts_on <= ends_on))),
     CONSTRAINT departures_dates_paired CHECK (((starts_on IS NULL) = (ends_on IS NULL))),
     CONSTRAINT departures_departed_at_pair CHECK ((((status)::text = 'departed'::text) = (departed_at IS NOT NULL))),
@@ -738,7 +827,7 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_non_draft_has_reference CHECK ((((status)::text = 'draft'::text) OR ((departure_reference IS NOT NULL) AND (first_activated_at IS NOT NULL)))),
     CONSTRAINT departures_operating_currency CHECK (((operating_currency IS NULL) OR ((operating_currency)::text ~ '^[A-Z]{3}$'::text))),
     CONSTRAINT departures_reference_activation_pair CHECK (((departure_reference IS NULL) = (first_activated_at IS NULL))),
-    CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^D-[0-9]{6}$'::text))),
+    CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^DEP-[0-9]{4,}$'::text))),
     CONSTRAINT departures_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('departed'::character varying)::text])))
 );
 
@@ -752,7 +841,6 @@ CREATE TABLE public.offices (
     agency_id uuid NOT NULL,
     name character varying NOT NULL,
     code character varying NOT NULL,
-    default_timezone character varying NOT NULL,
     status character varying DEFAULT 'active'::character varying NOT NULL,
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
@@ -775,8 +863,27 @@ CREATE TABLE public.reference_sequences (
     next_value bigint DEFAULT 1 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY (ARRAY[('client'::character varying)::text, ('supplier'::character varying)::text, ('departure'::character varying)::text]))),
-    CONSTRAINT reference_sequences_next_value CHECK (((next_value >= 1) AND (next_value <= 1000000)))
+    CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY ((ARRAY['client'::character varying, 'supplier'::character varying, 'departure'::character varying, 'trip'::character varying, 'client_payment'::character varying, 'arrangement'::character varying, 'supplier_payment'::character varying, 'confirmation'::character varying, 'invoice'::character varying, 'receipt'::character varying])::text[]))),
+    CONSTRAINT reference_sequences_next_value CHECK (((next_value >= 1) AND (((namespace)::text <> ALL ((ARRAY['client'::character varying, 'supplier'::character varying])::text[])) OR (next_value <= 1000000))))
+);
+
+
+--
+-- Name: resellers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.resellers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    name character varying NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    direct_contact_allowed boolean DEFAULT true NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT resellers_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT resellers_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
+    CONSTRAINT resellers_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'booking_paused'::character varying, 'suspended'::character varying, 'ended'::character varying])::text[])))
 );
 
 
@@ -1092,11 +1199,80 @@ END) STORED,
 
 
 --
+-- Name: traveler_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.traveler_types (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    name character varying NOT NULL,
+    "position" integer NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT traveler_types_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT traveler_types_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 60))),
+    CONSTRAINT traveler_types_position_nonnegative CHECK (("position" >= 0)),
+    CONSTRAINT traveler_types_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+);
+
+
+--
+-- Name: user_permissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_permissions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    agency_user_id uuid NOT NULL,
+    permission character varying NOT NULL,
+    user_type character varying DEFAULT 'staff'::character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT user_permissions_permission_valid CHECK (((permission)::text = ANY ((ARRAY['departure_management'::character varying, 'supplier_arrangements'::character varying, 'financial_records'::character varying, 'passport_access'::character varying, 'reseller_relationships'::character varying])::text[]))),
+    CONSTRAINT user_permissions_staff_only CHECK (((user_type)::text = 'staff'::text))
+);
+
+
+--
+-- Name: active_storage_attachments active_storage_attachments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.active_storage_attachments
+    ADD CONSTRAINT active_storage_attachments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: active_storage_blobs active_storage_blobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.active_storage_blobs
+    ADD CONSTRAINT active_storage_blobs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: active_storage_variant_records active_storage_variant_records_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.active_storage_variant_records
+    ADD CONSTRAINT active_storage_variant_records_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: agencies agencies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.agencies
     ADD CONSTRAINT agencies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agency_document_inclusions agency_document_inclusions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_document_inclusions
+    ADD CONSTRAINT agency_document_inclusions_pkey PRIMARY KEY (id);
 
 
 --
@@ -1244,6 +1420,14 @@ ALTER TABLE ONLY public.reference_sequences
 
 
 --
+-- Name: resellers resellers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.resellers
+    ADD CONSTRAINT resellers_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1340,10 +1524,61 @@ ALTER TABLE ONLY public.suppliers
 
 
 --
+-- Name: traveler_types traveler_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.traveler_types
+    ADD CONSTRAINT traveler_types_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_permissions user_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_permissions
+    ADD CONSTRAINT user_permissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: index_active_storage_attachments_on_blob_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_active_storage_attachments_on_blob_id ON public.active_storage_attachments USING btree (blob_id);
+
+
+--
+-- Name: index_active_storage_attachments_uniqueness; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_active_storage_attachments_uniqueness ON public.active_storage_attachments USING btree (record_type, record_id, name, blob_id);
+
+
+--
+-- Name: index_active_storage_blobs_on_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_active_storage_blobs_on_key ON public.active_storage_blobs USING btree (key);
+
+
+--
+-- Name: index_active_storage_variant_records_uniqueness; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_active_storage_variant_records_uniqueness ON public.active_storage_variant_records USING btree (blob_id, variation_digest);
+
+
+--
 -- Name: index_agencies_on_workspace_code; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX index_agencies_on_workspace_code ON public.agencies USING btree (workspace_code);
+
+
+--
+-- Name: index_agency_document_inclusions_on_agency_family; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_document_inclusions_on_agency_family ON public.agency_document_inclusions USING btree (agency_id, document_family);
 
 
 --
@@ -1358,6 +1593,13 @@ CREATE INDEX index_agency_users_on_agency_id ON public.agency_users USING btree 
 --
 
 CREATE UNIQUE INDEX index_agency_users_on_agency_id_and_email ON public.agency_users USING btree (agency_id, email_address);
+
+
+--
+-- Name: index_agency_users_on_agency_id_id_user_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_users_on_agency_id_id_user_type ON public.agency_users USING btree (agency_id, id, user_type);
 
 
 --
@@ -1379,6 +1621,13 @@ CREATE UNIQUE INDEX index_agency_users_on_invitation_token_digest ON public.agen
 --
 
 CREATE UNIQUE INDEX index_agency_users_on_password_reset_token_digest ON public.agency_users USING btree (password_reset_token_digest) WHERE (password_reset_token_digest IS NOT NULL);
+
+
+--
+-- Name: index_agency_users_on_reseller_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_agency_users_on_reseller_id ON public.agency_users USING btree (reseller_id);
 
 
 --
@@ -1907,6 +2156,20 @@ CREATE INDEX index_reference_sequences_on_agency_id ON public.reference_sequence
 
 
 --
+-- Name: index_resellers_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_resellers_on_agency_id ON public.resellers USING btree (agency_id);
+
+
+--
+-- Name: index_resellers_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_resellers_on_id_and_agency_id ON public.resellers USING btree (id, agency_id);
+
+
+--
 -- Name: index_sessions_on_agency_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2362,6 +2625,41 @@ CREATE INDEX index_suppliers_on_name_search_vector ON public.suppliers USING gin
 
 
 --
+-- Name: index_traveler_types_on_agency_and_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_traveler_types_on_agency_and_name ON public.traveler_types USING btree (agency_id, lower((name)::text));
+
+
+--
+-- Name: index_traveler_types_on_agency_and_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_traveler_types_on_agency_and_position ON public.traveler_types USING btree (agency_id, "position");
+
+
+--
+-- Name: index_traveler_types_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_traveler_types_on_id_and_agency_id ON public.traveler_types USING btree (id, agency_id);
+
+
+--
+-- Name: index_user_permissions_on_agency_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_user_permissions_on_agency_user_id ON public.user_permissions USING btree (agency_user_id);
+
+
+--
+-- Name: index_user_permissions_on_agency_user_permission; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_user_permissions_on_agency_user_permission ON public.user_permissions USING btree (agency_id, agency_user_id, permission);
+
+
+--
 -- Name: agencies agencies_reject_workspace_code_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2671,6 +2969,14 @@ ALTER TABLE ONLY public.departures
 
 
 --
+-- Name: agency_users fk_agency_users_reseller_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_users
+    ADD CONSTRAINT fk_agency_users_reseller_same_agency FOREIGN KEY (reseller_id, agency_id) REFERENCES public.resellers(id, agency_id);
+
+
+--
 -- Name: client_person_postal_addresses fk_rails_14e390d793; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2759,6 +3065,14 @@ ALTER TABLE ONLY public.supplier_contacts
 
 
 --
+-- Name: traveler_types fk_rails_92c256bba0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.traveler_types
+    ADD CONSTRAINT fk_rails_92c256bba0 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_phone_numbers fk_rails_980d81234b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2772,6 +3086,14 @@ ALTER TABLE ONLY public.supplier_phone_numbers
 
 ALTER TABLE ONLY public.clients
     ADD CONSTRAINT fk_rails_987104bb65 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: active_storage_variant_records fk_rails_993965df05; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.active_storage_variant_records
+    ADD CONSTRAINT fk_rails_993965df05 FOREIGN KEY (blob_id) REFERENCES public.active_storage_blobs(id);
 
 
 --
@@ -2791,6 +3113,14 @@ ALTER TABLE ONLY public.suppliers
 
 
 --
+-- Name: agency_document_inclusions fk_rails_a2f50cb165; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_document_inclusions
+    ADD CONSTRAINT fk_rails_a2f50cb165 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_contact_phone_numbers fk_rails_a8cbb23af8; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2804,6 +3134,14 @@ ALTER TABLE ONLY public.supplier_contact_phone_numbers
 
 ALTER TABLE ONLY public.client_organization_email_addresses
     ADD CONSTRAINT fk_rails_b2180601e2 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: active_storage_attachments fk_rails_c3b3935057; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.active_storage_attachments
+    ADD CONSTRAINT fk_rails_c3b3935057 FOREIGN KEY (blob_id) REFERENCES public.active_storage_blobs(id);
 
 
 --
@@ -2884,6 +3222,30 @@ ALTER TABLE ONLY public.client_person_phone_numbers
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT fk_rails_fda020f2ca FOREIGN KEY (agency_user_id) REFERENCES public.agency_users(id);
+
+
+--
+-- Name: resellers fk_resellers_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.resellers
+    ADD CONSTRAINT fk_resellers_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: user_permissions fk_user_permissions_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_permissions
+    ADD CONSTRAINT fk_user_permissions_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: user_permissions fk_user_permissions_staff_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_permissions
+    ADD CONSTRAINT fk_user_permissions_staff_user FOREIGN KEY (agency_id, agency_user_id, user_type) REFERENCES public.agency_users(agency_id, id, user_type) ON UPDATE CASCADE;
 
 
 --
@@ -2973,6 +3335,13 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261104190000'),
+('20261104180000'),
+('20261104170000'),
+('20261104160000'),
+('20261104150000'),
+('20261104140000'),
+('20261104130000'),
 ('20261104120000'),
 ('20261006180000'),
 ('20261005220000'),

@@ -33,8 +33,7 @@ class DeparturesController < ApplicationController
   def new
     defaults = CreateDeparture.proposed_attributes(
       agency: Current.agency,
-      actor: Current.agency_user,
-      current_office: Current.office
+      actor: Current.agency_user
     )
     @departure = departures_scope.new(defaults)
   end
@@ -43,8 +42,7 @@ class DeparturesController < ApplicationController
     result = CreateDeparture.new(
       agency: Current.agency,
       actor: Current.agency_user,
-      attributes: departure_params,
-      current_office: Current.office
+      attributes: departure_params
     ).call
     redirect_to departure_path(result.record), notice: "Departure saved."
   rescue AgencyCommand::Error => error

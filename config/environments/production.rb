@@ -84,4 +84,8 @@ Rails.application.configure do
   #
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
+  # ADR 0019: the production service, with server-side encryption, is chosen
+  # before any real agency data is stored. Until then files stay on local disk.
+  config.active_storage.service = :local
 end

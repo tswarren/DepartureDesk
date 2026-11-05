@@ -21,9 +21,9 @@ module AlphaFixture
     excursion: { display_name: "Shore Excursions Group", categories: [ "activity_attraction" ] }
   }.freeze
 
-  def self.load!(agency:, actor:, office:)
+  def self.load!(agency:, actor:)
     suppliers = SUPPLIERS.transform_values { |definition| supplier!(agency, actor, definition) }
-    departure = departure!(agency, actor, office)
+    departure = departure!(agency, actor)
     Result.new(agency:, actor:, suppliers:, departure:)
   end
 
@@ -42,7 +42,7 @@ module AlphaFixture
   end
   private_class_method :supplier!
 
-  def self.departure!(agency, actor, office)
+  def self.departure!(agency, actor)
     existing = agency.departures.find_by(name: DEPARTURE_NAME)
     return existing if existing
 
@@ -56,7 +56,6 @@ module AlphaFixture
         ends_on: ENDS_ON,
         time_zone: TIME_ZONE,
         operating_currency: CURRENCY,
-        responsible_office_id: office.id,
         responsible_agency_user_id: actor.id
       }
     ).call

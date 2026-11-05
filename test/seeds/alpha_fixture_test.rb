@@ -9,9 +9,6 @@ class AlphaFixtureTest < ActiveSupport::TestCase
       country_code: "US",
       default_currency: "USD",
       default_timezone: "America/New_York",
-      office_name: "Main Office",
-      office_code: "MAIN",
-      office_timezone: "America/New_York",
       administrator_email: "admin-#{suffix}@example.test",
       administrator_first_name: "Pat",
       administrator_last_name: "Harbor",
@@ -19,11 +16,10 @@ class AlphaFixtureTest < ActiveSupport::TestCase
       actor_identifier: "test:alpha-fixture-#{suffix}"
     ).call.record
     @actor = @agency.agency_users.sole
-    @office = @agency.offices.sole
   end
 
   test "loads the Alpha suppliers and Departure" do
-    alpha = AlphaFixture.load!(agency: @agency, actor: @actor, office: @office)
+    alpha = AlphaFixture.load!(agency: @agency, actor: @actor)
 
     assert_equal [ "Alpha Cruises", "Sablewater Harbor Hotel", "Shore Excursions Group" ],
       @agency.suppliers.order(:display_name).pluck(:display_name)
@@ -38,13 +34,13 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal "America/New_York", departure.time_zone
     assert_equal "USD", departure.operating_currency
     assert_equal "draft", departure.status
-    assert_equal @office, departure.responsible_office
+    assert_nil departure.responsible_office
     assert_equal @actor, departure.responsible_agency_user
   end
 
   test "loading twice reuses the records" do
-    first = AlphaFixture.load!(agency: @agency, actor: @actor, office: @office)
-    second = AlphaFixture.load!(agency: @agency, actor: @actor, office: @office)
+    first = AlphaFixture.load!(agency: @agency, actor: @actor)
+    second = AlphaFixture.load!(agency: @agency, actor: @actor)
 
     assert_equal 3, @agency.suppliers.count
     assert_equal 1, @agency.departures.count

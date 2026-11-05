@@ -4,7 +4,7 @@ module M1DirectoryScenario
     :suffix,
     :agency,
     :actor,
-    :viewer,
+    :baseline_staff,
     :martha,
     :martha_client,
     :martha_email,
@@ -28,7 +28,7 @@ module M1DirectoryScenario
   )
 
   def self.celebrity(suffix: unique_suffix)
-    agency, actor, viewer = provision_agency!("Celebrity Directory", "c#{suffix}", suffix)
+    agency, actor, baseline_staff = provision_agency!("Celebrity Directory", "c#{suffix}", suffix)
     martha_client = CreateIndividualClient.new(
       agency:, actor:, names: { first_name: "Martha", last_name: "Smith" }
     ).call.record
@@ -104,7 +104,7 @@ module M1DirectoryScenario
     ).call
 
     Result.new(
-      suffix:, agency:, actor:, viewer:,
+      suffix:, agency:, actor:, baseline_staff:,
       martha:, martha_client:, martha_email:, daniel:, emily:, agency_user_person:,
       celebrity:, miami:, everglades:, preferred_contact:, shared_email_contact:,
       olivia: nil, olivia_client: nil, noah: nil, westlake: nil, westlake_client: nil,
@@ -114,7 +114,7 @@ module M1DirectoryScenario
   end
 
   def self.vineyard(suffix: unique_suffix)
-    agency, actor, viewer = provision_agency!("Vineyard Directory", "v#{suffix}", suffix)
+    agency, actor, baseline_staff = provision_agency!("Vineyard Directory", "v#{suffix}", suffix)
     olivia_client = CreateIndividualClient.new(
       agency:, actor:, names: { first_name: "Olivia", last_name: "Brown" }
     ).call.record
@@ -144,7 +144,7 @@ module M1DirectoryScenario
     ).call.record
 
     Result.new(
-      suffix:, agency:, actor:, viewer:,
+      suffix:, agency:, actor:, baseline_staff:,
       martha: nil, martha_client: nil, martha_email: nil, daniel: nil, emily: nil, agency_user_person: nil,
       celebrity: nil, miami: nil, everglades: nil, preferred_contact: nil, shared_email_contact: nil,
       olivia:, olivia_client:, noah:, westlake:, westlake_client:,
@@ -153,9 +153,9 @@ module M1DirectoryScenario
   end
 
   def self.empty(suffix: unique_suffix)
-    agency, actor, viewer = provision_agency!("Empty Directory", "e#{suffix}", suffix)
+    agency, actor, baseline_staff = provision_agency!("Empty Directory", "e#{suffix}", suffix)
     Result.new(
-      suffix:, agency:, actor:, viewer:,
+      suffix:, agency:, actor:, baseline_staff:,
       martha: nil, martha_client: nil, martha_email: nil, daniel: nil, emily: nil, agency_user_person: nil,
       celebrity: nil, miami: nil, everglades: nil, preferred_contact: nil, shared_email_contact: nil,
       olivia: nil, olivia_client: nil, noah: nil, westlake: nil, westlake_client: nil,
@@ -166,7 +166,7 @@ module M1DirectoryScenario
 
   def self.isolation_companion(primary)
     suffix = unique_suffix
-    agency, actor, viewer = provision_agency!("Isolation Directory", "i#{suffix}", suffix)
+    agency, actor, baseline_staff = provision_agency!("Isolation Directory", "i#{suffix}", suffix)
     overlapping_email = primary.martha_email.address
     person = CreateIndividualClient.new(
       agency:, actor:, names: { first_name: "Martha", last_name: "Smith" }
@@ -181,7 +181,7 @@ module M1DirectoryScenario
     ).call
 
     Result.new(
-      suffix:, agency:, actor:, viewer:,
+      suffix:, agency:, actor:, baseline_staff:,
       martha: person, martha_client: person.client, martha_email: person.email_addresses.first,
       daniel: nil, emily: nil, agency_user_person: nil,
       celebrity: agency.suppliers.find_by!(display_name: "Celebrity Cruises"),
@@ -207,9 +207,6 @@ module M1DirectoryScenario
       country_code: "US",
       default_currency: "USD",
       default_timezone: "UTC",
-      office_name: "Main Office",
-      office_code: "MAIN",
-      office_timezone: "UTC",
       administrator_email: "admin-#{suffix}@example.test",
       administrator_first_name: "Pat",
       administrator_last_name: "Harbor",
@@ -217,17 +214,19 @@ module M1DirectoryScenario
       actor_identifier: "test:m1e-#{suffix}"
     ).call.record
     actor = agency.agency_users.sole
-    viewer = agency.agency_users.create!(
-      email_address: "viewer-#{suffix}@example.test",
+    office = agency.offices.create!(name: "Main Office", code: "MAIN", status: "active")
+    actor.update!(default_office: office)
+    baseline_staff = agency.agency_users.create!(
+      email_address: "baseline-#{suffix}@example.test",
       first_name: "Vera",
-      last_name: "Viewer",
+      last_name: "Baseline",
       password: PASSWORD,
-      access_role: "viewer",
+      user_type: "staff",
       status: "active",
-      default_office: agency.offices.sole,
+      default_office: office,
       credential_version: 1
     )
-    [ agency, actor, viewer ]
+    [ agency, actor, baseline_staff ]
   end
   private_class_method :provision_agency!
 
@@ -261,7 +260,11 @@ module M1DirectoryScenario
       ReferenceSequence.where(agency_id:).delete_all
       AuditEvent.where(agency_id:).delete_all
       Session.where(agency_user_id: user_ids).delete_all
+      UserPermission.where(agency_id:).delete_all
       AgencyUser.where(id: user_ids).delete_all
+      Reseller.where(agency_id:).delete_all
+      TravelerType.where(agency_id:).delete_all
+      AgencyDocumentInclusion.where(agency_id:).delete_all
       Office.where(agency_id:).delete_all
       Agency.where(id: agency_id).delete_all
     end

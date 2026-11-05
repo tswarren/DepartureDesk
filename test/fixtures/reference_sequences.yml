@@ -27,3 +27,12 @@ cove_departure:
   agency: cove
   namespace: departure
   next_value: 1
+
+<% %w[trip client_payment arrangement supplier_payment confirmation invoice receipt].each do |namespace| %>
+<% %w[harbor cove].each do |agency| %>
+<%= agency %>_<%= namespace %>:
+  agency: <%= agency %>
+  namespace: <%= namespace %>
+  next_value: 1
+<% end %>
+<% end %>

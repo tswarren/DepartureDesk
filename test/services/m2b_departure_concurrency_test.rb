@@ -11,9 +11,6 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
       country_code: "US",
       default_currency: "USD",
       default_timezone: "UTC",
-      office_name: "Race Office",
-      office_code: "RACE",
-      office_timezone: "UTC",
       administrator_email: "admin-#{suffix}@example.test",
       administrator_first_name: "Race",
       administrator_last_name: "Admin",
@@ -21,7 +18,7 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
       actor_identifier: "test:m2b-#{suffix}"
     ).call.record
     @actor = @agency.agency_users.sole
-    @office = @agency.offices.sole
+    @office = @agency.offices.create!(name: "Race Office", code: "RACE", status: "active")
   end
 
   teardown do
@@ -53,7 +50,7 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
 
     departure.reload
     assert_includes %w[draft departed], departure.status
-    assert_equal "D-000001", departure.departure_reference
+    assert_equal "DEP-0001", departure.departure_reference
     if departure.departed?
       assert_not_nil departure.departed_at
       assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.departed", subject_id: departure.id).count

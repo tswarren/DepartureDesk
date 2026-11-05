@@ -4,7 +4,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
   setup do
     @agency = agencies(:harbor)
     @admin = agency_users(:harbor_admin)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @office = offices(:harbor_main)
   end
 
@@ -15,7 +15,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     get new_departure_path
     assert_response :success
     assert_select "select[name='departure[time_zone]'] option[selected][value=?]", @agency.default_timezone
-    assert_select "select[name='departure[time_zone]'] option[selected][value=?]", offices(:harbor_west).default_timezone, count: 0
+    assert_select "select[name='departure[responsible_office_id]'] option[selected]", count: 0
     assert_select "input[name='departure[operating_currency]'][value=?]", @agency.default_currency
 
     assert_difference -> { @agency.departures.count }, 1 do
@@ -76,12 +76,12 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     post activate_departure_path(complete), params: { lock_version: complete.lock_version }
     assert_redirected_to departure_path(complete)
     assert_equal "active", complete.reload.status
-    assert_equal "D-000001", complete.departure_reference
+    assert_equal "DEP-0001", complete.departure_reference
   end
 
-  test "viewer can browse but cannot mutate or open editors" do
+  test "staff without departure management can browse but cannot mutate or open editors" do
     departure = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Viewer Draft" }).call.record
-    sign_in_as @viewer
+    sign_in_as @baseline_staff
 
     get departures_path
     assert_response :success
@@ -138,7 +138,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     }
     assert_redirected_to departure_path(departure)
     assert_equal "draft", departure.reload.status
-    assert_equal "D-000001", departure.departure_reference
+    assert_equal "DEP-0001", departure.departure_reference
   end
 
   test "clearing required fields on an active departure preserves the form" do

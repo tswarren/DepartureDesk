@@ -12,11 +12,9 @@ class Office < ApplicationRecord
 
   normalizes :name, with: ->(value) { value.to_s.strip }
   normalizes :code, with: ->(value) { normalize_code(value) }
-  normalizes :default_timezone, with: ->(value) { value.to_s.strip }
 
-  validates :name, :code, :default_timezone, presence: true
+  validates :name, :code, presence: true
   validates :code, uniqueness: { scope: :agency_id }, format: { with: CODE_FORMAT }
-  validate :timezone_is_iana
   validate :same_agency
 
   def self.normalize_code(value)
@@ -24,14 +22,6 @@ class Office < ApplicationRecord
   end
 
   private
-
-  def timezone_is_iana
-    return if default_timezone.blank?
-
-    TZInfo::Timezone.get(default_timezone)
-  rescue TZInfo::InvalidTimezoneIdentifier
-    errors.add(:default_timezone, "is not a recognized IANA timezone")
-  end
 
   def same_agency
     return if agency_id.blank? || agency.blank?

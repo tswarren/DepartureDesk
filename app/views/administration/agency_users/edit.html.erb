@@ -4,7 +4,7 @@
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title">Edit <%= @agency_user.display_name %></h1>
-    <p class="dd-page-description">Email and access role are independent of the descriptive relationship.</p>
+    <p class="dd-page-description">Email and user type are independent of the descriptive relationship.</p>
   </div>
 </header>
 
@@ -15,8 +15,8 @@
     <%= form_with model: @agency_user, url: administration_agency_user_path(@agency_user), class: "dd-form" do |form| %>
       <%= form.hidden_field :lock_version %>
       <div class="dd-field-group">
-        <%= form.label :access_role, "Access role", class: "dd-label" %>
-        <%= form.select :access_role, AgencyUser::ACCESS_ROLES.map { |role| [ role.titleize, role ] }, {}, disabled: @agency_user.invited? || @agency_user.closed?, class: "dd-field" %>
+        <%= form.label :user_type, "User type", class: "dd-label" %>
+        <%= form.select :user_type, user_type_options, {}, disabled: @agency_user.invited? || @agency_user.closed?, class: "dd-field" %>
       </div>
       <div class="dd-field-group">
         <%= form.label :relationship, "Relationship", class: "dd-label" %>

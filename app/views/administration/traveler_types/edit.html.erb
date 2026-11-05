@@ -1,0 +1,31 @@
+<% content_for :title, "Rename traveler type · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Administration", administration_agency_path ], [ "Agency profile", administration_agency_path ], [ "Traveler types", administration_agency_path(anchor: "traveler-types") ], [ "Rename", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">Rename traveler type</h1>
+    <p class="dd-page-description">Each name is used once in the agency.</p>
+  </div>
+</header>
+
+<%= render "administration/shared/subnav", current: :agency %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @traveler_type, url: administration_traveler_type_path(@traveler_type), class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <div class="dd-field-group">
+        <%= form.label :name, class: "dd-label" %>
+        <%= form.text_field :name, required: true, maxlength: TravelerType::NAME_LIMIT, **dd_field_options(form, :name) %>
+        <%= dd_field_error(form, :name) %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Save name", class: "dd-button" %>
+        <%= link_to "Cancel", administration_agency_path(anchor: "traveler-types"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

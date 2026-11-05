@@ -58,14 +58,17 @@ Accepted ADRs under `docs/adr` are authoritative for the technical decisions the
 
 Use these terms consistently in code, migrations, UI labels, tests, and documentation.
 
-The table and paragraph below describe shipped vocabulary. At Slice 1 step 1, ADR 0016 replaces the Office and Current office rows and ADR 0017 replaces the Agency user row: roles become the user types `agency_admin`, `staff` and `reseller`. The M3 and M4 vocabulary was deleted with those layers in Phase 1. For new work, the specification's glossary wins.
+The table and paragraph below describe shipped vocabulary. Slice 1 step 1 applied ADR 0016 to the Office and Current office rows and ADR 0017 to the Agency user row. The M3 and M4 vocabulary was deleted with those layers in Phase 1. For new work, the specification's glossary wins.
 
 | Term | Contract |
 | --- | --- |
 | Agency | The travel agency using DepartureDesk and owning operational records. Agency is the tenant. Status is `active`, `suspended`, or `closed`. |
 | Workspace code | The immutable, globally unique sign-in key for an agency. Stored already normalized. Request `agency_id` never establishes tenancy. |
-| Office | An agency-owned operating location. It is operational context and metadata, not an authorization grant and not a tenant. Do not use `Branch`. |
-| Agency user | An account that belongs to exactly one agency. The same email in two agencies is two accounts. Roles are exactly `administrator`, `staff`, or `viewer`. |
+| Agency time zone | `Agency.default_timezone`, the one IANA zone for the agency. Offices carry none (ADR 0016). |
+| Office | An optional agency-owned record for assignment, filtering and reporting. It is not an authorization grant and not a tenant. An agency may have none. Do not use `Branch`. |
+| Agency user | An account that belongs to exactly one agency. The same email in two agencies is two accounts. Its user type is exactly `agency_admin`, `staff` or `reseller` (ADR 0017). |
+| Permission | One of five per-user grants a staff user may hold: `departure_management`, `supplier_arrangements`, `financial_records`, `passport_access`, `reseller_relationships`. An Agency Admin holds all five without stored grants. |
+| Reseller | A reseller relationship. A `reseller` user belongs to exactly one. Schema only until Slice 1 step 9. |
 | Relationship | A descriptive string on an agency user. It does not grant access. |
 | Session | Authentication root. It derives its agency through the agency user and does not store `agency_id`. |
 | Current office | A session preference, then the user's default office, then nil. Changing it changes no permission. |
@@ -74,23 +77,23 @@ Client Person, Client Organization, Client (person-backed or organization-backed
 
 ## Invariants agents must preserve
 
-These describe shipped behavior. A charter step may change one only through a decision log entry and, where an ADR governs it, a superseding ADR, in the same pull request as the change. Slice 1 step 1 changes invariants 5 to 7, 10 and 11 under ADRs 0016 and 0017: the catalog checks actions against user types and grants, the viewer role is removed, `agency_admin` replaces administrator in last-admin protection, and `ProvisionAgency` no longer creates an office. In that step, implement the ADRs, not the old wording.
+These describe shipped behavior. A charter step may change one only through a decision log entry and, where an ADR governs it, a superseding ADR, in the same pull request as the change. Slice 1 step 1 changed invariants 5 to 7, 10, 11 and 15 under ADRs 0016 and 0017.
 
 1. Sign-in looks up the agency by normalized workspace code before email or password lookup.
 2. Missing workspace, unknown email, bad password, and inactive user or agency return the same generic failure.
 3. Sign-in and password-reset rate limits use client IP plus normalized workspace code plus normalized email, not IP alone.
 4. An agency user belongs to exactly one agency. Passwords and sessions are not shared across agencies.
-5. Application code checks the permission catalog, not role names.
-6. Viewer has no mutations except those in the catalog (`view_workspace`, `select_office_context`). Staff cannot manage users, roles, offices, or the agency profile.
-7. Only an active administrator counts. Suspend, close, and demotion of the last active administrator are rejected after locking the agency, then the user, then rechecking the count.
+5. Application code checks the action catalog (`AccessPermission::CATALOG`), not user types or grant names. Each action requires `baseline`, `admin_only`, a permission, any of several permissions, or `reseller`. An action not in the catalog is refused.
+6. Staff hold the baseline actions plus the permissions granted to them. Only an Agency Admin manages users, permissions, offices, traveler types and the agency profile, and only an Agency Admin grants or revokes a permission. A `reseller` user satisfies no staff requirement. Grants exist only for `staff` users; the database refuses any other, and a type change removes grants first in the same transaction.
+7. Only an active `agency_admin` counts. Suspend, close, and demotion of the last active Agency Admin are rejected after locking the agency, then the user, then rechecking the count.
 8. Suspending or closing an agency or agency user destroys affected session rows. A stale cookie is rejected and cleared only when that browser presents it.
 9. Invitation and password-reset tokens are stored as digests. Replacement and revocation invalidate the previous invitation token. Password change or reset bumps the credential version and destroys that user's sessions. A password-reset token cannot be used unless the agency is active.
-10. An agency may have zero active offices. `Current.office` is then nil. Commands must not require a later active office. `ProvisionAgency` still creates the first office.
-11. Office selection writes only the session preference. A query parameter never authorizes and never selects an office on GET.
+10. An agency may have zero offices. `ProvisionAgency` creates none, and `Current.office` is then nil. Commands must not require an office; a Departure activates without a responsible office. Offices carry no time zone.
+11. Office selection writes only the session preference, a display default. A query parameter never authorizes and never selects an office on GET. Office selection never scopes a query for access.
 12. Load tenant records through `Current.agency`. An identifier from another agency returns not found, not forbidden.
 13. Tenant records that carry `agency_id` must prove same-agency foreign keys. Default office uses a composite foreign key `(default_office_id, agency_id)`. Database triggers reject changes to `Agency.workspace_code`, `AgencyUser.agency_id`, `Office.agency_id`, and `Office.code`. Stored email must equal `lower(btrim(email_address))`.
 14. `ProvisionAgency` and agency lifecycle changes are privileged. They require an actor identifier, invent no platform user, and never return or log a plaintext password or token.
-15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, `Office`, `ClientPerson`, `Client`, `ClientOrganization`, `Supplier`, `SupplierLocation`, `SupplierContact`, and `Departure` only. Do not audit expected failures.
+15. Audit successful administrative commands in the same transaction. Subjects are `Agency`, `AgencyUser`, `Office`, `ClientPerson`, `Client`, `ClientOrganization`, `Supplier`, `SupplierLocation`, `SupplierContact`, `Departure` and `TravelerType` only. Do not audit expected failures.
 16. Do not infer household, payer, occupancy, or payment state. Those records do not exist yet.
 
 ## Development environment
@@ -212,13 +215,14 @@ No posted money ledger or money amounts exist in the shipped application. When l
 - Do not expose whether an email address exists during password-reset flows.
 - Never log plaintext passwords, tokens, payment credentials, or other sensitive information.
 - The current seed credential is development-only and must not be printed.
-- Administrator capabilities are permission checks on the agency user, not a property on a global user.
-- Tenant administrators may edit the current agency profile, offices, and agency users. They may not create agencies or change agency lifecycle status from a tenant route.
-- Invitation acceptance is the documented invitee exception: the invitee is the audit actor and is not yet an administrator until acceptance commits.
-- Last-administrator mutations lock agency, then the affected user, then recheck.
+- Agency Admin capabilities are catalog checks on the agency user, not a property on a global user.
+- Agency Admins may edit the current agency profile, offices, traveler types, agency users and their permissions. They may not create agencies or change agency lifecycle status from a tenant route.
+- Invitations offer `agency_admin` or `staff`. Reseller invitations wait for Slice 1 step 9.
+- Invitation acceptance is the documented invitee exception: the invitee is the audit actor and is not yet an Agency Admin until acceptance commits.
+- Last-Agency-Admin mutations lock agency, then the affected user, then recheck.
 - Agency provisioning and lifecycle are privileged commands (`ProvisionAgency`, `ChangeAgencyStatus`), not tenant-facing routes. System audit events require `actor_identifier` and must not invent a platform user. Command output may print identifiers only—never passwords or invitation tokens.
-- Audit subjects are narrowly typed: an `Agency` subject must equal the event agency; an `AgencyUser`, `Office` or `Departure` subject must belong to it. Unknown subject types raise.
-- An office belongs to exactly one agency. Office access is not a role. Do not create affiliation rows. Human-readable office codes never authorize.
+- Audit subjects are narrowly typed: an `Agency` subject must equal the event agency; any other subject must belong to it. Unknown subject types raise.
+- An office belongs to exactly one agency. Office access is not a permission. Do not create affiliation rows. Human-readable office codes never authorize.
 - Later office-owned records must carry a direct `agency_id` and enforce matching `(office_id, agency_id)` with a composite foreign key. Do not infer tenant ownership only through `office_id`.
 - `AuditEvent::ACTIONS` and subject types are closed catalogs. Extend both in the same change that first writes a new supported action or subject. `AuditEvent#details` is not a document-version or snapshot store.
 - Administrative mutations write append-only `AuditEvent` records in the same transaction. Audit events reject update and destroy in the application and in PostgreSQL.
@@ -268,7 +272,7 @@ Rules:
 - Keep inputs neutral until interaction. Use teal for active interaction and amber for the keyboard focus ring.
 - Maintain WCAG-conscious contrast and complete keyboard access.
 - Keep the skip link and meaningful focus indicators functional.
-- Disabled navigation placeholders must become real links only when corresponding authorized routes exist. Show Dashboard, Clients for `view_client_directory`, Suppliers for `view_supplier_directory`, Departures for `view_departures`, and Administration for administrators. Do not show Directory, Travelers, or Accounting navigation.
+- Disabled navigation placeholders must become real links only when corresponding authorized routes exist. Show Dashboard, Clients for `view_client_directory`, Suppliers for `view_supplier_directory`, Departures for `view_departures`, and Administration for Agency Admins (`manage_agency_profile`). Do not show Directory, Travelers, or Accounting navigation.
 - Do not introduce an external font, icon library, or JavaScript UI framework without an explicit product decision.
 - Administration page, panel, button, and field anatomy is defined in [docs/ui/interface-contract.md](docs/ui/interface-contract.md). Reuse that contract before adding presentation classes.
 

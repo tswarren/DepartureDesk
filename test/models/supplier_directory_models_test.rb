@@ -106,16 +106,13 @@ class SupplierDirectoryModelsTest < ActiveSupport::TestCase
     assert_equal 2, @sequence.reload.next_value
   end
 
-  test "agency provisioning creates client and supplier reference sequences" do
+  test "agency provisioning creates a sequence for every reference namespace" do
     agency = ProvisionAgency.new(
       name: "Supplier Sequence #{SecureRandom.hex(3)}",
       workspace_code: "sup#{SecureRandom.hex(3)}",
       country_code: "US",
       default_currency: "USD",
       default_timezone: "UTC",
-      office_name: "Supplier Office",
-      office_code: "SUP",
-      office_timezone: "UTC",
       administrator_email: "supplier-sequence@example.com",
       administrator_first_name: "Sequence",
       administrator_last_name: "Admin",
@@ -123,14 +120,7 @@ class SupplierDirectoryModelsTest < ActiveSupport::TestCase
       actor_identifier: "test:supplier-sequence"
     ).call.record
 
-    assert_equal(
-      [
-        ReferenceSequence::CLIENT_NAMESPACE,
-        ReferenceSequence::DEPARTURE_NAMESPACE,
-        ReferenceSequence::SUPPLIER_NAMESPACE
-      ],
-      agency.reference_sequences.order(:namespace).pluck(:namespace)
-    )
+    assert_equal ReferenceSequence::NAMESPACES.sort, agency.reference_sequences.order(:namespace).pluck(:namespace)
   end
 
   test "supplier audit subjects are accepted only for the same agency" do

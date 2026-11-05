@@ -6,13 +6,13 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     @agency = @shell.directory.agency
     @actor = @shell.directory.actor
     @office = @shell.fixture_responsible_office
-    @west = CreateOffice.new(agency: @agency, actor: @actor, name: "West Desk", code: "WEST", default_timezone: "UTC").call.record
+    @west = CreateOffice.new(agency: @agency, actor: @actor, name: "West Desk", code: "WEST").call.record
     @staff = @agency.agency_users.create!(
       email_address: "staff-#{@shell.directory.suffix}@example.test",
       first_name: "Sid",
       last_name: "Staff",
       password: M1DirectoryScenario::PASSWORD,
-      access_role: "staff",
+      user_type: "staff",
       status: "active",
       default_office: @office,
       credential_version: 1
@@ -196,7 +196,7 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
         responsible_office_id: office.id,
         responsible_agency_user_id: user.id,
         status: "active",
-        departure_reference: format("D-%06d", index + 10),
+        departure_reference: format("DEP-%04d", index + 10),
         first_activated_at: now,
         lock_version: 0,
         created_at: now,

@@ -13,7 +13,8 @@ Use these terms consistently in requirements, code, migrations, UI labels, tests
 | Agency | The travel agency using DepartureDesk and owning tenant records. |
 | Workspace code | Immutable, globally unique code used to locate an Agency before email lookup at sign-in and recovery. |
 | Agency User | An account belonging to exactly one Agency. It is not a global person identity. |
-| Access role | Administrator, staff, or viewer. Application permissions are checked through the named permission catalog. |
+| User type | `agency_admin`, `staff` or `reseller` (ADR 0017; replaced access roles in Slice 1 step 1). Application code checks the action catalog, never the type name. |
+| Permission | A per-user grant to a staff user from the closed list of five (ADR 0017). An Agency Admin holds all five without stored grants. |
 | Relationship | Descriptive workforce context on an Agency User. It grants no access. |
 | Office | Agency-owned operating, attribution, defaulting, and reporting context. It is not a tenant or authorization boundary. |
 | Session | Authentication record belonging to one Agency User and optionally storing a current Office preference. |

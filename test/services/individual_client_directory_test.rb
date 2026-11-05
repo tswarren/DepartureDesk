@@ -6,7 +6,7 @@ class IndividualClientDirectoryTest < ActiveSupport::TestCase
     @other = agencies(:cove)
     @admin = agency_users(:harbor_admin)
     @staff = agency_users(:harbor_staff)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
   end
 
   test "creates an individual client and issues the next reference" do
@@ -77,28 +77,28 @@ class IndividualClientDirectoryTest < ActiveSupport::TestCase
     assert_equal 1, @agency.clients.count
   end
 
-  test "viewer cannot mutate and sees no email-only match" do
+  test "staff with no grants creates clients and matches by email (ADR 0017 baseline)" do
     person = CreateClientPerson.new(agency: @agency, actor: @admin, names: { first_name: "Hidden", last_name: "Mail" }).call.record
     CreateClientPersonEmailAddress.new(agency: @agency, actor: @admin, client_person: person, attributes: { address: "hidden@example.com" }).call
 
-    error = assert_raises(AgencyCommand::Error) { create_client(actor: @viewer, first_name: "Nope", last_name: "Nope") }
-    assert_equal :unauthorized, error.code
-    assert_equal 0, AuditEvent.where(action: "client.created").count
+    assert_difference -> { AuditEvent.where(action: "client.created").count }, 1 do
+      create_client(actor: @baseline_staff, first_name: "Baseline", last_name: "Allowed")
+    end
 
-    result = SearchClientDirectory.call(agency: @agency, actor: @viewer, query: "hidden@example.com")
-    assert_empty result.records
+    result = SearchClientDirectory.call(agency: @agency, actor: @baseline_staff, query: "hidden@example.com")
+    assert_equal [ person.id ], result.records.map(&:id)
   end
 
-  test "staff can search an email and a viewer can search a name" do
+  test "staff can search an email and staff with no grants can search a name" do
     person = CreateClientPerson.new(agency: @agency, actor: @staff, names: { first_name: "José", last_name: "García" }).call.record
     CreateClientPersonEmailAddress.new(agency: @agency, actor: @staff, client_person: person, attributes: { address: "jose@example.com" }).call
 
     staff_match = SearchClientDirectory.call(agency: @agency, actor: @staff, query: "jose@example.com")
-    viewer_match = SearchClientDirectory.call(agency: @agency, actor: @viewer, query: "José Gar")
+    baseline_match = SearchClientDirectory.call(agency: @agency, actor: @baseline_staff, query: "José Gar")
 
     assert_equal [ person.id ], staff_match.records.map(&:id)
-    assert_equal [ person.id ], viewer_match.records.map(&:id)
-    assert_empty SearchClientDirectory.call(agency: @agency, actor: @viewer, query: "Jose Gar").records
+    assert_equal [ person.id ], baseline_match.records.map(&:id)
+    assert_empty SearchClientDirectory.call(agency: @agency, actor: @baseline_staff, query: "Jose Gar").records
   end
 
   test "search does not cross agencies" do

@@ -8,7 +8,7 @@ harbor_admin:
   password_digest: <%= password %>
   first_name: Alex
   last_name: Mariner
-  access_role: administrator
+  user_type: agency_admin
   status: active
   credential_version: 1
 
@@ -19,18 +19,18 @@ harbor_staff:
   password_digest: <%= password %>
   first_name: Sam
   last_name: Carter
-  access_role: staff
+  user_type: staff
   status: active
   credential_version: 1
 
-harbor_viewer:
+harbor_baseline_staff:
   agency: harbor
   default_office: harbor_main
   email_address: val@example.com
   password_digest: <%= password %>
   first_name: Val
   last_name: Nguyen
-  access_role: viewer
+  user_type: staff
   status: active
   credential_version: 1
 
@@ -39,7 +39,7 @@ harbor_invited:
   email_address: invite@example.com
   first_name: Iris
   last_name: Cole
-  access_role: staff
+  user_type: staff
   status: invited
   invitation_token_digest: <%= AgencyUser.digest_token("invite-token-harbor") %>
   invitation_sent_at: <%= Time.current %>
@@ -52,7 +52,7 @@ harbor_suspended:
   password_digest: <%= password %>
   first_name: Sid
   last_name: Lane
-  access_role: staff
+  user_type: staff
   status: suspended
   credential_version: 1
 
@@ -63,6 +63,6 @@ cove_admin:
   password_digest: <%= cove_password %>
   first_name: Alex
   last_name: Cove
-  access_role: administrator
+  user_type: agency_admin
   status: active
   credential_version: 1

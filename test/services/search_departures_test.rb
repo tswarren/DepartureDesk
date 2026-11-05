@@ -5,7 +5,7 @@ class SearchDeparturesTest < ActiveSupport::TestCase
     @agency = agencies(:harbor)
     @other = agencies(:cove)
     @admin = agency_users(:harbor_admin)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @office = offices(:harbor_main)
     @west = offices(:harbor_west)
     CreateDeparture.new(agency: @agency, actor: @admin, attributes: complete_attrs(name: "Alpha Voyage", starts_on: Date.new(2026, 5, 1), ends_on: Date.new(2026, 5, 8))).call
@@ -16,7 +16,7 @@ class SearchDeparturesTest < ActiveSupport::TestCase
   end
 
   test "blank query browses in deterministic date order and includes other-agency isolation" do
-    outcome = SearchDepartures.call(agency: @agency, actor: @viewer)
+    outcome = SearchDepartures.call(agency: @agency, actor: @baseline_staff)
     names = outcome.records.map(&:name)
     assert_equal [ "Alpha Voyage", "Beta Voyage", "Gamma Voyage" ], names
     assert_not outcome.truncated

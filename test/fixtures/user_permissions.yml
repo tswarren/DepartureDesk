@@ -1,0 +1,7 @@
+# harbor_staff keeps the Departure work it had before ADR 0017;
+# harbor_baseline_staff holds no grants.
+harbor_staff_departure_management:
+  agency: harbor
+  agency_user: harbor_staff
+  permission: departure_management
+  user_type: staff

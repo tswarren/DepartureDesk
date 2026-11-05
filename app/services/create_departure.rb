@@ -1,11 +1,10 @@
 class CreateDeparture < AgencyCommand
   include DepartureCommandSupport
 
-  def initialize(agency:, actor:, attributes:, current_office: nil)
+  def initialize(agency:, actor:, attributes:)
     @agency = agency
     @actor = actor
     @attributes = attributes.to_h.with_indifferent_access
-    @current_office = current_office
   end
 
   def call
@@ -45,10 +44,8 @@ class CreateDeparture < AgencyCommand
     command_error_from(error)
   end
 
-  def self.proposed_attributes(agency:, actor:, current_office: nil)
-    office = current_office if current_office&.active? && current_office.agency_id == agency.id
+  def self.proposed_attributes(agency:, actor:)
     {
-      responsible_office_id: office&.id,
       responsible_agency_user_id: actor&.id,
       time_zone: agency.default_timezone,
       operating_currency: agency.default_currency
@@ -58,11 +55,7 @@ class CreateDeparture < AgencyCommand
   private
 
   def resolved_attributes
-    office_id = if supplied?(:responsible_office_id)
-      raw_attribute(:responsible_office_id)
-    else
-      copy_office&.id
-    end
+    office_id = raw_attribute(:responsible_office_id) if supplied?(:responsible_office_id)
     user_id = if supplied?(:responsible_agency_user_id)
       raw_attribute(:responsible_agency_user_id)
     else
@@ -94,13 +87,6 @@ class CreateDeparture < AgencyCommand
       responsible_office_id: office_id,
       responsible_agency_user_id: user_id
     }
-  end
-
-  def copy_office
-    return if @current_office.blank?
-
-    office = @agency.offices.find_by(id: @current_office.id)
-    office if office&.active?
   end
 
   def audit_details(departure)

@@ -49,18 +49,11 @@ class UpdateDepartureResponsibility < AgencyCommand
   private
 
   def ensure_assignment_allowed!(departure, office, user)
-    if departure.draft?
-      ensure_active_target!(office, "That office is not active.") if office.present?
-      ensure_active_target!(user, "That agency user is not active.") if user.present?
-      return
+    ensure_active_target!(office, "That office is not active.") if office.present?
+    if user.nil? && !departure.draft?
+      raise Error.new("Active and departed departures require a responsible agency user.", code: :invalid_state)
     end
-
-    if office.nil? || user.nil?
-      raise Error.new("Active and departed departures require a responsible office and agency user.", code: :invalid_state)
-    end
-
-    ensure_active_target!(office, "That office is not active.")
-    ensure_active_target!(user, "That agency user is not active.")
+    ensure_active_target!(user, "That agency user is not active.") if user.present?
   end
 
   def same_pair?(departure, office, user)

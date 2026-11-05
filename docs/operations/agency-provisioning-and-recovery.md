@@ -12,8 +12,7 @@ Run application commands through Docker in development. Do not place passwords i
 
 `agency:provision` creates, atomically:
 
-- one active Agency;
-- one active first Office; and
+- one active Agency; and
 - one active first AgencyUser with administrator access.
 
 The task accepts the first administrator's password through the privileged invocation boundary. The command stores only the digest and prints only non-secret identifiers. It does not create an invitation, global User, AgencyMembership, OfficeAssignment, platform user, or bootstrap token.
@@ -37,9 +36,6 @@ Optional variables:
 | `AGENCY_COUNTRY_CODE` | `US` |
 | `AGENCY_CURRENCY` | `USD` |
 | `AGENCY_TIMEZONE` | `UTC` |
-| `AGENCY_OFFICE_NAME` | Agency name |
-| `AGENCY_OFFICE_CODE` | `MAIN` |
-| `AGENCY_OFFICE_TIMEZONE` | Agency timezone |
 
 Example using an interactive shell so the password is not embedded in a reusable command:
 
@@ -56,7 +52,7 @@ export AGENCY_OPERATOR="operator:initial-provisioning"
 unset AGENCY_ADMIN_PASSWORD
 ```
 
-Use the hosting platform's secret-input mechanism instead of shell export when one is available. The successful task output contains Agency ID, normalized workspace code, Office ID, and administrator ID only.
+Use the hosting platform's secret-input mechanism instead of shell export when one is available. The successful task output contains Agency ID, normalized workspace code, and administrator ID only. Provisioning creates no office ([ADR 0016](../adr/0016-agency-time-zone-and-optional-offices.md)); an Agency Admin adds offices later if the agency wants them.
 
 Provisioning is transactional but not idempotent. A repeated workspace code or same-Agency email fails validation and must not be treated as a retry result. Confirm the first attempt's output or inspect by ID before retrying with different input.
 
@@ -97,7 +93,7 @@ If an Agency has no usable administrator, stop and treat recovery as a product a
 
 After provisioning or lifecycle work:
 
-- confirm the expected Agency, Office, AgencyUser, and AuditEvent by printed identifier;
+- confirm the expected Agency, AgencyUser, and AuditEvent by printed identifier;
 - confirm no plaintext password or token appeared in application output or logs;
 - confirm a suspended or closed Agency cannot authenticate and existing sessions fail closed; and
 - record the operator identifier and reason in the appropriate operational record outside the application when required.

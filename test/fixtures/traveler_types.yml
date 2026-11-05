@@ -1,0 +1,10 @@
+# The BKG-21 defaults, as TravelerType.create_defaults! writes them.
+<% %w[harbor cove].each do |agency| %>
+<% TravelerType::DEFAULT_NAMES.each_with_index do |name, position| %>
+<%= agency %>_<%= name.parameterize(separator: "_") %>:
+  agency: <%= agency %>
+  name: "<%= name %>"
+  position: <%= position %>
+  status: active
+<% end %>
+<% end %>

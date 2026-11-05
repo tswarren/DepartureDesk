@@ -32,5 +32,8 @@ class AgencyOperationsTaskTest < ActiveSupport::TestCase
     assert_no_match(/#{Regexp.escape(password)}/, output)
     assert_no_match(/token/i, output)
     assert agency.agency_users.sole.authenticate(password)
+    assert_empty agency.offices, "ADR 0016: provisioning creates no office"
+    assert_nil agency.agency_users.sole.default_office
+    assert_no_match(/Office ID/, output)
   end
 end

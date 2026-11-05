@@ -64,14 +64,28 @@ class AgencyCommand
   end
 
   def ensure_not_last_active_administrator!(agency_user)
-    return unless agency_user.role_administrator? && agency_user.active?
+    return unless agency_user.agency_admin? && agency_user.active?
     return if other_active_administrators(agency_user).exists?
 
     raise Error.new("The agency must keep an active administrator.", code: :last_administrator)
   end
 
   def other_active_administrators(agency_user)
-    agency_user.agency.agency_users.where(status: "active", access_role: "administrator").where.not(id: agency_user.id)
+    agency_user.agency.agency_users.where(status: "active", user_type: "agency_admin").where.not(id: agency_user.id)
+  end
+
+  # Grants exist only for staff; the database refuses a type change that would
+  # leave any behind, so remove them first in the same transaction.
+  def assign_user_type!(agency_user, user_type)
+    return [] if user_type.blank? || user_type == agency_user.user_type
+
+    removed = []
+    if agency_user.staff?
+      removed = agency_user.user_permissions.order(:permission).pluck(:permission)
+      agency_user.user_permissions.delete_all(:delete_all)
+    end
+    agency_user.user_type = user_type
+    removed
   end
 
   def destroy_sessions!(agency_user)

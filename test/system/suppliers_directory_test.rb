@@ -58,7 +58,7 @@ class SuppliersDirectoryTest < ApplicationSystemTestCase
     assert_text "Staff Lodging Company"
   end
 
-  test "viewer can search suppliers but not see destinations" do
+  test "staff with no grants can search suppliers, see destinations and add one (ADR 0017 baseline)" do
     agency = agencies(:harbor)
     admin = agency_users(:harbor_admin)
     supplier = CreateSupplier.new(
@@ -75,7 +75,7 @@ class SuppliersDirectoryTest < ApplicationSystemTestCase
       attributes: { address: "viewer-hidden@example.com" }
     ).call
 
-    sign_in_from_browser(agency_users(:harbor_viewer))
+    sign_in_from_browser(agency_users(:harbor_baseline_staff))
     open_suppliers
     fill_in "Search", with: "Viewer Harbor Hotel"
     click_button "Apply"
@@ -83,8 +83,9 @@ class SuppliersDirectoryTest < ApplicationSystemTestCase
     assert_text "Viewer Harbor Hotel"
     click_link "Viewer Harbor Hotel"
     assert_text "Lodging"
-    assert_no_text "viewer-hidden@example.com"
-    assert_no_text "New Supplier"
+    assert_text "viewer-hidden@example.com"
+    open_suppliers
+    assert_text "New Supplier"
   end
 
   test "duplicate review create-anyway and validation summary work in the browser" do

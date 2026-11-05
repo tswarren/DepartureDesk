@@ -118,12 +118,13 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Display workspace code as immutable identity, not an editable field.
 - Agency lifecycle controls are absent from tenant administration; lifecycle is a privileged operation.
 - Locale defaults are clearly labeled as defaults and do not imply rewriting historical records.
+- S-02 groups the client-facing profile, footers (with a server-rendered preview), the per-document inclusion table, defaults, the logo and traveler types. Display name and contact email are named as needed for documents, never required to save.
 
 ### Agency Users
 
-- Display access role separately from descriptive relationship.
+- Display user type and permissions separately from the descriptive relationship. Staff permissions are edited on their own page; an Agency Admin shows all five as held and has no permission editor.
 - Make invitation state, active/suspended/closed state, and available next actions explicit.
-- Role, relationship, and default Office editing submits as one atomic form.
+- User type, relationship, and default Office editing submits as one atomic form.
 - A last-administrator rejection preserves every submitted field and explains the conflict.
 - Invitation replacement and revocation appear only for invited AgencyUsers.
 - Cross-Agency or missing identifiers use the same not-found behavior.
@@ -134,6 +135,7 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 - Inactive Offices remain visible and cannot be selected as current/default context.
 - Office state never implies which AgencyUsers may read or mutate records.
 - If no Office is current, the UI remains usable and does not invent one.
+- Offices are optional (ADR 0016). With none, the dashboard omits the Current office panel and the Departure list omits the office filter.
 
 
 ## Departure Composition Workspace (M4D.1 Slice 1 shipped; Slice 2A.1 shipped)

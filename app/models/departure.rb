@@ -1,6 +1,6 @@
 class Departure < ApplicationRecord
   STATUSES = %w[draft active departed].freeze
-  REFERENCE_FORMAT = /\AD-[0-9]{6}\z/
+  REFERENCE_FORMAT = /\ADEP-[0-9]{4,}\z/
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
 
@@ -118,7 +118,6 @@ class Departure < ApplicationRecord
     errors.add(:ends_on, "can't be blank") if ends_on.blank?
     errors.add(:time_zone, "can't be blank") if time_zone.blank?
     errors.add(:operating_currency, "can't be blank") if operating_currency.blank?
-    errors.add(:responsible_office_id, "can't be blank") if responsible_office_id.blank?
     errors.add(:responsible_agency_user_id, "can't be blank") if responsible_agency_user_id.blank?
   end
 
@@ -149,9 +148,6 @@ class Departure < ApplicationRecord
 
   def responsibility_blockers
     blockers = []
-    if responsible_office.blank? || !responsible_office.active?
-      blockers << "Choose an active responsible office."
-    end
     if responsible_agency_user.blank? || !responsible_agency_user.active?
       blockers << "Choose an active responsible agency user."
     end

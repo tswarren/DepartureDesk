@@ -1,0 +1,11 @@
+<%# locals: (trail:) — an array of [label, path]; the last item is the current page and has no path. %>
+<nav class="dd-breadcrumbs" aria-label="Breadcrumb">
+  <% trail.each_with_index do |(label, path), index| %>
+    <% if index.positive? %><span class="dd-breadcrumb-sep" aria-hidden="true">/</span><% end %>
+    <% if path %>
+      <%= link_to label, path %>
+    <% else %>
+      <span aria-current="page"><%= label %></span>
+    <% end %>
+  <% end %>
+</nav>

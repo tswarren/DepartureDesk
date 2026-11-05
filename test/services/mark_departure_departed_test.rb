@@ -5,7 +5,7 @@ class MarkDepartureDepartedTest < ActiveSupport::TestCase
     @agency = agencies(:harbor)
     @admin = agency_users(:harbor_admin)
     @staff = agency_users(:harbor_staff)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @office = offices(:harbor_main)
   end
 
@@ -102,11 +102,11 @@ class MarkDepartureDepartedTest < ActiveSupport::TestCase
     end
   end
 
-  test "viewer cannot mark departed" do
+  test "staff without departure management cannot mark departed" do
     departure = eligible_active("Viewer Depart")
     error = assert_raises(AgencyCommand::Error) do
       MarkDepartureDeparted.new(
-        agency: @agency, departure:, actor_kind: :agency_user, actor: @viewer, lock_version: departure.lock_version
+        agency: @agency, departure:, actor_kind: :agency_user, actor: @baseline_staff, lock_version: departure.lock_version
       ).call
     end
     assert_equal :unauthorized, error.code

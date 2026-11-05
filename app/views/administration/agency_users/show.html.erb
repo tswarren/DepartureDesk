@@ -1,11 +1,13 @@
 <% content_for :title, "#{@agency_user.display_name} · DepartureDesk" %>
 
+<%= render "shared/breadcrumbs", trail: [ [ "Administration", administration_agency_path ], [ "Users", administration_agency_users_path ], [ @agency_user.display_name, nil ] ] %>
+
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
     <h1 class="dd-page-title"><%= @agency_user.display_name %></h1>
     <p class="dd-page-description">
-      <%= agency_user_role_badge(@agency_user) %>
+      <%= agency_user_type_badge(@agency_user) %>
       <%= agency_user_status_badge(@agency_user) %>
     </p>
   </div>
@@ -43,5 +45,30 @@
       </div>
     </dl>
     <p class="dd-page-description">Relationship is descriptive only. It does not grant access.</p>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Permissions</h2>
+    <% if @agency_user.staff? %>
+      <%= link_to "Edit permissions", edit_administration_agency_user_permissions_path(@agency_user), class: "dd-button dd-button--secondary dd-button--small" %>
+    <% end %>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <% if @agency_user.agency_admin? %>
+      <p class="dd-page-description">An Agency Admin holds every permission and alone manages users, permissions and agency settings.</p>
+    <% elsif @agency_user.staff? %>
+      <p class="dd-page-description">Every staff user can work with clients, suppliers and bookings. These add more, across the whole agency.</p>
+    <% end %>
+    <ul class="dd-list">
+      <% AccessPermission::PERMISSIONS.each do |permission| %>
+        <% held = @agency_user.holds_permission?(permission) %>
+        <li class="dd-list-item">
+          <span class="dd-list-title"><%= permission_label(permission) %></span>
+          <%= status_badge(held ? "Held" : "Not held", modifier: held ? "success" : "neutral") %>
+        </li>
+      <% end %>
+    </ul>
   </div>
 </article>

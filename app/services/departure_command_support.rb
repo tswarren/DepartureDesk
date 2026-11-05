@@ -134,6 +134,7 @@ module DepartureCommandSupport
     return if uuid.blank?
     user = @agency.agency_users.find_by(id: uuid)
     raise AgencyCommand::Error.new("That agency user was not found.", code: :not_found) if user.nil?
+    raise AgencyCommand::Error.new("Choose an Agency Admin or Staff user.", code: :invalid) if user.reseller?
 
     user
   end
@@ -179,8 +180,8 @@ module DepartureCommandSupport
     if attrs[:operating_currency].blank?
       raise AgencyCommand::Error.new("Enter a supported operating currency.", code: :invalid)
     end
-    if departure.responsible_office_id.blank? || departure.responsible_agency_user_id.blank?
-      raise AgencyCommand::Error.new("Active and departed departures require a responsible office and agency user.", code: :invalid)
+    if departure.responsible_agency_user_id.blank?
+      raise AgencyCommand::Error.new("Active and departed departures require a responsible agency user.", code: :invalid)
     end
   end
 

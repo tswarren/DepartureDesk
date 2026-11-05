@@ -6,7 +6,7 @@ class M1DirectorySearchPerformanceTest < ActiveSupport::TestCase
     @vineyard = M1DirectoryScenario.vineyard
     @agency = @celebrity.agency
     @actor = @celebrity.actor
-    @viewer = @celebrity.viewer
+    @baseline_staff = @celebrity.baseline_staff
     seed_search_records!
   end
 
@@ -105,25 +105,25 @@ class M1DirectorySearchPerformanceTest < ActiveSupport::TestCase
     assert_empty supplier_queries
   end
 
-  test "viewer email and phone queries omit hidden contact branches" do
+  test "staff with no grants searches contact branches (ADR 0017 baseline)" do
     email_sql = SearchClientDirectory.composed_relation(
-      agency: @agency, actor: @viewer, query: @celebrity.martha_email.address
+      agency: @agency, actor: @baseline_staff, query: @celebrity.martha_email.address
     )&.to_sql.to_s
     phone_sql = SearchClientDirectory.composed_relation(
-      agency: @agency, actor: @viewer, query: "3055550101"
+      agency: @agency, actor: @baseline_staff, query: "3055550101"
     )&.to_sql.to_s
-    assert_no_match(/client_person_email_addresses|client_organization_email_addresses/, email_sql)
-    assert_no_match(/client_person_phone_numbers|client_organization_phone_numbers/, phone_sql)
-    assert_empty SearchClientDirectory.call(agency: @agency, actor: @viewer, query: @celebrity.martha_email.address).records
+    assert_match(/client_person_email_addresses|client_organization_email_addresses/, email_sql)
+    assert_match(/client_person_phone_numbers|client_organization_phone_numbers/, phone_sql)
+    assert_not_empty SearchClientDirectory.call(agency: @agency, actor: @baseline_staff, query: @celebrity.martha_email.address).records
 
     supplier_email_sql = SearchSupplierDirectory.composed_relation(
-      agency: @agency, actor: @viewer, query: "alex-#{@celebrity.suffix}@celebrity.example"
+      agency: @agency, actor: @baseline_staff, query: "alex-#{@celebrity.suffix}@celebrity.example"
     )&.to_sql.to_s
     supplier_phone_sql = SearchSupplierDirectory.composed_relation(
-      agency: @agency, actor: @viewer, query: "3055550199"
+      agency: @agency, actor: @baseline_staff, query: "3055550199"
     )&.to_sql.to_s
-    assert_no_match(/supplier_email_addresses|supplier_contact_email_addresses/, supplier_email_sql)
-    assert_no_match(/supplier_phone_numbers|supplier_contact_phone_numbers/, supplier_phone_sql)
+    assert_match(/supplier_email_addresses|supplier_contact_email_addresses/, supplier_email_sql)
+    assert_match(/supplier_phone_numbers|supplier_contact_phone_numbers/, supplier_phone_sql)
   end
 
   test "mixed results deduplicate and keep total order before the 51-row lookahead" do

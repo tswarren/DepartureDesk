@@ -44,7 +44,7 @@ class InvitationTokensTest < ActiveSupport::TestCase
         email_address: "Alex@Example.com",
         first_name: "Alex",
         last_name: "Again",
-        access_role: "staff"
+        user_type: "staff"
       ).call
     end
 

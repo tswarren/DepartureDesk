@@ -5,7 +5,7 @@ class SupplierLocationsAndContactsControllerTest < ActionDispatch::IntegrationTe
     @agency = agencies(:harbor)
     @admin = agency_users(:harbor_admin)
     @staff = agency_users(:harbor_staff)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     ensure_supplier_sequence!(@agency)
     ensure_supplier_sequence!(agencies(:cove))
   end
@@ -40,8 +40,8 @@ class SupplierLocationsAndContactsControllerTest < ActionDispatch::IntegrationTe
     assert_redirected_to supplier_contact_path(supplier, contact)
   end
 
-  test "viewer can show a location without address or phone and contact paths are not found" do
-    supplier = create_supplier("Viewer Nested Host")
+  test "staff with no grants sees location address, phone and contacts (ADR 0017 baseline)" do
+    supplier = create_supplier("Baseline Nested Host")
     location = CreateSupplierLocation.new(
       agency: @agency,
       actor: @admin,
@@ -62,20 +62,20 @@ class SupplierLocationsAndContactsControllerTest < ActionDispatch::IntegrationTe
       attributes: { first_name: "Hidden", last_name: "Contact" }
     ).call.record
 
-    sign_in_as @viewer
+    sign_in_as @baseline_staff
     get supplier_location_path(supplier, location)
     assert_response :success
     assert_match "Visible Pier", response.body
-    assert_no_match "99 Hidden Ave", response.body
-    assert_no_match "Boston", response.body
-    assert_no_match "617-555-0199", response.body
+    assert_match "99 Hidden Ave", response.body
+    assert_match "Boston", response.body
+    assert_match "555-0199", response.body
 
     get supplier_contact_path(supplier, contact)
-    assert_response :not_found
+    assert_response :success
 
     get supplier_path(supplier)
     assert_response :success
-    assert_no_match "Hidden Contact", response.body
+    assert_match "Hidden Contact", response.body
   end
 
   test "supplier status confirmation inventory includes locations contacts and destinations" do

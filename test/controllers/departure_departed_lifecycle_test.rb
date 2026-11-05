@@ -4,7 +4,7 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
   setup do
     @agency = agencies(:harbor)
     @admin = agency_users(:harbor_admin)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @office = offices(:harbor_main)
   end
 
@@ -19,7 +19,7 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
     assert_equal "agency_user", AuditEvent.find_by!(action: "departure.departed", subject_id: departure.id).actor_kind
   end
 
-  test "departed corrections preserve invalid values and reject viewers" do
+  test "departed corrections preserve invalid values and reject staff without departure management" do
     departure = eligible_active("Request Correct")
     MarkDepartureDeparted.new(
       agency: @agency, departure:, actor_kind: :agency_user, actor: @admin, lock_version: departure.lock_version
@@ -39,7 +39,7 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_select "#form-error-summary"
 
-    sign_in_as @viewer
+    sign_in_as @baseline_staff
     get new_departure_departed_path(departure)
     assert_redirected_to root_path
     post departure_currency_correction_path(departure), params: {

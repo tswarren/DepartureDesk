@@ -1,6 +1,8 @@
 class AgencyUser < ApplicationRecord
   STATUSES = %w[invited active suspended closed].freeze
-  ACCESS_ROLES = %w[administrator staff viewer].freeze
+  USER_TYPES = %w[agency_admin staff reseller].freeze
+  # Types an Agency Admin may invite or assign until reseller users arrive in step 9.
+  STAFF_USER_TYPES = %w[agency_admin staff].freeze
   INVITATION_TTL = 7.days
   PASSWORD_RESET_TTL = 15.minutes
 
@@ -8,11 +10,17 @@ class AgencyUser < ApplicationRecord
 
   belongs_to :agency
   belongs_to :default_office, class_name: "Office", optional: true
+  belongs_to :reseller, optional: true
   has_many :sessions, dependent: :destroy
+  has_many :user_permissions, dependent: :restrict_with_exception
   has_many :responsible_departures, class_name: "Departure", foreign_key: :responsible_agency_user_id, inverse_of: :responsible_agency_user, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
-  enum :access_role, ACCESS_ROLES.index_by(&:itself), validate: true, prefix: :role
+  enum :user_type, USER_TYPES.index_by(&:itself), validate: true
+
+  # Agency Admins and staff: the users who may hold agency work, such as a
+  # Departure's responsibility. Reseller users never do (ADR 0017).
+  scope :agency_staff, -> { where(user_type: STAFF_USER_TYPES) }
 
   attr_readonly :agency_id
 
@@ -24,6 +32,7 @@ class AgencyUser < ApplicationRecord
   validates :email_address, uniqueness: { scope: :agency_id }, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :password, length: { minimum: 10, maximum: 72 }, confirmation: true, if: -> { password.present? }
   validate :default_office_belongs_to_agency
+  validate :reseller_matches_user_type
   validate :active_password_present
 
   def self.normalize_email(value)
@@ -38,8 +47,19 @@ class AgencyUser < ApplicationRecord
     preferred_name.presence || "#{first_name} #{last_name}".squish
   end
 
-  def permitted?(permission)
-    active? && AccessPermission.allowed?(access_role, permission)
+  def permitted?(action)
+    active? && AccessPermission.allowed?(user_type, granted_permissions, action)
+  end
+
+  # Stored grants only; an agency_admin holds every permission without rows.
+  def granted_permissions
+    return [] unless staff?
+
+    user_permissions.map(&:permission)
+  end
+
+  def holds_permission?(permission)
+    agency_admin? || granted_permissions.include?(permission.to_s)
   end
 
   def issue_invitation_token
@@ -91,6 +111,15 @@ class AgencyUser < ApplicationRecord
     return if default_office.agency_id == agency_id
 
     errors.add(:default_office, "must belong to the same agency")
+  end
+
+  def reseller_matches_user_type
+    if reseller?
+      errors.add(:reseller, "is required for a reseller user") if reseller.blank?
+      errors.add(:reseller, "must belong to the same agency") if reseller.present? && reseller.agency_id != agency_id
+    elsif reseller_id.present?
+      errors.add(:reseller, "is only for reseller users")
+    end
   end
 
   def active_password_present
