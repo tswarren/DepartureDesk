@@ -504,6 +504,26 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
+-- Name: arrangement_documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.arrangement_documents (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    kind character varying NOT NULL,
+    description character varying,
+    uploaded_by_id uuid NOT NULL,
+    sha256 character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT arrangement_documents_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200)))),
+    CONSTRAINT arrangement_documents_kind CHECK (((kind)::text = ANY ((ARRAY['quote'::character varying, 'agreement'::character varying, 'confirmation'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT arrangement_documents_sha256 CHECK (((sha256)::text ~ '^[0-9a-f]{64}$'::text))
+);
+
+
+--
 -- Name: audit_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1397,6 +1417,14 @@ ALTER TABLE ONLY public.ar_internal_metadata
 
 
 --
+-- Name: arrangement_documents arrangement_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_documents
+    ADD CONSTRAINT arrangement_documents_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: audit_events audit_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1765,6 +1793,13 @@ CREATE UNIQUE INDEX index_agency_users_on_password_reset_token_digest ON public.
 --
 
 CREATE INDEX index_agency_users_on_reseller_id ON public.agency_users USING btree (reseller_id);
+
+
+--
+-- Name: index_arrangement_documents_on_supplier_arrangement_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_arrangement_documents_on_supplier_arrangement_id ON public.arrangement_documents USING btree (supplier_arrangement_id);
 
 
 --
@@ -3168,6 +3203,30 @@ ALTER TABLE ONLY public.agency_users
 
 
 --
+-- Name: arrangement_documents fk_arrangement_documents_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_documents
+    ADD CONSTRAINT fk_arrangement_documents_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: arrangement_documents fk_arrangement_documents_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_documents
+    ADD CONSTRAINT fk_arrangement_documents_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: arrangement_documents fk_arrangement_documents_uploader_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.arrangement_documents
+    ADD CONSTRAINT fk_arrangement_documents_uploader_same_agency FOREIGN KEY (uploaded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
 -- Name: departure_decisions fk_departure_decisions_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3622,6 +3681,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105190000'),
 ('20261105180000'),
 ('20261105170000'),
 ('20261105160000'),

@@ -72,6 +72,8 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.created
     supplier_arrangement.updated
     supplier_arrangement.discarded
+    supplier_arrangement.document_added
+    supplier_arrangement.document_removed
     departure.team_member_added
     departure.team_member_removed
     departure.default_task_owner_changed

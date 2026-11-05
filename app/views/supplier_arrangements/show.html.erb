@@ -40,3 +40,7 @@
     </dl>
   </div>
 </article>
+
+<% if can_view_supplier_costs? %>
+  <%= render "arrangement_documents/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
+<% end %>

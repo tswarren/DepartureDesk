@@ -13,6 +13,7 @@ class SupplierArrangement < ApplicationRecord
   belongs_to :departure
   belongs_to :supplier
   belongs_to :payee_account, optional: true
+  has_many :documents, -> { order(created_at: :desc) }, class_name: "ArrangementDocument", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
   enum :reservation_scope, RESERVATION_SCOPES.index_by(&:itself), validate: true, prefix: :reservations

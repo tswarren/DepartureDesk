@@ -1,0 +1,68 @@
+<%# Supplier documents (SUP-06, S-12, ADR 0019 amendment). Shown only with view_supplier_costs (ACC-31). %>
+<%# locals: (departure:, arrangement:, manage:) -%>
+<article class="dd-panel" id="documents">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Supplier documents</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <% documents = arrangement.documents.includes(:uploaded_by, file_attachment: :blob) %>
+    <% if documents.empty? %>
+      <p class="dd-empty-copy">No documents yet. Keep the supplier's quote, agreement or confirmation here.</p>
+    <% else %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th scope="col">File</th>
+              <th scope="col">Kind</th>
+              <th scope="col">Added</th>
+              <% if manage %><th scope="col" class="dd-col-actions">Actions</th><% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% documents.each do |document| %>
+              <tr>
+                <th scope="row">
+                  <%= link_to document.file.filename.to_s, departure_arrangement_document_path(departure, arrangement, document) %>
+                  <span class="dd-cell-subtext"><%= ArrangementDocument::CONTENT_TYPES.fetch(document.file.content_type) %>, <%= number_to_human_size(document.file.byte_size) %><%= " · #{document.description}" if document.description %></span>
+                </th>
+                <td><%= document.kind.humanize %></td>
+                <td><%= document.uploaded_by.display_name %>, <%= document.created_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %></td>
+                <% if manage %>
+                  <td class="dd-col-actions">
+                    <%= button_to "Remove", departure_arrangement_document_path(departure, arrangement, document), method: :delete,
+                          class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form",
+                          aria: { label: "Remove #{document.file.filename}" },
+                          form: { data: { turbo_confirm: "Remove #{document.file.filename}? The removal is recorded, and the file is deleted." } } %>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+    <% if manage && !arrangement.cancelled? %>
+      <%= form_with url: departure_arrangement_documents_path(departure, arrangement), scope: :arrangement_document, multipart: true, class: "dd-form" do |form| %>
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <%= form.label :file, "Add a document", class: "dd-label" %>
+            <%= form.file_field :file, required: true, accept: ".pdf,.png,.jpg,.jpeg,.docx,.xlsx", aria: { describedby: "arrangement_document_file_hint" }, class: "dd-field" %>
+            <p class="dd-field-hint" id="arrangement_document_file_hint">PDF, PNG, JPEG, Word or Excel, up to 20 MB. Files with macros are refused.</p>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :kind, "Kind", class: "dd-label" %>
+            <%= form.select :kind, ArrangementDocument::KINDS.map { |kind| [ kind.humanize, kind ] }, {}, class: "dd-field" %>
+          </div>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :description, "Description (optional)", class: "dd-label" %>
+          <%= form.text_field :description, maxlength: ArrangementDocument::DESCRIPTION_LIMIT, class: "dd-field" %>
+        </div>
+        <div class="dd-form-actions">
+          <%= form.submit "Upload", class: "dd-button dd-button--secondary" %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</article>
