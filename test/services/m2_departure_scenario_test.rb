@@ -49,12 +49,12 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     assert_equal 1, agency.departures.where.not(departure_reference: nil).count
   end
 
-  test "viewer browses and cannot mutate" do
+  test "staff without departure management browses and cannot mutate" do
     shell = M2DepartureScenario.celebrity
     error = assert_raises(AgencyCommand::Error) do
       UpdateDeparture.new(
         agency: shell.directory.agency,
-        actor: shell.directory.viewer,
+        actor: shell.directory.baseline_staff,
         departure: shell.departure,
         attributes: { name: "Nope" },
         lock_version: shell.departure.lock_version
@@ -62,7 +62,7 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     end
     assert_equal :unauthorized, error.code
     assert_equal "Celebrity Beyond", shell.departure.reload.name
-    assert_includes SearchDepartures.call(agency: shell.directory.agency, actor: shell.directory.viewer).records.map(&:id),
+    assert_includes SearchDepartures.call(agency: shell.directory.agency, actor: shell.directory.baseline_staff).records.map(&:id),
       shell.departure.id
   end
 

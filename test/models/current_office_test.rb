@@ -13,13 +13,13 @@ class CurrentOfficeTest < ActiveSupport::TestCase
   end
 
   test "selecting an office does not change permissions" do
-    user = agency_users(:harbor_viewer)
+    user = agency_users(:harbor_baseline_staff)
     session = user.sessions.create!(credential_version: user.credential_version)
-    before = AccessPermission::CATALOG.select { |_permission, roles| roles.include?(user.access_role) }.keys
+    before = AccessPermission::CATALOG.keys.select { |action| user.permitted?(action) }
 
     SelectCurrentOffice.new(session: session, office: offices(:harbor_west)).call
 
     assert_equal offices(:harbor_west), session.reload.office
-    assert_equal before, AccessPermission::CATALOG.select { |_permission, roles| roles.include?(user.reload.access_role) }.keys
+    assert_equal before, AccessPermission::CATALOG.keys.select { |action| user.reload.permitted?(action) }
   end
 end

@@ -73,7 +73,7 @@ class SupplierLocationsAndContactsSystemTest < ApplicationSystemTestCase
     assert_text "Preferred contact updated."
   end
 
-  test "viewer can find a location by name without seeing address phone or contacts" do
+  test "staff with no grants finds a location and sees its address, phone and contacts (ADR 0017 baseline)" do
     agency = agencies(:harbor)
     admin = agency_users(:harbor_admin)
     supplier = CreateSupplier.new(
@@ -102,7 +102,7 @@ class SupplierLocationsAndContactsSystemTest < ApplicationSystemTestCase
       attributes: { first_name: "Hidden", last_name: "Person" }
     ).call
 
-    sign_in_from_browser(agency_users(:harbor_viewer))
+    sign_in_from_browser(agency_users(:harbor_baseline_staff))
     visit suppliers_path
     fill_in "Search", with: "Hidden Port Desk"
     click_button "Apply"
@@ -111,9 +111,9 @@ class SupplierLocationsAndContactsSystemTest < ApplicationSystemTestCase
     assert_text "Location · Viewer Location Host"
     click_link "Hidden Port Desk"
     assert_text "Hidden Port Desk"
-    assert_no_text "99 Secret Way"
-    assert_no_text "202-555-0199"
-    assert_no_text "Hidden Person"
-    assert_no_text "Contacts"
+    assert_text "99 Secret Way"
+    assert_text "555-0199"
+    visit supplier_path(supplier)
+    assert_text "Hidden Person"
   end
 end

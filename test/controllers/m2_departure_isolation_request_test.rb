@@ -60,8 +60,8 @@ class M2DepartureIsolationRequestTest < ActionDispatch::IntegrationTest
     assert_equal "draft", foreign.status
   end
 
-  test "viewer browses home departures and cannot mutate" do
-    sign_in_as @primary.directory.viewer
+  test "staff without departure management browses home departures and cannot mutate" do
+    sign_in_as @primary.directory.baseline_staff
     get departures_path
     assert_response :success
     assert_includes response.body, @primary.departure.name

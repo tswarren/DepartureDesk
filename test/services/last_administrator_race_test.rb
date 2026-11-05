@@ -24,7 +24,7 @@ class LastAdministratorRaceTest < ActiveSupport::TestCase
       last_name: "Admin",
       password: @password,
       password_confirmation: @password,
-      access_role: "administrator",
+      user_type: "agency_admin",
       status: "active",
       credential_version: 1
     )
@@ -49,15 +49,15 @@ class LastAdministratorRaceTest < ActiveSupport::TestCase
     barrier = CyclicBarrier.new(2)
     first = run_on_connection do
       barrier.wait
-      ChangeAgencyUserAccess.new(agency_user: AgencyUser.find(@first.id), actor: AgencyUser.find(@second.id), access_role: "staff").call
+      ChangeAgencyUserAccess.new(agency_user: AgencyUser.find(@first.id), actor: AgencyUser.find(@second.id), user_type: "staff").call
     end
     second = run_on_connection do
       barrier.wait
-      ChangeAgencyUserAccess.new(agency_user: AgencyUser.find(@second.id), actor: AgencyUser.find(@first.id), access_role: "staff").call
+      ChangeAgencyUserAccess.new(agency_user: AgencyUser.find(@second.id), actor: AgencyUser.find(@first.id), user_type: "staff").call
     end
     join_all!(first, second)
 
-    assert_equal 1, @agency.agency_users.where(status: "active", access_role: "administrator").count
+    assert_equal 1, @agency.agency_users.where(status: "active", user_type: "agency_admin").count
     errors = [ first, second ].filter_map { |outcome| outcome[:error] }
     successes = [ first, second ].count { |outcome| outcome[:result] }
     assert_equal 1, successes

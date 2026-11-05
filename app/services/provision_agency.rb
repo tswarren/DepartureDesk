@@ -32,7 +32,7 @@ class ProvisionAgency < AgencyCommand
         first_name: @administrator_first_name,
         last_name: @administrator_last_name,
         password: @administrator_password,
-        access_role: "administrator",
+        user_type: "agency_admin",
         status: "active",
         credential_version: 1
       )

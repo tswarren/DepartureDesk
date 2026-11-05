@@ -6,7 +6,7 @@ class ClientOrganizationDirectoryTest < ActiveSupport::TestCase
     @other = agencies(:cove)
     @admin = agency_users(:harbor_admin)
     @staff = agency_users(:harbor_staff)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
   end
 
   test "organization client creation is atomic when duplicate review is required" do
@@ -260,7 +260,7 @@ class ClientOrganizationDirectoryTest < ActiveSupport::TestCase
     assert_equal "email", match.records.first.kind
   end
 
-  test "viewer without contact detail permission does not match organization destinations" do
+  test "staff with no grants matches organization destinations like an admin (ADR 0017 baseline)" do
     organization = create_organization("Visible Name Org")
     CreateClientOrganizationEmailAddress.new(
       agency: @agency, actor: @admin, client_organization: organization, attributes: { address: "viewer-hidden@example.com" }
@@ -277,12 +277,13 @@ class ClientOrganizationDirectoryTest < ActiveSupport::TestCase
       agency: @agency, actor: @admin, client_organization: organization, attributes: { url: "viewer-hide.example" }
     ).call
 
-    assert_empty SearchClientDirectory.call(agency: @agency, actor: @viewer, query: "viewer-hidden@example.com", kind: "organizations").records
-    assert_empty SearchClientDirectory.call(agency: @agency, actor: @viewer, query: "2025550188", kind: "organizations").records
-    assert_empty SearchClientDirectory.call(agency: @agency, actor: @viewer, query: "Viewerhide", kind: "organizations").records
-    assert_empty SearchClientDirectory.call(agency: @agency, actor: @viewer, query: "02142", kind: "organizations").records
-    assert_empty SearchClientDirectory.call(agency: @agency, actor: @viewer, query: "viewer-hide.example", kind: "organizations").records
-    assert_equal [ organization.id ], search_ids("Visible Name Org", actor: @viewer, kind: "organizations")
+    assert_equal [ organization.id ], search_ids("viewer-hidden@example.com", actor: @baseline_staff, kind: "organizations")
+    assert_equal [ organization.id ], search_ids("2025550188", actor: @baseline_staff, kind: "organizations")
+    [ "Viewerhide", "02142", "viewer-hide.example" ].each do |query|
+      assert_equal search_ids(query, actor: @admin, kind: "organizations"),
+        search_ids(query, actor: @baseline_staff, kind: "organizations"), query
+    end
+    assert_equal [ organization.id ], search_ids("Visible Name Org", actor: @baseline_staff, kind: "organizations")
   end
 
   test "organization search caps ranked results with a fetch of 51" do

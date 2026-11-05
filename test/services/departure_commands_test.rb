@@ -6,7 +6,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     @other = agencies(:cove)
     @admin = agency_users(:harbor_admin)
     @staff = agency_users(:harbor_staff)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @office = offices(:harbor_main)
     @west = offices(:harbor_west)
     @other_admin = agency_users(:cove_admin)
@@ -93,11 +93,11 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_equal :invalid_state, invalid_state.code
   end
 
-  test "viewer cannot create and unauthorized writes are not audited" do
+  test "staff without departure management cannot create and unauthorized writes are not audited" do
     assert_no_difference -> { Departure.count } do
       assert_no_difference -> { AuditEvent.where(action: "departure.created").count } do
         error = assert_raises(AgencyCommand::Error) do
-          CreateDeparture.new(agency: @agency, actor: @viewer, attributes: { name: "Viewer Draft" }).call
+          CreateDeparture.new(agency: @agency, actor: @baseline_staff, attributes: { name: "Viewer Draft" }).call
         end
         assert_equal :unauthorized, error.code
       end
@@ -265,26 +265,26 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_equal :invalid_state, error.code
   end
 
-  test "responsibility accepts a viewer, rejects inactive replacements, and retains historical inactive targets" do
+  test "responsibility accepts staff without departure management, rejects inactive replacements, and retains historical inactive targets" do
     departure = create_complete_draft("Responsibility")
     UpdateDepartureResponsibility.new(
       agency: @agency, actor: @admin, departure:,
-      office_id: @office.id, agency_user_id: @viewer.id, lock_version: departure.lock_version
+      office_id: @office.id, agency_user_id: @baseline_staff.id, lock_version: departure.lock_version
     ).call
-    assert_equal @viewer.id, departure.reload.responsible_agency_user_id
+    assert_equal @baseline_staff.id, departure.reload.responsible_agency_user_id
 
     ChangeOfficeStatus.new(office: @west, actor: @admin, status: "inactive", lock_version: @west.lock_version).call
     inactive = assert_raises(AgencyCommand::Error) do
       UpdateDepartureResponsibility.new(
         agency: @agency, actor: @admin, departure:,
-        office_id: @west.id, agency_user_id: @viewer.id, lock_version: departure.lock_version
+        office_id: @west.id, agency_user_id: @baseline_staff.id, lock_version: departure.lock_version
       ).call
     end
     assert_equal :invalid_state, inactive.code
 
     UpdateDepartureResponsibility.new(
       agency: @agency, actor: @admin, departure:,
-      office_id: @office.id, agency_user_id: @viewer.id, lock_version: departure.lock_version
+      office_id: @office.id, agency_user_id: @baseline_staff.id, lock_version: departure.lock_version
     ).call
     ChangeOfficeStatus.new(office: @office, actor: @admin, status: "inactive", lock_version: @office.reload.lock_version).call
     assert_equal @office.id, departure.reload.responsible_office_id

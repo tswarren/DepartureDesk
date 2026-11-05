@@ -19,7 +19,7 @@
       <tr>
         <th>Name</th>
         <th>Email</th>
-        <th>Role</th>
+        <th>User type</th>
         <th>Status</th>
       </tr>
     </thead>
@@ -28,7 +28,7 @@
         <tr>
           <td><%= link_to agency_user.display_name, administration_agency_user_path(agency_user) %></td>
           <td><%= agency_user.email_address %></td>
-          <td><%= agency_user_role_badge(agency_user) %></td>
+          <td><%= agency_user_type_badge(agency_user) %></td>
           <td><%= agency_user_status_badge(agency_user) %></td>
         </tr>
       <% end %>

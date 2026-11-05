@@ -1,8 +1,8 @@
 require "test_helper"
 
 class AdministrationAccessTest < ActionDispatch::IntegrationTest
-  test "a viewer mutation is rejected" do
-    sign_in_as agency_users(:harbor_viewer)
+  test "an agency profile change by staff with no grants is rejected" do
+    sign_in_as agency_users(:harbor_baseline_staff)
     name = agencies(:harbor).name
 
     patch administration_agency_path, params: { agency: { name: "Changed Name", lock_version: agencies(:harbor).lock_version } }
@@ -18,7 +18,7 @@ class AdministrationAccessTest < ActionDispatch::IntegrationTest
 
     patch administration_agency_user_path(user), params: {
       agency_user: {
-        access_role: "staff",
+        user_type: "staff",
         relationship: "Former administrator",
         default_office_id: offices(:harbor_west).id,
         lock_version: user.lock_version
@@ -27,7 +27,7 @@ class AdministrationAccessTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     user.reload
-    assert user.role_administrator?
+    assert user.agency_admin?
     assert_nil user.relationship
     assert_equal offices(:harbor_main), user.default_office
   end
@@ -44,11 +44,27 @@ class AdministrationAccessTest < ActionDispatch::IntegrationTest
           email_address: "new@example.com",
           first_name: "New",
           last_name: "User",
-          access_role: "staff"
+          user_type: "staff"
         }
       }
     end
     assert_redirected_to root_path
+  end
+
+  test "an invitation offers agency_admin and staff and refuses reseller until step 9" do
+    sign_in_as agency_users(:harbor_admin)
+
+    get new_administration_agency_user_path
+    assert_select "select[name='agency_user[user_type]'] option", text: "Agency Admin"
+    assert_select "select[name='agency_user[user_type]'] option", text: "Staff"
+    assert_select "select[name='agency_user[user_type]'] option[value=reseller]", count: 0
+
+    assert_no_difference("AgencyUser.count") do
+      post administration_agency_users_path, params: {
+        agency_user: { email_address: "reseller@example.com", first_name: "Res", last_name: "Eller", user_type: "reseller" }
+      }
+    end
+    assert_response :unprocessable_entity
   end
 
   test "a supplied missing office does not create an invitation" do
@@ -93,7 +109,7 @@ class AdministrationAccessTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to root_path
     assert_equal offices(:harbor_west).id, Session.order(:created_at).last.office_id
-    assert staff.reload.role_staff?
+    assert staff.reload.staff?
     assert_not staff.permitted?(:manage_agency_users)
     assert staff.permitted?(:select_office_context)
   end
@@ -128,7 +144,7 @@ class AdministrationAccessTest < ActionDispatch::IntegrationTest
         email_address: "new@example.com",
         first_name: "New",
         last_name: "User",
-        access_role: "staff",
+        user_type: "staff",
         default_office_id: default_office_id
       }
     }

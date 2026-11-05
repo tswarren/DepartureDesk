@@ -1,8 +1,8 @@
 class UpdateAgencyUser < AgencyCommand
-  def initialize(agency_user:, actor:, access_role:, relationship:, default_office_id:, lock_version:)
+  def initialize(agency_user:, actor:, user_type:, relationship:, default_office_id:, lock_version:)
     @agency_user = agency_user
     @actor = actor
-    @access_role = access_role.presence
+    @user_type = user_type.presence
     @relationship = relationship
     @default_office_id = default_office_id.presence
     @lock_version = lock_version
@@ -16,10 +16,10 @@ class UpdateAgencyUser < AgencyCommand
         ensure_permitted!(@actor, :manage_agency_users)
         ensure_fresh_lock!
         office = resolve_office!
-        ensure_role_change_allowed!
+        ensure_user_type_change_allowed!
         ensure_not_last_active_administrator!(@agency_user) if demotes_last_administrator?
 
-        @agency_user.access_role = @access_role if @access_role
+        removed_permissions = assign_user_type!(@agency_user, @user_type)
         @agency_user.relationship = @relationship
         @agency_user.default_office = office
         @agency_user.save!
@@ -30,7 +30,8 @@ class UpdateAgencyUser < AgencyCommand
           actor: @actor,
           details: {
             "agency_user_id" => @agency_user.id,
-            "access_role" => @agency_user.access_role,
+            "user_type" => @agency_user.user_type,
+            "removed_permissions" => removed_permissions,
             "default_office_id" => @agency_user.default_office_id,
             "relationship" => @agency_user.relationship
           }
@@ -60,17 +61,18 @@ class UpdateAgencyUser < AgencyCommand
     office
   end
 
-  def ensure_role_change_allowed!
-    return if @access_role.blank? || @access_role == @agency_user.access_role
+  def ensure_user_type_change_allowed!
+    return if @user_type.blank? || @user_type == @agency_user.user_type
+    raise Error.new("That user type is not available.", code: :invalid) unless @user_type.in?(AgencyUser::USER_TYPES)
     return if @agency_user.active? || @agency_user.suspended?
 
-    raise Error.new("That role change is not allowed.", code: :invalid_state)
+    raise Error.new("That user type change is not allowed.", code: :invalid_state)
   end
 
   def demotes_last_administrator?
-    @access_role.present? &&
-      @access_role != "administrator" &&
-      @agency_user.role_administrator? &&
+    @user_type.present? &&
+      @user_type != "agency_admin" &&
+      @agency_user.agency_admin? &&
       @agency_user.active?
   end
 end

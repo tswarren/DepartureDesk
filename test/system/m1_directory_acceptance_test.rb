@@ -95,7 +95,7 @@ class M1DirectoryAcceptanceTest < ApplicationSystemTestCase
     assert_text "Inactive"
   end
 
-  test "empty filtered truncation validation duplicate viewer and not-found states" do
+  test "empty filtered truncation validation duplicate baseline staff and not-found states" do
     blank = M1DirectoryScenario.empty
     celebrity = M1DirectoryScenario.celebrity
     agency = blank.agency
@@ -149,17 +149,16 @@ class M1DirectoryAcceptanceTest < ApplicationSystemTestCase
 
     click_button "Sign out"
     wait_for_turbo
-    sign_in_from_browser(celebrity.viewer, password: M1DirectoryScenario::PASSWORD)
+    sign_in_from_browser(celebrity.baseline_staff, password: M1DirectoryScenario::PASSWORD)
     visit clients_path
     fill_in "Search", with: celebrity.martha_email.address
     click_button "Apply"
-    assert_no_text "Martha"
-    assert_no_text celebrity.martha_email.address
+    assert_text "Martha"
     visit client_person_path(celebrity.martha)
     assert_text "Martha"
-    assert_no_text celebrity.martha_email.address
+    assert_text celebrity.martha_email.address
     visit new_client_path
-    assert_current_path root_path
+    assert_current_path new_client_path
 
     visit client_person_path(ClientPerson.find_by!(agency_id: blank.agency.id))
     assert_text(/RecordNotFound|doesn't exist|Not Found/i)

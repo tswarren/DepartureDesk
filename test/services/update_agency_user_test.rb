@@ -1,14 +1,15 @@
 require "test_helper"
 
 class UpdateAgencyUserTest < ActiveSupport::TestCase
-  test "role, relationship, and default office commit together as one audit event" do
+  test "user type, relationship, and default office commit together as one audit event" do
     user = agency_users(:harbor_staff)
+    assert_equal [ "departure_management" ], user.granted_permissions
 
     assert_difference -> { AuditEvent.where(action: "agency_user.updated").count }, 1 do
       UpdateAgencyUser.new(
         agency_user: user,
         actor: agency_users(:harbor_admin),
-        access_role: "viewer",
+        user_type: "agency_admin",
         relationship: "Coordinator",
         default_office_id: offices(:harbor_west).id,
         lock_version: user.lock_version
@@ -16,11 +17,13 @@ class UpdateAgencyUserTest < ActiveSupport::TestCase
     end
 
     user.reload
-    assert user.role_viewer?
+    assert user.agency_admin?
+    assert_empty user.user_permissions, "grants are removed when a user stops being staff"
     assert_equal "Coordinator", user.relationship
     assert_equal offices(:harbor_west), user.default_office
     event = AuditEvent.where(action: "agency_user.updated").order(:created_at).last
-    assert_equal "viewer", event.details["access_role"]
+    assert_equal "agency_admin", event.details["user_type"]
+    assert_equal [ "departure_management" ], event.details["removed_permissions"]
     assert_equal offices(:harbor_west).id, event.details["default_office_id"]
     assert_equal "Coordinator", event.details["relationship"]
   end
@@ -33,7 +36,7 @@ class UpdateAgencyUserTest < ActiveSupport::TestCase
         UpdateAgencyUser.new(
           agency_user: user,
           actor: user,
-          access_role: "staff",
+          user_type: "staff",
           relationship: "Former administrator",
           default_office_id: offices(:harbor_west).id,
           lock_version: user.lock_version
@@ -43,7 +46,7 @@ class UpdateAgencyUserTest < ActiveSupport::TestCase
     end
 
     user.reload
-    assert user.role_administrator?
+    assert user.agency_admin?
     assert_nil user.relationship
     assert_equal offices(:harbor_main), user.default_office
   end
@@ -56,7 +59,7 @@ class UpdateAgencyUserTest < ActiveSupport::TestCase
         UpdateAgencyUser.new(
           agency_user: user,
           actor: agency_users(:harbor_admin),
-          access_role: "staff",
+          user_type: "staff",
           relationship: "Should not save",
           default_office_id: offices(:cove_main).id,
           lock_version: user.lock_version

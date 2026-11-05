@@ -3,7 +3,7 @@ require "test_helper"
 class ClientOrganizationsDirectoryTest < ActionDispatch::IntegrationTest
   setup do
     @admin = agency_users(:harbor_admin)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @agency = agencies(:harbor)
   end
 
@@ -88,7 +88,7 @@ class ClientOrganizationsDirectoryTest < ActionDispatch::IntegrationTest
     assert_equal 1, @agency.client_people.where(first_name: "Existing", last_name: "Person").count
   end
 
-  test "viewer sees organization identity and assignment people but not destinations" do
+  test "staff with no grants sees organization identity, assignment people and destinations (ADR 0017 baseline)" do
     organization = CreateClientOrganization.new(agency: @agency, actor: @admin, names: { display_name: "Visible Org" }).call.record
     CreateClientOrganizationEmailAddress.new(
       agency: @agency, actor: @admin, client_organization: organization, attributes: { address: "hidden-org@example.com" }
@@ -102,12 +102,12 @@ class ClientOrganizationsDirectoryTest < ActionDispatch::IntegrationTest
       attributes: { starts_on: Date.new(2026, 1, 1), primary: true }
     ).call
 
-    sign_in_as @viewer
+    sign_in_as @baseline_staff
     get client_organization_path(organization)
     assert_response :success
     assert_match "Visible Org", response.body
     assert_match "Named Contact", response.body
-    assert_no_match "hidden-org@example.com", response.body
+    assert_match "hidden-org@example.com", response.body
   end
 
   test "another agency organization is not found" do

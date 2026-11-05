@@ -10,7 +10,7 @@ module Administration
     end
 
     def new
-      @agency_user = agency_users.new(access_role: "staff")
+      @agency_user = agency_users.new(user_type: "staff")
       @offices = offices.order(:name)
     end
 
@@ -22,7 +22,7 @@ module Administration
         email_address: agency_user_params[:email_address],
         first_name: agency_user_params[:first_name],
         last_name: agency_user_params[:last_name],
-        access_role: agency_user_params[:access_role],
+        user_type: agency_user_params[:user_type],
         default_office: office,
         relationship: agency_user_params[:relationship]
       ).call
@@ -42,7 +42,7 @@ module Administration
       UpdateAgencyUser.new(
         agency_user: @agency_user,
         actor: Current.agency_user,
-        access_role: agency_user_params[:access_role],
+        user_type: agency_user_params[:user_type],
         relationship: agency_user_params[:relationship],
         default_office_id: agency_user_params[:default_office_id],
         lock_version: agency_user_params[:lock_version]
@@ -108,7 +108,7 @@ module Administration
     end
 
     def agency_user_params
-      params.require(:agency_user).permit(:email_address, :first_name, :last_name, :access_role, :default_office_id, :relationship, :lock_version)
+      params.require(:agency_user).permit(:email_address, :first_name, :last_name, :user_type, :default_office_id, :relationship, :lock_version)
     end
   end
 end

@@ -46,14 +46,14 @@ class DeparturesTest < ApplicationSystemTestCase
     assert_field "Time zone", with: "America/Chicago"
   end
 
-  test "viewer can browse departures without mutation actions" do
+  test "staff without departure management can browse departures without mutation actions" do
     CreateDeparture.new(
       agency: agencies(:harbor),
       actor: agency_users(:harbor_admin),
       attributes: { name: "Viewer Cruise" }
     ).call
 
-    sign_in_from_browser(agency_users(:harbor_viewer))
+    sign_in_from_browser(agency_users(:harbor_baseline_staff))
     open_departures
     assert_text "Viewer Cruise"
     assert_no_text "New Departure"

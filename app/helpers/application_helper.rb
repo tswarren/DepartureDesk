@@ -31,9 +31,17 @@ module ApplicationHelper
     status_badge(agency.status.titleize, modifier:)
   end
 
-  def agency_user_role_badge(agency_user)
-    modifier = agency_user.role_administrator? ? "info" : "neutral"
-    status_badge(agency_user.access_role.titleize, modifier:)
+  def agency_user_type_badge(agency_user)
+    modifier = agency_user.agency_admin? ? "info" : "neutral"
+    status_badge(user_type_label(agency_user.user_type), modifier:)
+  end
+
+  def user_type_label(user_type)
+    { "agency_admin" => "Agency Admin", "staff" => "Staff", "reseller" => "Reseller" }.fetch(user_type.to_s)
+  end
+
+  def user_type_options
+    AgencyUser::USER_TYPES.map { |user_type| [ user_type_label(user_type), user_type ] }
   end
 
   def contact_destination(record)

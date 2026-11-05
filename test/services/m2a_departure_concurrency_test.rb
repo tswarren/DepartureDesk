@@ -122,7 +122,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
       first_name: "Staff",
       last_name: "Racer",
       password: TEST_PASSWORD,
-      access_role: "staff",
+      user_type: "staff",
       status: "active",
       default_office: @office,
       credential_version: 1

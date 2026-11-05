@@ -6,7 +6,7 @@ class SupplierDirectoryTest < ActiveSupport::TestCase
     @other = agencies(:cove)
     @admin = agency_users(:harbor_admin)
     @staff = agency_users(:harbor_staff)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @other_admin = agency_users(:cove_admin)
     ensure_supplier_sequence!(@agency)
     ensure_supplier_sequence!(@other)
@@ -247,7 +247,7 @@ class SupplierDirectoryTest < ActiveSupport::TestCase
     end
   end
 
-  test "search browses filters hides contact destinations from viewers deduplicates and truncates" do
+  test "search browses filters shows contact destinations to all staff deduplicates and truncates" do
     cruise = create_supplier(display_name: "Celebrity Cruises", categories: [ "cruise_line" ]).record
     hotel = create_supplier(display_name: "Inactive Harbor Hotel", categories: [ "lodging" ]).record
     ChangeSupplierStatus.new(agency: @agency, actor: @admin, supplier: hotel, status: "inactive", lock_version: hotel.lock_version).call
@@ -263,8 +263,8 @@ class SupplierDirectoryTest < ActiveSupport::TestCase
     assert_equal [ hotel.id ], search_ids("Harbor Hotel", status: "inactive")
     assert_equal [ individual.id ], search_ids("Pat Guide", kind: "individual")
     assert_equal [ cruise.id ], SearchSupplierDirectory.call(agency: @agency, actor: @admin, category: "cruise_line").records.map(&:id)
-    assert_empty SearchSupplierDirectory.call(agency: @agency, actor: @viewer, query: "hidden-supplier@example.com").records
-    assert_equal [ cruise.id ], SearchSupplierDirectory.call(agency: @agency, actor: @viewer, query: "Celebrity Cruises").records.map(&:id)
+    assert_equal [ cruise.id ], SearchSupplierDirectory.call(agency: @agency, actor: @baseline_staff, query: "hidden-supplier@example.com").records.map(&:id)
+    assert_equal [ cruise.id ], SearchSupplierDirectory.call(agency: @agency, actor: @baseline_staff, query: "Celebrity Cruises").records.map(&:id)
 
     email_match = SearchSupplierDirectory.call(agency: @agency, actor: @admin, query: "dual@example.com")
     assert_equal [ dual.id ], email_match.records.map(&:id)

@@ -4,7 +4,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
   setup do
     @agency = agencies(:harbor)
     @admin = agency_users(:harbor_admin)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @office = offices(:harbor_main)
   end
 
@@ -79,9 +79,9 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "D-000001", complete.departure_reference
   end
 
-  test "viewer can browse but cannot mutate or open editors" do
+  test "staff without departure management can browse but cannot mutate or open editors" do
     departure = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Viewer Draft" }).call.record
-    sign_in_as @viewer
+    sign_in_as @baseline_staff
 
     get departures_path
     assert_response :success

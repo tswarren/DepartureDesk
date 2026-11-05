@@ -5,7 +5,7 @@
     <p class="dd-eyebrow">Workspace</p>
     <h1 class="dd-page-title">Dashboard</h1>
     <p class="dd-page-description">
-      <%= Current.agency.name %> · <%= Current.agency_user.access_role.titleize %>
+      <%= Current.agency.name %> · <%= user_type_label(Current.agency_user.user_type) %>
     </p>
   </div>
 </header>

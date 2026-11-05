@@ -6,7 +6,7 @@ class SupplierLocationsAndContactsTest < ActiveSupport::TestCase
     @other = agencies(:cove)
     @admin = agency_users(:harbor_admin)
     @staff = agency_users(:harbor_staff)
-    @viewer = agency_users(:harbor_viewer)
+    @baseline_staff = agency_users(:harbor_baseline_staff)
     @other_admin = agency_users(:cove_admin)
     ensure_supplier_sequence!(@agency)
     ensure_supplier_sequence!(@other)
@@ -500,11 +500,14 @@ class SupplierLocationsAndContactsTest < ActiveSupport::TestCase
     contact_match = SearchSupplierDirectory.call(agency: @agency, actor: @admin, query: "Miami Agent")
     assert_includes contact_match.records.map { |row| [ row.result_kind, row.id ] }, [ "contact", contact.id ]
 
-    viewer_location = SearchSupplierDirectory.call(agency: @agency, actor: @viewer, query: "Alpha Miami Terminal")
-    assert_equal [ [ "location", miami_terminal.id ] ], viewer_location.records.map { |row| [ row.result_kind, row.id ] }
-    assert_empty SearchSupplierDirectory.call(agency: @agency, actor: @viewer, query: "Miami Agent").records
-    assert_empty SearchSupplierDirectory.call(agency: @agency, actor: @viewer, query: "miami.agent@example.com").records
-    assert_empty SearchSupplierDirectory.call(agency: @agency, actor: @viewer, query: "100 Biscayne").records
+    baseline_location = SearchSupplierDirectory.call(agency: @agency, actor: @baseline_staff, query: "Alpha Miami Terminal")
+    assert_equal [ [ "location", miami_terminal.id ] ], baseline_location.records.map { |row| [ row.result_kind, row.id ] }
+    [ "Miami Agent", "miami.agent@example.com", "100 Biscayne" ].each do |query|
+      as_admin = SearchSupplierDirectory.call(agency: @agency, actor: @admin, query:).records.map { |row| [ row.result_kind, row.id ] }
+      as_baseline = SearchSupplierDirectory.call(agency: @agency, actor: @baseline_staff, query:).records.map { |row| [ row.result_kind, row.id ] }
+      assert_equal as_admin, as_baseline, query
+    end
+    assert_includes SearchSupplierDirectory.call(agency: @agency, actor: @baseline_staff, query: "Miami Agent").records.map(&:id), contact.id
     assert_empty SearchSupplierDirectory.call(agency: @agency, actor: @admin, query: "305-555-0144").records
 
     assert_equal [ inactive_location.id ],

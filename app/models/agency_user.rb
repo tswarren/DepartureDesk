@@ -1,6 +1,6 @@
 class AgencyUser < ApplicationRecord
   STATUSES = %w[invited active suspended closed].freeze
-  ACCESS_ROLES = %w[administrator staff viewer].freeze
+  USER_TYPES = %w[agency_admin staff].freeze
   INVITATION_TTL = 7.days
   PASSWORD_RESET_TTL = 15.minutes
 
@@ -9,10 +9,11 @@ class AgencyUser < ApplicationRecord
   belongs_to :agency
   belongs_to :default_office, class_name: "Office", optional: true
   has_many :sessions, dependent: :destroy
+  has_many :user_permissions, dependent: :restrict_with_exception
   has_many :responsible_departures, class_name: "Departure", foreign_key: :responsible_agency_user_id, inverse_of: :responsible_agency_user, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
-  enum :access_role, ACCESS_ROLES.index_by(&:itself), validate: true, prefix: :role
+  enum :user_type, USER_TYPES.index_by(&:itself), validate: true
 
   attr_readonly :agency_id
 
@@ -38,8 +39,19 @@ class AgencyUser < ApplicationRecord
     preferred_name.presence || "#{first_name} #{last_name}".squish
   end
 
-  def permitted?(permission)
-    active? && AccessPermission.allowed?(access_role, permission)
+  def permitted?(action)
+    active? && AccessPermission.allowed?(user_type, granted_permissions, action)
+  end
+
+  # Stored grants only; an agency_admin holds every permission without rows.
+  def granted_permissions
+    return [] unless staff?
+
+    user_permissions.map(&:permission)
+  end
+
+  def holds_permission?(permission)
+    agency_admin? || granted_permissions.include?(permission.to_s)
   end
 
   def issue_invitation_token

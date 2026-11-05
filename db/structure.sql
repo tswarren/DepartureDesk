@@ -371,7 +371,7 @@ CREATE TABLE public.agency_users (
     title character varying,
     phone character varying,
     relationship character varying,
-    access_role character varying NOT NULL,
+    user_type character varying CONSTRAINT agency_users_access_role_not_null NOT NULL,
     status character varying DEFAULT 'invited'::character varying NOT NULL,
     invitation_token_digest character varying,
     invitation_sent_at timestamp with time zone,
@@ -383,14 +383,14 @@ CREATE TABLE public.agency_users (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT agency_users_access_role_valid CHECK (((access_role)::text = ANY (ARRAY[('administrator'::character varying)::text, ('staff'::character varying)::text, ('viewer'::character varying)::text]))),
     CONSTRAINT agency_users_credential_version_nonnegative CHECK ((credential_version >= 0)),
     CONSTRAINT agency_users_email_normalized CHECK (((email_address)::text = lower(btrim((email_address)::text)))),
     CONSTRAINT agency_users_email_not_blank CHECK ((btrim((email_address)::text) <> ''::text)),
     CONSTRAINT agency_users_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT agency_users_name_not_blank CHECK (((btrim((first_name)::text) <> ''::text) AND (btrim((last_name)::text) <> ''::text))),
     CONSTRAINT agency_users_status_credentials CHECK (((((status)::text = 'invited'::text) AND (invitation_token_digest IS NOT NULL) AND (invitation_expires_at IS NOT NULL) AND (password_digest IS NULL)) OR (((status)::text = 'active'::text) AND (password_digest IS NOT NULL) AND (invitation_token_digest IS NULL)) OR (((status)::text = ANY (ARRAY[('suspended'::character varying)::text, ('closed'::character varying)::text])) AND (invitation_token_digest IS NULL)))),
-    CONSTRAINT agency_users_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text])))
+    CONSTRAINT agency_users_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text]))),
+    CONSTRAINT agency_users_user_type_valid CHECK (((user_type)::text = ANY ((ARRAY['agency_admin'::character varying, 'staff'::character varying])::text[])))
 );
 
 
@@ -1091,6 +1091,23 @@ END) STORED,
 
 
 --
+-- Name: user_permissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_permissions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    agency_user_id uuid NOT NULL,
+    permission character varying NOT NULL,
+    user_type character varying DEFAULT 'staff'::character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT user_permissions_permission_valid CHECK (((permission)::text = ANY ((ARRAY['departure_management'::character varying, 'supplier_arrangements'::character varying, 'financial_records'::character varying, 'passport_access'::character varying, 'reseller_relationships'::character varying])::text[]))),
+    CONSTRAINT user_permissions_staff_only CHECK (((user_type)::text = 'staff'::text))
+);
+
+
+--
 -- Name: agencies agencies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1339,6 +1356,14 @@ ALTER TABLE ONLY public.suppliers
 
 
 --
+-- Name: user_permissions user_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_permissions
+    ADD CONSTRAINT user_permissions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: index_agencies_on_workspace_code; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1357,6 +1382,13 @@ CREATE INDEX index_agency_users_on_agency_id ON public.agency_users USING btree 
 --
 
 CREATE UNIQUE INDEX index_agency_users_on_agency_id_and_email ON public.agency_users USING btree (agency_id, email_address);
+
+
+--
+-- Name: index_agency_users_on_agency_id_id_user_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_users_on_agency_id_id_user_type ON public.agency_users USING btree (agency_id, id, user_type);
 
 
 --
@@ -2361,6 +2393,20 @@ CREATE INDEX index_suppliers_on_name_search_vector ON public.suppliers USING gin
 
 
 --
+-- Name: index_user_permissions_on_agency_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_user_permissions_on_agency_user_id ON public.user_permissions USING btree (agency_user_id);
+
+
+--
+-- Name: index_user_permissions_on_agency_user_permission; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_user_permissions_on_agency_user_permission ON public.user_permissions USING btree (agency_id, agency_user_id, permission);
+
+
+--
 -- Name: agencies agencies_reject_workspace_code_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2886,6 +2932,22 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: user_permissions fk_user_permissions_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_permissions
+    ADD CONSTRAINT fk_user_permissions_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: user_permissions fk_user_permissions_staff_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_permissions
+    ADD CONSTRAINT fk_user_permissions_staff_user FOREIGN KEY (agency_id, agency_user_id, user_type) REFERENCES public.agency_users(agency_id, id, user_type) ON UPDATE CASCADE;
+
+
+--
 -- Name: sessions sessions_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2972,6 +3034,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261104140000'),
 ('20261104130000'),
 ('20261104120000'),
 ('20261006180000'),

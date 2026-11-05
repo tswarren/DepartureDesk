@@ -26,8 +26,8 @@
         <%= form.text_field :last_name, required: true, class: "dd-field" %>
       </div>
       <div class="dd-field-group">
-        <%= form.label :access_role, "Access role", class: "dd-label" %>
-        <%= form.select :access_role, AgencyUser::ACCESS_ROLES.map { |role| [ role.titleize, role ] }, {}, class: "dd-field" %>
+        <%= form.label :user_type, "User type", class: "dd-label" %>
+        <%= form.select :user_type, user_type_options, {}, class: "dd-field" %>
       </div>
       <div class="dd-field-group">
         <%= form.label :relationship, "Relationship", class: "dd-label" %>

@@ -12,7 +12,7 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
       first_name: "Sid",
       last_name: "Staff",
       password: M1DirectoryScenario::PASSWORD,
-      access_role: "staff",
+      user_type: "staff",
       status: "active",
       default_office: @office,
       credential_version: 1
