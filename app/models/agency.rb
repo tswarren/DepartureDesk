@@ -25,6 +25,7 @@ class Agency < ApplicationRecord
   has_many :supplier_websites, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
   has_many :departures, dependent: :restrict_with_exception
+  has_many :departure_team_members, dependent: :restrict_with_exception
   has_many :document_inclusions, class_name: "AgencyDocumentInclusion", dependent: :restrict_with_exception
   has_many :traveler_types, dependent: :restrict_with_exception
 

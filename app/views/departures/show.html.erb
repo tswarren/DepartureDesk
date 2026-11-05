@@ -1,41 +1,63 @@
 <% content_for :title, "#{@departure.name} · DepartureDesk" %>
 <% manage = Current.agency_user.permitted?(:manage_departures) %>
 
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, nil ] ] %>
+
 <header class="dd-page-header">
   <div class="dd-page-heading">
-    <p class="dd-eyebrow">Departures</p>
+    <p class="dd-eyebrow">Departure</p>
     <h1 class="dd-page-title"><%= @departure.name %></h1>
-    <p class="dd-page-description"><span class="dd-type-mono"><%= @departure.display_reference %></span></p>
+    <p class="dd-page-description"><span class="dd-type-mono"><%= @departure.display_reference %></span> · <%= @departure.schedule_label %> · <%= departure_label_badge(@departure) %></p>
   </div>
-  <% if manage %>
+  <% if manage && !@departure.departed? %>
     <div class="dd-page-actions">
       <%= link_to "Edit departure", edit_departure_path(@departure), class: "dd-button" %>
-      <%= link_to "Edit responsibility", edit_departure_responsibility_path(@departure), class: "dd-button dd-button--quiet" %>
       <% if @departure.draft? %>
-        <%= link_to "Activate", departure_activation_path(@departure), class: "dd-button dd-button--quiet" %>
-      <% elsif @departure.active? %>
-        <%= link_to "Return to draft", edit_departure_return_to_draft_path(@departure), class: "dd-button dd-button--quiet" %>
-        <% if @departure.eligible_to_depart?(at: Time.current) %>
-          <%= link_to "Mark departed", new_departure_departed_path(@departure), class: "dd-button dd-button--quiet" %>
-        <% end %>
-      <% elsif @departure.departed? %>
-        <%= link_to "Correct schedule", edit_departure_schedule_correction_path(@departure), class: "dd-button dd-button--quiet" %>
-        <%= link_to "Correct currency", edit_departure_currency_correction_path(@departure), class: "dd-button dd-button--quiet" %>
-        <% if @departure.lifecycle_correction_allowed?(at: Time.current) %>
-          <%= link_to "Return to active", edit_departure_lifecycle_correction_path(@departure), class: "dd-button dd-button--quiet" %>
-        <% end %>
+        <%= link_to "Mark Ready to sell", departure_ready_to_sell_path(@departure), class: "dd-button dd-button--secondary" %>
+      <% else %>
+        <%= link_to "Return to Draft", edit_departure_return_to_draft_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% end %>
+      <% if @departure.eligible_to_depart?(at: Time.current) %>
+        <%= link_to "Mark departed", new_departure_departed_path(@departure), class: "dd-button dd-button--quiet" %>
       <% end %>
     </div>
   <% end %>
 </header>
 
-<article class="dd-panel">
-  <div class="dd-panel-body">
+<%= render "departures/tabs", departure: @departure, current: :overview %>
+
+<article class="dd-panel" id="statuses">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Status</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <p><%= departure_label_badge(@departure) %></p>
     <dl class="dd-definition-list">
       <div>
-        <dt>Status</dt>
-        <dd><%= departure_status_badge(@departure.status) %></dd>
+        <dt>Sales status</dt>
+        <dd><%= @departure.sales_status.humanize %></dd>
       </div>
+      <div>
+        <dt>Operating decision</dt>
+        <dd><%= @departure.operating_decision.humanize %></dd>
+      </div>
+      <div>
+        <dt>Completion</dt>
+        <dd><%= @departure.completion_status.humanize %><%= " on #{@departure.departed_at.in_time_zone(Current.agency.default_timezone).to_fs(:long)}" if @departure.departed_at %></dd>
+      </div>
+    </dl>
+    <% if manage && @departure.draft? && !@departure.departed? && @departure.ready_to_sell_blockers.any? %>
+      <p class="dd-page-description">Before it can be marked Ready to sell: <%= @departure.ready_to_sell_blockers.to_sentence %> <%= link_to "Edit departure", edit_departure_path(@departure) %></p>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel" id="details">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Details</h2>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
       <div>
         <dt>Reference</dt>
         <dd class="dd-type-mono"><%= @departure.display_reference %></dd>
@@ -61,21 +83,17 @@
         <dd><%= @departure.operating_currency.presence || "—" %></dd>
       </div>
       <div>
-        <dt>Responsible office</dt>
-        <dd><%= @departure.responsible_office ? office_choice_label(@departure.responsible_office) : "—" %></dd>
+        <dt>Client hold duration</dt>
+        <dd><%= pluralize(@departure.effective_hold_duration_days, "day") %> <span class="dd-cell-subtext">(<%= @departure.hold_duration_days ? "this departure" : "agency default" %>)</span></dd>
       </div>
       <div>
-        <dt>Responsible user</dt>
-        <dd><%= @departure.responsible_agency_user&.display_name || "—" %></dd>
-      </div>
-      <div>
-        <dt>First activated</dt>
-        <dd><%= @departure.first_activated_at&.to_fs(:long) || "—" %></dd>
-      </div>
-      <div>
-        <dt>Departed at</dt>
-        <dd><%= @departure.departed_at&.to_fs(:long) || "—" %></dd>
+        <dt>Buffer before supplier deadlines</dt>
+        <dd><%= pluralize(@departure.effective_installment_buffer_days, "day") %> <span class="dd-cell-subtext">(<%= @departure.installment_buffer_days ? "this departure" : "agency default" %>)</span></dd>
       </div>
     </dl>
   </div>
 </article>
+
+<%= render "departure_decisions/panel", departure: @departure, manage: manage %>
+
+<%= render "departure_team_members/panel", departure: @departure, manage: manage %>

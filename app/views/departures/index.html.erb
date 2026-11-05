@@ -1,10 +1,12 @@
 <% content_for :title, "Departures · DepartureDesk" %>
 
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", nil ] ] %>
+
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departures</p>
     <h1 class="dd-page-title">Departures</h1>
-    <p class="dd-page-description">Create and govern dated group-travel operations for this agency.</p>
+    <p class="dd-page-description">The agency's dated group trips, each with its sales, decision and completion status.</p>
   </div>
   <% if Current.agency_user.permitted?(:manage_departures) %>
     <div class="dd-page-actions">
@@ -22,18 +24,11 @@
       </div>
       <div class="dd-field-group">
         <%= form.label :status, "Status", class: "dd-label" %>
-        <%= form.select :status, [ [ "All", "all" ], [ "Draft", "draft" ], [ "Active", "active" ], [ "Departed", "departed" ] ], { selected: @status }, class: "dd-field" %>
+        <%= form.select :status, departure_label_filter_options, { selected: @status }, class: "dd-field" %>
       </div>
-      <% office_options = Current.agency.offices.order(:name).map { |office| [ office_choice_label(office), office.id ] } %>
-      <% if office_options.any? %>
-        <div class="dd-field-group">
-          <%= form.label :responsible_office_id, "Responsible office", class: "dd-label" %>
-          <%= form.select :responsible_office_id, office_options, { include_blank: "All offices", selected: params[:responsible_office_id] }, class: "dd-field" %>
-        </div>
-      <% end %>
       <div class="dd-field-group">
-        <%= form.label :responsible_agency_user_id, "Responsible user", class: "dd-label" %>
-        <%= form.select :responsible_agency_user_id, Current.agency.agency_users.agency_staff.order(:last_name, :first_name).map { |user| [ user.display_name, user.id ] }, { include_blank: "All users", selected: params[:responsible_agency_user_id] }, class: "dd-field" %>
+        <%= form.label :team_member_id, "Team member", class: "dd-label" %>
+        <%= form.select :team_member_id, Current.agency.agency_users.agency_staff.order(:last_name, :first_name).map { |user| [ user.display_name, user.id ] }, { include_blank: "Anyone", selected: params[:team_member_id] }, class: "dd-field" %>
       </div>
       <div class="dd-field-group">
         <%= form.label :starts_on_from, "Starts on from", class: "dd-label" %>
@@ -69,14 +64,13 @@
           <th>Name</th>
           <th>Dates</th>
           <th>Status</th>
-          <th>Office</th>
-          <th>Responsible user</th>
+          <th>Default task owner</th>
         </tr>
       </thead>
       <tbody>
         <% if @search.records.empty? %>
           <tr>
-            <td colspan="6">No departures matched.</td>
+            <td colspan="5">No departures matched.</td>
           </tr>
         <% else %>
           <% @search.records.each do |departure| %>
@@ -84,9 +78,8 @@
               <td class="dd-type-mono"><%= departure.display_reference %></td>
               <td><%= link_to departure.name, departure_path(departure) %></td>
               <td><%= departure.schedule_label %></td>
-              <td><%= departure_status_badge(departure.status) %></td>
-              <td><%= departure.responsible_office ? office_choice_label(departure.responsible_office) : "—" %></td>
-              <td><%= departure.responsible_agency_user&.display_name || "—" %></td>
+              <td><%= departure_label_badge(departure) %></td>
+              <td><%= departure.default_task_owner&.display_name || "—" %></td>
             </tr>
           <% end %>
         <% end %>

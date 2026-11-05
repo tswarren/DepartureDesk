@@ -33,9 +33,10 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal Date.new(2027, 11, 13), departure.ends_on
     assert_equal "America/New_York", departure.time_zone
     assert_equal "USD", departure.operating_currency
-    assert_equal "draft", departure.status
-    assert_nil departure.responsible_office
-    assert_equal @actor, departure.responsible_agency_user
+    assert_equal "DEP-0001", departure.departure_reference
+    assert_equal "on_sale", departure.summary_label
+    assert departure.decision_proceed?
+    assert_equal @actor, departure.default_task_owner
   end
 
   test "loading twice reuses the records" do
@@ -45,6 +46,7 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal 3, @agency.suppliers.count
     assert_equal 1, @agency.departures.count
     assert_equal first.departure, second.departure
+    assert_equal 1, second.departure.decisions.count
     assert_equal first.suppliers.transform_values(&:id), second.suppliers.transform_values(&:id)
   end
 end

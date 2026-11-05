@@ -5,8 +5,7 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     @shell = M2DepartureScenario.celebrity
     @agency = @shell.directory.agency
     @actor = @shell.directory.actor
-    @office = @shell.fixture_responsible_office
-    @west = CreateOffice.new(agency: @agency, actor: @actor, name: "West Desk", code: "WEST").call.record
+    @office = @agency.offices.sole
     @staff = @agency.agency_users.create!(
       email_address: "staff-#{@shell.directory.suffix}@example.test",
       first_name: "Sid",
@@ -19,12 +18,13 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     )
 
     @alpha = extra_departure("Alpha Voyage", starts_on: Date.new(2026, 5, 1), ends_on: Date.new(2026, 5, 8))
-    extra_departure("Beta Voyage", starts_on: Date.new(2026, 6, 1), ends_on: Date.new(2026, 6, 8), office: @west)
-    @gamma = extra_departure("Gamma Voyage", starts_on: Date.new(2026, 7, 1), ends_on: Date.new(2026, 7, 8), user: @staff)
-    ActivateDeparture.new(agency: @agency, actor: @actor, departure: @gamma, lock_version: @gamma.lock_version).call
+    extra_departure("Beta Voyage", starts_on: Date.new(2026, 6, 1), ends_on: Date.new(2026, 6, 8))
+    @gamma = extra_departure("Gamma Voyage", starts_on: Date.new(2026, 7, 1), ends_on: Date.new(2026, 7, 8))
+    AddDepartureTeamMember.new(agency: @agency, actor: @actor, departure: @gamma, agency_user_id: @staff.id).call
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @actor, departure: @gamma, lock_version: @gamma.lock_version).call
     @gamma.reload
     @delta = extra_departure("Delta Voyage", starts_on: Date.new(2026, 4, 1), ends_on: Date.new(2026, 4, 8))
-    ActivateDeparture.new(agency: @agency, actor: @actor, departure: @delta, lock_version: @delta.lock_version).call
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @actor, departure: @delta, lock_version: @delta.lock_version).call
     MarkDepartureDeparted.new(
       agency: @agency, departure: @delta.reload, actor_kind: :agency_user, actor: @actor, lock_version: @delta.lock_version
     ).call
@@ -42,21 +42,20 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     assert_includes names_for(query: "beta"), "Beta Voyage"
     assert_not_includes names_for(query: "betaz"), "Beta Voyage"
 
-    drafts = names_for(status: "draft")
+    drafts = names_for(status: "not_on_sale")
     assert_includes drafts, "Celebrity Beyond"
     assert_includes drafts, "Alpha Voyage"
     assert_not_includes drafts, "Gamma Voyage"
     assert_not_includes drafts, "Delta Voyage"
 
-    assert_equal [ "Gamma Voyage" ], names_for(status: "active")
+    assert_equal [ "Gamma Voyage" ], names_for(status: "on_sale")
     assert_equal [ "Delta Voyage" ], names_for(status: "departed")
     all_names = names_for(status: "all")
     assert_includes all_names, "Celebrity Beyond"
     assert_includes all_names, "Gamma Voyage"
     assert_includes all_names, "Delta Voyage"
 
-    assert_equal [ "Beta Voyage" ], names_for(responsible_office_id: @west.id)
-    assert_equal [ "Gamma Voyage" ], names_for(responsible_agency_user_id: @staff.id)
+    assert_equal [ "Gamma Voyage" ], names_for(team_member_id: @staff.id)
 
     assert_equal [ "Alpha Voyage" ], names_for(starts_on_from: "2026-05-01", starts_on_to: "2026-05-01")
     assert_not_includes names_for(starts_on_from: "2026-05-02"), "Alpha Voyage"
@@ -71,13 +70,13 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     assert_includes blank, "Delta Voyage"
 
     combined = SearchDepartures.call(
-      agency: @agency, actor: @actor, query: "Gamma", status: "active",
-      responsible_office_id: @office.id, starts_on_from: "2026-07-01", starts_on_to: "2026-07-01"
+      agency: @agency, actor: @actor, query: "Gamma", status: "on_sale",
+      team_member_id: @staff.id, starts_on_from: "2026-07-01", starts_on_to: "2026-07-01"
     ).records
     assert_equal [ "Gamma Voyage" ], combined.map(&:name)
     combined.each do |row|
-      assert_equal "active", row.status
-      assert_equal @office.id, row.responsible_office_id
+      assert_equal "on_sale", row.summary_label
+      assert_includes row.team_members.map(&:agency_user_id), @staff.id
       assert_equal Date.new(2026, 7, 1), row.starts_on
       assert_match(/gamma/i, row.name)
     end
@@ -110,11 +109,8 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
 
   test "EXPLAIN uses the expected supporting index for each composed branch" do
     companion = M2DepartureScenario.isolation_companion(@shell)
-    seed_agency_volume!(@agency, "Plannervol", 800, office: @office, user: @actor)
-    seed_agency_volume!(
-      companion.directory.agency, "Foreignvol", 800,
-      office: companion.fixture_responsible_office, user: companion.directory.actor
-    )
+    seed_agency_volume!(@agency, "Plannervol", 800)
+    seed_agency_volume!(companion.directory.agency, "Foreignvol", 800)
     51.times do |index|
       extra_departure(
         format("Lookaheadvol N%02d", index),
@@ -131,18 +127,17 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     # Status-filtered and sweep selectors still order by starts_on, so PostgreSQL
     # may use either named composite. Generic tenant indexes (agency_id /
     # id+agency_id) are not accepted.
-    status_indexes = /index_departures_on_agency_status_starts_on_id|index_departures_on_agency_starts_on_name_id/
+    status_indexes = /index_departures_on_agency_statuses_starts_on_id|index_departures_on_agency_starts_on_name_id/
     [
       [ "blank browse", {}, "index_departures_on_agency_starts_on_name_id" ],
       [ "status all", { status: "all" }, "index_departures_on_agency_starts_on_name_id" ],
       [ "exact name", { query: "Alpha Voyage" }, "index_departures_on_agency_and_name_search_key" ],
       [ "prefix name", { query: "beta" }, "index_departures_on_agency_and_name_search_key" ],
       [ "exact reference", { query: @gamma.departure_reference }, "index_departures_on_agency_and_reference" ],
-      [ "status draft", { status: "draft", starts_on_from: "2026-05-01" }, status_indexes ],
-      [ "status active", { status: "active", starts_on_from: "2026-07-01" }, status_indexes ],
+      [ "status draft", { status: "not_on_sale", starts_on_from: "2026-05-01" }, status_indexes ],
+      [ "status active", { status: "on_sale", starts_on_from: "2026-07-01" }, status_indexes ],
       [ "status departed", { status: "departed", starts_on_from: "2026-04-01" }, status_indexes ],
-      [ "office filter", { responsible_office_id: @west.id }, "index_departures_on_agency_office_starts_on_id" ],
-      [ "user filter", { responsible_agency_user_id: @staff.id }, "index_departures_on_agency_user_starts_on_id" ],
+      [ "team member filter", { team_member_id: @staff.id }, /index_departure_team_members_on_agency_and_user|index_departure_team_members_on_departure_and_user/ ],
       [ "starts_on range", { starts_on_from: "2026-05-01", starts_on_to: "2026-05-08" }, "index_departures_on_agency_starts_on_name_id" ],
       [ "ends_on range", { ends_on_from: "2026-06-01", ends_on_to: "2026-06-08" }, "index_departures_on_agency_ends_on_id" ],
       [ "51-row lookahead", { query: "Lookaheadvol" }, "index_departures_on_agency_and_name_search_key" ]
@@ -166,7 +161,7 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     SearchDepartures.composed_relation(agency: @agency, actor: @actor, **kwargs).first.read_attribute("search_rank")
   end
 
-  def extra_departure(name, starts_on:, ends_on:, office: @office, user: @actor)
+  def extra_departure(name, starts_on:, ends_on:)
     CreateDeparture.new(
       agency: @agency,
       actor: @actor,
@@ -175,14 +170,12 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
         starts_on:,
         ends_on:,
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: office.id,
-        responsible_agency_user_id: user.id
+        operating_currency: "USD"
       }
     ).call.record
   end
 
-  def seed_agency_volume!(agency, prefix, count, office:, user:)
+  def seed_agency_volume!(agency, prefix, count)
     now = Time.current
     rows = Array.new(count) do |index|
       starts_on = Date.new(2023, 1, 1) + index
@@ -193,11 +186,8 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
         ends_on: starts_on + 7,
         time_zone: "UTC",
         operating_currency: "USD",
-        responsible_office_id: office.id,
-        responsible_agency_user_id: user.id,
-        status: "active",
-        departure_reference: format("DEP-%04d", index + 10),
-        first_activated_at: now,
+        sales_status: "ready_to_sell",
+        departure_reference: format("DEP-%04d", index + 50_000),
         lock_version: 0,
         created_at: now,
         updated_at: now
@@ -208,6 +198,7 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
 
   def refresh_statistics!
     ActiveRecord::Base.connection.execute("ANALYZE departures")
+    ActiveRecord::Base.connection.execute("ANALYZE departure_team_members")
     ActiveRecord::Base.connection.execute("ANALYZE agencies")
   end
 

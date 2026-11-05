@@ -1,6 +1,6 @@
 # ADR 0004: Human-readable references and numbering
 
-- Status: Accepted; amended 2026-09-14 for Client and Supplier references; amended 2026-09-16 for Departure references; amended 2026-11-04 for the Slice 1 reference types (D-84, D-89)
+- Status: Accepted; amended 2026-09-14 for Client and Supplier references; amended 2026-09-16 for Departure references; amended 2026-11-04 for the Slice 1 reference types (D-84, D-89); amended 2026-11-05 for Departure issuance at creation (D-91)
 - Date: 2026-09-05
 - Decision owners: DepartureDesk maintainers
 
@@ -135,7 +135,7 @@ Client and Supplier demonstrate identical Agency scope, no reset, immutable issu
 
 ### Departure references
 
-M2 adopts the same namespaced sequence for Departure. Drafts remain unreferenced. The first successful activation is the consequential transition: the Departure becomes operationally usable, searchable by its durable reference, and discussable outside the draft workspace.
+M2 adopts the same namespaced sequence for Departure. As shipped by M2, drafts were unreferenced and the first activation issued the reference. **Amended 2026-11-05 (D-91):** a Departure receives its reference when it is created, so every Departure, a Draft included, has one (REF-01). An abandoned Draft keeps its number and the gap is accepted (REF-03, REF-05). Slice 1 step 2 numbered existing Drafts oldest first and dropped `first_activated_at`.
 
 | Attribute | Departure |
 | --- | --- |
@@ -143,10 +143,10 @@ M2 adopts the same namespaced sequence for Departure. Drafts remain unreferenced
 | Canonical format | `DEP-` and at least four digits, widening as needed (D-84); was `D-%06d` |
 | Scope | Agency; never Office |
 | Reset | Never |
-| Issuance | First successful activation |
+| Issuance | Creation (D-91); was first successful activation |
 | Reuse and gaps | Never reused; gaps accepted |
 | Concurrency | Lock `(agency_id, namespace)` sequence row |
-| Retry | An already issued reference consumes no number on reactivation or idempotent replay |
+| Retry | Creation issues exactly one number; Ready to sell, Return to Draft and replay consume none |
 | `next_value` | Next unissued positive integer; a new row starts at 1 |
 | Exhaustion | Issuing `1000000` fails with `reference_exhausted`; widening the format requires an amendment |
 | Import | Preserve legacy value in a separately named future external-reference record |

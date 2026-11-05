@@ -1,5 +1,7 @@
 <% content_for :title, "Edit #{@departure.name} · DepartureDesk" %>
 
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Edit", nil ] ] %>
+
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departures</p>
@@ -10,7 +12,7 @@
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <%= form_with model: @departure, class: "dd-form" do |form| %>
+    <%= form_with model: @departure, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
       <%= render "shared/form_errors", object: form.object %>
       <%= render "form", form: form %>
       <div class="dd-form-actions">

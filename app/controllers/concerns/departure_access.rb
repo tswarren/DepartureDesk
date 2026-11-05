@@ -38,8 +38,8 @@ module DepartureAccess
     when /end date/i then :ends_on
     when /time zone|timezone/i then :time_zone
     when /currency/i then :operating_currency
-    when /office/i then :responsible_office_id
-    when /agency user/i then :responsible_agency_user_id
+    when /hold duration/i then :hold_duration_days
+    when /buffer/i then :installment_buffer_days
     when /reason/i then :reason
     else :base
     end
@@ -48,13 +48,11 @@ module DepartureAccess
   def departure_params
     params.fetch(:departure, {}).permit(
       :name, :description, :starts_on, :ends_on, :time_zone, :operating_currency,
-      :responsible_office_id, :responsible_agency_user_id, :lock_version, :reason
+      :hold_duration_days, :installment_buffer_days, :lock_version, :reason
     )
   end
 
   def assign_submitted_departure_fields
-    @departure.assign_attributes(departure_params.except(:lock_version, :reason, :responsible_office_id, :responsible_agency_user_id))
-    @departure.responsible_office_id = departure_params[:responsible_office_id]
-    @departure.responsible_agency_user_id = departure_params[:responsible_agency_user_id]
+    @departure.assign_attributes(departure_params.except(:lock_version, :reason))
   end
 end

@@ -49,7 +49,7 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
     end
 
     departure.reload
-    assert_includes %w[draft departed], departure.status
+    assert_includes %w[not_on_sale departed], departure.summary_label
     assert_equal "DEP-0001", departure.departure_reference
     if departure.departed?
       assert_not_nil departure.departed_at
@@ -89,7 +89,7 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
     assert_equal 2, results.size
     assert_equal %i[noop updated].sort, results.map(&:status).sort
     departure.reload
-    assert_equal "departed", departure.status
+    assert_equal "departed", departure.summary_label
     assert_not_nil departure.departed_at
     assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.departed", subject_id: departure.id).count
   end
@@ -111,49 +111,6 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
     assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.departed", subject_id: departure.id).count
   end
 
-  test "lifecycle correction versus a stale departed job leaves active without a second departed audit" do
-    departure = eligible_active("Stale Job")
-    MarkDepartureDeparted.new(
-      agency: @agency, departure:, actor_kind: :agency_user, actor: @actor, lock_version: departure.lock_version
-    ).call
-    departure.reload
-    CorrectDepartureSchedule.new(
-      agency: @agency, actor: @actor, departure:,
-      starts_on: Date.new(2099, 5, 1), ends_on: Date.new(2099, 5, 8), time_zone: "UTC",
-      reason: "Postponed", lock_version: departure.lock_version
-    ).call
-    departure.reload
-    departed_audits_before = AuditEvent.where(agency_id: @agency.id, action: "departure.departed", subject_id: departure.id).count
-
-    outcomes = race(2) do |index|
-      record = Departure.find(departure.id)
-      if index.zero?
-        CorrectDepartureLifecycle.new(
-          agency: Agency.find(@agency.id),
-          actor: AgencyUser.find(@actor.id),
-          departure: record,
-          reason: "Job was stale",
-          lock_version: departure.lock_version
-        ).call
-      else
-        MarkDepartureDeparted.new(
-          agency: Agency.find(@agency.id),
-          departure: record,
-          actor_kind: :system,
-          actor_identifier: MarkDepartureDeparted::SYSTEM_ACTOR_IDENTIFIER
-        ).call
-      end
-    end
-
-    results = outcomes.grep(AgencyCommand::Result)
-    assert_equal 2, results.size
-    departure.reload
-    assert_equal "active", departure.status
-    assert_nil departure.departed_at
-    assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.lifecycle_corrected", subject_id: departure.id).count
-    assert_equal departed_audits_before, AuditEvent.where(agency_id: @agency.id, action: "departure.departed", subject_id: departure.id).count
-  end
-
   private
 
   def eligible_active(name)
@@ -165,12 +122,10 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
         starts_on: Date.new(2026, 6, 1),
         ends_on: Date.new(2026, 6, 8),
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @actor.id
+        operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(agency: @agency, actor: @actor, departure:, lock_version: departure.lock_version).call.record
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @actor, departure:, lock_version: departure.lock_version).call.record
   end
 
   def race(count, allowed_error_codes: [])

@@ -66,13 +66,13 @@ class AuditEvent < ApplicationRecord
     supplier_contact.duplicate_override
     departure.created
     departure.updated
-    departure.responsibility_changed
-    departure.activated
+    departure.decision_recorded
+    departure.team_member_added
+    departure.team_member_removed
+    departure.default_task_owner_changed
+    departure.ready_to_sell
     departure.returned_to_draft
     departure.departed
-    departure.schedule_corrected
-    departure.currency_corrected
-    departure.lifecycle_corrected
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze

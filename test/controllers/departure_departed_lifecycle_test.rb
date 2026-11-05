@@ -15,37 +15,29 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     post departure_departed_path(departure), params: { departure: { lock_version: departure.lock_version } }
     assert_redirected_to departure_path(departure)
-    assert_equal "departed", departure.reload.status
+    assert_equal "departed", departure.reload.summary_label
     assert_equal "agency_user", AuditEvent.find_by!(action: "departure.departed", subject_id: departure.id).actor_kind
   end
 
-  test "departed corrections preserve invalid values and reject staff without departure management" do
-    departure = eligible_active("Request Correct")
-    MarkDepartureDeparted.new(
-      agency: @agency, departure:, actor_kind: :agency_user, actor: @admin, lock_version: departure.lock_version
-    ).call
+  test "a departed departure is read-only and offers no edit or status actions (DEP-43)" do
+    departure = departed_departure
     sign_in_as @admin
-    get edit_departure_schedule_correction_path(departure)
-    assert_response :success
-    post departure_schedule_correction_path(departure), params: {
-      departure: {
-        starts_on: "",
-        ends_on: "",
-        time_zone: "",
-        reason: "fix",
-        lock_version: departure.reload.lock_version
-      }
-    }
-    assert_response :unprocessable_entity
-    assert_select "#form-error-summary"
 
-    sign_in_as @baseline_staff
-    get new_departure_departed_path(departure)
-    assert_redirected_to root_path
-    post departure_currency_correction_path(departure), params: {
-      departure: { operating_currency: "EUR", reason: "nope", lock_version: departure.lock_version }
-    }
-    assert_redirected_to root_path
+    get departure_path(departure)
+    assert_response :success
+    assert_select "a", text: "Edit departure", count: 0
+    assert_select "a", text: "Return to Draft", count: 0
+
+    get edit_departure_path(departure)
+    assert_redirected_to departure_path(departure)
+    patch departure_path(departure), params: { departure: { name: "Renamed", lock_version: departure.lock_version } }
+    assert_redirected_to departure_path(departure)
+    assert_not_equal "Renamed", departure.reload.name
+
+    error = assert_raises(AgencyCommand::Error) do
+      UpdateDeparture.new(agency: @agency, actor: @admin, departure:, attributes: { name: "Renamed" }, lock_version: departure.lock_version).call
+    end
+    assert_equal :invalid_state, error.code
   end
 
   test "cross-agency departed routes are not found" do
@@ -57,12 +49,10 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
         starts_on: "2026-06-01",
         ends_on: "2026-06-08",
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: offices(:cove_main).id,
-        responsible_agency_user_id: agency_users(:cove_admin).id
+        operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(
+    MarkDepartureReadyToSell.new(
       agency: agencies(:cove), actor: agency_users(:cove_admin), departure: other, lock_version: other.lock_version
     ).call
     sign_in_as @admin
@@ -84,31 +74,6 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Mark departed"
   end
 
-  test "currency and lifecycle corrections succeed for staff" do
-    departure = eligible_active("Request Lifecycle")
-    MarkDepartureDeparted.new(
-      agency: @agency, departure:, actor_kind: :agency_user, actor: @admin, lock_version: departure.lock_version
-    ).call
-    CorrectDepartureSchedule.new(
-      agency: @agency, actor: @admin, departure:,
-      starts_on: Date.new(2099, 6, 1), ends_on: Date.new(2099, 6, 8), time_zone: "UTC",
-      reason: "Postponed", lock_version: departure.reload.lock_version
-    ).call
-    sign_in_as @admin
-    post departure_currency_correction_path(departure), params: {
-      departure: { operating_currency: "EUR", reason: "Quoted in euro", lock_version: departure.reload.lock_version }
-    }
-    assert_redirected_to departure_path(departure)
-    assert_equal "EUR", departure.reload.operating_currency
-
-    post departure_lifecycle_correction_path(departure), params: {
-      departure: { reason: "Marked too soon", lock_version: departure.lock_version }
-    }
-    assert_redirected_to departure_path(departure)
-    assert_equal "active", departure.reload.status
-    assert_nil departure.departed_at
-  end
-
   private
 
   def eligible_active(name, starts_on: Date.new(2026, 6, 1), ends_on: Date.new(2026, 6, 8))
@@ -120,11 +85,16 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
         starts_on:,
         ends_on:,
         time_zone: "America/New_York",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @admin.id
+        operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
+  end
+
+  def departed_departure
+    departure = eligible_active("Departed Lock")
+    MarkDepartureDeparted.new(
+      agency: @agency, departure:, actor_kind: :agency_user, actor: @admin, lock_version: departure.lock_version
+    ).call.record
   end
 end

@@ -6,13 +6,20 @@ class SearchDeparturesTest < ActiveSupport::TestCase
     @other = agencies(:cove)
     @admin = agency_users(:harbor_admin)
     @baseline_staff = agency_users(:harbor_baseline_staff)
-    @office = offices(:harbor_main)
-    @west = offices(:harbor_west)
     CreateDeparture.new(agency: @agency, actor: @admin, attributes: complete_attrs(name: "Alpha Voyage", starts_on: Date.new(2026, 5, 1), ends_on: Date.new(2026, 5, 8))).call
-    CreateDeparture.new(agency: @agency, actor: @admin, attributes: complete_attrs(name: "Beta Voyage", starts_on: Date.new(2026, 6, 1), ends_on: Date.new(2026, 6, 8), responsible_office_id: @west.id)).call
+    CreateDeparture.new(agency: @agency, actor: @admin, attributes: complete_attrs(name: "Beta Voyage", starts_on: Date.new(2026, 6, 1), ends_on: Date.new(2026, 6, 8))).call
     gamma = CreateDeparture.new(agency: @agency, actor: @admin, attributes: complete_attrs(name: "Gamma Voyage", starts_on: Date.new(2026, 7, 1), ends_on: Date.new(2026, 7, 8))).call.record
-    ActivateDeparture.new(agency: @agency, actor: @admin, departure: gamma, lock_version: gamma.lock_version).call
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure: gamma, lock_version: gamma.lock_version).call
     CreateDeparture.new(agency: @other, actor: agency_users(:cove_admin), attributes: { name: "Cove Secret", starts_on: Date.new(2026, 5, 1), ends_on: Date.new(2026, 5, 8) }).call
+  end
+
+  test "the team member filter finds departures that user is on" do
+    beta = @agency.departures.find_by!(name: "Beta Voyage")
+    AddDepartureTeamMember.new(agency: @agency, actor: @admin, departure: beta, agency_user_id: @baseline_staff.id).call
+
+    assert_equal [ "Beta Voyage" ], SearchDepartures.call(agency: @agency, actor: @admin, team_member_id: @baseline_staff.id).records.map(&:name)
+    assert_equal %w[Alpha Beta Gamma].map { |name| "#{name} Voyage" },
+      SearchDepartures.call(agency: @agency, actor: @admin, team_member_id: @admin.id).records.map(&:name).sort
   end
 
   test "blank query browses in deterministic date order and includes other-agency isolation" do
@@ -53,7 +60,7 @@ class SearchDeparturesTest < ActiveSupport::TestCase
     assert_equal :invalid, malformed_date.code
 
     malformed_uuid = assert_raises(AgencyCommand::Error) do
-      SearchDepartures.call(agency: @agency, actor: @admin, responsible_office_id: "bad")
+      SearchDepartures.call(agency: @agency, actor: @admin, team_member_id: "bad")
     end
     assert_equal :invalid, malformed_uuid.code
 
@@ -63,7 +70,7 @@ class SearchDeparturesTest < ActiveSupport::TestCase
     assert_equal :invalid, reversed.code
 
     foreign = assert_raises(AgencyCommand::Error) do
-      SearchDepartures.call(agency: @agency, actor: @admin, responsible_office_id: offices(:cove_main).id)
+      SearchDepartures.call(agency: @agency, actor: @admin, team_member_id: agency_users(:cove_admin).id)
     end
     assert_equal :not_found, foreign.code
   end
@@ -104,9 +111,7 @@ class SearchDeparturesTest < ActiveSupport::TestCase
       starts_on: Date.new(2026, 6, 1),
       ends_on: Date.new(2026, 6, 8),
       time_zone: "America/New_York",
-      operating_currency: "USD",
-      responsible_office_id: @office.id,
-      responsible_agency_user_id: @admin.id
+      operating_currency: "USD"
     }.merge(overrides)
   end
 end

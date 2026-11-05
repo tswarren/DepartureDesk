@@ -16,9 +16,9 @@ class M2DepartureIsolationRequestTest < ActionDispatch::IntegrationTest
     assert_response :not_found
     patch departure_path(foreign), params: { departure: { name: "Stolen", lock_version: foreign.lock_version } }
     assert_response :not_found
-    get departure_activation_path(foreign)
+    get departure_ready_to_sell_path(foreign)
     assert_response :not_found
-    post activate_departure_path(foreign), params: { lock_version: foreign.lock_version }
+    post departure_ready_to_sell_path(foreign), params: { lock_version: foreign.lock_version }
     assert_response :not_found
     get edit_departure_return_to_draft_path(foreign)
     assert_response :not_found
@@ -28,36 +28,15 @@ class M2DepartureIsolationRequestTest < ActionDispatch::IntegrationTest
     assert_response :not_found
     post departure_departed_path(foreign), params: { departure: { lock_version: foreign.lock_version } }
     assert_response :not_found
-    get edit_departure_schedule_correction_path(foreign)
+    post departure_team_members_path(foreign), params: { team_member: { agency_user_id: @primary.directory.actor.id } }
     assert_response :not_found
-    post departure_schedule_correction_path(foreign), params: {
-      departure: { starts_on: "2026-06-01", ends_on: "2026-06-08", time_zone: "UTC", reason: "no", lock_version: foreign.lock_version }
-    }
+    delete departure_team_member_path(foreign, @companion.fixture_default_task_owner.id)
     assert_response :not_found
-    get edit_departure_currency_correction_path(foreign)
-    assert_response :not_found
-    post departure_currency_correction_path(foreign), params: {
-      departure: { operating_currency: "EUR", reason: "no", lock_version: foreign.lock_version }
-    }
-    assert_response :not_found
-    get edit_departure_lifecycle_correction_path(foreign)
-    assert_response :not_found
-    post departure_lifecycle_correction_path(foreign), params: {
-      departure: { reason: "no", lock_version: foreign.lock_version }
-    }
-    assert_response :not_found
-    get edit_departure_responsibility_path(foreign)
-    assert_response :not_found
-    patch departure_responsibility_path(foreign), params: {
-      departure: {
-        responsible_office_id: @primary.fixture_responsible_office.id,
-        responsible_agency_user_id: @primary.directory.actor.id,
-        lock_version: foreign.lock_version
-      }
-    }
+    patch default_owner_departure_team_members_path(foreign), params: { agency_user_id: "" }
     assert_response :not_found
     assert_equal "Celebrity Beyond Isolation", foreign.reload.name
-    assert_equal "draft", foreign.status
+    assert_equal "not_on_sale", foreign.summary_label
+    assert_equal [ @companion.fixture_default_task_owner ], foreign.team_members.map(&:agency_user)
   end
 
   test "staff without departure management browses home departures and cannot mutate" do

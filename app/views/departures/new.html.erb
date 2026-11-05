@@ -1,16 +1,18 @@
 <% content_for :title, "New Departure · DepartureDesk" %>
 
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ "New", nil ] ] %>
+
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departures</p>
     <h1 class="dd-page-title">New departure</h1>
-    <p class="dd-page-description">Creates a draft departure. Activation issues its durable reference.</p>
+    <p class="dd-page-description">Saves as a Draft, even with dates, currency or time zone missing. It gets its reference now.</p>
   </div>
 </header>
 
 <article class="dd-panel">
   <div class="dd-panel-body">
-    <%= form_with model: @departure, class: "dd-form" do |form| %>
+    <%= form_with model: @departure, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
       <%= render "shared/form_errors", object: form.object %>
       <%= render "form", form: form %>
       <div class="dd-form-actions">

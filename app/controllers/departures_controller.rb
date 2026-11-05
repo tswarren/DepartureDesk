@@ -3,7 +3,8 @@ class DeparturesController < ApplicationController
 
   before_action :require_departure_view!
   before_action :require_departure_management!, except: %i[index show]
-  before_action :set_departure, only: %i[show edit update activate]
+  before_action :set_departure, only: %i[show edit update]
+  before_action :refuse_departed_edit, only: %i[edit update]
 
   def index
     @status = params[:status].presence || "all"
@@ -12,8 +13,7 @@ class DeparturesController < ApplicationController
       actor: Current.agency_user,
       query: params[:q],
       status: @status,
-      responsible_office_id: params[:responsible_office_id],
-      responsible_agency_user_id: params[:responsible_agency_user_id],
+      team_member_id: params[:team_member_id],
       starts_on_from: params[:starts_on_from],
       starts_on_to: params[:starts_on_to],
       ends_on_from: params[:ends_on_from],
@@ -68,16 +68,12 @@ class DeparturesController < ApplicationController
     rescue_departure_error(error, :edit)
   end
 
-  def activate
-    ActivateDeparture.new(
-      agency: Current.agency,
-      actor: Current.agency_user,
-      departure: @departure,
-      lock_version: params[:lock_version]
-    ).call
-    redirect_to departure_path(@departure), notice: "Departure activated."
-  rescue AgencyCommand::Error => error
-    @activation_blockers = @departure.activation_blockers
-    rescue_departure_error(error, "departure_activations/show")
+  private
+
+  # DEP-43: a Departed Departure is read-only.
+  def refuse_departed_edit
+    return unless @departure.departed?
+
+    redirect_to departure_path(@departure), alert: "A departed departure cannot be edited."
   end
 end

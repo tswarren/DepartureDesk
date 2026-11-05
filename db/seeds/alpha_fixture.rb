@@ -2,8 +2,10 @@
 # for development (db/seeds.rb) and for the demonstration-case tests. All names
 # are fictional.
 #
-# Phase 1 seeds only what the app can hold today: the three suppliers and the
-# Departure. Each Slice 1 step extends this script with the records it builds.
+# Seeds what the app can hold so far: the three suppliers and the Departure,
+# which has the loading user as its default task owner, a Proceed decision
+# and the Ready to sell status (step 2). Each Slice 1 step extends this script
+# with the records it builds.
 # Loading is idempotent: records already present in the agency are reused.
 module AlphaFixture
   Result = Data.define(:agency, :actor, :suppliers, :departure)
@@ -43,9 +45,20 @@ module AlphaFixture
   private_class_method :supplier!
 
   def self.departure!(agency, actor)
-    existing = agency.departures.find_by(name: DEPARTURE_NAME)
-    return existing if existing
+    departure = agency.departures.find_by(name: DEPARTURE_NAME) || create_departure!(agency, actor)
+    if departure.decision_undecided?
+      RecordDepartureDecision.new(agency:, actor:, departure:, decision: "proceed", lock_version: departure.lock_version).call
+      departure.reload
+    end
+    if departure.draft?
+      MarkDepartureReadyToSell.new(agency:, actor:, departure:, lock_version: departure.lock_version).call
+      departure.reload
+    end
+    departure
+  end
+  private_class_method :departure!
 
+  def self.create_departure!(agency, actor)
     result = CreateDeparture.new(
       agency:,
       actor:,
@@ -55,13 +68,12 @@ module AlphaFixture
         starts_on: STARTS_ON,
         ends_on: ENDS_ON,
         time_zone: TIME_ZONE,
-        operating_currency: CURRENCY,
-        responsible_agency_user_id: actor.id
+        operating_currency: CURRENCY
       }
     ).call
     created!(result, DEPARTURE_NAME)
   end
-  private_class_method :departure!
+  private_class_method :create_departure!
 
   def self.created!(result, name)
     return result.record if result.status == :created && result.record

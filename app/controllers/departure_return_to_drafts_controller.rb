@@ -15,7 +15,7 @@ class DepartureReturnToDraftsController < ApplicationController
       reason: departure_params[:reason],
       lock_version: departure_params[:lock_version]
     ).call
-    redirect_to departure_path(@departure), notice: "Departure returned to draft."
+    redirect_to departure_path(@departure), notice: "Departure returned to Draft."
   rescue AgencyCommand::Error => error
     @departure.define_singleton_method(:reason) { departure_params[:reason] } unless @departure.respond_to?(:reason)
     @reason = departure_params[:reason]

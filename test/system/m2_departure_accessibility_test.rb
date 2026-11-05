@@ -45,7 +45,7 @@ class M2DepartureAccessibilityTest < ApplicationSystemTestCase
     assert_equal "status", focused_name
     assert_visible_focus
     page.send_keys(:tab)
-    assert_equal "responsible_office_id", focused_name
+    assert_equal "team_member_id", focused_name
     assert_visible_focus
 
     visit new_departure_path

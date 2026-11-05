@@ -9,17 +9,17 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     assert_equal Date.new(2027, 11, 6), celebrity.departure.starts_on
     assert_equal Date.new(2027, 11, 13), celebrity.departure.ends_on
     assert celebrity.departure.draft?
-    assert_nil celebrity.departure.departure_reference
+    assert_match Departure::REFERENCE_FORMAT, celebrity.departure.departure_reference
     assert_equal celebrity.directory.agency.default_currency, celebrity.fixture_operating_currency
     assert_equal celebrity.directory.agency.default_timezone, celebrity.fixture_time_zone
-    assert_equal celebrity.directory.agency.offices.sole.id, celebrity.fixture_responsible_office.id
-    assert_equal celebrity.directory.actor.id, celebrity.fixture_responsible_agency_user.id
+    assert_equal celebrity.directory.actor, celebrity.fixture_default_task_owner
+    assert_equal celebrity.directory.actor, celebrity.departure.default_task_owner
 
     assert_equal "Vineyard Tour", vineyard.departure.name
     assert_equal Date.new(2027, 6, 5), vineyard.departure.starts_on
     assert_equal Date.new(2027, 6, 7), vineyard.departure.ends_on
     assert vineyard.departure.draft?
-    assert_nil vineyard.departure.departure_reference
+    assert_match Departure::REFERENCE_FORMAT, vineyard.departure.departure_reference
     assert_not_equal celebrity.directory.agency.id, vineyard.directory.agency.id
 
     assert_equal 1, celebrity.directory.agency.departures.count
@@ -37,14 +37,14 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     actor = shell.directory.actor
     agency = shell.directory.agency
 
-    activated = ActivateDeparture.new(agency:, actor:, departure:, lock_version: departure.lock_version).call.record
+    activated = MarkDepartureReadyToSell.new(agency:, actor:, departure:, lock_version: departure.lock_version).call.record
     assert_equal "DEP-0001", activated.departure_reference
     returned = ReturnDepartureToDraft.new(
       agency:, actor:, departure: activated, reason: "Hold the sailing", lock_version: activated.lock_version
     ).call.record
-    assert_equal "draft", returned.status
+    assert_equal "not_on_sale", returned.summary_label
     assert_equal "DEP-0001", returned.departure_reference
-    reactivated = ActivateDeparture.new(agency:, actor:, departure: returned, lock_version: returned.lock_version).call.record
+    reactivated = MarkDepartureReadyToSell.new(agency:, actor:, departure: returned, lock_version: returned.lock_version).call.record
     assert_equal "DEP-0001", reactivated.departure_reference
     assert_equal 1, agency.departures.where.not(departure_reference: nil).count
   end

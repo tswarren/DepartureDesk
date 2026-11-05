@@ -33,5 +33,5 @@ if Rails.env.development?
   alpha = AlphaFixture.load!(agency:, actor: administrator)
   puts "Alpha fixture ready:"
   alpha.suppliers.each_value { |supplier| puts "  Supplier: #{supplier.display_name} (#{supplier.supplier_reference})" }
-  puts "  Departure: #{alpha.departure.name} (#{alpha.departure.status})"
+  puts "  Departure: #{alpha.departure.name} #{alpha.departure.departure_reference} (#{alpha.departure.summary_label_text})"
 end

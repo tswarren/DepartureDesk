@@ -1,6 +1,8 @@
-class ActivateDeparture < AgencyCommand
+# Sets a Departure's sales status to Ready to sell (DEP-06). Needs Departure
+# management and the fields a sale depends on (dates, currency, time zone);
+# nothing about viability is checked.
+class MarkDepartureReadyToSell < AgencyCommand
   include DepartureCommandSupport
-  include DepartureReferenceIssuance
 
   def initialize(agency:, actor:, departure:, lock_version:)
     @agency = agency
@@ -15,40 +17,28 @@ class ActivateDeparture < AgencyCommand
     ActiveRecord::Base.transaction do
       lock_authorized_agency!(:manage_departures)
       departure = lock_departure!
-      return Result.new(status: :noop, record: departure) if departure.active?
       if departure.departed?
-        raise Error.new("A departed departure cannot be activated.", code: :invalid_state)
+        raise Error.new("A departed departure cannot be marked Ready to sell.", code: :invalid_state)
       end
-      unless departure.draft?
-        raise Error.new("That departure cannot be activated.", code: :invalid_state)
-      end
+      return Result.new(status: :noop, record: departure) if departure.ready_to_sell?
 
       ensure_current_lock_version!(departure)
-      user = lock_agency_user!(departure.responsible_agency_user)
-      ensure_activation_complete!(departure, user)
+      ensure_ready_to_sell_complete!(departure)
 
-      first_activation = departure.departure_reference.blank?
-      if first_activation
-        departure.departure_reference = issue_departure_reference!(@agency)
-        departure.first_activated_at = Time.current
-      end
-      departure.status = "active"
+      departure.sales_status = "ready_to_sell"
       departure.save!
       audit!(
         agency: @agency,
-        action: "departure.activated",
+        action: "departure.ready_to_sell",
         subject: departure,
         actor: @actor,
         details: {
           "departure_id" => departure.id,
           "departure_reference" => departure.departure_reference,
-          "first_activation" => first_activation,
           "starts_on" => departure.starts_on&.iso8601,
           "ends_on" => departure.ends_on&.iso8601,
           "time_zone" => departure.time_zone,
-          "operating_currency" => departure.operating_currency,
-          "responsible_office_id" => departure.responsible_office_id,
-          "responsible_agency_user_id" => departure.responsible_agency_user_id
+          "operating_currency" => departure.operating_currency
         }
       )
       Result.new(status: :updated, record: departure)
@@ -59,7 +49,7 @@ class ActivateDeparture < AgencyCommand
 
   private
 
-  def ensure_activation_complete!(departure, user)
+  def ensure_ready_to_sell_complete!(departure)
     blockers = []
     blockers << "Enter a name." if departure.name.blank?
     if departure.starts_on.blank? || departure.ends_on.blank?
@@ -69,11 +59,6 @@ class ActivateDeparture < AgencyCommand
     end
     blockers << "Enter a recognized time zone." if time_zone_invalid?(departure.time_zone)
     blockers << "Enter a supported operating currency." if currency_invalid?(departure.operating_currency)
-    if user.nil?
-      blockers << "Choose an active responsible agency user."
-    elsif !user.active?
-      raise Error.new("That agency user is not active.", code: :invalid_state)
-    end
     raise Error.new(blockers.to_sentence, code: :invalid) if blockers.any?
   end
 

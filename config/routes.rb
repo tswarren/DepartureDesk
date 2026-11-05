@@ -149,22 +149,19 @@ Rails.application.routes.draw do
   end
 
   resources :departures, only: %i[index new create show edit update] do
-    member do
-      post :activate
+    resource :ready_to_sell, only: %i[show create], controller: "departure_ready_to_sells"
+    resources :decisions, only: :create, controller: "departure_decisions"
+    # The team member id in these routes is the agency user's id.
+    resources :team_members, only: %i[create destroy], controller: "departure_team_members" do
+      collection do
+        patch :default_owner
+      end
     end
-    resource :responsibility, only: %i[edit update], controller: "departure_responsibilities"
-    resource :activation, only: :show, controller: "departure_activations"
   end
   get "departures/:id/return-to-draft", to: "departure_return_to_drafts#edit", as: :edit_departure_return_to_draft
   post "departures/:id/return-to-draft", to: "departure_return_to_drafts#create", as: :departure_return_to_draft
   get "departures/:id/departed", to: "departure_departeds#new", as: :new_departure_departed
   post "departures/:id/departed", to: "departure_departeds#create", as: :departure_departed
-  get "departures/:id/schedule/correction", to: "departure_schedule_corrections#edit", as: :edit_departure_schedule_correction
-  post "departures/:id/schedule/correction", to: "departure_schedule_corrections#create", as: :departure_schedule_correction
-  get "departures/:id/currency/correction", to: "departure_currency_corrections#edit", as: :edit_departure_currency_correction
-  post "departures/:id/currency/correction", to: "departure_currency_corrections#create", as: :departure_currency_correction
-  get "departures/:id/lifecycle/correction", to: "departure_lifecycle_corrections#edit", as: :edit_departure_lifecycle_correction
-  post "departures/:id/lifecycle/correction", to: "departure_lifecycle_corrections#create", as: :departure_lifecycle_correction
 
   root "dashboard#show"
 

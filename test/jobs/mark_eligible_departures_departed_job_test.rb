@@ -16,7 +16,7 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
         MarkEligibleDeparturesDepartedJob.perform_now
       end
     end
-    assert_equal "active", departure.reload.status
+    assert_equal "on_sale", departure.reload.summary_label
   end
 
   test "sweep skips suspended agencies and does not load inactive candidates" do
@@ -26,7 +26,7 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
       assert_no_enqueued_jobs only: MarkDepartureDepartedJob do
         MarkEligibleDeparturesDepartedJob.perform_now
       end
-      assert_equal "active", departure.reload.status
+      assert_equal "on_sale", departure.reload.summary_label
     ensure
       @agency.update!(status: "active")
     end
@@ -74,8 +74,8 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
       perform_enqueued_jobs only: MarkDepartureDepartedJob do
         MarkEligibleDeparturesDepartedJob.perform_now
       end
-      assert_equal "departed", kept.reload.status
-      assert_equal "active", skipped.reload.status
+      assert_equal "departed", kept.reload.summary_label
+      assert_equal "on_sale", skipped.reload.summary_label
     ensure
       skipped_shell.directory.agency.update!(status: "active")
     end
@@ -92,12 +92,10 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
         starts_on: Date.new(2026, 6, 1),
         ends_on: Date.new(2026, 6, 8),
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: shell.fixture_responsible_office.id,
-        responsible_agency_user_id: shell.directory.actor.id
+        operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(
+    MarkDepartureReadyToSell.new(
       agency: shell.directory.agency, actor: shell.directory.actor, departure:, lock_version: departure.lock_version
     ).call.record
   end
@@ -111,11 +109,9 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
         starts_on: Date.new(2026, 6, 1),
         ends_on: Date.new(2026, 6, 8),
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @admin.id
+        operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
   end
 end

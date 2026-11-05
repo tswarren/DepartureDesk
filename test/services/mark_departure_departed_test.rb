@@ -17,13 +17,13 @@ class MarkDepartureDepartedTest < ActiveSupport::TestCase
       ).call
       departure.reload
       assert_equal :updated, result.status
-      assert_equal "departed", departure.status
+      assert_equal "departed", departure.summary_label
       assert_equal Time.current, departure.departed_at
       event = AuditEvent.find_by!(agency: @agency, action: "departure.departed", subject_id: departure.id)
       assert_equal "agency_user", event.actor_kind
       assert_equal @staff.id, event.actor_agency_user_id
       assert_equal "active", event.details["prior_status"]
-      assert_equal "departed", event.details["status"]
+      assert_equal "departed", event.details["completion_status"]
     end
   end
 
@@ -68,7 +68,7 @@ class MarkDepartureDepartedTest < ActiveSupport::TestCase
       agency: @agency, departure: future, actor_kind: :system, actor_identifier: MarkDepartureDeparted::SYSTEM_ACTOR_IDENTIFIER
     ).call
     assert_equal :noop, system_future.status
-    assert_equal "active", future.reload.status
+    assert_equal "on_sale", future.reload.summary_label
 
     draft = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Draft Race" }).call.record
     user_draft = assert_raises(AgencyCommand::Error) do
@@ -128,11 +128,9 @@ class MarkDepartureDepartedTest < ActiveSupport::TestCase
         starts_on:,
         ends_on:,
         time_zone: "America/New_York",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @admin.id
+        operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
   end
 end

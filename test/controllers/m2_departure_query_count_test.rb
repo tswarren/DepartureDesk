@@ -94,9 +94,7 @@ class M2DepartureQueryCountTest < ActionDispatch::IntegrationTest
         starts_on:,
         ends_on: starts_on + 7,
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: @shell.fixture_responsible_office.id,
-        responsible_agency_user_id: @shell.directory.actor.id
+        operating_currency: "USD"
       }
     ).call
   end

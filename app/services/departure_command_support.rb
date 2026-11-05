@@ -94,6 +94,24 @@ module DepartureCommandSupport
     raise AgencyCommand::Error.new("Enter a recognized time zone.", code: :invalid)
   end
 
+  # A whole number of days, or nil when blank so the agency default applies.
+  def normalize_days(value, label, minimum:)
+    text = value.to_s.strip
+    return if text.empty?
+    unless text.match?(/\A\d+\z/) && text.to_i >= minimum
+      raise AgencyCommand::Error.new("#{label} must be a whole number of days, #{minimum} or more.", code: :invalid)
+    end
+
+    text.to_i
+  end
+
+  def normalize_overrides
+    {
+      hold_duration_days: normalize_days(raw_attribute(:hold_duration_days), "Client hold duration", minimum: 1),
+      installment_buffer_days: normalize_days(raw_attribute(:installment_buffer_days), "Buffer before supplier deadlines", minimum: 0)
+    }
+  end
+
   def normalize_currency(value)
     code = value.to_s.strip.upcase.presence
     return if code.blank?
@@ -120,15 +138,6 @@ module DepartureCommandSupport
     [ start_date, end_date ]
   end
 
-  def resolve_office!(id)
-    uuid = parse_optional_uuid(id, "Office")
-    return if uuid.blank?
-    office = @agency.offices.find_by(id: uuid)
-    raise AgencyCommand::Error.new("That office was not found.", code: :not_found) if office.nil?
-
-    office
-  end
-
   def resolve_agency_user!(id)
     uuid = parse_optional_uuid(id, "Agency user")
     return if uuid.blank?
@@ -137,12 +146,6 @@ module DepartureCommandSupport
     raise AgencyCommand::Error.new("Choose an Agency Admin or Staff user.", code: :invalid) if user.reseller?
 
     user
-  end
-
-  def lock_office!(office)
-    return if office.nil?
-
-    @agency.offices.lock.find(office.id)
   end
 
   def lock_agency_user!(user)
@@ -179,9 +182,6 @@ module DepartureCommandSupport
     end
     if attrs[:operating_currency].blank?
       raise AgencyCommand::Error.new("Enter a supported operating currency.", code: :invalid)
-    end
-    if departure.responsible_agency_user_id.blank?
-      raise AgencyCommand::Error.new("Active and departed departures require a responsible agency user.", code: :invalid)
     end
   end
 
