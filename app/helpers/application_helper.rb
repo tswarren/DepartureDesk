@@ -400,14 +400,20 @@ module ApplicationHelper
     IANA_TIMEZONE_IDENTIFIERS
   end
 
-  def departure_status_badge(status)
-    modifier = case status.to_s
-    when "active" then "success"
-    when "departed" then "info"
+  # DEP-04: the derived label, as text plus color (D-69).
+  def departure_label_badge(departure)
+    modifier = case departure.summary_label
+    when "on_sale" then "success"
+    when "departed", "superseded" then "info"
+    when "cancelling", "postponed" then "warning"
+    when "cancelled" then "danger"
     else "neutral"
     end
+    status_badge(departure.summary_label_text, modifier:)
+  end
 
-    status_badge(status.to_s.titleize, modifier:)
+  def departure_label_filter_options
+    [ [ "All", "all" ] ] + Departure::SUMMARY_LABELS.map { |key, text| [ text, key ] }
   end
 
   def departure_office_options(departure)

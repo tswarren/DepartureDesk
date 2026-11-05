@@ -26,8 +26,8 @@ class CorrectDepartureLifecycle < AgencyCommand
         raise Error.new("That departure cannot return to active because its start date is not in the future.", code: :invalid_state)
       end
 
-      prior_status = departure.status
-      departure.update!(status: "active", departed_at: nil)
+      prior_status = departure.completion_status
+      departure.update!(completion_status: "active", departed_at: nil)
       audit!(
         agency: @agency,
         action: "departure.lifecycle_corrected",
@@ -38,7 +38,7 @@ class CorrectDepartureLifecycle < AgencyCommand
           "departure_reference" => departure.departure_reference,
           "reason" => reason,
           "prior_status" => prior_status,
-          "status" => departure.status,
+          "completion_status" => departure.completion_status,
           "departed_at" => nil
         }
       )

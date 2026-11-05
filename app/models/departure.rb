@@ -1,5 +1,19 @@
 class Departure < ApplicationRecord
-  STATUSES = %w[draft active departed].freeze
+  SALES_STATUSES = %w[draft ready_to_sell].freeze
+  OPERATING_DECISIONS = %w[undecided proceed postpone cancel].freeze
+  COMPLETION_STATUSES = %w[active departed cancelled superseded].freeze
+  # DEP-04 summary labels, in the order the spec's table applies them.
+  # Reconciled arrives with reconciliation (step 11); Sales paused is not in
+  # Slice 1 (D-79).
+  SUMMARY_LABELS = {
+    "departed" => "Departed",
+    "cancelled" => "Cancelled",
+    "superseded" => "Superseded",
+    "cancelling" => "Cancelling",
+    "postponed" => "Postponed",
+    "on_sale" => "On sale",
+    "not_on_sale" => "Not on sale"
+  }.freeze
   REFERENCE_FORMAT = /\ADEP-[0-9]{4,}\z/
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
@@ -8,7 +22,9 @@ class Departure < ApplicationRecord
   belongs_to :responsible_office, class_name: "Office", optional: true
   belongs_to :responsible_agency_user, class_name: "AgencyUser", optional: true
 
-  enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
+  enum :sales_status, SALES_STATUSES.index_by(&:itself), validate: true, default: "draft", prefix: :sales
+  enum :operating_decision, OPERATING_DECISIONS.index_by(&:itself), validate: true, default: "undecided", prefix: :decision
+  enum :completion_status, COMPLETION_STATUSES.index_by(&:itself), validate: true, default: "active", prefix: :completion
 
   attr_readonly :agency_id
   attr_accessor :reason
@@ -24,11 +40,58 @@ class Departure < ApplicationRecord
   validate :dates_are_paired_and_ordered
   validate :timezone_is_iana
   validate :currency_is_known
-  validate :non_draft_completeness, unless: :draft?
+  validate :ready_to_sell_completeness, if: :sales_ready_to_sell?
 
   scope :ordered_for_index, -> {
     order(Arel.sql("starts_on ASC NULLS LAST, name_search_key ASC, id ASC"))
   }
+
+  # DEP-05: new holds and bookings are allowed only while this is true.
+  scope :on_sale, -> {
+    where(sales_status: "ready_to_sell", operating_decision: %w[undecided proceed], completion_status: "active")
+  }
+
+  # Column conditions for each #summary_label, so a label filter can use the
+  # statuses index.
+  SUMMARY_LABEL_CONDITIONS = {
+    "departed" => { completion_status: "departed" },
+    "cancelled" => { completion_status: "cancelled" },
+    "superseded" => { completion_status: "superseded" },
+    "cancelling" => { completion_status: "active", operating_decision: "cancel" },
+    "postponed" => { completion_status: "active", operating_decision: "postpone" },
+    "on_sale" => { completion_status: "active", operating_decision: %w[undecided proceed], sales_status: "ready_to_sell" },
+    "not_on_sale" => { completion_status: "active", operating_decision: %w[undecided proceed], sales_status: "draft" }
+  }.freeze
+
+  scope :with_summary_label, ->(label) { where(SUMMARY_LABEL_CONDITIONS.fetch(label.to_s)) }
+
+  def summary_label
+    return completion_status unless completion_active?
+    return "cancelling" if decision_cancel?
+    return "postponed" if decision_postpone?
+
+    sales_ready_to_sell? ? "on_sale" : "not_on_sale"
+  end
+
+  def summary_label_text
+    SUMMARY_LABELS.fetch(summary_label)
+  end
+
+  def on_sale?
+    sales_ready_to_sell? && (decision_undecided? || decision_proceed?) && completion_active?
+  end
+
+  def draft?
+    sales_draft?
+  end
+
+  def ready_to_sell?
+    sales_ready_to_sell?
+  end
+
+  def departed?
+    completion_departed?
+  end
 
   def display_reference
     departure_reference.presence || "Draft"
@@ -58,7 +121,7 @@ class Departure < ApplicationRecord
   end
 
   def eligible_to_depart?(at:)
-    active? && starts_on.present? && time_zone.present? && starts_on <= local_date(at:)
+    ready_to_sell? && completion_active? && starts_on.present? && time_zone.present? && starts_on <= local_date(at:)
   end
 
   def lifecycle_correction_allowed?(at:)
@@ -68,7 +131,7 @@ class Departure < ApplicationRecord
   def self.eligible_to_depart_relation(at:)
     joins(:agency)
       .where(agencies: { status: "active" })
-      .where(status: "active")
+      .where(sales_status: "ready_to_sell", completion_status: "active")
       .where.not(starts_on: nil)
       .where.not(time_zone: nil)
       .where("departures.starts_on <= (?::timestamptz AT TIME ZONE departures.time_zone)::date", at)
@@ -113,7 +176,7 @@ class Departure < ApplicationRecord
     blockers
   end
 
-  def non_draft_completeness
+  def ready_to_sell_completeness
     errors.add(:starts_on, "can't be blank") if starts_on.blank?
     errors.add(:ends_on, "can't be blank") if ends_on.blank?
     errors.add(:time_zone, "can't be blank") if time_zone.blank?

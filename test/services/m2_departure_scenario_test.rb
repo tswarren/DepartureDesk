@@ -42,7 +42,7 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     returned = ReturnDepartureToDraft.new(
       agency:, actor:, departure: activated, reason: "Hold the sailing", lock_version: activated.lock_version
     ).call.record
-    assert_equal "draft", returned.status
+    assert_equal "not_on_sale", returned.summary_label
     assert_equal "DEP-0001", returned.departure_reference
     reactivated = ActivateDeparture.new(agency:, actor:, departure: returned, lock_version: returned.lock_version).call.record
     assert_equal "DEP-0001", reactivated.departure_reference

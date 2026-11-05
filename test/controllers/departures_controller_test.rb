@@ -34,7 +34,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     end
     departure = @agency.departures.find_by!(name: "Harbor Week")
     assert_redirected_to departure_path(departure)
-    assert_equal "draft", departure.status
+    assert_equal "not_on_sale", departure.summary_label
 
     post departures_path, params: { departure: { name: "", time_zone: "America/Chicago" } }
     assert_response :unprocessable_entity
@@ -75,7 +75,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     post activate_departure_path(complete), params: { lock_version: complete.lock_version }
     assert_redirected_to departure_path(complete)
-    assert_equal "active", complete.reload.status
+    assert_equal "on_sale", complete.reload.summary_label
     assert_equal "DEP-0001", complete.departure_reference
   end
 
@@ -137,7 +137,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
       departure: { reason: "Need a later sailing", lock_version: departure.reload.lock_version }
     }
     assert_redirected_to departure_path(departure)
-    assert_equal "draft", departure.reload.status
+    assert_equal "not_on_sale", departure.reload.summary_label
     assert_equal "DEP-0001", departure.departure_reference
   end
 

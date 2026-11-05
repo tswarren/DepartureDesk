@@ -49,7 +49,7 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
     end
 
     departure.reload
-    assert_includes %w[draft departed], departure.status
+    assert_includes %w[not_on_sale departed], departure.summary_label
     assert_equal "DEP-0001", departure.departure_reference
     if departure.departed?
       assert_not_nil departure.departed_at
@@ -89,7 +89,7 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
     assert_equal 2, results.size
     assert_equal %i[noop updated].sort, results.map(&:status).sort
     departure.reload
-    assert_equal "departed", departure.status
+    assert_equal "departed", departure.summary_label
     assert_not_nil departure.departed_at
     assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.departed", subject_id: departure.id).count
   end
@@ -148,7 +148,7 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
     results = outcomes.grep(AgencyCommand::Result)
     assert_equal 2, results.size
     departure.reload
-    assert_equal "active", departure.status
+    assert_equal "on_sale", departure.summary_label
     assert_nil departure.departed_at
     assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.lifecycle_corrected", subject_id: departure.id).count
     assert_equal departed_audits_before, AuditEvent.where(agency_id: @agency.id, action: "departure.departed", subject_id: departure.id).count

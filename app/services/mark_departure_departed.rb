@@ -35,8 +35,8 @@ class MarkDepartureDeparted < AgencyCommand
         return Result.new(status: :noop, record: departure)
       end
 
-      prior_status = departure.status
-      departure.update!(status: "departed", departed_at: transitioned_at)
+      prior_status = departure.completion_status
+      departure.update!(completion_status: "departed", departed_at: transitioned_at)
       audit!(
         agency: @agency,
         action: "departure.departed",
@@ -47,7 +47,7 @@ class MarkDepartureDeparted < AgencyCommand
           "departure_id" => departure.id,
           "departure_reference" => departure.departure_reference,
           "prior_status" => prior_status,
-          "status" => departure.status,
+          "completion_status" => departure.completion_status,
           "starts_on" => departure.starts_on&.iso8601,
           "time_zone" => departure.time_zone,
           "departed_at" => departure.departed_at&.iso8601(6)

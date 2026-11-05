@@ -22,7 +22,7 @@
       </div>
       <div class="dd-field-group">
         <%= form.label :status, "Status", class: "dd-label" %>
-        <%= form.select :status, [ [ "All", "all" ], [ "Draft", "draft" ], [ "Active", "active" ], [ "Departed", "departed" ] ], { selected: @status }, class: "dd-field" %>
+        <%= form.select :status, departure_label_filter_options, { selected: @status }, class: "dd-field" %>
       </div>
       <% office_options = Current.agency.offices.order(:name).map { |office| [ office_choice_label(office), office.id ] } %>
       <% if office_options.any? %>
@@ -84,7 +84,7 @@
               <td class="dd-type-mono"><%= departure.display_reference %></td>
               <td><%= link_to departure.name, departure_path(departure) %></td>
               <td><%= departure.schedule_label %></td>
-              <td><%= departure_status_badge(departure.status) %></td>
+              <td><%= departure_label_badge(departure) %></td>
               <td><%= departure.responsible_office ? office_choice_label(departure.responsible_office) : "—" %></td>
               <td><%= departure.responsible_agency_user&.display_name || "—" %></td>
             </tr>

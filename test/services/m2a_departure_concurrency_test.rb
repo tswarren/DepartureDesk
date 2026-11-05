@@ -59,7 +59,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     assert_equal 2, results.size
     assert_equal %i[noop updated].sort, results.map(&:status).sort
     assert_equal 1, results.map { |result| result.record.departure_reference }.uniq.size
-    assert_equal 1, @agency.departures.where(id: departure.id, status: "active").count
+    assert_equal 1, @agency.departures.with_summary_label("on_sale").where(id: departure.id).count
     assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.activated", subject_id: departure.id).count
   end
 
@@ -111,7 +111,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
       end
     end
 
-    assert_equal "active", departure.reload.status
+    assert_equal "on_sale", departure.reload.summary_label
     assert_equal "DEP-0001", departure.departure_reference
     assert_equal "inactive", @office.reload.status
   end
@@ -147,10 +147,10 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     end
 
     departure.reload
-    if departure.active?
+    if departure.ready_to_sell?
       assert_equal "DEP-0001", departure.departure_reference
     else
-      assert_equal "draft", departure.status
+      assert_equal "not_on_sale", departure.summary_label
       assert_nil departure.departure_reference
       assert_includes outcomes.grep(AgencyCommand::Error).map(&:code), :invalid_state
     end

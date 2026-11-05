@@ -810,25 +810,29 @@ CREATE TABLE public.departures (
     operating_currency character varying(3),
     responsible_office_id uuid,
     responsible_agency_user_id uuid,
-    status character varying DEFAULT 'draft'::character varying NOT NULL,
     first_activated_at timestamp with time zone,
     departed_at timestamp with time zone,
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
     name_search_key text GENERATED ALWAYS AS (public.dd_search_normalize((name)::text)) STORED,
-    CONSTRAINT departures_activation_completeness CHECK ((((status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL) AND (responsible_agency_user_id IS NOT NULL)))),
+    sales_status character varying DEFAULT 'draft'::character varying NOT NULL,
+    operating_decision character varying DEFAULT 'undecided'::character varying NOT NULL,
+    completion_status character varying DEFAULT 'active'::character varying NOT NULL,
+    CONSTRAINT departures_completion_status CHECK (((completion_status)::text = ANY ((ARRAY['active'::character varying, 'departed'::character varying, 'cancelled'::character varying, 'superseded'::character varying])::text[]))),
     CONSTRAINT departures_date_order CHECK (((starts_on IS NULL) OR (starts_on <= ends_on))),
     CONSTRAINT departures_dates_paired CHECK (((starts_on IS NULL) = (ends_on IS NULL))),
-    CONSTRAINT departures_departed_at_pair CHECK ((((status)::text = 'departed'::text) = (departed_at IS NOT NULL))),
+    CONSTRAINT departures_departed_at_pair CHECK ((((completion_status)::text = 'departed'::text) = (departed_at IS NOT NULL))),
     CONSTRAINT departures_description CHECK (((description IS NULL) OR ((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 2000)))),
     CONSTRAINT departures_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT departures_name CHECK (((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
-    CONSTRAINT departures_non_draft_has_reference CHECK ((((status)::text = 'draft'::text) OR ((departure_reference IS NOT NULL) AND (first_activated_at IS NOT NULL)))),
+    CONSTRAINT departures_non_draft_has_reference CHECK (((((sales_status)::text = 'draft'::text) AND ((completion_status)::text = 'active'::text)) OR ((departure_reference IS NOT NULL) AND (first_activated_at IS NOT NULL)))),
     CONSTRAINT departures_operating_currency CHECK (((operating_currency IS NULL) OR ((operating_currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT departures_operating_decision CHECK (((operating_decision)::text = ANY ((ARRAY['undecided'::character varying, 'proceed'::character varying, 'postpone'::character varying, 'cancel'::character varying])::text[]))),
+    CONSTRAINT departures_ready_to_sell_completeness CHECK ((((sales_status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL) AND (responsible_agency_user_id IS NOT NULL)))),
     CONSTRAINT departures_reference_activation_pair CHECK (((departure_reference IS NULL) = (first_activated_at IS NULL))),
     CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^DEP-[0-9]{4,}$'::text))),
-    CONSTRAINT departures_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('departed'::character varying)::text])))
+    CONSTRAINT departures_sales_status CHECK (((sales_status)::text = ANY ((ARRAY['draft'::character varying, 'ready_to_sell'::character varying])::text[])))
 );
 
 
@@ -2100,10 +2104,10 @@ CREATE INDEX index_departures_on_agency_starts_on_name_id ON public.departures U
 
 
 --
--- Name: index_departures_on_agency_status_starts_on_id; Type: INDEX; Schema: public; Owner: -
+-- Name: index_departures_on_agency_statuses_starts_on_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_departures_on_agency_status_starts_on_id ON public.departures USING btree (agency_id, status, starts_on, id);
+CREATE INDEX index_departures_on_agency_statuses_starts_on_id ON public.departures USING btree (agency_id, completion_status, sales_status, starts_on, id);
 
 
 --
@@ -3335,6 +3339,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105120000'),
 ('20261104190000'),
 ('20261104180000'),
 ('20261104170000'),

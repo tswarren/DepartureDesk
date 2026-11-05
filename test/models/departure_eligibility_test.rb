@@ -64,7 +64,7 @@ class DepartureEligibilityTest < ActiveSupport::TestCase
 
   def departed_departure(name, **schedule)
     departure = active_departure(name, **schedule)
-    Departure.where(id: departure.id).update_all(status: "departed", departed_at: Time.utc(2026, 6, 1), updated_at: Time.current)
+    Departure.where(id: departure.id).update_all(completion_status: "departed", departed_at: Time.utc(2026, 6, 1), updated_at: Time.current)
     departure.reload
   end
 end

@@ -4,7 +4,7 @@ class SearchDepartures
   Outcome = Data.define(:records, :truncated)
   LIMIT = 50
   FETCH_LIMIT = LIMIT + 1
-  STATUSES = %w[draft active departed all].freeze
+  STATUSES = (Departure::SUMMARY_LABELS.keys + %w[all]).freeze
   DEFAULT_ORDER = Arel.sql("search_rank ASC, starts_on ASC NULLS LAST, name_search_key ASC, id ASC").freeze
 
   def self.call(**kwargs)
@@ -51,7 +51,7 @@ class SearchDepartures
 
   def filtered
     scope = @agency.departures.preload(:responsible_office, :responsible_agency_user)
-    scope = scope.where(status: @status) unless @status == "all"
+    scope = scope.with_summary_label(@status) unless @status == "all"
     office = resolve_filter_office
     user = resolve_filter_user
     scope = scope.where(responsible_office_id: office.id) if office

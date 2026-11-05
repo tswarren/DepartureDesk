@@ -13,7 +13,7 @@ class MarkDepartureDepartedJobTest < ActiveSupport::TestCase
     departure = eligible_active("Job Path")
     MarkDepartureDepartedJob.perform_now(agency_id: @agency.id, departure_id: departure.id)
     departure.reload
-    assert_equal "departed", departure.status
+    assert_equal "departed", departure.summary_label
     event = AuditEvent.find_by!(action: "departure.departed", subject_id: departure.id)
     assert_equal "system", event.actor_kind
     assert_equal "departures.mark_departed", event.actor_identifier
@@ -31,7 +31,7 @@ class MarkDepartureDepartedJobTest < ActiveSupport::TestCase
         @agency.update!(status: "active")
       end
     end
-    assert_equal "active", departure.reload.status
+    assert_equal "on_sale", departure.reload.summary_label
   end
 
   test "unexpected invalid errors are logged with identifiers and are not audited" do

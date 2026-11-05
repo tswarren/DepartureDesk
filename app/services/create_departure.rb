@@ -28,8 +28,7 @@ class CreateDeparture < AgencyCommand
         time_zone: attrs[:time_zone],
         operating_currency: attrs[:operating_currency],
         responsible_office: locked_office,
-        responsible_agency_user: locked_user,
-        status: "draft"
+        responsible_agency_user: locked_user
       )
       audit!(
         agency: @agency,
@@ -92,7 +91,9 @@ class CreateDeparture < AgencyCommand
   def audit_details(departure)
     {
       "departure_id" => departure.id,
-      "status" => departure.status,
+      "sales_status" => departure.sales_status,
+      "operating_decision" => departure.operating_decision,
+      "completion_status" => departure.completion_status,
       "name" => departure.name,
       "starts_on" => departure.starts_on&.iso8601,
       "ends_on" => departure.ends_on&.iso8601,

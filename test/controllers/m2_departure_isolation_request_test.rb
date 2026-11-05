@@ -57,7 +57,7 @@ class M2DepartureIsolationRequestTest < ActionDispatch::IntegrationTest
     }
     assert_response :not_found
     assert_equal "Celebrity Beyond Isolation", foreign.reload.name
-    assert_equal "draft", foreign.status
+    assert_equal "not_on_sale", foreign.summary_label
   end
 
   test "staff without departure management browses home departures and cannot mutate" do

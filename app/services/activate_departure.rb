@@ -15,13 +15,10 @@ class ActivateDeparture < AgencyCommand
     ActiveRecord::Base.transaction do
       lock_authorized_agency!(:manage_departures)
       departure = lock_departure!
-      return Result.new(status: :noop, record: departure) if departure.active?
       if departure.departed?
         raise Error.new("A departed departure cannot be activated.", code: :invalid_state)
       end
-      unless departure.draft?
-        raise Error.new("That departure cannot be activated.", code: :invalid_state)
-      end
+      return Result.new(status: :noop, record: departure) if departure.ready_to_sell?
 
       ensure_current_lock_version!(departure)
       user = lock_agency_user!(departure.responsible_agency_user)
@@ -32,7 +29,7 @@ class ActivateDeparture < AgencyCommand
         departure.departure_reference = issue_departure_reference!(@agency)
         departure.first_activated_at = Time.current
       end
-      departure.status = "active"
+      departure.sales_status = "ready_to_sell"
       departure.save!
       audit!(
         agency: @agency,

@@ -16,7 +16,7 @@ class DepartureCorrectionsTest < ActiveSupport::TestCase
       reason: "Printed dates were wrong", lock_version: departure.lock_version
     ).call
     departure.reload
-    assert_equal "departed", departure.status
+    assert_equal "departed", departure.summary_label
     assert_equal Date.new(2027, 1, 10), departure.starts_on
     assert_equal "UTC", departure.time_zone
     event = AuditEvent.find_by!(action: "departure.schedule_corrected", subject_id: departure.id)
@@ -85,7 +85,7 @@ class DepartureCorrectionsTest < ActiveSupport::TestCase
       agency: @agency, actor: @admin, departure:, reason: "Marked departed too soon", lock_version: departure.reload.lock_version
     ).call
     departure.reload
-    assert_equal "active", departure.status
+    assert_equal "on_sale", departure.summary_label
     assert_nil departure.departed_at
     assert_equal "DEP-0001", departure.departure_reference
     event = AuditEvent.find_by!(action: "departure.lifecycle_corrected", subject_id: departure.id)
@@ -108,7 +108,7 @@ class DepartureCorrectionsTest < ActiveSupport::TestCase
       starts_on: Date.new(2099, 4, 1), ends_on: Date.new(2099, 4, 8), time_zone: departure.time_zone,
       reason: "Moved to next year", lock_version: departure.lock_version
     ).call
-    assert_equal "departed", departure.reload.status
+    assert_equal "departed", departure.reload.summary_label
     assert_not_nil departure.departed_at
     assert_equal 0, AuditEvent.where(action: "departure.lifecycle_corrected", subject_id: departure.id).count
   end

@@ -13,7 +13,7 @@
       <%= link_to "Edit responsibility", edit_departure_responsibility_path(@departure), class: "dd-button dd-button--quiet" %>
       <% if @departure.draft? %>
         <%= link_to "Activate", departure_activation_path(@departure), class: "dd-button dd-button--quiet" %>
-      <% elsif @departure.active? %>
+      <% elsif @departure.completion_active? %>
         <%= link_to "Return to draft", edit_departure_return_to_draft_path(@departure), class: "dd-button dd-button--quiet" %>
         <% if @departure.eligible_to_depart?(at: Time.current) %>
           <%= link_to "Mark departed", new_departure_departed_path(@departure), class: "dd-button dd-button--quiet" %>
@@ -34,7 +34,7 @@
     <dl class="dd-definition-list">
       <div>
         <dt>Status</dt>
-        <dd><%= departure_status_badge(@departure.status) %></dd>
+        <dd><%= departure_label_badge(@departure) %></dd>
       </div>
       <div>
         <dt>Reference</dt>

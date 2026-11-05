@@ -16,7 +16,7 @@ class DeparturesTest < ApplicationSystemTestCase
 
     assert_text "Departure saved."
     assert_text "Harbor Reunion"
-    assert_text "Draft"
+    assert_text "Not on sale"
 
     click_link "Activate"
     assert_selector "h1.dd-page-title", exact_text: "Activate departure"
@@ -24,7 +24,7 @@ class DeparturesTest < ApplicationSystemTestCase
 
     assert_text "Departure activated."
     assert_text "DEP-0001"
-    assert_text "Active"
+    assert_text "On sale"
 
     click_link "Return to draft"
     fill_in "Reason", with: "Hold for a later sailing"
@@ -32,7 +32,7 @@ class DeparturesTest < ApplicationSystemTestCase
 
     assert_text "Departure returned to draft."
     assert_text "DEP-0001"
-    assert_text "Draft"
+    assert_text "Not on sale"
   end
 
   test "invalid create preserves submitted values in the error summary" do
@@ -58,7 +58,7 @@ class DeparturesTest < ApplicationSystemTestCase
     assert_text "Viewer Cruise"
     assert_no_text "New Departure"
     click_link "Viewer Cruise"
-    assert_text "Draft"
+    assert_text "Not on sale"
     assert_no_text "Edit departure"
     assert_no_text "Activate"
   end

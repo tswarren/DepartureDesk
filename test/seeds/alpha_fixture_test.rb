@@ -33,7 +33,7 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal Date.new(2027, 11, 13), departure.ends_on
     assert_equal "America/New_York", departure.time_zone
     assert_equal "USD", departure.operating_currency
-    assert_equal "draft", departure.status
+    assert_equal "not_on_sale", departure.summary_label
     assert_nil departure.responsible_office
     assert_equal @actor, departure.responsible_agency_user
   end

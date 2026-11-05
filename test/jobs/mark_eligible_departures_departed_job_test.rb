@@ -16,7 +16,7 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
         MarkEligibleDeparturesDepartedJob.perform_now
       end
     end
-    assert_equal "active", departure.reload.status
+    assert_equal "on_sale", departure.reload.summary_label
   end
 
   test "sweep skips suspended agencies and does not load inactive candidates" do
@@ -26,7 +26,7 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
       assert_no_enqueued_jobs only: MarkDepartureDepartedJob do
         MarkEligibleDeparturesDepartedJob.perform_now
       end
-      assert_equal "active", departure.reload.status
+      assert_equal "on_sale", departure.reload.summary_label
     ensure
       @agency.update!(status: "active")
     end
@@ -74,8 +74,8 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
       perform_enqueued_jobs only: MarkDepartureDepartedJob do
         MarkEligibleDeparturesDepartedJob.perform_now
       end
-      assert_equal "departed", kept.reload.status
-      assert_equal "active", skipped.reload.status
+      assert_equal "departed", kept.reload.summary_label
+      assert_equal "on_sale", skipped.reload.summary_label
     ensure
       skipped_shell.directory.agency.update!(status: "active")
     end

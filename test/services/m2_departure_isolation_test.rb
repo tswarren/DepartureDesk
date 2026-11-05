@@ -75,8 +75,8 @@ class M2DepartureIsolationTest < ActiveSupport::TestCase
         departure_id: SecureRandom.uuid
       )
     end
-    assert_equal "draft", @primary.departure.reload.status
-    assert_equal "draft", @companion.departure.reload.status
+    assert_equal "not_on_sale", @primary.departure.reload.summary_label
+    assert_equal "not_on_sale", @companion.departure.reload.summary_label
   ensure
     Current.reset
   end
@@ -95,10 +95,10 @@ class M2DepartureIsolationTest < ActiveSupport::TestCase
         departure_id: eligible.id
       )
     end
-    assert_equal "departed", eligible.reload.status
+    assert_equal "departed", eligible.reload.summary_label
     event = AuditEvent.find_by!(agency_id: @primary.directory.agency.id, action: "departure.departed", subject_id: eligible.id)
     assert_equal "system", event.actor_kind
-    assert_equal "draft", @companion.departure.reload.status
+    assert_equal "not_on_sale", @companion.departure.reload.summary_label
   ensure
     Current.reset
   end

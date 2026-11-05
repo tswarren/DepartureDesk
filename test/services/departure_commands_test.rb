@@ -20,7 +20,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
       attributes: { name: "Copied Defaults" }
     ).call.record
 
-    assert_equal "draft", departure.status
+    assert_equal "not_on_sale", departure.summary_label
     assert_nil departure.departure_reference
     assert_nil departure.responsible_office_id
     assert_equal @admin.id, departure.responsible_agency_user_id
@@ -108,7 +108,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     departure = create_complete_draft("Caribbean Week")
     activated = ActivateDeparture.new(agency: @agency, actor: @staff, departure:, lock_version: departure.lock_version).call.record
 
-    assert_equal "active", activated.status
+    assert_equal "on_sale", activated.summary_label
     assert_equal "DEP-0001", activated.departure_reference
     first_activated_at = activated.reload.first_activated_at
     assert_not_nil first_activated_at
@@ -117,7 +117,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     returned = ReturnDepartureToDraft.new(
       agency: @agency, actor: @staff, departure: activated, reason: "Need another date", lock_version: activated.lock_version
     ).call.record
-    assert_equal "draft", returned.status
+    assert_equal "not_on_sale", returned.summary_label
     assert_equal "DEP-0001", returned.departure_reference
     assert_equal first_activated_at, returned.first_activated_at
     returned.update!(starts_on: nil, ends_on: nil)
@@ -204,7 +204,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_empty departure.activation_blockers
 
     activated = activate_departure!(departure)
-    assert_equal "active", activated.status
+    assert_equal "on_sale", activated.summary_label
     assert_nil activated.responsible_office_id
   end
 
@@ -213,7 +213,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     ChangeOfficeStatus.new(office: @office, actor: @admin, status: "inactive", lock_version: @office.lock_version).call
 
     activated = activate_departure!(departure.reload)
-    assert_equal "active", activated.status
+    assert_equal "on_sale", activated.summary_label
     assert_equal @office.id, activated.responsible_office_id
   end
 
@@ -254,7 +254,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     ChangeOfficeStatus.new(office: @office, actor: @admin, status: "inactive", lock_version: @office.lock_version).call
 
     departure.reload
-    assert_equal "active", departure.status
+    assert_equal "on_sale", departure.summary_label
     assert_equal "DEP-0001", departure.departure_reference
     assert_equal @office.id, departure.responsible_office_id
     assert_equal "inactive", @office.reload.status
@@ -441,7 +441,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
   end
 
   def mark_departed!(departure)
-    Departure.where(id: departure.id).update_all(status: "departed", departed_at: Time.current, updated_at: Time.current)
+    Departure.where(id: departure.id).update_all(completion_status: "departed", departed_at: Time.current, updated_at: Time.current)
     departure.reload
   end
 end

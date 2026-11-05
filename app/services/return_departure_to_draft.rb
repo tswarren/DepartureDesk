@@ -21,13 +21,10 @@ class ReturnDepartureToDraft < AgencyCommand
       if departure.departed?
         raise Error.new("A departed departure cannot return to draft.", code: :invalid_state)
       end
-      unless departure.active?
-        raise Error.new("That departure cannot return to draft.", code: :invalid_state)
-      end
 
       ensure_current_lock_version!(departure)
       reason = normalized_reason
-      departure.update!(status: "draft")
+      departure.update!(sales_status: "draft")
       audit!(
         agency: @agency,
         action: "departure.returned_to_draft",

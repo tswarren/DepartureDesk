@@ -15,7 +15,7 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     post departure_departed_path(departure), params: { departure: { lock_version: departure.lock_version } }
     assert_redirected_to departure_path(departure)
-    assert_equal "departed", departure.reload.status
+    assert_equal "departed", departure.reload.summary_label
     assert_equal "agency_user", AuditEvent.find_by!(action: "departure.departed", subject_id: departure.id).actor_kind
   end
 
@@ -105,7 +105,7 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
       departure: { reason: "Marked too soon", lock_version: departure.lock_version }
     }
     assert_redirected_to departure_path(departure)
-    assert_equal "active", departure.reload.status
+    assert_equal "on_sale", departure.reload.summary_label
     assert_nil departure.departed_at
   end
 
