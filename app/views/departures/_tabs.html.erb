@@ -1,0 +1,5 @@
+<%# The Departure area tabs (screen inventory: tabs are pages). Each later step adds its tab. %>
+<%# locals: (departure:, current:) -%>
+<nav class="dd-subnav" aria-label="Departure sections">
+  <%= link_to "Overview", departure_path(departure), aria: { current: ("page" if current == :overview) } %>
+</nav>

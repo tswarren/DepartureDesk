@@ -73,7 +73,7 @@ The table and paragraph below describe shipped vocabulary. Slice 1 step 1 applie
 | Session | Authentication root. It derives its agency through the agency user and does not store `agency_id`. |
 | Current office | A session preference, then the user's default office, then nil. Changing it changes no permission. |
 
-Client Person, Client Organization, Client (person-backed or organization-backed), person-owned and organization-owned contact points, organization-contact assignments, Supplier, Supplier categories, Supplier-owned contact points, Supplier Location, Supplier Contact, and Supplier Contact-owned email and phone destinations are shipped vocabulary. Departure draft, activation, reference issuance, return to draft, departed, and schedule/currency/lifecycle correction are shipped vocabulary.
+Client Person, Client Organization, Client (person-backed or organization-backed), person-owned and organization-owned contact points, organization-contact assignments, Supplier, Supplier categories, Supplier-owned contact points, Supplier Location, Supplier Contact, and Supplier Contact-owned email and phone destinations are shipped vocabulary. Since Slice 1 step 2, a Departure has three statuses (sales status Draft or Ready to sell, operating decision, completion status) and a derived summary label (DEP-03, DEP-04), a reference issued at creation (D-91), an append-only decision history, a Departure team with an optional default task owner (ACC-09, OPS-12), and optional hold-duration and installment-buffer overrides. Activation and the schedule, currency and lifecycle corrections were retired in that step.
 
 ## Invariants agents must preserve
 
@@ -88,7 +88,7 @@ These describe shipped behavior. A charter step may change one only through a de
 7. Only an active `agency_admin` counts. Suspend, close, and demotion of the last active Agency Admin are rejected after locking the agency, then the user, then rechecking the count.
 8. Suspending or closing an agency or agency user destroys affected session rows. A stale cookie is rejected and cleared only when that browser presents it.
 9. Invitation and password-reset tokens are stored as digests. Replacement and revocation invalidate the previous invitation token. Password change or reset bumps the credential version and destroys that user's sessions. A password-reset token cannot be used unless the agency is active.
-10. An agency may have zero offices. `ProvisionAgency` creates none, and `Current.office` is then nil. Commands must not require an office; a Departure activates without a responsible office. Offices carry no time zone.
+10. An agency may have zero offices. `ProvisionAgency` creates none, and `Current.office` is then nil. Commands must not require an office; a Departure has no office and is marked Ready to sell without one. Offices carry no time zone.
 11. Office selection writes only the session preference, a display default. A query parameter never authorizes and never selects an office on GET. Office selection never scopes a query for access.
 12. Load tenant records through `Current.agency`. An identifier from another agency returns not found, not forbidden.
 13. Tenant records that carry `agency_id` must prove same-agency foreign keys. Default office uses a composite foreign key `(default_office_id, agency_id)`. Database triggers reject changes to `Agency.workspace_code`, `AgencyUser.agency_id`, `Office.agency_id`, and `Office.code`. Stored email must equal `lower(btrim(email_address))`.

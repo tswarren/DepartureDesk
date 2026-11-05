@@ -1,10 +1,12 @@
 <% content_for :title, "Departures · DepartureDesk" %>
 
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", nil ] ] %>
+
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departures</p>
     <h1 class="dd-page-title">Departures</h1>
-    <p class="dd-page-description">Create and govern dated group-travel operations for this agency.</p>
+    <p class="dd-page-description">The agency's dated group trips, each with its sales, decision and completion status.</p>
   </div>
   <% if Current.agency_user.permitted?(:manage_departures) %>
     <div class="dd-page-actions">

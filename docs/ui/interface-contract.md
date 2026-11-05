@@ -67,10 +67,10 @@ Do not introduce ViewComponent, a third-party UI framework, an icon font, or per
 ## Departures
 
 - Departures is shown when the current AgencyUser has `view_departures`.
-- Index lists reference or “Draft”, name, dates, status, responsible Office, and responsible AgencyUser. Filters stay Agency-scoped and fail closed.
-- Create may propose copied Office, AgencyUser, Agency time zone, and currency defaults. Time zone is an IANA select that defaults to the Agency time zone. The user can change or clear them. Drafts may omit Office.
-- Profile shows identity, dates, time zone, currency, responsibility, lifecycle, reference, a Supplier planning panel for Arrangements (draft through ended), and a Departure-level Needs-attention rollup when supplier-planning findings exist.
-- The Supplier planning panel lists Supplier Arrangements, contracting Suppliers, lifecycle status (including `ended`), and governing version status, and links to the Arrangement workspace. Add arrangement is shown only when the current AgencyUser has `manage_departures` and the Departure is draft or active. Ended Arrangements remain readable without mutation controls. Add service from Supplier planning hangs beside Add arrangement under the same `manage_departures` plus Departure `draft`/`active` gate.
+- Index lists reference, name, dates, the derived summary label as text and color, and the default task owner. Filters (search, label, team member, date ranges) stay Agency-scoped and fail closed.
+- The form saves a Draft with dates, currency or time zone missing; the name is required. It has optional hold-duration and installment-buffer overrides whose hints show the agency default, and asks before leaving unsaved changes.
+- The overview (S-07) has breadcrumbs, a header with reference, dates and label, a Departure tab bar (Overview only until later steps add tabs), the three statuses with what blocks Ready to sell, details, the operating decision with its history, and the team panel (S-09). A Departed Departure shows no edit or status actions.
+- Ready to sell, Return to Draft and Mark departed are focused pages. Return to Draft takes an optional note.
 
 ## Client offers (draft)
 

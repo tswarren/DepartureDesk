@@ -1,6 +1,6 @@
 # Slice 1 step 2: Departure statuses and Ready to sell
 
-**Status:** Accepted 2026-11-05; build not started. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) step 2, D-90 and D-91.
+**Status:** Accepted 2026-11-05; built 2026-11-05 on branch `slice-1/step-2-departure-statuses`, in review. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) step 2, D-90 and D-91.
 
 Charter build step 2: Departure statuses, Ready to sell, publishing to a reseller channel. Workflow step 2 cites DEP-01, DEP-03 to DEP-07 and FIN-22. The charter's scope table limits Slice 1 to Draft, Ready to sell, publishing to one channel, and the operating decision Proceed. No D-case closes in this step. S-08 is the Departure part of D16, which closes in step 6.
 

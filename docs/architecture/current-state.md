@@ -31,7 +31,9 @@ DepartureDesk ships agency identity, administration, the complete M1 Client and 
 | `SupplierLocation` | Supplier-owned operational place with optional structured address, timezone, and one location-level phone. |
 | `SupplierContact` | Named person in one Supplier work context. Not a Client Person or AgencyUser. |
 | `SupplierContactEmailAddress`, `SupplierContactPhoneNumber` | Contact-owned destinations. |
-| `Departure` | Agency-owned dated operational root. M2A implements draft, activation, `D-` issuance, return to draft, and search. M2B adds departed, scheduled departed jobs, and corrections. M2C proves search, isolation, jobs, and accessibility. Travel Program is not implemented. |
+| `Departure` | Agency-owned dated operational root. Three statuses (`sales_status`, `operating_decision`, `completion_status`) with a derived summary label and `on_sale?` (DEP-03 to DEP-05); a `DEP-` reference issued at creation (D-91); Ready to sell and Return to Draft; Mark Departed and the scheduled departed sweep (until step 11, D-83); optional hold-duration and installment-buffer overrides. Travel Program is not implemented. |
+| `DepartureTeamMember` | A staff user on a Departure's team, optionally its default task owner (ACC-09, OPS-12). Grants nothing. |
+| `DepartureDecision` | Append-only operating decision history: value, who, when, note (DEP-19). |
 | `SupplierArrangement`, `SupplierArrangementVersion` | M3A draft Supplier planning root under one Departure, with a stable Arrangement identity and initial draft version. Versions are not activated yet. |
 | `ArrangementItem`, `ArrangementItemDefinition` | Stable Item identity plus draft-version definition for name, category, description, default service provider, ordering, and M3B `capacity_management` applicability. |
 | `ArrangementItemSetupResult` | Narrow M3D.0 idempotency association from one guided Item setup key to its exact Item and optional first Occurrence and Resource; composite ownership foreign keys constrain both children to that Item and Agency. |

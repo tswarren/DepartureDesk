@@ -1,5 +1,7 @@
 <% content_for :title, "Mark #{@departure.name} departed · DepartureDesk" %>
 
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Mark departed", nil ] ] %>
+
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departures</p>
