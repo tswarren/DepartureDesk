@@ -23,7 +23,7 @@ class DeparturesTest < ApplicationSystemTestCase
     click_button "Activate departure"
 
     assert_text "Departure activated."
-    assert_text "D-000001"
+    assert_text "DEP-0001"
     assert_text "Active"
 
     click_link "Return to draft"
@@ -31,7 +31,7 @@ class DeparturesTest < ApplicationSystemTestCase
     click_button "Return to draft"
 
     assert_text "Departure returned to draft."
-    assert_text "D-000001"
+    assert_text "DEP-0001"
     assert_text "Draft"
   end
 

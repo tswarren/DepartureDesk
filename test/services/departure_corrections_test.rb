@@ -87,7 +87,7 @@ class DepartureCorrectionsTest < ActiveSupport::TestCase
     departure.reload
     assert_equal "active", departure.status
     assert_nil departure.departed_at
-    assert_equal "D-000001", departure.departure_reference
+    assert_equal "DEP-0001", departure.departure_reference
     event = AuditEvent.find_by!(action: "departure.lifecycle_corrected", subject_id: departure.id)
     assert_equal "departed", event.details["prior_status"]
     assert_nil event.details["departed_at"]

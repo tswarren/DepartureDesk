@@ -76,7 +76,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     post activate_departure_path(complete), params: { lock_version: complete.lock_version }
     assert_redirected_to departure_path(complete)
     assert_equal "active", complete.reload.status
-    assert_equal "D-000001", complete.departure_reference
+    assert_equal "DEP-0001", complete.departure_reference
   end
 
   test "staff without departure management can browse but cannot mutate or open editors" do
@@ -138,7 +138,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     }
     assert_redirected_to departure_path(departure)
     assert_equal "draft", departure.reload.status
-    assert_equal "D-000001", departure.departure_reference
+    assert_equal "DEP-0001", departure.departure_reference
   end
 
   test "clearing required fields on an active departure preserves the form" do

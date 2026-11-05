@@ -38,14 +38,14 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     agency = shell.directory.agency
 
     activated = ActivateDeparture.new(agency:, actor:, departure:, lock_version: departure.lock_version).call.record
-    assert_equal "D-000001", activated.departure_reference
+    assert_equal "DEP-0001", activated.departure_reference
     returned = ReturnDepartureToDraft.new(
       agency:, actor:, departure: activated, reason: "Hold the sailing", lock_version: activated.lock_version
     ).call.record
     assert_equal "draft", returned.status
-    assert_equal "D-000001", returned.departure_reference
+    assert_equal "DEP-0001", returned.departure_reference
     reactivated = ActivateDeparture.new(agency:, actor:, departure: returned, lock_version: returned.lock_version).call.record
-    assert_equal "D-000001", reactivated.departure_reference
+    assert_equal "DEP-0001", reactivated.departure_reference
     assert_equal 1, agency.departures.where.not(departure_reference: nil).count
   end
 
@@ -80,7 +80,7 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     assert_match(/^- Status: Accepted/i, adr7)
     adr4 = File.read(Rails.root.join("docs/adr/0004-human-readable-references.md"))
     assert_match(/Namespace \| `departure`/, adr4)
-    assert_match(/D-%06d/, adr4)
+    assert_match(/`DEP-` and at least four digits/, adr4)
     assert_equal "departure", ReferenceSequence::DEPARTURE_NAMESPACE
     assert_nil defined?(TravelProgram)
     assert_not File.exist?(Rails.root.join("app/models/travel_program.rb"))

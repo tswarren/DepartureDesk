@@ -24,9 +24,9 @@ class ProvisionAgency < AgencyCommand
         default_timezone: @default_timezone,
         status: "active"
       )
-      agency.reference_sequences.create!(namespace: ReferenceSequence::CLIENT_NAMESPACE, next_value: 1)
-      agency.reference_sequences.create!(namespace: ReferenceSequence::SUPPLIER_NAMESPACE, next_value: 1)
-      agency.reference_sequences.create!(namespace: ReferenceSequence::DEPARTURE_NAMESPACE, next_value: 1)
+      ReferenceSequence::NAMESPACES.each do |namespace|
+        agency.reference_sequences.create!(namespace:, next_value: 1)
+      end
       administrator = agency.agency_users.create!(
         email_address: @administrator_email,
         first_name: @administrator_first_name,

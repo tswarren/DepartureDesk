@@ -714,7 +714,7 @@ CREATE TABLE public.clients (
 CREATE TABLE public.departures (
     id uuid DEFAULT uuidv7() NOT NULL,
     agency_id uuid NOT NULL,
-    departure_reference character varying(8),
+    departure_reference character varying,
     name character varying(160) NOT NULL,
     description character varying(2000),
     starts_on date,
@@ -740,7 +740,7 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_non_draft_has_reference CHECK ((((status)::text = 'draft'::text) OR ((departure_reference IS NOT NULL) AND (first_activated_at IS NOT NULL)))),
     CONSTRAINT departures_operating_currency CHECK (((operating_currency IS NULL) OR ((operating_currency)::text ~ '^[A-Z]{3}$'::text))),
     CONSTRAINT departures_reference_activation_pair CHECK (((departure_reference IS NULL) = (first_activated_at IS NULL))),
-    CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^D-[0-9]{6}$'::text))),
+    CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^DEP-[0-9]{4,}$'::text))),
     CONSTRAINT departures_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('departed'::character varying)::text])))
 );
 
@@ -776,8 +776,8 @@ CREATE TABLE public.reference_sequences (
     next_value bigint DEFAULT 1 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
-    CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY (ARRAY[('client'::character varying)::text, ('supplier'::character varying)::text, ('departure'::character varying)::text]))),
-    CONSTRAINT reference_sequences_next_value CHECK (((next_value >= 1) AND (next_value <= 1000000)))
+    CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY ((ARRAY['client'::character varying, 'supplier'::character varying, 'departure'::character varying, 'trip'::character varying, 'client_payment'::character varying, 'arrangement'::character varying, 'supplier_payment'::character varying, 'confirmation'::character varying, 'invoice'::character varying, 'receipt'::character varying])::text[]))),
+    CONSTRAINT reference_sequences_next_value CHECK (((next_value >= 1) AND (((namespace)::text <> ALL ((ARRAY['client'::character varying, 'supplier'::character varying])::text[])) OR (next_value <= 1000000))))
 );
 
 
@@ -3100,6 +3100,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261104160000'),
 ('20261104150000'),
 ('20261104140000'),
 ('20261104130000'),

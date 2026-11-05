@@ -112,7 +112,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     end
 
     assert_equal "active", departure.reload.status
-    assert_equal "D-000001", departure.departure_reference
+    assert_equal "DEP-0001", departure.departure_reference
     assert_equal "inactive", @office.reload.status
   end
 
@@ -148,7 +148,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
 
     departure.reload
     if departure.active?
-      assert_equal "D-000001", departure.departure_reference
+      assert_equal "DEP-0001", departure.departure_reference
     else
       assert_equal "draft", departure.status
       assert_nil departure.departure_reference

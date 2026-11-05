@@ -109,7 +109,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     activated = ActivateDeparture.new(agency: @agency, actor: @staff, departure:, lock_version: departure.lock_version).call.record
 
     assert_equal "active", activated.status
-    assert_equal "D-000001", activated.departure_reference
+    assert_equal "DEP-0001", activated.departure_reference
     first_activated_at = activated.reload.first_activated_at
     assert_not_nil first_activated_at
     assert_equal 1, AuditEvent.where(agency: @agency, action: "departure.activated", subject_id: activated.id).count
@@ -118,14 +118,14 @@ class DepartureCommandsTest < ActiveSupport::TestCase
       agency: @agency, actor: @staff, departure: activated, reason: "Need another date", lock_version: activated.lock_version
     ).call.record
     assert_equal "draft", returned.status
-    assert_equal "D-000001", returned.departure_reference
+    assert_equal "DEP-0001", returned.departure_reference
     assert_equal first_activated_at, returned.first_activated_at
     returned.update!(starts_on: nil, ends_on: nil)
     assert_nil returned.reload.starts_on
     returned.update!(starts_on: Date.new(2026, 6, 1), ends_on: Date.new(2026, 6, 8))
 
     reactivated = ActivateDeparture.new(agency: @agency, actor: @staff, departure: returned, lock_version: returned.lock_version).call.record
-    assert_equal "D-000001", reactivated.departure_reference
+    assert_equal "DEP-0001", reactivated.departure_reference
     assert_equal first_activated_at, reactivated.first_activated_at
     assert_equal 2, AuditEvent.where(agency: @agency, action: "departure.activated", subject_id: reactivated.id).count
   end
@@ -240,7 +240,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
 
     departure.reload
     assert_equal "active", departure.status
-    assert_equal "D-000001", departure.departure_reference
+    assert_equal "DEP-0001", departure.departure_reference
     assert_equal @office.id, departure.responsible_office_id
     assert_equal "inactive", @office.reload.status
   end
@@ -290,20 +290,17 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_equal @office.id, departure.reload.responsible_office_id
   end
 
-  test "activation completeness, exhaustion, and missing sequence use documented codes" do
+  test "activation completeness, widening, and missing sequence use documented codes" do
     incomplete = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Incomplete" }).call.record
     invalid = assert_raises(AgencyCommand::Error) do
       ActivateDeparture.new(agency: @agency, actor: @admin, departure: incomplete, lock_version: incomplete.lock_version).call
     end
     assert_equal :invalid, invalid.code
 
-    departure = create_complete_draft("Exhausted")
+    departure = create_complete_draft("Widened")
     @agency.reference_sequences.find_by!(namespace: ReferenceSequence::DEPARTURE_NAMESPACE)
       .update!(next_value: ReferenceSequence::EXHAUSTED_AT)
-    exhausted = assert_raises(AgencyCommand::Error) do
-      ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call
-    end
-    assert_equal :reference_exhausted, exhausted.code
+    assert_equal "DEP-1000000", activate_departure!(departure).departure_reference
 
     missing = create_complete_draft("Missing Sequence")
     @agency.reference_sequences.find_by!(namespace: ReferenceSequence::DEPARTURE_NAMESPACE).delete
@@ -335,7 +332,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
 
     identity = assert_raises(ActiveRecord::StatementInvalid) do
       Departure.transaction(requires_new: true) do
-        Departure.where(id: departure.id).update_all(departure_reference: "D-999999")
+        Departure.where(id: departure.id).update_all(departure_reference: "DEP-9999")
       end
     end
     assert_match(/departure identity is immutable/, identity.message)

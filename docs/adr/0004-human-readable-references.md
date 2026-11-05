@@ -1,6 +1,6 @@
 # ADR 0004: Human-readable references and numbering
 
-- Status: Accepted; amended 2026-09-14 for Client and Supplier references; amended 2026-09-16 for Departure references
+- Status: Accepted; amended 2026-09-14 for Client and Supplier references; amended 2026-09-16 for Departure references; amended 2026-11-04 for the Slice 1 reference types (D-84, D-89)
 - Date: 2026-09-05
 - Decision owners: DepartureDesk maintainers
 
@@ -124,7 +124,7 @@ M1 introduces the first two generated operational-reference consumers and demons
 | Concurrency | Lock `(agency_id, namespace)` sequence row | Same |
 | Retry | Existing reference consumes no number | Same |
 | `next_value` | Next unissued positive integer; a new row starts at 1 | Same |
-| Exhaustion | Issuing `1000000` fails with `reference_exhausted`; widening the format requires an amendment | Same |
+| Exhaustion | None; the number widens past four digits (D-84) | Same |
 | Import | Preserve legacy value in a separately named future external-reference record | Same |
 
 Successful creation is the consequential transition for these records. They have no persisted pre-creation draft; after creation they are searchable, selectable, auditable, and externally discussable. Assigning the reference in the creation transaction therefore does not number an abandoned draft. The slice that adopts a namespace creates its sequence rows, including a backfill for existing agencies and a row in `ProvisionAgency`. Issuance locks that existing `(agency_id, namespace)` row, assigns the formatted reference, and increments `next_value` in that same transaction. A missing row is an integrity error; issuance does not create one. Rollback does not consume the number. Idempotent replay of an already persisted create does not increment. Inactive records keep their issued numbers.
@@ -140,7 +140,7 @@ M2 adopts the same namespaced sequence for Departure. Drafts remain unreferenced
 | Attribute | Departure |
 | --- | --- |
 | Namespace | `departure` |
-| Canonical format | `D-%06d` |
+| Canonical format | `DEP-` and at least four digits, widening as needed (D-84); was `D-%06d` |
 | Scope | Agency; never Office |
 | Reset | Never |
 | Issuance | First successful activation |
@@ -154,6 +154,23 @@ M2 adopts the same namespaced sequence for Departure. Drafts remain unreferenced
 | Reactivation | Existing reference reused |
 
 A missing sequence row is an integrity error. Issuance does not create one. The slice that adopted the namespace created sequence rows, including a backfill for existing agencies and a row in `ProvisionAgency`.
+
+### Slice 1 reference types (amendment 2026-11-04)
+
+Slice 1 step 1 applies the specification's references table (REF-02, REF-03, REF-05) to the shared sequence table, with D-84 for Departures and D-89 for clients and suppliers. `ReferenceSequence::FORMATS` holds each namespace's prefix and minimum width; `ProvisionAgency` creates a row for every namespace and the step 1 migration backfills existing agencies.
+
+| Namespace | Format | Exhaustion |
+| --- | --- | --- |
+| `client` | `CL-` and six digits (D-89) | `1000000` fails with `reference_exhausted` |
+| `supplier` | `SUP-` and six digits (D-89) | `1000000` fails with `reference_exhausted` |
+| `departure` | `DEP-`, at least four digits (D-84) | None; widens |
+| `trip` | `T-`, at least five digits | None; widens |
+| `client_payment` | `PAY-`, at least five digits | None; widens |
+| `arrangement` | `ARR-`, at least four digits | None; widens |
+| `supplier_payment` | `SPY-`, at least four digits | None; widens |
+| `confirmation`, `invoice`, `receipt` | `CNF-`, `INV-`, `RCP-`, at least five digits | None; widen |
+
+Invoice and receipt numbers run without gaps (REF-05). Issuance for those namespaces refuses to run outside a transaction, so the number is issued with its record and a rollback returns it. Other namespaces keep the accepted-gaps rule above. Booking references (REF-04), document version suffixes, starting numbers (REF-07) and the search rules (REF-11 to REF-17) are decided by the steps that build those records.
 
 ### Domain decisions deferred
 

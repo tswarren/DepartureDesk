@@ -196,7 +196,7 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
         responsible_office_id: office.id,
         responsible_agency_user_id: user.id,
         status: "active",
-        departure_reference: format("D-%06d", index + 10),
+        departure_reference: format("DEP-%04d", index + 10),
         first_activated_at: now,
         lock_version: 0,
         created_at: now,

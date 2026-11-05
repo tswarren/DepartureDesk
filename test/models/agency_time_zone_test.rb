@@ -18,7 +18,7 @@ class AgencyTimeZoneTest < ActiveSupport::TestCase
 
     assert_nothing_raised do
       Departure.where(id: departure.id).update_all(
-        status: "active", departure_reference: "D-999999", first_activated_at: Time.current
+        status: "active", departure_reference: "DEP-9999", first_activated_at: Time.current
       )
     end
     assert_nil departure.reload.responsible_office_id
@@ -36,7 +36,7 @@ class AgencyTimeZoneTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::StatementInvalid) do
       Departure.transaction(requires_new: true) do
         Departure.where(id: departure.id).update_all(
-          status: "active", departure_reference: "D-999998", first_activated_at: Time.current
+          status: "active", departure_reference: "DEP-9998", first_activated_at: Time.current
         )
       end
     end

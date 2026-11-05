@@ -1,6 +1,6 @@
 class Departure < ApplicationRecord
   STATUSES = %w[draft active departed].freeze
-  REFERENCE_FORMAT = /\AD-[0-9]{6}\z/
+  REFERENCE_FORMAT = /\ADEP-[0-9]{4,}\z/
   NAME_LIMIT = 160
   DESCRIPTION_LIMIT = 2_000
 

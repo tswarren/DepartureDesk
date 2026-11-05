@@ -50,7 +50,7 @@ class M2bDepartureConcurrencyTest < ActiveSupport::TestCase
 
     departure.reload
     assert_includes %w[draft departed], departure.status
-    assert_equal "D-000001", departure.departure_reference
+    assert_equal "DEP-0001", departure.departure_reference
     if departure.departed?
       assert_not_nil departure.departed_at
       assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.departed", subject_id: departure.id).count
