@@ -70,12 +70,9 @@ class AuditEvent < ApplicationRecord
     departure.team_member_added
     departure.team_member_removed
     departure.default_task_owner_changed
-    departure.activated
+    departure.ready_to_sell
     departure.returned_to_draft
     departure.departed
-    departure.schedule_corrected
-    departure.currency_corrected
-    departure.lifecycle_corrected
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze

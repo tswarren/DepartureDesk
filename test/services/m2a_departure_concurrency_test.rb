@@ -30,7 +30,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     second = complete_draft("Race Two")
     outcomes = race(2) do |index|
       departure = index.zero? ? first : second
-      ActivateDeparture.new(
+      MarkDepartureReadyToSell.new(
         agency: Agency.find(@agency.id),
         actor: AgencyUser.find(@actor.id),
         departure: Departure.find(departure.id),
@@ -47,7 +47,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
   test "the same departure activated twice yields one transition, reference, and audit" do
     departure = complete_draft("Double Activate")
     outcomes = race(2) do
-      ActivateDeparture.new(
+      MarkDepartureReadyToSell.new(
         agency: Agency.find(@agency.id),
         actor: AgencyUser.find(@actor.id),
         departure: Departure.find(departure.id),
@@ -60,7 +60,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     assert_equal %i[noop updated].sort, results.map(&:status).sort
     assert_equal 1, results.map { |result| result.record.departure_reference }.uniq.size
     assert_equal 1, @agency.departures.with_summary_label("on_sale").where(id: departure.id).count
-    assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.activated", subject_id: departure.id).count
+    assert_equal 1, AuditEvent.where(agency_id: @agency.id, action: "departure.ready_to_sell", subject_id: departure.id).count
   end
 
   test "create versus agency suspension rechecks the locked agency" do
@@ -95,7 +95,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     departure = complete_draft("Office Race")
     race(2, allowed_error_codes: []) do |index|
       if index.zero?
-        ActivateDeparture.new(
+        MarkDepartureReadyToSell.new(
           agency: Agency.find(@agency.id),
           actor: AgencyUser.find(@actor.id),
           departure: Departure.find(departure.id),
@@ -159,7 +159,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     outcomes = race(2, allowed_error_codes: %i[conflict]) do |index|
       record = Departure.find(departure.id)
       if index.zero?
-        ActivateDeparture.new(
+        MarkDepartureReadyToSell.new(
           agency: Agency.find(@agency.id),
           actor: AgencyUser.find(@actor.id),
           departure: record,

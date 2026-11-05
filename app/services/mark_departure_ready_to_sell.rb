@@ -1,4 +1,7 @@
-class ActivateDeparture < AgencyCommand
+# Sets a Departure's sales status to Ready to sell (DEP-06). Needs Departure
+# management and the fields a sale depends on (dates, currency, time zone);
+# nothing about viability is checked.
+class MarkDepartureReadyToSell < AgencyCommand
   include DepartureCommandSupport
 
   def initialize(agency:, actor:, departure:, lock_version:)
@@ -15,18 +18,18 @@ class ActivateDeparture < AgencyCommand
       lock_authorized_agency!(:manage_departures)
       departure = lock_departure!
       if departure.departed?
-        raise Error.new("A departed departure cannot be activated.", code: :invalid_state)
+        raise Error.new("A departed departure cannot be marked Ready to sell.", code: :invalid_state)
       end
       return Result.new(status: :noop, record: departure) if departure.ready_to_sell?
 
       ensure_current_lock_version!(departure)
-      ensure_activation_complete!(departure)
+      ensure_ready_to_sell_complete!(departure)
 
       departure.sales_status = "ready_to_sell"
       departure.save!
       audit!(
         agency: @agency,
-        action: "departure.activated",
+        action: "departure.ready_to_sell",
         subject: departure,
         actor: @actor,
         details: {
@@ -46,7 +49,7 @@ class ActivateDeparture < AgencyCommand
 
   private
 
-  def ensure_activation_complete!(departure)
+  def ensure_ready_to_sell_complete!(departure)
     blockers = []
     blockers << "Enter a name." if departure.name.blank?
     if departure.starts_on.blank? || departure.ends_on.blank?

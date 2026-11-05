@@ -44,14 +44,14 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
     sign_in_as @admin
     incomplete = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Needs Dates" }).call.record
 
-    get departure_activation_path(incomplete)
+    get departure_ready_to_sell_path(incomplete)
     assert_response :success
     assert_match "Enter a start date and an end date", response.body
     assert_select "input[type=submit][value='Activate departure']", count: 0
 
     context = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Needs Context" }).call.record
     Departure.where(id: context.id).update_all(time_zone: "Not/AZone", operating_currency: nil)
-    get departure_activation_path(context)
+    get departure_ready_to_sell_path(context)
     assert_response :success
     assert_match "Enter a recognized time zone", response.body
     assert_match "Enter a supported operating currency", response.body
@@ -67,9 +67,9 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
         operating_currency: "USD"
       }
     ).call.record
-    get departure_activation_path(complete)
+    get departure_ready_to_sell_path(complete)
     assert_response :success
-    post activate_departure_path(complete), params: { lock_version: complete.lock_version }
+    post departure_ready_to_sell_path(complete), params: { lock_version: complete.lock_version }
     assert_redirected_to departure_path(complete)
     assert_equal "on_sale", complete.reload.summary_label
     assert_equal "DEP-0003", complete.departure_reference, "issued at creation, after the two drafts above (D-91)"
@@ -123,7 +123,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
         operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call
 
     get edit_departure_return_to_draft_path(departure)
     assert_response :success
@@ -148,7 +148,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
         operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call
     departure.reload
 
     {

@@ -9,7 +9,7 @@ class SearchDeparturesTest < ActiveSupport::TestCase
     CreateDeparture.new(agency: @agency, actor: @admin, attributes: complete_attrs(name: "Alpha Voyage", starts_on: Date.new(2026, 5, 1), ends_on: Date.new(2026, 5, 8))).call
     CreateDeparture.new(agency: @agency, actor: @admin, attributes: complete_attrs(name: "Beta Voyage", starts_on: Date.new(2026, 6, 1), ends_on: Date.new(2026, 6, 8))).call
     gamma = CreateDeparture.new(agency: @agency, actor: @admin, attributes: complete_attrs(name: "Gamma Voyage", starts_on: Date.new(2026, 7, 1), ends_on: Date.new(2026, 7, 8))).call.record
-    ActivateDeparture.new(agency: @agency, actor: @admin, departure: gamma, lock_version: gamma.lock_version).call
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure: gamma, lock_version: gamma.lock_version).call
     CreateDeparture.new(agency: @other, actor: agency_users(:cove_admin), attributes: { name: "Cove Secret", starts_on: Date.new(2026, 5, 1), ends_on: Date.new(2026, 5, 8) }).call
   end
 

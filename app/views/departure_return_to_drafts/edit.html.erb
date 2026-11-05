@@ -3,8 +3,8 @@
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Departures</p>
-    <h1 class="dd-page-title">Return to draft</h1>
-    <p class="dd-page-description"><%= @departure.display_reference %> remains assigned.</p>
+    <h1 class="dd-page-title">Return to Draft</h1>
+    <p class="dd-page-description"><%= @departure.display_reference %> keeps its reference, team and decision. It stops being on sale until it is marked Ready to sell again.</p>
   </div>
 </header>
 
@@ -14,11 +14,11 @@
       <%= render "shared/form_errors", object: form.object %>
       <%= form.hidden_field :lock_version %>
       <div class="dd-field-group">
-        <%= form.label :reason, "Reason", class: "dd-label" %>
-        <%= form.text_area :reason, value: @reason, maxlength: ReturnDepartureToDraft::REASON_LIMIT, required: true, class: "dd-field" %>
+        <%= form.label :reason, "Note (optional)", class: "dd-label" %>
+        <%= form.text_area :reason, value: @reason, maxlength: ReturnDepartureToDraft::REASON_LIMIT, class: "dd-field" %>
       </div>
       <div class="dd-form-actions">
-        <%= form.submit "Return to draft", class: "dd-button dd-button--danger" %>
+        <%= form.submit "Return to Draft", class: "dd-button dd-button--danger" %>
         <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>

@@ -2,7 +2,6 @@ class UpdateDeparture < AgencyCommand
   include DepartureCommandSupport
 
   EDITABLE_FIELDS = %i[name description starts_on ends_on time_zone operating_currency].freeze
-  DEPARTED_EDITABLE_FIELDS = %i[name description].freeze
 
   def initialize(agency:, actor:, departure:, attributes:, lock_version:)
     @agency = agency
@@ -20,7 +19,7 @@ class UpdateDeparture < AgencyCommand
       lock_authorized_agency!(:manage_departures)
       departure = lock_departure!
       ensure_current_lock_version!(departure)
-      reject_departed_operating_changes!(departure, attrs)
+      raise Error.new("A departed departure cannot be edited.", code: :invalid_state) if departure.departed?
       ensure_non_draft_completeness!(departure, attrs)
       return Result.new(status: :noop, record: departure) if unchanged?(departure, attrs)
 
@@ -53,17 +52,6 @@ class UpdateDeparture < AgencyCommand
       time_zone: normalize_time_zone(raw_attribute(:time_zone)),
       operating_currency: normalize_currency(raw_attribute(:operating_currency))
     }
-  end
-
-  def reject_departed_operating_changes!(departure, attrs)
-    return unless departure.departed?
-
-    forbidden = (EDITABLE_FIELDS - DEPARTED_EDITABLE_FIELDS).select do |field|
-      departure.public_send(field) != attrs[field]
-    end
-    return if forbidden.empty?
-
-    raise Error.new("That field cannot be changed after the departure has departed.", code: :invalid_state)
   end
 
   def unchanged?(departure, attrs)

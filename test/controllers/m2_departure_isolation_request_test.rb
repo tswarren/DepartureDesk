@@ -16,9 +16,9 @@ class M2DepartureIsolationRequestTest < ActionDispatch::IntegrationTest
     assert_response :not_found
     patch departure_path(foreign), params: { departure: { name: "Stolen", lock_version: foreign.lock_version } }
     assert_response :not_found
-    get departure_activation_path(foreign)
+    get departure_ready_to_sell_path(foreign)
     assert_response :not_found
-    post activate_departure_path(foreign), params: { lock_version: foreign.lock_version }
+    post departure_ready_to_sell_path(foreign), params: { lock_version: foreign.lock_version }
     assert_response :not_found
     get edit_departure_return_to_draft_path(foreign)
     assert_response :not_found
@@ -27,24 +27,6 @@ class M2DepartureIsolationRequestTest < ActionDispatch::IntegrationTest
     get new_departure_departed_path(foreign)
     assert_response :not_found
     post departure_departed_path(foreign), params: { departure: { lock_version: foreign.lock_version } }
-    assert_response :not_found
-    get edit_departure_schedule_correction_path(foreign)
-    assert_response :not_found
-    post departure_schedule_correction_path(foreign), params: {
-      departure: { starts_on: "2026-06-01", ends_on: "2026-06-08", time_zone: "UTC", reason: "no", lock_version: foreign.lock_version }
-    }
-    assert_response :not_found
-    get edit_departure_currency_correction_path(foreign)
-    assert_response :not_found
-    post departure_currency_correction_path(foreign), params: {
-      departure: { operating_currency: "EUR", reason: "no", lock_version: foreign.lock_version }
-    }
-    assert_response :not_found
-    get edit_departure_lifecycle_correction_path(foreign)
-    assert_response :not_found
-    post departure_lifecycle_correction_path(foreign), params: {
-      departure: { reason: "no", lock_version: foreign.lock_version }
-    }
     assert_response :not_found
     post departure_team_members_path(foreign), params: { team_member: { agency_user_id: @primary.directory.actor.id } }
     assert_response :not_found

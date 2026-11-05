@@ -109,7 +109,7 @@ class Departure < ApplicationRecord
     "#{starts_on.to_fs(:long)} – #{ends_on.to_fs(:long)}"
   end
 
-  def activation_blockers
+  def ready_to_sell_blockers
     blockers = []
     blockers << "Enter a name." if name.blank?
     blockers.concat(schedule_blockers)
@@ -117,8 +117,8 @@ class Departure < ApplicationRecord
     blockers
   end
 
-  def ready_to_activate?
-    activation_blockers.empty?
+  def ready_to_sell_complete?
+    ready_to_sell_blockers.empty?
   end
 
   def local_date(at:)
@@ -127,10 +127,6 @@ class Departure < ApplicationRecord
 
   def eligible_to_depart?(at:)
     ready_to_sell? && completion_active? && starts_on.present? && time_zone.present? && starts_on <= local_date(at:)
-  end
-
-  def lifecycle_correction_allowed?(at:)
-    departed? && starts_on.present? && time_zone.present? && starts_on > local_date(at:)
   end
 
   def self.eligible_to_depart_relation(at:)

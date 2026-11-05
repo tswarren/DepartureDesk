@@ -34,15 +34,6 @@ class DepartureEligibilityTest < ActiveSupport::TestCase
     assert_equal false, Departure.eligible_to_depart_relation(at: east_instant).exists?(id: utc.id)
   end
 
-  test "lifecycle correction is allowed only when stored starts_on is later than local date" do
-    instant = Time.utc(2026, 6, 15, 16, 0, 0)
-    future = departed_departure("Future Start", starts_on: Date.new(2026, 6, 16), ends_on: Date.new(2026, 6, 20), time_zone: "UTC")
-    today = departed_departure("Today Start", starts_on: Date.new(2026, 6, 15), ends_on: Date.new(2026, 6, 20), time_zone: "UTC")
-
-    assert future.lifecycle_correction_allowed?(at: instant)
-    assert_not today.lifecycle_correction_allowed?(at: instant)
-  end
-
   private
 
   def active_departure(name, time_zone:, starts_on:, ends_on:)
@@ -57,7 +48,7 @@ class DepartureEligibilityTest < ActiveSupport::TestCase
         operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
   end
 
   def departed_departure(name, **schedule)

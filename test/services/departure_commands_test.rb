@@ -77,11 +77,11 @@ class DepartureCommandsTest < ActiveSupport::TestCase
   test "a draft has its reference from creation; activation, return to draft and reactivation keep it (D-91)" do
     departure = create_complete_draft("Caribbean Week")
     assert_equal "DEP-0001", departure.departure_reference
-    activated = ActivateDeparture.new(agency: @agency, actor: @staff, departure:, lock_version: departure.lock_version).call.record
+    activated = MarkDepartureReadyToSell.new(agency: @agency, actor: @staff, departure:, lock_version: departure.lock_version).call.record
 
     assert_equal "on_sale", activated.summary_label
     assert_equal "DEP-0001", activated.departure_reference
-    assert_equal 1, AuditEvent.where(agency: @agency, action: "departure.activated", subject_id: activated.id).count
+    assert_equal 1, AuditEvent.where(agency: @agency, action: "departure.ready_to_sell", subject_id: activated.id).count
 
     returned = ReturnDepartureToDraft.new(
       agency: @agency, actor: @staff, departure: activated, reason: "Need another date", lock_version: activated.lock_version
@@ -92,18 +92,18 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_nil returned.reload.starts_on
     returned.update!(starts_on: Date.new(2026, 6, 1), ends_on: Date.new(2026, 6, 8))
 
-    reactivated = ActivateDeparture.new(agency: @agency, actor: @staff, departure: returned, lock_version: returned.lock_version).call.record
+    reactivated = MarkDepartureReadyToSell.new(agency: @agency, actor: @staff, departure: returned, lock_version: returned.lock_version).call.record
     assert_equal "DEP-0001", reactivated.departure_reference
-    assert_equal 2, AuditEvent.where(agency: @agency, action: "departure.activated", subject_id: reactivated.id).count
+    assert_equal 2, AuditEvent.where(agency: @agency, action: "departure.ready_to_sell", subject_id: reactivated.id).count
   end
 
   test "lifecycle replay succeeds with a stale lock_version and does not audit" do
     departure = activate_departure!(create_complete_draft("Replay Ship"))
     stale = departure.lock_version - 1
 
-    replay = ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: stale).call
+    replay = MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure:, lock_version: stale).call
     assert_equal :noop, replay.status
-    assert_equal 1, AuditEvent.where(agency: @agency, action: "departure.activated", subject_id: departure.id).count
+    assert_equal 1, AuditEvent.where(agency: @agency, action: "departure.ready_to_sell", subject_id: departure.id).count
 
     ReturnDepartureToDraft.new(agency: @agency, actor: @admin, departure:, reason: "pause", lock_version: departure.reload.lock_version).call
     draft_replay = ReturnDepartureToDraft.new(agency: @agency, actor: @admin, departure:, reason: "", lock_version: stale).call
@@ -160,7 +160,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
   test "activation blockers list timezone and currency independently" do
     departure = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Independent Blockers" }).call.record
     Departure.where(id: departure.id).update_all(time_zone: "Not/AZone", operating_currency: nil)
-    blockers = departure.reload.activation_blockers
+    blockers = departure.reload.ready_to_sell_blockers
 
     assert_includes blockers, "Enter a recognized time zone."
     assert_includes blockers, "Enter a supported operating currency."
@@ -189,7 +189,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
   test "activation completeness, creation widening, and a missing sequence use documented codes" do
     incomplete = CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Incomplete" }).call.record
     invalid = assert_raises(AgencyCommand::Error) do
-      ActivateDeparture.new(agency: @agency, actor: @admin, departure: incomplete, lock_version: incomplete.lock_version).call
+      MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure: incomplete, lock_version: incomplete.lock_version).call
     end
     assert_equal :invalid, invalid.code
 
@@ -207,7 +207,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     departure = activate_departure!(create_complete_draft("Already Sailed"))
     mark_departed!(departure)
     activate_error = assert_raises(AgencyCommand::Error) do
-      ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call
+      MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call
     end
     return_error = assert_raises(AgencyCommand::Error) do
       ReturnDepartureToDraft.new(agency: @agency, actor: @admin, departure:, reason: "undo", lock_version: departure.lock_version).call
@@ -216,12 +216,12 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_equal :invalid_state, return_error.code
   end
 
-  test "blank return reason is invalid and identity columns are immutable" do
+  test "the return-to-draft note is optional and identity columns are immutable" do
     departure = activate_departure!(create_complete_draft("Keep Reference"))
-    blank = assert_raises(AgencyCommand::Error) do
-      ReturnDepartureToDraft.new(agency: @agency, actor: @admin, departure:, reason: "  ", lock_version: departure.lock_version).call
-    end
-    assert_equal :invalid, blank.code
+    returned = ReturnDepartureToDraft.new(agency: @agency, actor: @admin, departure:, reason: "  ", lock_version: departure.lock_version).call.record
+    assert returned.draft?
+    assert_nil AuditEvent.where(subject_id: departure.id, action: "departure.returned_to_draft").sole.details["note"]
+    departure = activate_departure!(returned)
 
     identity = assert_raises(ActiveRecord::StatementInvalid) do
       Departure.transaction(requires_new: true) do
@@ -276,7 +276,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     departure = create_complete_draft("No Team")
     RemoveDepartureTeamMember.new(agency: @agency, actor: @admin, departure:, agency_user_id: @admin.id).call
     assert_empty departure.reload.team_members
-    assert_empty departure.activation_blockers
+    assert_empty departure.ready_to_sell_blockers
     assert_equal "on_sale", activate_departure!(departure).summary_label
   end
 
@@ -355,7 +355,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
   end
 
   def activate_departure!(departure)
-    ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
   end
 
   def complete_attrs(overrides = {})

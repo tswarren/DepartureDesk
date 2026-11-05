@@ -7,22 +7,16 @@
     <h1 class="dd-page-title"><%= @departure.name %></h1>
     <p class="dd-page-description"><span class="dd-type-mono"><%= @departure.display_reference %></span></p>
   </div>
-  <% if manage %>
+  <% if manage && !@departure.departed? %>
     <div class="dd-page-actions">
       <%= link_to "Edit departure", edit_departure_path(@departure), class: "dd-button" %>
       <% if @departure.draft? %>
-        <%= link_to "Activate", departure_activation_path(@departure), class: "dd-button dd-button--quiet" %>
-      <% elsif @departure.completion_active? %>
-        <%= link_to "Return to draft", edit_departure_return_to_draft_path(@departure), class: "dd-button dd-button--quiet" %>
-        <% if @departure.eligible_to_depart?(at: Time.current) %>
-          <%= link_to "Mark departed", new_departure_departed_path(@departure), class: "dd-button dd-button--quiet" %>
-        <% end %>
-      <% elsif @departure.departed? %>
-        <%= link_to "Correct schedule", edit_departure_schedule_correction_path(@departure), class: "dd-button dd-button--quiet" %>
-        <%= link_to "Correct currency", edit_departure_currency_correction_path(@departure), class: "dd-button dd-button--quiet" %>
-        <% if @departure.lifecycle_correction_allowed?(at: Time.current) %>
-          <%= link_to "Return to active", edit_departure_lifecycle_correction_path(@departure), class: "dd-button dd-button--quiet" %>
-        <% end %>
+        <%= link_to "Mark Ready to sell", departure_ready_to_sell_path(@departure), class: "dd-button dd-button--secondary" %>
+      <% else %>
+        <%= link_to "Return to Draft", edit_departure_return_to_draft_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% end %>
+      <% if @departure.eligible_to_depart?(at: Time.current) %>
+        <%= link_to "Mark departed", new_departure_departed_path(@departure), class: "dd-button dd-button--quiet" %>
       <% end %>
     </div>
   <% end %>

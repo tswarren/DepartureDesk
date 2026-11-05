@@ -37,14 +37,14 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     actor = shell.directory.actor
     agency = shell.directory.agency
 
-    activated = ActivateDeparture.new(agency:, actor:, departure:, lock_version: departure.lock_version).call.record
+    activated = MarkDepartureReadyToSell.new(agency:, actor:, departure:, lock_version: departure.lock_version).call.record
     assert_equal "DEP-0001", activated.departure_reference
     returned = ReturnDepartureToDraft.new(
       agency:, actor:, departure: activated, reason: "Hold the sailing", lock_version: activated.lock_version
     ).call.record
     assert_equal "not_on_sale", returned.summary_label
     assert_equal "DEP-0001", returned.departure_reference
-    reactivated = ActivateDeparture.new(agency:, actor:, departure: returned, lock_version: returned.lock_version).call.record
+    reactivated = MarkDepartureReadyToSell.new(agency:, actor:, departure: returned, lock_version: returned.lock_version).call.record
     assert_equal "DEP-0001", reactivated.departure_reference
     assert_equal 1, agency.departures.where.not(departure_reference: nil).count
   end

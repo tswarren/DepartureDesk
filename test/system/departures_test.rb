@@ -1,7 +1,7 @@
 require "application_system_test_case"
 
 class DeparturesTest < ApplicationSystemTestCase
-  test "an administrator creates, activates, and returns a departure to draft" do
+  test "an administrator creates a departure, marks it Ready to sell, and returns it to Draft" do
     sign_in_from_browser(agency_users(:harbor_admin))
 
     open_departures
@@ -18,19 +18,19 @@ class DeparturesTest < ApplicationSystemTestCase
     assert_text "Harbor Reunion"
     assert_text "Not on sale"
 
-    click_link "Activate"
-    assert_selector "h1.dd-page-title", exact_text: "Activate departure"
-    click_button "Activate departure"
+    click_link "Mark Ready to sell"
+    assert_selector "h1.dd-page-title", exact_text: "Mark Ready to sell"
+    click_button "Mark Ready to sell"
 
-    assert_text "Departure activated."
+    assert_text "Departure is Ready to sell."
     assert_text "DEP-0001"
     assert_text "On sale"
 
-    click_link "Return to draft"
-    fill_in "Reason", with: "Hold for a later sailing"
-    click_button "Return to draft"
+    click_link "Return to Draft"
+    fill_in "Note (optional)", with: "Hold for a later sailing"
+    click_button "Return to Draft"
 
-    assert_text "Departure returned to draft."
+    assert_text "Departure returned to Draft."
     assert_text "DEP-0001"
     assert_text "Not on sale"
   end
@@ -63,7 +63,7 @@ class DeparturesTest < ApplicationSystemTestCase
     assert_no_text "Activate"
   end
 
-  test "an administrator marks an eligible departure departed and corrects its schedule" do
+  test "an administrator marks an eligible departure departed, which leaves it read-only" do
     departure = CreateDeparture.new(
       agency: agencies(:harbor),
       actor: agency_users(:harbor_admin),
@@ -75,7 +75,7 @@ class DeparturesTest < ApplicationSystemTestCase
         operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(
+    MarkDepartureReadyToSell.new(
       agency: agencies(:harbor),
       actor: agency_users(:harbor_admin),
       departure:,
@@ -91,14 +91,8 @@ class DeparturesTest < ApplicationSystemTestCase
     assert_text "Departure marked departed."
     assert_text "Departed"
 
-    click_link "Correct schedule"
-    fill_in_html_date "Start date", "2026-07-01"
-    fill_in_html_date "End date", "2026-07-08"
-    select "UTC", from: "Time zone"
-    fill_in "Reason", with: "Printer used the wrong week"
-    click_button "Correct schedule"
-
-    assert_text "Departure schedule corrected."
-    assert_text "UTC"
+    assert_no_link "Edit departure"
+    assert_no_link "Return to Draft"
+    assert_no_button "Record Proceed"
   end
 end

@@ -116,7 +116,7 @@ class M2DepartureIsolationTest < ActiveSupport::TestCase
         operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(
+    MarkDepartureReadyToSell.new(
       agency: shell.directory.agency, actor: shell.directory.actor, departure:, lock_version: departure.lock_version
     ).call.record
   end

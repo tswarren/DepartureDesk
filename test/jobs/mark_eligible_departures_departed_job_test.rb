@@ -95,7 +95,7 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
         operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(
+    MarkDepartureReadyToSell.new(
       agency: shell.directory.agency, actor: shell.directory.actor, departure:, lock_version: departure.lock_version
     ).call.record
   end
@@ -112,6 +112,6 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
         operating_currency: "USD"
       }
     ).call.record
-    ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record
   end
 end

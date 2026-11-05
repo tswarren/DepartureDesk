@@ -21,10 +21,10 @@ class M2DepartureSearchPerformanceTest < ActiveSupport::TestCase
     extra_departure("Beta Voyage", starts_on: Date.new(2026, 6, 1), ends_on: Date.new(2026, 6, 8))
     @gamma = extra_departure("Gamma Voyage", starts_on: Date.new(2026, 7, 1), ends_on: Date.new(2026, 7, 8))
     AddDepartureTeamMember.new(agency: @agency, actor: @actor, departure: @gamma, agency_user_id: @staff.id).call
-    ActivateDeparture.new(agency: @agency, actor: @actor, departure: @gamma, lock_version: @gamma.lock_version).call
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @actor, departure: @gamma, lock_version: @gamma.lock_version).call
     @gamma.reload
     @delta = extra_departure("Delta Voyage", starts_on: Date.new(2026, 4, 1), ends_on: Date.new(2026, 4, 8))
-    ActivateDeparture.new(agency: @agency, actor: @actor, departure: @delta, lock_version: @delta.lock_version).call
+    MarkDepartureReadyToSell.new(agency: @agency, actor: @actor, departure: @delta, lock_version: @delta.lock_version).call
     MarkDepartureDeparted.new(
       agency: @agency, departure: @delta.reload, actor_kind: :agency_user, actor: @actor, lock_version: @delta.lock_version
     ).call

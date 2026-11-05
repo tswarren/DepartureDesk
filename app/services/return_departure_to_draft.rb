@@ -1,3 +1,7 @@
+# Returns a Ready to sell Departure to Draft (DEP-06). The reference, team,
+# decision and every other field stay. The note is optional; the spec's
+# guard is the permission only. Withdrawing published offers (DEP-08) is
+# added with publishing in step 9 (D-90).
 class ReturnDepartureToDraft < AgencyCommand
   include DepartureCommandSupport
 
@@ -33,7 +37,7 @@ class ReturnDepartureToDraft < AgencyCommand
         details: {
           "departure_id" => departure.id,
           "departure_reference" => departure.departure_reference,
-          "reason" => reason
+          "note" => reason
         }
       )
       Result.new(status: :updated, record: departure)
@@ -45,8 +49,8 @@ class ReturnDepartureToDraft < AgencyCommand
   private
 
   def normalized_reason
-    reason = @reason.to_s.strip
-    raise Error.new("Enter a reason.", code: :invalid) if reason.blank?
+    reason = @reason.to_s.strip.presence
+    return if reason.nil?
     if reason.length > REASON_LIMIT
       raise Error.new("Reason must be #{REASON_LIMIT} characters or fewer.", code: :invalid)
     end
