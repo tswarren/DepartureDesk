@@ -39,3 +39,13 @@ en:
         default_timezone: "Agency time zone"
         hold_duration_days: "Client hold duration"
         installment_buffer_days: "Buffer before supplier deadlines"
+      supplier_rate_line:
+        inventory_group_id: "Inventory group"
+        occupancy_position: "Occupancy position"
+        traveler_type_id: "Traveler type"
+        base_fare: "Base fare"
+        non_commissionable_fees: "Non-commissionable fees"
+        taxes: "Taxes"
+        discount: "Discount"
+        commission_rate: "Commission rate"
+        commission_amount: "Commission amount"

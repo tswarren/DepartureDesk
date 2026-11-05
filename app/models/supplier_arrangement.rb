@@ -15,6 +15,7 @@ class SupplierArrangement < ApplicationRecord
   belongs_to :payee_account, optional: true
   has_many :inventory_groups, -> { ordered }, inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
   has_many :documents, -> { order(created_at: :desc) }, class_name: "ArrangementDocument", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
+  has_many :rate_lines, class_name: "SupplierRateLine", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
   enum :reservation_scope, RESERVATION_SCOPES.index_by(&:itself), validate: true, prefix: :reservations
@@ -41,6 +42,11 @@ class SupplierArrangement < ApplicationRecord
     blockers << "Choose a payee account." if payee_account_id.blank?
     blockers << "Add at least one inventory group." if inventory_groups.empty?
     inventory_groups.each { |group| blockers.concat(group.confirmation_blockers) }
+    rate_lines.includes(:inventory_group).each do |line|
+      next if line.inventory_group.positions_per_unit.nil? || line.guest_number.to_i <= line.inventory_group.positions_per_unit
+
+      blockers << "Remove the guest #{line.guest_number} rate for #{line.inventory_group.label}; it has #{line.inventory_group.positions_per_unit} positions."
+    end
     blockers
   end
 

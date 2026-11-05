@@ -227,6 +227,31 @@ $$;
 
 
 --
+-- Name: reject_frozen_supplier_rate_line_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_frozen_supplier_rate_line_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  arrangement_status text;
+BEGIN
+  IF TG_OP = 'UPDATE' AND (NEW.agency_id IS DISTINCT FROM OLD.agency_id
+      OR NEW.supplier_arrangement_id IS DISTINCT FROM OLD.supplier_arrangement_id
+      OR NEW.inventory_group_id IS DISTINCT FROM OLD.inventory_group_id) THEN
+    RAISE EXCEPTION 'supplier rate line ownership is immutable';
+  END IF;
+  SELECT status INTO arrangement_status FROM supplier_arrangements
+    WHERE id = CASE WHEN TG_OP = 'INSERT' THEN NEW.supplier_arrangement_id ELSE OLD.supplier_arrangement_id END;
+  IF arrangement_status IS DISTINCT FROM 'draft' THEN
+    RAISE EXCEPTION 'supplier rate lines are frozen once the arrangement leaves draft';
+  END IF;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+
+
+--
 -- Name: reject_invalid_capacity_event_zone(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1449,6 +1474,36 @@ CREATE TABLE public.supplier_postal_addresses (
 
 
 --
+-- Name: supplier_rate_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_rate_lines (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    inventory_group_id uuid NOT NULL,
+    traveler_type_id uuid,
+    occupancy_position character varying NOT NULL,
+    currency character varying NOT NULL,
+    base_fare_minor_units bigint NOT NULL,
+    non_commissionable_fees_minor_units bigint DEFAULT 0 CONSTRAINT supplier_rate_lines_non_commissionable_fees_minor_unit_not_null NOT NULL,
+    taxes_minor_units bigint DEFAULT 0 NOT NULL,
+    discount_minor_units bigint DEFAULT 0 NOT NULL,
+    commission_rate numeric(6,3),
+    commission_minor_units bigint,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_rate_lines_amounts_non_negative CHECK (((base_fare_minor_units >= 0) AND (non_commissionable_fees_minor_units >= 0) AND (taxes_minor_units >= 0) AND (discount_minor_units >= 0) AND ((commission_minor_units IS NULL) OR (commission_minor_units >= 0)))),
+    CONSTRAINT supplier_rate_lines_commission_rate CHECK (((commission_rate IS NULL) OR ((commission_rate >= (0)::numeric) AND (commission_rate <= (100)::numeric)))),
+    CONSTRAINT supplier_rate_lines_commission_rate_or_amount CHECK (((commission_rate IS NULL) OR (commission_minor_units IS NULL))),
+    CONSTRAINT supplier_rate_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT supplier_rate_lines_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_rate_lines_occupancy_position CHECK ((((occupancy_position)::text = 'single'::text) OR ((occupancy_position)::text ~ '^guest_[1-9]$'::text)))
+);
+
+
+--
 -- Name: supplier_websites; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1918,6 +1973,14 @@ ALTER TABLE ONLY public.supplier_phone_numbers
 
 ALTER TABLE ONLY public.supplier_postal_addresses
     ADD CONSTRAINT supplier_postal_addresses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_rate_lines supplier_rate_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_lines
+    ADD CONSTRAINT supplier_rate_lines_pkey PRIMARY KEY (id);
 
 
 --
@@ -2626,6 +2689,13 @@ CREATE UNIQUE INDEX index_inventory_groups_on_id_and_agency_id ON public.invento
 
 
 --
+-- Name: index_inventory_groups_on_id_and_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_inventory_groups_on_id_and_arrangement ON public.inventory_groups USING btree (id, supplier_arrangement_id);
+
+
+--
 -- Name: index_offices_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2721,6 +2791,13 @@ CREATE UNIQUE INDEX index_supplier_arrangements_on_agency_and_reference ON publi
 --
 
 CREATE UNIQUE INDEX index_supplier_arrangements_on_id_and_agency_id ON public.supplier_arrangements USING btree (id, agency_id);
+
+
+--
+-- Name: index_supplier_arrangements_on_id_and_currency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangements_on_id_and_currency ON public.supplier_arrangements USING btree (id, currency);
 
 
 --
@@ -3078,6 +3155,20 @@ CREATE INDEX index_supplier_postals_on_agency_and_locality ON public.supplier_po
 --
 
 CREATE INDEX index_supplier_postals_on_agency_and_postal_code ON public.supplier_postal_addresses USING btree (agency_id, postal_code_search_key);
+
+
+--
+-- Name: index_supplier_rate_lines_on_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_rate_lines_on_arrangement ON public.supplier_rate_lines USING btree (supplier_arrangement_id);
+
+
+--
+-- Name: index_supplier_rate_lines_one_per_group_position_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_rate_lines_one_per_group_position_type ON public.supplier_rate_lines USING btree (inventory_group_id, occupancy_position, traveler_type_id) NULLS NOT DISTINCT;
 
 
 --
@@ -3456,6 +3547,13 @@ CREATE TRIGGER supplier_phone_numbers_reject_owner_change BEFORE UPDATE ON publi
 --
 
 CREATE TRIGGER supplier_postal_addresses_reject_owner_change BEFORE UPDATE ON public.supplier_postal_addresses FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_contact_owner_change();
+
+
+--
+-- Name: supplier_rate_lines supplier_rate_lines_reject_frozen_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER supplier_rate_lines_reject_frozen_change BEFORE INSERT OR DELETE OR UPDATE ON public.supplier_rate_lines FOR EACH ROW EXECUTE FUNCTION public.reject_frozen_supplier_rate_line_change();
 
 
 --
@@ -4112,6 +4210,46 @@ ALTER TABLE ONLY public.supplier_arrangements
 
 
 --
+-- Name: supplier_rate_lines fk_supplier_rate_lines_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_lines
+    ADD CONSTRAINT fk_supplier_rate_lines_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_rate_lines fk_supplier_rate_lines_arrangement_currency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_lines
+    ADD CONSTRAINT fk_supplier_rate_lines_arrangement_currency FOREIGN KEY (supplier_arrangement_id, currency) REFERENCES public.supplier_arrangements(id, currency);
+
+
+--
+-- Name: supplier_rate_lines fk_supplier_rate_lines_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_lines
+    ADD CONSTRAINT fk_supplier_rate_lines_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: supplier_rate_lines fk_supplier_rate_lines_group_of_arrangement; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_lines
+    ADD CONSTRAINT fk_supplier_rate_lines_group_of_arrangement FOREIGN KEY (inventory_group_id, supplier_arrangement_id) REFERENCES public.inventory_groups(id, supplier_arrangement_id);
+
+
+--
+-- Name: supplier_rate_lines fk_supplier_rate_lines_traveler_type_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_rate_lines
+    ADD CONSTRAINT fk_supplier_rate_lines_traveler_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
 -- Name: unit_shells fk_unit_shells_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4230,6 +4368,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105220000'),
 ('20261105210000'),
 ('20261105200000'),
 ('20261105190000'),

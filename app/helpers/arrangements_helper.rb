@@ -50,6 +50,25 @@ module ArrangementsHelper
     status_badge(ARRANGEMENT_STATUS_LABELS.fetch(arrangement.status), modifier:)
   end
 
+  OCCUPANCY_POSITION_LABELS = {
+    "single" => "Single occupancy",
+    **(1..SupplierRateLine::MAX_GUEST_POSITION).to_h { |n| [ "guest_#{n}", "#{n.ordinalize} guest" ] }
+  }.freeze
+
+  def occupancy_position_label(value) = OCCUPANCY_POSITION_LABELS.fetch(value.to_s)
+
+  # "$1,234.50"; an amount in a stored currency, for display only.
+  def rate_amount(minor_units, currency)
+    minor_units.nil? ? "—" : Money.new(minor_units, currency).format
+  end
+
+  def rate_commission(line)
+    return "#{line.commission_rate.to_s("F").sub(/\.0\z/, "")}%" if line.commission_rate
+    return rate_amount(line.commission_minor_units, line.currency) if line.commission_minor_units
+
+    "None stated"
+  end
+
   def reservation_scope_label(value) = RESERVATION_SCOPE_LABELS.fetch(value.to_s, "—")
   def obligation_shape_label(value) = value.present? ? OBLIGATION_SHAPE_LABELS.fetch(value.to_s) : "Not set"
   def availability_promise_label(value) = AVAILABILITY_PROMISE_LABELS.fetch(value.to_s)

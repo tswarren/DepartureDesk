@@ -157,6 +157,7 @@ Rails.application.routes.draw do
       resource :discard, only: :create, controller: "supplier_arrangement_discards"
       resource :confirmation, only: %i[show create], controller: "supplier_arrangement_confirmations"
       resources :documents, only: %i[show create destroy], controller: "arrangement_documents"
+      resources :rate_lines, only: %i[new create edit update destroy], controller: "supplier_rate_lines"
       resources :groups, only: %i[show new create edit update destroy], controller: "inventory_groups" do
         resource :capacity_rule, only: :update, controller: "capacity_rules"
         resources :capacity_events, only: :create, controller: "capacity_events"

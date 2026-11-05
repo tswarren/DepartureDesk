@@ -1515,7 +1515,8 @@
     .dd-rates-table,
     .dd-rates-table tbody,
     .dd-rates-table tr,
-    .dd-rates-table td {
+    .dd-rates-table td,
+    .dd-rates-table tbody th {
       display: block;
       width: auto;
     }
@@ -1530,7 +1531,8 @@
     }
 
     .dd-cabin-table td,
-    .dd-rates-table td {
+    .dd-rates-table td,
+    .dd-rates-table tbody th {
       border: 0;
       padding: 0.35rem 0;
     }

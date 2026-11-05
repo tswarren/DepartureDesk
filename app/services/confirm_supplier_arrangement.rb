@@ -1,7 +1,8 @@
 # Confirms an arrangement in one transaction (SUP-11, SUP-12, ADR 0018): it
 # records the supplier's confirmation, then creates each group's unit
-# shells or capacity pool with an opening event. It records no supplier
-# cost (D-75); booking confirmation proposes cost from the rate table.
+# shells or capacity pool with an opening event. Leaving Draft freezes the
+# rate table (SUP-35). It records no supplier cost (D-75); booking
+# confirmation proposes cost from the rate table.
 class ConfirmSupplierArrangement < AgencyCommand
   include CapacityCommandSupport
 
@@ -33,7 +34,8 @@ class ConfirmSupplierArrangement < AgencyCommand
       audit!(
         agency: @agency, action: "supplier_arrangement.confirmed", subject: arrangement, actor: @actor,
         details: { "supplier_arrangement_id" => arrangement.id, "confirmed_on" => confirmed_on.iso8601,
-                   "group_reference" => arrangement.group_reference, "shells_created" => created }
+                   "group_reference" => arrangement.group_reference, "shells_created" => created,
+                   "rate_lines_frozen" => arrangement.rate_lines.count }
       )
       Result.new(status: :updated, record: arrangement)
     end

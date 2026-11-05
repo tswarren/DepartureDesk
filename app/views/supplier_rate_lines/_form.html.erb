@@ -1,0 +1,57 @@
+<%# locals: (form:, arrangement:, values:) -%>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <% if form.object.new_record? %>
+    <div class="dd-field-group">
+      <%= form.label :inventory_group_id, "Inventory group", class: "dd-label" %>
+      <%= form.select :inventory_group_id, arrangement.inventory_groups.map { |group| [ group.label, group.id ] }, { selected: values["inventory_group_id"] }, **dd_field_options(form, :inventory_group_id) %>
+      <%= dd_field_error(form, :inventory_group_id) %>
+    </div>
+  <% else %>
+    <dl class="dd-definition-list">
+      <div><dt>Inventory group</dt><dd><%= form.object.inventory_group.label %></dd></div>
+    </dl>
+  <% end %>
+  <div class="dd-field-group">
+    <%= form.label :occupancy_position, "Occupancy position", class: "dd-label" %>
+    <%= form.select :occupancy_position, ArrangementsHelper::OCCUPANCY_POSITION_LABELS.invert, { selected: values["occupancy_position"] },
+          **dd_field_options(form, :occupancy_position, aria_describedby_extra: "supplier_rate_line_occupancy_position_hint") %>
+    <p class="dd-field-hint" id="supplier_rate_line_occupancy_position_hint">Single occupancy is the full fare for one guest alone in the unit.</p>
+    <%= dd_field_error(form, :occupancy_position) %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :traveler_type_id, "Traveler type", class: "dd-label" %>
+    <%= form.select :traveler_type_id, Current.agency.traveler_types.ordered.map { |type| [ type.name, type.id ] }, { include_blank: "Any traveler type", selected: values["traveler_type_id"] },
+          **dd_field_options(form, :traveler_type_id, aria_describedby_extra: "supplier_rate_line_traveler_type_id_hint") %>
+    <p class="dd-field-hint" id="supplier_rate_line_traveler_type_id_hint">Only when the supplier states a different rate for this traveler type.</p>
+    <%= dd_field_error(form, :traveler_type_id) %>
+  </div>
+</div>
+<fieldset class="dd-form-section">
+  <legend class="dd-section-title">Amounts in <%= arrangement.currency %></legend>
+  <p class="dd-field-hint">Enter each component as the supplier states it. Leave fees, taxes or discount blank if there are none.</p>
+  <div class="dd-form-grid dd-form-grid--two-column">
+    <% %w[base_fare non_commissionable_fees taxes discount].each do |field| %>
+      <div class="dd-field-group">
+        <%= form.label field, SupplierRateLine.human_attribute_name(field), class: "dd-label" %>
+        <%= form.text_field field, value: values[field], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, field.to_sym, class: "dd-field--numeric dd-field--narrow") %>
+        <%= dd_field_error(form, field.to_sym) %>
+      </div>
+    <% end %>
+  </div>
+</fieldset>
+<fieldset class="dd-form-section">
+  <legend class="dd-section-title">Commission</legend>
+  <p class="dd-field-hint">Enter the rate or the amount the supplier states, not both. Leave both blank for a net rate.</p>
+  <div class="dd-form-grid dd-form-grid--two-column">
+    <div class="dd-field-group">
+      <%= form.label :commission_rate, "Commission rate (%)", class: "dd-label" %>
+      <%= form.text_field :commission_rate, value: values["commission_rate"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :commission_rate, class: "dd-field--numeric dd-field--narrow") %>
+      <%= dd_field_error(form, :commission_rate) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :commission_amount, "Commission amount", class: "dd-label" %>
+      <%= form.text_field :commission_amount, value: values["commission_amount"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :commission_amount, class: "dd-field--numeric dd-field--narrow") %>
+      <%= dd_field_error(form, :commission_amount) %>
+    </div>
+  </div>
+</fieldset>
