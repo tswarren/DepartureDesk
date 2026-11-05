@@ -16,6 +16,10 @@ class InventoryGroup < ApplicationRecord
   belongs_to :agency
   belongs_to :supplier_arrangement
   has_many :capacity_rules, dependent: :restrict_with_exception
+  has_many :unit_shells, -> { ordered }, inverse_of: :inventory_group, dependent: :restrict_with_exception
+  has_one :capacity_pool, dependent: :restrict_with_exception
+  has_many :capacity_events, dependent: :restrict_with_exception
+  has_one :capacity_projection, dependent: :restrict_with_exception
 
   enum :service_category, SERVICE_CATEGORIES.index_by(&:itself), validate: true, prefix: :category
   enum :representation, REPRESENTATIONS.index_by(&:itself), validate: true, prefix: :represented_as

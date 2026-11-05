@@ -79,6 +79,35 @@ $$;
 
 
 --
+-- Name: reject_capacity_event_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_capacity_event_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'capacity events are append-only';
+END;
+$$;
+
+
+--
+-- Name: reject_capacity_owner_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_capacity_owner_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id OR NEW.inventory_group_id IS DISTINCT FROM OLD.inventory_group_id THEN
+    RAISE EXCEPTION 'capacity record ownership is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_client_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -191,6 +220,41 @@ CREATE FUNCTION public.reject_directory_agency_change() RETURNS trigger
 BEGIN
   IF NEW.agency_id IS DISTINCT FROM OLD.agency_id THEN
     RAISE EXCEPTION 'agency_id is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_invalid_capacity_event_zone(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_invalid_capacity_event_zone() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  PERFORM now() AT TIME ZONE NEW.effective_time_zone;
+  RETURN NEW;
+EXCEPTION WHEN invalid_parameter_value THEN
+  RAISE EXCEPTION 'capacity event zone % is not a recognized time zone', NEW.effective_time_zone;
+END;
+$$;
+
+
+--
+-- Name: reject_nonnumeric_capacity_record(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_nonnumeric_capacity_record() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  grp record;
+BEGIN
+  SELECT representation, availability_promise INTO grp FROM inventory_groups WHERE id = NEW.inventory_group_id;
+  IF grp.representation = 'none' OR grp.availability_promise IN ('on_request', 'rate_only') THEN
+    RAISE EXCEPTION 'inventory group % holds no numeric capacity', NEW.inventory_group_id;
   END IF;
   RETURN NEW;
 END;
@@ -541,6 +605,79 @@ CREATE TABLE public.audit_events (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT audit_events_actor_kind_valid CHECK (((actor_kind)::text = ANY (ARRAY[('agency_user'::character varying)::text, ('system'::character varying)::text]))),
     CONSTRAINT audit_events_actor_present CHECK (((((actor_kind)::text = 'agency_user'::text) AND (actor_agency_user_id IS NOT NULL) AND (actor_identifier IS NULL)) OR (((actor_kind)::text = 'system'::text) AND (actor_identifier IS NOT NULL) AND (btrim((actor_identifier)::text) <> ''::text) AND (actor_agency_user_id IS NULL))))
+);
+
+
+--
+-- Name: capacity_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    inventory_group_id uuid NOT NULL,
+    capacity_pool_id uuid,
+    unit_shell_id uuid,
+    event_type character varying NOT NULL,
+    quantity bigint NOT NULL,
+    effective_on date NOT NULL,
+    effective_time_zone character varying NOT NULL,
+    applies_at timestamp(6) with time zone NOT NULL,
+    effective_sequence integer NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    evidence_note text,
+    corrects_event_id uuid,
+    actor_id uuid NOT NULL,
+    idempotency_key character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT capacity_events_correction_pair CHECK ((((event_type)::text = ANY ((ARRAY['corrected_up'::character varying, 'corrected_down'::character varying])::text[])) = (corrects_event_id IS NOT NULL))),
+    CONSTRAINT capacity_events_effective_time_zone CHECK ((btrim((effective_time_zone)::text) <> ''::text)),
+    CONSTRAINT capacity_events_evidence CHECK ((((event_type)::text = 'established'::text) OR ((evidence_note IS NOT NULL) AND (btrim(evidence_note) <> ''::text) AND (char_length(evidence_note) <= 500)))),
+    CONSTRAINT capacity_events_quantity_positive CHECK ((quantity > 0)),
+    CONSTRAINT capacity_events_sequence_positive CHECK ((effective_sequence > 0)),
+    CONSTRAINT capacity_events_shell_quantity CHECK (((unit_shell_id IS NULL) OR (quantity = 1))),
+    CONSTRAINT capacity_events_type CHECK (((event_type)::text = ANY ((ARRAY['established'::character varying, 'increased'::character varying, 'released'::character varying, 'reinstated'::character varying, 'withdrawn'::character varying, 'corrected_up'::character varying, 'corrected_down'::character varying])::text[])))
+);
+
+
+--
+-- Name: capacity_pools; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_pools (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    inventory_group_id uuid NOT NULL,
+    availability_promise character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT capacity_pools_availability_promise CHECK (((availability_promise)::text = ANY ((ARRAY['firm_block'::character varying, 'releasable_block'::character varying, 'courtesy_option'::character varying, 'on_request'::character varying, 'rate_only'::character varying])::text[])))
+);
+
+
+--
+-- Name: capacity_projections; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capacity_projections (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    inventory_group_id uuid NOT NULL,
+    current_supplier_capacity bigint DEFAULT 0 NOT NULL,
+    last_event_id uuid,
+    last_effective_on date,
+    last_effective_sequence integer,
+    last_recorded_at timestamp(6) with time zone,
+    next_event_id uuid,
+    next_applies_at timestamp(6) with time zone,
+    rebuilt_at timestamp(6) with time zone NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT capacity_projections_current_nonnegative CHECK ((current_supplier_capacity >= 0)),
+    CONSTRAINT capacity_projections_lock_version CHECK ((lock_version >= 0))
 );
 
 
@@ -1395,6 +1532,26 @@ CREATE TABLE public.traveler_types (
 
 
 --
+-- Name: unit_shells; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.unit_shells (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    inventory_group_id uuid NOT NULL,
+    label character varying NOT NULL,
+    positions integer NOT NULL,
+    supplier_assignment character varying,
+    "position" integer NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT unit_shells_assignment CHECK (((supplier_assignment IS NULL) OR ((btrim((supplier_assignment)::text) <> ''::text) AND (char_length((supplier_assignment)::text) <= 40)))),
+    CONSTRAINT unit_shells_counts CHECK (((positions >= 1) AND ("position" >= 1))),
+    CONSTRAINT unit_shells_label CHECK (((btrim((label)::text) <> ''::text) AND (char_length((label)::text) <= 40)))
+);
+
+
+--
 -- Name: user_permissions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1481,6 +1638,30 @@ ALTER TABLE ONLY public.arrangement_documents
 
 ALTER TABLE ONLY public.audit_events
     ADD CONSTRAINT audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacity_events capacity_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT capacity_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacity_pools capacity_pools_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pools
+    ADD CONSTRAINT capacity_pools_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capacity_projections capacity_projections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_projections
+    ADD CONSTRAINT capacity_projections_pkey PRIMARY KEY (id);
 
 
 --
@@ -1764,6 +1945,14 @@ ALTER TABLE ONLY public.traveler_types
 
 
 --
+-- Name: unit_shells unit_shells_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.unit_shells
+    ADD CONSTRAINT unit_shells_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: user_permissions user_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1881,6 +2070,48 @@ CREATE INDEX index_audit_events_on_agency_id ON public.audit_events USING btree 
 --
 
 CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_events USING btree (agency_id, created_at);
+
+
+--
+-- Name: index_capacity_events_on_agency_and_idempotency_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_events_on_agency_and_idempotency_key ON public.capacity_events USING btree (agency_id, idempotency_key);
+
+
+--
+-- Name: index_capacity_events_on_group_timeline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_events_on_group_timeline ON public.capacity_events USING btree (inventory_group_id, effective_on, effective_sequence);
+
+
+--
+-- Name: index_capacity_events_on_unit_shell; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_capacity_events_on_unit_shell ON public.capacity_events USING btree (unit_shell_id) WHERE (unit_shell_id IS NOT NULL);
+
+
+--
+-- Name: index_capacity_pools_on_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pools_on_group ON public.capacity_pools USING btree (inventory_group_id);
+
+
+--
+-- Name: index_capacity_pools_on_id_and_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_pools_on_id_and_group ON public.capacity_pools USING btree (id, inventory_group_id);
+
+
+--
+-- Name: index_capacity_projections_on_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_capacity_projections_on_group ON public.capacity_projections USING btree (inventory_group_id);
 
 
 --
@@ -2969,6 +3200,27 @@ CREATE UNIQUE INDEX index_traveler_types_on_id_and_agency_id ON public.traveler_
 
 
 --
+-- Name: index_unit_shells_on_group_and_label; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_unit_shells_on_group_and_label ON public.unit_shells USING btree (inventory_group_id, label);
+
+
+--
+-- Name: index_unit_shells_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_unit_shells_on_id_and_agency_id ON public.unit_shells USING btree (id, agency_id);
+
+
+--
+-- Name: index_unit_shells_on_id_and_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_unit_shells_on_id_and_group ON public.unit_shells USING btree (id, inventory_group_id);
+
+
+--
 -- Name: index_user_permissions_on_agency_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3001,6 +3253,48 @@ CREATE TRIGGER agency_users_reject_agency_id_change BEFORE UPDATE ON public.agen
 --
 
 CREATE TRIGGER audit_events_reject_update BEFORE DELETE OR UPDATE ON public.audit_events FOR EACH ROW EXECUTE FUNCTION public.reject_audit_event_mutation();
+
+
+--
+-- Name: capacity_events capacity_events_reject_invalid_zone; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_events_reject_invalid_zone BEFORE INSERT ON public.capacity_events FOR EACH ROW EXECUTE FUNCTION public.reject_invalid_capacity_event_zone();
+
+
+--
+-- Name: capacity_events capacity_events_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_events_reject_mutation BEFORE DELETE OR UPDATE ON public.capacity_events FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_event_mutation();
+
+
+--
+-- Name: capacity_events capacity_events_reject_nonnumeric; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_events_reject_nonnumeric BEFORE INSERT ON public.capacity_events FOR EACH ROW EXECUTE FUNCTION public.reject_nonnumeric_capacity_record();
+
+
+--
+-- Name: capacity_pools capacity_pools_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_pools_reject_owner_change BEFORE UPDATE ON public.capacity_pools FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_owner_change();
+
+
+--
+-- Name: capacity_projections capacity_projections_reject_nonnumeric; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_projections_reject_nonnumeric BEFORE INSERT ON public.capacity_projections FOR EACH ROW EXECUTE FUNCTION public.reject_nonnumeric_capacity_record();
+
+
+--
+-- Name: capacity_projections capacity_projections_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER capacity_projections_reject_owner_change BEFORE UPDATE ON public.capacity_projections FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_owner_change();
 
 
 --
@@ -3179,6 +3473,13 @@ CREATE TRIGGER suppliers_reject_identity_change BEFORE UPDATE ON public.supplier
 
 
 --
+-- Name: unit_shells unit_shells_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER unit_shells_reject_owner_change BEFORE UPDATE ON public.unit_shells FOR EACH ROW EXECUTE FUNCTION public.reject_capacity_owner_change();
+
+
+--
 -- Name: agency_users agency_users_default_office_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3312,6 +3613,110 @@ ALTER TABLE ONLY public.arrangement_documents
 
 ALTER TABLE ONLY public.arrangement_documents
     ADD CONSTRAINT fk_arrangement_documents_uploader_same_agency FOREIGN KEY (uploaded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: capacity_events fk_capacity_events_actor_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT fk_capacity_events_actor_same_agency FOREIGN KEY (actor_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: capacity_events fk_capacity_events_arrangement_same_departure; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT fk_capacity_events_arrangement_same_departure FOREIGN KEY (supplier_arrangement_id, departure_id) REFERENCES public.supplier_arrangements(id, departure_id);
+
+
+--
+-- Name: capacity_events fk_capacity_events_corrects; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT fk_capacity_events_corrects FOREIGN KEY (corrects_event_id) REFERENCES public.capacity_events(id);
+
+
+--
+-- Name: capacity_events fk_capacity_events_departure_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT fk_capacity_events_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: capacity_events fk_capacity_events_group_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT fk_capacity_events_group_same_agency FOREIGN KEY (inventory_group_id, agency_id) REFERENCES public.inventory_groups(id, agency_id);
+
+
+--
+-- Name: capacity_events fk_capacity_events_pool_of_group; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT fk_capacity_events_pool_of_group FOREIGN KEY (capacity_pool_id, inventory_group_id) REFERENCES public.capacity_pools(id, inventory_group_id);
+
+
+--
+-- Name: capacity_events fk_capacity_events_shell_of_group; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_events
+    ADD CONSTRAINT fk_capacity_events_shell_of_group FOREIGN KEY (unit_shell_id, inventory_group_id) REFERENCES public.unit_shells(id, inventory_group_id);
+
+
+--
+-- Name: capacity_pools fk_capacity_pools_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pools
+    ADD CONSTRAINT fk_capacity_pools_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: capacity_pools fk_capacity_pools_group_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_pools
+    ADD CONSTRAINT fk_capacity_pools_group_same_agency FOREIGN KEY (inventory_group_id, agency_id) REFERENCES public.inventory_groups(id, agency_id);
+
+
+--
+-- Name: capacity_projections fk_capacity_projections_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_projections
+    ADD CONSTRAINT fk_capacity_projections_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: capacity_projections fk_capacity_projections_group_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_projections
+    ADD CONSTRAINT fk_capacity_projections_group_same_agency FOREIGN KEY (inventory_group_id, agency_id) REFERENCES public.inventory_groups(id, agency_id);
+
+
+--
+-- Name: capacity_projections fk_capacity_projections_last_event; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_projections
+    ADD CONSTRAINT fk_capacity_projections_last_event FOREIGN KEY (last_event_id) REFERENCES public.capacity_events(id);
+
+
+--
+-- Name: capacity_projections fk_capacity_projections_next_event; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capacity_projections
+    ADD CONSTRAINT fk_capacity_projections_next_event FOREIGN KEY (next_event_id) REFERENCES public.capacity_events(id);
 
 
 --
@@ -3707,6 +4112,22 @@ ALTER TABLE ONLY public.supplier_arrangements
 
 
 --
+-- Name: unit_shells fk_unit_shells_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.unit_shells
+    ADD CONSTRAINT fk_unit_shells_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: unit_shells fk_unit_shells_group_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.unit_shells
+    ADD CONSTRAINT fk_unit_shells_group_same_agency FOREIGN KEY (inventory_group_id, agency_id) REFERENCES public.inventory_groups(id, agency_id);
+
+
+--
 -- Name: user_permissions fk_user_permissions_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3809,6 +4230,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105210000'),
 ('20261105200000'),
 ('20261105190000'),
 ('20261105180000'),

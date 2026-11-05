@@ -11,7 +11,8 @@
   </div>
   <% if manage && @arrangement.draft? %>
     <div class="dd-page-actions">
-      <%= link_to "Edit arrangement", edit_departure_arrangement_path(@departure, @arrangement), class: "dd-button" %>
+      <%= link_to "Confirm arrangement", departure_arrangement_confirmation_path(@departure, @arrangement), class: "dd-button" %>
+      <%= link_to "Edit arrangement", edit_departure_arrangement_path(@departure, @arrangement), class: "dd-button dd-button--secondary" %>
       <%= button_to "Discard", departure_arrangement_discard_path(@departure, @arrangement), params: { lock_version: @arrangement.lock_version },
             class: "dd-button dd-button--quiet", form: { data: { turbo_confirm: "Discard this draft arrangement? It becomes Cancelled with no supplier or financial effect." } } %>
     </div>

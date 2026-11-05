@@ -31,6 +31,8 @@
   </div>
 </article>
 
+<%= render "capacity", departure: @departure, arrangement: @arrangement, group: @group, manage: manage && @arrangement.confirmed? %>
+
 <article class="dd-panel" id="capacity-rules">
   <header class="dd-panel-header"><h2 class="dd-panel-title">Who uses capacity</h2></header>
   <div class="dd-panel-body dd-stack">

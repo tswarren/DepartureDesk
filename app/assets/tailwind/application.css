@@ -292,6 +292,32 @@
   }
 
   /* logo.png canvas is 2172×724; opaque artwork is ~1849×316. Cover crops the padding. */
+  /* Unit shells as a grid (S-17, S-18); status is text, never color alone. */
+  .dd-shell-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dd-shell {
+    display: grid;
+    gap: 0.1rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--dd-border);
+    border-left-width: 4px;
+    border-radius: 6px;
+    background: var(--dd-surface);
+    font-size: 12px;
+  }
+
+  .dd-shell--available { border-left-color: var(--dd-teal); }
+  .dd-shell--returned { border-left-color: var(--dd-border-strong); color: var(--dd-text-muted); }
+  .dd-shell-label { font-weight: 600; font-family: var(--font-mono); }
+  .dd-shell-meta, .dd-shell-status { color: var(--dd-text-muted); }
+
   .dd-agency-logo {
     display: block;
     max-height: 4rem;
