@@ -1,0 +1,46 @@
+<%# locals: (form:, arrangement:) -%>
+<% if arrangement.new_record? %>
+  <div class="dd-field-group">
+    <%= form.label :supplier_id, "Supplier", class: "dd-label" %>
+    <%= form.select :supplier_id, arrangement_supplier_options(@departure), { include_blank: "Choose a supplier" }, **dd_field_options(form, :supplier_id) %>
+    <%= dd_field_error(form, :supplier_id) %>
+  </div>
+<% else %>
+  <p><strong><%= arrangement.supplier.display_name_for_directory %></strong></p>
+  <div class="dd-field-group">
+    <%= form.label :payee_account_id, "Payee account", class: "dd-label" %>
+    <%= form.select :payee_account_id, arrangement.supplier.payee_accounts.map { |account| [ "#{account.name} (#{account.currency})", account.id ] }, { include_blank: "Not chosen yet" }, **dd_field_options(form, :payee_account_id, aria_describedby_extra: "arrangement_payee_hint") %>
+    <p class="dd-field-hint" id="arrangement_payee_hint">Needed to confirm. Add one on the supplier's page if none is listed.</p>
+    <%= dd_field_error(form, :payee_account_id) %>
+  </div>
+<% end %>
+<div class="dd-field-group">
+  <%= form.label :group_reference, "Group or confirmation reference", class: "dd-label" %>
+  <%= form.text_field :group_reference, maxlength: 80, **dd_field_options(form, :group_reference, aria_describedby_extra: "arrangement_group_reference_hint") %>
+  <p class="dd-field-hint" id="arrangement_group_reference_hint">The supplier's reference for the whole group. Needed to confirm.</p>
+  <%= dd_field_error(form, :group_reference) %>
+</div>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :default_availability_promise, "Availability promise", class: "dd-label" %>
+    <%= form.select :default_availability_promise, ArrangementsHelper::AVAILABILITY_PROMISE_LABELS.invert, {}, aria: { describedby: "arrangement_promise_hint" }, class: "dd-field" %>
+    <p class="dd-field-hint" id="arrangement_promise_hint">Each inventory group starts with this and can differ.</p>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :obligation_shape, "Obligation shape", class: "dd-label" %>
+    <%= form.select :obligation_shape, ArrangementsHelper::OBLIGATION_SHAPE_LABELS.invert, { include_blank: "Not set" }, class: "dd-field" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :reservation_scope, "Supplier reservations", class: "dd-label" %>
+    <%= form.select :reservation_scope, ArrangementsHelper::RESERVATION_SCOPE_LABELS.invert, {}, class: "dd-field" %>
+  </div>
+</div>
+<div class="dd-field-group">
+  <%= form.label :covered_services, "Covered services and dates", class: "dd-label" %>
+  <%= form.text_area :covered_services, rows: 3, maxlength: SupplierArrangement::TEXT_LIMIT, class: "dd-field" %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :terms, "Other terms", class: "dd-label" %>
+  <%= form.text_area :terms, rows: 4, maxlength: SupplierArrangement::TEXT_LIMIT, aria: { describedby: "arrangement_terms_hint" }, class: "dd-field" %>
+  <p class="dd-field-hint" id="arrangement_terms_hint">Plain-language terms, such as attrition or special conditions (SUP-18).</p>
+</div>

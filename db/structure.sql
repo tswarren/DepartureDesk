@@ -979,6 +979,45 @@ CREATE TABLE public.sessions (
 
 
 --
+-- Name: supplier_arrangements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_arrangements (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    supplier_id uuid NOT NULL,
+    payee_account_id uuid,
+    arrangement_reference character varying NOT NULL,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    currency character varying NOT NULL,
+    group_reference character varying,
+    reservation_scope character varying DEFAULT 'arrangement'::character varying NOT NULL,
+    obligation_shape character varying,
+    default_availability_promise character varying DEFAULT 'firm_block'::character varying NOT NULL,
+    covered_services text,
+    terms text,
+    confirmed_on date,
+    confirmation_note text,
+    confirmed_at timestamp(6) with time zone,
+    cancelled_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_arrangements_cancelled_at_pair CHECK ((((status)::text = 'cancelled'::text) = (cancelled_at IS NOT NULL))),
+    CONSTRAINT supplier_arrangements_confirmed_complete CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'cancelled'::character varying])::text[])) OR ((group_reference IS NOT NULL) AND (payee_account_id IS NOT NULL) AND (confirmed_on IS NOT NULL) AND (confirmed_at IS NOT NULL)))),
+    CONSTRAINT supplier_arrangements_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT supplier_arrangements_default_promise CHECK (((default_availability_promise)::text = ANY ((ARRAY['firm_block'::character varying, 'releasable_block'::character varying, 'courtesy_option'::character varying, 'on_request'::character varying, 'rate_only'::character varying])::text[]))),
+    CONSTRAINT supplier_arrangements_group_reference CHECK (((group_reference IS NULL) OR ((btrim((group_reference)::text) <> ''::text) AND (char_length((group_reference)::text) <= 80)))),
+    CONSTRAINT supplier_arrangements_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_arrangements_obligation_shape CHECK (((obligation_shape IS NULL) OR ((obligation_shape)::text = ANY ((ARRAY['per_unit_used'::character varying, 'committed_quantity'::character varying, 'fixed_resource_charge'::character varying, 'minimum_pickup'::character varying, 'mixed'::character varying])::text[])))),
+    CONSTRAINT supplier_arrangements_reference_format CHECK (((arrangement_reference)::text ~ '^ARR-[0-9]{4,}$'::text)),
+    CONSTRAINT supplier_arrangements_reservation_scope CHECK (((reservation_scope)::text = ANY ((ARRAY['arrangement'::character varying, 'per_unit'::character varying, 'none'::character varying])::text[]))),
+    CONSTRAINT supplier_arrangements_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'confirmed'::character varying, 'closed'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
 -- Name: supplier_category_assignments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1531,6 +1570,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier_arrangements supplier_arrangements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT supplier_arrangements_pkey PRIMARY KEY (id);
 
 
 --
@@ -2306,6 +2353,34 @@ CREATE INDEX index_sessions_on_agency_user_id ON public.sessions USING btree (ag
 --
 
 CREATE INDEX index_sessions_on_office_id ON public.sessions USING btree (office_id);
+
+
+--
+-- Name: index_supplier_arrangements_on_agency_and_reference; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangements_on_agency_and_reference ON public.supplier_arrangements USING btree (agency_id, arrangement_reference);
+
+
+--
+-- Name: index_supplier_arrangements_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangements_on_id_and_agency_id ON public.supplier_arrangements USING btree (id, agency_id);
+
+
+--
+-- Name: index_supplier_arrangements_on_id_and_departure_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangements_on_id_and_departure_id ON public.supplier_arrangements USING btree (id, departure_id);
+
+
+--
+-- Name: index_supplier_arrangements_one_live_per_departure_supplier; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_arrangements_one_live_per_departure_supplier ON public.supplier_arrangements USING btree (departure_id, supplier_id) WHERE ((status)::text <> 'cancelled'::text);
 
 
 --
@@ -3413,6 +3488,38 @@ ALTER TABLE ONLY public.resellers
 
 
 --
+-- Name: supplier_arrangements fk_supplier_arrangements_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT fk_supplier_arrangements_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_arrangements fk_supplier_arrangements_departure_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT fk_supplier_arrangements_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: supplier_arrangements fk_supplier_arrangements_payee_of_supplier; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT fk_supplier_arrangements_payee_of_supplier FOREIGN KEY (payee_account_id, supplier_id) REFERENCES public.payee_accounts(id, supplier_id);
+
+
+--
+-- Name: supplier_arrangements fk_supplier_arrangements_supplier_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_arrangements
+    ADD CONSTRAINT fk_supplier_arrangements_supplier_same_agency FOREIGN KEY (supplier_id, agency_id) REFERENCES public.suppliers(id, agency_id);
+
+
+--
 -- Name: user_permissions fk_user_permissions_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3515,6 +3622,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105180000'),
 ('20261105170000'),
 ('20261105160000'),
 ('20261105150000'),

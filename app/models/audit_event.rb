@@ -69,6 +69,9 @@ class AuditEvent < ApplicationRecord
     departure.created
     departure.updated
     departure.decision_recorded
+    supplier_arrangement.created
+    supplier_arrangement.updated
+    supplier_arrangement.discarded
     departure.team_member_added
     departure.team_member_removed
     departure.default_task_owner_changed
@@ -78,7 +81,7 @@ class AuditEvent < ApplicationRecord
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true

@@ -153,6 +153,9 @@ Rails.application.routes.draw do
   resources :departures, only: %i[index new create show edit update] do
     resource :ready_to_sell, only: %i[show create], controller: "departure_ready_to_sells"
     resources :decisions, only: :create, controller: "departure_decisions"
+    resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
+      resource :discard, only: :create, controller: "supplier_arrangement_discards"
+    end
     # The team member id in these routes is the agency user's id.
     resources :team_members, only: %i[create destroy], controller: "departure_team_members" do
       collection do

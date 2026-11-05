@@ -34,7 +34,7 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
         Rails.root.join("db/structure.sql").to_s
       )
 
-      tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
+      tables = ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|deadline)/).sort
       assert_equal M1D_TABLES, tables
 
       exclusions = ActiveRecord::Base.connection.select_values(<<~SQL)
@@ -52,10 +52,10 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
     with_temporary_database("m1d_forward") do
       migrate_to!(20260914200000)
 
-      assert_equal M1C_TABLES, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
+      assert_equal M1C_TABLES, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|deadline)/).sort
 
       migrate_to!(20260915010000)
-      assert_equal M1D_TABLES, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
+      assert_equal M1D_TABLES, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|deadline)/).sort
 
       migrate_to!(20260915120000)
       assert ActiveRecord::Base.connection.column_exists?(:supplier_locations, :name_search_vector)
@@ -72,7 +72,7 @@ class SupplierLocationsAndContactsSchemaTest < ActiveSupport::TestCase
       assert_equal [ "client_org_contacts_no_overlapping_history" ], exclusions
 
       migrate_to!(20260914200000)
-      assert_equal M1C_TABLES, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).sort
+      assert_equal M1C_TABLES, ActiveRecord::Base.connection.tables.grep(/\Asupplier/).grep_v(/\Asupplier_(arrangement|rate_line|deadline)/).sort
       assert_equal 0, ActiveRecord::Base.connection.tables.grep(/\Asupplier_(locations|contacts)/).size
     end
   end
