@@ -41,7 +41,7 @@ module ApplicationHelper
   end
 
   def user_type_options
-    AgencyUser::USER_TYPES.map { |user_type| [ user_type_label(user_type), user_type ] }
+    AgencyUser::STAFF_USER_TYPES.map { |user_type| [ user_type_label(user_type), user_type ] }
   end
 
   def contact_destination(record)

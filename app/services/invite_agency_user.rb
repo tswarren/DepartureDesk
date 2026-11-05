@@ -50,7 +50,7 @@ class InviteAgencyUser < AgencyCommand
 
   # Reseller invitations arrive with the reseller namespace (step 9).
   def ensure_invitable_user_type!
-    return if @user_type.in?(AgencyUser::USER_TYPES)
+    return if @user_type.in?(AgencyUser::STAFF_USER_TYPES)
 
     raise Error.new("Choose Agency Admin or Staff.", code: :invalid)
   end

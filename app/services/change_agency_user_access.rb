@@ -48,7 +48,7 @@ class ChangeAgencyUserAccess < AgencyCommand
     removed_permissions = []
     if @user_type.present?
       raise Error.new("That user type change is not allowed.", code: :invalid_state) unless @agency_user.active? || @agency_user.suspended?
-      raise Error.new("That user type is not available.", code: :invalid) unless @user_type.in?(AgencyUser::USER_TYPES)
+      raise Error.new("That user type is not available.", code: :invalid) unless @user_type.in?(AgencyUser::STAFF_USER_TYPES)
       removed_permissions = assign_user_type!(@agency_user, @user_type)
     end
     if @status.present?

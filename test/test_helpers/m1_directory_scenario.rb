@@ -260,7 +260,9 @@ module M1DirectoryScenario
       ReferenceSequence.where(agency_id:).delete_all
       AuditEvent.where(agency_id:).delete_all
       Session.where(agency_user_id: user_ids).delete_all
+      UserPermission.where(agency_id:).delete_all
       AgencyUser.where(id: user_ids).delete_all
+      Reseller.where(agency_id:).delete_all
       Office.where(agency_id:).delete_all
       Agency.where(id: agency_id).delete_all
     end

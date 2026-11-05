@@ -63,7 +63,7 @@ class UpdateAgencyUser < AgencyCommand
 
   def ensure_user_type_change_allowed!
     return if @user_type.blank? || @user_type == @agency_user.user_type
-    raise Error.new("That user type is not available.", code: :invalid) unless @user_type.in?(AgencyUser::USER_TYPES)
+    raise Error.new("That user type is not available.", code: :invalid) unless @user_type.in?(AgencyUser::STAFF_USER_TYPES)
     return if @agency_user.active? || @agency_user.suspended?
 
     raise Error.new("That user type change is not allowed.", code: :invalid_state)

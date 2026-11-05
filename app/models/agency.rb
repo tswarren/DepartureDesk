@@ -7,6 +7,7 @@ class Agency < ApplicationRecord
   has_many :offices, dependent: :restrict_with_exception
   has_many :agency_users, dependent: :restrict_with_exception
   has_many :user_permissions, dependent: :restrict_with_exception
+  has_many :resellers, dependent: :restrict_with_exception
   has_many :audit_events, dependent: :restrict_with_exception
   has_many :client_people, dependent: :restrict_with_exception
   has_many :client_organizations, dependent: :restrict_with_exception

@@ -383,14 +383,16 @@ CREATE TABLE public.agency_users (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    reseller_id uuid,
     CONSTRAINT agency_users_credential_version_nonnegative CHECK ((credential_version >= 0)),
     CONSTRAINT agency_users_email_normalized CHECK (((email_address)::text = lower(btrim((email_address)::text)))),
     CONSTRAINT agency_users_email_not_blank CHECK ((btrim((email_address)::text) <> ''::text)),
     CONSTRAINT agency_users_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT agency_users_name_not_blank CHECK (((btrim((first_name)::text) <> ''::text) AND (btrim((last_name)::text) <> ''::text))),
+    CONSTRAINT agency_users_reseller_iff_reseller_type CHECK ((((user_type)::text = 'reseller'::text) = (reseller_id IS NOT NULL))),
     CONSTRAINT agency_users_status_credentials CHECK (((((status)::text = 'invited'::text) AND (invitation_token_digest IS NOT NULL) AND (invitation_expires_at IS NOT NULL) AND (password_digest IS NULL)) OR (((status)::text = 'active'::text) AND (password_digest IS NOT NULL) AND (invitation_token_digest IS NULL)) OR (((status)::text = ANY (ARRAY[('suspended'::character varying)::text, ('closed'::character varying)::text])) AND (invitation_token_digest IS NULL)))),
     CONSTRAINT agency_users_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text]))),
-    CONSTRAINT agency_users_user_type_valid CHECK (((user_type)::text = ANY ((ARRAY['agency_admin'::character varying, 'staff'::character varying])::text[])))
+    CONSTRAINT agency_users_user_type_valid CHECK (((user_type)::text = ANY ((ARRAY['agency_admin'::character varying, 'staff'::character varying, 'reseller'::character varying])::text[])))
 );
 
 
@@ -776,6 +778,25 @@ CREATE TABLE public.reference_sequences (
     updated_at timestamp(6) with time zone NOT NULL,
     CONSTRAINT reference_sequences_namespace CHECK (((namespace)::text = ANY (ARRAY[('client'::character varying)::text, ('supplier'::character varying)::text, ('departure'::character varying)::text]))),
     CONSTRAINT reference_sequences_next_value CHECK (((next_value >= 1) AND (next_value <= 1000000)))
+);
+
+
+--
+-- Name: resellers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.resellers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    name character varying NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    direct_contact_allowed boolean DEFAULT true NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT resellers_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT resellers_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
+    CONSTRAINT resellers_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'booking_paused'::character varying, 'suspended'::character varying, 'ended'::character varying])::text[])))
 );
 
 
@@ -1260,6 +1281,14 @@ ALTER TABLE ONLY public.reference_sequences
 
 
 --
+-- Name: resellers resellers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.resellers
+    ADD CONSTRAINT resellers_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1410,6 +1439,13 @@ CREATE UNIQUE INDEX index_agency_users_on_invitation_token_digest ON public.agen
 --
 
 CREATE UNIQUE INDEX index_agency_users_on_password_reset_token_digest ON public.agency_users USING btree (password_reset_token_digest) WHERE (password_reset_token_digest IS NOT NULL);
+
+
+--
+-- Name: index_agency_users_on_reseller_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_agency_users_on_reseller_id ON public.agency_users USING btree (reseller_id);
 
 
 --
@@ -1935,6 +1971,20 @@ CREATE UNIQUE INDEX index_reference_sequences_on_agency_and_namespace ON public.
 --
 
 CREATE INDEX index_reference_sequences_on_agency_id ON public.reference_sequences USING btree (agency_id);
+
+
+--
+-- Name: index_resellers_on_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_resellers_on_agency_id ON public.resellers USING btree (agency_id);
+
+
+--
+-- Name: index_resellers_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_resellers_on_id_and_agency_id ON public.resellers USING btree (id, agency_id);
 
 
 --
@@ -2716,6 +2766,14 @@ ALTER TABLE ONLY public.departures
 
 
 --
+-- Name: agency_users fk_agency_users_reseller_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_users
+    ADD CONSTRAINT fk_agency_users_reseller_same_agency FOREIGN KEY (reseller_id, agency_id) REFERENCES public.resellers(id, agency_id);
+
+
+--
 -- Name: client_person_postal_addresses fk_rails_14e390d793; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2932,6 +2990,14 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: resellers fk_resellers_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.resellers
+    ADD CONSTRAINT fk_resellers_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: user_permissions fk_user_permissions_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3034,6 +3100,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261104150000'),
 ('20261104140000'),
 ('20261104130000'),
 ('20261104120000'),
