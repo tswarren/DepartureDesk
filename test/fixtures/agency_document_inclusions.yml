@@ -1,0 +1,11 @@
+# SET-06 and SET-07 defaults, as AgencyDocumentInclusion.create_defaults! writes them.
+<% %w[harbor cove].each do |agency| %>
+<% AgencyDocumentInclusion::FAMILIES.each do |family| %>
+<%= agency %>_<%= family %>:
+  agency: <%= agency %>
+  document_family: <%= family %>
+<% AgencyDocumentInclusion.defaults_for(family).each do |column, value| %>
+  <%= column %>: <%= value %>
+<% end %>
+<% end %>
+<% end %>

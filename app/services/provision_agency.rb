@@ -24,6 +24,7 @@ class ProvisionAgency < AgencyCommand
         default_timezone: @default_timezone,
         status: "active"
       )
+      AgencyDocumentInclusion.create_defaults!(agency)
       ReferenceSequence::NAMESPACES.each do |namespace|
         agency.reference_sequences.create!(namespace:, next_value: 1)
       end

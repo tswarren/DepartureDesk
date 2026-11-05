@@ -12,11 +12,7 @@ module Administration
       UpdateAgencyProfile.new(
         agency: Current.agency,
         actor: Current.agency_user,
-        name: agency_params[:name],
-        legal_name: agency_params[:legal_name],
-        country_code: agency_params[:country_code],
-        default_currency: agency_params[:default_currency],
-        default_timezone: agency_params[:default_timezone],
+        attributes: agency_params.except(:lock_version),
         lock_version: agency_params[:lock_version]
       ).call
       redirect_to administration_agency_path, notice: "Agency profile updated."

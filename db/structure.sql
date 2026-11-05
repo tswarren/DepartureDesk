@@ -346,12 +346,57 @@ CREATE TABLE public.agencies (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    contact_email character varying,
+    agency_contact_name character varying,
+    phone_number character varying,
+    phone_normalized_number character varying,
+    phone_extension character varying,
+    phone_country_code character varying,
+    address_line_1 character varying,
+    address_line_2 character varying,
+    address_locality character varying,
+    address_region character varying,
+    address_postal_code character varying,
+    address_country_code character varying,
+    seller_of_travel_disclosure text,
+    confirmation_footer text,
+    financial_document_footer text,
+    hold_duration_days integer DEFAULT 2 NOT NULL,
+    installment_buffer_days integer DEFAULT 14 NOT NULL,
+    CONSTRAINT agencies_address_complete CHECK ((((address_line_1 IS NULL) AND (address_line_2 IS NULL) AND (address_locality IS NULL) AND (address_region IS NULL) AND (address_postal_code IS NULL) AND (address_country_code IS NULL)) OR ((address_line_1 IS NOT NULL) AND (btrim((address_line_1)::text) <> ''::text) AND (address_country_code IS NOT NULL) AND ((address_country_code)::text ~ '^[A-Z]{2}$'::text)))),
+    CONSTRAINT agencies_contact_email_normalized CHECK (((contact_email IS NULL) OR ((contact_email)::text = lower(btrim((contact_email)::text))))),
     CONSTRAINT agencies_country_code_format CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
     CONSTRAINT agencies_currency_format CHECK (((default_currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT agencies_hold_duration_positive CHECK ((hold_duration_days >= 1)),
+    CONSTRAINT agencies_installment_buffer_nonnegative CHECK ((installment_buffer_days >= 0)),
     CONSTRAINT agencies_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT agencies_name_not_blank CHECK ((btrim((name)::text) <> ''::text)),
+    CONSTRAINT agencies_phone_complete CHECK (((phone_number IS NULL) OR ((phone_normalized_number IS NOT NULL) AND ((phone_normalized_number)::text ~ '^\+[1-9][0-9]{0,14}$'::text) AND (phone_country_code IS NOT NULL) AND ((phone_country_code)::text ~ '^[A-Z]{2}$'::text)))),
+    CONSTRAINT agencies_phone_extension_needs_number CHECK (((phone_extension IS NULL) OR (phone_number IS NOT NULL))),
     CONSTRAINT agencies_status_valid CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text]))),
     CONSTRAINT agencies_workspace_code_format CHECK (((workspace_code)::text ~ '^[a-z][a-z0-9-]{1,39}$'::text))
+);
+
+
+--
+-- Name: agency_document_inclusions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agency_document_inclusions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    document_family character varying NOT NULL,
+    include_display_name boolean NOT NULL,
+    include_contact_email boolean NOT NULL,
+    include_phone boolean NOT NULL,
+    include_legal_name boolean NOT NULL,
+    include_mailing_address boolean NOT NULL,
+    include_agency_contact_name boolean NOT NULL,
+    include_seller_of_travel_disclosure boolean CONSTRAINT agency_document_inclusions_include_seller_of_travel_di_not_null NOT NULL,
+    include_footer boolean NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT agency_document_inclusions_family_valid CHECK (((document_family)::text = ANY ((ARRAY['confirmation'::character varying, 'invoice'::character varying, 'receipt'::character varying, 'statement'::character varying])::text[])))
 );
 
 
@@ -1137,6 +1182,14 @@ ALTER TABLE ONLY public.agencies
 
 
 --
+-- Name: agency_document_inclusions agency_document_inclusions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_document_inclusions
+    ADD CONSTRAINT agency_document_inclusions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: agency_users agency_users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1397,6 +1450,13 @@ ALTER TABLE ONLY public.user_permissions
 --
 
 CREATE UNIQUE INDEX index_agencies_on_workspace_code ON public.agencies USING btree (workspace_code);
+
+
+--
+-- Name: index_agency_document_inclusions_on_agency_family; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_agency_document_inclusions_on_agency_family ON public.agency_document_inclusions USING btree (agency_id, document_family);
 
 
 --
@@ -2894,6 +2954,14 @@ ALTER TABLE ONLY public.suppliers
 
 
 --
+-- Name: agency_document_inclusions fk_rails_a2f50cb165; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agency_document_inclusions
+    ADD CONSTRAINT fk_rails_a2f50cb165 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_contact_phone_numbers fk_rails_a8cbb23af8; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3100,6 +3168,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261104170000'),
 ('20261104160000'),
 ('20261104150000'),
 ('20261104140000'),

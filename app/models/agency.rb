@@ -23,13 +23,20 @@ class Agency < ApplicationRecord
   has_many :supplier_websites, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
   has_many :departures, dependent: :restrict_with_exception
+  has_many :document_inclusions, class_name: "AgencyDocumentInclusion", dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 
   attr_readonly :workspace_code
 
   normalizes :name, with: ->(value) { value.to_s.strip }
-  normalizes :legal_name, with: ->(value) { value.to_s.strip.presence }
+  normalizes :legal_name, :agency_contact_name, with: ->(value) { value.to_s.strip.presence }
+  normalizes :contact_email, with: ->(value) { value.to_s.strip.downcase.presence }
+  normalizes :address_line_1, :address_line_2, :address_locality, :address_region, :address_postal_code,
+    with: ->(value) { value.to_s.strip.presence }
+  normalizes :address_country_code, with: ->(value) { value.to_s.strip.upcase.presence }
+  normalizes :seller_of_travel_disclosure, :confirmation_footer, :financial_document_footer,
+    with: ->(value) { value.to_s.gsub("\r\n", "\n").strip.presence }
   normalizes :workspace_code, with: ->(value) { normalize_workspace_code(value) }
   normalizes :country_code, with: ->(value) { value.to_s.strip.upcase }
   normalizes :default_currency, with: ->(value) { value.to_s.strip.upcase }
@@ -39,6 +46,11 @@ class Agency < ApplicationRecord
   validates :workspace_code, uniqueness: true, format: { with: WORKSPACE_CODE_FORMAT }
   validates :country_code, format: { with: COUNTRY_CODE_FORMAT }
   validates :default_currency, format: { with: CURRENCY_FORMAT }
+  validates :contact_email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_nil: true
+  validates :address_line_1, presence: true, if: :mailing_address_started?
+  validates :address_country_code, presence: true, format: { with: COUNTRY_CODE_FORMAT }, if: :mailing_address_started?
+  validates :hold_duration_days, numericality: { only_integer: true, greater_than_or_equal_to: 1 }
+  validates :installment_buffer_days, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :timezone_is_iana
   validate :currency_is_known
 
@@ -48,6 +60,18 @@ class Agency < ApplicationRecord
 
   def operational?
     active?
+  end
+
+  # SET-04: required to generate client documents, never to save the profile.
+  def document_profile_blockers
+    blockers = []
+    blockers << "Enter the agency display name." if name.blank?
+    blockers << "Enter the agency contact email." if contact_email.blank?
+    blockers
+  end
+
+  def mailing_address_started?
+    [ address_line_1, address_line_2, address_locality, address_region, address_postal_code, address_country_code ].any?(&:present?)
   end
 
   private
