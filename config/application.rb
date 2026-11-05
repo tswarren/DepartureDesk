@@ -20,6 +20,10 @@ module DepartureDesk
     # Rails reads and writes database timestamps in UTC.
     config.active_record.default_timezone = :utc
 
+    # ADR 0019: no file is reachable through a framework URL. Every download
+    # goes through an application controller that authorizes it.
+    config.active_storage.draw_routes = false
+
     # Generate application-owned tables with UUID primary keys.
     config.generators do |generator|
       generator.orm :active_record, primary_key_type: :uuid

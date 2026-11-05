@@ -2,6 +2,8 @@ class AuditEvent < ApplicationRecord
   ACTIONS = %w[
     agency.provisioned
     agency.profile_updated
+    agency.logo_updated
+    agency.logo_removed
     agency.suspended
     agency.reactivated
     agency.closed

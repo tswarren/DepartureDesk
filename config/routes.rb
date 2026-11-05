@@ -4,11 +4,13 @@ Rails.application.routes.draw do
   resource :account_password, only: %i[edit update]
   resources :invitation_acceptances, param: :token, only: %i[edit update]
   resource :current_office, only: %i[edit update]
+  resource :agency_logo, only: :show
 
   get "up" => "rails/health#show", as: :rails_health_check
 
   namespace :administration do
     resource :agency, only: %i[show edit update]
+    resource :agency_logo, only: %i[update destroy]
     resources :offices, only: %i[index show new create edit update] do
       member do
         post :deactivate

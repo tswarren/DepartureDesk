@@ -3,6 +3,8 @@ class Agency < ApplicationRecord
   WORKSPACE_CODE_FORMAT = /\A[a-z][a-z0-9-]{1,39}\z/
   COUNTRY_CODE_FORMAT = /\A[A-Z]{2}\z/
   CURRENCY_FORMAT = /\A[A-Z]{3}\z/
+  LOGO_CONTENT_TYPES = %w[image/png image/jpeg image/webp].freeze
+  LOGO_MAX_BYTES = 2.megabytes
 
   has_many :offices, dependent: :restrict_with_exception
   has_many :agency_users, dependent: :restrict_with_exception
@@ -25,6 +27,10 @@ class Agency < ApplicationRecord
   has_many :departures, dependent: :restrict_with_exception
   has_many :document_inclusions, class_name: "AgencyDocumentInclusion", dependent: :restrict_with_exception
   has_many :traveler_types, dependent: :restrict_with_exception
+
+  # SET-08: optional, shown on documents (DOC-51). Served only through
+  # AgencyLogosController (ADR 0019).
+  has_one_attached :logo
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 
@@ -53,6 +59,7 @@ class Agency < ApplicationRecord
   validates :hold_duration_days, numericality: { only_integer: true, greater_than_or_equal_to: 1 }
   validates :installment_buffer_days, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :timezone_is_iana
+  validate :logo_is_supported_image
   validate :currency_is_known
 
   def self.normalize_workspace_code(value)
@@ -83,6 +90,13 @@ class Agency < ApplicationRecord
     TZInfo::Timezone.get(default_timezone)
   rescue TZInfo::InvalidTimezoneIdentifier
     errors.add(:default_timezone, "is not a recognized IANA timezone")
+  end
+
+  def logo_is_supported_image
+    return unless logo.attached?
+
+    errors.add(:logo, "must be a PNG, JPEG or WebP image") unless logo.blob.content_type.in?(LOGO_CONTENT_TYPES)
+    errors.add(:logo, "must be 2 MB or smaller") if logo.blob.byte_size > LOGO_MAX_BYTES
   end
 
   def currency_is_known
