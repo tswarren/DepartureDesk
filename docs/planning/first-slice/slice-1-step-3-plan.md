@@ -1,6 +1,6 @@
 # Slice 1 step 3: Arrangements, inventory, rate table, deadlines and tasks
 
-**Status:** Draft 2026-11-05, for review before the build starts. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 3, [ADR 0018](../../adr/0018-arrangement-history-by-dated-adjustment.md) with its spike amendment (D-88), and the decision log entries it cites.
+**Status:** Accepted 2026-11-05; build not started. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 3, [ADR 0018](../../adr/0018-arrangement-history-by-dated-adjustment.md) with its spike amendment (D-88), [ADR 0019](../../adr/0019-issued-document-storage.md) as this step amends it, and the decision log entries it cites.
 
 Charter build step 3: arrangements, inventory groups, shells, pools and resources, the supplier rate table, and deadlines that create tasks. It closes **D1** (confirming the Alpha arrangement creates 32 cabin shells and no supplier cost) and **D12** (recorded deadlines create owned tasks that go overdue).
 
@@ -12,15 +12,15 @@ It covers charter workflow steps 3 to 5:
 
 Cost lines, schedule lines, amounts due and expected commission are build step 4 (D-85). Holds, allocations and bookings are build step 6. Agreement B's option cutoff is Slice 1b.
 
-## Questions to settle before the build
+## Questions settled for this plan (2026-11-05)
 
-Each has a recommendation. None needs a decision log entry unless you choose otherwise.
+Each was decided as shown in the Decision column. None needs a decision log entry. Question 3 amends ADR 0019, in PR 3a.
 
-| # | Question | Recommendation |
+| # | Question | Decision |
 | --- | --- | --- |
 | 1 | **One PR or two.** This is the largest step so far. The charter allows one pull request per step or per demonstration case. | Two PRs. **3a** builds arrangements, inventory, the capacity ledger and the rate table, and closes D1. **3b** builds deadlines, tasks, My tasks and the Departure task panel, and closes D12. 3b depends on 3a's arrangements. |
 | 2 | **How much of the capacity ledger.** ADR 0018 keeps the replay, projection, rebuild and reconciliation code and adds an allocations table. Step 3 has no holds or bookings. | Restore the replay and projection engine and recreate the pool, event and projection tables, with no version columns. Supply commands are opening (at confirmation), increase, supplier release and correction. **Defer the allocations table to build step 6**, where holds start, and **defer reconciliation** until a case needs it. Until then shell status is always Available or Returned to supplier. |
-| 3 | **What "supplier confirmation recorded" means** (the guard on Confirm). SUP-05 keeps quotes and agreements as evidence, but ADR 0019 doesn't yet authorize supplier document uploads. | Confirmation records the supplier's group or confirmation reference (required), the date the supplier confirmed and an optional note. Document uploads wait for an ADR 0019 amendment in a later step. |
+| 3 | **What "supplier confirmation recorded" means** (the guard on Confirm). SUP-05 keeps quotes and agreements as evidence, but ADR 0019 doesn't yet authorize supplier document uploads. | Confirmation records the supplier's group or confirmation reference (required), the date the supplier confirmed and an optional note. **Arrangement documents are built in 3a**, with ADR 0019 amended for them. They are in scope through SUP-06, which lists documents among what an arrangement records, and the screen inventory's S-12 row. SUP-05 itself is not cited by the charter and is not implemented as a rule. Attaching one is optional at Confirm. The rules are in "Arrangement documents" below. |
 | 4 | **Who owns a deadline's task.** D12 needs owned tasks. Work groups (OPS-11) are out of Slice 1. | The Departure's default task owner (OPS-12), else the user who recorded the deadline. Staff may reassign (S-34). |
 | 5 | **Arrangement currency.** FIN-22 gives a Departure one client currency, and FX is out of scope. | An arrangement's currency defaults to the Departure's and must equal it in Slice 1. Payee accounts carry their own currency (SUP-02), but an arrangement's payee account must match. Different currencies wait for the FX slice. |
 | 6 | **Who sees and edits what** (ACC-30, ACC-31). | New catalog actions. Viewing arrangements, inventory, deadlines and tasks is baseline. Editing arrangements, inventory and deadlines needs **Supplier arrangements**. Viewing or editing the rate table (supplier cost and commission) needs **Departure management, Supplier arrangements or Financial records** to view, and **Supplier arrangements** to edit. Completing, waiving and starting tasks is baseline (ACC-30: "use tasks"). Reassigning a task needs Departure management. |
@@ -48,6 +48,18 @@ Each has a recommendation. None needs a decision log entry unless you choose oth
 - **Discard** moves a Draft to Cancelled with no supplier or financial effect. In 3b it also waives open deadline tasks (SUP-23).
 - An arrangement's Departure must not be Departed, and its currency equals the Departure's (question 5).
 
+### Arrangement documents (SUP-06, S-12, ADR 0019 amendment)
+
+- **What they are:** supplier quotes, agreements and confirmations kept with the arrangement as evidence. A document records its arrangement, a kind (quote, agreement, confirmation, other), an optional description, who uploaded it and when, and its SHA-256. The file lives in Active Storage, the same as the logo.
+- **Accepted files:** PDF, PNG, JPEG, Word (.docx) and Excel (.xlsx), up to 20 MB. The type is checked against the file bytes, not only the name or the browser's label. Macro-enabled Office files (.docm, .xlsm) and legacy .doc and .xls are refused.
+- **Who:**
+  - Viewing and downloading needs Departure management, Supplier arrangements or Financial records, because agreements usually show supplier cost (ACC-31). Resellers never.
+  - Uploading needs Supplier arrangements.
+  - Any document can be uploaded before or after Confirm.
+- **Removal:** staff with Supplier arrangements may remove a document at any time, Draft or Confirmed. Each removal is audited with the file's name, kind and SHA-256, and the file is purged. (This was chosen over keeping confirmed evidence permanently.)
+- **Downloads:** they go through an authorized controller that loads the document through `Current.agency`, checks the permission and the stored SHA-256, and returns not found for other agencies (ADR 0019). Word and Excel files are always sent as downloads, never shown in the browser. PDFs and images display sandboxed.
+- **ADR 0019 amendment:** it records these rules as the first authorized upload, alongside the logo. The rules are allowed types, size, access, removal, audit, the SHA-256 check and download handling. Active Storage's framework routes stay off.
+
 ### Inventory groups (INV-01 to INV-05, INV-07, INV-09, INV-12, INV-16, SUP-15)
 
 - New `inventory_groups`: arrangement, label, service category (INV-12's list: hotel, all-inclusive resort, cruise, air, rail, transportation, activity, meal, insurance; not the supplier directory's categories), representation (`unit_shells`, `capacity_pool`, `none`), availability promise (`firm_block`, `releasable_block`, `courtesy_option`, `on_request`, `rate_only`), quantity at confirmation, maximum occupancy (positions per shell), service start and end as local date and time with an IANA zone (defaulting from the Departure), and position.
@@ -72,7 +84,7 @@ Each has a recommendation. None needs a decision log entry unless you choose oth
 ### Screens
 
 - **S-11 Supplier directory and detail:** the existing pages plus a payee accounts panel.
-- **S-12 Arrangement detail:** status, reference, reservation scope, obligation shape, terms, inventory groups, and Confirm or Discard. It hosts the rate table (S-14).
+- **S-12 Arrangement detail:** status, reference, reservation scope, obligation shape, terms, inventory groups, documents (upload, download, remove), and Confirm or Discard. It hosts the rate table (S-14).
 - **S-13 Arrangement form:** create and edit, saving as Draft with fields missing.
 - **S-14 Supplier rate table:** a matrix of inventory group by occupancy position. It's visible only with the permissions in question 6.
 - **S-17 Departure inventory:** the Departure's Inventory tab. Groups by category with their promise, shells as a grid with derived status, and pool quantity or "On request".
@@ -148,7 +160,6 @@ Each creates a task owned by the Departure's default task owner.
 - **Slice 1b:** Agreement B and the option cutoff, and the dated resource increase (D7).
 - **Later slices:**
   - supplier agreements copied into arrangements (SUP-04);
-  - document uploads (question 3);
   - minimums and count warnings (SUP-26);
   - group benefits;
   - cancelling a confirmed arrangement;
@@ -169,6 +180,13 @@ Each creates a task owned by the Departure's default task owner.
   - the restored replay and projection specs, adapted;
   - a future-dated release applying at 11:59 p.m. agency time;
   - the lock order.
+- **Documents:**
+  - each accepted type uploads;
+  - a renamed executable, a macro-enabled Office file and a file over 20 MB are refused;
+  - downloads check the permission and SHA-256;
+  - Office files are sent as attachments;
+  - removal is audited and purges the file;
+  - other agencies get not found.
 - **Commands:**
   - Confirm creates exactly the shells and pools, with opening events, and no cost, and is refused when the reference, payee or service dates are missing;
   - Discard waives tasks;
@@ -189,11 +207,12 @@ Each creates a task owned by the Departure's default task owner.
 
 1. Payee accounts and the S-11 panel.
 2. Arrangements: Draft, edit, Discard, and the catalog actions (question 6).
-3. Inventory groups and capacity rules.
-4. Capacity tables and the restored engine.
-5. Confirm: shells, pools and opening events.
-6. Rate table and its freeze.
-7. Screens S-12 to S-14, S-17 and S-18, the Departure tabs, the Alpha fixture, D1 and docs.
+3. Arrangement documents and the ADR 0019 amendment.
+4. Inventory groups and capacity rules.
+5. Capacity tables and the restored engine.
+6. Confirm: shells, pools and opening events.
+7. Rate table and its freeze.
+8. Screens S-12 to S-14, S-17 and S-18, the Departure tabs, the Alpha fixture, D1 and docs.
 
 **PR 3b** (D12), citing SUP-22 to SUP-25, OPS-01 to OPS-05, OPS-12 and SET-10:
 
