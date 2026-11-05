@@ -23,6 +23,7 @@ class Agency < ApplicationRecord
   has_many :supplier_phone_numbers, dependent: :restrict_with_exception
   has_many :supplier_postal_addresses, dependent: :restrict_with_exception
   has_many :supplier_websites, dependent: :restrict_with_exception
+  has_many :payee_accounts, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
   has_many :departures, dependent: :restrict_with_exception
   has_many :departure_team_members, dependent: :restrict_with_exception

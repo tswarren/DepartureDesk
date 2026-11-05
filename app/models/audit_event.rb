@@ -52,6 +52,8 @@ class AuditEvent < ApplicationRecord
     supplier.inactivated
     supplier.reactivated
     supplier.duplicate_override
+    supplier.payee_account_added
+    supplier.payee_account_updated
     supplier_location.created
     supplier_location.updated
     supplier_location.inactivated

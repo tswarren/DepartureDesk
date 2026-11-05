@@ -898,6 +898,27 @@ CREATE TABLE public.offices (
 
 
 --
+-- Name: payee_accounts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.payee_accounts (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_id uuid NOT NULL,
+    name character varying NOT NULL,
+    currency character varying NOT NULL,
+    payment_instructions text,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT payee_accounts_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT payee_accounts_instructions CHECK (((payment_instructions IS NULL) OR (char_length(payment_instructions) <= 4000))),
+    CONSTRAINT payee_accounts_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT payee_accounts_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 120)))
+);
+
+
+--
 -- Name: reference_sequences; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1470,6 +1491,14 @@ ALTER TABLE ONLY public.departures
 
 ALTER TABLE ONLY public.offices
     ADD CONSTRAINT offices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: payee_accounts payee_accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.payee_accounts
+    ADD CONSTRAINT payee_accounts_pkey PRIMARY KEY (id);
 
 
 --
@@ -2214,6 +2243,27 @@ CREATE UNIQUE INDEX index_offices_on_agency_id_and_code ON public.offices USING 
 --
 
 CREATE UNIQUE INDEX index_offices_on_id_and_agency_id ON public.offices USING btree (id, agency_id);
+
+
+--
+-- Name: index_payee_accounts_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_payee_accounts_on_id_and_agency_id ON public.payee_accounts USING btree (id, agency_id);
+
+
+--
+-- Name: index_payee_accounts_on_id_and_supplier_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_payee_accounts_on_id_and_supplier_id ON public.payee_accounts USING btree (id, supplier_id);
+
+
+--
+-- Name: index_payee_accounts_on_supplier_and_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_payee_accounts_on_supplier_and_name ON public.payee_accounts USING btree (supplier_id, name);
 
 
 --
@@ -3091,6 +3141,22 @@ ALTER TABLE ONLY public.departure_team_members
 
 
 --
+-- Name: payee_accounts fk_payee_accounts_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.payee_accounts
+    ADD CONSTRAINT fk_payee_accounts_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: payee_accounts fk_payee_accounts_supplier_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.payee_accounts
+    ADD CONSTRAINT fk_payee_accounts_supplier_same_agency FOREIGN KEY (supplier_id, agency_id) REFERENCES public.suppliers(id, agency_id);
+
+
+--
 -- Name: client_person_postal_addresses fk_rails_14e390d793; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3449,6 +3515,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105170000'),
 ('20261105160000'),
 ('20261105150000'),
 ('20261105140000'),

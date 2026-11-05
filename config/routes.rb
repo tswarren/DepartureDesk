@@ -102,6 +102,8 @@ Rails.application.routes.draw do
     end
   end
   scope "/suppliers/:supplier_id", as: :supplier do
+    resources :payee_accounts, controller: "supplier_payee_accounts", only: %i[new create edit update]
+
     resources :locations, controller: "supplier_locations", param: :supplier_location_id, only: %i[new create show edit update] do
       member do
         get "status/edit", action: :edit_status
