@@ -146,9 +146,7 @@ class DepartureCorrectionsTest < ActiveSupport::TestCase
         starts_on:,
         ends_on:,
         time_zone: "America/New_York",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @admin.id
+        operating_currency: "USD"
       }
     ).call.record
     departure = ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record

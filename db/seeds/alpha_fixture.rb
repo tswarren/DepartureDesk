@@ -55,8 +55,7 @@ module AlphaFixture
         starts_on: STARTS_ON,
         ends_on: ENDS_ON,
         time_zone: TIME_ZONE,
-        operating_currency: CURRENCY,
-        responsible_agency_user_id: actor.id
+        operating_currency: CURRENCY
       }
     ).call
     created!(result, DEPARTURE_NAME)

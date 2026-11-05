@@ -46,18 +46,15 @@ class M2DepartureIsolationRequestTest < ActionDispatch::IntegrationTest
       departure: { reason: "no", lock_version: foreign.lock_version }
     }
     assert_response :not_found
-    get edit_departure_responsibility_path(foreign)
+    post departure_team_members_path(foreign), params: { team_member: { agency_user_id: @primary.directory.actor.id } }
     assert_response :not_found
-    patch departure_responsibility_path(foreign), params: {
-      departure: {
-        responsible_office_id: @primary.fixture_responsible_office.id,
-        responsible_agency_user_id: @primary.directory.actor.id,
-        lock_version: foreign.lock_version
-      }
-    }
+    delete departure_team_member_path(foreign, @companion.fixture_default_task_owner.id)
+    assert_response :not_found
+    patch default_owner_departure_team_members_path(foreign), params: { agency_user_id: "" }
     assert_response :not_found
     assert_equal "Celebrity Beyond Isolation", foreign.reload.name
     assert_equal "not_on_sale", foreign.summary_label
+    assert_equal [ @companion.fixture_default_task_owner ], foreign.team_members.map(&:agency_user)
   end
 
   test "staff without departure management browses home departures and cannot mutate" do

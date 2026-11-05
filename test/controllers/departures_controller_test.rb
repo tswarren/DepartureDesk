@@ -26,9 +26,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
           starts_on: "2026-09-01",
           ends_on: "2026-09-08",
           time_zone: "America/New_York",
-          operating_currency: "USD",
-          responsible_office_id: @office.id,
-          responsible_agency_user_id: @admin.id
+          operating_currency: "USD"
         }
       }
     end
@@ -66,9 +64,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
         starts_on: "2026-10-01",
         ends_on: "2026-10-08",
         time_zone: "America/New_York",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @admin.id
+        operating_currency: "USD"
       }
     ).call.record
     get departure_activation_path(complete)
@@ -124,9 +120,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
         starts_on: "2026-11-01",
         ends_on: "2026-11-08",
         time_zone: "America/New_York",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @admin.id
+        operating_currency: "USD"
       }
     ).call.record
     ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call
@@ -151,9 +145,7 @@ class DeparturesControllerTest < ActionDispatch::IntegrationTest
         starts_on: "2026-10-01",
         ends_on: "2026-10-08",
         time_zone: "America/New_York",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @admin.id
+        operating_currency: "USD"
       }
     ).call.record
     ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call

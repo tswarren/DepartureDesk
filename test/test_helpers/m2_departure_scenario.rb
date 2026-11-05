@@ -4,8 +4,7 @@ module M2DepartureScenario
     :departure,
     :fixture_operating_currency,
     :fixture_time_zone,
-    :fixture_responsible_office,
-    :fixture_responsible_agency_user
+    :fixture_default_task_owner
   )
 
   CELEBRITY_NAME = "Celebrity Beyond"
@@ -34,12 +33,14 @@ module M2DepartureScenario
 
   def self.cleanup!(*results)
     agencies = results.flatten.compact.map { |result| agency_from(result) }.uniq
-    agencies.each { |agency| Departure.where(agency_id: agency.id).delete_all }
+    agencies.each do |agency|
+      DepartureTeamMember.where(agency_id: agency.id).delete_all
+      Departure.where(agency_id: agency.id).delete_all
+    end
     M1DirectoryScenario.cleanup!(*agencies)
   end
 
   def self.wrap(directory, name:, starts_on:, ends_on:)
-    office = directory.agency.offices.sole
     # Fixture-only operating facts copied from the M1 Agency and actor; not scenario-document claims.
     currency = directory.agency.default_currency
     time_zone = directory.agency.default_timezone
@@ -52,9 +53,7 @@ module M2DepartureScenario
         starts_on:,
         ends_on:,
         time_zone:,
-        operating_currency: currency,
-        responsible_office_id: office.id,
-        responsible_agency_user_id: actor.id
+        operating_currency: currency
       }
     ).call.record
 
@@ -63,8 +62,7 @@ module M2DepartureScenario
       departure:,
       fixture_operating_currency: currency,
       fixture_time_zone: time_zone,
-      fixture_responsible_office: office,
-      fixture_responsible_agency_user: actor
+      fixture_default_task_owner: actor
     )
   end
   private_class_method :wrap

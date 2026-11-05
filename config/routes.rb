@@ -152,8 +152,13 @@ Rails.application.routes.draw do
     member do
       post :activate
     end
-    resource :responsibility, only: %i[edit update], controller: "departure_responsibilities"
     resource :activation, only: :show, controller: "departure_activations"
+    # The team member id in these routes is the agency user's id.
+    resources :team_members, only: %i[create destroy], controller: "departure_team_members" do
+      collection do
+        patch :default_owner
+      end
+    end
   end
   get "departures/:id/return-to-draft", to: "departure_return_to_drafts#edit", as: :edit_departure_return_to_draft
   post "departures/:id/return-to-draft", to: "departure_return_to_drafts#create", as: :departure_return_to_draft

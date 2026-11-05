@@ -50,8 +50,8 @@ class DepartureSchemaTest < ActiveSupport::TestCase
       assert_includes indexes, "index_departures_on_agency_and_name_search_key"
       assert_includes indexes, "index_departures_on_agency_starts_on_name_id"
       assert_includes indexes, "index_departures_on_agency_statuses_starts_on_id"
-      assert_includes indexes, "index_departures_on_agency_office_starts_on_id"
-      assert_includes indexes, "index_departures_on_agency_user_starts_on_id"
+      assert_not_includes indexes, "index_departures_on_agency_office_starts_on_id"
+      assert_not_includes indexes, "index_departures_on_agency_user_starts_on_id"
       assert_includes indexes, "index_departures_on_agency_ends_on_id"
     end
   end

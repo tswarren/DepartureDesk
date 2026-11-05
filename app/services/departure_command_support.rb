@@ -120,15 +120,6 @@ module DepartureCommandSupport
     [ start_date, end_date ]
   end
 
-  def resolve_office!(id)
-    uuid = parse_optional_uuid(id, "Office")
-    return if uuid.blank?
-    office = @agency.offices.find_by(id: uuid)
-    raise AgencyCommand::Error.new("That office was not found.", code: :not_found) if office.nil?
-
-    office
-  end
-
   def resolve_agency_user!(id)
     uuid = parse_optional_uuid(id, "Agency user")
     return if uuid.blank?
@@ -137,12 +128,6 @@ module DepartureCommandSupport
     raise AgencyCommand::Error.new("Choose an Agency Admin or Staff user.", code: :invalid) if user.reseller?
 
     user
-  end
-
-  def lock_office!(office)
-    return if office.nil?
-
-    @agency.offices.lock.find(office.id)
   end
 
   def lock_agency_user!(user)
@@ -179,9 +164,6 @@ module DepartureCommandSupport
     end
     if attrs[:operating_currency].blank?
       raise AgencyCommand::Error.new("Enter a supported operating currency.", code: :invalid)
-    end
-    if departure.responsible_agency_user_id.blank?
-      raise AgencyCommand::Error.new("Active and departed departures require a responsible agency user.", code: :invalid)
     end
   end
 

@@ -15,13 +15,12 @@ class SearchDepartures
     new(**kwargs).composed_relation
   end
 
-  def initialize(agency:, actor:, query: nil, status: "all", responsible_office_id: nil, responsible_agency_user_id: nil, starts_on_from: nil, starts_on_to: nil, ends_on_from: nil, ends_on_to: nil)
+  def initialize(agency:, actor:, query: nil, status: "all", team_member_id: nil, starts_on_from: nil, starts_on_to: nil, ends_on_from: nil, ends_on_to: nil)
     @agency = agency
     @actor = actor
     @query = query.to_s
     @status = status.presence || "all"
-    @responsible_office_id = responsible_office_id
-    @responsible_agency_user_id = responsible_agency_user_id
+    @team_member_id = team_member_id
     @starts_on_from = starts_on_from
     @starts_on_to = starts_on_to
     @ends_on_from = ends_on_from
@@ -50,25 +49,19 @@ class SearchDepartures
   end
 
   def filtered
-    scope = @agency.departures.preload(:responsible_office, :responsible_agency_user)
+    scope = @agency.departures.preload(team_members: :agency_user)
     scope = scope.with_summary_label(@status) unless @status == "all"
-    office = resolve_filter_office
-    user = resolve_filter_user
-    scope = scope.where(responsible_office_id: office.id) if office
-    scope = scope.where(responsible_agency_user_id: user.id) if user
+    member = resolve_filter_member
+    if member
+      scope = scope.where(id: @agency.departure_team_members.where(agency_user_id: member.id).select(:departure_id))
+    end
     apply_date_filters(apply_query(scope))
   end
 
-  def resolve_filter_office
-    return if @responsible_office_id.blank?
+  def resolve_filter_member
+    return if @team_member_id.blank?
 
-    resolve_office!(@responsible_office_id)
-  end
-
-  def resolve_filter_user
-    return if @responsible_agency_user_id.blank?
-
-    resolve_agency_user!(@responsible_agency_user_id)
+    resolve_agency_user!(@team_member_id)
   end
 
   def apply_date_filters(scope)

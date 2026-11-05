@@ -30,14 +30,3 @@
   <%= form.text_field :operating_currency, maxlength: 3, class: "dd-field" %>
 </div>
 
-<% unless form.object.persisted? %>
-  <div class="dd-field-group">
-    <%= form.label :responsible_office_id, "Responsible office", class: "dd-label" %>
-    <%= form.select :responsible_office_id, departure_office_options(form.object), { include_blank: "No office" }, class: "dd-field" %>
-  </div>
-
-  <div class="dd-field-group">
-    <%= form.label :responsible_agency_user_id, "Responsible user", class: "dd-label" %>
-    <%= form.select :responsible_agency_user_id, departure_user_options(form.object), { include_blank: "No user" }, class: "dd-field" %>
-  </div>
-<% end %>

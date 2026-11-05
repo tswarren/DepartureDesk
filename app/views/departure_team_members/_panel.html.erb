@@ -1,0 +1,61 @@
+<%# S-09 Departure team (ACC-09, OPS-12). %>
+<%# locals: (departure:, manage:) -%>
+<article class="dd-panel" id="team">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Departure team</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-page-description">The team routes work for this departure. It does not change who can see or edit it.</p>
+    <% members = departure.team_members.includes(:agency_user) %>
+    <% if members.empty? %>
+      <div class="dd-empty-state">
+        <h3 class="dd-empty-title">No team members</h3>
+        <p class="dd-empty-copy">Add staff to route this departure's work to them.</p>
+      </div>
+    <% else %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Role on this departure</th>
+              <% if manage && !departure.departed? %><th scope="col" class="dd-col-actions">Actions</th><% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% members.each do |member| %>
+              <tr>
+                <th scope="row"><%= member.agency_user.display_name %></th>
+                <td><%= member.default_task_owner ? status_badge("Default task owner", modifier: "info") : "Member" %></td>
+                <% if manage && !departure.departed? %>
+                  <td class="dd-col-actions">
+                    <div class="dd-inline-actions">
+                      <% if member.default_task_owner %>
+                        <%= button_to "Clear default owner", default_owner_departure_team_members_path(departure), method: :patch, params: { agency_user_id: "" }, class: "dd-row-action dd-row-action--text", form_class: "dd-inline-form" %>
+                      <% else %>
+                        <%= button_to "Make default owner", default_owner_departure_team_members_path(departure), method: :patch, params: { agency_user_id: member.agency_user_id }, class: "dd-row-action dd-row-action--text", form_class: "dd-inline-form", aria: { label: "Make #{member.agency_user.display_name} the default task owner" } %>
+                      <% end %>
+                      <%= button_to "Remove", departure_team_member_path(departure, member.agency_user_id), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form", aria: { label: "Remove #{member.agency_user.display_name} from the team" } %>
+                    </div>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+    <% if manage && !departure.departed? %>
+      <% candidates = departure_team_candidate_options(departure) %>
+      <% if candidates.any? %>
+        <%= form_with url: departure_team_members_path(departure), scope: :team_member, class: "dd-inline-form" do |form| %>
+          <div class="dd-field-group">
+            <%= form.label :agency_user_id, "Add a team member", class: "dd-label" %>
+            <%= form.select :agency_user_id, candidates, {}, class: "dd-field" %>
+          </div>
+          <%= form.submit "Add to team", class: "dd-button dd-button--secondary" %>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

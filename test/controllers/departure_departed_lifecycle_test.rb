@@ -57,9 +57,7 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
         starts_on: "2026-06-01",
         ends_on: "2026-06-08",
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: offices(:cove_main).id,
-        responsible_agency_user_id: agency_users(:cove_admin).id
+        operating_currency: "USD"
       }
     ).call.record
     ActivateDeparture.new(
@@ -120,9 +118,7 @@ class DepartureDepartedLifecycleControllerTest < ActionDispatch::IntegrationTest
         starts_on:,
         ends_on:,
         time_zone: "America/New_York",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @admin.id
+        operating_currency: "USD"
       }
     ).call.record
     ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record

@@ -43,11 +43,10 @@ class DepartureStatusesTest < ActiveSupport::TestCase
 
   test "the label filter and on_sale scope match the methods for every combination" do
     agency = agencies(:harbor)
-    user = agency_users(:harbor_admin)
     rows = LABELS.keys.each_with_index.map do |(sales, decision, completion), index|
       agency.departures.create!(
         name: "Label #{index}", starts_on: Date.new(2027, 1, 1), ends_on: Date.new(2027, 1, 8),
-        time_zone: "UTC", operating_currency: "USD", responsible_agency_user: user,
+        time_zone: "UTC", operating_currency: "USD",
         sales_status: sales, operating_decision: decision, completion_status: completion,
         departure_reference: format("DEP-%04d", 9000 + index),
         departed_at: (Time.current if completion == "departed")

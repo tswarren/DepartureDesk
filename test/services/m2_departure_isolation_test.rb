@@ -19,23 +19,22 @@ class M2DepartureIsolationTest < ActiveSupport::TestCase
     assert_equal 1, home.records.size
     assert_not home.truncated
 
-    office_error = assert_raises(AgencyCommand::Error) do
-      SearchDepartures.call(
-        agency: @primary.directory.agency,
-        actor: @primary.directory.actor,
-        responsible_office_id: @companion.fixture_responsible_office.id
-      )
-    end
-    assert_equal :not_found, office_error.code
-
     user_error = assert_raises(AgencyCommand::Error) do
       SearchDepartures.call(
         agency: @primary.directory.agency,
         actor: @primary.directory.actor,
-        responsible_agency_user_id: @companion.fixture_responsible_agency_user.id
+        team_member_id: @companion.fixture_default_task_owner.id
       )
     end
     assert_equal :not_found, user_error.code
+
+    team_error = assert_raises(AgencyCommand::Error) do
+      AddDepartureTeamMember.new(
+        agency: @primary.directory.agency, actor: @primary.directory.actor,
+        departure: @primary.departure, agency_user_id: @companion.fixture_default_task_owner.id
+      ).call
+    end
+    assert_equal :not_found, team_error.code
   end
 
   test "commands fail before mutation and write no audit for rejected cross-agency work" do
@@ -58,7 +57,7 @@ class M2DepartureIsolationTest < ActiveSupport::TestCase
   test "jobs given a foreign or missing id no-op" do
     companion_session = @companion.directory.actor.sessions.create!(
       credential_version: @companion.directory.actor.credential_version,
-      office: @companion.fixture_responsible_office
+      office: @companion.directory.agency.offices.sole
     )
     Current.session = companion_session
     assert_no_difference -> { AuditEvent.where(action: "departure.departed").count } do
@@ -85,7 +84,7 @@ class M2DepartureIsolationTest < ActiveSupport::TestCase
     eligible = eligible_on(@primary, "Keep Current Independent")
     companion_session = @companion.directory.actor.sessions.create!(
       credential_version: @companion.directory.actor.credential_version,
-      office: @companion.fixture_responsible_office
+      office: @companion.directory.agency.offices.sole
     )
     Current.session = companion_session
 
@@ -114,9 +113,7 @@ class M2DepartureIsolationTest < ActiveSupport::TestCase
         starts_on: Date.new(2026, 6, 1),
         ends_on: Date.new(2026, 6, 8),
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: shell.fixture_responsible_office.id,
-        responsible_agency_user_id: shell.directory.actor.id
+        operating_currency: "USD"
       }
     ).call.record
     ActivateDeparture.new(

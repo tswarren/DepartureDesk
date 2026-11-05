@@ -116,7 +116,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     assert_equal "inactive", @office.reload.status
   end
 
-  test "activation versus agency user suspension leaves a valid outcome" do
+  test "adding a team member versus suspending that user leaves a valid outcome" do
     staff = @agency.agency_users.create!(
       email_address: "staff-#{SecureRandom.hex(3)}@example.test",
       first_name: "Staff",
@@ -127,14 +127,14 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
       default_office: @office,
       credential_version: 1
     )
-    departure = complete_draft("User Race", responsible_agency_user_id: staff.id)
-    outcomes = race(2, allowed_error_codes: %i[invalid_state conflict last_administrator]) do |index|
+    departure = complete_draft("Team Race")
+    outcomes = race(2, allowed_error_codes: %i[invalid_state conflict]) do |index|
       if index.zero?
-        ActivateDeparture.new(
+        AddDepartureTeamMember.new(
           agency: Agency.find(@agency.id),
           actor: AgencyUser.find(@actor.id),
           departure: Departure.find(departure.id),
-          lock_version: departure.lock_version
+          agency_user_id: staff.id
         ).call
       else
         ChangeAgencyUserAccess.new(
@@ -146,12 +146,10 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
       end
     end
 
-    departure.reload
-    if departure.ready_to_sell?
-      assert_equal "DEP-0001", departure.departure_reference
+    assert_equal "suspended", staff.reload.status
+    if departure.team_members.exists?(agency_user_id: staff.id)
+      assert_kind_of AgencyCommand::Result, outcomes.first
     else
-      assert_equal "not_on_sale", departure.summary_label
-      assert_equal "DEP-0001", departure.departure_reference
       assert_includes outcomes.grep(AgencyCommand::Error).map(&:code), :invalid_state
     end
   end
@@ -194,39 +192,6 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
     assert_includes [ "Edit Race", "Edited Race" ], departure.name
   end
 
-  test "responsibility reassignment versus target inactivation leaves a valid outcome" do
-    other_office = @agency.offices.create!(name: "Second Office", code: "SEC", status: "active")
-    departure = complete_draft("Responsibility Race")
-    outcomes = race(2, allowed_error_codes: %i[invalid_state conflict]) do |index|
-      if index.zero?
-        UpdateDepartureResponsibility.new(
-          agency: Agency.find(@agency.id),
-          actor: AgencyUser.find(@actor.id),
-          departure: Departure.find(departure.id),
-          office_id: other_office.id,
-          agency_user_id: @actor.id,
-          lock_version: departure.lock_version
-        ).call
-      else
-        ChangeOfficeStatus.new(
-          office: Office.find(other_office.id),
-          actor: AgencyUser.find(@actor.id),
-          status: "inactive",
-          lock_version: other_office.lock_version
-        ).call
-      end
-    end
-
-    departure.reload
-    other_office.reload
-    if departure.responsible_office_id == other_office.id
-      assert_equal other_office.id, departure.responsible_office_id
-    else
-      assert_equal @office.id, departure.responsible_office_id
-      assert_includes outcomes.grep(AgencyCommand::Error).map(&:code), :invalid_state
-    end
-  end
-
   private
 
   def complete_draft(name, **overrides)
@@ -238,9 +203,7 @@ class M2aDepartureConcurrencyTest < ActiveSupport::TestCase
         starts_on: Date.new(2026, 8, 1),
         ends_on: Date.new(2026, 8, 8),
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @actor.id
+        operating_currency: "USD"
       }.merge(overrides)
     ).call.record
   end

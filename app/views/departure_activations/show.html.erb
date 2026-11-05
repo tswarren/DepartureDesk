@@ -22,11 +22,10 @@
       </section>
       <div class="dd-form-actions">
         <%= link_to "Edit departure", edit_departure_path(@departure), class: "dd-button" %>
-        <%= link_to "Edit responsibility", edit_departure_responsibility_path(@departure), class: "dd-button dd-button--quiet" %>
         <%= link_to "Cancel", departure_path(@departure), class: "dd-button dd-button--quiet" %>
       </div>
     <% else %>
-      <p>Activation issues a durable reference if this is the first activation, then marks the departure active.</p>
+      <p>Marking the departure Ready to sell lets staff take holds and bookings on it. Its reference stays the same.</p>
       <%= form_with url: activate_departure_path(@departure), method: :post, class: "dd-form" do |form| %>
         <%= hidden_field_tag :lock_version, @departure.lock_version %>
         <div class="dd-form-actions">

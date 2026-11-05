@@ -92,9 +92,7 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
         starts_on: Date.new(2026, 6, 1),
         ends_on: Date.new(2026, 6, 8),
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: shell.fixture_responsible_office.id,
-        responsible_agency_user_id: shell.directory.actor.id
+        operating_currency: "USD"
       }
     ).call.record
     ActivateDeparture.new(
@@ -111,9 +109,7 @@ class MarkEligibleDeparturesDepartedJobTest < ActiveSupport::TestCase
         starts_on: Date.new(2026, 6, 1),
         ends_on: Date.new(2026, 6, 8),
         time_zone: "UTC",
-        operating_currency: "USD",
-        responsible_office_id: @office.id,
-        responsible_agency_user_id: @admin.id
+        operating_currency: "USD"
       }
     ).call.record
     ActivateDeparture.new(agency: @agency, actor: @admin, departure:, lock_version: departure.lock_version).call.record

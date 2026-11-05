@@ -34,8 +34,7 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal "America/New_York", departure.time_zone
     assert_equal "USD", departure.operating_currency
     assert_equal "not_on_sale", departure.summary_label
-    assert_nil departure.responsible_office
-    assert_equal @actor, departure.responsible_agency_user
+    assert_equal @actor, departure.default_task_owner
   end
 
   test "loading twice reuses the records" do

@@ -14,12 +14,6 @@ class CreateDeparture < AgencyCommand
     ActiveRecord::Base.transaction do
       lock_authorized_agency!(:manage_departures)
       attrs = resolved_attributes
-      office = resolve_office!(attrs[:responsible_office_id])
-      user = resolve_agency_user!(attrs[:responsible_agency_user_id])
-      locked_office = lock_office!(office)
-      locked_user = lock_agency_user!(user)
-      ensure_active_target!(locked_office, "That office is not active.") if office.present?
-      ensure_active_target!(locked_user, "That agency user is not active.") if user.present?
 
       departure = @agency.departures.create!(
         departure_reference: issue_departure_reference!(@agency),
@@ -28,10 +22,10 @@ class CreateDeparture < AgencyCommand
         starts_on: attrs[:starts_on],
         ends_on: attrs[:ends_on],
         time_zone: attrs[:time_zone],
-        operating_currency: attrs[:operating_currency],
-        responsible_office: locked_office,
-        responsible_agency_user: locked_user
+        operating_currency: attrs[:operating_currency]
       )
+      # OPS-12: the creator starts as the team's default task owner.
+      departure.team_members.create!(agency: @agency, agency_user: @actor, default_task_owner: true)
       audit!(
         agency: @agency,
         action: "departure.created",
@@ -47,7 +41,6 @@ class CreateDeparture < AgencyCommand
 
   def self.proposed_attributes(agency:, actor:)
     {
-      responsible_agency_user_id: actor&.id,
       time_zone: agency.default_timezone,
       operating_currency: agency.default_currency
     }
@@ -56,12 +49,6 @@ class CreateDeparture < AgencyCommand
   private
 
   def resolved_attributes
-    office_id = raw_attribute(:responsible_office_id) if supplied?(:responsible_office_id)
-    user_id = if supplied?(:responsible_agency_user_id)
-      raw_attribute(:responsible_agency_user_id)
-    else
-      @actor&.id
-    end
     time_zone = if supplied?(:time_zone)
       normalize_time_zone(raw_attribute(:time_zone))
     else
@@ -84,9 +71,7 @@ class CreateDeparture < AgencyCommand
       starts_on:,
       ends_on:,
       time_zone:,
-      operating_currency: currency,
-      responsible_office_id: office_id,
-      responsible_agency_user_id: user_id
+      operating_currency: currency
     }
   end
 
@@ -102,8 +87,7 @@ class CreateDeparture < AgencyCommand
       "ends_on" => departure.ends_on&.iso8601,
       "time_zone" => departure.time_zone,
       "operating_currency" => departure.operating_currency,
-      "responsible_office_id" => departure.responsible_office_id,
-      "responsible_agency_user_id" => departure.responsible_agency_user_id
+      "default_task_owner_id" => @actor.id
     }
   end
 end

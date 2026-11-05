@@ -19,8 +19,8 @@ class Departure < ApplicationRecord
   DESCRIPTION_LIMIT = 2_000
 
   belongs_to :agency
-  belongs_to :responsible_office, class_name: "Office", optional: true
-  belongs_to :responsible_agency_user, class_name: "AgencyUser", optional: true
+  has_many :team_members, -> { order(default_task_owner: :desc, created_at: :asc) },
+    class_name: "DepartureTeamMember", inverse_of: :departure, dependent: :restrict_with_exception
 
   enum :sales_status, SALES_STATUSES.index_by(&:itself), validate: true, default: "draft", prefix: :sales
   enum :operating_decision, OPERATING_DECISIONS.index_by(&:itself), validate: true, default: "undecided", prefix: :decision
@@ -93,6 +93,10 @@ class Departure < ApplicationRecord
     completion_departed?
   end
 
+  def default_task_owner
+    team_members.find(&:default_task_owner)&.agency_user
+  end
+
   def display_reference
     departure_reference
   end
@@ -108,7 +112,6 @@ class Departure < ApplicationRecord
     blockers << "Enter a name." if name.blank?
     blockers.concat(schedule_blockers)
     blockers.concat(operating_context_blockers)
-    blockers.concat(responsibility_blockers)
     blockers
   end
 
@@ -181,7 +184,6 @@ class Departure < ApplicationRecord
     errors.add(:ends_on, "can't be blank") if ends_on.blank?
     errors.add(:time_zone, "can't be blank") if time_zone.blank?
     errors.add(:operating_currency, "can't be blank") if operating_currency.blank?
-    errors.add(:responsible_agency_user_id, "can't be blank") if responsible_agency_user_id.blank?
   end
 
   def operating_context_blockers
@@ -207,13 +209,5 @@ class Departure < ApplicationRecord
     true
   rescue Money::Currency::UnknownCurrency
     false
-  end
-
-  def responsibility_blockers
-    blockers = []
-    if responsible_agency_user.blank? || !responsible_agency_user.active?
-      blockers << "Choose an active responsible agency user."
-    end
-    blockers
   end
 end

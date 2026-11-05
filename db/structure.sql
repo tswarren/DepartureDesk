@@ -790,6 +790,21 @@ CREATE TABLE public.clients (
 
 
 --
+-- Name: departure_team_members; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.departure_team_members (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    agency_user_id uuid NOT NULL,
+    default_task_owner boolean DEFAULT false NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
 -- Name: departures; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -803,8 +818,6 @@ CREATE TABLE public.departures (
     ends_on date,
     time_zone character varying,
     operating_currency character varying(3),
-    responsible_office_id uuid,
-    responsible_agency_user_id uuid,
     departed_at timestamp with time zone,
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
@@ -822,7 +835,7 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_name CHECK (((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
     CONSTRAINT departures_operating_currency CHECK (((operating_currency IS NULL) OR ((operating_currency)::text ~ '^[A-Z]{3}$'::text))),
     CONSTRAINT departures_operating_decision CHECK (((operating_decision)::text = ANY ((ARRAY['undecided'::character varying, 'proceed'::character varying, 'postpone'::character varying, 'cancel'::character varying])::text[]))),
-    CONSTRAINT departures_ready_to_sell_completeness CHECK ((((sales_status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL) AND (responsible_agency_user_id IS NOT NULL)))),
+    CONSTRAINT departures_ready_to_sell_completeness CHECK ((((sales_status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL)))),
     CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^DEP-[0-9]{4,}$'::text))),
     CONSTRAINT departures_sales_status CHECK (((sales_status)::text = ANY ((ARRAY['draft'::character varying, 'ready_to_sell'::character varying])::text[])))
 );
@@ -1389,6 +1402,14 @@ ALTER TABLE ONLY public.client_person_postal_addresses
 
 ALTER TABLE ONLY public.clients
     ADD CONSTRAINT clients_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: departure_team_members departure_team_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_members
+    ADD CONSTRAINT departure_team_members_pkey PRIMARY KEY (id);
 
 
 --
@@ -2054,6 +2075,27 @@ CREATE UNIQUE INDEX index_clients_on_id_and_agency_id ON public.clients USING bt
 
 
 --
+-- Name: index_departure_team_members_on_agency_and_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departure_team_members_on_agency_and_user ON public.departure_team_members USING btree (agency_id, agency_user_id);
+
+
+--
+-- Name: index_departure_team_members_on_departure_and_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_departure_team_members_on_departure_and_user ON public.departure_team_members USING btree (departure_id, agency_user_id);
+
+
+--
+-- Name: index_departure_team_members_one_default_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_departure_team_members_one_default_owner ON public.departure_team_members USING btree (departure_id) WHERE default_task_owner;
+
+
+--
 -- Name: index_departures_on_agency_and_name_search_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2082,13 +2124,6 @@ CREATE INDEX index_departures_on_agency_id ON public.departures USING btree (age
 
 
 --
--- Name: index_departures_on_agency_office_starts_on_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_departures_on_agency_office_starts_on_id ON public.departures USING btree (agency_id, responsible_office_id, starts_on, id);
-
-
---
 -- Name: index_departures_on_agency_starts_on_name_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2100,13 +2135,6 @@ CREATE INDEX index_departures_on_agency_starts_on_name_id ON public.departures U
 --
 
 CREATE INDEX index_departures_on_agency_statuses_starts_on_id ON public.departures USING btree (agency_id, completion_status, sales_status, starts_on, id);
-
-
---
--- Name: index_departures_on_agency_user_starts_on_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_departures_on_agency_user_starts_on_id ON public.departures USING btree (agency_id, responsible_agency_user_id, starts_on, id);
 
 
 --
@@ -2949,27 +2977,35 @@ ALTER TABLE ONLY public.clients
 
 
 --
--- Name: departures departures_agency_user_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.departures
-    ADD CONSTRAINT departures_agency_user_agency_fk FOREIGN KEY (responsible_agency_user_id, agency_id) REFERENCES public.agency_users(id, agency_id);
-
-
---
--- Name: departures departures_office_agency_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.departures
-    ADD CONSTRAINT departures_office_agency_fk FOREIGN KEY (responsible_office_id, agency_id) REFERENCES public.offices(id, agency_id);
-
-
---
 -- Name: agency_users fk_agency_users_reseller_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.agency_users
     ADD CONSTRAINT fk_agency_users_reseller_same_agency FOREIGN KEY (reseller_id, agency_id) REFERENCES public.resellers(id, agency_id);
+
+
+--
+-- Name: departure_team_members fk_departure_team_members_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_members
+    ADD CONSTRAINT fk_departure_team_members_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: departure_team_members fk_departure_team_members_departure_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_members
+    ADD CONSTRAINT fk_departure_team_members_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: departure_team_members fk_departure_team_members_user_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_team_members
+    ADD CONSTRAINT fk_departure_team_members_user_same_agency FOREIGN KEY (agency_user_id, agency_id) REFERENCES public.agency_users(id, agency_id);
 
 
 --
@@ -3331,6 +3367,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105140000'),
 ('20261105130000'),
 ('20261105120000'),
 ('20261104190000'),

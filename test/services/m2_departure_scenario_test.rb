@@ -12,8 +12,8 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     assert_match Departure::REFERENCE_FORMAT, celebrity.departure.departure_reference
     assert_equal celebrity.directory.agency.default_currency, celebrity.fixture_operating_currency
     assert_equal celebrity.directory.agency.default_timezone, celebrity.fixture_time_zone
-    assert_equal celebrity.directory.agency.offices.sole.id, celebrity.fixture_responsible_office.id
-    assert_equal celebrity.directory.actor.id, celebrity.fixture_responsible_agency_user.id
+    assert_equal celebrity.directory.actor, celebrity.fixture_default_task_owner
+    assert_equal celebrity.directory.actor, celebrity.departure.default_task_owner
 
     assert_equal "Vineyard Tour", vineyard.departure.name
     assert_equal Date.new(2027, 6, 5), vineyard.departure.starts_on

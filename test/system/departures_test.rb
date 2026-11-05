@@ -72,9 +72,7 @@ class DeparturesTest < ApplicationSystemTestCase
         starts_on: Date.new(2026, 6, 1),
         ends_on: Date.new(2026, 6, 8),
         time_zone: "America/New_York",
-        operating_currency: "USD",
-        responsible_office_id: offices(:harbor_main).id,
-        responsible_agency_user_id: agency_users(:harbor_admin).id
+        operating_currency: "USD"
       }
     ).call.record
     ActivateDeparture.new(

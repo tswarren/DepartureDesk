@@ -7,10 +7,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     @admin = agency_users(:harbor_admin)
     @staff = agency_users(:harbor_staff)
     @baseline_staff = agency_users(:harbor_baseline_staff)
-    @office = offices(:harbor_main)
-    @west = offices(:harbor_west)
     @other_admin = agency_users(:cove_admin)
-    @other_office = offices(:cove_main)
   end
 
   test "create copies actor, agency timezone, and agency currency when omitted, and no office" do
@@ -22,8 +19,8 @@ class DepartureCommandsTest < ActiveSupport::TestCase
 
     assert_equal "not_on_sale", departure.summary_label
     assert_equal "DEP-0001", departure.departure_reference
-    assert_nil departure.responsible_office_id
-    assert_equal @admin.id, departure.responsible_agency_user_id
+    assert_equal [ @admin ], departure.team_members.map(&:agency_user)
+    assert_equal @admin, departure.default_task_owner, "the creator starts as default task owner (OPS-12)"
     assert_equal @agency.default_timezone, departure.time_zone
     assert_equal @agency.default_currency, departure.operating_currency
     assert_equal 1, AuditEvent.where(agency: @agency, action: "departure.created", subject_id: departure.id).count
@@ -36,8 +33,6 @@ class DepartureCommandsTest < ActiveSupport::TestCase
       attributes: { name: "Zero Office" }
     ).call.record
 
-    assert_nil departure.responsible_office_id
-    assert_equal @admin.id, departure.responsible_agency_user_id
     assert_equal @agency.default_timezone, departure.time_zone
   end
 
@@ -47,15 +42,11 @@ class DepartureCommandsTest < ActiveSupport::TestCase
       actor: @admin,
       attributes: {
         name: "Blank Overrides",
-        responsible_office_id: "",
-        responsible_agency_user_id: "",
         time_zone: "",
         operating_currency: ""
       }
     ).call.record
 
-    assert_nil departure.responsible_office_id
-    assert_nil departure.responsible_agency_user_id
     assert_nil departure.time_zone
     assert_nil departure.operating_currency
   end
@@ -70,27 +61,6 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     @agency.update!(default_timezone: "America/Chicago")
 
     assert_equal "America/New_York", departure.reload.time_zone
-  end
-
-  test "create rejects other-agency office as not found and inactive office as invalid_state" do
-    not_found = assert_raises(AgencyCommand::Error) do
-      CreateDeparture.new(
-        agency: @agency,
-        actor: @admin,
-        attributes: { name: "Foreign Office", responsible_office_id: @other_office.id }
-      ).call
-    end
-    assert_equal :not_found, not_found.code
-
-    ChangeOfficeStatus.new(office: @west, actor: @admin, status: "inactive", lock_version: @west.lock_version).call
-    invalid_state = assert_raises(AgencyCommand::Error) do
-      CreateDeparture.new(
-        agency: @agency,
-        actor: @admin,
-        attributes: { name: "Inactive Office", responsible_office_id: @west.id }
-      ).call
-    end
-    assert_equal :invalid_state, invalid_state.code
   end
 
   test "staff without departure management cannot create and unauthorized writes are not audited" do
@@ -196,67 +166,6 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_includes blockers, "Enter a supported operating currency."
   end
 
-  test "activation does not require a responsible office (ADR 0016)" do
-    departure = create_complete_draft("No Office", responsible_office_id: nil)
-    assert_empty departure.activation_blockers
-
-    activated = activate_departure!(departure)
-    assert_equal "on_sale", activated.summary_label
-    assert_nil activated.responsible_office_id
-  end
-
-  test "an inactive responsible office does not block activation (ADR 0016)" do
-    departure = create_complete_draft("Office First")
-    ChangeOfficeStatus.new(office: @office, actor: @admin, status: "inactive", lock_version: @office.lock_version).call
-
-    activated = activate_departure!(departure.reload)
-    assert_equal "on_sale", activated.summary_label
-    assert_equal @office.id, activated.responsible_office_id
-  end
-
-  test "a reseller user cannot be a departure's responsible user or appear as a choice (ADR 0017)" do
-    reseller = @agency.resellers.create!(name: "Harbor Partners")
-    reseller_user = @agency.agency_users.create!(
-      email_address: "partner@example.com", first_name: "Pat", last_name: "Partner", user_type: "reseller",
-      reseller:, status: "active", password: TEST_PASSWORD, credential_version: 1
-    )
-
-    error = assert_raises(AgencyCommand::Error) do
-      CreateDeparture.new(agency: @agency, actor: @admin, attributes: { name: "Reseller Owned", responsible_agency_user_id: reseller_user.id }).call
-    end
-    assert_equal :invalid, error.code
-    assert_not_includes @agency.agency_users.agency_staff, reseller_user
-    assert_includes @agency.agency_users.agency_staff, @staff
-  end
-
-  test "an active departure may clear its responsible office but not its agency user" do
-    departure = activate_departure!(create_complete_draft("Clear Office"))
-    UpdateDepartureResponsibility.new(
-      agency: @agency, actor: @admin, departure:,
-      office_id: "", agency_user_id: @admin.id, lock_version: departure.lock_version
-    ).call
-    assert_nil departure.reload.responsible_office_id
-
-    error = assert_raises(AgencyCommand::Error) do
-      UpdateDepartureResponsibility.new(
-        agency: @agency, actor: @admin, departure:,
-        office_id: "", agency_user_id: "", lock_version: departure.lock_version
-      ).call
-    end
-    assert_equal :invalid_state, error.code
-  end
-
-  test "office inactivation after activation leaves historical inactive responsibility" do
-    departure = activate_departure!(create_complete_draft("Activate First"))
-    ChangeOfficeStatus.new(office: @office, actor: @admin, status: "inactive", lock_version: @office.lock_version).call
-
-    departure.reload
-    assert_equal "on_sale", departure.summary_label
-    assert_equal "DEP-0001", departure.departure_reference
-    assert_equal @office.id, departure.responsible_office_id
-    assert_equal "inactive", @office.reload.status
-  end
-
   test "update allows active currency changes and rejects departed date changes" do
     departure = activate_departure!(create_complete_draft("Currency Edit"))
     UpdateDeparture.new(
@@ -275,31 +184,6 @@ class DepartureCommandsTest < ActiveSupport::TestCase
       ).call
     end
     assert_equal :invalid_state, error.code
-  end
-
-  test "responsibility accepts staff without departure management, rejects inactive replacements, and retains historical inactive targets" do
-    departure = create_complete_draft("Responsibility")
-    UpdateDepartureResponsibility.new(
-      agency: @agency, actor: @admin, departure:,
-      office_id: @office.id, agency_user_id: @baseline_staff.id, lock_version: departure.lock_version
-    ).call
-    assert_equal @baseline_staff.id, departure.reload.responsible_agency_user_id
-
-    ChangeOfficeStatus.new(office: @west, actor: @admin, status: "inactive", lock_version: @west.lock_version).call
-    inactive = assert_raises(AgencyCommand::Error) do
-      UpdateDepartureResponsibility.new(
-        agency: @agency, actor: @admin, departure:,
-        office_id: @west.id, agency_user_id: @baseline_staff.id, lock_version: departure.lock_version
-      ).call
-    end
-    assert_equal :invalid_state, inactive.code
-
-    UpdateDepartureResponsibility.new(
-      agency: @agency, actor: @admin, departure:,
-      office_id: @office.id, agency_user_id: @baseline_staff.id, lock_version: departure.lock_version
-    ).call
-    ChangeOfficeStatus.new(office: @office, actor: @admin, status: "inactive", lock_version: @office.reload.lock_version).call
-    assert_equal @office.id, departure.reload.responsible_office_id
   end
 
   test "activation completeness, creation widening, and a missing sequence use documented codes" do
@@ -353,15 +237,6 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_match(/departure identity is immutable/, agency_change.message)
   end
 
-  test "composite foreign keys reject cross-agency office and user assignment" do
-    departure = create_complete_draft("FK Guard")
-    assert_raises(ActiveRecord::InvalidForeignKey) do
-      Departure.transaction(requires_new: true) do
-        Departure.where(id: departure.id).update_all(responsible_office_id: @other_office.id)
-      end
-    end
-  end
-
   test "inactive agency cannot mutate departures" do
     departure = create_complete_draft("Closed Agency")
     @agency.update!(status: "suspended")
@@ -397,6 +272,78 @@ class DepartureCommandsTest < ActiveSupport::TestCase
     assert_equal "Departure", event.subject_type
   end
 
+  test "activation needs no team member (ACC-09)" do
+    departure = create_complete_draft("No Team")
+    RemoveDepartureTeamMember.new(agency: @agency, actor: @admin, departure:, agency_user_id: @admin.id).call
+    assert_empty departure.reload.team_members
+    assert_empty departure.activation_blockers
+    assert_equal "on_sale", activate_departure!(departure).summary_label
+  end
+
+  test "the team adds staff without departure management, sets one default owner, and audits each change" do
+    departure = create_complete_draft("Team Work")
+
+    assert_difference -> { AuditEvent.where(subject_id: departure.id, action: "departure.team_member_added").count }, 1 do
+      AddDepartureTeamMember.new(agency: @agency, actor: @admin, departure:, agency_user_id: @baseline_staff.id).call
+    end
+    replay = AddDepartureTeamMember.new(agency: @agency, actor: @admin, departure:, agency_user_id: @baseline_staff.id).call
+    assert_equal :noop, replay.status
+
+    SetDepartureDefaultTaskOwner.new(agency: @agency, actor: @admin, departure:, agency_user_id: @baseline_staff.id).call
+    assert_equal @baseline_staff, departure.reload.default_task_owner
+    assert_equal 1, departure.team_members.where(default_task_owner: true).count
+
+    SetDepartureDefaultTaskOwner.new(agency: @agency, actor: @admin, departure:, agency_user_id: "").call
+    assert_nil departure.reload.default_task_owner
+
+    RemoveDepartureTeamMember.new(agency: @agency, actor: @admin, departure:, agency_user_id: @baseline_staff.id).call
+    assert_equal [ @admin ], departure.reload.team_members.map(&:agency_user)
+    assert_not @baseline_staff.reload.permitted?(:manage_departures), "membership grants nothing (ACC-09)"
+  end
+
+  test "the team refuses reseller, inactive, non-member and other-agency users" do
+    departure = create_complete_draft("Team Guards")
+    reseller = @agency.resellers.create!(name: "Harbor Partners")
+    reseller_user = @agency.agency_users.create!(
+      email_address: "partner@example.com", first_name: "Pat", last_name: "Partner", user_type: "reseller",
+      reseller:, status: "active", password: TEST_PASSWORD, credential_version: 1
+    )
+    { reseller_user.id => :invalid, @other_admin.id => :not_found, agency_users(:harbor_suspended).id => :invalid_state }.each do |user_id, code|
+      error = assert_raises(AgencyCommand::Error) do
+        AddDepartureTeamMember.new(agency: @agency, actor: @admin, departure:, agency_user_id: user_id).call
+      end
+      assert_equal code, error.code, user_id
+    end
+    not_member = assert_raises(AgencyCommand::Error) do
+      SetDepartureDefaultTaskOwner.new(agency: @agency, actor: @admin, departure:, agency_user_id: @staff.id).call
+    end
+    assert_equal :not_found, not_member.code
+    assert_not_includes @agency.agency_users.agency_staff, reseller_user
+  end
+
+  test "staff without departure management cannot change the team, and a departed team is fixed" do
+    departure = activate_departure!(create_complete_draft("Team Lock"))
+    refused = assert_raises(AgencyCommand::Error) do
+      AddDepartureTeamMember.new(agency: @agency, actor: @baseline_staff, departure:, agency_user_id: @baseline_staff.id).call
+    end
+    assert_equal :unauthorized, refused.code
+
+    mark_departed!(departure)
+    departed = assert_raises(AgencyCommand::Error) do
+      AddDepartureTeamMember.new(agency: @agency, actor: @admin, departure: departure.reload, agency_user_id: @staff.id).call
+    end
+    assert_equal :invalid_state, departed.code
+  end
+
+  test "composite foreign keys refuse a cross-agency team member" do
+    departure = create_complete_draft("FK Guard")
+    assert_raises(ActiveRecord::InvalidForeignKey) do
+      DepartureTeamMember.transaction(requires_new: true) do
+        DepartureTeamMember.insert_all!([ { agency_id: @agency.id, departure_id: departure.id, agency_user_id: @other_admin.id } ])
+      end
+    end
+  end
+
   private
 
   def create_complete_draft(name, overrides = {})
@@ -417,9 +364,7 @@ class DepartureCommandsTest < ActiveSupport::TestCase
       starts_on: Date.new(2026, 6, 1),
       ends_on: Date.new(2026, 6, 8),
       time_zone: "America/New_York",
-      operating_currency: "USD",
-      responsible_office_id: @office.id,
-      responsible_agency_user_id: @admin.id
+      operating_currency: "USD"
     }.merge(overrides)
   end
 

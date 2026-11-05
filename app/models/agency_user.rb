@@ -13,7 +13,7 @@ class AgencyUser < ApplicationRecord
   belongs_to :reseller, optional: true
   has_many :sessions, dependent: :destroy
   has_many :user_permissions, dependent: :restrict_with_exception
-  has_many :responsible_departures, class_name: "Departure", foreign_key: :responsible_agency_user_id, inverse_of: :responsible_agency_user, dependent: :restrict_with_exception
+  has_many :departure_team_memberships, class_name: "DepartureTeamMember", dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
   enum :user_type, USER_TYPES.index_by(&:itself), validate: true
