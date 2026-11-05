@@ -39,6 +39,8 @@ The proposed defaults are working assumptions. Placeholder values are test input
 | D-87 | First-slice fixture values B2 to B9 settled, with B13 and B14 added | [Charter](../planning/first-slice/first-slice-charter.md) |
 | D-88 | Hold-and-reserve spike result: adapt the capacity ledger, holds in their own table, end-of-date effect | [ADR 0018](../adr/0018-arrangement-history-by-dated-adjustment.md#spike-amendment-2026-11-03) |
 | D-89 | Client and supplier references keep the shipped CL- and SUP- formats | [Spec](product-specification.md) |
+| D-90 | Amend the charter: publishing to a reseller channel moves from build step 2 to build step 9 | [Charter](../planning/first-slice/first-slice-charter.md#build-plan) |
+| D-91 | A Departure's reference is issued at creation | [Spec](product-specification.md), [ADR 0004](../adr/0004-human-readable-references.md) |
 
 ## Blocking decisions
 
@@ -47,15 +49,6 @@ All blocking decisions are settled. B2 to B9 were logged as fixture values in D-
 ## Model additions
 
 All four were approved and logged as D-70 to D-73.
-
-## Slice 1 step 2
-
-Approved 2026-11-05 while planning [build step 2](../planning/first-slice/slice-1-step-2-plan.md). Log both before step 2's code is merged.
-
-| Ref | Decision | Rules affected | Entry text |
-| --- | --- | --- | --- |
-| P1 | Publishing moves from build step 2 to build step 9 | Charter build table; screen inventory S-10 | Amend the first-slice charter: publishing an offering to a reseller channel (DEP-07 to DEP-09, screen S-10) is built in build step 9, the reseller path, not build step 2. Offerings are built in step 5 and reseller relationships in step 9, so step 2 has nothing to publish. Build step 2 builds the Departure statuses, Ready to sell and Return to Draft; step 9 adds publish, unpublish and the withdrawal on return to Draft (DEP-08). Workflow step 2 and the rules are unchanged. |
-| P2 | A Departure's reference is issued when the Departure is created | REF-01, REF-03 (affirmed); ADR 0004 | A Departure receives its DEP reference when it is created, not when it is first activated or marked Ready to sell, so every Departure, Draft included, has a reference (REF-01). A discarded or abandoned Draft keeps its number and gaps are accepted (REF-03, REF-05). Existing Draft Departures receive references in build step 2. Amends ADR 0004's Departure issuance; D-84's format is unchanged. No rule changes. |
 
 ## Specification review
 

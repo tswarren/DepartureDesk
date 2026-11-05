@@ -1,17 +1,17 @@
 # Slice 1 step 2: Departure statuses and Ready to sell
 
-**Status:** Accepted 2026-11-05; build not started. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) step 2 and the decision log entries it cites.
+**Status:** Accepted 2026-11-05; build not started. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) step 2, D-90 and D-91.
 
 Charter build step 2: Departure statuses, Ready to sell, publishing to a reseller channel. Workflow step 2 cites DEP-01, DEP-03 to DEP-07 and FIN-22. The charter's scope table limits Slice 1 to Draft, Ready to sell, publishing to one channel, and the operating decision Proceed. No D-case closes in this step. S-08 is the Departure part of D16, which closes in step 6.
 
 ## Questions settled for this plan (2026-11-05)
 
-Each recommendation below was accepted. Questions 1 and 2 change the charter and ADR 0004, so they wait as [pending entries P1 and P2](../../spec/pending-decision-log-entries.md#slice-1-step-2) until the Google Doc's decision log numbers them. Step 2's code is not merged before they are logged.
+Each recommendation below was accepted. Question 1 is logged as D-90, which amends the charter's build table, and question 2 as D-91, which step 2 records in ADR 0004.
 
 | # | Question | Decision |
 | --- | --- | --- |
-| 1 | **Publishing.** S-10 publishes an *offering* to a *reseller channel* (DEP-07, D-68). Offerings arrive in build step 5 and reseller relationships can't be created until step 9, so step 2 has nothing to publish. | Move publishing (S-10, offering publication, DEP-07 to DEP-09) to build step 9, the reseller path. Step 2 builds Ready to sell and Return to Draft. Step 9 adds publish and unpublish, plus the DEP-08 withdrawal on return to Draft. **Needs a decision log entry** amending the charter's build table and the screen inventory. |
-| 2 | **When a Departure gets its reference.** The shipped code issues `DEP-` at first activation, so drafts have none (ADR 0004). REF-01 says the records in the references table have a reference, with no draft exception. REF-03 accepts that discarded records keep theirs. | Issue the reference when the Departure is created, and backfill existing drafts in the migration. A Departure always shows its reference, gaps from abandoned drafts are accepted (REF-05), and Ready to sell isn't tied to numbering. **Needs a decision log entry** and an ADR 0004 amendment. The alternative, first Ready to sell, keeps today's behavior. |
+| 1 | **Publishing.** S-10 publishes an *offering* to a *reseller channel* (DEP-07, D-68). Offerings arrive in build step 5 and reseller relationships can't be created until step 9, so step 2 has nothing to publish. | Move publishing (S-10, offering publication, DEP-07 to DEP-09) to build step 9, the reseller path. Step 2 builds Ready to sell and Return to Draft. Step 9 adds publish and unpublish, plus the DEP-08 withdrawal on return to Draft. Logged as **D-90**. |
+| 2 | **When a Departure gets its reference.** The shipped code issues `DEP-` at first activation, so drafts have none (ADR 0004). REF-01 says the records in the references table have a reference, with no draft exception. REF-03 accepts that discarded records keep theirs. | Issue the reference when the Departure is created, and backfill existing drafts in the migration. A Departure always shows its reference, gaps from abandoned drafts are accepted (REF-05), and Ready to sell isn't tied to numbering. Logged as **D-91**; step 2 amends ADR 0004. |
 | 3 | **Departure team versus responsible office and user.** S-09 adds the team (ACC-09) and a default task owner (OPS-12). ADR 0016 says the team replaces the responsible office as the routing fact. | Replace both. Drop `responsible_office_id` and `responsible_agency_user_id`; the migration moves each responsible user into the team as its default task owner. The Departure list filters by team member instead. A team is optional for Ready to sell. Team membership grants nothing (ACC-09). |
 | 4 | **The shipped M2 lifecycle screens.** Activation, return to draft, mark departed, and the schedule, currency and lifecycle corrections exist because an active Departure restricted edits. The spec has no activation; edits after Ready to sell create review items (DEP-12), which are later scope; and the completion table has no Departed → Active step. | Replace activation with **Mark Ready to sell**, and keep **Return to Draft** with an optional note (the spec's guard is the permission only). Keep **Mark Departed** and the departed sweep until step 11 (D-83). Retire the schedule, currency and lifecycle corrections: the Departure form edits dates, currency and time zone in any non-Departed state, and each save is audited. Once Departed, the Departure is read-only (DEP-43). |
 | 5 | **What Ready to sell requires.** DEP-06 says the MVP calculates no viability and blocks nothing automatically. S-10 says it is "refused with reasons if not ready". | Require the fields a sale depends on: name, start and end dates, currency (FIN-22) and time zone, as the shipped activation does today. The refusal lists each missing field with a link to it (UI acceptance). Nothing about capacity, cost or price is checked. |
@@ -97,10 +97,10 @@ Publishing and channels (step 9, question 1). Postpone and Cancel decisions, rev
 
 ## Build order
 
-One pull request, citing DEP-01, DEP-03 to DEP-06, DEP-16, DEP-19, DEP-20, DEP-43, ACC-09, OPS-12, FIN-22, D-79, D-83, D-86 and the new decision log entries:
+One pull request, citing DEP-01, DEP-03 to DEP-06, DEP-16, DEP-19, DEP-20, DEP-43, ACC-09, OPS-12, FIN-22, D-79, D-83, D-86, D-90 and D-91:
 
 1. Three status columns, the label and `on_sale?`, with the data migration.
-2. Reference issued at creation, with the ADR 0004 amendment (if question 2 is accepted).
+2. Reference issued at creation (D-91), with the ADR 0004 amendment.
 3. Departure team, replacing the responsible office and user.
 4. Operating decision history and Proceed.
 5. Ready to sell and Return to Draft, replacing activation. Remove the corrections.

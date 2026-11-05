@@ -34,7 +34,7 @@ The Departure overview is the hub: it answers the charter's four questions (what
 | S-07 | Departure overview | Page | 2 | Staff | Three statuses and the derived label; four summary panels for acceptance, supplier confirmation, capacity and open money; links to every area below; a Mark as Departed prompt once the last service date has passed (D-83) | D4 | DEP-01, DEP-03, DEP-04 |
 | S-08 | Departure form | Page | 2 | Staff | Identity, dates, currency, time zone, optional hold duration and installment buffer overrides; saves as Draft with required fields missing | D16 | DEP-01, DEP-05 |
 | S-09 | Departure team | Panel | 2 | Staff | Team members and the default task owner |  | ACC-09, OPS-12 |
-| S-10 | Publish to reseller | Dialog | 2 | Staff | Set Ready to sell, choose the offering and the one reseller channel; refused with reasons if not ready |  | DEP-06, DEP-07, FIN-22 |
+| S-10 | Publish to reseller | Dialog | 9 (D-90) | Staff | Set Ready to sell, choose the offering and the one reseller channel; refused with reasons if not ready |  | DEP-06, DEP-07, FIN-22 |
 | S-11 | Supplier directory and detail | Page | 3 | Staff | Existing directory plus one payee account per supplier: currency and payment instructions |  | SUP-01, SUP-02 |
 | S-12 | Arrangement detail | Page | 3 | Staff | Status Draft to Confirmed, obligation shape, group reference, reservation scope, terms and documents; hosts S-14 to S-16 | D1 | SUP-06, SUP-07, SUP-11, SUP-12 |
 | S-13 | Arrangement form | Page | 3 | Staff | Create and edit; saves as Draft with required fields missing | D16 | SUP-06, SUP-09 |
