@@ -57,6 +57,14 @@ Found in the 2026-11-01 review of the whole specification; the evidence is in th
 | R13 | The commission lifecycle reaches Received only through later-phase SMN-35 | Later | MVP lets staff record a commission receipt and apply it manually to identified commission receivables, including partially; applied amounts become Received, and unapplied cash settles nothing. Automated matching and statement reconciliation stay later. Commission receipts stay outside Slice 1 until the charter admits them. |
 | R14 | SET-06 and SET-07 cover four of the nine catalog documents | Later | Client summary, confirmation, cancellation notice and postponement offer use the confirmation flags and footer. Invoice, receipt, itinerary and statement, and client-account statement use the financial-document flags and footer. A generated acknowledgment uses the confirmation flags, with its wording from the template; an uploaded acknowledgment PDF is kept as supplied, with no branding or footer added. Issued versions keep the settings they were issued with (DOC-11). The client summary row follows whichever display name is chosen. |
 
+## Slice 1 build
+
+Raised while planning the build. Settle each before the step that needs it.
+
+| Ref | Decision | Blocks build step | Proposed default |
+| --- | --- | --- | --- |
+| Client and supplier reference formats | REF-02's references table gives client profiles the prefix C, such as C-10233, and lists no supplier reference. The shipped app issues `CL-000001` and `SUP-000001`. | 1 | Keep both shipped formats in MVP and add Supplier, prefix SUP, six digits, to the references table. Change client profiles to `CL-` and six digits in the table. Departures follow REF-02 as D-84 already decided. |
+
 ## Left for Slice 2
 
 The propagation and editorial fixes from the review were applied as D-74. Two choices remain, and neither blocks Slice 1: "client summary" or "proposal" as the display name (BKG-37, DOC-01, the glossary), and whether the decision log's "Rules affected" column lists only amended rules or related rules too.
