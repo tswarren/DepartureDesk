@@ -263,6 +263,8 @@ module M1DirectoryScenario
       UserPermission.where(agency_id:).delete_all
       AgencyUser.where(id: user_ids).delete_all
       Reseller.where(agency_id:).delete_all
+      TravelerType.where(agency_id:).delete_all
+      AgencyDocumentInclusion.where(agency_id:).delete_all
       Office.where(agency_id:).delete_all
       Agency.where(id: agency_id).delete_all
     end

@@ -25,6 +25,7 @@ class ProvisionAgency < AgencyCommand
         status: "active"
       )
       AgencyDocumentInclusion.create_defaults!(agency)
+      TravelerType.create_defaults!(agency)
       ReferenceSequence::NAMESPACES.each do |namespace|
         agency.reference_sequences.create!(namespace:, next_value: 1)
       end

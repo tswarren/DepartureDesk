@@ -24,6 +24,7 @@ class Agency < ApplicationRecord
   has_many :reference_sequences, dependent: :restrict_with_exception
   has_many :departures, dependent: :restrict_with_exception
   has_many :document_inclusions, class_name: "AgencyDocumentInclusion", dependent: :restrict_with_exception
+  has_many :traveler_types, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true
 

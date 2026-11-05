@@ -1157,6 +1157,26 @@ END) STORED,
 
 
 --
+-- Name: traveler_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.traveler_types (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    name character varying NOT NULL,
+    "position" integer NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT traveler_types_lock_version_nonnegative CHECK ((lock_version >= 0)),
+    CONSTRAINT traveler_types_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 60))),
+    CONSTRAINT traveler_types_position_nonnegative CHECK (("position" >= 0)),
+    CONSTRAINT traveler_types_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+);
+
+
+--
 -- Name: user_permissions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1435,6 +1455,14 @@ ALTER TABLE ONLY public.supplier_websites
 
 ALTER TABLE ONLY public.suppliers
     ADD CONSTRAINT suppliers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: traveler_types traveler_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.traveler_types
+    ADD CONSTRAINT traveler_types_pkey PRIMARY KEY (id);
 
 
 --
@@ -2503,6 +2531,27 @@ CREATE INDEX index_suppliers_on_name_search_vector ON public.suppliers USING gin
 
 
 --
+-- Name: index_traveler_types_on_agency_and_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_traveler_types_on_agency_and_name ON public.traveler_types USING btree (agency_id, lower((name)::text));
+
+
+--
+-- Name: index_traveler_types_on_agency_and_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_traveler_types_on_agency_and_position ON public.traveler_types USING btree (agency_id, "position");
+
+
+--
+-- Name: index_traveler_types_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_traveler_types_on_id_and_agency_id ON public.traveler_types USING btree (id, agency_id);
+
+
+--
 -- Name: index_user_permissions_on_agency_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2922,6 +2971,14 @@ ALTER TABLE ONLY public.supplier_contacts
 
 
 --
+-- Name: traveler_types fk_rails_92c256bba0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.traveler_types
+    ADD CONSTRAINT fk_rails_92c256bba0 FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: supplier_phone_numbers fk_rails_980d81234b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3168,6 +3225,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261104180000'),
 ('20261104170000'),
 ('20261104160000'),
 ('20261104150000'),

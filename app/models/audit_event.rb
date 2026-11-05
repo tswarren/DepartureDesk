@@ -9,6 +9,8 @@ class AuditEvent < ApplicationRecord
     office.updated
     office.deactivated
     office.reactivated
+    traveler_type.created
+    traveler_type.updated
     agency_user.invited
     agency_user.invitation_replaced
     agency_user.invitation_revoked
@@ -72,7 +74,7 @@ class AuditEvent < ApplicationRecord
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true
