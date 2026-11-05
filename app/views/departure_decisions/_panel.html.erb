@@ -1,0 +1,55 @@
+<%# Operating decision and its history (DEP-16, DEP-19, DEP-20). %>
+<%# locals: (departure:, manage:) -%>
+<article class="dd-panel" id="decision">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Operating decision</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <% latest = departure.decisions.first %>
+    <p>
+      <strong><%= departure.operating_decision.humanize %></strong>
+      <% if latest %>
+        <span class="dd-page-description">· <%= latest.decided_by.display_name %>, <%= latest.decided_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %></span>
+      <% end %>
+    </p>
+    <p class="dd-page-description">Staff make this decision; the system never calculates it. Changing it later undoes nothing already done.</p>
+    <% if manage && !departure.departed? %>
+      <%= form_with url: departure_decisions_path(departure), scope: :departure_decision, class: "dd-form" do |form| %>
+        <%= form.hidden_field :decision, value: "proceed" %>
+        <%= form.hidden_field :lock_version, value: departure.lock_version %>
+        <div class="dd-field-group">
+          <%= form.label :note, "Note (optional)", class: "dd-label" %>
+          <%= form.text_area :note, rows: 2, maxlength: DepartureDecision::NOTE_LIMIT, class: "dd-field" %>
+        </div>
+        <div class="dd-form-actions">
+          <%= form.submit "Record Proceed", class: "dd-button dd-button--secondary" %>
+        </div>
+      <% end %>
+    <% end %>
+    <% if departure.decisions.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <caption class="dd-visually-hidden">Decision history, newest first</caption>
+          <thead>
+            <tr>
+              <th scope="col">Decision</th>
+              <th scope="col">By</th>
+              <th scope="col">When</th>
+              <th scope="col">Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% departure.decisions.includes(:decided_by).each do |decision| %>
+              <tr>
+                <td><%= decision.decision.humanize %></td>
+                <td><%= decision.decided_by.display_name %></td>
+                <td><%= decision.decided_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %></td>
+                <td><%= decision.note || "—" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </div>
+</article>

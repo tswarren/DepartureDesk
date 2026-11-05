@@ -153,6 +153,7 @@ Rails.application.routes.draw do
       post :activate
     end
     resource :activation, only: :show, controller: "departure_activations"
+    resources :decisions, only: :create, controller: "departure_decisions"
     # The team member id in these routes is the agency user's id.
     resources :team_members, only: %i[create destroy], controller: "departure_team_members" do
       collection do

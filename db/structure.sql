@@ -150,6 +150,19 @@ $$;
 
 
 --
+-- Name: reject_departure_decision_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_departure_decision_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'departure decisions are append-only';
+END;
+$$;
+
+
+--
 -- Name: reject_departure_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -790,6 +803,25 @@ CREATE TABLE public.clients (
 
 
 --
+-- Name: departure_decisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.departure_decisions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    decision character varying NOT NULL,
+    note text,
+    decided_by_id uuid NOT NULL,
+    decided_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT departure_decisions_decision CHECK (((decision)::text = ANY ((ARRAY['proceed'::character varying, 'postpone'::character varying, 'cancel'::character varying])::text[]))),
+    CONSTRAINT departure_decisions_note CHECK (((note IS NULL) OR ((btrim(note) <> ''::text) AND (char_length(note) <= 2000)))),
+    CONSTRAINT departure_decisions_note_required CHECK ((((decision)::text = 'proceed'::text) OR (note IS NOT NULL)))
+);
+
+
+--
 -- Name: departure_team_members; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1402,6 +1434,14 @@ ALTER TABLE ONLY public.client_person_postal_addresses
 
 ALTER TABLE ONLY public.clients
     ADD CONSTRAINT clients_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: departure_decisions departure_decisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_decisions
+    ADD CONSTRAINT departure_decisions_pkey PRIMARY KEY (id);
 
 
 --
@@ -2072,6 +2112,13 @@ CREATE UNIQUE INDEX index_clients_on_client_person_id ON public.clients USING bt
 --
 
 CREATE UNIQUE INDEX index_clients_on_id_and_agency_id ON public.clients USING btree (id, agency_id);
+
+
+--
+-- Name: index_departure_decisions_on_departure_and_decided_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_departure_decisions_on_departure_and_decided_at ON public.departure_decisions USING btree (departure_id, decided_at);
 
 
 --
@@ -2782,6 +2829,13 @@ CREATE TRIGGER clients_reject_identity_change BEFORE UPDATE ON public.clients FO
 
 
 --
+-- Name: departure_decisions departure_decisions_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER departure_decisions_reject_mutation BEFORE DELETE OR UPDATE ON public.departure_decisions FOR EACH ROW EXECUTE FUNCTION public.reject_departure_decision_mutation();
+
+
+--
 -- Name: departures departures_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2982,6 +3036,30 @@ ALTER TABLE ONLY public.clients
 
 ALTER TABLE ONLY public.agency_users
     ADD CONSTRAINT fk_agency_users_reseller_same_agency FOREIGN KEY (reseller_id, agency_id) REFERENCES public.resellers(id, agency_id);
+
+
+--
+-- Name: departure_decisions fk_departure_decisions_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_decisions
+    ADD CONSTRAINT fk_departure_decisions_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: departure_decisions fk_departure_decisions_decided_by_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_decisions
+    ADD CONSTRAINT fk_departure_decisions_decided_by_same_agency FOREIGN KEY (decided_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: departure_decisions fk_departure_decisions_departure_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departure_decisions
+    ADD CONSTRAINT fk_departure_decisions_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
 
 
 --
@@ -3367,6 +3445,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261105150000'),
 ('20261105140000'),
 ('20261105130000'),
 ('20261105120000'),

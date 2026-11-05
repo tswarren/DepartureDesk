@@ -34,8 +34,13 @@ module M2DepartureScenario
   def self.cleanup!(*results)
     agencies = results.flatten.compact.map { |result| agency_from(result) }.uniq
     agencies.each do |agency|
-      DepartureTeamMember.where(agency_id: agency.id).delete_all
-      Departure.where(agency_id: agency.id).delete_all
+      Departure.transaction do
+        # Decision history is append-only (DEP-19); replica mode skips that trigger for test cleanup only.
+        ActiveRecord::Base.connection.execute("SET LOCAL session_replication_role = replica")
+        DepartureDecision.where(agency_id: agency.id).delete_all
+        DepartureTeamMember.where(agency_id: agency.id).delete_all
+        Departure.where(agency_id: agency.id).delete_all
+      end
     end
     M1DirectoryScenario.cleanup!(*agencies)
   end

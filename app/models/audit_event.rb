@@ -66,6 +66,7 @@ class AuditEvent < ApplicationRecord
     supplier_contact.duplicate_override
     departure.created
     departure.updated
+    departure.decision_recorded
     departure.team_member_added
     departure.team_member_removed
     departure.default_task_owner_changed

@@ -245,6 +245,7 @@ module M1DirectoryScenario
       SupplierEmailAddress.where(agency_id:).delete_all
       SupplierCategoryAssignment.where(agency_id:).delete_all
       Supplier.where(agency_id:).delete_all
+      DepartureDecision.where(agency_id:).delete_all
       DepartureTeamMember.where(agency_id:).delete_all
       Departure.where(agency_id:).delete_all
       ClientOrganizationContact.where(agency_id:).delete_all

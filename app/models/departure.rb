@@ -19,6 +19,8 @@ class Departure < ApplicationRecord
   DESCRIPTION_LIMIT = 2_000
 
   belongs_to :agency
+  has_many :decisions, -> { order(decided_at: :desc, id: :desc) },
+    class_name: "DepartureDecision", inverse_of: :departure, dependent: :restrict_with_exception
   has_many :team_members, -> { order(default_task_owner: :desc, created_at: :asc) },
     class_name: "DepartureTeamMember", inverse_of: :departure, dependent: :restrict_with_exception
 
