@@ -1,0 +1,53 @@
+<% content_for :title, "Suppliers · #{@departure.name} · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_arrangements) %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departure</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">Each supplier's arrangement for this departure: one per supplier.</p>
+  </div>
+  <% if manage && !@departure.departed? %>
+    <div class="dd-page-actions">
+      <%= link_to "New arrangement", new_departure_arrangement_path(@departure), class: "dd-button" %>
+    </div>
+  <% end %>
+</header>
+
+<%= render "departures/tabs", departure: @departure, current: :suppliers %>
+
+<article class="dd-panel">
+  <% if @arrangements.empty? %>
+    <div class="dd-panel-body">
+      <div class="dd-empty-state">
+        <h2 class="dd-empty-title">No arrangements yet</h2>
+        <p class="dd-empty-copy">Add one for each supplier this departure uses.</p>
+      </div>
+    </div>
+  <% else %>
+    <div class="dd-table-wrap">
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Reference</th>
+            <th scope="col">Supplier</th>
+            <th scope="col">Group reference</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @arrangements.each do |arrangement| %>
+            <tr>
+              <td class="dd-type-mono"><%= link_to arrangement.arrangement_reference, departure_arrangement_path(@departure, arrangement) %></td>
+              <td><%= arrangement.supplier.display_name_for_directory %></td>
+              <td><%= arrangement.group_reference || "—" %></td>
+              <td><%= arrangement_status_badge(arrangement) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</article>

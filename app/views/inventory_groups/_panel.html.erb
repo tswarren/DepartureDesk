@@ -1,0 +1,43 @@
+<%# The arrangement's inventory groups (INV-01 to INV-04, SUP-15). %>
+<%# locals: (departure:, arrangement:, manage:) -%>
+<article class="dd-panel" id="inventory">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Inventory groups</h2>
+    <% if manage && arrangement.draft? %>
+      <%= link_to "Add group", new_departure_arrangement_group_path(departure, arrangement), class: "dd-button dd-button--quiet" %>
+    <% end %>
+  </header>
+  <% groups = arrangement.inventory_groups %>
+  <% if groups.empty? %>
+    <div class="dd-panel-body">
+      <p class="dd-empty-copy">No inventory groups yet. Add one for each room type, cabin category, session or date the supplier treats separately.</p>
+    </div>
+  <% else %>
+    <div class="dd-table-wrap">
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Group</th>
+            <th scope="col">Category</th>
+            <th scope="col">Representation</th>
+            <th scope="col">Promise</th>
+            <th scope="col">Quantity</th>
+            <th scope="col">Service dates</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% groups.each do |group| %>
+            <tr>
+              <th scope="row"><%= link_to group.label, departure_arrangement_group_path(departure, arrangement, group) %></th>
+              <td><%= service_category_label(group.service_category) %></td>
+              <td><%= representation_label(group.representation) %></td>
+              <td><%= availability_promise_label(group.availability_promise) %></td>
+              <td><%= group_quantity_label(group) %></td>
+              <td><%= group_service_dates(group) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</article>

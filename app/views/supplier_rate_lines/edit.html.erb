@@ -1,0 +1,25 @@
+<% content_for :title, "Edit rate · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", departure_arrangements_path(@departure) ], [ @arrangement.arrangement_reference, departure_arrangement_path(@departure, @arrangement) ], [ "Edit rate", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Supplier rate table · <%= @arrangement.supplier.display_name_for_directory %></p>
+    <h1 class="dd-page-title">Edit rate</h1>
+    <p class="dd-page-description">The rate table is frozen when the arrangement is confirmed.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @rate_line, url: departure_arrangement_rate_line_path(@departure, @arrangement, @rate_line), method: :patch, scope: :supplier_rate_line, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= hidden_field_tag "supplier_rate_line[lock_version]", params.dig(:supplier_rate_line, :lock_version) || @rate_line.lock_version %>
+      <%= render "form", form:, arrangement: @arrangement, values: @values %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save rate", class: "dd-button" %>
+        <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "rate-table"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

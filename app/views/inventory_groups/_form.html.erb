@@ -1,0 +1,65 @@
+<%# locals: (form:, group:, structural:) -%>
+<div class="dd-field-group">
+  <%= form.label :label, class: "dd-label" %>
+  <%= form.text_field :label, maxlength: InventoryGroup::LABEL_LIMIT, **dd_field_options(form, :label, aria_describedby_extra: "inventory_group_label_hint") %>
+  <p class="dd-field-hint" id="inventory_group_label_hint">For example V01 balcony, or Nov 5 Garden Queen.</p>
+  <%= dd_field_error(form, :label) %>
+</div>
+<% if structural %>
+  <div class="dd-form-grid dd-form-grid--two-column">
+    <div class="dd-field-group">
+      <%= form.label :service_category, "Service category", class: "dd-label" %>
+      <%= form.select :service_category, ArrangementsHelper::SERVICE_CATEGORY_LABELS.invert, {}, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :representation, class: "dd-label" %>
+      <%= form.select :representation, ArrangementsHelper::REPRESENTATION_LABELS.invert, {}, aria: { describedby: "inventory_group_representation_hint" }, class: "dd-field" %>
+      <p class="dd-field-hint" id="inventory_group_representation_hint">Unit shells track each cabin, room or resource; a pool counts interchangeable places.</p>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :availability_promise, "Availability promise", class: "dd-label" %>
+      <%= form.select :availability_promise, ArrangementsHelper::AVAILABILITY_PROMISE_LABELS.invert, {}, aria: { describedby: "inventory_group_promise_hint" }, class: "dd-field" %>
+      <p class="dd-field-hint" id="inventory_group_promise_hint">On request and Rate only hold no number.</p>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :quantity, "Units or places", class: "dd-label" %>
+      <%= form.number_field :quantity, min: 1, step: 1, **dd_field_options(form, :quantity, class: "dd-field--numeric dd-field--narrow") %>
+      <%= dd_field_error(form, :quantity) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :positions_per_unit, "Positions per unit", class: "dd-label" %>
+      <%= form.number_field :positions_per_unit, min: 1, step: 1, **dd_field_options(form, :positions_per_unit, class: "dd-field--numeric dd-field--narrow", aria_describedby_extra: "inventory_group_positions_hint") %>
+      <p class="dd-field-hint" id="inventory_group_positions_hint">Unit shells only: the maximum occupancy of each unit.</p>
+      <%= dd_field_error(form, :positions_per_unit) %>
+    </div>
+  </div>
+  <fieldset class="dd-form-section">
+    <legend class="dd-section-title">Service dates</legend>
+    <div class="dd-form-grid dd-form-grid--two-column">
+      <div class="dd-field-group">
+        <%= form.label :starts_on, "Start date", class: "dd-label" %>
+        <%= form.date_field :starts_on, class: "dd-field" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :starts_at_time, "Start time (optional)", class: "dd-label" %>
+        <%= form.time_field :starts_at_time, class: "dd-field dd-field--narrow" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :ends_on, "End date", class: "dd-label" %>
+        <%= form.date_field :ends_on, **dd_field_options(form, :ends_on) %>
+        <%= dd_field_error(form, :ends_on) %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :ends_at_time, "End time (optional)", class: "dd-label" %>
+        <%= form.time_field :ends_at_time, class: "dd-field dd-field--narrow" %>
+      </div>
+      <div class="dd-field-group">
+        <%= form.label :time_zone, "Time zone", class: "dd-label" %>
+        <%= form.select :time_zone, iana_timezone_options, { include_blank: "No time zone" }, **dd_field_options(form, :time_zone) %>
+        <%= dd_field_error(form, :time_zone) %>
+      </div>
+    </div>
+  </fieldset>
+<% else %>
+  <p class="dd-field-hint">This arrangement is confirmed, so only the label can change. Anything else needs replacement inventory.</p>
+<% end %>

@@ -70,6 +70,8 @@
 
 <%= render "locations", records: @locations, manage: manage, contact_details: contact_details %>
 
+<%= render "payee_accounts", records: @supplier.payee_accounts, manage: manage %>
+
 <% if contact_details %>
   <%= render "contacts", records: @contacts, manage: manage %>
   <%= render "contact_channel", heading: "Email addresses", records: @email_addresses, new_path: new_supplier_email_address_path(@supplier) %>

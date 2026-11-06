@@ -1,0 +1,17 @@
+<%# locals: (form:) -%>
+<div class="dd-field-group">
+  <%= form.label :name, class: "dd-label" %>
+  <%= form.text_field :name, maxlength: PayeeAccount::NAME_LIMIT, **dd_field_options(form, :name) %>
+  <%= dd_field_error(form, :name) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :currency, class: "dd-label" %>
+  <%= form.text_field :currency, maxlength: 3, **dd_field_options(form, :currency, class: "dd-field--code") %>
+  <%= dd_field_error(form, :currency) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :payment_instructions, class: "dd-label" %>
+  <%= form.text_area :payment_instructions, rows: 4, maxlength: PayeeAccount::INSTRUCTIONS_LIMIT, **dd_field_options(form, :payment_instructions, aria_describedby_extra: "payee_account_instructions_hint") %>
+  <p class="dd-field-hint" id="payee_account_instructions_hint">Free text, as the supplier gave it.</p>
+  <%= dd_field_error(form, :payment_instructions) %>
+</div>

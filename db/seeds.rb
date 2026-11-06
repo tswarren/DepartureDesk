@@ -34,4 +34,5 @@ if Rails.env.development?
   puts "Alpha fixture ready:"
   alpha.suppliers.each_value { |supplier| puts "  Supplier: #{supplier.display_name} (#{supplier.supplier_reference})" }
   puts "  Departure: #{alpha.departure.name} #{alpha.departure.departure_reference} (#{alpha.departure.summary_label_text})"
+  alpha.arrangements.each_value { |arrangement| puts "  Arrangement: #{arrangement.arrangement_reference} #{arrangement.supplier.display_name} (#{arrangement.status})" }
 end

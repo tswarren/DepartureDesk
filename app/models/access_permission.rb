@@ -26,7 +26,12 @@ module AccessPermission
     view_supplier_contact_details: :baseline,
     manage_supplier_directory: :baseline,
     view_departures: :baseline,
-    manage_departures: "departure_management"
+    manage_departures: "departure_management",
+    view_arrangements: :baseline,
+    manage_arrangements: "supplier_arrangements",
+    # ACC-31: supplier cost and commission, including the rate table and
+    # supplier documents.
+    view_supplier_costs: %w[departure_management supplier_arrangements financial_records]
   }.freeze
 
   def self.allowed?(user_type, granted_permissions, action)

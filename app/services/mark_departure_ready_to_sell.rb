@@ -74,7 +74,7 @@ class MarkDepartureReadyToSell < AgencyCommand
   def currency_invalid?(value)
     return true if value.blank?
 
-    Money::Currency.find(value)
+    Money::Currency.new(value)
     false
   rescue Money::Currency::UnknownCurrency
     true

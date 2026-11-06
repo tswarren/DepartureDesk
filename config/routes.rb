@@ -102,6 +102,8 @@ Rails.application.routes.draw do
     end
   end
   scope "/suppliers/:supplier_id", as: :supplier do
+    resources :payee_accounts, controller: "supplier_payee_accounts", only: %i[new create edit update]
+
     resources :locations, controller: "supplier_locations", param: :supplier_location_id, only: %i[new create show edit update] do
       member do
         get "status/edit", action: :edit_status
@@ -151,6 +153,17 @@ Rails.application.routes.draw do
   resources :departures, only: %i[index new create show edit update] do
     resource :ready_to_sell, only: %i[show create], controller: "departure_ready_to_sells"
     resources :decisions, only: :create, controller: "departure_decisions"
+    resource :inventory, only: :show, controller: "departure_inventories"
+    resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
+      resource :discard, only: :create, controller: "supplier_arrangement_discards"
+      resource :confirmation, only: %i[show create], controller: "supplier_arrangement_confirmations"
+      resources :documents, only: %i[show create destroy], controller: "arrangement_documents"
+      resources :rate_lines, only: %i[new create edit update destroy], controller: "supplier_rate_lines"
+      resources :groups, only: %i[show new create edit update destroy], controller: "inventory_groups" do
+        resource :capacity_rule, only: :update, controller: "capacity_rules"
+        resources :capacity_events, only: :create, controller: "capacity_events"
+      end
+    end
     # The team member id in these routes is the agency user's id.
     resources :team_members, only: %i[create destroy], controller: "departure_team_members" do
       collection do

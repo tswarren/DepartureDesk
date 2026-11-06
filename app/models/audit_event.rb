@@ -52,6 +52,8 @@ class AuditEvent < ApplicationRecord
     supplier.inactivated
     supplier.reactivated
     supplier.duplicate_override
+    supplier.payee_account_added
+    supplier.payee_account_updated
     supplier_location.created
     supplier_location.updated
     supplier_location.inactivated
@@ -67,6 +69,20 @@ class AuditEvent < ApplicationRecord
     departure.created
     departure.updated
     departure.decision_recorded
+    supplier_arrangement.created
+    supplier_arrangement.updated
+    supplier_arrangement.discarded
+    supplier_arrangement.confirmed
+    supplier_arrangement.document_added
+    supplier_arrangement.document_removed
+    supplier_arrangement.inventory_group_added
+    supplier_arrangement.inventory_group_updated
+    supplier_arrangement.inventory_group_removed
+    supplier_arrangement.capacity_rule_changed
+    supplier_arrangement.capacity_changed
+    supplier_arrangement.rate_line_added
+    supplier_arrangement.rate_line_updated
+    supplier_arrangement.rate_line_removed
     departure.team_member_added
     departure.team_member_removed
     departure.default_task_owner_changed
@@ -76,7 +92,7 @@ class AuditEvent < ApplicationRecord
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true

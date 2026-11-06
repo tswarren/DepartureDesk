@@ -1,0 +1,50 @@
+<% content_for :title, "#{@arrangement.arrangement_reference} · DepartureDesk" %>
+<% manage = Current.agency_user.permitted?(:manage_arrangements) && !@departure.departed? %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", departure_arrangements_path(@departure) ], [ @arrangement.arrangement_reference, nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Arrangement · <%= @departure.name %></p>
+    <h1 class="dd-page-title"><%= @arrangement.supplier.display_name_for_directory %></h1>
+    <p class="dd-page-description"><span class="dd-type-mono"><%= @arrangement.arrangement_reference %></span> · <%= arrangement_status_badge(@arrangement) %></p>
+  </div>
+  <% if manage && @arrangement.draft? %>
+    <div class="dd-page-actions">
+      <%= link_to "Confirm arrangement", departure_arrangement_confirmation_path(@departure, @arrangement), class: "dd-button" %>
+      <%= link_to "Edit arrangement", edit_departure_arrangement_path(@departure, @arrangement), class: "dd-button dd-button--secondary" %>
+      <%= button_to "Discard", departure_arrangement_discard_path(@departure, @arrangement), params: { lock_version: @arrangement.lock_version },
+            class: "dd-button dd-button--quiet", form: { data: { turbo_confirm: "Discard this draft arrangement? It becomes Cancelled with no supplier or financial effect." } } %>
+    </div>
+  <% end %>
+</header>
+
+<%= render "departures/tabs", departure: @departure, current: :suppliers %>
+
+<article class="dd-panel" id="arrangement-details">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Details</h2>
+  </header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div><dt>Group or confirmation reference</dt><dd><%= @arrangement.group_reference || "Not recorded" %></dd></div>
+      <div><dt>Payee account</dt><dd><%= @arrangement.payee_account ? "#{@arrangement.payee_account.name} (#{@arrangement.payee_account.currency})" : "Not chosen" %></dd></div>
+      <div><dt>Currency</dt><dd class="dd-type-mono"><%= @arrangement.currency %></dd></div>
+      <div><dt>Availability promise</dt><dd><%= availability_promise_label(@arrangement.default_availability_promise) %></dd></div>
+      <div><dt>Obligation shape</dt><dd><%= obligation_shape_label(@arrangement.obligation_shape) %></dd></div>
+      <div><dt>Supplier reservations</dt><dd><%= reservation_scope_label(@arrangement.reservation_scope) %></dd></div>
+      <div><dt>Covered services and dates</dt><dd><%= @arrangement.covered_services ? simple_format(@arrangement.covered_services, {}, wrapper_tag: "span") : "—" %></dd></div>
+      <div><dt>Other terms</dt><dd><%= @arrangement.terms ? simple_format(@arrangement.terms, {}, wrapper_tag: "span") : "—" %></dd></div>
+      <% if @arrangement.confirmed_on %>
+        <div><dt>Supplier confirmed</dt><dd><%= @arrangement.confirmed_on.to_fs(:long) %><%= " · #{@arrangement.confirmation_note}" if @arrangement.confirmation_note %></dd></div>
+      <% end %>
+    </dl>
+  </div>
+</article>
+
+<%= render "inventory_groups/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
+
+<% if can_view_supplier_costs? %>
+  <%= render "supplier_rate_lines/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
+  <%= render "arrangement_documents/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
+<% end %>

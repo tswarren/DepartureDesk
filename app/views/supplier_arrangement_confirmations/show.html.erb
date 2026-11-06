@@ -1,0 +1,53 @@
+<% content_for :title, "Confirm #{@arrangement.arrangement_reference} · DepartureDesk" %>
+<% blockers = @arrangement.confirmation_blockers %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", departure_arrangements_path(@departure) ], [ @arrangement.arrangement_reference, departure_arrangement_path(@departure, @arrangement) ], [ "Confirm", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Arrangement · <%= @arrangement.supplier.display_name_for_directory %></p>
+    <h1 class="dd-page-title">Confirm arrangement</h1>
+    <p class="dd-page-description">Confirming creates this arrangement's shells and pools. It records no supplier cost; costs come from bookings.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body dd-stack">
+    <% if @error %>
+      <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+        <p class="dd-alert-title">Please fix the following:</p>
+        <p><%= @error %></p>
+      </div>
+    <% end %>
+    <% if blockers.any? %>
+      <section class="dd-callout">
+        <h2 class="dd-panel-title">Complete these first</h2>
+        <ul>
+          <% blockers.each do |blocker| %><li><%= blocker %></li><% end %>
+        </ul>
+      </section>
+      <div class="dd-form-actions">
+        <%= link_to "Edit arrangement", edit_departure_arrangement_path(@departure, @arrangement), class: "dd-button" %>
+        <%= link_to "Back to arrangement", departure_arrangement_path(@departure, @arrangement), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% else %>
+      <% groups = @arrangement.inventory_groups %>
+      <p>It will create <%= pluralize(groups.select { |group| group.represented_as_unit_shells? && group.numeric? }.sum(&:quantity), "shell") %> across <%= pluralize(groups.size, "inventory group") %>.</p>
+      <%= form_with url: departure_arrangement_confirmation_path(@departure, @arrangement), method: :post, class: "dd-form" do |form| %>
+        <%= hidden_field_tag :lock_version, @arrangement.lock_version %>
+        <div class="dd-field-group">
+          <%= label_tag :confirmed_on, "Date the supplier confirmed", class: "dd-label" %>
+          <%= date_field_tag :confirmed_on, params[:confirmed_on], required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= label_tag :confirmation_note, "Note (optional)", class: "dd-label" %>
+          <%= text_area_tag :confirmation_note, params[:confirmation_note], rows: 2, class: "dd-field" %>
+        </div>
+        <div class="dd-form-actions">
+          <%= form.submit "Confirm arrangement", class: "dd-button" %>
+          <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement), class: "dd-button dd-button--quiet" %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</article>

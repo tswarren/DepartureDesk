@@ -4,6 +4,8 @@ class Supplier < ApplicationRecord
   REFERENCE_FORMAT = /\ASUP-[0-9]{6}\z/
 
   belongs_to :agency
+  has_many :payee_accounts, -> { order(:name) }, inverse_of: :supplier, dependent: :restrict_with_exception
+  has_many :supplier_arrangements, dependent: :restrict_with_exception
   has_many :category_assignments, class_name: "SupplierCategoryAssignment", dependent: :restrict_with_exception
   has_many :locations, class_name: "SupplierLocation", dependent: :restrict_with_exception
   has_many :contacts, class_name: "SupplierContact", dependent: :restrict_with_exception

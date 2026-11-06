@@ -23,6 +23,9 @@ class Agency < ApplicationRecord
   has_many :supplier_phone_numbers, dependent: :restrict_with_exception
   has_many :supplier_postal_addresses, dependent: :restrict_with_exception
   has_many :supplier_websites, dependent: :restrict_with_exception
+  has_many :payee_accounts, dependent: :restrict_with_exception
+  has_many :supplier_arrangements, dependent: :restrict_with_exception
+  has_many :capacity_events, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
   has_many :departures, dependent: :restrict_with_exception
   has_many :departure_team_members, dependent: :restrict_with_exception
@@ -103,7 +106,7 @@ class Agency < ApplicationRecord
   def currency_is_known
     return if default_currency.blank?
 
-    Money::Currency.find(default_currency)
+    Money::Currency.new(default_currency)
   rescue Money::Currency::UnknownCurrency
     errors.add(:default_currency, "is not a supported currency")
   end

@@ -1,6 +1,6 @@
 # ADR 0019: Issued document storage
 
-- Status: Accepted 2026-11-01. Decision log entry D-67.
+- Status: Accepted 2026-11-01. Decision log entry D-67. Amended 2026-11-05 for arrangement documents (Slice 1 step 3a); the agency logo was placed in scope by Slice 1 step 1.
 - Date: 2026-11-01
 - Decision owners: DepartureDesk maintainers
 - Amends: `AGENTS.md`, which forbade Active Storage tables while they were unused.
@@ -66,7 +66,23 @@ This order means a committed version always has its file. A failure can leave on
 
 ### Not authorized by this ADR
 
-Email delivery, passport images, supplier document uploads and the agency logo. Each uses this storage when a charter step places it in scope, with its own retention and deletion rules.
+Email delivery and passport images. Each uses this storage when a charter step places it in scope, with its own retention and deletion rules. The agency logo (Slice 1 step 1) and arrangement documents (the amendment below) are now in scope.
+
+## Amendment 2026-11-05: arrangement documents
+
+Slice 1 step 3a stores supplier quotes, agreements and confirmations with a supplier arrangement. They are in scope through SUP-06, which lists documents among what an arrangement records, and screen S-12. These are uploads, not issued documents, so the render-once and append-only rules above don't apply to them. These rules do:
+
+| Rule | Arrangement documents |
+| --- | --- |
+| Record | An application-owned `arrangement_documents` row: agency, arrangement (same-agency key), kind (quote, agreement, confirmation, other), optional description, uploader and the SHA-256 of the bytes. Active Storage holds only the file. |
+| Accepted files | PDF, PNG, JPEG, Word (.docx) and Excel (.xlsx), up to 20 MB. The type is sniffed from the bytes alone; neither the file name nor the browser's label is trusted, because a name hint lets a renamed archive pass as .docx. |
+| Active content | An Office file whose zip directory names a `vbaProject` or `activeX` part is refused. Sniffing alone can't catch this: a macro-enabled .docm reads as an ordinary .docx. Legacy .doc and .xls aren't accepted. |
+| Access | Viewing and downloading need Departure management, Supplier arrangements or Financial records, because agreements and quotes usually show supplier cost (ACC-31). Uploading and removing need Supplier arrangements. Resellers never see them. |
+| Downloads | Through `ArrangementDocumentsController`, which loads the row through `Current.agency`, checks the permission and the stored SHA-256, and returns not found for other agencies. Word and Excel files are always sent as attachments, never rendered. PDFs and images are sent inline under a sandboxing Content-Security-Policy. |
+| Removal | Allowed at any time, Draft or Confirmed, by staff with Supplier arrangements. Each removal writes an audit event with the file name, kind, SHA-256 and uploader, and the file is purged. A confirmed arrangement's evidence can therefore be removed; the audit event, not the file, is what remains. |
+| Confirmation | A document is optional at Confirm; the supplier's reference is required. |
+
+Active Storage's framework routes stay off.
 
 ## Consequences
 

@@ -1,0 +1,12 @@
+<%# Unit shells with their derived status (INV-38). %>
+<%# locals: (group:, shells:) -%>
+<ul class="dd-shell-grid" aria-label="<%= group.label %> shells">
+  <% shells.each do |shell| %>
+    <% status = shell.status %>
+    <li class="dd-shell dd-shell--<%= status %>">
+      <span class="dd-shell-label"><%= shell.label %></span>
+      <span class="dd-shell-meta"><%= pluralize(shell.positions, "position") %></span>
+      <span class="dd-shell-status"><%= UnitShell::STATUS_LABELS.fetch(status) %></span>
+    </li>
+  <% end %>
+</ul>

@@ -21,6 +21,7 @@ class Departure < ApplicationRecord
   belongs_to :agency
   has_many :decisions, -> { order(decided_at: :desc, id: :desc) },
     class_name: "DepartureDecision", inverse_of: :departure, dependent: :restrict_with_exception
+  has_many :supplier_arrangements, -> { order(:created_at) }, inverse_of: :departure, dependent: :restrict_with_exception
   has_many :team_members, -> { order(default_task_owner: :desc, created_at: :asc) },
     class_name: "DepartureTeamMember", inverse_of: :departure, dependent: :restrict_with_exception
 
@@ -173,7 +174,7 @@ class Departure < ApplicationRecord
   def currency_is_known
     return if operating_currency.blank?
 
-    Money::Currency.find(operating_currency)
+    Money::Currency.new(operating_currency)
   rescue Money::Currency::UnknownCurrency
     errors.add(:operating_currency, "is not a supported currency")
   end
@@ -214,7 +215,7 @@ class Departure < ApplicationRecord
   def supported_operating_currency?
     return false if operating_currency.blank?
 
-    Money::Currency.find(operating_currency)
+    Money::Currency.new(operating_currency)
     true
   rescue Money::Currency::UnknownCurrency
     false

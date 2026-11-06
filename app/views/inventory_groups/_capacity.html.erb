@@ -1,0 +1,70 @@
+<%# Shells or pool, and the capacity event history (INV-05, INV-10, INV-26, INV-38). %>
+<%# locals: (departure:, arrangement:, group:, manage:) -%>
+<article class="dd-panel" id="capacity">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Capacity</h2></header>
+  <div class="dd-panel-body dd-stack">
+    <% if arrangement.draft? %>
+      <p class="dd-page-description">Shells and pools are created when the arrangement is confirmed.</p>
+    <% elsif !group.numeric? %>
+      <p class="dd-page-description">No available balance: <%= group.represented_as_none? ? "booked directly with the supplier" : availability_promise_label(group.availability_promise) %> (INV-04).</p>
+    <% else %>
+      <% projection = group.capacity_projection %>
+      <p><strong><%= projection&.current_supplier_capacity || 0 %></strong> <%= group.represented_as_unit_shells? ? "units" : "places" %> from the supplier now<%= ", next change #{projection.next_applies_at.in_time_zone(Current.agency.default_timezone).to_fs(:long)}" if projection&.next_applies_at %>.</p>
+      <% if group.represented_as_unit_shells? %>
+        <%= render "inventory_groups/shell_grid", group:, shells: group.unit_shells.includes(:capacity_events) %>
+      <% end %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <caption class="dd-visually-hidden">Capacity events, in timeline order</caption>
+          <thead><tr><th scope="col">Event</th><th scope="col" class="num">Quantity</th><th scope="col">Effective</th><th scope="col">Evidence</th><th scope="col">Recorded</th></tr></thead>
+          <tbody>
+            <% group.capacity_events.includes(:actor, :unit_shell).order(:effective_on, :effective_sequence, :recorded_at).each do |event| %>
+              <tr>
+                <td><%= CapacityEvent::LABELS.fetch(event.event_type) %><%= " · #{event.unit_shell.label}" if event.unit_shell %></td>
+                <td class="num"><%= event.signed_quantity.positive? ? "+#{event.quantity}" : "−#{event.quantity}" %></td>
+                <td><%= event.effective_on.to_fs(:long) %></td>
+                <td><%= event.evidence_note || "Arrangement confirmation" %></td>
+                <td><%= event.actor.display_name %>, <%= event.recorded_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <% if manage %>
+        <details class="dd-disclosure">
+          <summary class="dd-disclosure-summary">Record a supply change</summary>
+          <div class="dd-disclosure-body dd-stack">
+            <% [ [ "increase", "Increase" ], [ "supplier_release", "Supplier release" ] ].each do |kind, label| %>
+              <%= form_with url: departure_arrangement_group_capacity_events_path(departure, arrangement, group), method: :post, class: "dd-form" do |form| %>
+                <%= hidden_field_tag :kind, kind, id: nil %>
+                <%= hidden_field_tag :idempotency_key, SecureRandom.uuid, id: nil %>
+                <h3 class="dd-section-title"><%= label %></h3>
+                <% if kind == "supplier_release" && group.represented_as_unit_shells? %>
+                  <div class="dd-field-group">
+                    <%= label_tag "#{kind}_unit_shell_id", "Shell returned to the supplier", class: "dd-label" %>
+                    <%= select_tag :unit_shell_id, options_for_select(group.unit_shells.reject { |shell| shell.status == "returned" }.map { |shell| [ shell.label, shell.id ] }), id: "#{kind}_unit_shell_id", class: "dd-field" %>
+                  </div>
+                <% else %>
+                  <div class="dd-field-group">
+                    <%= label_tag "#{kind}_quantity", group.represented_as_unit_shells? ? "Units to add" : "Places", class: "dd-label" %>
+                    <%= number_field_tag :quantity, nil, min: 1, step: 1, required: true, id: "#{kind}_quantity", class: "dd-field dd-field--numeric dd-field--narrow" %>
+                  </div>
+                <% end %>
+                <div class="dd-field-group">
+                  <%= label_tag "#{kind}_effective_on", "Effective date", class: "dd-label" %>
+                  <%= date_field_tag :effective_on, nil, id: "#{kind}_effective_on", aria: { describedby: "#{kind}_effective_hint" }, class: "dd-field" %>
+                  <p class="dd-field-hint" id="<%= kind %>_effective_hint">Leave blank for today. A later date takes effect at 11:59 p.m. agency time on that date.</p>
+                </div>
+                <div class="dd-field-group">
+                  <%= label_tag "#{kind}_evidence_note", "Evidence", class: "dd-label" %>
+                  <%= text_field_tag :evidence_note, nil, required: true, maxlength: 500, id: "#{kind}_evidence_note", class: "dd-field" %>
+                </div>
+                <%= submit_tag "Record #{label.downcase}", class: "dd-button dd-button--secondary" %>
+              <% end %>
+            <% end %>
+          </div>
+        </details>
+      <% end %>
+    <% end %>
+  </div>
+</article>

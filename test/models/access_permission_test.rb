@@ -7,13 +7,14 @@ class AccessPermissionTest < ActiveSupport::TestCase
     view_workspace select_office_context
     view_client_directory view_client_contact_details manage_client_directory
     view_supplier_directory view_supplier_contact_details manage_supplier_directory
-    view_departures
+    view_departures view_arrangements
   ].freeze
   ADMIN_ONLY = %i[manage_agency_profile manage_offices manage_agency_users manage_user_permissions].freeze
-  GRANTED = { manage_departures: "departure_management" }.freeze
+  GRANTED = { manage_departures: "departure_management", manage_arrangements: "supplier_arrangements" }.freeze
+  ANY_OF = { view_supplier_costs: %w[departure_management supplier_arrangements financial_records] }.freeze
 
   test "the catalog covers exactly the listed actions" do
-    assert_equal (BASELINE + ADMIN_ONLY + GRANTED.keys).sort, AccessPermission::CATALOG.keys.sort
+    assert_equal (BASELINE + ADMIN_ONLY + GRANTED.keys + ANY_OF.keys).sort, AccessPermission::CATALOG.keys.sort
   end
 
   test "agency_admin is allowed every action without grants" do
@@ -24,7 +25,7 @@ class AccessPermissionTest < ActiveSupport::TestCase
 
   test "staff without grants holds baseline actions only" do
     BASELINE.each { |action| assert AccessPermission.allowed?("staff", [], action), action }
-    (ADMIN_ONLY + GRANTED.keys).each { |action| assert_not AccessPermission.allowed?("staff", [], action), action }
+    (ADMIN_ONLY + GRANTED.keys + ANY_OF.keys).each { |action| assert_not AccessPermission.allowed?("staff", [], action), action }
   end
 
   test "staff with a grant holds the action it unlocks and nothing admin-only" do
@@ -35,6 +36,14 @@ class AccessPermissionTest < ActiveSupport::TestCase
     end
     ADMIN_ONLY.each do |action|
       assert_not AccessPermission.allowed?("staff", AccessPermission::PERMISSIONS, action), action
+    end
+  end
+
+  test "staff holding any one of an action's permissions are allowed it (ACC-31)" do
+    ANY_OF.each do |action, permissions|
+      permissions.each { |permission| assert AccessPermission.allowed?("staff", [ permission ], action), "#{action} via #{permission}" }
+      others = AccessPermission::PERMISSIONS - permissions
+      assert_not AccessPermission.allowed?("staff", others, action), action
     end
   end
 

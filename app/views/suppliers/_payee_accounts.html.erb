@@ -1,0 +1,42 @@
+<%# Payee accounts (SUP-02). %>
+<%# locals: (records:, manage:) -%>
+<article class="dd-panel" id="payee-accounts">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Payee accounts</h2>
+    <% if manage && @supplier.active? %>
+      <%= link_to "Add", new_supplier_payee_account_path(@supplier), class: "dd-button dd-button--quiet" %>
+    <% end %>
+  </header>
+  <% if records.any? %>
+    <div class="dd-table-wrap">
+      <table class="dd-table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Currency</th>
+            <th scope="col">Payment instructions</th>
+            <% if manage %><th scope="col" class="dd-col-actions">Actions</th><% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% records.each do |account| %>
+            <tr>
+              <th scope="row"><%= account.name %></th>
+              <td class="dd-type-mono"><%= account.currency %></td>
+              <td><%= account.payment_instructions ? simple_format(account.payment_instructions, {}, wrapper_tag: "span") : "—" %></td>
+              <% if manage %>
+                <td class="dd-col-actions">
+                  <%= link_to "Edit", edit_supplier_payee_account_path(@supplier, account), class: "dd-row-action dd-row-action--edit", aria: { label: "Edit #{account.name}" } %>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="dd-panel-body">
+      <p class="dd-empty-copy">No payee accounts yet. An arrangement needs one before it can be confirmed.</p>
+    </div>
+  <% end %>
+</article>
