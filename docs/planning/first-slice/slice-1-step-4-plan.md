@@ -13,7 +13,7 @@ Supplier payments are build step 8. Bookings, and the booking-confirmed trigger,
 
 ## Questions settled for this plan (2026-11-06)
 
-Each recommendation was accepted. Question 1 amends the charter's cases and is to be logged as **D-92** (wording below). The rest stay inside the cited rules and need no entry.
+Each recommendation was accepted. Question 1 amends the charter's cases and is logged as **D-92**, applied to the charter. The rest stay inside the cited rules and need no entry.
 
 | # | Question | Decision |
 | --- | --- | --- |
@@ -26,9 +26,7 @@ Each recommendation was accepted. Question 1 amends the charter's cases and is t
 | 7 | **Agreement A's final payment (Aug 1, 2027).** Its amount is the balance of what the booked cabins cost, and those cost lines don't exist until bookings confirm (D-75). SMN-04 allows a schedule line before the cost is known, but no listed basis says "the balance". | Step 4 records no final-payment schedule line. Its step 3 deadline and task stay. The line is added in step 6, when booking cost lines exist. If no listed basis fits, step 6 asks for a decision rather than inventing one. |
 | 8 | **When an amount posts.** SMN-05 posts an amount due "when a schedule line's date arrives or its event is recorded". | An event posts at once, in the same transaction that records it. A date posts at the start of that date in agency time, through an hourly sweep job (queue `supplier_money`). The job is idempotent and follows the departed sweep's pattern. The amount's due date is the schedule date or the event date. Tests run the sweep directly with a fixed clock. |
 
-### D-92 wording
-
-For the spec's decision log:
+### D-92 as logged
 
 > | D-92 | 2026-11-06 | Amend the first-slice charter's cases to follow its build order. D2 closes in build step 4 with the checks that dates drive: Agreement A's $1,600 falls due Nov 1, 2026, and if no booking has confirmed by Mar 1, 2027, $450 falls due that day for each remaining cabin (SMN-13). D4 (step 6) adds the check that confirming each Slice 1 booking posts $450 for its cabin (D-81), and D10 (step 8) adds that no payment changes capacity. Step 4 builds the rate-table proposal of a booking's supplier cost and expected commission (SUP-35, SMN-32); the expected commission record is built in step 6, where booking confirmation creates it. Amends D-85. | None |
 
