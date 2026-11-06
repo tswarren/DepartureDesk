@@ -89,7 +89,7 @@ class SaveScheduleLine < AgencyCommand
   end
 
   def required_date
-    parse_date(@attributes["due_on"], "Due date") or raise Error.new("Enter the due date.", code: :invalid)
+    parse_date(@attributes["due_on"], "Due date") or raise Error.new("Due date is required.", code: :invalid)
   end
 
   def required_trigger

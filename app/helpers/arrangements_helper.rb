@@ -42,7 +42,7 @@ module ArrangementsHelper
     return "No balance (#{availability_promise_label(group.availability_promise)})" unless group.numeric?
     return "Not set" if group.quantity.blank?
 
-    group.represented_as_unit_shells? ? "#{pluralize(group.quantity, "unit")}#{", #{pluralize(group.positions_per_unit, "position")} each" if group.positions_per_unit}" : "#{group.quantity} places"
+    group.represented_as_unit_shells? ? "#{pluralize(group.quantity, "unit")}#{", #{pluralize(group.positions_per_unit, "position")} each" if group.positions_per_unit}" : pluralize(group.quantity, "place")
   end
 
   # S-17: what the supplier provides now. On request, Rate only and no shared

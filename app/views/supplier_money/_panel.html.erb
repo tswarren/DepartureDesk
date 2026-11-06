@@ -1,0 +1,128 @@
+<%# S-16 Cost and schedule (SMN-01 to SMN-06, SMN-11, SUP-13, D-75). Shown only with view_supplier_costs (ACC-31). %>
+<%# locals: (departure:, arrangement:, manage:) -%>
+<% open_arrangement = arrangement.draft? || arrangement.confirmed? %>
+<% editable = manage && open_arrangement %>
+<% currency = arrangement.currency %>
+<% cost_lines = arrangement.cost_lines.includes(:inventory_group, :base_cost_line, :unit_shells) %>
+<% schedule_lines = arrangement.schedule_lines.includes(:cost_line, :supplier_deadline, :amounts_due) %>
+<% amounts = arrangement.amounts_due.includes(:schedule_line, :unit_shell) %>
+<article class="dd-panel" id="supplier-cost">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Cost and schedule</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <dl class="dd-definition-list">
+      <div><dt>Committed cost</dt><dd class="dd-type-mono"><%= money(cost_lines.select(&:stage_committed?).sum(&:amount_minor_units), currency) %></dd></div>
+      <div><dt>Estimated, not committed</dt><dd class="dd-type-mono"><%= money(cost_lines.select(&:stage_estimated?).sum(&:amount_minor_units), currency) %></dd></div>
+      <div><dt>Amounts due</dt><dd class="dd-type-mono"><%= money(amounts.sum(&:amount_minor_units), currency) %></dd></div>
+    </dl>
+    <p class="dd-page-description">Confirming the arrangement records no cost. A commitment for unsold space is a committed cost line that names its shells; booking confirmation proposes the rest from the rate table.</p>
+
+    <section class="dd-stack" aria-labelledby="cost-lines-heading">
+      <div class="dd-section-header">
+        <h3 class="dd-section-title" id="cost-lines-heading">Cost lines</h3>
+        <% if editable %><%= link_to "Add cost line", new_departure_arrangement_cost_line_path(departure, arrangement), class: "dd-button dd-button--quiet" %><% end %>
+      </div>
+      <% if cost_lines.empty? %>
+        <p class="dd-empty-copy">No cost lines yet.</p>
+      <% else %>
+        <div class="dd-table-wrap">
+          <table class="dd-table dd-stacked-table">
+            <caption class="dd-visually-hidden">Cost lines</caption>
+            <thead><tr><th scope="col">Cost</th><th scope="col">Covers</th><th scope="col">Basis</th><th scope="col">Stage</th><th scope="col" class="num">Amount</th><% if editable %><th scope="col" class="dd-col-actions">Actions</th><% end %></tr></thead>
+            <tbody>
+              <% cost_lines.each do |line| %>
+                <tr>
+                  <th scope="row"><%= line.description %></th>
+                  <td><%= stacked_label("Covers") %><%= cost_line_covers(line) %></td>
+                  <td><%= stacked_label("Basis") %><%= cost_line_basis(line) %></td>
+                  <td><%= stacked_label("Stage") %><%= stage_badge(line) %></td>
+                  <td class="num"><%= stacked_label("Amount") %><%= money(line.amount_minor_units, currency) %></td>
+                  <% if editable %>
+                    <td class="dd-col-actions">
+                      <% if line.posted? %>
+                        <span class="dd-cell-subtext">Fixed: an amount has posted</span>
+                      <% else %>
+                        <%= link_to "Edit", edit_departure_arrangement_cost_line_path(departure, arrangement, line), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{line.description}" } %>
+                        <% if arrangement.draft? %>
+                          <%= button_to "Remove", departure_arrangement_cost_line_path(departure, arrangement, line), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger",
+                                form_class: "dd-inline-form", aria: { label: "Remove #{line.description}" }, form: { data: { turbo_confirm: "Remove #{line.description}?" } } %>
+                        <% end %>
+                      <% end %>
+                    </td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </section>
+
+    <section class="dd-stack" aria-labelledby="schedule-lines-heading">
+      <div class="dd-section-header">
+        <h3 class="dd-section-title" id="schedule-lines-heading">Schedule lines</h3>
+        <% if editable %><%= link_to "Add schedule line", new_departure_arrangement_schedule_line_path(departure, arrangement), class: "dd-button dd-button--quiet" %><% end %>
+      </div>
+      <% if schedule_lines.empty? %>
+        <p class="dd-empty-copy">No schedule lines yet. Add one for each deposit or payment the supplier asks for. A deposit pays toward the cost; it never adds to it.</p>
+      <% else %>
+        <div class="dd-table-wrap">
+          <table class="dd-table dd-stacked-table">
+            <caption class="dd-visually-hidden">Schedule lines</caption>
+            <thead><tr><th scope="col">Payment</th><th scope="col">Amount</th><th scope="col">Falls due</th><th scope="col">Pays deadline</th><th scope="col">Posted</th><% if editable %><th scope="col" class="dd-col-actions">Actions</th><% end %></tr></thead>
+            <tbody>
+              <% schedule_lines.each do |line| %>
+                <tr>
+                  <th scope="row"><%= line.description %></th>
+                  <td><%= stacked_label("Amount") %><%= schedule_line_amount(line) %></td>
+                  <td><%= stacked_label("Falls due") %><%= schedule_line_when(line) %></td>
+                  <td><%= stacked_label("Pays deadline") %><%= line.supplier_deadline&.description || "—" %></td>
+                  <td><%= stacked_label("Posted") %><%= line.amounts_due.any? ? "#{pluralize(line.amounts_due.size, "amount")}, #{money(line.amounts_due.sum(&:amount_minor_units), currency)}" : "Not yet" %></td>
+                  <% if editable %>
+                    <td class="dd-col-actions">
+                      <% unless line.amounts_due.any? %>
+                        <%= link_to "Edit", edit_departure_arrangement_schedule_line_path(departure, arrangement, line), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{line.description}" } %>
+                      <% end %>
+                    </td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </section>
+
+    <section class="dd-stack" aria-labelledby="trigger-events-heading">
+      <div class="dd-section-header">
+        <h3 class="dd-section-title" id="trigger-events-heading">Events</h3>
+        <% if manage && arrangement.confirmed? %><%= link_to "Record event", new_departure_arrangement_trigger_event_path(departure, arrangement), class: "dd-button dd-button--quiet" %><% end %>
+      </div>
+      <% events = arrangement.trigger_events.includes(:recorded_by) %>
+      <% if events.empty? %>
+        <p class="dd-empty-copy">No events yet. Confirming the arrangement records the first.</p>
+      <% else %>
+        <ul class="dd-plain-list">
+          <% events.each do |event| %>
+            <li><%= SupplierMoneyHelper::TRIGGER_LABELS.fetch(event.event_type) %>, <%= event.occurred_on.to_fs(:long) %><%= ", count #{event.count}" if event.count %><%= ", ref #{event.reference}" if event.reference %> <span class="dd-cell-subtext">Recorded by <%= event.recorded_by&.display_name || "the system" %></span></li>
+          <% end %>
+        </ul>
+      <% end %>
+    </section>
+
+    <section class="dd-stack" aria-labelledby="amounts-due-heading">
+      <div class="dd-section-header">
+        <h3 class="dd-section-title" id="amounts-due-heading">Amounts due</h3>
+        <% if arrangement.confirmed? && Current.agency_user.permitted?(:record_amounts_due) && !departure.departed? %>
+          <%= link_to "Record amount due", new_departure_arrangement_amount_due_path(departure, arrangement), class: "dd-button dd-button--quiet" %>
+        <% end %>
+      </div>
+      <% if amounts.empty? %>
+        <p class="dd-empty-copy">Nothing has fallen due yet. Amounts post when a schedule line's date arrives or its event is recorded.</p>
+      <% else %>
+        <%= render "supplier_money/amounts_table", amounts:, show_supplier: false %>
+      <% end %>
+    </section>
+  </div>
+</article>

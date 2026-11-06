@@ -50,8 +50,24 @@
           <div class="dd-field-group">
             <%= label_tag :completion_note, "Completion note", class: "dd-label" %>
             <%= text_area_tag :completion_note, nil, rows: 3, maxlength: Task::NOTE_LIMIT, required: true, aria: { describedby: "completion_note_hint" }, class: "dd-field" %>
-            <p class="dd-field-hint" id="completion_note_hint">What was done, with any supplier reference. Completing changes no other record.</p>
+            <p class="dd-field-hint" id="completion_note_hint">What was done, with any supplier reference.<%= " Completing changes no other record." unless @task.records_event_type %></p>
           </div>
+          <% if (event_type = @task.records_event_type) %>
+            <fieldset class="dd-form-section">
+              <legend class="dd-section-title">Records: <%= SupplierMoneyHelper::TRIGGER_LABELS.fetch(event_type) %></legend>
+              <p class="dd-field-hint">Completing this task records the supplier submission once, and posts any payment that falls due on it. It needs the Supplier arrangements permission.</p>
+              <div class="dd-form-grid dd-form-grid--two-column">
+                <div class="dd-field-group">
+                  <%= label_tag :event_occurred_on, "Date it happened", class: "dd-label" %>
+                  <%= date_field_tag :event_occurred_on, nil, required: true, class: "dd-field" %>
+                </div>
+                <div class="dd-field-group">
+                  <%= label_tag :event_count, "Count (optional)", class: "dd-label" %>
+                  <%= number_field_tag :event_count, nil, min: 0, step: 1, class: "dd-field dd-field--numeric dd-field--narrow" %>
+                </div>
+              </div>
+            </fieldset>
+          <% end %>
           <%= form.submit "Complete task", class: "dd-button" %>
         <% end %>
         <%= form_with url: task_waiver_path(@task), method: :post, class: "dd-form" do |form| %>

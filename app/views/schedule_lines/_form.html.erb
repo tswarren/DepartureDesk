@@ -1,0 +1,72 @@
+<%# locals: (form:, arrangement:, schedule_line:, values:) -%>
+<div class="dd-field-group">
+  <%= form.label :description, class: "dd-label" %>
+  <%= form.text_field :description, maxlength: ScheduleLine::DESCRIPTION_LIMIT, **dd_field_options(form, :description, aria_describedby_extra: "schedule_line_description_hint") %>
+  <p class="dd-field-hint" id="schedule_line_description_hint">For example: Initial deposit, $50 per stateroom.</p>
+  <%= dd_field_error(form, :description) %>
+</div>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :supplier_deadline_id, "Pays the deadline", class: "dd-label" %>
+    <%= form.select :supplier_deadline_id, arrangement.deadlines.map { |deadline| [ deadline.description, deadline.id ] }, { include_blank: "No deadline", selected: values["supplier_deadline_id"] },
+          aria: { describedby: "schedule_line_deadline_hint" }, class: "dd-field" %>
+    <p class="dd-field-hint" id="schedule_line_deadline_hint">Its task then covers this payment. Without one, the line gets its own payment task.</p>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :cost_line_id, "Pays toward", class: "dd-label" %>
+    <%= form.select :cost_line_id, arrangement.cost_lines.map { |line| [ line.description, line.id ] }, { include_blank: "The arrangement", selected: values["cost_line_id"] || schedule_line.cost_line_id }, class: "dd-field" %>
+  </div>
+</div>
+<fieldset class="dd-form-section">
+  <legend class="dd-section-title">Amount in <%= arrangement.currency %></legend>
+  <div class="dd-form-grid dd-form-grid--two-column">
+    <div class="dd-field-group">
+      <%= form.label :amount_kind, "Worked out as", class: "dd-label" %>
+      <%= form.select :amount_kind, SupplierMoneyHelper::AMOUNT_KIND_LABELS.invert, {}, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :amount, "Amount", class: "dd-label" %>
+      <%= form.text_field :amount, value: values["amount"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :amount, class: "dd-field--numeric dd-field--narrow", aria_describedby_extra: "schedule_line_amount_hint") %>
+      <p class="dd-field-hint" id="schedule_line_amount_hint">For a fixed amount.</p>
+      <%= dd_field_error(form, :amount) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :rate, "Amount per unit", class: "dd-label" %>
+      <%= form.text_field :rate, value: values["rate"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :rate, class: "dd-field--numeric dd-field--narrow", aria_describedby_extra: "schedule_line_rate_hint") %>
+      <p class="dd-field-hint" id="schedule_line_rate_hint">For a count, or for each shell not returned to the supplier.</p>
+      <%= dd_field_error(form, :rate) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :percentage, "Percentage", class: "dd-label" %>
+      <%= form.text_field :percentage, value: values["percentage"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :percentage, class: "dd-field--numeric dd-field--narrow") %>
+      <%= dd_field_error(form, :percentage) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :inventory_group_id, "Shells of group", class: "dd-label" %>
+      <%= form.select :inventory_group_id, arrangement.inventory_groups.map { |group| [ group.label, group.id ] }, { include_blank: "All the arrangement's shells", selected: values["inventory_group_id"] }, class: "dd-field" %>
+    </div>
+  </div>
+</fieldset>
+<fieldset class="dd-form-section">
+  <legend class="dd-section-title">When it falls due</legend>
+  <div class="dd-form-grid dd-form-grid--two-column">
+    <div class="dd-field-group">
+      <%= form.label :due_rule, "Due rule", class: "dd-label" %>
+      <%= form.select :due_rule, SupplierMoneyHelper::DUE_RULE_LABELS.invert, {}, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :due_on, "Due date", class: "dd-label" %>
+      <%= form.date_field :due_on, **dd_field_options(form, :due_on) %>
+      <%= dd_field_error(form, :due_on) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :trigger_type, "Event", class: "dd-label" %>
+      <%= form.select :trigger_type, SupplierMoneyHelper::TRIGGER_LABELS.except("names_submitted").invert, { include_blank: "None" }, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :days_after, "Days after the event", class: "dd-label" %>
+      <%= form.number_field :days_after, value: values["days_after"], min: 1, step: 1, **dd_field_options(form, :days_after, class: "dd-field--numeric dd-field--narrow") %>
+      <%= dd_field_error(form, :days_after) %>
+    </div>
+  </div>
+</fieldset>

@@ -7,7 +7,8 @@
 # and the Ready to sell status (step 2); and a payee account and a confirmed
 # arrangement for each supplier, with their inventory groups, the excursion's
 # Child 0–4 capacity rule, the Alpha cruise rate table, and the Agreement A
-# deadlines, each with a task for the default task owner (step 3). Each Slice 1
+# deadlines, each with a task for the default task owner (step 3); and, once
+# each arrangement is confirmed, its supplier cost and schedule (step 4). Each Slice 1
 # step extends this script with the records it builds.
 # Loading is idempotent: records already present in the agency are reused.
 # Pass confirm_cruise: false to stop with the Alpha arrangement in Draft (D1).
@@ -52,6 +53,11 @@ module AlphaFixture
   # B4: one group per room type and night. Nov 5 and Nov 4 are firm; Nov 1-3
   # are on request with no balance. Rooms hold 2 (Garden Queen) or 4 (Harbor
   # Double) guests, so BK-101's three travelers need two Garden Queen rooms.
+  # B4: the firm rooms entered as committed cost, $1,280 for Nov 5 and $465
+  # for Nov 4.
+  HOTEL_FIRM_ROOMS = {
+    "Nov 5 Garden Queen" => "145", "Nov 5 Harbor Double" => "175", "Nov 4 Garden Queen" => "145", "Nov 4 Harbor Double" => "175"
+  }.freeze
   HOTEL_ROOMS = { "Garden Queen" => { nov4: 2, nov5: 4, positions: 2 }, "Harbor Double" => { nov4: 1, nov5: 4, positions: 4 } }.freeze
 
   # Agreement A (B3, B9, B13, B14). Date-only, so each is due at 11:59 p.m.
@@ -109,6 +115,8 @@ module AlphaFixture
         deadlines!(agency, actor, departure, draft, DEADLINES.fetch(key))
       end
       confirm!(agency, actor, departure, arrangement) unless key == :cruise && !confirm_cruise
+      arrangement.reload
+      money!(agency, actor, departure, arrangement, key) if arrangement.confirmed? && arrangement.schedule_lines.none?
       [ key, arrangement.reload ]
     end
     Result.new(agency:, actor:, suppliers:, departure:, arrangements:)
@@ -189,6 +197,46 @@ module AlphaFixture
       traveler_type_id: agency.traveler_types.find_by!(name: "Child 0–4").id, uses_capacity: false).call
   end
   private_class_method :excursion_inventory!
+
+  # Agreement A's deposits (B2, B3), the hotel's firm rooms paid at checkout
+  # (B4, B14) and the first excursion resource paid with the final count (B8,
+  # B13). Confirmation records no cost (D-75); these are staff entries.
+  def self.money!(agency, actor, departure, arrangement, key)
+    deadline = ->(description) { arrangement.deadlines.find_by!(description:).id }
+    case key
+    when :cruise
+      schedule!(agency, actor, departure, arrangement, description: "Initial deposit, $50 per stateroom", amount_kind: "per_unit_count", rate: "50",
+        due_rule: "fixed_date", due_on: Date.new(2026, 11, 1), supplier_deadline_id: deadline.("Initial deposit, $50 per stateroom"))
+      schedule!(agency, actor, departure, arrangement, description: "Full deposit, $450 per cabin", amount_kind: "per_shell", rate: "450",
+        due_rule: "earlier_of", trigger_type: "client_booking_confirmed", due_on: Date.new(2027, 3, 1),
+        supplier_deadline_id: deadline.("Full deposit and names for cabins not yet named"))
+    when :hotel
+      arrangement.inventory_groups.where(label: HOTEL_FIRM_ROOMS.keys).each do |group|
+        rate = HOTEL_FIRM_ROOMS.fetch(group.label)
+        attributes = group.represented_as_unit_shells? ? { scope: "unit_shells", unit_shell_ids: group.unit_shells.map(&:id) } : { scope: "inventory_group", inventory_group_id: group.id, quantity: group.quantity }
+        cost = created!(SaveCostLine.new(agency:, actor:, departure:, arrangement:, attributes: {
+          description: "#{group.label}, firm rooms", basis: "per_unit", rate:, stage: "committed", **attributes
+        }).call, group.label)
+        schedule!(agency, actor, departure, arrangement, description: "#{group.label}, paid at checkout", cost_line_id: cost.id,
+          amount_kind: "percentage_of_cost_line", percentage: "100", due_rule: "fixed_date", due_on: Date.new(2027, 11, 6),
+          supplier_deadline_id: deadline.("Payment in full at checkout"))
+      end
+    when :excursion
+      shell = arrangement.inventory_groups.sole.unit_shells.first
+      cost = created!(SaveCostLine.new(agency:, actor:, departure:, arrangement:, attributes: {
+        description: "First resource, 10 positions", scope: "unit_shells", unit_shell_ids: [ shell.id ], basis: "fixed", rate: "1000", stage: "committed"
+      }).call, "First resource")
+      schedule!(agency, actor, departure, arrangement, description: "First resource, due with the final count", cost_line_id: cost.id,
+        amount_kind: "percentage_of_cost_line", percentage: "100", due_rule: "earlier_of", trigger_type: "final_count_submitted",
+        due_on: Date.new(2027, 10, 22), supplier_deadline_id: deadline.("Payment, $1,000 per confirmed resource"))
+    end
+  end
+  private_class_method :money!
+
+  def self.schedule!(agency, actor, departure, arrangement, **attributes)
+    created!(SaveScheduleLine.new(agency:, actor:, departure:, arrangement:, attributes:).call, attributes.fetch(:description))
+  end
+  private_class_method :schedule!
 
   def self.deadlines!(agency, actor, departure, arrangement, deadlines)
     deadlines.each do |attributes|

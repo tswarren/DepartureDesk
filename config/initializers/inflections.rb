@@ -14,3 +14,8 @@
 # ActiveSupport::Inflector.inflections(:en) do |inflect|
 #   inflect.acronym "RESTful"
 # end
+
+# SMN-05: an amount due, amounts due.
+ActiveSupport::Inflector.inflections(:en) do |inflect|
+  inflect.irregular "amount_due", "amounts_due"
+end

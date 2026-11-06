@@ -1,0 +1,45 @@
+<% content_for :title, "Record event · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", departure_arrangements_path(@departure) ], [ @arrangement.arrangement_reference, departure_arrangement_path(@departure, @arrangement) ], [ "Record event", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Cost and schedule · <%= @arrangement.supplier.display_name_for_directory %></p>
+    <h1 class="dd-page-title">Record event</h1>
+    <p class="dd-page-description">Schedule lines that fall due on this event post their amounts at once. An event can't be undone.</p>
+  </div>
+</header>
+
+<% if @error %>
+  <p class="dd-alert dd-alert--danger" role="alert"><%= @error %></p>
+<% end %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with url: departure_arrangement_trigger_events_path(@departure, @arrangement), scope: :trigger_event, class: "dd-form" do |form| %>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :event_type, "Event", class: "dd-label" %>
+          <%= form.select :event_type, SupplierMoneyHelper::TRIGGER_LABELS.slice(*TriggerEvent::STAFF_TYPES).invert, { selected: params.dig(:trigger_event, :event_type) }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :occurred_on, "Date it happened", class: "dd-label" %>
+          <%= form.date_field :occurred_on, value: params.dig(:trigger_event, :occurred_on), required: true, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :count, "Count (optional)", class: "dd-label" %>
+          <%= form.number_field :count, value: params.dig(:trigger_event, :count), min: 0, step: 1, aria: { describedby: "trigger_event_count_hint" }, class: "dd-field dd-field--numeric dd-field--narrow" %>
+          <p class="dd-field-hint" id="trigger_event_count_hint">Recorded with the event; count-based amounts use it.</p>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :reference, "Reference (optional)", class: "dd-label" %>
+          <%= form.text_field :reference, value: params.dig(:trigger_event, :reference), maxlength: 120, class: "dd-field" %>
+        </div>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Record event", class: "dd-button" %>
+        <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "supplier-cost"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

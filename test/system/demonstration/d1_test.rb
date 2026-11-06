@@ -17,6 +17,7 @@ class DemonstrationD1Test < ApplicationSystemTestCase
     assert cruise.draft?
     assert_equal 0, UnitShell.where(inventory_group: cruise.inventory_groups).count, "no shells before confirmation"
 
+    cost_rows_before = supplier_cost_rows
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
     visit departure_path(@alpha.departure)
     click_link_and_expect "Suppliers", heading: "Alpha Omega", path: departure_arrangements_path(@alpha.departure), css: "nav[aria-label='Departure sections'] a"
@@ -33,7 +34,8 @@ class DemonstrationD1Test < ApplicationSystemTestCase
     assert_equal({ "V01" => [ 3 ] * 8, "O01" => [ 3 ] * 8, "I01" => [ 3 ] * 8, "S01" => [ 4 ] * 8 },
       shells.group_by { |shell| shell.inventory_group.label }.transform_values { |group| group.sort_by(&:position).map(&:positions) })
     assert shells.all? { |shell| shell.status == "available" }
-    assert_no_supplier_cost
+    assert_equal cost_rows_before, supplier_cost_rows, "confirmation records no supplier cost (D-75)"
+    assert_empty cruise.cost_lines
 
     click_link_and_expect "Inventory", heading: "Alpha Omega", path: departure_inventory_path(@alpha.departure), css: "nav[aria-label='Departure sections'] a"
     %w[V01 O01 I01 S01].each do |label|
@@ -43,13 +45,12 @@ class DemonstrationD1Test < ApplicationSystemTestCase
 
   private
 
-  # D-75: confirmation records no supplier cost. No cost or commission table
-  # may hold a row for this agency (cost lines arrive in build step 4).
-  def assert_no_supplier_cost
+  # Rows in every cost or commission table for this agency, so the check
+  # still holds as later steps add such tables (D-75).
+  def supplier_cost_rows
     connection = ActiveRecord::Base.connection
-    connection.tables.grep(/cost|commission/).each do |table|
-      count = connection.select_value("SELECT count(*) FROM #{connection.quote_table_name(table)} WHERE agency_id = #{connection.quote(@scenario.agency.id)}")
-      assert_equal 0, count.to_i, "#{table} holds a supplier cost after confirmation"
+    connection.tables.grep(/cost|commission/).sort.to_h do |table|
+      [ table, connection.select_value("SELECT count(*) FROM #{connection.quote_table_name(table)} WHERE agency_id = #{connection.quote(@scenario.agency.id)}").to_i ]
     end
   end
 end

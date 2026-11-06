@@ -22,7 +22,7 @@ class RecordDirectAmountDue < AgencyCommand
       arrangement = departure.supplier_arrangements.lock.find(@arrangement.id)
       raise Error.new("Amounts due are recorded once the arrangement is confirmed.", code: :invalid_state) unless arrangement.confirmed?
 
-      due_on = parse_date(@attributes["due_on"], "Due date") or raise Error.new("Enter the due date.", code: :invalid)
+      due_on = parse_date(@attributes["due_on"], "Due date") or raise Error.new("Due date is required.", code: :invalid)
       amount = arrangement.amounts_due.create!(
         agency: @agency, description: @attributes["description"].to_s, due_on:, currency: arrangement.currency,
         amount_minor_units: parse_money!("amount", "Amount", arrangement.currency, required: true),

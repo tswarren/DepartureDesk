@@ -1,6 +1,6 @@
 # Slice 1 step 4: Supplier cost, schedule lines and amounts due
 
-**Status:** Accepted 2026-11-06; build not started. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 4, [ADR 0001](../../adr/0001-money-and-currency.md), [ADR 0018](../../adr/0018-arrangement-history-by-dated-adjustment.md), and the decision log entries it cites.
+**Status:** Accepted 2026-11-06; built 2026-11-06. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 4, [ADR 0001](../../adr/0001-money-and-currency.md), [ADR 0018](../../adr/0018-arrangement-history-by-dated-adjustment.md), and the decision log entries it cites.
 
 Charter build step 4: supplier cost, schedule lines, amounts due and expected commission. It closes **D2** (Agreement A's deposits fall due on schedule), as amended by D-92.
 

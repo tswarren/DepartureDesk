@@ -5,7 +5,6 @@
 # shell, at most one per shell per schedule line (SMN-10, D-81). Paid status
 # is derived once payments exist (build step 8). Append-only.
 class AmountDue < ApplicationRecord
-  self.table_name = "amounts_due"
   DESCRIPTION_LIMIT = 200
 
   belongs_to :agency

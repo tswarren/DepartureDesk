@@ -4,5 +4,8 @@
   <%= link_to "Overview", departure_path(departure), aria: { current: ("page" if current == :overview) } %>
   <%= link_to "Inventory", departure_inventory_path(departure), aria: { current: ("page" if current == :inventory) } %>
   <%= link_to "Suppliers", departure_arrangements_path(departure), aria: { current: ("page" if current == :suppliers) } %>
+  <% if Current.agency_user.permitted?(:view_supplier_costs) %>
+    <%= link_to "Supplier money", departure_supplier_money_path(departure), aria: { current: ("page" if current == :supplier_money) } %>
+  <% end %>
   <%= link_to "Tasks", departure_tasks_path(departure), aria: { current: ("page" if current == :tasks) } %>
 </nav>
