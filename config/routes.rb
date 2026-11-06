@@ -153,6 +153,7 @@ Rails.application.routes.draw do
   resources :departures, only: %i[index new create show edit update] do
     resource :ready_to_sell, only: %i[show create], controller: "departure_ready_to_sells"
     resources :decisions, only: :create, controller: "departure_decisions"
+    resource :inventory, only: :show, controller: "departure_inventories"
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
       resource :discard, only: :create, controller: "supplier_arrangement_discards"
       resource :confirmation, only: %i[show create], controller: "supplier_arrangement_confirmations"

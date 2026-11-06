@@ -11,16 +11,7 @@
       <% projection = group.capacity_projection %>
       <p><strong><%= projection&.current_supplier_capacity || 0 %></strong> <%= group.represented_as_unit_shells? ? "units" : "places" %> from the supplier now<%= ", next change #{projection.next_applies_at.in_time_zone(Current.agency.default_timezone).to_fs(:long)}" if projection&.next_applies_at %>.</p>
       <% if group.represented_as_unit_shells? %>
-        <ul class="dd-shell-grid" aria-label="<%= group.label %> shells">
-          <% group.unit_shells.includes(:capacity_events).each do |shell| %>
-            <% status = shell.status %>
-            <li class="dd-shell dd-shell--<%= status %>">
-              <span class="dd-shell-label"><%= shell.label %></span>
-              <span class="dd-shell-meta"><%= pluralize(shell.positions, "position") %></span>
-              <span class="dd-shell-status"><%= UnitShell::STATUS_LABELS.fetch(status) %></span>
-            </li>
-          <% end %>
-        </ul>
+        <%= render "inventory_groups/shell_grid", group:, shells: group.unit_shells.includes(:capacity_events) %>
       <% end %>
       <div class="dd-table-wrap">
         <table class="dd-table">

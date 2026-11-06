@@ -1537,8 +1537,13 @@
       padding: 0.35rem 0;
     }
 
+    .dd-table.dd-rates-table td.num {
+      text-align: left;
+    }
+
     .dd-cabin-table .dd-cabin-field-label,
     .dd-rates-table .dd-cabin-field-label {
+      display: block;
       position: static;
       width: auto;
       height: auto;

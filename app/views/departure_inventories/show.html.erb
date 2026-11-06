@@ -1,0 +1,84 @@
+<% content_for :title, "Inventory · #{@departure.name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Inventory", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departure</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">Cabins, rooms and other supplier inventory. Status comes from what is allocated and is never edited here; supply changes are dated events on each group.</p>
+  </div>
+</header>
+
+<%= render "departures/tabs", departure: @departure, current: :inventory %>
+
+<% if @arrangements.empty? %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <div class="dd-empty-state">
+        <h2 class="dd-empty-title">No inventory yet</h2>
+        <p class="dd-empty-copy">Inventory comes from supplier arrangements. Add one on the Suppliers tab.</p>
+      </div>
+    </div>
+  </article>
+<% end %>
+
+<% @arrangements.each do |arrangement| %>
+  <% heading_id = "inventory-#{arrangement.id}" %>
+  <article class="dd-panel" aria-labelledby="<%= heading_id %>">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title" id="<%= heading_id %>"><%= arrangement.supplier.display_name_for_directory %></h2>
+      <p>
+        <%= link_to arrangement.arrangement_reference, departure_arrangement_path(@departure, arrangement), class: "dd-type-mono" %>
+        · <%= arrangement_status_badge(arrangement) %>
+      </p>
+    </header>
+    <div class="dd-panel-body dd-stack">
+      <% if arrangement.draft? %>
+        <p class="dd-page-description">Shells and pools are created when the arrangement is confirmed.</p>
+      <% end %>
+      <% groups = arrangement.inventory_groups %>
+      <% if groups.empty? %>
+        <p class="dd-empty-copy">No inventory groups yet.</p>
+      <% end %>
+      <% shell_groups, other_groups = groups.partition { |group| !arrangement.draft? && group.represented_as_unit_shells? && group.numeric? } %>
+      <% shell_groups.each do |group| %>
+        <section class="dd-stack" aria-labelledby="group-<%= group.id %>">
+          <h3 class="dd-section-title" id="group-<%= group.id %>"><%= link_to group.label, departure_arrangement_group_path(@departure, arrangement, group) %></h3>
+          <p class="dd-page-description">
+            <%= service_category_label(group.service_category) %> · <%= availability_promise_label(group.availability_promise) %> ·
+            <%= group_quantity_label(group) %> · <%= group_supply_label(group, arrangement) %>
+          </p>
+          <%= render "inventory_groups/shell_grid", group:, shells: group.unit_shells %>
+        </section>
+      <% end %>
+      <% if other_groups.any? %>
+        <div class="dd-table-wrap">
+          <table class="dd-table">
+            <caption class="dd-visually-hidden"><%= arrangement.supplier.display_name_for_directory %> groups</caption>
+            <thead>
+              <tr>
+                <th scope="col">Group</th>
+                <th scope="col">Category</th>
+                <th scope="col">Promise</th>
+                <th scope="col">Supply</th>
+                <th scope="col">Service dates</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% other_groups.each do |group| %>
+                <tr>
+                  <th scope="row"><%= link_to group.label, departure_arrangement_group_path(@departure, arrangement, group) %></th>
+                  <td><%= service_category_label(group.service_category) %></td>
+                  <td><%= availability_promise_label(group.availability_promise) %></td>
+                  <td><%= group_supply_label(group, arrangement) %></td>
+                  <td><%= group_service_dates(group) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+  </article>
+<% end %>

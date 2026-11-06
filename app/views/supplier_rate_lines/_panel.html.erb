@@ -19,12 +19,13 @@
         <% end %>
       </p>
     <% else %>
+      <p class="dd-page-description">
+        Amounts in <%= arrangement.currency %>, as the supplier states them. Confirming a booking proposes its supplier cost and commission from these rates.
+        <%= "Frozen when the arrangement was confirmed." unless arrangement.draft? %>
+      </p>
       <div class="dd-table-wrap">
         <table class="dd-table dd-rates-table">
-          <caption>
-            Amounts in <%= arrangement.currency %>, as the supplier states them. Confirming a booking proposes its supplier cost and commission from these rates.
-            <%= "Frozen when the arrangement was confirmed." unless arrangement.draft? %>
-          </caption>
+          <caption class="dd-visually-hidden">Supplier rates by inventory group and occupancy position</caption>
           <thead>
             <tr>
               <th scope="col">Group</th>

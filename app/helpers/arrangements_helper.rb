@@ -45,6 +45,20 @@ module ArrangementsHelper
     group.represented_as_unit_shells? ? "#{pluralize(group.quantity, "unit")}#{", #{pluralize(group.positions_per_unit, "position")} each" if group.positions_per_unit}" : "#{group.quantity} places"
   end
 
+  # S-17: what the supplier provides now. On request, Rate only and no shared
+  # inventory show no balance (INV-04); a Draft group shows what is planned.
+  def group_supply_label(group, arrangement)
+    return "Planned: #{group_quantity_label(group)}" if arrangement.draft?
+    return group.represented_as_none? ? "Booked directly with the supplier" : availability_promise_label(group.availability_promise) unless group.numeric?
+
+    if group.represented_as_unit_shells?
+      statuses = group.unit_shells.map(&:status).tally
+      [ "#{statuses.fetch("available", 0)} available", ("#{statuses["returned"]} returned to supplier" if statuses["returned"]) ].compact.join(" · ")
+    else
+      pluralize(group.capacity_projection&.current_supplier_capacity || 0, "place")
+    end
+  end
+
   def arrangement_status_badge(arrangement)
     modifier = { "draft" => "neutral", "confirmed" => "success", "closed" => "info", "cancelled" => "danger" }.fetch(arrangement.status)
     status_badge(ARRANGEMENT_STATUS_LABELS.fetch(arrangement.status), modifier:)

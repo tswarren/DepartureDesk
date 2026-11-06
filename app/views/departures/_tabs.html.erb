@@ -2,5 +2,6 @@
 <%# locals: (departure:, current:) -%>
 <nav class="dd-subnav" aria-label="Departure sections">
   <%= link_to "Overview", departure_path(departure), aria: { current: ("page" if current == :overview) } %>
+  <%= link_to "Inventory", departure_inventory_path(departure), aria: { current: ("page" if current == :inventory) } %>
   <%= link_to "Suppliers", departure_arrangements_path(departure), aria: { current: ("page" if current == :suppliers) } %>
 </nav>
