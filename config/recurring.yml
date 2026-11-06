@@ -14,6 +14,10 @@ development: &recurring_defaults
     class: MarkEligibleDeparturesDepartedJob
     queue: departures
     schedule: every hour
+  post_due_supplier_amounts:
+    class: PostDueSupplierAmountsJob
+    queue: supplier_money
+    schedule: every hour at minute 5
 
 production:
   <<: *recurring_defaults

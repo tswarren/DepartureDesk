@@ -7,6 +7,7 @@ class UnitShell < ApplicationRecord
   belongs_to :agency
   belongs_to :inventory_group
   has_many :capacity_events, dependent: :restrict_with_exception
+  has_many :cost_line_shells, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :inventory_group_id
 

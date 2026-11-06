@@ -1,0 +1,38 @@
+<% content_for :title, "Supplier money · #{@departure.name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Supplier money", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departure</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">What this departure owes its suppliers: committed cost and every amount due. Payments arrive in a later step.</p>
+  </div>
+</header>
+
+<%= render "departures/tabs", departure: @departure, current: :supplier_money %>
+
+<% currency = @departure.operating_currency %>
+<article class="dd-panel" id="exposure">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Committed cost</h2></header>
+  <div class="dd-panel-body">
+    <% if currency %>
+      <dl class="dd-definition-list">
+        <div><dt>Committed cost</dt><dd class="dd-type-mono"><%= money(@cost_lines.select(&:stage_committed?).sum(&:amount_minor_units), currency) %></dd></div>
+        <div><dt>Estimated, not committed</dt><dd class="dd-type-mono"><%= money(@cost_lines.select(&:stage_estimated?).sum(&:amount_minor_units), currency) %></dd></div>
+        <div><dt>Amounts due</dt><dd class="dd-type-mono"><%= money(@amounts_due.sum(&:amount_minor_units), currency) %></dd></div>
+      </dl>
+    <% else %>
+      <p class="dd-empty-copy">Set the departure's operating currency first.</p>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel" id="amounts-due">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Amounts due</h2></header>
+  <% if @amounts_due.empty? %>
+    <div class="dd-panel-body"><p class="dd-empty-copy">Nothing has fallen due yet.</p></div>
+  <% else %>
+    <%= render "supplier_money/amounts_table", amounts: @amounts_due, show_supplier: true %>
+  <% end %>
+</article>

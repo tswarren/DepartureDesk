@@ -292,6 +292,23 @@
   }
 
   /* logo.png canvas is 2172×724; opaque artwork is ~1849×316. Cover crops the padding. */
+  /* A section title with its action, inside a panel body. */
+  .dd-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .dd-plain-list {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
   /* Unit shells as a grid (S-17, S-18); status is text, never color alone. */
   .dd-shell-grid {
     display: grid;
@@ -1482,7 +1499,7 @@
     border-bottom: none;
   }
 
-  .dd-rates-table caption {
+  .dd-stacked-table caption {
     caption-side: top;
     padding: 0 0 0.65rem;
     color: var(--dd-text-muted);
@@ -1504,7 +1521,7 @@
 
   @media (max-width: 767px) {
     .dd-cabin-table thead,
-    .dd-rates-table thead {
+    .dd-stacked-table thead {
       display: none;
     }
 
@@ -1512,17 +1529,17 @@
     .dd-cabin-table tbody,
     .dd-cabin-table tr,
     .dd-cabin-table td,
-    .dd-rates-table,
-    .dd-rates-table tbody,
-    .dd-rates-table tr,
-    .dd-rates-table td,
-    .dd-rates-table tbody th {
+    .dd-stacked-table,
+    .dd-stacked-table tbody,
+    .dd-stacked-table tr,
+    .dd-stacked-table td,
+    .dd-stacked-table tbody th {
       display: block;
       width: auto;
     }
 
     .dd-cabin-table tbody tr,
-    .dd-rates-table tbody tr {
+    .dd-stacked-table tbody tr {
       margin: 0 0 0.75rem;
       border: 1px solid var(--dd-border);
       border-radius: var(--dd-radius-md);
@@ -1531,18 +1548,18 @@
     }
 
     .dd-cabin-table td,
-    .dd-rates-table td,
-    .dd-rates-table tbody th {
+    .dd-stacked-table td,
+    .dd-stacked-table tbody th {
       border: 0;
       padding: 0.35rem 0;
     }
 
-    .dd-table.dd-rates-table td.num {
+    .dd-table.dd-stacked-table td.num {
       text-align: left;
     }
 
     .dd-cabin-table .dd-cabin-field-label,
-    .dd-rates-table .dd-cabin-field-label {
+    .dd-stacked-table .dd-cabin-field-label {
       display: block;
       position: static;
       width: auto;
@@ -2653,7 +2670,7 @@
   @media (max-width: 768px) {
     .dd-agreement-section .dd-table,
     .dd-cabin-table,
-    .dd-rates-table {
+    .dd-stacked-table {
       width: 100%;
       table-layout: fixed;
     }
@@ -2662,8 +2679,8 @@
     .dd-agreement-section .dd-table td,
     .dd-cabin-table th,
     .dd-cabin-table td,
-    .dd-rates-table th,
-    .dd-rates-table td {
+    .dd-stacked-table th,
+    .dd-stacked-table td {
       white-space: normal;
       overflow-wrap: anywhere;
     }

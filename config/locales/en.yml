@@ -49,3 +49,20 @@ en:
         discount: "Discount"
         commission_rate: "Commission rate"
         commission_amount: "Commission amount"
+        commission_base: "Rate applies to"
+      cost_line:
+        rate: "Amount or rate"
+        quantity: "Quantity"
+        percentage: "Percentage"
+        description: "Description"
+      schedule_line:
+        amount: "Amount"
+        rate: "Amount per unit"
+        percentage: "Percentage"
+        days_after: "Days after the event"
+        due_on: "Due date"
+        description: "Description"
+      amount_due:
+        amount: "Amount"
+        due_on: "Due date"
+        description: "Description"

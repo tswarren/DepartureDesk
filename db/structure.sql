@@ -423,6 +423,19 @@ END;
 $$;
 
 
+--
+-- Name: reject_supplier_money_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_supplier_money_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION '% rows are append-only', TG_TABLE_NAME;
+END;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -577,6 +590,36 @@ CREATE TABLE public.agency_users (
     CONSTRAINT agency_users_status_credentials CHECK (((((status)::text = 'invited'::text) AND (invitation_token_digest IS NOT NULL) AND (invitation_expires_at IS NOT NULL) AND (password_digest IS NULL)) OR (((status)::text = 'active'::text) AND (password_digest IS NOT NULL) AND (invitation_token_digest IS NULL)) OR (((status)::text = ANY (ARRAY[('suspended'::character varying)::text, ('closed'::character varying)::text])) AND (invitation_token_digest IS NULL)))),
     CONSTRAINT agency_users_status_valid CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('closed'::character varying)::text]))),
     CONSTRAINT agency_users_user_type_valid CHECK (((user_type)::text = ANY ((ARRAY['agency_admin'::character varying, 'staff'::character varying, 'reseller'::character varying])::text[])))
+);
+
+
+--
+-- Name: amounts_due; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.amounts_due (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    schedule_line_id uuid,
+    unit_shell_id uuid,
+    trigger_event_id uuid,
+    description character varying NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    due_on date NOT NULL,
+    quantity integer,
+    rate_minor_units bigint,
+    percentage numeric(7,4),
+    base_minor_units bigint,
+    posted_by_id uuid,
+    posted_by_identifier character varying,
+    posted_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT amounts_due_amount CHECK ((amount_minor_units >= 0)),
+    CONSTRAINT amounts_due_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT amounts_due_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200))),
+    CONSTRAINT amounts_due_posted_by CHECK (((posted_by_id IS NULL) <> (posted_by_identifier IS NULL))),
+    CONSTRAINT amounts_due_shell_needs_line CHECK (((unit_shell_id IS NULL) OR (schedule_line_id IS NOT NULL)))
 );
 
 
@@ -1000,6 +1043,54 @@ CREATE TABLE public.clients (
 
 
 --
+-- Name: cost_line_shells; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cost_line_shells (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    cost_line_id uuid NOT NULL,
+    unit_shell_id uuid NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: cost_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cost_lines (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    scope character varying NOT NULL,
+    inventory_group_id uuid,
+    description character varying NOT NULL,
+    basis character varying NOT NULL,
+    rate_minor_units bigint,
+    quantity integer,
+    percentage numeric(7,4),
+    base_cost_line_id uuid,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    stage character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT cost_lines_amounts CHECK (((amount_minor_units >= 0) AND ((rate_minor_units IS NULL) OR (rate_minor_units >= 0)))),
+    CONSTRAINT cost_lines_base_not_self CHECK (((base_cost_line_id IS NULL) OR (base_cost_line_id <> id))),
+    CONSTRAINT cost_lines_basis CHECK (((((basis)::text = 'fixed'::text) AND (rate_minor_units IS NOT NULL) AND (quantity IS NULL) AND (percentage IS NULL) AND (base_cost_line_id IS NULL)) OR (((basis)::text = ANY ((ARRAY['per_unit'::character varying, 'per_person'::character varying, 'per_night'::character varying])::text[])) AND (rate_minor_units IS NOT NULL) AND (quantity >= 1) AND (percentage IS NULL) AND (base_cost_line_id IS NULL)) OR (((basis)::text = 'percentage'::text) AND (rate_minor_units IS NULL) AND (quantity IS NULL) AND (percentage > (0)::numeric) AND (percentage <= (100)::numeric) AND (base_cost_line_id IS NOT NULL)))),
+    CONSTRAINT cost_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT cost_lines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200))),
+    CONSTRAINT cost_lines_group_scope CHECK ((((scope)::text = 'inventory_group'::text) = (inventory_group_id IS NOT NULL))),
+    CONSTRAINT cost_lines_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT cost_lines_scope CHECK (((scope)::text = ANY ((ARRAY['arrangement'::character varying, 'inventory_group'::character varying, 'unit_shells'::character varying])::text[]))),
+    CONSTRAINT cost_lines_stage CHECK (((stage)::text = ANY ((ARRAY['estimated'::character varying, 'committed'::character varying])::text[])))
+);
+
+
+--
 -- Name: departure_decisions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1183,6 +1274,39 @@ CREATE TABLE public.resellers (
     CONSTRAINT resellers_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT resellers_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 160))),
     CONSTRAINT resellers_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'booking_paused'::character varying, 'suspended'::character varying, 'ended'::character varying])::text[])))
+);
+
+
+--
+-- Name: schedule_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.schedule_lines (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    cost_line_id uuid,
+    supplier_deadline_id uuid,
+    inventory_group_id uuid,
+    description character varying NOT NULL,
+    amount_kind character varying NOT NULL,
+    amount_minor_units bigint,
+    rate_minor_units bigint,
+    percentage numeric(7,4),
+    currency character varying NOT NULL,
+    due_rule character varying NOT NULL,
+    due_on date,
+    trigger_type character varying,
+    days_after integer,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT schedule_lines_amount_kind CHECK (((((amount_kind)::text = 'fixed'::text) AND (amount_minor_units >= 0) AND (rate_minor_units IS NULL) AND (percentage IS NULL)) OR (((amount_kind)::text = 'percentage_of_cost_line'::text) AND (cost_line_id IS NOT NULL) AND (percentage > (0)::numeric) AND (percentage <= (100)::numeric) AND (amount_minor_units IS NULL) AND (rate_minor_units IS NULL)) OR (((amount_kind)::text = ANY ((ARRAY['per_unit_count'::character varying, 'per_shell'::character varying])::text[])) AND (rate_minor_units >= 0) AND (amount_minor_units IS NULL) AND (percentage IS NULL)))),
+    CONSTRAINT schedule_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT schedule_lines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200))),
+    CONSTRAINT schedule_lines_due_rule CHECK (((((due_rule)::text = 'fixed_date'::text) AND (due_on IS NOT NULL) AND (trigger_type IS NULL) AND (days_after IS NULL)) OR (((due_rule)::text = 'event'::text) AND (due_on IS NULL) AND (trigger_type IS NOT NULL) AND (days_after IS NULL)) OR (((due_rule)::text = 'event_plus_days'::text) AND (due_on IS NULL) AND (trigger_type IS NOT NULL) AND (days_after >= 1)) OR (((due_rule)::text = 'earlier_of'::text) AND (due_on IS NOT NULL) AND (trigger_type IS NOT NULL) AND (days_after IS NULL)))),
+    CONSTRAINT schedule_lines_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT schedule_lines_trigger_type CHECK (((trigger_type IS NULL) OR ((trigger_type)::text = ANY ((ARRAY['arrangement_confirmed'::character varying, 'names_submitted'::character varying, 'client_booking_confirmed'::character varying, 'rooming_list_submitted'::character varying, 'final_count_submitted'::character varying, 'tickets_issued'::character varying, 'supplier_invoice_received'::character varying, 'service_date'::character varying, 'other'::character varying])::text[]))))
 );
 
 
@@ -1520,7 +1644,9 @@ CREATE TABLE public.supplier_rate_lines (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    commission_base character varying DEFAULT 'base_fare'::character varying NOT NULL,
     CONSTRAINT supplier_rate_lines_amounts_non_negative CHECK (((base_fare_minor_units >= 0) AND (non_commissionable_fees_minor_units >= 0) AND (taxes_minor_units >= 0) AND (discount_minor_units >= 0) AND ((commission_minor_units IS NULL) OR (commission_minor_units >= 0)))),
+    CONSTRAINT supplier_rate_lines_commission_base CHECK (((commission_base)::text = ANY ((ARRAY['base_fare'::character varying, 'base_fare_less_discount'::character varying])::text[]))),
     CONSTRAINT supplier_rate_lines_commission_rate CHECK (((commission_rate IS NULL) OR ((commission_rate >= (0)::numeric) AND (commission_rate <= (100)::numeric)))),
     CONSTRAINT supplier_rate_lines_commission_rate_or_amount CHECK (((commission_rate IS NULL) OR (commission_minor_units IS NULL))),
     CONSTRAINT supplier_rate_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
@@ -1616,11 +1742,13 @@ CREATE TABLE public.tasks (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    schedule_line_id uuid,
+    amount_due_id uuid,
     CONSTRAINT tasks_action CHECK (((btrim((action)::text) <> ''::text) AND (char_length((action)::text) <= 250))),
     CONSTRAINT tasks_completed_with_note CHECK (((((status)::text = 'completed'::text) = (completed_at IS NOT NULL)) AND (((status)::text <> 'completed'::text) OR (btrim(COALESCE(completion_note, ''::text)) <> ''::text)))),
     CONSTRAINT tasks_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT tasks_source CHECK (((source)::text = ANY ((ARRAY['supplier_deadline'::character varying, 'manual'::character varying])::text[]))),
-    CONSTRAINT tasks_source_record CHECK ((((source)::text = 'supplier_deadline'::text) = (supplier_deadline_id IS NOT NULL))),
+    CONSTRAINT tasks_source CHECK (((source)::text = ANY ((ARRAY['supplier_deadline'::character varying, 'schedule_line'::character varying, 'amount_due'::character varying, 'manual'::character varying])::text[]))),
+    CONSTRAINT tasks_source_record CHECK (((((source)::text = 'supplier_deadline'::text) = (supplier_deadline_id IS NOT NULL)) AND (((source)::text = 'schedule_line'::text) = (schedule_line_id IS NOT NULL)) AND (((source)::text = 'amount_due'::text) = (amount_due_id IS NOT NULL)))),
     CONSTRAINT tasks_status CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'waived'::character varying])::text[]))),
     CONSTRAINT tasks_waived_with_reason CHECK (((((status)::text = 'waived'::text) = (waived_at IS NOT NULL)) AND (((status)::text <> 'waived'::text) OR (btrim(COALESCE(waiver_reason, ''::text)) <> ''::text))))
 );
@@ -1643,6 +1771,28 @@ CREATE TABLE public.traveler_types (
     CONSTRAINT traveler_types_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 60))),
     CONSTRAINT traveler_types_position_nonnegative CHECK (("position" >= 0)),
     CONSTRAINT traveler_types_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+);
+
+
+--
+-- Name: trigger_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.trigger_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    event_type character varying NOT NULL,
+    occurred_on date NOT NULL,
+    count integer,
+    reference character varying,
+    recorded_by_id uuid,
+    recorded_by_identifier character varying,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT trigger_events_count CHECK (((count IS NULL) OR (count >= 0))),
+    CONSTRAINT trigger_events_recorded_by CHECK (((recorded_by_id IS NULL) <> (recorded_by_identifier IS NULL))),
+    CONSTRAINT trigger_events_reference CHECK (((reference IS NULL) OR ((btrim((reference)::text) <> ''::text) AND (char_length((reference)::text) <= 120)))),
+    CONSTRAINT trigger_events_type CHECK (((event_type)::text = ANY ((ARRAY['arrangement_confirmed'::character varying, 'names_submitted'::character varying, 'client_booking_confirmed'::character varying, 'rooming_list_submitted'::character varying, 'final_count_submitted'::character varying, 'tickets_issued'::character varying, 'supplier_invoice_received'::character varying, 'service_date'::character varying, 'other'::character varying])::text[])))
 );
 
 
@@ -1729,6 +1879,14 @@ ALTER TABLE ONLY public.agency_document_inclusions
 
 ALTER TABLE ONLY public.agency_users
     ADD CONSTRAINT agency_users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: amounts_due amounts_due_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.amounts_due
+    ADD CONSTRAINT amounts_due_pkey PRIMARY KEY (id);
 
 
 --
@@ -1884,6 +2042,22 @@ ALTER TABLE ONLY public.clients
 
 
 --
+-- Name: cost_line_shells cost_line_shells_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_line_shells
+    ADD CONSTRAINT cost_line_shells_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cost_lines cost_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_lines
+    ADD CONSTRAINT cost_lines_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: departure_decisions departure_decisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1945,6 +2119,14 @@ ALTER TABLE ONLY public.reference_sequences
 
 ALTER TABLE ONLY public.resellers
     ADD CONSTRAINT resellers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: schedule_lines schedule_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schedule_lines
+    ADD CONSTRAINT schedule_lines_pkey PRIMARY KEY (id);
 
 
 --
@@ -2084,6 +2266,14 @@ ALTER TABLE ONLY public.traveler_types
 
 
 --
+-- Name: trigger_events trigger_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trigger_events
+    ADD CONSTRAINT trigger_events_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: unit_shells unit_shells_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2188,6 +2378,34 @@ CREATE UNIQUE INDEX index_agency_users_on_password_reset_token_digest ON public.
 --
 
 CREATE INDEX index_agency_users_on_reseller_id ON public.agency_users USING btree (reseller_id);
+
+
+--
+-- Name: index_amounts_due_on_agency_and_due_on; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_amounts_due_on_agency_and_due_on ON public.amounts_due USING btree (agency_id, due_on);
+
+
+--
+-- Name: index_amounts_due_on_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_amounts_due_on_arrangement ON public.amounts_due USING btree (supplier_arrangement_id);
+
+
+--
+-- Name: index_amounts_due_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_amounts_due_on_id_and_agency_id ON public.amounts_due USING btree (id, agency_id);
+
+
+--
+-- Name: index_amounts_due_one_per_shell_per_schedule_line; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_amounts_due_one_per_shell_per_schedule_line ON public.amounts_due USING btree (schedule_line_id, unit_shell_id) NULLS NOT DISTINCT WHERE (schedule_line_id IS NOT NULL);
 
 
 --
@@ -2674,6 +2892,41 @@ CREATE UNIQUE INDEX index_clients_on_id_and_agency_id ON public.clients USING bt
 
 
 --
+-- Name: index_cost_line_shells_on_line_and_shell; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cost_line_shells_on_line_and_shell ON public.cost_line_shells USING btree (cost_line_id, unit_shell_id);
+
+
+--
+-- Name: index_cost_line_shells_on_shell; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_cost_line_shells_on_shell ON public.cost_line_shells USING btree (unit_shell_id);
+
+
+--
+-- Name: index_cost_lines_on_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_cost_lines_on_arrangement ON public.cost_lines USING btree (supplier_arrangement_id);
+
+
+--
+-- Name: index_cost_lines_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cost_lines_on_id_and_agency_id ON public.cost_lines USING btree (id, agency_id);
+
+
+--
+-- Name: index_cost_lines_on_id_and_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_cost_lines_on_id_and_arrangement ON public.cost_lines USING btree (id, supplier_arrangement_id);
+
+
+--
 -- Name: index_departure_decisions_on_departure_and_decided_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2839,6 +3092,27 @@ CREATE INDEX index_resellers_on_agency_id ON public.resellers USING btree (agenc
 --
 
 CREATE UNIQUE INDEX index_resellers_on_id_and_agency_id ON public.resellers USING btree (id, agency_id);
+
+
+--
+-- Name: index_schedule_lines_on_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_schedule_lines_on_arrangement ON public.schedule_lines USING btree (supplier_arrangement_id);
+
+
+--
+-- Name: index_schedule_lines_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_schedule_lines_on_id_and_agency_id ON public.schedule_lines USING btree (id, agency_id);
+
+
+--
+-- Name: index_schedule_lines_on_id_and_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_schedule_lines_on_id_and_arrangement ON public.schedule_lines USING btree (id, supplier_arrangement_id);
 
 
 --
@@ -3374,6 +3648,20 @@ CREATE INDEX index_tasks_on_owner_status_and_due_at ON public.tasks USING btree 
 
 
 --
+-- Name: index_tasks_one_per_amount_due; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_tasks_one_per_amount_due ON public.tasks USING btree (amount_due_id);
+
+
+--
+-- Name: index_tasks_one_per_schedule_line; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_tasks_one_per_schedule_line ON public.tasks USING btree (schedule_line_id);
+
+
+--
 -- Name: index_tasks_one_per_supplier_deadline; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3399,6 +3687,20 @@ CREATE INDEX index_traveler_types_on_agency_and_position ON public.traveler_type
 --
 
 CREATE UNIQUE INDEX index_traveler_types_on_id_and_agency_id ON public.traveler_types USING btree (id, agency_id);
+
+
+--
+-- Name: index_trigger_events_on_arrangement_type_and_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_trigger_events_on_arrangement_type_and_date ON public.trigger_events USING btree (supplier_arrangement_id, event_type, occurred_on);
+
+
+--
+-- Name: index_trigger_events_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_trigger_events_on_id_and_agency_id ON public.trigger_events USING btree (id, agency_id);
 
 
 --
@@ -3448,6 +3750,13 @@ CREATE TRIGGER agencies_reject_workspace_code_change BEFORE UPDATE ON public.age
 --
 
 CREATE TRIGGER agency_users_reject_agency_id_change BEFORE UPDATE ON public.agency_users FOR EACH ROW EXECUTE FUNCTION public.reject_agency_user_agency_change();
+
+
+--
+-- Name: amounts_due amounts_due_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER amounts_due_reject_mutation BEFORE DELETE OR UPDATE ON public.amounts_due FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_money_mutation();
 
 
 --
@@ -3682,6 +3991,13 @@ CREATE TRIGGER suppliers_reject_identity_change BEFORE UPDATE ON public.supplier
 
 
 --
+-- Name: trigger_events trigger_events_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trigger_events_reject_mutation BEFORE DELETE OR UPDATE ON public.trigger_events FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_money_mutation();
+
+
+--
 -- Name: unit_shells unit_shells_reject_owner_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -3798,6 +4114,62 @@ ALTER TABLE ONLY public.clients
 
 ALTER TABLE ONLY public.agency_users
     ADD CONSTRAINT fk_agency_users_reseller_same_agency FOREIGN KEY (reseller_id, agency_id) REFERENCES public.resellers(id, agency_id);
+
+
+--
+-- Name: amounts_due fk_amounts_due_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.amounts_due
+    ADD CONSTRAINT fk_amounts_due_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: amounts_due fk_amounts_due_arrangement_currency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.amounts_due
+    ADD CONSTRAINT fk_amounts_due_arrangement_currency FOREIGN KEY (supplier_arrangement_id, currency) REFERENCES public.supplier_arrangements(id, currency);
+
+
+--
+-- Name: amounts_due fk_amounts_due_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.amounts_due
+    ADD CONSTRAINT fk_amounts_due_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: amounts_due fk_amounts_due_event_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.amounts_due
+    ADD CONSTRAINT fk_amounts_due_event_same_agency FOREIGN KEY (trigger_event_id, agency_id) REFERENCES public.trigger_events(id, agency_id);
+
+
+--
+-- Name: amounts_due fk_amounts_due_poster_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.amounts_due
+    ADD CONSTRAINT fk_amounts_due_poster_same_agency FOREIGN KEY (posted_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: amounts_due fk_amounts_due_schedule_line_of_arrangement; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.amounts_due
+    ADD CONSTRAINT fk_amounts_due_schedule_line_of_arrangement FOREIGN KEY (schedule_line_id, supplier_arrangement_id) REFERENCES public.schedule_lines(id, supplier_arrangement_id);
+
+
+--
+-- Name: amounts_due fk_amounts_due_shell_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.amounts_due
+    ADD CONSTRAINT fk_amounts_due_shell_same_agency FOREIGN KEY (unit_shell_id, agency_id) REFERENCES public.unit_shells(id, agency_id);
 
 
 --
@@ -3950,6 +4322,70 @@ ALTER TABLE ONLY public.capacity_rules
 
 ALTER TABLE ONLY public.capacity_rules
     ADD CONSTRAINT fk_capacity_rules_traveler_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
+-- Name: cost_line_shells fk_cost_line_shells_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_line_shells
+    ADD CONSTRAINT fk_cost_line_shells_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: cost_line_shells fk_cost_line_shells_line_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_line_shells
+    ADD CONSTRAINT fk_cost_line_shells_line_same_agency FOREIGN KEY (cost_line_id, agency_id) REFERENCES public.cost_lines(id, agency_id);
+
+
+--
+-- Name: cost_line_shells fk_cost_line_shells_shell_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_line_shells
+    ADD CONSTRAINT fk_cost_line_shells_shell_same_agency FOREIGN KEY (unit_shell_id, agency_id) REFERENCES public.unit_shells(id, agency_id);
+
+
+--
+-- Name: cost_lines fk_cost_lines_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_lines
+    ADD CONSTRAINT fk_cost_lines_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: cost_lines fk_cost_lines_arrangement_currency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_lines
+    ADD CONSTRAINT fk_cost_lines_arrangement_currency FOREIGN KEY (supplier_arrangement_id, currency) REFERENCES public.supplier_arrangements(id, currency);
+
+
+--
+-- Name: cost_lines fk_cost_lines_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_lines
+    ADD CONSTRAINT fk_cost_lines_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: cost_lines fk_cost_lines_base_of_arrangement; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_lines
+    ADD CONSTRAINT fk_cost_lines_base_of_arrangement FOREIGN KEY (base_cost_line_id, supplier_arrangement_id) REFERENCES public.cost_lines(id, supplier_arrangement_id);
+
+
+--
+-- Name: cost_lines fk_cost_lines_group_of_arrangement; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_lines
+    ADD CONSTRAINT fk_cost_lines_group_of_arrangement FOREIGN KEY (inventory_group_id, supplier_arrangement_id) REFERENCES public.inventory_groups(id, supplier_arrangement_id);
 
 
 --
@@ -4289,6 +4725,54 @@ ALTER TABLE ONLY public.resellers
 
 
 --
+-- Name: schedule_lines fk_schedule_lines_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schedule_lines
+    ADD CONSTRAINT fk_schedule_lines_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: schedule_lines fk_schedule_lines_arrangement_currency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schedule_lines
+    ADD CONSTRAINT fk_schedule_lines_arrangement_currency FOREIGN KEY (supplier_arrangement_id, currency) REFERENCES public.supplier_arrangements(id, currency);
+
+
+--
+-- Name: schedule_lines fk_schedule_lines_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schedule_lines
+    ADD CONSTRAINT fk_schedule_lines_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: schedule_lines fk_schedule_lines_cost_line_of_arrangement; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schedule_lines
+    ADD CONSTRAINT fk_schedule_lines_cost_line_of_arrangement FOREIGN KEY (cost_line_id, supplier_arrangement_id) REFERENCES public.cost_lines(id, supplier_arrangement_id);
+
+
+--
+-- Name: schedule_lines fk_schedule_lines_deadline_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schedule_lines
+    ADD CONSTRAINT fk_schedule_lines_deadline_same_agency FOREIGN KEY (supplier_deadline_id, agency_id) REFERENCES public.supplier_deadlines(id, agency_id);
+
+
+--
+-- Name: schedule_lines fk_schedule_lines_group_of_arrangement; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schedule_lines
+    ADD CONSTRAINT fk_schedule_lines_group_of_arrangement FOREIGN KEY (inventory_group_id, supplier_arrangement_id) REFERENCES public.inventory_groups(id, supplier_arrangement_id);
+
+
+--
 -- Name: supplier_arrangements fk_supplier_arrangements_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4393,6 +4877,14 @@ ALTER TABLE ONLY public.tasks
 
 
 --
+-- Name: tasks fk_tasks_amount_due_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT fk_tasks_amount_due_same_agency FOREIGN KEY (amount_due_id, agency_id) REFERENCES public.amounts_due(id, agency_id);
+
+
+--
 -- Name: tasks fk_tasks_departure_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4409,11 +4901,43 @@ ALTER TABLE ONLY public.tasks
 
 
 --
+-- Name: tasks fk_tasks_schedule_line_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT fk_tasks_schedule_line_same_agency FOREIGN KEY (schedule_line_id, agency_id) REFERENCES public.schedule_lines(id, agency_id);
+
+
+--
 -- Name: tasks fk_tasks_supplier_deadline_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.tasks
     ADD CONSTRAINT fk_tasks_supplier_deadline_same_agency FOREIGN KEY (supplier_deadline_id, agency_id) REFERENCES public.supplier_deadlines(id, agency_id);
+
+
+--
+-- Name: trigger_events fk_trigger_events_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trigger_events
+    ADD CONSTRAINT fk_trigger_events_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: trigger_events fk_trigger_events_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trigger_events
+    ADD CONSTRAINT fk_trigger_events_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: trigger_events fk_trigger_events_recorder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trigger_events
+    ADD CONSTRAINT fk_trigger_events_recorder_same_agency FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
 
 
 --
@@ -4535,6 +5059,8 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261106210000'),
+('20261106200000'),
 ('20261106110000'),
 ('20261106100000'),
 ('20261105220000'),

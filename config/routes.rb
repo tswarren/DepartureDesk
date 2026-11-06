@@ -155,12 +155,17 @@ Rails.application.routes.draw do
     resources :decisions, only: :create, controller: "departure_decisions"
     resource :inventory, only: :show, controller: "departure_inventories"
     resources :tasks, only: :index, controller: "departure_tasks"
+    resource :supplier_money, only: :show, controller: "departure_supplier_money"
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
       resource :discard, only: :create, controller: "supplier_arrangement_discards"
       resource :confirmation, only: %i[show create], controller: "supplier_arrangement_confirmations"
       resources :documents, only: %i[show create destroy], controller: "arrangement_documents"
       resources :rate_lines, only: %i[new create edit update destroy], controller: "supplier_rate_lines"
       resources :deadlines, only: %i[new create edit update], controller: "supplier_deadlines"
+      resources :cost_lines, only: %i[new create edit update destroy]
+      resources :schedule_lines, only: %i[new create edit update]
+      resources :trigger_events, only: %i[new create]
+      resources :amounts_due, only: %i[new create], controller: "direct_amounts_due"
       resources :groups, only: %i[show new create edit update destroy], controller: "inventory_groups" do
         resource :capacity_rule, only: :update, controller: "capacity_rules"
         resources :capacity_events, only: :create, controller: "capacity_events"

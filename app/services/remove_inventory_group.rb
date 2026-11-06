@@ -19,6 +19,9 @@ class RemoveInventoryGroup < AgencyCommand
       arrangement = lock_arrangement!(departure)
       ensure_draft!(arrangement)
       group = arrangement.inventory_groups.lock.find(@group.id)
+      if group.cost_lines.exists? || group.schedule_lines.exists?
+        raise Error.new("Remove the cost and schedule lines for #{group.label} first.", code: :invalid_state)
+      end
       group.capacity_rules.delete_all(:delete_all)
       group.rate_lines.delete_all(:delete_all)
       group.deadlines.update_all(inventory_group_id: nil)

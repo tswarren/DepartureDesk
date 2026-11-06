@@ -17,6 +17,10 @@ class SupplierArrangement < ApplicationRecord
   has_many :documents, -> { order(created_at: :desc) }, class_name: "ArrangementDocument", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
   has_many :rate_lines, class_name: "SupplierRateLine", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
   has_many :deadlines, -> { ordered }, class_name: "SupplierDeadline", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
+  has_many :cost_lines, -> { order(:created_at) }, inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
+  has_many :schedule_lines, -> { order(:created_at) }, inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
+  has_many :trigger_events, -> { order(:occurred_on, :recorded_at) }, inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
+  has_many :amounts_due, -> { by_due }, class_name: "AmountDue", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft"
   enum :reservation_scope, RESERVATION_SCOPES.index_by(&:itself), validate: true, prefix: :reservations

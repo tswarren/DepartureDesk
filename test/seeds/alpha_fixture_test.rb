@@ -81,6 +81,24 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal "Shore Excursions Group: Final count", final_count.task.action
   end
 
+  test "records each confirmed arrangement's supplier cost and schedule, and no cost from confirmation (step 4, D-75)" do
+    set_clock Time.utc(2026, 10, 15, 14)
+    alpha = AlphaFixture.load!(agency: @agency, actor: @actor)
+    cruise, hotel, excursion = alpha.arrangements.values_at(:cruise, :hotel, :excursion)
+
+    assert_empty cruise.cost_lines
+    assert_equal [ "per_unit_count", "per_shell" ], cruise.schedule_lines.map(&:amount_kind)
+    assert cruise.schedule_lines.all?(&:supplier_deadline), "each deposit pays its deadline, so it has no second task"
+    assert_equal [ 58_000, 70_000, 29_000, 17_500 ].sort, hotel.cost_lines.map(&:amount_minor_units).sort
+    assert hotel.cost_lines.all?(&:stage_committed?)
+    assert_equal [ 128_000, 46_500 ], [ hotel.cost_lines.select { |line| line.description.start_with?("Nov 5") }.sum(&:amount_minor_units),
+                                       hotel.cost_lines.select { |line| line.description.start_with?("Nov 4") }.sum(&:amount_minor_units) ]
+    assert_equal [ 100_000 ], excursion.cost_lines.map(&:amount_minor_units)
+    assert_equal excursion.inventory_groups.sole.unit_shells.map(&:id), excursion.cost_lines.sole.unit_shell_ids
+    assert_empty AmountDue.where(supplier_arrangement: alpha.arrangements.values), "nothing is due before Nov 1, 2026"
+    assert_equal 6, @agency.tasks.count, "schedule lines that pay a deadline add no task"
+  end
+
   test "can stop with the Alpha arrangement in Draft, then confirm it on a later load (D1)" do
     draft = AlphaFixture.load!(agency: @agency, actor: @actor, confirm_cruise: false).arrangements.fetch(:cruise)
     assert draft.draft?

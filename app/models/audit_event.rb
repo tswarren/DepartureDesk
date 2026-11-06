@@ -85,6 +85,14 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.rate_line_removed
     supplier_arrangement.deadline_recorded
     supplier_arrangement.deadline_updated
+    supplier_arrangement.cost_line_added
+    supplier_arrangement.cost_line_updated
+    supplier_arrangement.cost_line_removed
+    supplier_arrangement.schedule_line_added
+    supplier_arrangement.schedule_line_updated
+    supplier_arrangement.trigger_event_recorded
+    supplier_arrangement.amounts_due_posted
+    supplier_arrangement.amount_due_recorded
     departure.task_created
     departure.task_due_changed
     departure.task_started

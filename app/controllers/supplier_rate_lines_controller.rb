@@ -70,7 +70,7 @@ class SupplierRateLinesController < ApplicationController
       "non_commissionable_fees" => MoneyInput.display(line.non_commissionable_fees_minor_units, currency),
       "taxes" => MoneyInput.display(line.taxes_minor_units, currency),
       "discount" => MoneyInput.display(line.discount_minor_units, currency),
-      "commission_rate" => line.commission_rate&.to_s("F"),
+      "commission_rate" => line.commission_rate&.to_s("F"), "commission_base" => line.commission_base,
       "commission_amount" => MoneyInput.display(line.commission_minor_units, currency)
     }
   end

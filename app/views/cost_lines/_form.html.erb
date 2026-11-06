@@ -1,0 +1,76 @@
+<%# locals: (form:, arrangement:, cost_line:, values:) -%>
+<% currency = arrangement.currency %>
+<div class="dd-field-group">
+  <%= form.label :description, class: "dd-label" %>
+  <%= form.text_field :description, maxlength: CostLine::DESCRIPTION_LIMIT, **dd_field_options(form, :description, aria_describedby_extra: "cost_line_description_hint") %>
+  <p class="dd-field-hint" id="cost_line_description_hint">For example: Nov 5 Garden Queen, firm rooms.</p>
+  <%= dd_field_error(form, :description) %>
+</div>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :stage, "Stage", class: "dd-label" %>
+    <%= form.select :stage, SupplierMoneyHelper::STAGE_LABELS.invert, {}, aria: { describedby: "cost_line_stage_hint" }, class: "dd-field" %>
+    <p class="dd-field-hint" id="cost_line_stage_hint">Committed counts as committed cost exposure; estimated stays a forecast.</p>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :scope, "Covers", class: "dd-label" %>
+    <%= form.select :scope, SupplierMoneyHelper::COST_SCOPE_LABELS.invert, {}, class: "dd-field" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :inventory_group_id, "Inventory group", class: "dd-label" %>
+    <%= form.select :inventory_group_id, arrangement.inventory_groups.map { |group| [ group.label, group.id ] }, { include_blank: "None", selected: values["inventory_group_id"] },
+          aria: { describedby: "cost_line_group_hint" }, class: "dd-field" %>
+    <p class="dd-field-hint" id="cost_line_group_hint">Only when it covers one inventory group, such as a pool.</p>
+  </div>
+</div>
+<% shell_groups = arrangement.inventory_groups.includes(:unit_shells).select { |group| group.unit_shells.any? } %>
+<% if shell_groups.any? %>
+  <fieldset class="dd-form-section">
+    <legend class="dd-section-title">Shells it covers</legend>
+    <p class="dd-field-hint">Only when it covers named shells, such as a commitment for unsold space. A per-unit quantity defaults to the shells chosen.</p>
+    <% selected = Array(values["unit_shell_ids"]) %>
+    <% shell_groups.each do |group| %>
+      <div class="dd-field-group">
+        <span class="dd-label"><%= group.label %></span>
+        <div class="dd-choice-group">
+        <% group.unit_shells.each do |shell| %>
+          <label class="dd-choice">
+            <%= check_box_tag "cost_line[unit_shell_ids][]", shell.id, selected.include?(shell.id), id: "cost_line_shell_#{shell.id}" %>
+            <span><%= shell.label %></span>
+          </label>
+        <% end %>
+        </div>
+      </div>
+    <% end %>
+  </fieldset>
+<% end %>
+<fieldset class="dd-form-section">
+  <legend class="dd-section-title">Amount in <%= currency %></legend>
+  <div class="dd-form-grid dd-form-grid--two-column">
+    <div class="dd-field-group">
+      <%= form.label :basis, "Basis", class: "dd-label" %>
+      <%= form.select :basis, SupplierMoneyHelper::COST_BASIS_LABELS.invert, {}, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :rate, "Amount or rate", class: "dd-label" %>
+      <%= form.text_field :rate, value: values["rate"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :rate, class: "dd-field--numeric dd-field--narrow", aria_describedby_extra: "cost_line_rate_hint") %>
+      <p class="dd-field-hint" id="cost_line_rate_hint">The fixed amount, or the rate per unit, person or night.</p>
+      <%= dd_field_error(form, :rate) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :quantity, "Quantity", class: "dd-label" %>
+      <%= form.number_field :quantity, value: values["quantity"], min: 1, step: 1, **dd_field_options(form, :quantity, class: "dd-field--numeric dd-field--narrow") %>
+      <%= dd_field_error(form, :quantity) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :percentage, "Percentage", class: "dd-label" %>
+      <%= form.text_field :percentage, value: values["percentage"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :percentage, class: "dd-field--numeric dd-field--narrow") %>
+      <%= dd_field_error(form, :percentage) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :base_cost_line_id, "Percentage of", class: "dd-label" %>
+      <%= form.select :base_cost_line_id, arrangement.cost_lines.where.not(id: cost_line.id).reject(&:basis_percentage?).map { |line| [ line.description, line.id ] },
+            { include_blank: "None", selected: values["base_cost_line_id"] }, class: "dd-field" %>
+    </div>
+  </div>
+</fieldset>

@@ -49,6 +49,10 @@
       <%= dd_field_error(form, :commission_rate) %>
     </div>
     <div class="dd-field-group">
+      <%= form.label :commission_base, "Rate applies to", class: "dd-label" %>
+      <%= form.select :commission_base, ArrangementsHelper::COMMISSION_BASE_LABELS.invert, { selected: values["commission_base"] || "base_fare" }, class: "dd-field" %>
+    </div>
+    <div class="dd-field-group">
       <%= form.label :commission_amount, "Commission amount", class: "dd-label" %>
       <%= form.text_field :commission_amount, value: values["commission_amount"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :commission_amount, class: "dd-field--numeric dd-field--narrow") %>
       <%= dd_field_error(form, :commission_amount) %>

@@ -1,6 +1,6 @@
 require "application_system_test_case"
 
-# Slice 1 step 3 screens S-12 to S-18, S-33 and S-34 at desktop width and 375px.
+# Slice 1 steps 3 and 4 screens S-12 to S-18, S-33, S-34 and the Departure's Supplier money tab, at desktop width and 375px.
 class ArrangementScreensTest < ApplicationSystemTestCase
   setup do
     set_clock Time.utc(2026, 11, 10, 15)
@@ -33,7 +33,15 @@ class ArrangementScreensTest < ApplicationSystemTestCase
       edit_departure_arrangement_deadline_path(departure, cruise, cruise.deadlines.first),
       tasks_path,
       task_path(cruise.deadlines.first.task),
-      departure_tasks_path(departure)
+      departure_tasks_path(departure),
+      new_departure_arrangement_cost_line_path(departure, hotel),
+      edit_departure_arrangement_cost_line_path(departure, hotel, hotel.cost_lines.first),
+      new_departure_arrangement_schedule_line_path(departure, hotel),
+      edit_departure_arrangement_schedule_line_path(departure, hotel, hotel.schedule_lines.first),
+      new_departure_arrangement_trigger_event_path(departure, hotel),
+      new_departure_arrangement_amount_due_path(departure, hotel),
+      departure_supplier_money_path(departure),
+      task_path(@alpha.arrangements.fetch(:excursion).deadlines.find_by!(deadline_type: "final_count").task)
     ]
 
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
