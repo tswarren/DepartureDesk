@@ -176,6 +176,19 @@ class SupplierMoneyCommandsTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::StatementInvalid) { AmountDue.transaction(requires_new: true) { AmountDue.where(id: amount.id).delete_all } }
   end
 
+  test "the database refuses a missing quantity, amount, percentage or day count, not only a wrong one" do
+    confirm!
+    cost = save_cost!(scope: "arrangement", basis: "per_unit", rate: "10", quantity: "2", stage: "estimated", description: "Seats").record
+    line = schedule!(description: "Later", amount_kind: "fixed", amount: "5", due_rule: "event_plus_days", trigger_type: "other", days_after: "3").record
+    {
+      -> { CostLine.where(id: cost.id).update_all(quantity: nil) } => "a per-unit cost line without a quantity",
+      -> { ScheduleLine.where(id: line.id).update_all(days_after: nil) } => "a days-after rule without its days",
+      -> { ScheduleLine.where(id: line.id).update_all(amount_minor_units: nil) } => "a fixed line without its amount"
+    }.each do |change, label|
+      assert_raises(ActiveRecord::StatementInvalid, label) { CostLine.transaction(requires_new: true) { change.call } }
+    end
+  end
+
   test "supplier money needs Supplier arrangements, and other agencies' records are not found" do
     assert_equal :unauthorized, assert_raises(AgencyCommand::Error) {
       SaveCostLine.new(agency: @agency, actor: agency_users(:harbor_staff), departure: @departure, arrangement: @arrangement,

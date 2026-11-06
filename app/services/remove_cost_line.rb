@@ -23,7 +23,7 @@ class RemoveCostLine < AgencyCommand
         raise Error.new("Remove the schedule lines and percentage lines that use this cost line first.", code: :invalid_state)
       end
 
-      line.cost_line_shells.delete_all
+      line.cost_line_shells.delete_all(:delete_all)
       line.destroy!
       audit!(agency: @agency, action: "supplier_arrangement.cost_line_removed", subject: arrangement, actor: @actor,
         details: { "cost_line_id" => line.id, "amount_minor_units" => line.amount_minor_units })

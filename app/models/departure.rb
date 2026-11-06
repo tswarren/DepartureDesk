@@ -24,6 +24,10 @@ class Departure < ApplicationRecord
   has_many :supplier_arrangements, -> { order(:created_at) }, inverse_of: :departure, dependent: :restrict_with_exception
   has_many :tasks, dependent: :restrict_with_exception
   has_many :offerings, -> { order(:position, :created_at) }, inverse_of: :departure, dependent: :restrict_with_exception
+  has_many :client_terms_versions, -> { order(:version_number) }, inverse_of: :departure, dependent: :restrict_with_exception
+
+  # D-76: the version the package uses, the highest-numbered.
+  def current_client_terms = client_terms_versions.max_by(&:version_number)
   has_many :team_members, -> { order(default_task_owner: :desc, created_at: :asc) },
     class_name: "DepartureTeamMember", inverse_of: :departure, dependent: :restrict_with_exception
 

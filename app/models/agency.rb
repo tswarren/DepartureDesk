@@ -26,6 +26,7 @@ class Agency < ApplicationRecord
   has_many :payee_accounts, dependent: :restrict_with_exception
   has_many :supplier_arrangements, dependent: :restrict_with_exception
   has_many :tasks, dependent: :restrict_with_exception
+  has_many :agency_cancellation_tiers, dependent: :restrict_with_exception
   has_many :capacity_events, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
   has_many :departures, dependent: :restrict_with_exception
@@ -47,7 +48,7 @@ class Agency < ApplicationRecord
   normalizes :address_line_1, :address_line_2, :address_locality, :address_region, :address_postal_code,
     with: ->(value) { value.to_s.strip.presence }
   normalizes :address_country_code, with: ->(value) { value.to_s.strip.upcase.presence }
-  normalizes :seller_of_travel_disclosure, :confirmation_footer, :financial_document_footer,
+  normalizes :seller_of_travel_disclosure, :confirmation_footer, :financial_document_footer, :client_terms_wording,
     with: ->(value) { value.to_s.gsub("\r\n", "\n").strip.presence }
   normalizes :workspace_code, with: ->(value) { normalize_workspace_code(value) }
   normalizes :country_code, with: ->(value) { value.to_s.strip.upcase }

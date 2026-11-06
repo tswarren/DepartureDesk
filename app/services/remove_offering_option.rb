@@ -17,7 +17,7 @@ class RemoveOfferingOption < AgencyCommand
       departure = lock_offering_context!
       offering = lock_offering!(departure)
       option = OfferingOption.joins(:choice).where(offering_choices: { offering_id: offering.id }).lock.find(@option.id)
-      option.prices.delete_all
+      option.prices.delete_all(:delete_all)
       option.destroy!
       audit_departure!(departure, "departure.offering_option_removed", "offering_id" => offering.id, "offering_option_id" => option.id, "label" => option.label)
       Result.new(status: :updated, record: offering)
