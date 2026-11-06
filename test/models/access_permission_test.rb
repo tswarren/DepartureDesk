@@ -11,7 +11,8 @@ class AccessPermissionTest < ActiveSupport::TestCase
   ].freeze
   ADMIN_ONLY = %i[manage_agency_profile manage_offices manage_agency_users manage_user_permissions].freeze
   GRANTED = { manage_departures: "departure_management", manage_arrangements: "supplier_arrangements", reassign_tasks: "departure_management" }.freeze
-  ANY_OF = { view_supplier_costs: %w[departure_management supplier_arrangements financial_records] }.freeze
+  ANY_OF = { view_supplier_costs: %w[departure_management supplier_arrangements financial_records],
+             record_amounts_due: %w[supplier_arrangements financial_records] }.freeze
 
   test "the catalog covers exactly the listed actions" do
     assert_equal (BASELINE + ADMIN_ONLY + GRANTED.keys + ANY_OF.keys).sort, AccessPermission::CATALOG.keys.sort

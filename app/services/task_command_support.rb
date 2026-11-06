@@ -45,8 +45,31 @@ module TaskCommandSupport
   end
 
   def audit_task!(task, action, details = {})
-    audit!(agency: @agency, action:, subject: task.departure, actor: @actor,
-      details: { "task_id" => task.id, "supplier_deadline_id" => task.supplier_deadline_id }.merge(details))
+    audit!(agency: @agency, action:, subject: task.departure, actor: @actor, actor_identifier: (@actor ? nil : @actor_identifier),
+      details: { "task_id" => task.id, "supplier_deadline_id" => task.supplier_deadline_id,
+                 "schedule_line_id" => task.schedule_line_id, "amount_due_id" => task.amount_due_id }.compact.merge(details))
+  end
+
+  # SMN-17: a payment follow-up task for a schedule line or a direct amount
+  # due, due at 11:59 p.m. agency time on its date (SET-10).
+  def create_payment_task!(departure, action:, due_on:, **source)
+    due_at = AgencyLocalTime.end_of_date(due_on, @agency.default_timezone)
+    task = departure.tasks.create!(
+      agency: @agency, owner: payment_task_owner(departure), action: action.truncate(250),
+      due_at:, due_on:, due_at_time: nil, due_time_zone: @agency.default_timezone, **source
+    )
+    audit_task!(task, "departure.task_created", "owner_id" => task.owner_id, "due_at" => task.due_at.iso8601)
+    task
+  end
+
+  # The default task owner, else the acting user, else (for the system) the
+  # agency's longest-standing active Agency Admin.
+  def payment_task_owner(departure)
+    owner = departure.default_task_owner
+    return owner if owner&.active? && !owner.reseller?
+    return @actor if @actor
+
+    @agency.agency_users.where(user_type: "agency_admin", status: "active").order(:created_at).first!
   end
 
   def lock_task!(permission)

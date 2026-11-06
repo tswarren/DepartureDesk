@@ -5,6 +5,7 @@
 # confirmation proposes cost from the rate table.
 class ConfirmSupplierArrangement < AgencyCommand
   include CapacityCommandSupport
+  include SupplierAmountPosting
 
   def initialize(agency:, actor:, departure:, arrangement:, confirmed_on:, confirmation_note: nil, lock_version:)
     @agency = agency
@@ -37,6 +38,11 @@ class ConfirmSupplierArrangement < AgencyCommand
                    "group_reference" => arrangement.group_reference, "shells_created" => created,
                    "rate_lines_frozen" => arrangement.rate_lines.count }
       )
+      # SMN-11: Confirm records the Arrangement confirmed event, then posts
+      # anything already due.
+      arrangement.trigger_events.create!(agency: @agency, event_type: "arrangement_confirmed", occurred_on: confirmed_on,
+        recorded_by: @actor, recorded_at: Clock.current.now)
+      post_amounts_due!(departure, arrangement)
       Result.new(status: :updated, record: arrangement)
     end
   rescue ActiveRecord::RecordInvalid => error

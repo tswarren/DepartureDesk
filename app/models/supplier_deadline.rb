@@ -7,6 +7,12 @@ class SupplierDeadline < ApplicationRecord
   # SUP-22: a cancellation-tier cutoff is informational by default.
   INFORMATIONAL_BY_DEFAULT = %w[cancellation_tier_cutoff].freeze
   DESCRIPTION_LIMIT = 200
+  # SMN-12: completing these deadlines' tasks records the trigger event.
+  # Names submission records none in this slice (D-81); a deposit or payment
+  # is completed by settlement (SMN-17).
+  TRIGGER_EVENTS = {
+    "final_count" => "final_count_submitted", "rooming_list" => "rooming_list_submitted", "ticketing" => "tickets_issued"
+  }.freeze
 
   belongs_to :agency
   belongs_to :supplier_arrangement
@@ -26,6 +32,8 @@ class SupplierDeadline < ApplicationRecord
   validate :group_of_arrangement
 
   scope :ordered, -> { order(:resolved_at, :created_at) }
+
+  def trigger_event_type = TRIGGER_EVENTS[deadline_type]
 
   def self.default_actionable?(deadline_type) = !INFORMATIONAL_BY_DEFAULT.include?(deadline_type.to_s)
 

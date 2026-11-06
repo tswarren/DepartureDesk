@@ -34,7 +34,9 @@ module AccessPermission
     view_supplier_costs: %w[departure_management supplier_arrangements financial_records],
     # ACC-30: staff use tasks; reassigning one is Departure work.
     use_tasks: :baseline,
-    reassign_tasks: "departure_management"
+    reassign_tasks: "departure_management",
+    # SMN-05: a supplier obligation recorded directly as an amount due.
+    record_amounts_due: %w[supplier_arrangements financial_records]
   }.freeze
 
   def self.allowed?(user_type, granted_permissions, action)
