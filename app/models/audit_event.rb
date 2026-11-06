@@ -93,6 +93,16 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.trigger_event_recorded
     supplier_arrangement.amounts_due_posted
     supplier_arrangement.amount_due_recorded
+    departure.offering_created
+    departure.offering_updated
+    departure.offering_choice_added
+    departure.offering_choice_updated
+    departure.offering_choice_removed
+    departure.offering_option_added
+    departure.offering_option_updated
+    departure.offering_option_removed
+    departure.offering_price_set
+    departure.offering_price_removed
     departure.task_created
     departure.task_due_changed
     departure.task_started

@@ -287,6 +287,28 @@ $$;
 
 
 --
+-- Name: reject_offering_option_other_departure(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_offering_option_other_departure() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM offering_choices c
+      JOIN offerings o ON o.id = c.offering_id
+      JOIN inventory_groups g ON g.id = NEW.inventory_group_id
+      JOIN supplier_arrangements a ON a.id = g.supplier_arrangement_id
+    WHERE c.id = NEW.offering_choice_id AND a.departure_id = o.departure_id
+  ) THEN
+    RAISE EXCEPTION 'offering option % draws on another departure''s inventory', NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_office_identity_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1202,6 +1224,94 @@ CREATE TABLE public.inventory_groups (
 
 
 --
+-- Name: offering_choices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.offering_choices (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    offering_id uuid NOT NULL,
+    name character varying NOT NULL,
+    role character varying NOT NULL,
+    scope character varying NOT NULL,
+    pattern character varying NOT NULL,
+    "position" integer DEFAULT 0 NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT offering_choices_counters CHECK ((("position" >= 0) AND (lock_version >= 0))),
+    CONSTRAINT offering_choices_multiple_only_add_ons CHECK ((((pattern)::text <> 'optional_multiple'::text) OR ((role)::text = 'add_on'::text))),
+    CONSTRAINT offering_choices_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 120))),
+    CONSTRAINT offering_choices_pattern CHECK (((pattern)::text = ANY ((ARRAY['required_single'::character varying, 'optional_single'::character varying, 'optional_multiple'::character varying])::text[]))),
+    CONSTRAINT offering_choices_role CHECK (((role)::text = ANY ((ARRAY['included'::character varying, 'add_on'::character varying])::text[]))),
+    CONSTRAINT offering_choices_scope CHECK (((scope)::text = ANY ((ARRAY['per_traveler'::character varying, 'per_unit'::character varying, 'per_trip'::character varying])::text[])))
+);
+
+
+--
+-- Name: offering_options; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.offering_options (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    offering_choice_id uuid NOT NULL,
+    inventory_group_id uuid NOT NULL,
+    label character varying NOT NULL,
+    description text,
+    "position" integer DEFAULT 0 NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT offering_options_counters CHECK ((("position" >= 0) AND (lock_version >= 0))),
+    CONSTRAINT offering_options_label CHECK (((btrim((label)::text) <> ''::text) AND (char_length((label)::text) <= 120)))
+);
+
+
+--
+-- Name: offering_prices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.offering_prices (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    offering_option_id uuid NOT NULL,
+    occupancy_position character varying NOT NULL,
+    traveler_type_id uuid,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT offering_prices_amount CHECK ((amount_minor_units >= 0)),
+    CONSTRAINT offering_prices_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT offering_prices_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT offering_prices_occupancy_position CHECK (((occupancy_position)::text = ANY ((ARRAY['any'::character varying, 'single'::character varying, 'guest_1'::character varying, 'guest_2'::character varying, 'guest_3'::character varying, 'guest_4'::character varying, 'guest_5'::character varying, 'guest_6'::character varying, 'guest_7'::character varying, 'guest_8'::character varying, 'guest_9'::character varying])::text[])))
+);
+
+
+--
+-- Name: offerings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.offerings (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    name character varying NOT NULL,
+    description text,
+    currency character varying NOT NULL,
+    "position" integer DEFAULT 0 NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT offerings_counters CHECK ((("position" >= 0) AND (lock_version >= 0))),
+    CONSTRAINT offerings_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT offerings_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 120)))
+);
+
+
+--
 -- Name: offices; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2087,6 +2197,38 @@ ALTER TABLE ONLY public.departures
 
 ALTER TABLE ONLY public.inventory_groups
     ADD CONSTRAINT inventory_groups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: offering_choices offering_choices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_choices
+    ADD CONSTRAINT offering_choices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: offering_options offering_options_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_options
+    ADD CONSTRAINT offering_options_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: offering_prices offering_prices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_prices
+    ADD CONSTRAINT offering_prices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: offerings offerings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offerings
+    ADD CONSTRAINT offerings_pkey PRIMARY KEY (id);
 
 
 --
@@ -3025,6 +3167,62 @@ CREATE UNIQUE INDEX index_inventory_groups_on_id_and_arrangement ON public.inven
 
 
 --
+-- Name: index_offering_choices_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offering_choices_on_id_and_agency_id ON public.offering_choices USING btree (id, agency_id);
+
+
+--
+-- Name: index_offering_choices_on_offering_and_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_offering_choices_on_offering_and_position ON public.offering_choices USING btree (offering_id, "position");
+
+
+--
+-- Name: index_offering_options_on_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_offering_options_on_group ON public.offering_options USING btree (inventory_group_id);
+
+
+--
+-- Name: index_offering_options_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offering_options_on_id_and_agency_id ON public.offering_options USING btree (id, agency_id);
+
+
+--
+-- Name: index_offering_options_one_per_group_in_choice; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offering_options_one_per_group_in_choice ON public.offering_options USING btree (offering_choice_id, inventory_group_id);
+
+
+--
+-- Name: index_offering_prices_one_per_option_position_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offering_prices_one_per_option_position_type ON public.offering_prices USING btree (offering_option_id, occupancy_position, traveler_type_id) NULLS NOT DISTINCT;
+
+
+--
+-- Name: index_offerings_on_departure_and_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offerings_on_departure_and_name ON public.offerings USING btree (departure_id, name);
+
+
+--
+-- Name: index_offerings_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_offerings_on_id_and_agency_id ON public.offerings USING btree (id, agency_id);
+
+
+--
 -- Name: index_offices_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3900,6 +4098,13 @@ CREATE TRIGGER departures_reject_identity_change BEFORE UPDATE ON public.departu
 
 
 --
+-- Name: offering_options offering_options_reject_other_departure; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER offering_options_reject_other_departure BEFORE INSERT OR UPDATE ON public.offering_options FOR EACH ROW EXECUTE FUNCTION public.reject_offering_option_other_departure();
+
+
+--
 -- Name: offices offices_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4450,6 +4655,86 @@ ALTER TABLE ONLY public.inventory_groups
 
 ALTER TABLE ONLY public.inventory_groups
     ADD CONSTRAINT fk_inventory_groups_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: offering_choices fk_offering_choices_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_choices
+    ADD CONSTRAINT fk_offering_choices_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: offering_choices fk_offering_choices_offering_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_choices
+    ADD CONSTRAINT fk_offering_choices_offering_same_agency FOREIGN KEY (offering_id, agency_id) REFERENCES public.offerings(id, agency_id);
+
+
+--
+-- Name: offering_options fk_offering_options_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_options
+    ADD CONSTRAINT fk_offering_options_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: offering_options fk_offering_options_choice_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_options
+    ADD CONSTRAINT fk_offering_options_choice_same_agency FOREIGN KEY (offering_choice_id, agency_id) REFERENCES public.offering_choices(id, agency_id);
+
+
+--
+-- Name: offering_options fk_offering_options_group_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_options
+    ADD CONSTRAINT fk_offering_options_group_same_agency FOREIGN KEY (inventory_group_id, agency_id) REFERENCES public.inventory_groups(id, agency_id);
+
+
+--
+-- Name: offering_prices fk_offering_prices_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_prices
+    ADD CONSTRAINT fk_offering_prices_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: offering_prices fk_offering_prices_option_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_prices
+    ADD CONSTRAINT fk_offering_prices_option_same_agency FOREIGN KEY (offering_option_id, agency_id) REFERENCES public.offering_options(id, agency_id);
+
+
+--
+-- Name: offering_prices fk_offering_prices_traveler_type_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offering_prices
+    ADD CONSTRAINT fk_offering_prices_traveler_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
+-- Name: offerings fk_offerings_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offerings
+    ADD CONSTRAINT fk_offerings_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: offerings fk_offerings_departure_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.offerings
+    ADD CONSTRAINT fk_offerings_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
 
 
 --
@@ -5059,6 +5344,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261107100000'),
 ('20261106210000'),
 ('20261106200000'),
 ('20261106110000'),
