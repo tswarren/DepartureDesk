@@ -17,9 +17,9 @@ class SignInTest < ApplicationSystemTestCase
   test "staff can see the workspace and change office but not administer users" do
     sign_in_from_browser(agency_users(:harbor_staff))
 
-    assert_text "Dashboard"
     assert_link "Clients"
     assert_no_link "Administration"
+    click_link_and_expect "Dashboard", heading: "Dashboard", css: "nav[aria-label='Primary navigation'] a"
     click_link "Change current office"
     choose "Harbor West (WEST)"
     click_button "Use this office"

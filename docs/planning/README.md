@@ -26,7 +26,7 @@ Agency identity, M1 (directories) and M2 (Departures) are kept and built on. The
 | --- | --- | --- |
 | 0. Decide | Closed 2026-11-03; see the [Phase 0 decision brief](first-slice/phase-0-decision-brief.md) | Data-model decisions logged; data model and screens reviewed |
 | 1. Prepare | Closed 2026-11-04: spike done 2026-11-03 (adapt; ADR 0018 amended); M3 and M4 deleted (#243); injectable clock, pending tests D1 to D17 and the Alpha seed script added (#244); CI passes | Spike decides adapt or replace for capacity; M3 and M4 layers deleted; remaining tests pass |
-| 2. Slice 1 | Active from 2026-11-04; step 1 (foundation changes) merged; step 2 (Departure statuses and Ready to sell) merged; step 3a (arrangements, inventory and rate table, D1) built 2026-11-05, in review; step 3b (deadlines and tasks, D12) next | Staff walkthrough after step 6; final walkthrough by a staff user and a reseller user who did not build it |
+| 2. Slice 1 | Active from 2026-11-04; step 1 (foundation changes) merged; step 2 (Departure statuses and Ready to sell) merged; step 3a (arrangements, inventory and rate table, D1) merged; step 3b (deadlines and tasks, D12) built 2026-11-06, in review; step 4 next | Staff walkthrough after step 6; final walkthrough by a staff user and a reseller user who did not build it |
 | 3. Slice 1b | Not authorized | All demonstration cases pass |
 
 Record a phase change here, with its date. The charter stays the authority for scope.

@@ -106,7 +106,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     fill_in "Email address", with: agency_user.email_address
     fill_in "Password", with: password
     click_button "Sign in"
-    assert_selector "h1.dd-page-title", text: "Dashboard"
+    assert_selector "h1.dd-page-title", text: "My tasks"
     wait_for_turbo
   end
 

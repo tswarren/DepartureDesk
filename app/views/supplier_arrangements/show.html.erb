@@ -44,6 +44,8 @@
 
 <%= render "inventory_groups/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
 
+<%= render "supplier_deadlines/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
+
 <% if can_view_supplier_costs? %>
   <%= render "supplier_rate_lines/panel", departure: @departure, arrangement: @arrangement, manage: manage %>
   <%= render "arrangement_documents/panel", departure: @departure, arrangement: @arrangement, manage: manage %>

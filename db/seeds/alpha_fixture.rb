@@ -6,7 +6,8 @@
 # which has the loading user as its default task owner, a Proceed decision
 # and the Ready to sell status (step 2); and a payee account and a confirmed
 # arrangement for each supplier, with their inventory groups, the excursion's
-# Child 0–4 capacity rule and the Alpha cruise rate table (step 3). Each Slice 1
+# Child 0–4 capacity rule, the Alpha cruise rate table, and the Agreement A
+# deadlines, each with a task for the default task owner (step 3). Each Slice 1
 # step extends this script with the records it builds.
 # Loading is idempotent: records already present in the agency are reused.
 # Pass confirm_cruise: false to stop with the Alpha arrangement in Draft (D1).
@@ -53,6 +54,23 @@ module AlphaFixture
   # Double) guests, so BK-101's three travelers need two Garden Queen rooms.
   HOTEL_ROOMS = { "Garden Queen" => { nov4: 2, nov5: 4, positions: 2 }, "Harbor Double" => { nov4: 1, nov5: 4, positions: 4 } }.freeze
 
+  # Agreement A (B3, B9, B13, B14). Date-only, so each is due at 11:59 p.m.
+  # agency time (SET-10).
+  DEADLINES = {
+    cruise: [
+      { deadline_type: "deposit_payment", description: "Initial deposit, $50 per stateroom", due_on: Date.new(2026, 11, 1) },
+      { deadline_type: "deposit_payment", description: "Full deposit and names for cabins not yet named", due_on: Date.new(2027, 3, 1) },
+      { deadline_type: "deposit_payment", description: "Final payment", due_on: Date.new(2027, 8, 1) }
+    ],
+    hotel: [
+      { deadline_type: "deposit_payment", description: "Payment in full at checkout", due_on: Date.new(2027, 11, 6) }
+    ],
+    excursion: [
+      { deadline_type: "final_count", description: "Final count", due_on: Date.new(2027, 10, 22) },
+      { deadline_type: "deposit_payment", description: "Payment, $1,000 per confirmed resource", due_on: Date.new(2027, 10, 22) }
+    ]
+  }.freeze
+
   ARRANGEMENTS = {
     cruise: {
       payee: "Alpha Cruises group sales",
@@ -86,7 +104,10 @@ module AlphaFixture
     suppliers = SUPPLIERS.transform_values { |definition| supplier!(agency, actor, definition) }
     departure = departure!(agency, actor)
     arrangements = ARRANGEMENTS.to_h do |key, definition|
-      arrangement = arrangement!(agency, actor, departure, suppliers.fetch(key), definition) { |draft| send(:"#{key}_inventory!", agency, actor, departure, draft) }
+      arrangement = arrangement!(agency, actor, departure, suppliers.fetch(key), definition) do |draft|
+        send(:"#{key}_inventory!", agency, actor, departure, draft)
+        deadlines!(agency, actor, departure, draft, DEADLINES.fetch(key))
+      end
       confirm!(agency, actor, departure, arrangement) unless key == :cruise && !confirm_cruise
       [ key, arrangement.reload ]
     end
@@ -168,6 +189,13 @@ module AlphaFixture
       traveler_type_id: agency.traveler_types.find_by!(name: "Child 0–4").id, uses_capacity: false).call
   end
   private_class_method :excursion_inventory!
+
+  def self.deadlines!(agency, actor, departure, arrangement, deadlines)
+    deadlines.each do |attributes|
+      created!(SaveSupplierDeadline.new(agency:, actor:, departure:, arrangement:, attributes:).call, attributes.fetch(:description))
+    end
+  end
+  private_class_method :deadlines!
 
   def self.group!(agency, actor, departure, arrangement, **attributes)
     created!(SaveInventoryGroup.new(agency:, actor:, departure:, arrangement:, attributes:).call, attributes.fetch(:label))

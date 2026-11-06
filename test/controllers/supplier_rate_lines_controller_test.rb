@@ -25,6 +25,7 @@ class SupplierRateLinesControllerTest < ActionDispatch::IntegrationTest
     line = @arrangement.rate_lines.sole
 
     get departure_arrangement_path(@departure, @arrangement)
+    assert_select "nav[aria-label='Primary navigation'] a[aria-current=page]", text: "Departures"
     assert_select "#rate-table th[scope=row]", text: /S01\z/
     assert_select "#rate-table td", text: /3rd guest\z/
     assert_select "#rate-table td", text: /\$1,200\.00\z/

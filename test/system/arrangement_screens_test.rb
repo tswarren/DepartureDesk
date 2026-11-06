@@ -1,18 +1,18 @@
 require "application_system_test_case"
 
-# Slice 1 step 3a screens S-12 to S-14, S-17 and S-18 at desktop width and 375px.
+# Slice 1 step 3 screens S-12 to S-18, S-33 and S-34 at desktop width and 375px.
 class ArrangementScreensTest < ApplicationSystemTestCase
   setup do
     set_clock Time.utc(2026, 11, 10, 15)
-    @scenario = M1DirectoryScenario.empty
-    @alpha = AlphaFixture.load!(agency: @scenario.agency, actor: @scenario.actor, confirm_cruise: false)
+    @scenario = AlphaScenario.load!(confirm_cruise: false)
+    @alpha = @scenario.alpha
   end
 
   teardown do
-    M2DepartureScenario.cleanup!(@scenario.agency)
+    AlphaScenario.cleanup!(@scenario)
   end
 
-  test "S-12 to S-14, S-17 and S-18 reflow at 375px without page overflow" do
+  test "S-12 to S-18, S-33 and S-34 reflow at 375px without page overflow" do
     departure = @alpha.departure
     cruise = @alpha.arrangements.fetch(:cruise)
     hotel = @alpha.arrangements.fetch(:hotel)
@@ -28,7 +28,12 @@ class ArrangementScreensTest < ApplicationSystemTestCase
       departure_arrangement_path(departure, hotel),
       departure_inventory_path(departure),
       departure_arrangement_group_path(departure, hotel, hotel.inventory_groups.find_by!(label: "Nov 5 Harbor Double")),
-      departure_arrangement_group_path(departure, @alpha.arrangements.fetch(:excursion), @alpha.arrangements.fetch(:excursion).inventory_groups.sole)
+      departure_arrangement_group_path(departure, @alpha.arrangements.fetch(:excursion), @alpha.arrangements.fetch(:excursion).inventory_groups.sole),
+      new_departure_arrangement_deadline_path(departure, cruise),
+      edit_departure_arrangement_deadline_path(departure, cruise, cruise.deadlines.first),
+      tasks_path,
+      task_path(cruise.deadlines.first.task),
+      departure_tasks_path(departure)
     ]
 
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)

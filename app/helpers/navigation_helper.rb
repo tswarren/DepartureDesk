@@ -1,16 +1,24 @@
 module NavigationHelper
+  # Arrangement screens live under a Departure, whatever their controller name.
+  DEPARTURE_AREA = %w[
+    supplier_arrangements supplier_arrangement_confirmations supplier_arrangement_discards supplier_rate_lines
+    supplier_deadlines arrangement_documents inventory_groups capacity_rules capacity_events
+  ].freeze
+
   def primary_navigation_current?(item)
     case item.to_sym
     when :dashboard
       controller_name == "dashboard"
+    when :tasks
+      controller_path == "tasks" || controller_path.start_with?("task_")
     when :administration
       controller_path.start_with?("administration/")
     when :clients
       controller_path.in?(%w[clients client_people]) || controller_path.start_with?("client_person_")
     when :suppliers
-      controller_path == "suppliers" || controller_path.start_with?("supplier_")
+      (controller_path == "suppliers" || controller_path.start_with?("supplier_")) && !DEPARTURE_AREA.include?(controller_path)
     when :departures
-      controller_path == "departures" || controller_path.start_with?("departure_")
+      controller_path == "departures" || controller_path.start_with?("departure_") || DEPARTURE_AREA.include?(controller_path)
     else
       false
     end

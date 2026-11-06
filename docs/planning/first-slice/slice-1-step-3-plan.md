@@ -1,6 +1,6 @@
 # Slice 1 step 3: Arrangements, inventory, rate table, deadlines and tasks
 
-**Status:** Accepted 2026-11-05; 3a built 2026-11-05, 3b not started. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 3, [ADR 0018](../../adr/0018-arrangement-history-by-dated-adjustment.md) with its spike amendment (D-88), [ADR 0019](../../adr/0019-issued-document-storage.md) as this step amends it, and the decision log entries it cites.
+**Status:** Accepted 2026-11-05; 3a built 2026-11-05, 3b built 2026-11-06. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 3, [ADR 0018](../../adr/0018-arrangement-history-by-dated-adjustment.md) with its spike amendment (D-88), [ADR 0019](../../adr/0019-issued-document-storage.md) as this step amends it, and the decision log entries it cites.
 
 Charter build step 3: arrangements, inventory groups, shells, pools and resources, the supplier rate table, and deadlines that create tasks. It closes **D1** (confirming the Alpha arrangement creates 32 cabin shells and no supplier cost) and **D12** (recorded deadlines create owned tasks that go overdue).
 
@@ -102,6 +102,7 @@ Values the charter's fixture doesn't settle, chosen during the 3a build (2026-11
 - **Room occupancy:** Garden Queen rooms hold 2 guests and Harbor Double rooms 4. BK-101's three travelers therefore need two Garden Queen rooms at build step 6.
 - **Placeholders:** the group references (ALPHA-A, SABLEWATER-ALPHA, SEG-ALPHA) and a confirmation date of Oct 1, 2026, the Alpha Cruises contract date, for all three arrangements.
 - **Single occupancy:** stored as one full single-fare row: the 1st-guest base fare, NCCF and discount twice, and the taxes once (B6).
+- **Full deposit and names:** recorded as one deposit-or-payment deadline on Mar 1, 2027, as the fixture lists it, not as a separate names-submission deadline.
 - **Hotel and excursion rates:** neither has a rate table in the fixture. Their firm space is entered as committed cost at build step 4 (D-75); whether the on-request hotel nights need a rate table is left to build step 6.
 
 ### D1

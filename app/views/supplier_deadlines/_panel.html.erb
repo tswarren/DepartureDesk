@@ -1,0 +1,57 @@
+<%# Supplier deadlines (S-15, SUP-22 to SUP-25). Each actionable deadline links its task. %>
+<%# locals: (departure:, arrangement:, manage:) -%>
+<% editable = manage && (arrangement.draft? || arrangement.confirmed?) %>
+<article class="dd-panel" id="deadlines">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Supplier deadlines</h2>
+    <% if editable %>
+      <%= link_to "Add deadline", new_departure_arrangement_deadline_path(departure, arrangement), class: "dd-button dd-button--quiet" %>
+    <% end %>
+  </header>
+  <% deadlines = arrangement.deadlines.includes(:inventory_group, task: :owner) %>
+  <% if deadlines.empty? %>
+    <div class="dd-panel-body">
+      <p class="dd-empty-copy">No deadlines yet. Record each date the supplier needs something by: deposits, names, final payment, final count.</p>
+    </div>
+  <% else %>
+    <div class="dd-table-wrap">
+      <table class="dd-table">
+        <caption class="dd-visually-hidden">Supplier deadlines by due date</caption>
+        <thead>
+          <tr>
+            <th scope="col">Deadline</th>
+            <th scope="col">Due</th>
+            <th scope="col">Task</th>
+            <% if editable %><th scope="col" class="dd-col-actions">Actions</th><% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% deadlines.each do |deadline| %>
+            <tr>
+              <th scope="row">
+                <%= deadline.description %>
+                <span class="dd-cell-subtext"><%= deadline_type_label(deadline.deadline_type) %><%= " · #{deadline.inventory_group.label}" if deadline.inventory_group %></span>
+              </th>
+              <td>
+                <%= local_due_label(deadline.resolved_at, deadline.time_zone) %><%= " (date only)" unless deadline.due_at_time %>
+                <% if (agency_time = agency_due_label(deadline.resolved_at, deadline.time_zone)) %><span class="dd-cell-subtext"><%= agency_time %></span><% end %>
+              </td>
+              <td>
+                <% if deadline.task && deadline.actionable %>
+                  <%= link_to deadline.task.owner.display_name, task_path(deadline.task) %> <%= task_status_badges(deadline.task) %>
+                <% else %>
+                  Informational, no task
+                <% end %>
+              </td>
+              <% if editable %>
+                <td class="dd-col-actions">
+                  <%= link_to "Edit", edit_departure_arrangement_deadline_path(departure, arrangement, deadline), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{deadline.description}" } %>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</article>

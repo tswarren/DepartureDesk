@@ -1,0 +1,101 @@
+<% content_for :title, "#{@task.action} · DepartureDesk" %>
+<% deadline = @task.supplier_deadline %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "My tasks", tasks_path ], [ @task.departure.display_reference, departure_tasks_path(@task.departure) ], [ "Task", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Task · <%= @task.departure.name %></p>
+    <h1 class="dd-page-title"><%= @task.action %></h1>
+    <p class="dd-page-description"><%= task_status_badges(@task) %></p>
+  </div>
+</header>
+
+<% if @transition_error %>
+  <p class="dd-alert dd-alert--danger" role="alert"><%= @transition_error %></p>
+<% end %>
+
+<article class="dd-panel" id="task-details">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Details</h2></header>
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div>
+        <dt>Due</dt>
+        <dd>
+          <%= local_due_label(@task.due_at, @task.due_time_zone) %>
+          <% if (agency_time = agency_due_label(@task.due_at, @task.due_time_zone)) %><span class="dd-cell-subtext"><%= agency_time %></span><% end %>
+        </dd>
+      </div>
+      <div><dt>Owner</dt><dd><%= @task.owner.display_name %></dd></div>
+      <div><dt>Source</dt><dd><%= task_source_label(@task) %></dd></div>
+      <% if deadline %>
+        <div><dt>Supplier deadline</dt><dd><%= link_to deadline.description, departure_arrangement_path(@task.departure, deadline.supplier_arrangement, anchor: "deadlines") %></dd></div>
+      <% end %>
+      <% if @task.completion_note %><div><dt>Completion note</dt><dd><%= simple_format(@task.completion_note, {}, wrapper_tag: "span") %></dd></div><% end %>
+      <% if @task.waiver_reason %><div><dt>Reason waived</dt><dd><%= @task.waiver_reason %></dd></div><% end %>
+    </dl>
+  </div>
+</article>
+
+<% if @task.active? || @task.completed? %>
+  <article class="dd-panel" id="task-actions">
+    <header class="dd-panel-header"><h2 class="dd-panel-title">Update this task</h2></header>
+    <div class="dd-panel-body dd-stack">
+      <% if @task.open? %>
+        <%= button_to "Start task", task_start_path(@task), params: { lock_version: @task.lock_version }, class: "dd-button dd-button--secondary" %>
+      <% end %>
+      <% if @task.active? %>
+        <%= form_with url: task_completion_path(@task), method: :post, class: "dd-form" do |form| %>
+          <%= hidden_field_tag :lock_version, @task.lock_version, id: nil %>
+          <div class="dd-field-group">
+            <%= label_tag :completion_note, "Completion note", class: "dd-label" %>
+            <%= text_area_tag :completion_note, nil, rows: 3, maxlength: Task::NOTE_LIMIT, required: true, aria: { describedby: "completion_note_hint" }, class: "dd-field" %>
+            <p class="dd-field-hint" id="completion_note_hint">What was done, with any supplier reference. Completing changes no other record.</p>
+          </div>
+          <%= form.submit "Complete task", class: "dd-button" %>
+        <% end %>
+        <%= form_with url: task_waiver_path(@task), method: :post, class: "dd-form" do |form| %>
+          <%= hidden_field_tag :lock_version, @task.lock_version, id: nil %>
+          <div class="dd-field-group">
+            <%= label_tag :waiver_reason, "Reason the deadline no longer applies", class: "dd-label" %>
+            <%= text_area_tag :waiver_reason, nil, rows: 2, maxlength: Task::NOTE_LIMIT, required: true, class: "dd-field" %>
+          </div>
+          <%= form.submit "Waive task", class: "dd-button dd-button--quiet" %>
+        <% end %>
+        <% if Current.agency_user.permitted?(:reassign_tasks) %>
+          <%= form_with url: task_assignment_path(@task), method: :patch, class: "dd-form" do |form| %>
+            <%= hidden_field_tag :lock_version, @task.lock_version, id: nil %>
+            <div class="dd-field-group">
+              <%= label_tag :owner_id, "Owner", class: "dd-label" %>
+              <%= select_tag :owner_id, options_for_select(task_owner_options, @task.owner_id), class: "dd-field" %>
+            </div>
+            <%= form.submit "Reassign", class: "dd-button dd-button--secondary" %>
+          <% end %>
+        <% end %>
+      <% else %>
+        <p class="dd-page-description">Reopen it only when the same requirement becomes actionable again.</p>
+        <%= button_to "Reopen task", task_reopening_path(@task), params: { lock_version: @task.lock_version }, class: "dd-button dd-button--secondary" %>
+      <% end %>
+    </div>
+  </article>
+<% end %>
+
+<article class="dd-panel" id="task-history">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">History</h2></header>
+  <% events = task_history(@task) %>
+  <div class="dd-table-wrap">
+    <table class="dd-table">
+      <caption class="dd-visually-hidden">Task history, oldest first</caption>
+      <thead><tr><th scope="col">When</th><th scope="col">What</th><th scope="col">Who</th></tr></thead>
+      <tbody>
+        <% events.each do |event| %>
+          <tr>
+            <td><%= event.created_at.in_time_zone(Current.agency.default_timezone).to_fs(:long) %></td>
+            <td><%= event.action.delete_prefix("departure.task_").humanize %><%= " · #{event.details["note"] || event.details["reason"]}" if event.details["note"] || event.details["reason"] %></td>
+            <td><%= event.actor_agency_user&.display_name || "System" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</article>
