@@ -1,0 +1,18 @@
+<%# Client cancellation tiers, latest first (BKG-31). %>
+<%# locals: (tiers:, edit_path: nil, remove_path: nil) -%>
+<% if tiers.empty? %>
+  <p class="dd-empty-copy">No tiers. Cancellations would carry no charge under this schedule.</p>
+<% else %>
+  <ul class="dd-plain-list">
+    <% tiers.each do |tier| %>
+      <li>
+        <%= tier_summary(tier) %>
+        <% if edit_path %>
+          <%= link_to "Edit", edit_path.call(tier), class: "dd-row-action dd-row-action--text", aria: { label: "Edit the tier from #{tier.min_days_before_departure} days" } %>
+          <%= button_to "Remove", remove_path.call(tier), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form",
+                aria: { label: "Remove the tier from #{tier.min_days_before_departure} days" } %>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

@@ -18,6 +18,9 @@ class OfferingPrice < ApplicationRecord
   validates :currency, format: { with: Agency::CURRENCY_FORMAT }
   validate :position_within_group
 
+  # Specific positions first, any position last.
+  def sort_key = [ occupancy_position == "any" ? POSITIONS.size : POSITIONS.index(occupancy_position), traveler_type&.position.to_i ]
+
   def guest_number = occupancy_position.start_with?("guest_") ? occupancy_position.delete_prefix("guest_").to_i : nil
 
   private

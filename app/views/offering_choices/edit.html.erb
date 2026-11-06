@@ -1,0 +1,29 @@
+<% content_for :title, "Edit choice · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Package", departure_offerings_path(@departure) ], [ "Edit choice", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Package · <%= @departure.name %></p>
+    <h1 class="dd-page-title">Edit choice</h1>
+    <p class="dd-page-description">Removing the choice removes its options and their prices.</p>
+  </div>
+  <div class="dd-page-actions">
+    <%= button_to "Remove choice", departure_offering_choice_path(@departure, @offering, @choice), method: :delete, class: "dd-button dd-button--quiet",
+          form: { data: { turbo_confirm: "Remove #{@choice.name}, its options and their prices?" } } %>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @choice, url: departure_offering_choice_path(@departure, @offering, @choice), method: :patch, scope: :offering_choice, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <%= render "form", form: %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save", class: "dd-button" %>
+        <%= link_to "Cancel", departure_offerings_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

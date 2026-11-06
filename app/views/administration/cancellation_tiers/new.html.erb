@@ -1,0 +1,24 @@
+<% content_for :title, "New tier · Administration · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Administration", administration_agency_path ], [ "Client terms", administration_client_terms_defaults_path ], [ "New tier", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Administration · Client terms</p>
+    <h1 class="dd-page-title">New tier</h1>
+    <p class="dd-page-description">A default tier applies to every departure that doesn't override the agency's tiers.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @tier, url: administration_cancellation_tiers_path, scope: :cancellation_tier, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= render "shared/cancellation_tier_form", form:, values: @values, currency: Current.agency.default_currency %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save", class: "dd-button" %>
+        <%= link_to "Cancel", administration_client_terms_defaults_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

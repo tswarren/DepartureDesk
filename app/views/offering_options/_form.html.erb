@@ -1,0 +1,15 @@
+<%# locals: (form:) -%>
+<div class="dd-field-group">
+  <%= form.label :label, class: "dd-label" %>
+  <%= form.text_field :label, maxlength: Offering::NAME_LIMIT, **dd_field_options(form, :label) %>
+  <%= dd_field_error(form, :label) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :inventory_group_id, "Draws on", class: "dd-label" %>
+  <%= form.select :inventory_group_id, package_group_options(@departure), { include_blank: "Choose an inventory group" }, **dd_field_options(form, :inventory_group_id) %>
+  <%= dd_field_error(form, :inventory_group_id) %>
+</div>
+<div class="dd-field-group">
+  <%= form.label :description, "Client description (optional)", class: "dd-label" %>
+  <%= form.text_area :description, rows: 2, class: "dd-field" %>
+</div>

@@ -99,6 +99,41 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal 6, @agency.tasks.count, "schedule lines that pay a deadline add no task"
   end
 
+  test "loads the Alpha Omega package, whose prices give the roster's cruise subtotals, and its client terms (step 5, D-93)" do
+    alpha = AlphaFixture.load!(agency: @agency, actor: @actor)
+    offering = alpha.offering
+    assert_equal [ "Cabin", "Nov 5 hotel room", "Extension nights", "Private Miami tour" ], offering.choices.map(&:name)
+    assert_equal %w[included included add_on add_on], offering.choices.map(&:role)
+    assert_empty offering.booking_blockers
+
+    adult = @agency.traveler_types.find_by!(name: "Adult")
+    infant = @agency.traveler_types.find_by!(name: "Child 0–4")
+    cabins = offering.choices.find_by!(name: "Cabin").options.index_by(&:label)
+    subtotal = ->(label, travelers) {
+      lookup = OfferingPriceLookup.new(option: cabins.fetch(label))
+      positions = travelers.one? ? [ "single" ] : (1..travelers.size).map { |n| "guest_#{n}" }
+      positions.zip(travelers).sum { |position, type| lookup.price_for(occupancy_position: position, traveler_type: type).amount_minor_units }
+    }
+    roster = { "BK-101" => subtotal.("V01", [ adult ] * 3), "BK-104" => subtotal.("S01", [ adult, adult, adult, infant ]), "BK-105" => subtotal.("O01", [ adult, adult, infant ]) }
+    assert_equal({ "BK-101" => 805_500, "BK-104" => 1_124_000, "BK-105" => 710_500 }, roster)
+    assert_equal 2_640_000, roster.values.sum, "the Slice 1 bookings' cruise subtotal is $26,400"
+    assert_equal 503_500, subtotal.("I01", [ adult ]), "BK-103's single fare is $5,035 (B6)"
+
+    tour = OfferingPriceLookup.new(option: offering.choices.find_by!(name: "Private Miami tour").options.sole)
+    assert_equal [ 15_000, 0 ], [ tour.price_for(occupancy_position: nil, traveler_type: adult), tour.price_for(occupancy_position: nil, traveler_type: infant) ].map(&:amount_minor_units)
+    room = OfferingPriceLookup.new(option: offering.choices.find_by!(name: "Nov 5 hotel room").options.find_by!(label: "Harbor Double"))
+    assert_equal [ 22_000, 0 ], [ room.price_for(occupancy_position: "guest_1"), room.price_for(occupancy_position: "guest_2") ].map(&:amount_minor_units)
+
+    terms = alpha.client_terms
+    assert terms.overrides_cancellation_tiers?
+    assert_equal [ [ 120, 10 ], [ 61, 50 ], [ 0, 100 ] ], terms.cancellation_tiers.map { |tier| [ tier.min_days_before_departure, tier.percentage.to_i ] }
+    deposit, balance = terms.schedule_lines.to_a
+    assert_equal [ "per_unit", "cruise", 50_000, "at_confirmation", false ], deposit.values_at(:basis, :service_category, :amount_minor_units, :due_rule, :counts_as_acceptance)
+    assert_equal [ "balance", 120 ], balance.values_at(:basis, :days_before_departure)
+    assert_empty terms.booking_blockers
+    assert @agency.reload.client_terms_wording.present?
+  end
+
   test "can stop with the Alpha arrangement in Draft, then confirm it on a later load (D1)" do
     draft = AlphaFixture.load!(agency: @agency, actor: @actor, confirm_cruise: false).arrangements.fetch(:cruise)
     assert draft.draft?
@@ -125,6 +160,8 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal 3, PayeeAccount.where(agency: @agency).count
     assert_equal 32 + 8 + 1, UnitShell.where(agency: @agency).count
     assert_equal 6, @agency.tasks.count
+    assert_equal 1, @agency.departures.sole.offerings.count
+    assert_equal 1, ClientTermsVersion.where(agency: @agency).count
   end
 
   private

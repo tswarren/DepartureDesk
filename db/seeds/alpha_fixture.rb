@@ -8,12 +8,14 @@
 # arrangement for each supplier, with their inventory groups, the excursion's
 # Child 0–4 capacity rule, the Alpha cruise rate table, and the Agreement A
 # deadlines, each with a task for the default task owner (step 3); and, once
-# each arrangement is confirmed, its supplier cost and schedule (step 4). Each Slice 1
+# each arrangement is confirmed, its supplier cost and schedule (step 4); and
+# the Alpha Omega cruise package with its client prices, the client terms
+# and the agency's terms defaults (step 5). Each Slice 1
 # step extends this script with the records it builds.
 # Loading is idempotent: records already present in the agency are reused.
 # Pass confirm_cruise: false to stop with the Alpha arrangement in Draft (D1).
 module AlphaFixture
-  Result = Data.define(:agency, :actor, :suppliers, :departure, :arrangements)
+  Result = Data.define(:agency, :actor, :suppliers, :departure, :arrangements, :offering, :client_terms)
 
   DEPARTURE_NAME = "Alpha Omega"
   DEPARTURE_DESCRIPTION = "Port Everglades round trip."
@@ -119,7 +121,10 @@ module AlphaFixture
       money!(agency, actor, departure, arrangement, key) if arrangement.confirmed? && arrangement.schedule_lines.none?
       [ key, arrangement.reload ]
     end
-    Result.new(agency:, actor:, suppliers:, departure:, arrangements:)
+    terms_defaults!(agency, actor)
+    offering = package!(agency, actor, departure, arrangements)
+    client_terms = client_terms!(agency, actor, departure)
+    Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:)
   end
 
   # Creates the Draft arrangement and its inventory once; later loads reuse it.
@@ -197,6 +202,119 @@ module AlphaFixture
       traveler_type_id: agency.traveler_types.find_by!(name: "Child 0–4").id, uses_capacity: false).call
   end
   private_class_method :excursion_inventory!
+
+  # Client prices per guest by occupancy position: the 1st and 2nd guests,
+  # each additional guest (an infant in a cabin position pays it too), and a
+  # single traveler's full single fare, the 1st-guest fare plus the single
+  # supplement. They give the roster's cruise subtotals (BK-101 $8,055).
+  CABIN_PRICES = {
+    "V01" => { first: 3_385, additional: 1_285, single: 3_385 + 3_250 },
+    "O01" => { first: 2_985, additional: 1_135, single: 2_985 + 2_850 },
+    "I01" => { first: 2_585, additional: 985, single: 2_585 + 2_450 },
+    "S01" => { first: 5_085, additional: 535, single: 5_085 + 4_950 }
+  }.freeze
+  # B5: the 1st guest in a room pays; other guests pay $0.
+  ROOM_PRICES = { "Garden Queen" => 190, "Harbor Double" => 220 }.freeze
+  PACKAGE_NAME = "Alpha Omega cruise package"
+  TERMS_WORDING = "Prices are per person in USD. Payments and cancellations follow the schedule below. These terms are fictional test terms."
+  # D-93: 10% from 120 or more days before departure, 50% from 61, 100% from 0.
+  CANCELLATION_TIERS = { 120 => "10", 61 => "50", 0 => "100" }.freeze
+
+  # Placeholder agency wording and the D-93 tiers, once.
+  def self.terms_defaults!(agency, actor)
+    if agency.reload.client_terms_wording.blank?
+      UpdateClientTermsDefaults.new(agency:, actor:, wording: TERMS_WORDING, lock_version: agency.lock_version).call
+    end
+    return if agency.agency_cancellation_tiers.exists?
+
+    CANCELLATION_TIERS.each do |days, percentage|
+      SaveCancellationTier.new(agency:, actor:, attributes: { min_days_before_departure: days, charge_kind: "percentage", percentage: }).call
+    end
+  end
+  private_class_method :terms_defaults!
+
+  # BKG-13 to BKG-16, BKG-21: the cabin per unit, the Nov 5 room included,
+  # extension nights and the excursion as add-ons.
+  def self.package!(agency, actor, departure, arrangements)
+    existing = departure.offerings.find_by(name: PACKAGE_NAME)
+    return existing if existing
+
+    offering = created!(SaveOffering.new(agency:, actor:, departure:, attributes: {
+      name: PACKAGE_NAME, description: "Seven nights on Alpha Omega from Port Everglades, with the night before at Sablewater Harbor Hotel."
+    }).call, PACKAGE_NAME)
+    cruise_groups = arrangements.fetch(:cruise).inventory_groups.index_by(&:label)
+    hotel_groups = arrangements.fetch(:hotel).inventory_groups.index_by(&:label)
+
+    cabin = choice!(agency, actor, departure, offering, name: "Cabin", role: "included", scope: "per_unit", pattern: "required_single")
+    CABIN_PRICES.each do |label, prices|
+      option = option!(agency, actor, departure, offering, cabin, label:, inventory_group_id: cruise_groups.fetch(label).id)
+      { "guest_1" => prices[:first], "guest_2" => prices[:first], "any" => prices[:additional], "single" => prices[:single] }.each do |position, amount|
+        price!(agency, actor, departure, offering, option, position, amount)
+      end
+    end
+
+    room = choice!(agency, actor, departure, offering, name: "Nov 5 hotel room", role: "included", scope: "per_unit", pattern: "required_single")
+    ROOM_PRICES.each { |type, amount| room_option!(agency, actor, departure, offering, room, type, hotel_groups.fetch("Nov 5 #{type}"), amount) }
+
+    nights = choice!(agency, actor, departure, offering, name: "Extension nights", role: "add_on", scope: "per_unit", pattern: "optional_multiple")
+    (1..4).each do |day|
+      ROOM_PRICES.each { |type, amount| room_option!(agency, actor, departure, offering, nights, type, hotel_groups.fetch("Nov #{day} #{type}"), amount, label: "Nov #{day} #{type}") }
+    end
+
+    tour = choice!(agency, actor, departure, offering, name: "Private Miami tour", role: "add_on", scope: "per_traveler", pattern: "optional_single")
+    tour_option = option!(agency, actor, departure, offering, tour, label: "Private Miami tour, Nov 5", inventory_group_id: arrangements.fetch(:excursion).inventory_groups.sole.id)
+    price!(agency, actor, departure, offering, tour_option, "any", 150)
+    price!(agency, actor, departure, offering, tour_option, "any", 0, traveler_type_id: agency.traveler_types.find_by!(name: "Child 0–4").id)
+    offering.reload
+  end
+  private_class_method :package!
+
+  def self.room_option!(agency, actor, departure, offering, choice, type, group, amount, label: type)
+    option = option!(agency, actor, departure, offering, choice, label:, inventory_group_id: group.id)
+    price!(agency, actor, departure, offering, option, "guest_1", amount)
+    price!(agency, actor, departure, offering, option, "any", 0)
+  end
+  private_class_method :room_option!
+
+  def self.choice!(agency, actor, departure, offering, **attributes)
+    created!(SaveOfferingChoice.new(agency:, actor:, departure:, offering:, attributes:).call, attributes.fetch(:name))
+  end
+  private_class_method :choice!
+
+  def self.option!(agency, actor, departure, offering, choice, **attributes)
+    created!(SaveOfferingOption.new(agency:, actor:, departure:, offering:, choice:, attributes:).call, attributes.fetch(:label))
+  end
+  private_class_method :option!
+
+  def self.price!(agency, actor, departure, offering, option, position, amount, traveler_type_id: nil)
+    created!(SaveOfferingPrice.new(agency:, actor:, departure:, offering:, option:,
+      attributes: { occupancy_position: position, amount: amount.to_s, traveler_type_id: }).call, "#{option.label} #{position}")
+  end
+  private_class_method :price!
+
+  # D-93: the D-93 tiers as this departure's override; the $500 deposit per
+  # cruise cabin at confirmation, not counting as acceptance (B7, BKG-41);
+  # the balance 120 days before departure.
+  def self.client_terms!(agency, actor, departure)
+    existing = departure.reload.current_client_terms
+    return existing if existing
+
+    version = created!(StartClientTerms.new(agency:, actor:, departure:).call, "client terms")
+    UpdateClientTerms.new(agency:, actor:, departure:, terms_version: version, lock_version: version.lock_version, attributes: {
+      departure_wording: "Alpha Omega sails Nov 6–13, 2027. The Nov 5 hotel night is included.", overrides_cancellation_tiers: true
+    }).call
+    version.reload.own_cancellation_tiers.each { |tier| RemoveCancellationTier.new(agency:, actor:, departure:, terms_version: version, tier:).call }
+    CANCELLATION_TIERS.each do |days, percentage|
+      SaveCancellationTier.new(agency:, actor:, departure:, terms_version: version,
+        attributes: { min_days_before_departure: days, charge_kind: "percentage", percentage: }).call
+    end
+    [ { description: "Deposit", basis: "per_unit", service_category: "cruise", amount: "500", due_rule: "at_confirmation" },
+      { description: "Balance", basis: "balance", due_rule: "days_before_departure", days_before_departure: "120" } ].each do |attributes|
+      SaveClientScheduleLine.new(agency:, actor:, departure:, terms_version: version, attributes:).call
+    end
+    version.reload
+  end
+  private_class_method :client_terms!
 
   # Agreement A's deposits (B2, B3), the hotel's firm rooms paid at checkout
   # (B4, B14) and the first excursion resource paid with the final count (B8,

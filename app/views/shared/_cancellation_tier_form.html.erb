@@ -1,0 +1,30 @@
+<%# locals: (form:, values:, currency:) -%>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :min_days_before_departure, "Days before departure", class: "dd-label" %>
+    <%= form.number_field :min_days_before_departure, value: values["min_days_before_departure"], min: 0, step: 1,
+          **dd_field_options(form, :min_days_before_departure, class: "dd-field--numeric dd-field--narrow", aria_describedby_extra: "tier_days_hint") %>
+    <p class="dd-field-hint" id="tier_days_hint">The tier applies from this many days before departure until the next tier. Use 0 for the final tier.</p>
+    <%= dd_field_error(form, :min_days_before_departure) %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :charge_kind, "Charge", class: "dd-label" %>
+    <%= form.select :charge_kind, PackageHelper::CHARGE_KIND_LABELS.invert, {}, class: "dd-field" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :percentage, "Percentage", class: "dd-label" %>
+    <%= form.text_field :percentage, value: values["percentage"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :percentage, class: "dd-field--numeric dd-field--narrow") %>
+    <%= dd_field_error(form, :percentage) %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :amount, "Amount in #{currency}", class: "dd-label" %>
+    <%= form.text_field :amount, value: values["amount"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :amount, class: "dd-field--numeric dd-field--narrow") %>
+    <%= dd_field_error(form, :amount) %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :service_category, "Unit of", class: "dd-label" %>
+    <%= form.select :service_category, ArrangementsHelper::SERVICE_CATEGORY_LABELS.invert, { include_blank: "Not per unit", selected: values["service_category"] },
+          aria: { describedby: "tier_category_hint" }, class: "dd-field" %>
+    <p class="dd-field-hint" id="tier_category_hint">For a fixed amount per unit, such as per cruise cabin.</p>
+  </div>
+</div>

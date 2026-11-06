@@ -4,6 +4,7 @@ module NavigationHelper
     supplier_arrangements supplier_arrangement_confirmations supplier_arrangement_discards supplier_rate_lines
     supplier_deadlines arrangement_documents inventory_groups capacity_rules capacity_events
     cost_lines schedule_lines trigger_events direct_amounts_due
+    offerings offering_choices offering_options offering_prices client_cancellation_tiers client_schedule_lines
   ].freeze
 
   def primary_navigation_current?(item)

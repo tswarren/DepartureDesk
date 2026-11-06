@@ -1,0 +1,93 @@
+<% content_for :title, "#{@option.label} · DepartureDesk" %>
+<% currency = @offering.currency %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Package", departure_offerings_path(@departure) ], [ @option.label, nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= @choice.name %> · <%= @offering.name %></p>
+    <h1 class="dd-page-title"><%= @option.label %></h1>
+    <p class="dd-page-description">Draws on <%= @option.inventory_group.label %>. <%= choice_summary(@choice) %>.</p>
+  </div>
+  <div class="dd-page-actions">
+    <%= button_to "Remove option", departure_offering_choice_option_path(@departure, @offering, @choice, @option), method: :delete, class: "dd-button dd-button--quiet",
+          form: { data: { turbo_confirm: "Remove #{@option.label} and its prices?" } } %>
+  </div>
+</header>
+
+<article class="dd-panel" id="prices">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Client prices in <%= currency %></h2></header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-page-description">
+      <% if @choice.made_per_unit? %>
+        Price each guest by their position in the unit. A guest alone uses the single price, or the 1st-guest price if there is none; an "any position" price covers the rest.
+      <% else %>
+        Price per <%= @choice.made_per_traveler? ? "traveler" : "trip" %> with "any position". Add a traveler-type price where it differs, such as $0 for Child 0–4.
+      <% end %>
+      Changing a price never changes a booking.
+    </p>
+    <% missing = @option.missing_prices %>
+    <% if missing.any? %>
+      <p class="dd-alert dd-alert--warning" role="status">Still needed: <%= missing.to_sentence %>.</p>
+    <% end %>
+    <% prices = @option.prices.sort_by(&:sort_key) %>
+    <% if prices.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-stacked-table">
+          <caption class="dd-visually-hidden">Client prices by position and traveler type</caption>
+          <thead><tr><th scope="col">Position</th><th scope="col">Traveler type</th><th scope="col" class="num">Price</th><th scope="col" class="dd-col-actions">Actions</th></tr></thead>
+          <tbody>
+            <% prices.each do |price| %>
+              <% name = [ OfferingPrice::POSITION_LABELS.fetch(price.occupancy_position), price.traveler_type&.name ].compact.join(", ") %>
+              <tr>
+                <th scope="row"><%= OfferingPrice::POSITION_LABELS.fetch(price.occupancy_position) %></th>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Traveler type</span><%= price.traveler_type&.name || "Any" %></td>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Price</span><%= Money.new(price.amount_minor_units, price.currency).format %></td>
+                <td class="dd-col-actions">
+                  <%= button_to "Remove", departure_offering_price_path(@departure, @offering, price), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger",
+                        form_class: "dd-inline-form", aria: { label: "Remove the #{name} price" } %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+    <%= form_with url: departure_offering_prices_path(@departure, @offering), scope: :offering_price, class: "dd-form" do |form| %>
+      <%= form.hidden_field :offering_option_id, value: @option.id %>
+      <h3 class="dd-section-title">Set a price</h3>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :occupancy_position, "Position", class: "dd-label" %>
+          <% positions = @choice.made_per_unit? ? [ "single", *(1..(@option.inventory_group.positions_per_unit || 9)).map { |n| "guest_#{n}" }, "any" ] : [ "any" ] %>
+          <%= form.select :occupancy_position, positions.map { |position| [ OfferingPrice::POSITION_LABELS.fetch(position), position ] }, {}, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :traveler_type_id, "Traveler type", class: "dd-label" %>
+          <%= form.select :traveler_type_id, Current.agency.traveler_types.ordered.map { |type| [ type.name, type.id ] }, { include_blank: "Any traveler type" }, class: "dd-field" %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :amount, "Price", class: "dd-label" %>
+          <%= form.text_field :amount, inputmode: "decimal", autocomplete: "off", required: true, aria: { describedby: "offering_price_amount_hint" }, class: "dd-field dd-field--numeric dd-field--narrow" %>
+          <p class="dd-field-hint" id="offering_price_amount_hint">Setting a position and type that already has a price replaces it.</p>
+        </div>
+      </div>
+      <%= form.submit "Save price", class: "dd-button dd-button--secondary" %>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Option</h2></header>
+  <div class="dd-panel-body">
+    <%= form_with model: @option, url: departure_offering_choice_option_path(@departure, @offering, @choice, @option), method: :patch, scope: :offering_option, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <%= render "form", form: %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save option", class: "dd-button" %>
+        <%= link_to "Back to the package", departure_offerings_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

@@ -1,10 +1,10 @@
 # Current application architecture
 
-**Status:** Implemented baseline, as of Slice 1 step 4
+**Status:** Implemented baseline, as of Slice 1 step 5
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3 supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger, the supplier rate table (ADR 0018), supplier deadlines with the tasks they create, and step 4's supplier money: cost lines, schedule lines, trigger events and amounts due. The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
+DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3 supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger, the supplier rate table (ADR 0018), supplier deadlines with the tasks they create, step 4's supplier money: cost lines, schedule lines, trigger events and amounts due; and step 5's package offerings with client prices, and client terms. The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
 
 ## Shipped records and authorization catalog
 
@@ -50,6 +50,10 @@ DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017
 | `ScheduleLine` | When a portion falls due (SMN-04): a fixed amount, a percentage of its cost line, an amount per unit times a count, or one amount per shell; on a fixed date, an event, days after an event, or the earlier of an event and a date. It may name the supplier deadline it pays, whose task it uses. Never adds to cost (SMN-03). |
 | `TriggerEvent` | An SMN-11 event dated when it happened, with an optional count and reference. Append-only. Confirm records Arrangement confirmed and the sweep records Service date. |
 | `AmountDue` | The only supplier payable (SMN-05): posted from a schedule line, at most one per shell per line (SMN-10, D-81), or recorded directly. The amount and the facts used are snapshotted (SMN-06). Append-only; paid status arrives with payments. |
+| `Offering`, `OfferingChoice`, `OfferingOption` | A Departure's package (BKG-13) in its operating currency. Its contents are choices, each `included` or `add_on`, made per traveler, unit or trip, with a required single, optional single or optional multiple pattern (optional multiple only for add-ons, BKG-14). Each option draws on one inventory group of the same Departure, which a trigger enforces. `Offering#booking_blockers` lists what step 6 needs before booking. |
+| `OfferingPrice` | A client price on an option for an occupancy position (single, a guest number, or any) and optional traveler type (BKG-21). `OfferingPriceLookup` tries the traveler's position, then the 1st-guest price for a lone guest, then any position, each with a type row before the any-type row. Changing a price never changes a booking (BKG-23). |
+| `AgencyCancellationTier`, `ClientCancellationTier` | Client cancellation tiers (BKG-31): from a number of days before departure, a percentage of the affected service's accepted charge or a fixed amount per traveler or per unit of a service category. The agency's are the defaults; a Departure's terms may override them whole. The agency also keeps reusable terms wording. |
+| `ClientTermsVersion`, `ClientPaymentScheduleLine` | A Departure's numbered client terms (BKG-28, D-76): the agency wording as copied, the Departure's own wording, the tier override, and the payment schedule template (CMN-09, D-77), with one balance line and at most one payment that counts as acceptance (BKG-41). Staff may start by copying another Departure's terms. A locked version and its rows are refused by a trigger; step 6 locks on acceptance. |
 | `ReferenceSequence` | Agency-scoped reference counters. Issued today: `CL-` clients, `SUP-` suppliers, `DEP-` departures and `ARR-` arrangements. Formats for later namespaces are defined but not issued. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed action catalog: each action requires baseline, admin-only, a permission, any of several permissions, or reseller, checked against the user type and `UserPermission` grants (ADR 0017). It is application code, not a persisted record. |
 
@@ -88,6 +92,9 @@ An Agency Admin satisfies every requirement except `reseller`. Staff hold the ba
 | Reassign a task | Departure management |
 | Record cost lines, schedule lines and trigger events | Supplier arrangements |
 | Record a direct amount due (SMN-05) | Supplier arrangements or Financial records |
+| View the package, client prices and client terms | Baseline |
+| Edit the package, prices and a Departure's client terms | Departure management |
+| Edit the agency's client terms wording and default cancellation tiers | Agency Admin only |
 
 Application code checks catalog actions, not user types or grant names. After sign-in, staff land on My tasks unless a protected page sent them to sign in (S-01).
 
@@ -102,6 +109,7 @@ Application code checks catalog actions, not user types or grant names. After si
 - `btree_gist` is enabled on the primary database only for `client_org_contacts_no_overlapping_history`.
 - Consequential multi-record changes use explicit commands, transactions, lock ordering, and same-transaction audit events. Arrangement commands lock agency, Departure, arrangement, then inventory groups and pools last. Mutable aggregates use optimistic `lock_version` checks.
 - Capacity events carry an idempotency key, so a resubmitted supply form records once.
+- Multi-branch CHECK constraints on nullable columns are wrapped in `COALESCE(..., false)`, because PostgreSQL passes a CHECK whose expression is NULL.
 - Recording or changing a deadline keeps its task in step in the same transaction: an actionable deadline creates a task for the Departure's default task owner, else the recorder; a change moves the task's due date; marking it informational waives the task, and actionable again reopens it (OPS-04). Discarding a Draft arrangement waives its open tasks. Task commands lock agency, Departure, then the task.
 - `SupplierAmountPosting` posts amounts due when a schedule line's date arrives or its event is recorded, only on a confirmed arrangement, rounding percentages half up once per amount (ADR 0001). The hourly `PostDueSupplierAmountsJob` (queue `supplier_money`) enqueues `PostArrangementAmountsDueJob` per confirmed arrangement with schedule lines, which posts as the system. Completing a final count, rooming list or ticketing task records that event (SMN-12) and needs Supplier arrangements.
 - `ProposeBookingSupplierCost` proposes a unit's supplier cost and commission from the rate table at the actual occupancy; build step 6 calls it at booking confirmation.
@@ -109,6 +117,6 @@ Application code checks catalog actions, not user types or grant names. After si
 
 ## Not shipped
 
-The application has no Traveler, Household, Travel Program, Client Trip, booking, hold, allocation, supplier reservation, payment, expected commission, issued document, platform-support, or MFA records. Reseller users have schema only. Capacity reconciliation, cancelling a confirmed arrangement, effective-dated rate replacement, work groups, reminders, task creation by hand, supplier amendments and adjustments with a reason, and supplier invoice references are deferred. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. FX is not supported; an arrangement's currency equals its Departure's.
+The application has no Traveler, Household, Travel Program, Client Trip, booking, hold, allocation, choice selection, acceptance, installment, supplier reservation, payment, expected commission, issued document, platform-support, or MFA records. Reseller users have schema only. Capacity reconciliation, cancelling a confirmed arrangement, effective-dated rate replacement, work groups, reminders, task creation by hand, supplier amendments and adjustments with a reason, and supplier invoice references are deferred. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. FX is not supported; an arrangement's currency equals its Departure's.
 
 See [ADR 0005](../adr/0005-agency-identity.md) as amended by ADRs 0016 and 0017 for the identity contract, [ADR 0018](../adr/0018-arrangement-history-by-dated-adjustment.md) for the supplier layer, and the [planning index](../planning/README.md) for standing.

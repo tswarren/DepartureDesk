@@ -1,6 +1,6 @@
 # Slice 1 step 5: Package, choices, prices and client terms
 
-**Status:** Accepted 2026-11-06; build not started. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 5 and the decision log entries it cites.
+**Status:** Accepted 2026-11-06; built 2026-11-07. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 5 and the decision log entries it cites.
 
 Charter build step 5: the package, scoped choices, client terms and the per-cabin deposit. No demonstration case closes in this step. Build step 6 books against what it builds: D4 confirms bookings at these prices, D5 relies on the terms, and D9 on the deposit.
 

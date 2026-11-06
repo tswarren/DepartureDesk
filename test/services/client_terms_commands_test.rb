@@ -55,7 +55,7 @@ class ClientTermsCommandsTest < ActiveSupport::TestCase
     line!(version, description: "Deposit", basis: "per_unit", service_category: "cruise", amount: "500", due_rule: "at_confirmation", counts_as_acceptance: "1", line: deposit)
     assert deposit.reload.counts_as_acceptance
     assert_raises(AgencyCommand::Error) { line!(version, description: "Fee", basis: "per_booking", amount: "25", due_rule: "at_confirmation", counts_as_acceptance: "1") }
-    assert_match(/service category/, assert_raises(AgencyCommand::Error) { line!(version, description: "X", basis: "per_unit", amount: "1", due_rule: "at_confirmation") }.message)
+    assert_match(/service category/i, assert_raises(AgencyCommand::Error) { line!(version, description: "X", basis: "per_unit", amount: "1", due_rule: "at_confirmation") }.message)
   end
 
   test "copying another Departure's terms gives an independent copy (D-76)" do

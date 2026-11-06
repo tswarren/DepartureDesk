@@ -62,7 +62,7 @@ class SaveClientScheduleLine < AgencyCommand
       counts_as_acceptance: ActiveModel::Type::Boolean.new.cast(@attributes["counts_as_acceptance"]) || false
     )
     if line.basis_per_unit? && !InventoryGroup::SERVICE_CATEGORIES.include?(line.service_category)
-      raise Error.new("Choose the service category whose units it counts.", code: :invalid)
+      raise Error.new("Service category is required for an amount per unit.", code: :invalid)
     end
   end
 

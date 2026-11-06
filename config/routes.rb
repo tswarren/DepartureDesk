@@ -12,6 +12,8 @@ Rails.application.routes.draw do
     resource :agency, only: %i[show edit update]
     resource :agency_logo, only: %i[update destroy]
     resource :footer_preview, only: :create
+    resource :client_terms_defaults, only: %i[show update]
+    resources :cancellation_tiers, only: %i[new create edit update destroy]
     resources :traveler_types, only: %i[create edit update] do
       resource :position, only: :update, controller: "traveler_type_positions"
     end
@@ -156,6 +158,16 @@ Rails.application.routes.draw do
     resource :inventory, only: :show, controller: "departure_inventories"
     resources :tasks, only: :index, controller: "departure_tasks"
     resource :supplier_money, only: :show, controller: "departure_supplier_money"
+    # S-20 and S-21: the package and its client terms (BKG-13 to BKG-16, BKG-21, BKG-28, BKG-31, CMN-09).
+    resources :offerings, only: %i[index new create edit update] do
+      resources :choices, only: %i[new create edit update destroy], controller: "offering_choices" do
+        resources :options, only: %i[new create edit update destroy], controller: "offering_options"
+      end
+      resources :prices, only: %i[create destroy], controller: "offering_prices"
+    end
+    resource :client_terms, only: %i[show create update], controller: "departure_client_terms"
+    resources :client_cancellation_tiers, only: %i[new create edit update destroy]
+    resources :client_schedule_lines, only: %i[new create edit update destroy]
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
       resource :discard, only: :create, controller: "supplier_arrangement_discards"
       resource :confirmation, only: %i[show create], controller: "supplier_arrangement_confirmations"

@@ -1,0 +1,24 @@
+<%# locals: (form:) -%>
+<div class="dd-field-group">
+  <%= form.label :name, class: "dd-label" %>
+  <%= form.text_field :name, maxlength: Offering::NAME_LIMIT, **dd_field_options(form, :name, aria_describedby_extra: "offering_choice_name_hint") %>
+  <p class="dd-field-hint" id="offering_choice_name_hint">For example: Cabin, Nov 5 hotel room, Extension nights.</p>
+  <%= dd_field_error(form, :name) %>
+</div>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :role, "Role", class: "dd-label" %>
+    <%= form.select :role, PackageHelper::ROLE_LABELS.invert, {}, class: "dd-field" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :scope, "Made", class: "dd-label" %>
+    <%= form.select :scope, PackageHelper::SCOPE_LABELS.invert, {}, aria: { describedby: "offering_choice_scope_hint" }, class: "dd-field" %>
+    <p class="dd-field-hint" id="offering_choice_scope_hint">Per unit is chosen for each cabin or room; per traveler for each traveler.</p>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :pattern, "Pattern", class: "dd-label" %>
+    <%= form.select :pattern, PackageHelper::PATTERN_LABELS.invert, {}, **dd_field_options(form, :pattern, aria_describedby_extra: "offering_choice_pattern_hint") %>
+    <p class="dd-field-hint" id="offering_choice_pattern_hint">Choose any applies only to add-ons.</p>
+    <%= dd_field_error(form, :pattern) %>
+  </div>
+</div>
