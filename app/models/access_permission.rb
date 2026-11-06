@@ -31,7 +31,10 @@ module AccessPermission
     manage_arrangements: "supplier_arrangements",
     # ACC-31: supplier cost and commission, including the rate table and
     # supplier documents.
-    view_supplier_costs: %w[departure_management supplier_arrangements financial_records]
+    view_supplier_costs: %w[departure_management supplier_arrangements financial_records],
+    # ACC-30: staff use tasks; reassigning one is Departure work.
+    use_tasks: :baseline,
+    reassign_tasks: "departure_management"
   }.freeze
 
   def self.allowed?(user_type, granted_permissions, action)
