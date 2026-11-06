@@ -70,6 +70,17 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal [ "Child 0–4" ], tour.capacity_rules.map { |rule| rule.traveler_type.name }
   end
 
+  test "records the Agreement A deadlines, each with a task for the default task owner (step 3b)" do
+    alpha = AlphaFixture.load!(agency: @agency, actor: @actor)
+    deadlines = SupplierDeadline.where(supplier_arrangement: alpha.arrangements.values).order(:resolved_at)
+    assert_equal 6, deadlines.size
+    assert deadlines.all?(&:actionable)
+    assert deadlines.all? { |deadline| deadline.task&.owner == @actor && deadline.task.open? }
+    final_count = deadlines.find_by!(deadline_type: "final_count")
+    assert_equal Time.find_zone("America/New_York").local(2027, 10, 22, 23, 59), final_count.resolved_at
+    assert_equal "Shore Excursions Group: Final count", final_count.task.action
+  end
+
   test "can stop with the Alpha arrangement in Draft, then confirm it on a later load (D1)" do
     draft = AlphaFixture.load!(agency: @agency, actor: @actor, confirm_cruise: false).arrangements.fetch(:cruise)
     assert draft.draft?
@@ -95,6 +106,7 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal 3, @agency.supplier_arrangements.count
     assert_equal 3, PayeeAccount.where(agency: @agency).count
     assert_equal 32 + 8 + 1, UnitShell.where(agency: @agency).count
+    assert_equal 6, @agency.tasks.count
   end
 
   private

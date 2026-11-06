@@ -25,6 +25,7 @@ class Agency < ApplicationRecord
   has_many :supplier_websites, dependent: :restrict_with_exception
   has_many :payee_accounts, dependent: :restrict_with_exception
   has_many :supplier_arrangements, dependent: :restrict_with_exception
+  has_many :tasks, dependent: :restrict_with_exception
   has_many :capacity_events, dependent: :restrict_with_exception
   has_many :reference_sequences, dependent: :restrict_with_exception
   has_many :departures, dependent: :restrict_with_exception

@@ -6,7 +6,7 @@ AGENTS.md (imported above) is the binding repository contract: scope boundary, i
 
 ## Before any change
 
-1. Check the scope boundary in AGENTS.md "Current boundary". Phase 0 closed 2026-11-03 and Phase 1 (Prepare) closed 2026-11-04; Slice 1 is active, with steps 1 (foundation) and 2 (Departure statuses) built and step 3a (arrangements, inventory, capacity ledger and rate table) built on its branch. M1 directories and M2 Departures are built on; the M3/M4 layers were deleted in Phase 1 (D-66). Do not restore code from tag `pre-m3-m4-deletion` except the capacity replay and projection code Slice 1 step 3 adapts.
+1. Check the scope boundary in AGENTS.md "Current boundary". Phase 0 closed 2026-11-03 and Phase 1 (Prepare) closed 2026-11-04; Slice 1 is active, with steps 1 (foundation) and 2 (Departure statuses) built and step 3 (arrangements, inventory, capacity ledger, rate table, deadlines and tasks) built (3a merged in PR #250; 3b on its branch). M1 directories and M2 Departures are built on; the M3/M4 layers were deleted in Phase 1 (D-66). Do not restore code from tag `pre-m3-m4-deletion` except the capacity replay and projection code Slice 1 step 3 adapts.
 2. Product rules come from [docs/spec/product-specification.md](docs/spec/product-specification.md) (read-only snapshot) and are cited by rule ID, never copied. Do not resolve anything listed in [docs/spec/pending-decision-log-entries.md](docs/spec/pending-decision-log-entries.md) in code.
 3. Read the relevant ADR in [docs/adr/](docs/adr/) and the current code before you design anything.
 

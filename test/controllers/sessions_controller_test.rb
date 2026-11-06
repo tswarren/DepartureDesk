@@ -3,16 +3,28 @@ require "test_helper"
 class SessionsControllerTest < ActionDispatch::IntegrationTest
   test "the same email is an independent account in each agency" do
     post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "alex@example.com")
-    assert_redirected_to root_path
+    assert_redirected_to tasks_path
     harbor_session = Session.order(:created_at).last
     assert_equal agency_users(:harbor_admin), harbor_session.agency_user
 
     delete session_path
     post session_path, params: sign_in_params(workspace_code: "cove", email_address: "alex@example.com", password: "cove-password1")
-    assert_redirected_to root_path
+    assert_redirected_to tasks_path
     cove_session = Session.order(:created_at).last
     assert_equal agency_users(:cove_admin), cove_session.agency_user
     assert_not_equal harbor_session.agency_user.password_digest, cove_session.agency_user.password_digest
+  end
+
+  test "staff land on My tasks unless a protected page sent them to sign in (S-01)" do
+    get departures_path
+    assert_redirected_to new_session_path
+    post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "alex@example.com")
+    assert_redirected_to departures_url
+
+    delete session_path
+    post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "alex@example.com")
+    follow_redirect!
+    assert_select "h1", text: "My tasks"
   end
 
   test "a harbor password does not sign in the cove account" do
@@ -43,7 +55,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   test "a request agency id does not establish tenancy" do
     post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "alex@example.com", agency_id: agencies(:cove).id)
 
-    assert_redirected_to root_path
+    assert_redirected_to tasks_path
     assert_equal agencies(:harbor), Session.order(:created_at).last.agency_user.agency
   end
 
@@ -51,17 +63,17 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     with_memory_cache do
       10.times do
         post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "alex@example.com")
-        assert_redirected_to root_path
+        assert_redirected_to tasks_path
       end
 
       post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "alex@example.com")
       assert_redirected_to new_session_path
 
       post session_path, params: sign_in_params(workspace_code: "cove", email_address: "alex@example.com", password: "cove-password1")
-      assert_redirected_to root_path
+      assert_redirected_to tasks_path
 
       post session_path, params: sign_in_params(workspace_code: "harbor", email_address: "sam@example.com")
-      assert_redirected_to root_path
+      assert_redirected_to tasks_path
     end
   end
 

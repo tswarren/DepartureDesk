@@ -83,6 +83,15 @@ class AuditEvent < ApplicationRecord
     supplier_arrangement.rate_line_added
     supplier_arrangement.rate_line_updated
     supplier_arrangement.rate_line_removed
+    supplier_arrangement.deadline_recorded
+    supplier_arrangement.deadline_updated
+    departure.task_created
+    departure.task_due_changed
+    departure.task_started
+    departure.task_completed
+    departure.task_waived
+    departure.task_reopened
+    departure.task_reassigned
     departure.team_member_added
     departure.team_member_removed
     departure.default_task_owner_changed

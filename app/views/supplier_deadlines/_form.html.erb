@@ -1,0 +1,47 @@
+<%# locals: (form:, arrangement:, deadline:) -%>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :deadline_type, "Deadline type", class: "dd-label" %>
+    <%= form.select :deadline_type, TasksHelper::DEADLINE_TYPE_LABELS.invert, {}, class: "dd-field" %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :actionable, "Creates a task", class: "dd-label" %>
+    <%= form.select :actionable, [ [ "Yes, staff must act", "true" ], [ "No, informational only", "false" ] ],
+          { include_blank: deadline.new_record? ? "Default for the type" : false, selected: deadline.new_record? ? params.dig(:supplier_deadline, :actionable) : deadline.actionable.to_s },
+          aria: { describedby: "supplier_deadline_actionable_hint" }, class: "dd-field" %>
+    <p class="dd-field-hint" id="supplier_deadline_actionable_hint">A cancellation-tier cutoff is informational by default; every other type creates a task.</p>
+  </div>
+</div>
+<div class="dd-field-group">
+  <%= form.label :description, class: "dd-label" %>
+  <%= form.text_field :description, maxlength: SupplierDeadline::DESCRIPTION_LIMIT, **dd_field_options(form, :description, aria_describedby_extra: "supplier_deadline_description_hint") %>
+  <p class="dd-field-hint" id="supplier_deadline_description_hint">For example: Full deposit and names. It becomes the task's title.</p>
+  <%= dd_field_error(form, :description) %>
+</div>
+<fieldset class="dd-form-section">
+  <legend class="dd-section-title">When it's due</legend>
+  <div class="dd-form-grid dd-form-grid--two-column">
+    <div class="dd-field-group">
+      <%= form.label :due_on, "Due date", class: "dd-label" %>
+      <%= form.date_field :due_on, **dd_field_options(form, :due_on) %>
+      <%= dd_field_error(form, :due_on) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :due_at_time, "Time (optional)", class: "dd-label" %>
+      <%= form.time_field :due_at_time, value: deadline.due_at_time&.strftime("%H:%M"), **dd_field_options(form, :due_at_time, class: "dd-field--narrow", aria_describedby_extra: "supplier_deadline_due_at_time_hint") %>
+      <p class="dd-field-hint" id="supplier_deadline_due_at_time_hint">Leave blank for a date-only deadline, due at 11:59 p.m. agency time (<%= Current.agency.default_timezone %>).</p>
+      <%= dd_field_error(form, :due_at_time) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :time_zone, "Supplier's time zone", class: "dd-label" %>
+      <%= form.select :time_zone, iana_timezone_options, { include_blank: "Departure time zone" }, **dd_field_options(form, :time_zone, aria_describedby_extra: "supplier_deadline_time_zone_hint") %>
+      <p class="dd-field-hint" id="supplier_deadline_time_zone_hint">Used only with a time.</p>
+      <%= dd_field_error(form, :time_zone) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :inventory_group_id, "Inventory group (optional)", class: "dd-label" %>
+      <%= form.select :inventory_group_id, arrangement.inventory_groups.map { |group| [ group.label, group.id ] }, { include_blank: "Whole arrangement" }, **dd_field_options(form, :inventory_group_id) %>
+      <%= dd_field_error(form, :inventory_group_id) %>
+    </div>
+  </div>
+</fieldset>

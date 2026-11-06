@@ -1,10 +1,10 @@
 # Current application architecture
 
-**Status:** Implemented baseline, as of Slice 1 step 3a
+**Status:** Implemented baseline, as of Slice 1 step 3b
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3a supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger and the supplier rate table (ADR 0018). The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
+DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3 supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger, the supplier rate table (ADR 0018), and supplier deadlines with the tasks they create. The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
 
 ## Shipped records and authorization catalog
 
@@ -44,6 +44,8 @@ DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017
 | `CapacityEvent` | Append-only supply ledger for a group: opening at confirmation, increase, supplier release and correction, each with an idempotency key. A future-dated change applies at 11:59 p.m. agency time on its date, with the zone snapshotted (D-88). |
 | `CapacityProjection` | Rebuildable current supplier capacity for numeric groups, refreshed by `CapacityProjectionRefresher` from `CapacityTimelineReplay`. On request, Rate only and no-shared-inventory groups have none (INV-04). |
 | `SupplierRateLine` | One row of an arrangement's supplier rate table (SUP-35): group, occupancy position (single, or 1st to 9th guest), optional traveler type, and base fare, non-commissionable fees, taxes, discount and a commission rate or amount, in minor units of the arrangement currency. Frozen once the arrangement leaves Draft. Nothing is derived from it yet (D-75). |
+| `SupplierDeadline` | A supplier deadline on an arrangement (SUP-22 to SUP-25): type, actionable or informational, description, optional group, the supplier's local date with an optional time and zone, and the resolved instant, stored when recorded or changed and never recalculated. A date-only deadline resolves to 11:59 p.m. agency time (SET-10). It prompts staff only. |
+| `Task` | One work item a person must act on (OPS-01, OPS-02): source (`supplier_deadline` or `manual`), action, due instant with its local date, time and zone, an individual owner, status `open`, `in_progress`, `completed` or `waived` with the completion note or waiver reason the database requires, and its Departure. An actionable deadline has exactly one. Overdue is derived from `Clock.current`. Its history is in the Departure's audit trail. |
 | `ReferenceSequence` | Agency-scoped reference counters. Issued today: `CL-` clients, `SUP-` suppliers, `DEP-` departures and `ARR-` arrangements. Formats for later namespaces are defined but not issued. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed action catalog: each action requires baseline, admin-only, a permission, any of several permissions, or reseller, checked against the user type and `UserPermission` grants (ADR 0017). It is application code, not a persisted record. |
 
@@ -78,8 +80,10 @@ An Agency Admin satisfies every requirement except `reseller`. Staff hold the ba
 | View supplier arrangements and inventory | Baseline |
 | Manage supplier arrangements, inventory, capacity and the rate table | Supplier arrangements |
 | View supplier costs: the rate table and supplier documents (ACC-31) | Departure management, Supplier arrangements or Financial records |
+| Use tasks: view, start, complete, waive and reopen (ACC-30) | Baseline |
+| Reassign a task | Departure management |
 
-Application code checks catalog actions, not user types or grant names.
+Application code checks catalog actions, not user types or grant names. After sign-in, staff land on My tasks unless a protected page sent them to sign in (S-01).
 
 ## Persistence and command boundaries
 
@@ -92,10 +96,11 @@ Application code checks catalog actions, not user types or grant names.
 - `btree_gist` is enabled on the primary database only for `client_org_contacts_no_overlapping_history`.
 - Consequential multi-record changes use explicit commands, transactions, lock ordering, and same-transaction audit events. Arrangement commands lock agency, Departure, arrangement, then inventory groups and pools last. Mutable aggregates use optimistic `lock_version` checks.
 - Capacity events carry an idempotency key, so a resubmitted supply form records once.
+- Recording or changing a deadline keeps its task in step in the same transaction: an actionable deadline creates a task for the Departure's default task owner, else the recorder; a change moves the task's due date; marking it informational waives the task, and actionable again reopens it (OPS-04). Discarding a Draft arrangement waives its open tasks. Task commands lock agency, Departure, then the task.
 - Last-active-administrator protection locks Agency, then AgencyUser, then rechecks current state.
 
 ## Not shipped
 
-The application has no Traveler, Household, Travel Program, Client Trip, booking, hold, allocation, supplier reservation, cost line, schedule line, amount due, payment, commission, supplier deadline, task, issued document, platform-support, or MFA records. Reseller users have schema only. Capacity reconciliation, cancelling a confirmed arrangement, and effective-dated rate replacement are deferred. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. FX is not supported; an arrangement's currency equals its Departure's.
+The application has no Traveler, Household, Travel Program, Client Trip, booking, hold, allocation, supplier reservation, cost line, schedule line, amount due, payment, commission, issued document, platform-support, or MFA records. Reseller users have schema only. Capacity reconciliation, cancelling a confirmed arrangement, effective-dated rate replacement, work groups, reminders and task creation by hand are deferred. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. FX is not supported; an arrangement's currency equals its Departure's.
 
 See [ADR 0005](../adr/0005-agency-identity.md) as amended by ADRs 0016 and 0017 for the identity contract, [ADR 0018](../adr/0018-arrangement-history-by-dated-adjustment.md) for the supplier layer, and the [planning index](../planning/README.md) for standing.

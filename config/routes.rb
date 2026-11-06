@@ -154,11 +154,13 @@ Rails.application.routes.draw do
     resource :ready_to_sell, only: %i[show create], controller: "departure_ready_to_sells"
     resources :decisions, only: :create, controller: "departure_decisions"
     resource :inventory, only: :show, controller: "departure_inventories"
+    resources :tasks, only: :index, controller: "departure_tasks"
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do
       resource :discard, only: :create, controller: "supplier_arrangement_discards"
       resource :confirmation, only: %i[show create], controller: "supplier_arrangement_confirmations"
       resources :documents, only: %i[show create destroy], controller: "arrangement_documents"
       resources :rate_lines, only: %i[new create edit update destroy], controller: "supplier_rate_lines"
+      resources :deadlines, only: %i[new create edit update], controller: "supplier_deadlines"
       resources :groups, only: %i[show new create edit update destroy], controller: "inventory_groups" do
         resource :capacity_rule, only: :update, controller: "capacity_rules"
         resources :capacity_events, only: :create, controller: "capacity_events"
@@ -175,6 +177,15 @@ Rails.application.routes.draw do
   post "departures/:id/return-to-draft", to: "departure_return_to_drafts#create", as: :departure_return_to_draft
   get "departures/:id/departed", to: "departure_departeds#new", as: :new_departure_departed
   post "departures/:id/departed", to: "departure_departeds#create", as: :departure_departed
+
+  # S-33 My tasks, and the task lifecycle as verb resources (OPS-03).
+  resources :tasks, only: %i[index show] do
+    resource :start, only: :create, controller: "task_starts"
+    resource :completion, only: :create, controller: "task_completions"
+    resource :waiver, only: :create, controller: "task_waivers"
+    resource :reopening, only: :create, controller: "task_reopenings"
+    resource :assignment, only: :update, controller: "task_assignments"
+  end
 
   root "dashboard#show"
 

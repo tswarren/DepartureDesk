@@ -1351,6 +1351,32 @@ CREATE TABLE public.supplier_contacts (
 
 
 --
+-- Name: supplier_deadlines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.supplier_deadlines (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    inventory_group_id uuid,
+    deadline_type character varying NOT NULL,
+    actionable boolean NOT NULL,
+    description character varying NOT NULL,
+    due_on date NOT NULL,
+    due_at_time time without time zone,
+    time_zone character varying NOT NULL,
+    resolved_at timestamp(6) with time zone NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT supplier_deadlines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200))),
+    CONSTRAINT supplier_deadlines_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT supplier_deadlines_time_zone CHECK ((btrim((time_zone)::text) <> ''::text)),
+    CONSTRAINT supplier_deadlines_type CHECK (((deadline_type)::text = ANY ((ARRAY['option_release'::character varying, 'deposit_payment'::character varying, 'names_submission'::character varying, 'rooming_list'::character varying, 'ticketing'::character varying, 'final_count'::character varying, 'cancellation_tier_cutoff'::character varying, 'other'::character varying])::text[])))
+);
+
+
+--
 -- Name: supplier_email_addresses; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1563,6 +1589,40 @@ END) STORED,
     CONSTRAINT suppliers_name_shape CHECK (((((kind)::text = 'organization'::text) AND (display_name IS NOT NULL) AND (btrim((display_name)::text) <> ''::text) AND (first_name IS NULL) AND (last_name IS NULL)) OR (((kind)::text = 'individual'::text) AND (first_name IS NOT NULL) AND (btrim((first_name)::text) <> ''::text) AND (last_name IS NOT NULL) AND (btrim((last_name)::text) <> ''::text) AND (display_name IS NULL) AND (legal_name IS NULL)))),
     CONSTRAINT suppliers_reference_format CHECK (((supplier_reference)::text ~ '^SUP-[0-9]{6}$'::text)),
     CONSTRAINT suppliers_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+);
+
+
+--
+-- Name: tasks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tasks (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    departure_id uuid NOT NULL,
+    source character varying NOT NULL,
+    supplier_deadline_id uuid,
+    action character varying NOT NULL,
+    due_at timestamp(6) with time zone NOT NULL,
+    due_on date NOT NULL,
+    due_at_time time without time zone,
+    due_time_zone character varying NOT NULL,
+    owner_id uuid NOT NULL,
+    status character varying DEFAULT 'open'::character varying NOT NULL,
+    completion_note text,
+    completed_at timestamp(6) with time zone,
+    waiver_reason text,
+    waived_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT tasks_action CHECK (((btrim((action)::text) <> ''::text) AND (char_length((action)::text) <= 250))),
+    CONSTRAINT tasks_completed_with_note CHECK (((((status)::text = 'completed'::text) = (completed_at IS NOT NULL)) AND (((status)::text <> 'completed'::text) OR (btrim(COALESCE(completion_note, ''::text)) <> ''::text)))),
+    CONSTRAINT tasks_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT tasks_source CHECK (((source)::text = ANY ((ARRAY['supplier_deadline'::character varying, 'manual'::character varying])::text[]))),
+    CONSTRAINT tasks_source_record CHECK ((((source)::text = 'supplier_deadline'::text) = (supplier_deadline_id IS NOT NULL))),
+    CONSTRAINT tasks_status CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'waived'::character varying])::text[]))),
+    CONSTRAINT tasks_waived_with_reason CHECK (((((status)::text = 'waived'::text) = (waived_at IS NOT NULL)) AND (((status)::text <> 'waived'::text) OR (btrim(COALESCE(waiver_reason, ''::text)) <> ''::text))))
 );
 
 
@@ -1944,6 +2004,14 @@ ALTER TABLE ONLY public.supplier_contacts
 
 
 --
+-- Name: supplier_deadlines supplier_deadlines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT supplier_deadlines_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: supplier_email_addresses supplier_email_addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1997,6 +2065,14 @@ ALTER TABLE ONLY public.supplier_websites
 
 ALTER TABLE ONLY public.suppliers
     ADD CONSTRAINT suppliers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tasks tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_pkey PRIMARY KEY (id);
 
 
 --
@@ -2976,6 +3052,20 @@ CREATE INDEX index_supplier_contacts_on_supplier_and_agency ON public.supplier_c
 
 
 --
+-- Name: index_supplier_deadlines_on_arrangement_and_resolved_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_supplier_deadlines_on_arrangement_and_resolved_at ON public.supplier_deadlines USING btree (supplier_arrangement_id, resolved_at);
+
+
+--
+-- Name: index_supplier_deadlines_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_supplier_deadlines_on_id_and_agency_id ON public.supplier_deadlines USING btree (id, agency_id);
+
+
+--
 -- Name: index_supplier_email_addresses_on_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3267,6 +3357,27 @@ CREATE UNIQUE INDEX index_suppliers_on_id_and_agency_id ON public.suppliers USIN
 --
 
 CREATE INDEX index_suppliers_on_name_search_vector ON public.suppliers USING gin (name_search_vector);
+
+
+--
+-- Name: index_tasks_on_departure_and_due_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_tasks_on_departure_and_due_at ON public.tasks USING btree (departure_id, due_at);
+
+
+--
+-- Name: index_tasks_on_owner_status_and_due_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_tasks_on_owner_status_and_due_at ON public.tasks USING btree (owner_id, status, due_at);
+
+
+--
+-- Name: index_tasks_one_per_supplier_deadline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_tasks_one_per_supplier_deadline ON public.tasks USING btree (supplier_deadline_id);
 
 
 --
@@ -4210,6 +4321,30 @@ ALTER TABLE ONLY public.supplier_arrangements
 
 
 --
+-- Name: supplier_deadlines fk_supplier_deadlines_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT fk_supplier_deadlines_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: supplier_deadlines fk_supplier_deadlines_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT fk_supplier_deadlines_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: supplier_deadlines fk_supplier_deadlines_group_of_arrangement; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.supplier_deadlines
+    ADD CONSTRAINT fk_supplier_deadlines_group_of_arrangement FOREIGN KEY (inventory_group_id, supplier_arrangement_id) REFERENCES public.inventory_groups(id, supplier_arrangement_id);
+
+
+--
 -- Name: supplier_rate_lines fk_supplier_rate_lines_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4247,6 +4382,38 @@ ALTER TABLE ONLY public.supplier_rate_lines
 
 ALTER TABLE ONLY public.supplier_rate_lines
     ADD CONSTRAINT fk_supplier_rate_lines_traveler_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
+-- Name: tasks fk_tasks_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT fk_tasks_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: tasks fk_tasks_departure_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT fk_tasks_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: tasks fk_tasks_owner_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT fk_tasks_owner_same_agency FOREIGN KEY (owner_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: tasks fk_tasks_supplier_deadline_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT fk_tasks_supplier_deadline_same_agency FOREIGN KEY (supplier_deadline_id, agency_id) REFERENCES public.supplier_deadlines(id, agency_id);
 
 
 --
@@ -4368,6 +4535,8 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261106110000'),
+('20261106100000'),
 ('20261105220000'),
 ('20261105210000'),
 ('20261105200000'),

@@ -21,6 +21,7 @@ class RemoveInventoryGroup < AgencyCommand
       group = arrangement.inventory_groups.lock.find(@group.id)
       group.capacity_rules.delete_all(:delete_all)
       group.rate_lines.delete_all(:delete_all)
+      group.deadlines.update_all(inventory_group_id: nil)
       group.destroy!
       audit!(
         agency: @agency, action: "supplier_arrangement.inventory_group_removed", subject: arrangement, actor: @actor,

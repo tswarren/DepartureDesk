@@ -54,7 +54,12 @@ module Authentication
   end
 
   def after_authentication_url
-    session.delete(:return_to_after_authenticating) || root_url
+    session.delete(:return_to_after_authenticating) || landing_url
+  end
+
+  # S-01: staff land on My tasks; anyone else on the root.
+  def landing_url
+    Current.agency_user&.permitted?(:use_tasks) ? tasks_url : root_url
   end
 
   def start_new_session_for(agency_user)

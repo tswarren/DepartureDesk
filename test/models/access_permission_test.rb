@@ -7,10 +7,10 @@ class AccessPermissionTest < ActiveSupport::TestCase
     view_workspace select_office_context
     view_client_directory view_client_contact_details manage_client_directory
     view_supplier_directory view_supplier_contact_details manage_supplier_directory
-    view_departures view_arrangements
+    view_departures view_arrangements use_tasks
   ].freeze
   ADMIN_ONLY = %i[manage_agency_profile manage_offices manage_agency_users manage_user_permissions].freeze
-  GRANTED = { manage_departures: "departure_management", manage_arrangements: "supplier_arrangements" }.freeze
+  GRANTED = { manage_departures: "departure_management", manage_arrangements: "supplier_arrangements", reassign_tasks: "departure_management" }.freeze
   ANY_OF = { view_supplier_costs: %w[departure_management supplier_arrangements financial_records] }.freeze
 
   test "the catalog covers exactly the listed actions" do

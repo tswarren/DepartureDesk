@@ -5,6 +5,7 @@ require_relative "test_helpers/session_test_helper"
 require_relative "test_helpers/m1_directory_scenario"
 require_relative "test_helpers/m2_departure_scenario"
 require_relative "../db/seeds/alpha_fixture"
+require_relative "test_helpers/alpha_scenario"
 
 module ActiveSupport
   class TestCase

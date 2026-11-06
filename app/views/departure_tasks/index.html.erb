@@ -1,0 +1,50 @@
+<% content_for :title, "Tasks · #{@departure.name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Tasks", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departure</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">Every task on this departure, soonest due first. Open a task to start, complete, waive<%= " or reassign" if Current.agency_user.permitted?(:reassign_tasks) %> it.</p>
+  </div>
+</header>
+
+<%= render "departures/tabs", departure: @departure, current: :tasks %>
+
+<article class="dd-panel">
+  <% if @tasks.empty? %>
+    <div class="dd-panel-body">
+      <div class="dd-empty-state">
+        <h2 class="dd-empty-title">No tasks yet</h2>
+        <p class="dd-empty-copy">Recording an actionable supplier deadline creates a task here.</p>
+      </div>
+    </div>
+  <% else %>
+    <div class="dd-table-wrap">
+      <table class="dd-table">
+        <caption class="dd-visually-hidden">Departure tasks by due date</caption>
+        <thead>
+          <tr>
+            <th scope="col">Due</th>
+            <th scope="col">Task</th>
+            <th scope="col">Source</th>
+            <th scope="col">Owner</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @tasks.each do |task| %>
+            <tr>
+              <td><%= local_due_label(task.due_at, task.due_time_zone) %></td>
+              <th scope="row"><%= link_to task.action, task_path(task) %></th>
+              <td><%= task_source_label(task) %></td>
+              <td><%= task.owner.display_name %></td>
+              <td><%= task_status_badges(task) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</article>

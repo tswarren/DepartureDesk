@@ -4,12 +4,12 @@ require "application_system_test_case"
 class DemonstrationD1Test < ApplicationSystemTestCase
   setup do
     set_clock Time.utc(2026, 11, 10, 15)
-    @scenario = M1DirectoryScenario.empty
-    @alpha = AlphaFixture.load!(agency: @scenario.agency, actor: @scenario.actor, confirm_cruise: false)
+    @scenario = AlphaScenario.load!(confirm_cruise: false)
+    @alpha = @scenario.alpha
   end
 
   teardown do
-    M2DepartureScenario.cleanup!(@scenario.agency)
+    AlphaScenario.cleanup!(@scenario)
   end
 
   test "D1: staff confirm the Alpha arrangement" do
