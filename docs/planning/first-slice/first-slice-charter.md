@@ -1,6 +1,6 @@
 # DepartureDesk First-Slice Charter
 
-**Status:** Accepted 2026-10-31 for scope (D-64). Amended 2026-11-01 (D-66): the old supplier and offer layers retire in Phase 1, Slice 1 gains a staff checkpoint after step 6, and the Phase 0 decision rule is split. Amended 2026-11-03: CLT-25 joins steps 8 and 9 (D-78), D1 and D4 follow D-75 and expected commission moves to step 4 (D-85), and the fixture values are settled (D-87). Amended 2026-11-05: publishing to a reseller channel moves from build step 2 to build step 9 (D-90). No Slice 1 build step starts before the Phase 0 checkpoint.
+**Status:** Accepted 2026-10-31 for scope (D-64). Amended 2026-11-01 (D-66): the old supplier and offer layers retire in Phase 1, Slice 1 gains a staff checkpoint after step 6, and the Phase 0 decision rule is split. Amended 2026-11-03: CLT-25 joins steps 8 and 9 (D-78), D1 and D4 follow D-75 and expected commission moves to step 4 (D-85), and the fixture values are settled (D-87). Amended 2026-11-05: publishing to a reseller channel moves from build step 2 to build step 9 (D-90). Amended 2026-11-06: D2 keeps its date-driven checks, D4 and D10 take the booking-confirmation and payment checks, and the expected commission record is built in step 6 (D-92). No Slice 1 build step starts before the Phase 0 checkpoint.
 **Owner:** Tom
 **Product authority:** [Product Specification](../../spec/README.md). Decisions this charter needs are in [pending decision log entries](../../spec/pending-decision-log-entries.md).
 
@@ -178,15 +178,15 @@ Seventeen cases prove the first slice. Each becomes an automated test; the Slice
 | ID | Slice | Given and when | Then | Rules |
 | --- | --- | --- | --- | --- |
 | D1 | 1 | Staff confirm the Alpha arrangement | 32 cabin shells exist only after confirmation; no supplier cost is recorded (D-75) | SUP-12, SUP-35 |
-| D2 | 1 | Agreement A, B2 as settled | $1,600 falls due Nov 1, 2026; confirming each of the three Slice 1 bookings posts $450 for its cabin (D-81); no payment changes capacity | SMN-03, SMN-05, SMN-11 |
+| D2 | 1 | Agreement A, B2 as settled | $1,600 falls due Nov 1, 2026; if no booking has confirmed by Mar 1, 2027, $450 falls due that day for each remaining cabin (D-92) | SMN-03, SMN-05, SMN-11, SMN-13 |
 | D3 | 1b | Agreement B; staff hold a cabin | The hold is conditional, shows the Mar 1 cutoff, and a cutoff task exists; no initial deposit is due | INV-22, SUP-23 |
-| D4 | 1 | Staff confirm BK-101 and BK-104; the reseller confirms BK-105 | Cruise subtotals total $26,400; cabins left: V01 7, O01 7, I01 8, S01 7. Each confirmation proposes that booking's Alpha cost and expected commission from the rate table. In 1b all five total $37,405 | BKG-25, BKG-45, INV-38, SUP-35, SMN-32 |
+| D4 | 1 | Staff confirm BK-101 and BK-104; the reseller confirms BK-105 | Cruise subtotals total $26,400; cabins left: V01 7, O01 7, I01 8, S01 7. Each confirmation proposes that booking's Alpha cost and expected commission from the rate table, and posts $450 for its cabin (D-81, D-92). In 1b all five total $37,405 | BKG-25, BKG-45, INV-38, SUP-35, SMN-11, SMN-32 |
 | D5 | 1 | Anyone tries to confirm without recorded acceptance | Confirmation is refused; a deposit counts as acceptance only when the terms say so | BKG-39, BKG-41 |
 | D6 | 1 | Excursion choices are recorded for the Slice 1 bookings | 9 participants, 7 positions used, 3 left; Luca and Milo listed without positions. In 1b all five use all 10 | INV-39, BKG-16 |
 | D7 | 1b | Elena Rivera adds the excursion after confirmation | Blocked for lack of capacity until staff record a confirmed second resource; then capacity is 20, supplier cost $2,000 and excursion margin −$350 | INV-16, BKG-17, INV-23, INV-26 |
 | D8 | 1, 1b | BK-104 is confirmed with Nov 2–3 on request | Those nights show Awaiting supplier; in Slice 1 the hotel accepts and its reference is recorded. In 1b a decline is flagged, acceptance is kept and nothing cancels | INV-33 to INV-37 |
 | D9 | 1 | BK-101 and BK-104 pay $500 each to the agency; BK-105 pays $500 to Alpha | Agency receipts total $1,000; the receivable drops by $1,500; the Alpha payment has no receipt and is not agency cash | CMN-06, CMN-29, CMN-55 |
-| D10 | 1 | Staff pay Alpha the amounts due | Amounts due are settled; the deposit is never added to cost | SMN-03, SMN-19 |
+| D10 | 1 | Staff pay Alpha the amounts due | Amounts due are settled; the deposit is never added to cost; no payment changes capacity (D-92) | SMN-03, SMN-19 |
 | D11 | 1b | BK-103 cancels | The I01 cabin and an excursion position return to inventory; the supplier commitment is unchanged; staff enter the refund due | BKG-54, INV-24, CMN-37, CMN-38 |
 | D12 | 1 | Deadlines are recorded | Tasks exist with owners, including the Oct 22, 2027 final count, and show overdue from their deadline | SUP-22, SUP-23, OPS-03 |
 | D13 | 1 | Staff issue a confirmation, invoice and receipt | PDFs are stored as immutable versions and show no dates of birth | DOC-03, DOC-11 |
@@ -211,9 +211,9 @@ The build keeps the existing Rails app's foundation (D-65): agency identity, the
 | 1 | Foundation changes: permissions, reseller user type, agency profile fields, more reference types, one agency time zone | |
 | 2 | Departure statuses, Ready to sell (publishing moved to step 9, D-90) | |
 | 3 | Arrangements, inventory groups, shells, pools and resources, supplier rate table, deadlines that create tasks | D1, D12 |
-| 4 | Supplier cost, schedule lines, amounts due and expected commission | D2 |
+| 4 | Supplier cost, schedule lines, amounts due, and the rate-table proposal of cost and expected commission (D-92) | D2 |
 | 5 | Package, scoped choices, client terms, per-cabin deposit | |
-| 6 | Travelers, Client Trips, bookings; hold, accept and confirm; draft saving | D4, D5, D6, D16 |
+| 6 | Travelers, Client Trips, bookings; hold, accept and confirm; draft saving; expected commission records (D-92) | D4, D5, D6, D16 |
 | 7 | Supplier reservations that can stand alone | D8 |
 | 8 | Client charges, installments, payments by route, receipts; supplier payments | D9, D10 |
 | 9 | The reseller path, including publishing to a reseller channel (D-90) | D15 |

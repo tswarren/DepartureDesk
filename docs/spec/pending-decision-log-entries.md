@@ -41,6 +41,7 @@ The proposed defaults are working assumptions. Placeholder values are test input
 | D-89 | Client and supplier references keep the shipped CL- and SUP- formats | [Spec](product-specification.md) |
 | D-90 | Amend the charter: publishing to a reseller channel moves from build step 2 to build step 9 | [Charter](../planning/first-slice/first-slice-charter.md#build-plan) |
 | D-91 | A Departure's reference is issued at creation | [Spec](product-specification.md), [ADR 0004](../adr/0004-human-readable-references.md) |
+| D-92 | Amend the charter: D2 keeps its date-driven checks; booking-confirmation and payment checks join D4 and D10; expected commission record in step 6 | [Charter](../planning/first-slice/first-slice-charter.md) |
 
 ## Blocking decisions
 
