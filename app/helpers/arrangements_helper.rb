@@ -69,6 +69,8 @@ module ArrangementsHelper
     **(1..SupplierRateLine::MAX_GUEST_POSITION).to_h { |n| [ "guest_#{n}", "#{n.ordinalize} guest" ] }
   }.freeze
 
+  COMMISSION_BASE_LABELS = { "base_fare" => "Base fare", "base_fare_less_discount" => "Base fare less discount" }.freeze
+
   def occupancy_position_label(value) = OCCUPANCY_POSITION_LABELS.fetch(value.to_s)
 
   # "$1,234.50"; an amount in a stored currency, for display only.
@@ -77,7 +79,7 @@ module ArrangementsHelper
   end
 
   def rate_commission(line)
-    return "#{line.commission_rate.to_s("F").sub(/\.0\z/, "")}%" if line.commission_rate
+    return "#{line.commission_rate.to_s("F").sub(/\.0\z/, "")}% of #{COMMISSION_BASE_LABELS.fetch(line.commission_base).downcase}" if line.commission_rate
     return rate_amount(line.commission_minor_units, line.currency) if line.commission_minor_units
 
     "None stated"

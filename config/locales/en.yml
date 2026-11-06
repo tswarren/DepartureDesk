@@ -49,3 +49,4 @@ en:
         discount: "Discount"
         commission_rate: "Commission rate"
         commission_amount: "Commission amount"
+        commission_base: "Rate applies to"

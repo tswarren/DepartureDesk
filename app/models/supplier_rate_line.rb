@@ -6,6 +6,8 @@
 class SupplierRateLine < ApplicationRecord
   MAX_GUEST_POSITION = 9
   OCCUPANCY_POSITIONS = [ "single", *(1..MAX_GUEST_POSITION).map { |n| "guest_#{n}" } ].freeze
+  # SUP-21: there is no universal base; each rate says what it applies to.
+  COMMISSION_BASES = %w[base_fare base_fare_less_discount].freeze
   AMOUNT_FIELDS = %w[base_fare_minor_units non_commissionable_fees_minor_units taxes_minor_units discount_minor_units commission_minor_units].freeze
 
   belongs_to :agency
@@ -20,6 +22,7 @@ class SupplierRateLine < ApplicationRecord
   validates :base_fare_minor_units, :non_commissionable_fees_minor_units, :taxes_minor_units, :discount_minor_units,
     numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :commission_minor_units, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :commission_base, inclusion: { in: COMMISSION_BASES }
   validates :commission_rate, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 100 }, allow_nil: true
   validate :commission_rate_or_amount
   validate :position_within_group

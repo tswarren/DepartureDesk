@@ -29,7 +29,7 @@ class SupplierRateLinesControllerTest < ActionDispatch::IntegrationTest
     assert_select "#rate-table th[scope=row]", text: /S01\z/
     assert_select "#rate-table td", text: /3rd guest\z/
     assert_select "#rate-table td", text: /\$1,200\.00\z/
-    assert_select "#rate-table td", text: /14%\z/
+    assert_select "#rate-table td", text: /14% of base fare\z/
 
     get edit_departure_arrangement_rate_line_path(@departure, @arrangement, line)
     assert_select "input[name='supplier_rate_line[base_fare]'][value='1200.00']"

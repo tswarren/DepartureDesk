@@ -1520,7 +1520,9 @@ CREATE TABLE public.supplier_rate_lines (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    commission_base character varying DEFAULT 'base_fare'::character varying NOT NULL,
     CONSTRAINT supplier_rate_lines_amounts_non_negative CHECK (((base_fare_minor_units >= 0) AND (non_commissionable_fees_minor_units >= 0) AND (taxes_minor_units >= 0) AND (discount_minor_units >= 0) AND ((commission_minor_units IS NULL) OR (commission_minor_units >= 0)))),
+    CONSTRAINT supplier_rate_lines_commission_base CHECK (((commission_base)::text = ANY ((ARRAY['base_fare'::character varying, 'base_fare_less_discount'::character varying])::text[]))),
     CONSTRAINT supplier_rate_lines_commission_rate CHECK (((commission_rate IS NULL) OR ((commission_rate >= (0)::numeric) AND (commission_rate <= (100)::numeric)))),
     CONSTRAINT supplier_rate_lines_commission_rate_or_amount CHECK (((commission_rate IS NULL) OR (commission_minor_units IS NULL))),
     CONSTRAINT supplier_rate_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
@@ -4535,6 +4537,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261106200000'),
 ('20261106110000'),
 ('20261106100000'),
 ('20261105220000'),
