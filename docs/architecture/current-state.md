@@ -1,10 +1,10 @@
 # Current application architecture
 
-**Status:** Implemented baseline
+**Status:** Implemented baseline, as of Slice 1 step 3a
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity, administration, the complete M1 Client and Supplier directories (M1A-M1E), M2A Departure draft, activation, reference issuance, return to draft, and search, M2B departed transitions, scheduled departed jobs, and schedule/currency/lifecycle corrections, M2C proof and hardening, M3A draft Supplier Arrangement structure under Departures, M3B draft Supplier capacity configuration plus the capacity event/projection/reconciliation engine, M3C draft Supplier cost terms plus derived forecasts, and M3D.0 guided workspace compression over M3A–M3C. M2 is complete. [M3D](../planning/m3-supplier-planning/m3d-activation-reservations-confirmations.md) is shipped. Arrangement activation, Staff-facing effective capacity controls, Reservations, confirmations, and confirmation-triggered commitment openings are shipped. [M3D.7](../planning/m3-supplier-planning/m3d7-activated-definition-immutability.md) freezes exact-version definition graphs in Rails and PostgreSQL once an Arrangement version leaves draft. [M3D.8](../planning/m3-supplier-planning/m3d8-activation-reservation-product-quality.md) remediates activation and Reservation product-quality (forms, error recovery, progressive disclosure, composers, bounded lists, table overflow). [M3D.9](../planning/m3-supplier-planning/m3d9-reservation-integrity.md) remediates Reservation integrity (confirmed quantity-basis fidelity, successor revision/request revalidation, Capacity Pool definition membership, and event↔outcome compatibility). [M3E](../planning/m3-supplier-planning/m3e-supplier-operational-control.md) and [ADR 0013](../adr/0013-supplier-operational-commitments-deadlines-exposure-and-ending.md) are shipped through M3E.7b (including M3E.5R and M3D remediations): source-shaped openings and dispositions, Deadlines, Deposit Requirements and planning milestones, qualified exposure, Needs attention, and Arrangement ending. M3E is fully shipped and production-ready. [M4A](../planning/m4-offers-and-pricing/m4a-service-definitions-and-sources.md) and [M4B](../planning/m4-offers-and-pricing/m4b-client-pricing-and-anonymous-preview.md) are shipped. [M4C](../planning/m4-offers-and-pricing/m4c-packages-choices-and-client-terms.md) is shipped. [M4D](../planning/m4-offers-and-pricing/m4d-publication-and-live-feasibility.md) is shipped. [M4D.0](../planning/m4-offers-and-pricing/m4d0-narrow-group-departure-builder.md) and historical interim [M4D.0R](../planning/m4-offers-and-pricing/m4d0r-builder-interface-remediation.md) are shipped. [M4D.1 Slice 1](../planning/m4-offers-and-pricing/m4d1-slice1-workspace-foundation.md) is shipped (Composition primary Staff chrome; `/builder` redirect). [M4D.1 Slice 2A.1](../planning/m4-offers-and-pricing/m4d1-slice2a1-cruise-sailing-and-cabin-inventory.md) is shipped (typed Cruise sailing and cabin inventory). The Cruise vertical through [M4D.1 Slice 2D](../planning/m4-offers-and-pricing/m4d1-slice2d-cruise-client-terms-and-scenario-review.md) is shipped, including [Slice 2C](../planning/m4-offers-and-pricing/m4d1-slice2c-cruise-service-connection.md) (merge `b35a4f6`) and Slice 2D (merge `dc272a3`, PR #154). [M4D.1](../planning/m4-offers-and-pricing/m4d1-departure-composition-workspace.md) remains Accepted for later slices. Later commercial records are not shipped. The MVP and commercial decision register describe future product behavior; they are not claims about current persistence or routes.
+DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3a supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger and the supplier rate table (ADR 0018). The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
 
 ## Shipped records and authorization catalog
 
@@ -18,7 +18,7 @@ DepartureDesk ships agency identity, administration, the complete M1 Client and 
 | `AgencyDocumentInclusion` | Per agency and document family, which profile fields and footer a document shows (SET-06, SET-07). |
 | `TravelerType` | The agency's ordered traveler types, seeded Adult, Child and Child 0–4 (BKG-21). |
 | `Session` | Authentication root and optional current-Office preference. It derives Agency through AgencyUser. |
-| `AuditEvent` | Append-only evidence for supported Agency, AgencyUser, Office, ClientPerson, Client, ClientOrganization, Supplier, SupplierLocation, SupplierContact, Departure, SupplierArrangement, SupplierReservation, ServiceOffer, and Package commands. |
+| `AuditEvent` | Append-only evidence for commands on Agency, AgencyUser, Office, ClientPerson, Client, ClientOrganization, Supplier, SupplierLocation, SupplierContact, Departure, TravelerType and SupplierArrangement subjects. Actions and subject types are closed catalogs. |
 | `ClientPerson` | Agency-scoped person known to the directory. Not a Client, AgencyUser, or Traveler. |
 | `ClientOrganization` | Agency-scoped organization known to the directory. Not a Supplier. |
 | `Client` | Explicit commercial identity for exactly one Client Person or Client Organization, with an immutable `CL-` reference. |
@@ -31,38 +31,21 @@ DepartureDesk ships agency identity, administration, the complete M1 Client and 
 | `SupplierLocation` | Supplier-owned operational place with optional structured address, timezone, and one location-level phone. |
 | `SupplierContact` | Named person in one Supplier work context. Not a Client Person or AgencyUser. |
 | `SupplierContactEmailAddress`, `SupplierContactPhoneNumber` | Contact-owned destinations. |
+| `PayeeAccount` | A supplier's account for payments: name, currency and free-text payment instructions (SUP-02). Managed on the supplier page. |
 | `Departure` | Agency-owned dated operational root. Three statuses (`sales_status`, `operating_decision`, `completion_status`) with a derived summary label and `on_sale?` (DEP-03 to DEP-05); a `DEP-` reference issued at creation (D-91); Ready to sell and Return to Draft; Mark Departed and the scheduled departed sweep (until step 11, D-83); optional hold-duration and installment-buffer overrides. Travel Program is not implemented. |
 | `DepartureTeamMember` | A staff user on a Departure's team, optionally its default task owner (ACC-09, OPS-12). Grants nothing. |
 | `DepartureDecision` | Append-only operating decision history: value, who, when, note (DEP-19). |
-| `SupplierArrangement`, `SupplierArrangementVersion` | M3A draft Supplier planning root under one Departure, with a stable Arrangement identity and initial draft version. Versions are not activated yet. |
-| `ArrangementItem`, `ArrangementItemDefinition` | Stable Item identity plus draft-version definition for name, category, description, default service provider, ordering, and M3B `capacity_management` applicability. |
-| `ArrangementItemSetupResult` | Narrow M3D.0 idempotency association from one guided Item setup key to its exact Item and optional first Occurrence and Resource; composite ownership foreign keys constrain both children to that Item and Agency. |
-| `ServiceOccurrence`, `ServiceOccurrenceDefinition` | Stable planned Occurrence identity plus draft-version definition for date range, optional local times, time zone, description, and optional service provider. |
-| `SupplierResource`, `SupplierResourceDefinition` | Stable Resource identity plus draft-version definition for name, description, and item-local ordering. |
-| `CapacityPairDefinition` | Exact-version Occurrence–Resource classification as `pooled` or `not_applicable` for a managed Item. |
-| `CapacityPool`, `CapacityPoolDefinition` | Stable Pool identity plus draft-version label, evidence, proposed opening quantity, inventory mode, measurement basis, and supplying Supplier. |
-| `CapacityEvent` | Append-only Supplier-side capacity ledger facts. Proven in services/tests; Staff UI ships with M3D. |
-| `CapacityProjection` | Rebuildable **Current Supplier capacity** projection for numeric Pools. |
-| `CapacityReconciliation`, `CapacityReconciliationResolution` | Observed quantity versus ledger comparison and append-only resolution. Staff surfaces ship with M3D. |
-| `SupplierCostSource` | Exact-version economic identity for one Supplier cost, Arrangement-wide or Item-scoped, with an explicit charging Supplier. |
-| `SupplierCostDefinition` | Editable estimate or contracted definition (`working` / `forecast_ready`) with currency equal to Departure `operating_currency`. First ADR 0001 monetary-table pattern. |
-| `SupplierCostComponent`, `SupplierCostComponentBase` | Ordered typed components with economic role separate from calculation kind, plus explicit percentage-base links. |
-| `SupplierCostParticipantCategory` | Exact-version Item-scoped planning labels used by components and occupancy profiles. |
-| `SupplierCostUsageAssumption` | Lightweight exact Item-context planning quantities. Not Client demand. |
-| `SupplierCostOccupancyProfile`, `SupplierCostOccupancyProfilePosition` | Anonymous occupancy profiles and category positions for occupancy-shaped components. |
-| `AgencyCommandIdempotencyKey` | Agency-scoped replay guard for idempotent M3A create commands, M3B Pool create / capacity event / reconciliation commands, M3C cost create commands, M4A Service Offer create/binding commands, M4B price-definition create commands, and M4C Package create/inline/adopt/price commands, keyed by command name, client idempotency key, and payload digest. |
-| `ServiceOffer`, `ServiceOfferVersion` | M4A unpublished Client-offer identity under one Departure, with numbered versions. M4A drafts use `draft`/`abandoned`; M4D ships `published`/`superseded`/`retired`, current published pointers, sales states, and publication manifests. No generated reference and no identity-level sellability flag. |
-| `ServiceOfferDefinition` | Version-owned Client title, description, and fulfillment basis (`m3_backed`, `on_request`, `agency_fulfilled`, `externally_fulfilled`). Mutable only while the offer version is draft. |
-| `ServiceOfferSourceBinding` | Exact M3 source pin (Arrangement/Item plus optional Occurrence, Resource, and Pool) with required/alternative/`choice_gated` topology, dependency flags, and Client-text provenance. |
-| `ServiceOfferPriceDefinition` | Version-owned unpublished Client price (`calculated` or `zero_price`) in Departure `operating_currency`. One definition per offer version. |
-| `ServiceOfferPriceComponent`, `ServiceOfferPriceComponentBase` | Ordered typed Client price components plus explicit percentage-base links to earlier rounded components in the same definition. |
-| `Package`, `PackageVersion` | M4C unpublished Package identity under one Departure, with numbered versions. M4C drafts use `draft`/`abandoned`; M4D ships Package publication, freeze, Sales enabled, and live feasibility. Package-only ownership is `owning_package_version_id` on a Service Offer version. |
-| `PackageInclusion` | Exact Service Offer version pin with `included`/`optional` placement and origin `inline_create` / `adopted_draft` / `published_reusable`. |
-| `PackagePriceDefinition`, `PackagePriceComponent`, `PackagePriceComponentBase` | Version-owned unpublished Package price (`bundled` or `service_sum`) in Departure `operating_currency`. Bundled `P` is an unscoped per-person graph; optional `s` is a one-person supplement. |
-| `ServiceOfferChoiceGroup`, `ServiceOfferChoiceOption`, `ServiceOfferChoiceOptionSourceActivation` | Version-owned Client choice templates and same-version source activations. |
-| `PackageClientPaymentSchedule`, `PackageClientCancellationPolicy`, `PackageClientStatedCondition`, `PackageClientTermResolution` | Named Client term records on a Package version. Preview discloses them; they do not invoice. |
-| `ReferenceSequence` | Agency-scoped `client`, `supplier`, and `departure` reference counters. Issuance does not create a missing row. |
-| `AccessPermission` module | Closed action catalog: each action requires baseline, admin-only, a permission or reseller, checked against the user type and `UserPermission` grants (ADR 0017). It is application code, not a persisted record. |
+| `SupplierArrangement` | One supplier's arrangement for one Departure, with an `ARR-` reference and no versions (ADR 0018). Status `draft`, `confirmed`, `closed` or `cancelled` (SUP-11); one live arrangement per supplier per Departure. Its currency equals the Departure's. Draft is edited in place; Confirm and Discard are commands. Slice 1 builds create, edit, Confirm and Discard. |
+| `ArrangementDocument` | A supplier quote, agreement, confirmation or other document kept with an arrangement, with its SHA-256 and the file in Active Storage (ADR 0019 as amended). Downloads go through `ArrangementDocumentsController`. |
+| `InventoryGroup` | The smallest part of an arrangement with its own availability (INV-01): service category, representation (`unit_shells`, `capacity_pool`, `none`), availability promise, quantity, positions per unit, and local service dates with an IANA zone. Structural fields freeze at confirmation. |
+| `CapacityRule` | A traveler type that takes part in a group without using a position (INV-39). |
+| `UnitShell` | One cabin, room or resource, created only at confirmation (SUP-12, INV-05). Its status is derived from its capacity events (INV-38): Available or Returned to supplier until build step 6 adds allocations. |
+| `CapacityPool` | One per pool group, created at confirmation and carrying the group's availability promise. |
+| `CapacityEvent` | Append-only supply ledger for a group: opening at confirmation, increase, supplier release and correction, each with an idempotency key. A future-dated change applies at 11:59 p.m. agency time on its date, with the zone snapshotted (D-88). |
+| `CapacityProjection` | Rebuildable current supplier capacity for numeric groups, refreshed by `CapacityProjectionRefresher` from `CapacityTimelineReplay`. On request, Rate only and no-shared-inventory groups have none (INV-04). |
+| `SupplierRateLine` | One row of an arrangement's supplier rate table (SUP-35): group, occupancy position (single, or 1st to 9th guest), optional traveler type, and base fare, non-commissionable fees, taxes, discount and a commission rate or amount, in minor units of the arrangement currency. Frozen once the arrangement leaves Draft. Nothing is derived from it yet (D-75). |
+| `ReferenceSequence` | Agency-scoped reference counters. Issued today: `CL-` clients, `SUP-` suppliers, `DEP-` departures and `ARR-` arrangements. Formats for later namespaces are defined but not issued. Issuance does not create a missing row. |
+| `AccessPermission` module | Closed action catalog: each action requires baseline, admin-only, a permission, any of several permissions, or reseller, checked against the user type and `UserPermission` grants (ADR 0017). It is application code, not a persisted record. |
 
 Invitation and password-reset token facts are stored on `AgencyUser`; they are not separate identity records.
 
@@ -78,42 +61,41 @@ Invitation and password-reset token facts are stored on `AgencyUser`; they are n
 
 ## Office context
 
-Office is operational context, not authorization. `Current.office` resolves from an active same-Agency Office stored on the Session, then the AgencyUser's active default Office, then `nil`. Changing Office changes no permission. An Agency may have no active Offices.
+Office is operational context, not authorization. `Current.office` resolves from an active same-Agency Office stored on the Session, then the AgencyUser's active default Office, then `nil`. Changing Office changes no permission. An Agency may have no Offices.
 
 ## Current permissions
 
-| Permission | Administrator | Staff | Viewer |
-| --- | ---: | ---: | ---: |
-| View workspace | Yes | Yes | Yes |
-| Select current Office | Yes | Yes | Yes |
-| Manage Agency profile | Yes | No | No |
-| Manage Offices | Yes | No | No |
-| Manage AgencyUsers | Yes | No | No |
-| View Client directory | Yes | Yes | Yes |
-| View Client contact details | Yes | Yes | No |
-| Manage Client directory | Yes | Yes | No |
-| View Supplier directory | Yes | Yes | Yes |
-| View Supplier contact details | Yes | Yes | No |
-| Manage Supplier directory | Yes | Yes | No |
-| View Departures | Yes | Yes | Yes |
-| Manage Departures | Yes | Yes | No |
-| Force inactivate Supplier with dependencies | Yes | No | No |
-| Override Supplier planning terms | Yes | No | No |
+An Agency Admin satisfies every requirement except `reseller`. Staff hold the baseline plus their granted permissions. A `reseller` user satisfies no staff requirement; reseller actions arrive in Slice 1 step 9.
+
+| Action | Requirement |
+| --- | --- |
+| View workspace, select current Office | Baseline |
+| Manage Agency profile, Offices, AgencyUsers and user permissions | Agency Admin only |
+| View and manage the Client directory, including contact details | Baseline |
+| View and manage the Supplier directory, including contact details and payee accounts | Baseline |
+| View Departures | Baseline |
+| Manage Departures | Departure management |
+| View supplier arrangements and inventory | Baseline |
+| Manage supplier arrangements, inventory, capacity and the rate table | Supplier arrangements |
+| View supplier costs: the rate table and supplier documents (ACC-31) | Departure management, Supplier arrangements or Financial records |
 
 Application code checks catalog actions, not user types or grant names.
 
 ## Persistence and command boundaries
 
 - Application records use PostgreSQL 18 UUIDv7 identifiers and `timestamptz` timestamps.
-- The primary database and Solid Queue database are separate. The M2B departed sweep reads the primary database and enqueues child jobs into the queue database with no spanning transaction. Delivery is at least once. Queue name: `departures`. M3B scheduled capacity projection refresh uses queue name: `capacity`.
-- Database constraints and triggers protect normalized identity values, same-Agency references, append-only audits, and immutable tenant identifiers.
+- The primary database and Solid Queue database are separate. The departed sweep (`MarkEligibleDeparturesDepartedJob`, hourly) reads the primary database and enqueues `MarkDepartureDepartedJob` children into the queue database with no spanning transaction. Delivery is at least once. Queue name: `departures`.
+- Database constraints and triggers protect normalized identity values, same-Agency references, append-only audits, decision history and capacity events, and immutable tenant identifiers.
+- Supplier-layer records carry `agency_id` with composite foreign keys to their parents, so a shell, event, rule or rate line cannot point at another agency's or another arrangement's group. Triggers refuse numeric capacity records on non-numeric groups, ownership changes on capacity records, and any change to rate lines once their arrangement leaves Draft.
+- Money is stored as `bigint` minor units with an explicit currency (ADR 0001). Staff-typed amounts are parsed by `MoneyInput`, which refuses more decimal places than the currency has rather than rounding.
+- New domain code reads the time from `Clock.current`; tests fix it with `set_clock`.
 - `btree_gist` is enabled on the primary database only for `client_org_contacts_no_overlapping_history`.
-- Consequential multi-record changes use explicit commands, transactions, lock ordering, and same-transaction audit events.
-- M3A create commands, M3B Pool create / capacity event / reconciliation commands, M3C cost create commands, M3D.0 composite Item setup, bulk capacity, classify-with-Pool, and initial-cost setup commands, M4A Service Offer create/binding commands, M4B price-definition create commands, and M4C Package create/inline/adopt/price commands use `AgencyCommandIdempotencyKey` plus transaction-scoped advisory locks so duplicate submissions replay the original result instead of creating duplicate records.
+- Consequential multi-record changes use explicit commands, transactions, lock ordering, and same-transaction audit events. Arrangement commands lock agency, Departure, arrangement, then inventory groups and pools last. Mutable aggregates use optimistic `lock_version` checks.
+- Capacity events carry an idempotency key, so a resubmitted supply form records once.
 - Last-active-administrator protection locks Agency, then AgencyUser, then rechecks current state.
 
 ## Not shipped
 
-The current application has no Traveler, Household, Travel Program, Client Trip, posted financial ledger, document, platform-support, or MFA records. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. Shipped M3A records are draft planning structure only. Shipped M3B capacity includes draft configuration UI and the engine; effective Supplier capacity and Staff event/reconciliation surfaces ship with M3D. Shipped M3C cost includes draft sources, definitions, components, assumptions, and derived forecasts; effective contracted terms begin at Arrangement activation under shipped M3D. Forecast totals are not persisted. Shipped M3D.0 compresses those existing draft workflows and introduces no M3D domain record. Shipped M3E.1–M3E.7b add source-shaped commitments and dispositions, Deadlines, deposits/milestones, qualified exposure, Needs attention, and Arrangement ending. M3E is fully shipped. Shipped M3F closes milestone acceptance and hardening; **M3 is complete.** Client demand, Obligations, Payments, remittance, and FX remain unimplemented. Celebrity deposits/milestones remain Arrangement-wide; `per_source` Deadlines remain deferred. The [M4 parent](../planning/m4-offers-and-pricing/m4-offers-and-pricing.md), [ADR 0014](../adr/0014-client-offers-publication-and-supply-compatibility.md), and [M4.0](../planning/m4-offers-and-pricing/m40-task-flow-and-contract.md) are accepted and are not implementation authority for later slices. [M4A](../planning/m4-offers-and-pricing/m4a-service-definitions-and-sources.md) ships unpublished Service Offer drafts, exact M3 source bindings, and the narrow compatibility evaluator. [M4B](../planning/m4-offers-and-pricing/m4b-client-pricing-and-anonymous-preview.md) ships unpublished Client prices, the anonymous calculator, and optional indicative scenario economics. [M4C](../planning/m4-offers-and-pricing/m4c-packages-choices-and-client-terms.md) ships unpublished Package drafts, package-only version ownership, choices, Client terms, and Package-owned prices. [M4D](../planning/m4-offers-and-pricing/m4d-publication-and-live-feasibility.md) is shipped (publication, Sales enabled, live feasibility, and M3 disclosure previews). [M4D.0](../planning/m4-offers-and-pricing/m4d0-narrow-group-departure-builder.md) and interim [M4D.0R](../planning/m4-offers-and-pricing/m4d0r-builder-interface-remediation.md) are shipped. [M4D.1 Slice 1](../planning/m4-offers-and-pricing/m4d1-slice1-workspace-foundation.md) is shipped; later M4D.1 slices remain unauthorized until named. The current application has no M5 Hold/Allocation, Client Trip, or Charge records. M4E remains unimplemented.
+The application has no Traveler, Household, Travel Program, Client Trip, booking, hold, allocation, supplier reservation, cost line, schedule line, amount due, payment, commission, supplier deadline, task, issued document, platform-support, or MFA records. Reseller users have schema only. Capacity reconciliation, cancelling a confirmed arrangement, and effective-dated rate replacement are deferred. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. FX is not supported; an arrangement's currency equals its Departure's.
 
-See [ADR 0005](../adr/0005-agency-identity.md) for the complete implemented identity contract and [the roadmap](../planning/roadmap.md) for planned sequencing.
+See [ADR 0005](../adr/0005-agency-identity.md) as amended by ADRs 0016 and 0017 for the identity contract, [ADR 0018](../adr/0018-arrangement-history-by-dated-adjustment.md) for the supplier layer, and the [planning index](../planning/README.md) for standing.
