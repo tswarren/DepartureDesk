@@ -13,7 +13,7 @@ Publishing to a reseller channel is build step 9 (D-90). Bookings, holds, accept
 
 ## Questions settled for this plan (2026-11-06)
 
-Each recommendation was accepted. Question 4 sets fixture values, which the charter takes from the decision log (D-87), and is to be logged as **D-93** (wording below). The rest stay inside the cited rules and need no entry.
+Each recommendation was accepted. Question 4 sets fixture values, which the charter takes from the decision log (D-87), and is logged as **D-93**, applied to the charter's fixture. The rest stay inside the cited rules and need no entry.
 
 | # | Question | Decision |
 | --- | --- | --- |
@@ -26,9 +26,7 @@ Each recommendation was accepted. Question 4 sets fixture values, which the char
 | 7 | **Offering status.** Bookings arrive in step 6 and publishing in step 9. | No status column in step 5. The editor shows what an offering still needs: each required choice has an option, and each option has a price for every occupancy position its group can hold. Step 6 refuses to book an incomplete offering. Step 9 adds publication. |
 | 8 | **Who edits what, and versioning.** | Viewing offerings, prices and terms is baseline (ACC-30: staff see client prices). Editing them needs **Departure management**, which the permission table gives "offerings, prices, and client terms". Agency defaults need an Agency Admin (question 2). A Departure starts with terms version 1, editable in place. Step 6 locks a version once a booking accepts it, and editing after that makes the next version. Staff may start a Departure's terms by copying another Departure's version, tiers and schedule included; the copy is independent of its source (D-76). |
 
-### D-93 wording
-
-For the spec's decision log:
+### D-93 as logged
 
 > | D-93 | 2026-11-06 | Settle the first-slice fixture's client terms values. Alpha Omega's client payment schedule is the \$500 deposit per cruise cabin at confirmation (B7) and the balance due 120 days before departure (Jul 9, 2027). The client cancellation tiers are 10% from 120 or more days before departure, 50% from 119 to 61 days, and 100% from 60 days, of the affected service's accepted client charge (BKG-31). The deposit does not count as acceptance (BKG-41). Fixture values are test inputs only; no rule changes. Amends the first-slice charter's fixture. | None |
 
