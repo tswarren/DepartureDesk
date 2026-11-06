@@ -1,6 +1,6 @@
 # DepartureDesk First-Slice Charter
 
-**Status:** Accepted 2026-10-31 for scope (D-64). Amended 2026-11-01 (D-66): the old supplier and offer layers retire in Phase 1, Slice 1 gains a staff checkpoint after step 6, and the Phase 0 decision rule is split. Amended 2026-11-03: CLT-25 joins steps 8 and 9 (D-78), D1 and D4 follow D-75 and expected commission moves to step 4 (D-85), and the fixture values are settled (D-87). Amended 2026-11-05: publishing to a reseller channel moves from build step 2 to build step 9 (D-90). Amended 2026-11-06: D2 keeps its date-driven checks, D4 and D10 take the booking-confirmation and payment checks, and the expected commission record is built in step 6 (D-92). No Slice 1 build step starts before the Phase 0 checkpoint.
+**Status:** Accepted 2026-10-31 for scope (D-64). Amended 2026-11-01 (D-66): the old supplier and offer layers retire in Phase 1, Slice 1 gains a staff checkpoint after step 6, and the Phase 0 decision rule is split. Amended 2026-11-03: CLT-25 joins steps 8 and 9 (D-78), D1 and D4 follow D-75 and expected commission moves to step 4 (D-85), and the fixture values are settled (D-87). Amended 2026-11-05: publishing to a reseller channel moves from build step 2 to build step 9 (D-90). Amended 2026-11-06: D2 keeps its date-driven checks, D4 and D10 take the booking-confirmation and payment checks, and the expected commission record is built in step 6 (D-92); the Alpha client terms values are settled (D-93). No Slice 1 build step starts before the Phase 0 checkpoint.
 **Owner:** Tom
 **Product authority:** [Product Specification](../../spec/README.md). Decisions this charter needs are in [pending decision log entries](../../spec/pending-decision-log-entries.md).
 
@@ -42,6 +42,7 @@ Source documents (Google Docs):
 | Excursion | Shore Excursions Group, CAFTPVTMIAFTLAUD; Nov 5, 2027, 2:00–6:30 p.m.; $1,000 per resource, 10 positions each; one resource confirmed at start and entered as committed cost; final count due Oct 22, 2027 at 11:59 p.m. agency time, with $1,000 per confirmed resource due the same day | Settled (B8, B9, B13) |
 | Excursion client price | $150 per participating traveler; children 0–4 free and use no position | Fixed |
 | Client deposit | $500 per cabin at booking under both agreements | Settled (B7) |
+| Client terms | Balance due 120 days before departure (Jul 9, 2027); client cancellation tiers of 10% from 120 or more days before departure, 50% from 119 to 61 days and 100% from 60 days, of the affected service's accepted client charge; the deposit does not count as acceptance | Settled (D-93) |
 
 The five roster bookings carry 13 travelers, including two infants who occupy cabin positions and pay the additional-guest fare. Cruise subtotals total $37,405 for all five and $26,400 for the three Slice 1 bookings.
 
