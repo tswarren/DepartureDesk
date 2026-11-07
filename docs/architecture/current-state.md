@@ -1,10 +1,10 @@
 # Current application architecture
 
-**Status:** Implemented baseline, as of Slice 1 step 5
+**Status:** Implemented baseline, as of Slice 1 step 6a
 
 **Scope:** Current application; later commercial domains are excluded
 
-DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3 supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger, the supplier rate table (ADR 0018), supplier deadlines with the tasks they create, step 4's supplier money: cost lines, schedule lines, trigger events and amounts due; and step 5's package offerings with client prices, and client terms. The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
+DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017), the M1 client and supplier directories, Departures as reshaped by Slice 1 step 2, and the Slice 1 step 3 supplier layer: payee accounts, supplier arrangements with documents, inventory groups, the capacity ledger, the supplier rate table (ADR 0018), supplier deadlines with the tasks they create, step 4's supplier money: cost lines, schedule lines, trigger events and amounts due; step 5's package offerings with client prices, and client terms; and step 6a's travelers, their links to clients, and Client Trips. The M3 and M4 layers were deleted in charter Phase 1 (D-66); tag `pre-m3-m4-deletion` holds them, and only the capacity replay and projection code was restored from it. Scope and standing are in the [first-slice charter](../planning/first-slice/first-slice-charter.md) and the [planning index](../planning/README.md).
 
 ## Shipped records and authorization catalog
 
@@ -54,7 +54,9 @@ DepartureDesk ships agency identity and administration (ADRs 0005, 0016 and 0017
 | `OfferingPrice` | A client price on an option for an occupancy position (single, a guest number, or any) and optional traveler type (BKG-21). `OfferingPriceLookup` tries the traveler's position, then the 1st-guest price for a lone guest, then any position, each with a type row before the any-type row. Changing a price never changes a booking (BKG-23). |
 | `AgencyCancellationTier`, `ClientCancellationTier` | Client cancellation tiers (BKG-31): from a number of days before departure, a percentage of the affected service's accepted charge or a fixed amount per traveler or per unit of a service category. The agency's are the defaults; a Departure's terms may override them whole. The agency also keeps reusable terms wording. |
 | `ClientTermsVersion`, `ClientPaymentScheduleLine` | A Departure's numbered client terms (BKG-28, D-76): the agency wording as copied, the Departure's own wording, the tier override, and the payment schedule template (CMN-09, D-77), with one balance line and at most one payment that counts as acceptance (BKG-41). Staff may start by copying another Departure's terms. A locked version and its rows are refused by a trigger; step 6 locks on acceptance. |
-| `ReferenceSequence` | Agency-scoped reference counters. Issued today: `CL-` clients, `SUP-` suppliers, `DEP-` departures and `ARR-` arrangements. Formats for later namespaces are defined but not issued. Issuance does not create a missing row. |
+| `Traveler`, `TravelerLink` | A traveler profile, always one person (CLT-05): legal name as given names, middle name, surname and suffix, a preferred name never sent to suppliers (CLT-28), date of birth, supplier-required gender or sex, email and phone. No passport fields. It saves with details missing but needs a name. A link to a client has a relationship (Self, Family member, Employee or member, Other) and grants nothing (CLT-09, CLT-10); Self only for a person client, at most one per client. Creating a person client may add its Self traveler (CLT-11). |
+| `ClientTrip` | One responsible client (CLT-02), at most one Departure (OVR-02), and a `T-` reference issued at creation (REF-04, D-94) that never changes. Status is derived (BKG-03); with no bookings yet it is Not booked. |
+| `ReferenceSequence` | Agency-scoped reference counters. Issued today: `CL-` clients, `SUP-` suppliers, `DEP-` departures, `ARR-` arrangements and `T-` trips. Formats for later namespaces are defined but not issued. Issuance does not create a missing row. |
 | `AccessPermission` module | Closed action catalog: each action requires baseline, admin-only, a permission, any of several permissions, or reseller, checked against the user type and `UserPermission` grants (ADR 0017). It is application code, not a persisted record. |
 
 Invitation and password-reset token facts are stored on `AgencyUser`; they are not separate identity records.
@@ -81,7 +83,8 @@ An Agency Admin satisfies every requirement except `reseller`. Staff hold the ba
 | --- | --- |
 | View workspace, select current Office | Baseline |
 | Manage Agency profile, Offices, AgencyUsers and user permissions | Agency Admin only |
-| View and manage the Client directory, including contact details | Baseline |
+| View and manage the Client directory, including contact details, travelers and their links | Baseline |
+| View and manage Client Trips (`view_bookings`, `manage_bookings`) | Baseline |
 | View and manage the Supplier directory, including contact details and payee accounts | Baseline |
 | View Departures | Baseline |
 | Manage Departures | Departure management |
@@ -117,6 +120,6 @@ Application code checks catalog actions, not user types or grant names. After si
 
 ## Not shipped
 
-The application has no Traveler, Household, Travel Program, Client Trip, booking, hold, allocation, choice selection, acceptance, installment, supplier reservation, payment, expected commission, issued document, platform-support, or MFA records. Reseller users have schema only. Capacity reconciliation, cancelling a confirmed arrangement, effective-dated rate replacement, work groups, reminders, task creation by hand, supplier amendments and adjustments with a reason, and supplier invoice references are deferred. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. FX is not supported; an arrangement's currency equals its Departure's.
+The application has no Household, Travel Program, booking, hold, allocation, choice selection, acceptance, installment, supplier reservation, payment, expected commission, issued document, platform-support, or MFA records. Reseller users have schema only. Capacity reconciliation, cancelling a confirmed arrangement, effective-dated rate replacement, work groups, reminders, task creation by hand, supplier amendments and adjustments with a reason, and supplier invoice references are deferred. Directory tables do not store `office_id`. No universal `Party`, global `User`, `AgencyMembership`, or Office-based authorization layer may be restored. FX is not supported; an arrangement's currency equals its Departure's.
 
 See [ADR 0005](../adr/0005-agency-identity.md) as amended by ADRs 0016 and 0017 for the identity contract, [ADR 0018](../adr/0018-arrangement-history-by-dated-adjustment.md) for the supplier layer, and the [planning index](../planning/README.md) for standing.

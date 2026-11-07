@@ -36,6 +36,10 @@ Rails.application.routes.draw do
   end
 
   resources :clients, only: %i[index new create]
+  # S-22 to S-24: travelers, their links to clients, and Client Trips (CLT-02, CLT-05 to CLT-11, OVR-02).
+  resources :travelers, only: %i[show new create edit update]
+  resources :traveler_links, only: %i[new create destroy]
+  resources :client_trips, path: "trips", only: %i[show new create edit update]
   resources :client_people, path: "clients/people", param: :client_person_id, only: %i[new create show edit update] do
     member do
       get "status/edit", action: :edit_status

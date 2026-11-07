@@ -4,10 +4,10 @@
 module AlphaScenario
   Result = Data.define(:agency, :actor, :baseline_staff, :alpha)
 
-  def self.load!(confirm_cruise: true)
+  def self.load!(confirm_cruise: true, bookings: :none)
     scenario = M1DirectoryScenario.empty
     scenario.agency.update_columns(default_timezone: AlphaFixture::TIME_ZONE)
-    alpha = AlphaFixture.load!(agency: scenario.agency.reload, actor: scenario.actor, confirm_cruise:)
+    alpha = AlphaFixture.load!(agency: scenario.agency.reload, actor: scenario.actor, confirm_cruise:, bookings:)
     Result.new(agency: scenario.agency, actor: scenario.actor, baseline_staff: scenario.baseline_staff, alpha:)
   end
 

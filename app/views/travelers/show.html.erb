@@ -1,0 +1,47 @@
+<% content_for :title, "#{@traveler.display_name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Clients", clients_path ], [ @traveler.display_name, nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Traveler</p>
+    <h1 class="dd-page-title"><%= @traveler.display_name %></h1>
+    <p class="dd-page-description">Legal name: <%= @traveler.legal_name || "not recorded" %></p>
+  </div>
+  <% if Current.agency_user.permitted?(:manage_client_directory) %>
+    <div class="dd-page-actions">
+      <%= link_to "Edit traveler", edit_traveler_path(@traveler), class: "dd-button" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div><dt>Preferred name</dt><dd><%= @traveler.preferred_name || "None" %></dd></div>
+      <div><dt>Date of birth</dt><dd><%= traveler_date_of_birth(@traveler) %></dd></div>
+      <div><dt>Gender or sex</dt><dd><%= traveler_gender_label(@traveler) %></dd></div>
+      <% if Current.agency_user.permitted?(:view_client_contact_details) %>
+        <div><dt>Email</dt><dd><%= @traveler.email_address || "None" %></dd></div>
+        <div><dt>Phone</dt><dd><%= @traveler.phone || "None" %></dd></div>
+      <% end %>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel" id="clients">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Linked clients</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @links.empty? %>
+      <p class="dd-empty-copy">Not linked to any client. A traveler can be booked on any client's trip without a link.</p>
+    <% else %>
+      <ul class="dd-plain-list">
+        <% @links.each do |link| %>
+          <li><%= link_to link.client.source.display_name, client_profile_path_for(link.client) %> · <%= link.relationship_label %></li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</article>

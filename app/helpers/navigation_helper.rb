@@ -16,7 +16,7 @@ module NavigationHelper
     when :administration
       controller_path.start_with?("administration/")
     when :clients
-      controller_path.in?(%w[clients client_people]) || controller_path.start_with?("client_person_")
+      controller_path.in?(%w[clients client_people travelers traveler_links client_trips]) || controller_path.start_with?("client_person_")
     when :suppliers
       (controller_path == "suppliers" || controller_path.start_with?("supplier_")) && !DEPARTURE_AREA.include?(controller_path)
     when :departures

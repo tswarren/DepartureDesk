@@ -10,12 +10,14 @@
 # deadlines, each with a task for the default task owner (step 3); and, once
 # each arrangement is confirmed, its supplier cost and schedule (step 4); and
 # the Alpha Omega cruise package with its client prices, the client terms
-# and the agency's terms defaults (step 5). Each Slice 1
-# step extends this script with the records it builds.
+# and the agency's terms defaults (step 5); and, with bookings: :trips, the
+# Slice 1 roster's clients, travelers and Client Trips (step 6a, D-94). Each
+# Slice 1 step extends this script with the records it builds.
 # Loading is idempotent: records already present in the agency are reused.
 # Pass confirm_cruise: false to stop with the Alpha arrangement in Draft (D1).
 module AlphaFixture
-  Result = Data.define(:agency, :actor, :suppliers, :departure, :arrangements, :offering, :client_terms)
+  Result = Data.define(:agency, :actor, :suppliers, :departure, :arrangements, :offering, :client_terms, :trips)
+  BOOKING_LEVELS = %i[none trips].freeze
 
   DEPARTURE_NAME = "Alpha Omega"
   DEPARTURE_DESCRIPTION = "Port Everglades round trip."
@@ -108,7 +110,9 @@ module AlphaFixture
     }
   }.freeze
 
-  def self.load!(agency:, actor:, confirm_cruise: true)
+  def self.load!(agency:, actor:, confirm_cruise: true, bookings: :none)
+    raise ArgumentError, "bookings must be one of #{BOOKING_LEVELS.inspect}" unless bookings.in?(BOOKING_LEVELS)
+
     suppliers = SUPPLIERS.transform_values { |definition| supplier!(agency, actor, definition) }
     departure = departure!(agency, actor)
     arrangements = ARRANGEMENTS.to_h do |key, definition|
@@ -124,7 +128,8 @@ module AlphaFixture
     terms_defaults!(agency, actor)
     offering = package!(agency, actor, departure, arrangements)
     client_terms = client_terms!(agency, actor, departure)
-    Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:)
+    trips = bookings == :none ? {} : roster!(agency, actor, departure)
+    Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:, trips:)
   end
 
   # Creates the Draft arrangement and its inventory once; later loads reuse it.
@@ -413,6 +418,58 @@ module AlphaFixture
     created!(result, DEPARTURE_NAME)
   end
   private_class_method :create_departure!
+
+  # D-94: the Slice 1 roster's placeholder travelers. The responsible client
+  # comes first and travels, linked as Self; the others are family members.
+  # Dates of birth give the roster's ages at sailing.
+  ROSTER = {
+    "BK-101" => [
+      { given_names: "Nadia", surname: "Rowan", date_of_birth: Date.new(1979, 12, 2) },
+      { given_names: "Theo", surname: "Rowan", date_of_birth: Date.new(1978, 8, 15) },
+      { given_names: "Iris", surname: "Rowan", date_of_birth: Date.new(2018, 7, 22) }
+    ],
+    "BK-104" => [
+      { given_names: "Sofia", surname: "Bennett", date_of_birth: Date.new(1985, 9, 3) },
+      { given_names: "Marcus", surname: "Bennett", date_of_birth: Date.new(1983, 1, 27) },
+      { given_names: "Ava", surname: "Bennett", date_of_birth: Date.new(2016, 2, 8) },
+      { given_names: "Milo", surname: "Bennett", date_of_birth: Date.new(2025, 3, 14) }
+    ],
+    "BK-105" => [
+      { given_names: "Mateo", surname: "Rivera", date_of_birth: Date.new(1990, 5, 11) },
+      { given_names: "Elena", surname: "Rivera", date_of_birth: Date.new(1991, 10, 30) },
+      { given_names: "Luca", surname: "Rivera", date_of_birth: Date.new(2024, 6, 20) }
+    ]
+  }.freeze
+
+  # One responsible client, its travelers and a Client Trip on the Departure
+  # per roster booking, keyed by the roster's booking label.
+  def self.roster!(agency, actor, departure)
+    ROSTER.to_h do |label, travelers|
+      lead, *others = travelers
+      client = roster_client!(agency, actor, lead)
+      others.each do |details|
+        next if client.travelers.exists?(given_names: details[:given_names], surname: details[:surname])
+
+        created!(SaveTraveler.new(agency:, actor:, attributes: details, link_client: client, relationship: "family_member").call, details[:given_names])
+      end
+      trip = client.client_trips.find_by(departure:) ||
+        created!(SaveClientTrip.new(agency:, actor:, attributes: { client_id: client.id, departure_id: departure.id }).call, "the #{label} trip")
+      [ label, trip ]
+    end
+  end
+
+  def self.roster_client!(agency, actor, lead)
+    person = agency.client_people.find_by(first_name: lead[:given_names], last_name: lead[:surname])
+    client = person&.client ||
+      created!(CreateIndividualClient.new(agency:, actor:, names: { first_name: lead[:given_names], last_name: lead[:surname] }, also_traveling: true).call,
+        "#{lead[:given_names]} #{lead[:surname]}")
+    self_traveler = client.travelers.find_by(given_names: lead[:given_names], surname: lead[:surname])
+    if self_traveler && self_traveler.date_of_birth.nil?
+      SaveTraveler.new(agency:, actor:, traveler: self_traveler, attributes: { date_of_birth: lead[:date_of_birth] }, lock_version: self_traveler.lock_version).call
+    end
+    client
+  end
+  private_class_method :roster!, :roster_client!
 
   def self.created!(result, name)
     return result.record if result.status == :created && result.record
