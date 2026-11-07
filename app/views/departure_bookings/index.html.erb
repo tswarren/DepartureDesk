@@ -1,0 +1,65 @@
+<% content_for :title, "Bookings · #{@departure.name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Bookings", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departure</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">Every booking on this Departure. Booking status, held space and supplier confirmation are separate facts. New bookings start from a client's trip.</p>
+  </div>
+</header>
+
+<%= render "departures/tabs", departure: @departure, current: :bookings %>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <% if @bookings.empty? %>
+      <div class="dd-empty-state">
+        <h2 class="dd-empty-title">No bookings yet</h2>
+        <p class="dd-empty-copy">Create a trip on a client's profile for this Departure, then book its package from the trip.</p>
+      </div>
+    <% else %>
+      <% counted = @bookings.reject(&:status_discarded?) %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-stacked-table">
+          <caption class="dd-visually-hidden">Bookings on <%= @departure.name %></caption>
+          <thead>
+            <tr>
+              <th scope="col">Booking</th>
+              <th scope="col">Client</th>
+              <th scope="col">Status</th>
+              <th scope="col">Owner</th>
+              <th scope="col">Cabin</th>
+              <th scope="col" class="num">Travelers</th>
+              <th scope="col" class="num">Subtotal</th>
+              <th scope="col">Space</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @bookings.each do |booking| %>
+              <tr>
+                <th scope="row"><%= link_to booking.booking_reference, client_booking_path(booking), class: "dd-type-mono" %></th>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Client </span><%= booking.client_trip.client.source.display_name %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Status </span><%= booking_status_badge(booking) %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Owner </span>Agency</td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Cabin </span><%= booking_cabins(booking) %></td>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Travelers </span><%= booking.booking_travelers.size %></td>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Subtotal </span><%= booking_money(booking.total_minor_units, booking.currency) %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Space </span><%= booking_hold_badge(booking) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colspan="5">Total, not counting discarded bookings</th>
+              <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Travelers </span><%= counted.sum { |booking| booking.booking_travelers.size } %></td>
+              <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Subtotal </span><%= booking_money(counted.sum(&:total_minor_units), @departure.operating_currency) %></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    <% end %>
+  </div>
+</article>

@@ -1,0 +1,36 @@
+<%# One chosen option: a unit with its occupants and positions, or an add-on with its participants (question 19). %>
+<%# locals: (booking:, selection:, choice:, manage:) -%>
+<% travelers = booking.booking_travelers.index_by(&:id) %>
+<div class="dd-subpanel">
+  <div class="dd-section-header">
+    <p><strong><%= selection.label %></strong></p>
+    <% if manage %>
+      <%= button_to "Remove", client_booking_selection_path(booking, selection), method: :delete, params: { choice_id: choice.id },
+            class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form",
+            aria: { label: "Remove #{selection.label}" } %>
+    <% end %>
+  </div>
+  <% if selection.occupants.empty? %>
+    <p class="dd-empty-copy"><%= choice.made_per_trip? ? "For the whole trip." : "No travelers in it yet." %></p>
+  <% else %>
+    <ul class="dd-plain-list">
+      <% selection.occupants.each do |occupant| %>
+        <% row = travelers[occupant.booking_traveler_id] %>
+        <li>
+          <%= row&.display_name %>
+          <% if choice.made_per_unit? && occupant.position %>
+            · <%= occupant.position.ordinalize %> guest
+          <% elsif row && uses_no_capacity?(selection.inventory_group, row) %>
+            · takes part without a position
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+  <% if manage && !choice.made_per_trip? %>
+    <details class="dd-disclosure">
+      <summary>Change who is in it</summary>
+      <%= render "client_bookings/selection_form", booking:, choice:, selection: %>
+    </details>
+  <% end %>
+</div>

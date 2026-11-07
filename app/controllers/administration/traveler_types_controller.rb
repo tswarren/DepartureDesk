@@ -37,7 +37,7 @@ module Administration
     end
 
     def traveler_type_params
-      params.require(:traveler_type).permit(:name, :status, :lock_version)
+      params.require(:traveler_type).permit(:name, :status, :counts_as_adult, :lock_version)
     end
   end
 end

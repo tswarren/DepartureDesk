@@ -157,6 +157,33 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal [ 10, 3 ], [ @agency.travelers.count, @agency.client_trips.count ]
   end
 
+  test "holds a booking on each roster trip, priced at the roster's cruise subtotals (step 6b, D-94, D-95)" do
+    alpha = AlphaFixture.load!(agency: @agency, actor: @actor, bookings: :held)
+    cabins = alpha.bookings.transform_values do |booking|
+      assert booking.status_draft?
+      assert_equal :held, booking.hold_state.first
+      booking.price_lines.select { |line| line.choice_selection.option.choice.name == "Cabin" }.sum(&:amount_minor_units)
+    end
+    assert_equal({ "BK-101" => 805_500, "BK-104" => 1_124_000, "BK-105" => 710_500 }, cabins)
+    assert_equal 2_640_000, cabins.values.sum
+
+    hotel = alpha.arrangements.fetch(:hotel)
+    rowan_rooms = alpha.bookings.fetch("BK-101").inventory_allocations.map { |allocation| allocation.inventory_group.label }.tally
+    assert_equal 2, rowan_rooms.fetch("Nov 5 Garden Queen"), "BK-101 takes two Garden Queen rooms (D-95)"
+    assert_equal 2, rowan_rooms.fetch("Nov 4 Garden Queen")
+    rivera_room = alpha.bookings.fetch("BK-105").choice_selections.find { |selection| selection.option.choice.name == "Nov 5 hotel room" }
+    assert_equal [ 1, 2, nil ], rivera_room.occupants.map(&:position), "Luca shares the room without using a place"
+    assert hotel.inventory_groups.all? { |group| group.capacity_rules.any? { |rule| rule.traveler_type.name == "Child 0–4" && !rule.uses_capacity? } }
+
+    tour = alpha.arrangements.fetch(:excursion).inventory_groups.sole.unit_shells.sole
+    assert_equal [ 7, 3 ], [ tour.positions_used, tour.positions_left ]
+    left = alpha.arrangements.fetch(:cruise).inventory_groups.to_h { |group| [ group.label, group.unit_shells.count { |shell| shell.status == "available" } ] }
+    assert_equal({ "V01" => 7, "O01" => 7, "I01" => 8, "S01" => 7 }, left)
+
+    again = AlphaFixture.load!(agency: @agency, actor: @actor, bookings: :held)
+    assert_equal alpha.bookings.transform_values(&:id), again.bookings.transform_values(&:id)
+  end
+
   test "can stop with the Alpha arrangement in Draft, then confirm it on a later load (D1)" do
     draft = AlphaFixture.load!(agency: @agency, actor: @actor, confirm_cruise: false).arrangements.fetch(:cruise)
     assert draft.draft?

@@ -1,0 +1,266 @@
+<% content_for :title, "#{@booking.booking_reference} · DepartureDesk" %>
+<% departure = @trip.departure %>
+<% client_name = @trip.client.source.display_name %>
+<% manage = Current.agency_user.permitted?(:manage_bookings) && @booking.status_draft? %>
+<% hold_state, hold_at = @booking.hold_state %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ departure.display_reference, departure_path(departure) ], [ "Bookings", departure_bookings_path(departure) ], [ @booking.booking_reference, nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Booking · <%= link_to "Trip #{@trip.trip_reference}", client_trip_path(@trip) %></p>
+    <h1 class="dd-page-title"><span class="dd-type-mono"><%= @booking.booking_reference %></span></h1>
+    <p class="dd-page-description"><%= client_name %> · <%= @booking.offering.name %> on <%= departure.name %></p>
+  </div>
+  <% if manage %>
+    <div class="dd-page-actions">
+      <%= button_to "Discard booking", client_booking_discard_path(@booking), class: "dd-button dd-button--quiet",
+            form: { data: { turbo_confirm: "Discard #{@booking.booking_reference}? Its held space is released, and the reference is not reused." } } %>
+    </div>
+  <% end %>
+</header>
+
+<% if @blocked.present? %>
+  <div class="dd-alert dd-alert--danger" role="alert" id="form-error-summary" tabindex="-1" data-controller="form-error-summary">
+    <p class="dd-alert-title">This booking can't be confirmed yet:</p>
+    <ul class="dd-error-list">
+      <% @blocked.each do |message, anchor| %>
+        <li><%= link_to message, "##{anchor}" %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<article class="dd-panel" id="status">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div><dt>Status</dt><dd><%= booking_status_badge(@booking) %></dd></div>
+      <div><dt>Space</dt><dd><%= booking_hold_badge(@booking) %></dd></div>
+      <div><dt>Responsible client</dt><dd><%= link_to client_name, client_profile_path_for(@trip.client) %></dd></div>
+      <div><dt>Owner</dt><dd>Agency</dd></div>
+      <div><dt>Client terms</dt><dd><%= @booking.client_terms_version ? link_to("Version #{@booking.client_terms_version.version_number}", departure_client_terms_path(departure)) : "None yet" %></dd></div>
+      <div><dt>Created by</dt><dd><%= @booking.created_by.display_name %></dd></div>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel" id="travelers">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Travelers</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-page-description">A hold may use placeholders such as Guest 2. Confirming needs each traveler's legal name and date of birth.</p>
+    <% if @booking.booking_travelers.empty? %>
+      <p class="dd-empty-copy">No travelers yet.</p>
+    <% else %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-stacked-table">
+          <caption class="dd-visually-hidden">Travelers on <%= @booking.booking_reference %></caption>
+          <thead>
+            <tr>
+              <th scope="col">Order</th>
+              <th scope="col">Traveler</th>
+              <th scope="col">Type</th>
+              <th scope="col">Date of birth</th>
+              <% if manage %><th scope="col" class="dd-col-actions">Actions</th><% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% @booking.booking_travelers.each do |row| %>
+              <tr id="booking-traveler-<%= row.id %>">
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Order </span><%= row.position %></td>
+                <th scope="row">
+                  <% if row.traveler %>
+                    <%= link_to row.display_name, traveler_path(row.traveler) %>
+                    <% unless row.named_for_confirmation? %><span class="dd-cell-subtext"><%= link_to "Add legal name and date of birth", edit_traveler_path(row.traveler) %></span><% end %>
+                  <% else %>
+                    <%= row.placeholder_label %> <span class="dd-cell-subtext">Placeholder</span>
+                  <% end %>
+                </th>
+                <td>
+                  <span class="dd-cabin-field-label dd-visually-hidden">Type </span>
+                  <% if manage %>
+                    <%= form_with model: row, url: client_booking_traveler_path(@booking, row), method: :patch, scope: :booking_traveler, class: "dd-inline-form" do |form| %>
+                      <%= form.hidden_field :lock_version, id: nil %>
+                      <%= form.label :traveler_type_id, "Type for #{row.display_name}", class: "dd-visually-hidden", for: "booking_traveler_type_#{row.id}" %>
+                      <%= form.select :traveler_type_id, @traveler_types.map { |type| [ type.name, type.id ] }, { include_blank: "Choose a type" }, id: "booking_traveler_type_#{row.id}", class: "dd-field" %>
+                      <%= form.submit "Save type", class: "dd-button dd-button--quiet", name: nil, aria: { label: "Save type for #{row.display_name}" } %>
+                    <% end %>
+                  <% else %>
+                    <%= row.traveler_type&.name || "Not chosen" %>
+                  <% end %>
+                </td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Date of birth </span><%= row.traveler ? traveler_date_of_birth(row.traveler) : "Not recorded" %></td>
+                <% if manage %>
+                  <td class="dd-col-actions">
+                    <%= button_to "Remove", client_booking_traveler_path(@booking, row), method: :delete,
+                          class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form",
+                          aria: { label: "Remove #{row.display_name} from the booking" } %>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+    <% if manage %>
+      <%= form_with url: client_booking_travelers_path(@booking), scope: :booking_traveler, class: "dd-form" do |form| %>
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <%= form.label :traveler_id, "Traveler", class: "dd-label" %>
+            <%= form.select :traveler_id, @linked_travelers.map { |traveler| [ traveler.display_name, traveler.id ] }, { include_blank: "A placeholder instead" }, class: "dd-field", aria: { describedby: "booking_traveler_traveler_id_hint" } %>
+            <p class="dd-field-hint" id="booking_traveler_traveler_id_hint"><%= client_name %>'s linked travelers. <%= link_to "Add or link a traveler", client_profile_path_for(@trip.client, anchor: "travelers") %> to list more.</p>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :placeholder_label, "Or a placeholder", class: "dd-label" %>
+            <%= form.text_field :placeholder_label, maxlength: BookingTraveler::PLACEHOLDER_LIMIT, placeholder: "Guest #{@booking.booking_travelers.size + 1}", class: "dd-field" %>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :traveler_type_id, "Traveler type", class: "dd-label" %>
+            <%= form.select :traveler_type_id, @traveler_types.map { |type| [ type.name, type.id ] }, { include_blank: "Choose later" }, class: "dd-field" %>
+          </div>
+        </div>
+        <div class="dd-form-actions">
+          <%= form.submit "Add traveler", class: "dd-button dd-button--secondary" %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel" id="choices">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Choices</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <% @choices.each do |choice| %>
+      <% selections = @booking.choice_selections.select { |selection| selection.option.offering_choice_id == choice.id } %>
+      <section class="dd-stack" id="choice-<%= choice.id %>" aria-labelledby="choice-heading-<%= choice.id %>">
+        <h3 class="dd-section-title" id="choice-heading-<%= choice.id %>"><%= choice.name %></h3>
+        <p class="dd-page-description"><%= choice_summary(choice) %></p>
+        <% if selections.empty? %>
+          <p class="dd-empty-copy"><%= choice.required_single? ? "Not chosen yet; confirming needs one." : "None chosen." %></p>
+        <% end %>
+        <% selections.each do |selection| %>
+          <%= render "client_bookings/selection", booking: @booking, selection:, choice:, manage: %>
+        <% end %>
+        <% if manage && choice.options.any? %>
+          <%= render "client_bookings/selection_form", booking: @booking, choice:, selection: nil %>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel" id="prices">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Price summary</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-page-description">Proposed from the package's prices when each choice was made. A later change to the package's prices doesn't change them.</p>
+    <% lines = @booking.price_lines.sort_by { |line| selection = line.choice_selection; [ selection.option.choice.position, selection.option.position, selection.unit_number.to_i, line.booking_traveler&.position.to_i ] } %>
+    <% if lines.empty? %>
+      <p class="dd-empty-copy">No prices yet. Choose options and place travelers to see them.</p>
+    <% else %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-stacked-table">
+          <caption class="dd-visually-hidden">Proposed prices</caption>
+          <thead>
+            <tr><th scope="col">Service</th><th scope="col">Traveler</th><th scope="col">Position</th><th scope="col" class="num">Price</th></tr>
+          </thead>
+          <tbody>
+            <% lines.each do |line| %>
+              <tr>
+                <th scope="row"><%= line.choice_selection.label %><span class="dd-cell-subtext"><%= line.choice_selection.option.choice.included? ? "Included" : "Add-on" %></span></th>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Traveler </span><%= line.booking_traveler&.display_name || "Per trip" %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Position </span><%= OfferingPrice::POSITION_LABELS.fetch(line.occupancy_position) %></td>
+                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Price </span><%= booking_money(line.amount_minor_units, line.currency) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colspan="3">Total</th>
+              <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Total </span><%= booking_money(@booking.total_minor_units, @booking.currency) %></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel" id="hold">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Space</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-page-description">
+      <% if hold_state == :held %>Held until <%= booking_time(hold_at) %>.<%= " Extended once; it can't be extended again." if @booking.hold_extended? %>
+      <% elsif hold_state == :expired %>The hold expired <%= booking_time(hold_at) %>, and its space was returned. Hold space again if any is left.
+      <% else %>Nothing is held. Hold space takes every service the booking has chosen, or none, and lasts <%= pluralize(@trip.departure.effective_hold_duration_days, "day") %>.
+      <% end %>
+    </p>
+    <% allocations = @booking.inventory_allocations.reject(&:state_released?).sort_by(&:held_at) %>
+    <% if allocations.any? %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-stacked-table">
+          <caption class="dd-visually-hidden">Held space</caption>
+          <thead>
+            <tr><th scope="col">Service</th><th scope="col">Space</th><th scope="col">State</th></tr>
+          </thead>
+          <tbody>
+            <% allocations.each do |allocation| %>
+              <tr>
+                <th scope="row"><%= allocation.choice_selection.label %></th>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Space </span><%= allocation.unit_shell ? (allocation.choice_selection.per_unit? ? allocation.unit_shell.label : "#{pluralize(allocation.quantity, "position")} in #{allocation.unit_shell.label}") : pluralize(allocation.quantity, "place") %></td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">State </span><%= allocation_state_label(allocation) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+    <% if manage %>
+      <div class="dd-inline-actions">
+        <%= button_to "Hold space", client_booking_hold_path(@booking), method: :post, class: "dd-button" %>
+        <% if hold_state == :held && !@booking.hold_extended? %>
+          <%= button_to "Extend hold", client_booking_hold_path(@booking), method: :patch, class: "dd-button dd-button--secondary" %>
+        <% end %>
+        <% if hold_state == :held %>
+          <%= button_to "Release held space", client_booking_hold_path(@booking), method: :delete, class: "dd-button dd-button--quiet",
+                form: { data: { turbo_confirm: "Release all of this booking's held space?" } } %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel" id="acceptance">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Client acceptance</h2>
+  </header>
+  <div class="dd-panel-body">
+    <p class="dd-empty-copy">Not recorded. Confirming needs the client's acceptance of the current price and terms.</p>
+  </div>
+</article>
+
+<article class="dd-panel" id="confirm">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Confirm</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <% if @blockers.any? %>
+      <p class="dd-page-description">Before this booking can be confirmed:</p>
+      <ul class="dd-plain-list">
+        <% @blockers.each do |blocker| %>
+          <li><%= link_to blocker.message, "##{blocker.anchor}" %></li>
+        <% end %>
+      </ul>
+    <% end %>
+    <% if manage %>
+      <%= button_to "Confirm booking", client_booking_confirmation_path(@booking), class: "dd-button" %>
+    <% end %>
+  </div>
+</article>

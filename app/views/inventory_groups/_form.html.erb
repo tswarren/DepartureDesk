@@ -32,6 +32,12 @@
       <p class="dd-field-hint" id="inventory_group_positions_hint">Unit shells only: the maximum occupancy of each unit.</p>
       <%= dd_field_error(form, :positions_per_unit) %>
     </div>
+    <div class="dd-field-group">
+      <%= form.label :required_adults_per_unit, "Adults required per unit (optional)", class: "dd-label" %>
+      <%= form.number_field :required_adults_per_unit, min: 1, step: 1, **dd_field_options(form, :required_adults_per_unit, class: "dd-field--numeric dd-field--narrow", aria_describedby_extra: "inventory_group_required_adults_hint") %>
+      <p class="dd-field-hint" id="inventory_group_required_adults_hint">The supplier's rule, such as one adult per cabin. Checked when space is held and when a booking is confirmed.</p>
+      <%= dd_field_error(form, :required_adults_per_unit) %>
+    </div>
   </div>
   <fieldset class="dd-form-section">
     <legend class="dd-section-title">Service dates</legend>

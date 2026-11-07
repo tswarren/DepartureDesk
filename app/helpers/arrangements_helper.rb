@@ -53,9 +53,14 @@ module ArrangementsHelper
 
     if group.represented_as_unit_shells?
       statuses = group.unit_shells.map(&:status).tally
-      [ "#{statuses.fetch("available", 0)} available", ("#{statuses["returned"]} returned to supplier" if statuses["returned"]) ].compact.join(" · ")
+      [ "#{statuses.fetch("available", 0)} available",
+        ("#{statuses["partly_allocated"]} partly allocated" if statuses["partly_allocated"]),
+        ("#{statuses["fully_allocated"]} fully allocated" if statuses["fully_allocated"]),
+        ("#{statuses["returned"]} returned to supplier" if statuses["returned"]) ].compact.join(" · ")
     else
-      pluralize(group.capacity_projection&.current_supplier_capacity || 0, "place")
+      supply = group.capacity_projection&.current_supplier_capacity || 0
+      allocated = group.inventory_allocations.select(&:consuming?).sum(&:quantity)
+      [ pluralize(supply, "place"), ("#{allocated} held or reserved" if allocated.positive?) ].compact.join(" · ")
     end
   end
 

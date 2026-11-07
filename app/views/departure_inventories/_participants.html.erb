@@ -1,0 +1,15 @@
+<%# Who takes part in a group sold per traveler, such as the excursion: headcount, positions used and left, and those who use no position (INV-39, D6). %>
+<%# locals: (group:) -%>
+<% selections = group.inventory_allocations.select(&:consuming?).map(&:choice_selection).uniq.reject(&:per_unit?) %>
+<% if selections.any? %>
+  <% participants = selections.flat_map { |selection| selection.occupants.map(&:booking_traveler) } %>
+  <% without = participants.select { |row| uses_no_capacity?(group, row) } %>
+  <% used = group.unit_shells.sum(&:positions_used) %>
+  <% total = group.unit_shells.reject(&:returned_to_supplier?).sum(&:positions) %>
+  <p class="dd-page-description" id="participants-<%= group.id %>">
+    <%= pluralize(participants.size, "participant") %> · <%= used %> of <%= pluralize(total, "position") %> used · <%= total - used %> left
+  </p>
+  <% if without.any? %>
+    <p class="dd-page-description">Taking part without a position: <%= without.map(&:display_name).to_sentence %>.</p>
+  <% end %>
+<% end %>

@@ -50,6 +50,7 @@
             <%= group_quantity_label(group) %> · <%= group_supply_label(group, arrangement) %>
           </p>
           <%= render "inventory_groups/shell_grid", group:, shells: group.unit_shells %>
+          <%= render "departure_inventories/participants", group: %>
         </section>
       <% end %>
       <% if other_groups.any? %>
