@@ -1,0 +1,25 @@
+<% content_for :title, "Edit tier · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Client terms", departure_client_terms_path(@departure) ], [ "Edit tier", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client terms · <%= @departure.name %></p>
+    <h1 class="dd-page-title">Edit tier</h1>
+    <p class="dd-page-description">This departure's tiers replace the agency's.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @tier, url: departure_client_cancellation_tier_path(@departure, @tier), method: :patch, scope: :cancellation_tier, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= form.hidden_field :lock_version %>
+      <%= render "shared/cancellation_tier_form", form:, values: @values, currency: @departure.operating_currency %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save", class: "dd-button" %>
+        <%= link_to "Cancel", departure_client_terms_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

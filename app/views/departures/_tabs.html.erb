@@ -2,6 +2,8 @@
 <%# locals: (departure:, current:) -%>
 <nav class="dd-subnav" aria-label="Departure sections">
   <%= link_to "Overview", departure_path(departure), aria: { current: ("page" if current == :overview) } %>
+  <%= link_to "Package", departure_offerings_path(departure), aria: { current: ("page" if current == :package) } %>
+  <%= link_to "Client terms", departure_client_terms_path(departure), aria: { current: ("page" if current == :client_terms) } %>
   <%= link_to "Inventory", departure_inventory_path(departure), aria: { current: ("page" if current == :inventory) } %>
   <%= link_to "Suppliers", departure_arrangements_path(departure), aria: { current: ("page" if current == :suppliers) } %>
   <% if Current.agency_user.permitted?(:view_supplier_costs) %>

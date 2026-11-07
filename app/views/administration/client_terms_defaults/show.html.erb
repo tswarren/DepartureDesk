@@ -1,0 +1,39 @@
+<% content_for :title, "Client terms · Administration · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Administration", administration_agency_path ], [ "Client terms", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Administration</p>
+    <h1 class="dd-page-title">Client terms</h1>
+    <p class="dd-page-description">The agency's reusable terms and default cancellation tiers. A departure's terms copy the wording when they're started, and use these tiers unless the departure overrides them.</p>
+  </div>
+</header>
+
+<%= render "administration/shared/subnav", current: :client_terms %>
+
+<article class="dd-panel" id="wording">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">Reusable terms</h2></header>
+  <div class="dd-panel-body">
+    <%= form_with model: @agency, url: administration_client_terms_defaults_path, method: :patch, scope: :agency, class: "dd-form" do |form| %>
+      <%= form.hidden_field :lock_version %>
+      <div class="dd-field-group">
+        <%= form.label :client_terms_wording, "Terms wording", class: "dd-label" %>
+        <%= form.text_area :client_terms_wording, rows: 8, maxlength: ClientTermsVersion::WORDING_LIMIT, aria: { describedby: "client_terms_wording_hint" }, class: "dd-field" %>
+        <p class="dd-field-hint" id="client_terms_wording_hint">Paragraphs, bold, italic, lists and links, as in the document footers. Changing it doesn't change terms already started.</p>
+      </div>
+      <%= form.submit "Save wording", class: "dd-button" %>
+    <% end %>
+  </div>
+</article>
+
+<article class="dd-panel" id="cancellation">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Default cancellation tiers</h2>
+    <%= link_to "Add tier", new_administration_cancellation_tier_path, class: "dd-button dd-button--quiet" %>
+  </header>
+  <div class="dd-panel-body">
+    <%= render "shared/cancellation_tiers_table", tiers: @tiers,
+          edit_path: ->(tier) { edit_administration_cancellation_tier_path(tier) }, remove_path: ->(tier) { administration_cancellation_tier_path(tier) } %>
+  </div>
+</article>

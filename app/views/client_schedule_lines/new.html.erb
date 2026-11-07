@@ -1,0 +1,24 @@
+<% content_for :title, "New payment · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Client terms", departure_client_terms_path(@departure) ], [ "New payment", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client terms · <%= @departure.name %></p>
+    <h1 class="dd-page-title">New payment</h1>
+    <p class="dd-page-description">Exactly one line is the balance. At most one may count as acceptance.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @line, url: departure_client_schedule_lines_path(@departure), scope: :client_payment_schedule_line, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= render "form", form:, values: @values, currency: @departure.operating_currency %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save", class: "dd-button" %>
+        <%= link_to "Cancel", departure_client_terms_path(@departure), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

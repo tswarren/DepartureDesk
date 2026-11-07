@@ -1,0 +1,139 @@
+<% content_for :title, "Client terms · #{@departure.name} · DepartureDesk" %>
+<% editable = manage_package? && @terms_version && !@terms_version.locked? %>
+<% sources = Current.agency.departures.where.not(id: @departure.id).where(id: ClientTermsVersion.select(:departure_id)).order(:name) %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Client terms", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departure</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">The terms clients accept for this departure's package: wording, cancellation tiers and the payment schedule. A booking that accepts a version locks it.</p>
+  </div>
+</header>
+
+<%= render "departures/tabs", departure: @departure, current: :client_terms %>
+
+<% if @terms_version.nil? || (manage_package? && sources.any? && !@terms_version&.locked?) %>
+  <article class="dd-panel" id="start-terms">
+    <header class="dd-panel-header"><h2 class="dd-panel-title"><%= @terms_version ? "Replace with another departure's terms" : "Start the client terms" %></h2></header>
+    <div class="dd-panel-body dd-stack">
+      <% if !manage_package? %>
+        <p class="dd-empty-copy">No client terms yet.</p>
+      <% else %>
+        <% unless @terms_version %>
+          <p class="dd-page-description">Start from the agency's reusable wording and cancellation tiers, then add this departure's terms and payment schedule.</p>
+          <%= button_to "Start from agency terms", departure_client_terms_path(@departure), class: "dd-button" %>
+        <% end %>
+        <% if sources.any? %>
+          <%= form_with url: departure_client_terms_path(@departure), method: :post, class: "dd-form" do |form| %>
+            <div class="dd-field-group">
+              <%= label_tag :source_departure_id, "Copy another departure's terms", class: "dd-label" %>
+              <%= select_tag :source_departure_id, options_for_select(sources.map { |departure| [ "#{departure.name} (#{departure.display_reference})", departure.id ] }),
+                    aria: { describedby: "source_departure_hint" }, class: "dd-field" %>
+              <p class="dd-field-hint" id="source_departure_hint">Copies its wording, tiers and payment schedule. The copy doesn't follow later changes to the source.</p>
+            </div>
+            <%= form.submit "Copy terms", class: "dd-button dd-button--secondary", data: { turbo_confirm: (@terms_version ? "Replace these terms with the copy?" : nil) } %>
+          <% end %>
+        <% end %>
+      <% end %>
+    </div>
+  </article>
+<% end %>
+
+<% if @terms_version %>
+  <article class="dd-panel" id="wording">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Version <%= @terms_version.version_number %></h2>
+      <p><%= @terms_version.locked? ? status_badge("Locked: accepted by a booking", modifier: "info") : status_badge("Editable", modifier: "neutral") %></p>
+    </header>
+    <div class="dd-panel-body dd-stack">
+      <% if @terms_version.copied_from_departure %><p class="dd-page-description">Copied from <%= @terms_version.copied_from_departure.name %>.</p><% end %>
+      <section class="dd-stack" aria-labelledby="agency-wording-heading">
+        <h3 class="dd-section-title" id="agency-wording-heading">Agency terms</h3>
+        <div><%= @terms_version.agency_wording ? FooterMarkdown.render(@terms_version.agency_wording) : "None" %></div>
+      </section>
+      <section class="dd-stack" aria-labelledby="departure-wording-heading">
+        <h3 class="dd-section-title" id="departure-wording-heading">This departure's terms</h3>
+        <% if editable %>
+          <%= form_with model: @terms_version, url: departure_client_terms_path(@departure), method: :patch, scope: :client_terms_version, class: "dd-form" do |form| %>
+            <%= form.hidden_field :lock_version %>
+            <div class="dd-field-group">
+              <%= form.label :departure_wording, "Departure terms", class: "dd-label" %>
+              <%= form.text_area :departure_wording, rows: 5, maxlength: ClientTermsVersion::WORDING_LIMIT, aria: { describedby: "departure_wording_hint" }, class: "dd-field" %>
+              <p class="dd-field-hint" id="departure_wording_hint">Paragraphs, bold, italic, lists and links, as in the document footers.</p>
+            </div>
+            <%= form.submit "Save terms", class: "dd-button dd-button--secondary" %>
+          <% end %>
+        <% else %>
+          <div><%= @terms_version.departure_wording ? FooterMarkdown.render(@terms_version.departure_wording) : "None" %></div>
+        <% end %>
+      </section>
+    </div>
+  </article>
+
+  <article class="dd-panel" id="cancellation">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Cancellation tiers</h2>
+      <% if editable && @terms_version.overrides_cancellation_tiers? %>
+        <%= link_to "Add tier", new_departure_client_cancellation_tier_path(@departure), class: "dd-button dd-button--quiet" %>
+      <% end %>
+    </header>
+    <div class="dd-panel-body dd-stack">
+      <p class="dd-page-description">
+        <%= @terms_version.overrides_cancellation_tiers? ? "This departure's own tiers, replacing the agency's." : "The agency's default tiers." %>
+        Each tier's charge is proposed from the affected service's accepted client charge, for staff to review.
+      </p>
+      <%= render "shared/cancellation_tiers_table", tiers: @terms_version.cancellation_tiers,
+            edit_path: (editable && @terms_version.overrides_cancellation_tiers? ? ->(tier) { edit_departure_client_cancellation_tier_path(@departure, tier) } : nil),
+            remove_path: ->(tier) { departure_client_cancellation_tier_path(@departure, tier) } %>
+      <% if editable %>
+        <%= form_with model: @terms_version, url: departure_client_terms_path(@departure), method: :patch, scope: :client_terms_version, class: "dd-form" do |form| %>
+          <%= form.hidden_field :lock_version %>
+          <%= form.hidden_field :overrides_cancellation_tiers, value: !@terms_version.overrides_cancellation_tiers? %>
+          <%= form.submit (@terms_version.overrides_cancellation_tiers? ? "Use the agency tiers" : "Override the agency tiers"), class: "dd-button dd-button--secondary",
+                data: { turbo_confirm: (@terms_version.overrides_cancellation_tiers? ? "Discard this departure's tiers and use the agency's?" : nil) } %>
+        <% end %>
+      <% end %>
+    </div>
+  </article>
+
+  <article class="dd-panel" id="payment-schedule">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title">Payment schedule</h2>
+      <% if editable %><%= link_to "Add line", new_departure_client_schedule_line_path(@departure), class: "dd-button dd-button--quiet" %><% end %>
+    </header>
+    <div class="dd-panel-body dd-stack">
+      <p class="dd-page-description">Installments are proposed from these lines when a booking is prepared for acceptance. Staff may adjust them.</p>
+      <% @terms_version.booking_blockers.each do |blocker| %>
+        <p class="dd-alert dd-alert--warning" role="status"><%= blocker %></p>
+      <% end %>
+      <% lines = @terms_version.schedule_lines %>
+      <% if lines.any? %>
+        <div class="dd-table-wrap">
+          <table class="dd-table dd-stacked-table">
+            <caption class="dd-visually-hidden">Payment schedule lines</caption>
+            <thead><tr><th scope="col">Payment</th><th scope="col">Amount</th><th scope="col">Due</th><th scope="col">Counts as acceptance</th><% if editable %><th scope="col" class="dd-col-actions">Actions</th><% end %></tr></thead>
+            <tbody>
+              <% lines.each do |line| %>
+                <tr>
+                  <th scope="row"><%= line.description %></th>
+                  <td><span class="dd-cabin-field-label dd-visually-hidden">Amount</span><%= schedule_line_amount_label(line) %></td>
+                  <td><span class="dd-cabin-field-label dd-visually-hidden">Due</span><%= schedule_line_due_label(line) %></td>
+                  <td><span class="dd-cabin-field-label dd-visually-hidden">Counts as acceptance</span><%= line.counts_as_acceptance ? "Yes" : "No" %></td>
+                  <% if editable %>
+                    <td class="dd-col-actions">
+                      <%= link_to "Edit", edit_departure_client_schedule_line_path(@departure, line), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{line.description}" } %>
+                      <%= button_to "Remove", departure_client_schedule_line_path(@departure, line), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger",
+                            form_class: "dd-inline-form", aria: { label: "Remove #{line.description}" } %>
+                    </td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+  </article>
+<% end %>

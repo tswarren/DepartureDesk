@@ -1,0 +1,88 @@
+<% content_for :title, "Package · #{@departure.name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Package", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Departure</p>
+    <h1 class="dd-page-title"><%= @departure.name %></h1>
+    <p class="dd-page-description">What clients book: each package's choices, the inventory each option draws on, and its client prices.</p>
+  </div>
+  <% if manage_package? %>
+    <div class="dd-page-actions"><%= link_to "Add package", new_departure_offering_path(@departure), class: "dd-button" %></div>
+  <% end %>
+</header>
+
+<%= render "departures/tabs", departure: @departure, current: :package %>
+
+<% if @offerings.empty? %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <div class="dd-empty-state">
+        <h2 class="dd-empty-title">No package yet</h2>
+        <p class="dd-empty-copy">A package groups what a client books: the cabin, the included hotel night, and add-ons such as extra nights or a tour.</p>
+      </div>
+    </div>
+  </article>
+<% end %>
+
+<% @offerings.each do |offering| %>
+  <article class="dd-panel" aria-labelledby="offering-<%= offering.id %>">
+    <header class="dd-panel-header">
+      <h2 class="dd-panel-title" id="offering-<%= offering.id %>"><%= offering.name %></h2>
+      <% if manage_package? %>
+        <span class="dd-section-header">
+          <%= link_to "Add choice", new_departure_offering_choice_path(@departure, offering), class: "dd-button dd-button--quiet" %>
+          <%= link_to "Edit package", edit_departure_offering_path(@departure, offering), class: "dd-button dd-button--quiet" %>
+        </span>
+      <% end %>
+    </header>
+    <div class="dd-panel-body dd-stack">
+      <% if offering.description %><p class="dd-page-description"><%= offering.description %></p><% end %>
+      <% blockers = offering.booking_blockers %>
+      <% if blockers.any? %>
+        <div class="dd-alert dd-alert--warning" role="status">
+          <p class="dd-alert-title">Before this package can be booked</p>
+          <ul class="dd-error-list"><% blockers.each do |blocker| %><li><%= blocker %></li><% end %></ul>
+        </div>
+      <% end %>
+      <% if offering.choices.empty? %>
+        <p class="dd-empty-copy">No choices yet. Start with what every booking includes, such as the cabin.</p>
+      <% end %>
+      <% offering.choices.each do |choice| %>
+        <section class="dd-stack" aria-labelledby="choice-<%= choice.id %>">
+          <div class="dd-section-header">
+            <h3 class="dd-section-title" id="choice-<%= choice.id %>"><%= choice.name %></h3>
+            <% if manage_package? %>
+              <span class="dd-section-header">
+                <%= link_to "Add option", new_departure_offering_choice_option_path(@departure, offering, choice), class: "dd-row-action dd-row-action--text", aria: { label: "Add an option to #{choice.name}" } %>
+                <%= link_to "Edit", edit_departure_offering_choice_path(@departure, offering, choice), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{choice.name}" } %>
+              </span>
+            <% end %>
+          </div>
+          <p class="dd-page-description"><%= choice_summary(choice) %></p>
+          <% if choice.options.any? %>
+            <div class="dd-table-wrap">
+              <table class="dd-table dd-stacked-table">
+                <caption class="dd-visually-hidden"><%= choice.name %> options</caption>
+                <thead><tr><th scope="col">Option</th><th scope="col">Draws on</th><th scope="col">Client prices</th><% if manage_package? %><th scope="col" class="dd-col-actions">Actions</th><% end %></tr></thead>
+                <tbody>
+                  <% choice.options.each do |option| %>
+                    <tr>
+                      <th scope="row"><%= option.label %></th>
+                      <td><span class="dd-cabin-field-label dd-visually-hidden">Draws on</span><%= option.inventory_group.label %> · <%= option.inventory_group.supplier_arrangement.supplier.display_name_for_directory %></td>
+                      <td><span class="dd-cabin-field-label dd-visually-hidden">Client prices</span><%= price_summary(option) %></td>
+                      <% if manage_package? %>
+                        <td class="dd-col-actions"><%= link_to "Edit prices", edit_departure_offering_choice_option_path(@departure, offering, choice, option), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{option.label} and its prices" } %></td>
+                      <% end %>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% end %>
+        </section>
+      <% end %>
+    </div>
+  </article>
+<% end %>
