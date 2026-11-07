@@ -159,35 +159,7 @@
   </header>
   <div class="dd-panel-body dd-stack">
     <p class="dd-page-description">Proposed from the package's prices when each choice was made. A later change to the package's prices doesn't change them.</p>
-    <% lines = @booking.price_lines.sort_by { |line| selection = line.choice_selection; [ selection.option.choice.position, selection.option.position, selection.unit_number.to_i, line.booking_traveler&.position.to_i ] } %>
-    <% if lines.empty? %>
-      <p class="dd-empty-copy">No prices yet. Choose options and place travelers to see them.</p>
-    <% else %>
-      <div class="dd-table-wrap">
-        <table class="dd-table dd-stacked-table">
-          <caption class="dd-visually-hidden">Proposed prices</caption>
-          <thead>
-            <tr><th scope="col">Service</th><th scope="col">Traveler</th><th scope="col">Position</th><th scope="col" class="num">Price</th></tr>
-          </thead>
-          <tbody>
-            <% lines.each do |line| %>
-              <tr>
-                <th scope="row"><%= line.choice_selection.label %><span class="dd-cell-subtext"><%= line.choice_selection.option.choice.included? ? "Included" : "Add-on" %></span></th>
-                <td><span class="dd-cabin-field-label dd-visually-hidden">Traveler </span><%= line.booking_traveler&.display_name || "Per trip" %></td>
-                <td><span class="dd-cabin-field-label dd-visually-hidden">Position </span><%= OfferingPrice::POSITION_LABELS.fetch(line.occupancy_position) %></td>
-                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Price </span><%= booking_money(line.amount_minor_units, line.currency) %></td>
-              </tr>
-            <% end %>
-          </tbody>
-          <tfoot>
-            <tr>
-              <th scope="row" colspan="3">Total</th>
-              <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Total </span><%= booking_money(@booking.total_minor_units, @booking.currency) %></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    <% end %>
+    <%= render "client_bookings/price_matrix", booking: @booking %>
   </div>
 </article>
 
@@ -197,7 +169,7 @@
   </header>
   <div class="dd-panel-body dd-stack">
     <p class="dd-page-description">
-      <% if hold_state == :held %>Held until <%= booking_time(hold_at) %>.<%= " Extended once; it can't be extended again." if @booking.hold_extended? %>
+      <% if hold_state == :held %>Held until <%= booking_time(hold_at) %><%= " Extended once; it can't be extended again." if @booking.hold_extended? %>
       <% elsif hold_state == :expired %>The hold expired <%= booking_time(hold_at) %>, and its space was returned. Hold space again if any is left.
       <% else %>Nothing is held. Hold space takes every service the booking has chosen, or none, and lasts <%= pluralize(@trip.departure.effective_hold_duration_days, "day") %>.
       <% end %>
