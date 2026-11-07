@@ -1,6 +1,6 @@
 # DepartureDesk First-Slice Charter
 
-**Status:** Accepted 2026-10-31 for scope (D-64). Amended 2026-11-01 (D-66): the old supplier and offer layers retire in Phase 1, Slice 1 gains a staff checkpoint after step 6, and the Phase 0 decision rule is split. Amended 2026-11-03: CLT-25 joins steps 8 and 9 (D-78), D1 and D4 follow D-75 and expected commission moves to step 4 (D-85), and the fixture values are settled (D-87). Amended 2026-11-05: publishing to a reseller channel moves from build step 2 to build step 9 (D-90). Amended 2026-11-06: D2 keeps its date-driven checks, D4 and D10 take the booking-confirmation and payment checks, and the expected commission record is built in step 6 (D-92); the Alpha client terms values are settled (D-93). No Slice 1 build step starts before the Phase 0 checkpoint.
+**Status:** Accepted 2026-10-31 for scope (D-64). Amended 2026-11-01 (D-66): the old supplier and offer layers retire in Phase 1, Slice 1 gains a staff checkpoint after step 6, and the Phase 0 decision rule is split. Amended 2026-11-03: CLT-25 joins steps 8 and 9 (D-78), D1 and D4 follow D-75 and expected commission moves to step 4 (D-85), and the fixture values are settled (D-87). Amended 2026-11-05: publishing to a reseller channel moves from build step 2 to build step 9 (D-90). Amended 2026-11-06: D2 keeps its date-driven checks, D4 and D10 take the booking-confirmation and payment checks, and the expected commission record is built in step 6 (D-92); the Alpha client terms values are settled (D-93); staff confirm BK-105 in step 6 and the reseller in step 9, confirmation creates the client charge in step 6, D5 closes in step 6 with a temporary BKG-41 exception, step 6 is delivered as three pull requests, Client Trip references are issued at creation, and the roster's placeholder values are settled (D-94). No Slice 1 build step starts before the Phase 0 checkpoint.
 **Owner:** Tom
 **Product authority:** [Product Specification](../../spec/README.md). Decisions this charter needs are in [pending decision log entries](../../spec/pending-decision-log-entries.md).
 
@@ -54,6 +54,16 @@ The five roster bookings carry 13 travelers, including two infants who occupy ca
 | BK-102 Mercer | 1b | O01 | 2 | 2 | 2 | $5,970 | Harbor Double, Nov 5 only |
 | BK-103 Ellis | 1b | I01 | 1 | 1 | 1 | $5,035 | Garden Queen from Nov 3 |
 | **All five** | | | **13** | **12** | **10** | **$37,405** | |
+
+Slice 1's roster details are placeholder values (D-94); the responsible client is listed first and travels, linked as Self. Dates of birth are placeholders consistent with these ages at sailing.
+
+| Booking | Travelers | Cabin | Hotel | Excursion | Accepted and confirmed |
+| --- | --- | --- | --- | --- | --- |
+| BK-101 | Nadia Rowan (Adult), Theo Rowan (Adult), Iris Rowan (Child, 9) | V01 | Garden Queen, Nov 4 and 5 | All three | Jan 12, 2027, by email |
+| BK-104 | Sofia Bennett (Adult), Marcus Bennett (Adult), Ava Bennett (Child, 11), Milo Bennett (Child 0–4, 2) | S01 | Harbor Double, Nov 2 to 5 | All four; Milo uses no position | Jan 19, 2027, by phone |
+| BK-105 | Mateo Rivera (Adult), Elena Rivera (Adult), Luca Rivera (Child 0–4, 3) | O01 | Garden Queen, Nov 5 | Mateo and Luca | Feb 2, 2027, in person |
+
+Each booking's hold is placed the day it is confirmed.
 
 Slice 1's three bookings have 9 excursion participants using 7 of 10 positions. With all five bookings, 12 participants use all 10. When Elena Rivera then opts in, demand reaches 11 positions and needs a second $1,000 resource: client revenue $1,650 against supplier cost $2,000.
 
@@ -181,8 +191,8 @@ Seventeen cases prove the first slice. Each becomes an automated test; the Slice
 | D1 | 1 | Staff confirm the Alpha arrangement | 32 cabin shells exist only after confirmation; no supplier cost is recorded (D-75) | SUP-12, SUP-35 |
 | D2 | 1 | Agreement A, B2 as settled | $1,600 falls due Nov 1, 2026; if no booking has confirmed by Mar 1, 2027, $450 falls due that day for each remaining cabin (D-92) | SMN-03, SMN-05, SMN-11, SMN-13 |
 | D3 | 1b | Agreement B; staff hold a cabin | The hold is conditional, shows the Mar 1 cutoff, and a cutoff task exists; no initial deposit is due | INV-22, SUP-23 |
-| D4 | 1 | Staff confirm BK-101 and BK-104; the reseller confirms BK-105 | Cruise subtotals total $26,400; cabins left: V01 7, O01 7, I01 8, S01 7. Each confirmation proposes that booking's Alpha cost and expected commission from the rate table, and posts $450 for its cabin (D-81, D-92). In 1b all five total $37,405 | BKG-25, BKG-45, INV-38, SUP-35, SMN-11, SMN-32 |
-| D5 | 1 | Anyone tries to confirm without recorded acceptance | Confirmation is refused; a deposit counts as acceptance only when the terms say so | BKG-39, BKG-41 |
+| D4 | 1 | Staff confirm BK-101, BK-104 and BK-105 (in step 9 the reseller holds and confirms BK-105, checked by D15; D-94) | Cruise subtotals total $26,400; cabins left: V01 7, O01 7, I01 8, S01 7. Each confirmation proposes that booking's Alpha cost and expected commission from the rate table, and posts $450 for its cabin (D-81, D-92). In 1b all five total $37,405 | BKG-25, BKG-45, INV-38, SUP-35, SMN-11, SMN-32 |
+| D5 | 1 | Anyone tries to confirm without recorded acceptance | Confirmation is refused; a deposit counts as acceptance only when the terms say so. Until step 8, such an acceptance notes the payment's date, amount and reference; step 8 links the payment record (D-94) | BKG-39, BKG-41 |
 | D6 | 1 | Excursion choices are recorded for the Slice 1 bookings | 9 participants, 7 positions used, 3 left; Luca and Milo listed without positions. In 1b all five use all 10 | INV-39, BKG-16 |
 | D7 | 1b | Elena Rivera adds the excursion after confirmation | Blocked for lack of capacity until staff record a confirmed second resource; then capacity is 20, supplier cost $2,000 and excursion margin −$350 | INV-16, BKG-17, INV-23, INV-26 |
 | D8 | 1, 1b | BK-104 is confirmed with Nov 2–3 on request | Those nights show Awaiting supplier; in Slice 1 the hotel accepts and its reference is recorded. In 1b a decline is flagged, acceptance is kept and nothing cancels | INV-33 to INV-37 |
@@ -214,14 +224,14 @@ The build keeps the existing Rails app's foundation (D-65): agency identity, the
 | 3 | Arrangements, inventory groups, shells, pools and resources, supplier rate table, deadlines that create tasks | D1, D12 |
 | 4 | Supplier cost, schedule lines, amounts due, and the rate-table proposal of cost and expected commission (D-92) | D2 |
 | 5 | Package, scoped choices, client terms, per-cabin deposit | |
-| 6 | Travelers, Client Trips, bookings; hold, accept and confirm; draft saving; expected commission records (D-92) | D4, D5, D6, D16 |
+| 6 | Travelers, Client Trips, bookings; hold, accept and confirm; draft saving; the client charge and its lines created at confirmation (D-94); expected commission records (D-92). Three pull requests (D-94) | D4, D5, D6, D16 |
 | 7 | Supplier reservations that can stand alone | D8 |
-| 8 | Client charges, installments, payments by route, receipts; supplier payments | D9, D10 |
-| 9 | The reseller path, including publishing to a reseller channel (D-90) | D15 |
+| 8 | Installments, including those for bookings already confirmed, payments by route, receipts; linking designated-payment acceptances to their payments (D-94); supplier payments | D9, D10 |
+| 9 | The reseller path, including publishing to a reseller channel (D-90) and the reseller holding and confirming BK-105 (D-94) | D15 |
 | 10 | Confirmation, invoice and receipt PDFs | D13 |
 | 11 | Departed and reconciliation | D14 |
 
-Working rules: one pull request per step or case, citing its rule IDs; the spec changes before the code does, with a decision log entry; one slice active at a time; every screen meets UI acceptance before its step is done.
+Working rules: one pull request per step or case, citing its rule IDs, except that step 6 is three pull requests: clients, travelers and Client Trips, closing no case; bookings and holds, closing D6 and D16; acceptance and confirmation, closing D4 and D5. Step 6 is done when the third merges (D-94); the spec changes before the code does, with a decision log entry; one slice active at a time; every screen meets UI acceptance before its step is done.
 
 ## Exit and scope control
 

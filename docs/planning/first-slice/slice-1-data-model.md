@@ -2,7 +2,7 @@
 
 **Status:** Reviewed 2026-11-03 for the Phase 0 checkpoint. Part of the [first-slice charter](first-slice-charter.md). The working copy is the "Slice 1 data model" tab of the [charter working doc](https://claude.ai/artifact/CyxyKhNu7FWBFdG3MXCUHo); change that copy first, then update this file.
 
-Slice 1 needs 56 entities: 11 reused or adapted from the existing app and 45 new, written to the spec rules the charter cites. Each table marks an entity Reuse, Adapt or New, with its key facts and the rules it serves. Field names are indicative; the build settles exact columns.
+Slice 1 needs 57 entities: 11 reused or adapted from the existing app and 46 new, written to the spec rules the charter cites. Each table marks an entity Reuse, Adapt or New, with its key facts and the rules it serves. Field names are indicative; the build settles exact columns.
 
 ## At a glance
 
@@ -73,9 +73,10 @@ Everything here is new. Booking status, allocation state and supplier reservatio
 | Client booking | New | Trip, offering (optional), sequence, status (Draft, Confirmed, Discarded, Cancelled), creator, owner (a reseller or the agency), seller of record, cancellation initiator | BKG-05, BKG-06, ACC-18 |
 | Booking traveler | New | Booking, traveler or placeholder label, traveler type, occupancy position, name as booked, active or cancelled | CLT-13, CLT-15, BKG-55 |
 | Choice selection | New | Booking, option, the traveler or unit it applies to | BKG-14, BKG-16 |
+| Booking price line | New (D-94 plan, step 6) | Booking, traveler, traveler type, occupancy position, option, amount and the offering price it came from. Proposed when the booking's contents need it, re-proposed only for changed contents, frozen at confirmation; an offering price change never touches it | BKG-21, BKG-23, BKG-25 |
 | Inventory allocation | New | Booking, inventory group and quantity, or a unit shell; state (Held, Reserved, Released), hold expiry, extended once (BKG-09). "Conditional" and "capacity conflict" are derived, not stored | INV-17 to INV-23, BKG-09 |
 | Allocation position | New | Allocation, booking traveler, position number | INV-07 |
-| Acceptance record | New | Booking, who accepted, method, time, terms version, evidence, who recorded it, linked payment if the terms make payment acceptance | BKG-39, BKG-41 |
+| Acceptance record | New | Booking, who accepted, method, time, terms version, evidence, who recorded it, linked payment if the terms make payment acceptance. Until build step 8, a designated-payment acceptance records the payment's date, amount and reference as notes instead of the link (D-94) | BKG-39, BKG-41 |
 
 ## Money
 
@@ -90,7 +91,7 @@ All money is integer minor units with a currency code. Records are append-only: 
 | Supplier payment | New | Payee account, date, amount, currency, method, reference, reversal link | SMN-18, SMN-23 |
 | Supplier payment application | New | Payment, amount due, amount | SMN-19 |
 | Expected commission | New | Booking service, supplier, amount, status (Expected, Confirmed, Received, Offset, Reversed) | SMN-32, SMN-33 |
-| Client charge | New | One per confirmed booking, currency | CMN-01 |
+| Client charge | New | One per confirmed booking, currency; created at confirmation in build step 6 (D-94) | CMN-01 |
 | Charge line | New | Charge, type, traveler (optional), amount, creditor, expected route; never edited after creation | CMN-01 to CMN-03 |
 | Installment | New | Charge, amount, due date, expected route | CMN-08, CMN-12 |
 | Client payment | New | Trip, payer (a client), date, amount, currency, route (agency or supplier), supplier if supplier-direct, method, reference, reversal link | CMN-18, CMN-27 |

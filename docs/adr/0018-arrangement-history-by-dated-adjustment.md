@@ -106,6 +106,10 @@ The spike ran on the existing pools ([findings](../planning/first-slice/phase-1-
 - A new hold or allocation must fit the lowest scheduled supply from now on, not only current supply.
 - An agency-initiated reduction (release, downward correction) below active allocations is refused. A supplier-driven reduction is recorded and the conflict is derived (INV-27). The pool lock makes both checks race-free.
 
+### Lock row (clarified 2026-11-06)
+
+"The pool row" above means the inventory group row that owns the pool or the shells. The shipped supply commands lock agency, Departure, arrangement and then the inventory group. Allocation commands lock agency, Departure and booking, then each affected arrangement and each affected inventory group in id order. Both paths take the group row last, so supply and allocations for one group are ordered on one timeline. No pool or shell row is locked for capacity. This clarifies the decision above and changes nothing in it ([Slice 1 step 6 plan](../planning/first-slice/slice-1-step-6-plan.md), question 16).
+
 ### Effective date of a date-only adjustment
 
 An adjustment dated on or before the local recording date applies at once, at its recorded time. One dated later applies at the end of its effective date, resolved like a date-only deadline (SET-10): 11:59 p.m. agency local time. A supplier release and a deadline on the same date therefore resolve to the same instant. The zone is snapshotted on the event, so a later change to the agency's zone does not move past events. This replaces the shipped rule, which used midnight starting the next day in the pool's zone. Decision log entry D-88.

@@ -1,6 +1,6 @@
 # Slice 1 step 6: Travelers, Client Trips and bookings; hold, accept and confirm
 
-**Status:** Draft 2026-11-06, for review. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 6 and the decision log entries it cites.
+**Status:** Accepted 2026-11-06, with D-94 logged. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 6 and the decision log entries it cites.
 
 Charter build step 6 covers four things:
 - travelers, Client Trips and bookings;
@@ -23,14 +23,14 @@ It also builds the first records of three later workflow steps, and each is crea
 - the Client booking confirmed trigger (SMN-11, D-81);
 - expected commission (SMN-32, D-92).
 
-## Questions for this plan
+## Questions settled for this plan (2026-11-06)
 
 Questions 1 to 6 do one of three things:
 - move work or checks between build steps;
 - depart from a working rule or a cited rule for a stated period;
 - settle fixture values.
 
-The charter takes those from the decision log (D-87, D-92), so they are proposed together as one entry, given below. The other questions stay inside the cited rules.
+The charter takes those from the decision log (D-87, D-92), so they are logged together as **D-94**, below. The other questions stay inside the cited rules and need no entry. Each recommendation was accepted.
 
 | # | Question | Recommendation |
 | --- | --- | --- |
@@ -51,15 +51,13 @@ The charter takes those from the decision log (D-87, D-92), so they are proposed
 | 15 | **Editing a held booking.** A hold must never satisfy confirmation for contents different from the ones it was taken for. | **Edits replace the affected holds atomically.** Any of these on a booking with active holds re-holds the affected parts in the same command and transaction:<br>• changing travelers, their types or their occupancy order;<br>• changing a selection or its participants.<br>The old allocations are released and new ones created, under the question 16 locks. The new holds keep the original expiry, so an edit never extends a hold.<br>If the new contents can't be held, the edit is refused whole, the old holds stay, and the refusal names the service. Staff can still release that service's hold explicitly and then save.<br>Edits that change no allocation, such as a traveler's name or date of birth, leave holds alone.<br>**Confirmation checks the match.** It requires one active allocation for each inventory-linked selection, with positions that match the current travelers and participants, and refuses with "The hold doesn't match the booking; hold space again" otherwise. |
 | 16 | **One capacity lock protocol.** The shipped supply commands (`CapacityCommandSupport`, `ConfirmSupplierArrangement`) lock agency, Departure, arrangement, then the **inventory group** row. D-88's text says "the pool row". | **The inventory group row is the one capacity lock**, for its pool and for its shells alike. No pool or shell row is locked for capacity.<br>• **Supply commands** keep their order: agency, Departure, arrangement, group.<br>• **Allocation commands** lock agency, Departure, booking, then every affected arrangement and then every affected group, each in id order.<br>Both paths take the group last, so supply and allocation are ordered on one timeline per group (INV-26).<br>`CapacityCommandSupport` documents the protocol, and the allocation support module shares it. ADR 0018's spike amendment gains a clarifying note that "pool row" means the inventory group row that owns the pool. That changes no decision. A test races a hold against a supplier release on the same group. |
 
-### Proposed decision log entry
-
-The next free number is expected to be D-94; the Google Doc issues it.
+### D-94 as logged
 
 > | D-94 | 2026-11-06 | Amend the first-slice charter for build step 6. (1) Staff confirm BK-105 in build step 6, so D4 closes with all three Slice 1 bookings; in build step 9 the fixture assigns BK-105 to the reseller, which holds and confirms it, checked by D15. (2) Booking confirmation creates the client charge and its charge lines from the accepted price snapshot in build step 6 (BKG-25, CMN-01 to CMN-03); installments, payments and receipts stay in build step 8, which creates installments for bookings already confirmed. (3) D5 closes in build step 6. Acceptance by a designated payment is offered only when the terms say so. As a temporary exception to BKG-41, until build step 8 such an acceptance records the payment's date, amount and reference as notes that post, settle and count toward nothing, instead of linking a separate financial record; build step 8 links each one to its payment record and ends the exception. (4) Build step 6 is delivered as three pull requests, an exception to the one-per-step-or-case working rule for this step only: clients, travelers and Client Trips, closing no case; bookings and holds, closing D6 and D16; acceptance and confirmation, closing D4 and D5. The step is done when the third merges. (5) A Client Trip's reference is issued when the trip is created (REF-04, ADR 0004). (6) Settle the Slice 1 roster's placeholder travelers, responsible clients, dates of birth and booking dates as the step 6 plan lists them; fixture values are test inputs only. Amends D-87 and D-92. | BKG-41, REF-04 |
 
-### Authority updates in the docs PR
+### Authority updates applied with D-94
 
-When D-94 is logged, the docs PR applies it before any step 6 code:
+The step 6 plan's docs PR applies D-94 before any step 6 code:
 - **Charter:**
   - the status line;
   - D4's row: staff confirm BK-105 in step 6, and the reseller's confirmation is checked by D15 in step 9;
