@@ -4,11 +4,12 @@ set -euo pipefail
 service="${RAILS_DOCKER_SERVICE:-web}"
 
 # docker compose exec/run does not inherit the caller's environment.
-# Forward the variables the runbook and local CI docs set on the host command.
+# Forward the variables the runbook, local CI docs and the step 6 walkthrough
+# set on the host command.
 forward_env=()
 while IFS= read -r name; do
   forward_env+=(-e "${name}=${!name}")
-done < <(compgen -e | grep -E '^(AGENCY_|FORCE_SYSTEM_TESTS$)' || true)
+done < <(compgen -e | grep -E '^(AGENCY_|FORCE_SYSTEM_TESTS$|ALPHA_FIXTURE_BOOKINGS$)' || true)
 
 if docker compose ps --status running --services | grep -qx "$service"; then
   compose_cmd=(docker compose exec)

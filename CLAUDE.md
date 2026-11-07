@@ -6,7 +6,7 @@ AGENTS.md (imported above) is the binding repository contract: scope boundary, i
 
 ## Before any change
 
-1. Check the scope boundary in AGENTS.md "Current boundary". Phase 0 closed 2026-11-03 and Phase 1 (Prepare) closed 2026-11-04; Slice 1 is active, with steps 1 to 3 merged (foundation; Departure statuses; arrangements, inventory, capacity ledger, rate table, deadlines and tasks), step 4 (supplier cost, schedule lines and amounts due) and step 5 (package, prices and client terms) merged, and step 6 (travelers, Client Trips and bookings) in progress as three pull requests (D-94), with 6a and 6b merged and 6c built on its branch. M1 directories and M2 Departures are built on; the M3/M4 layers were deleted in Phase 1 (D-66). Do not restore code from tag `pre-m3-m4-deletion` except the capacity replay and projection code Slice 1 step 3 adapts.
+1. Check the scope boundary in AGENTS.md "Current boundary". Phase 0 closed 2026-11-03 and Phase 1 (Prepare) closed 2026-11-04; Slice 1 is active, with steps 1 to 3 merged (foundation; Departure statuses; arrangements, inventory, capacity ledger, rate table, deadlines and tasks), step 4 (supplier cost, schedule lines and amounts due) and step 5 (package, prices and client terms) merged, and step 6 (travelers, Client Trips and bookings) merged as three pull requests (D-94); the staff walkthrough after step 6 comes before step 7. M1 directories and M2 Departures are built on; the M3/M4 layers were deleted in Phase 1 (D-66). Do not restore code from tag `pre-m3-m4-deletion` except the capacity replay and projection code Slice 1 step 3 adapts.
 2. Product rules come from [docs/spec/product-specification.md](docs/spec/product-specification.md) (read-only snapshot) and are cited by rule ID, never copied. Do not resolve anything listed in [docs/spec/pending-decision-log-entries.md](docs/spec/pending-decision-log-entries.md) in code.
 3. Read the relevant ADR in [docs/adr/](docs/adr/) and the current code before you design anything.
 
@@ -24,7 +24,7 @@ docker compose up --build                                   # web :3000, css wat
 ./dev/rails-docker bin/ci                                   # full local CI (config/ci.rb)
 ```
 
-`dev/rails-docker` uses `exec` against a running `web` container, or `run --rm` if none is running, and forwards `AGENCY_*` and `FORCE_SYSTEM_TESTS` env vars. `bin/ci` runs, in order: setup, rubocop, Tailwind build, bundler-audit, importmap audit, Brakeman, Rails tests, system tests, and `db:seed:replant` in test.
+`dev/rails-docker` uses `exec` against a running `web` container, or `run --rm` if none is running, and forwards `AGENCY_*`, `FORCE_SYSTEM_TESTS` and `ALPHA_FIXTURE_BOOKINGS` env vars. `ALPHA_FIXTURE_BOOKINGS` (none, trips, held or confirmed, the default) sets how far the development seed takes the Alpha roster. `bin/ci` runs, in order: setup, rubocop, Tailwind build, bundler-audit, importmap audit, Brakeman, Rails tests, system tests, and `db:seed:replant` in test.
 
 The development seed agency has workspace code `harbor`. Its password is in [db/seeds.rb](db/seeds.rb). Never print it.
 
