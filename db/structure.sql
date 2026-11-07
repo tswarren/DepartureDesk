@@ -179,6 +179,22 @@ $$;
 
 
 --
+-- Name: reject_client_trip_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_client_trip_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id OR NEW.trip_reference IS DISTINCT FROM OLD.trip_reference THEN
+    RAISE EXCEPTION 'client trip identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: reject_departure_decision_mutation(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -360,6 +376,22 @@ BEGIN
   IF NEW.agency_id IS DISTINCT FROM OLD.agency_id
     OR NEW.namespace IS DISTINCT FROM OLD.namespace THEN
     RAISE EXCEPTION 'reference sequence identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_self_link_to_organization(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_self_link_to_organization() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.relationship = 'self' AND EXISTS (SELECT 1 FROM clients WHERE id = NEW.client_id AND client_person_id IS NULL) THEN
+    RAISE EXCEPTION 'only a person client can be linked as Self';
   END IF;
   RETURN NEW;
 END;
@@ -1163,6 +1195,24 @@ CREATE TABLE public.client_terms_versions (
     CONSTRAINT client_terms_versions_copied_from_other CHECK (((copied_from_departure_id IS NULL) OR (copied_from_departure_id <> departure_id))),
     CONSTRAINT client_terms_versions_counters CHECK (((version_number >= 1) AND (lock_version >= 0))),
     CONSTRAINT client_terms_versions_wording_length CHECK ((((agency_wording IS NULL) OR (char_length(agency_wording) <= 20000)) AND ((departure_wording IS NULL) OR (char_length(departure_wording) <= 20000))))
+);
+
+
+--
+-- Name: client_trips; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_trips (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_id uuid NOT NULL,
+    departure_id uuid,
+    trip_reference character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT client_trips_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT client_trips_reference_format CHECK (((trip_reference)::text ~ '^T-[0-9]{5,}$'::text))
 );
 
 
@@ -1988,6 +2038,22 @@ CREATE TABLE public.tasks (
 
 
 --
+-- Name: traveler_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.traveler_links (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    traveler_id uuid NOT NULL,
+    client_id uuid NOT NULL,
+    relationship character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT traveler_links_relationship CHECK (((relationship)::text = ANY ((ARRAY['self'::character varying, 'family_member'::character varying, 'employee_or_member'::character varying, 'other'::character varying])::text[])))
+);
+
+
+--
 -- Name: traveler_types; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2004,6 +2070,34 @@ CREATE TABLE public.traveler_types (
     CONSTRAINT traveler_types_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 60))),
     CONSTRAINT traveler_types_position_nonnegative CHECK (("position" >= 0)),
     CONSTRAINT traveler_types_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])))
+);
+
+
+--
+-- Name: travelers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.travelers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    given_names character varying,
+    middle_name character varying,
+    surname character varying,
+    suffix character varying,
+    preferred_name character varying,
+    date_of_birth date,
+    gender character varying,
+    email_address character varying,
+    phone character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT travelers_contacts CHECK ((((email_address IS NULL) OR (((email_address)::text = lower(btrim((email_address)::text))) AND ((email_address)::text ~~ '%_@_%'::text) AND (char_length((email_address)::text) <= 254))) AND ((phone IS NULL) OR ((btrim((phone)::text) <> ''::text) AND (char_length((phone)::text) <= 40))))),
+    CONSTRAINT travelers_date_of_birth CHECK (((date_of_birth IS NULL) OR (date_of_birth >= '1900-01-01'::date))),
+    CONSTRAINT travelers_gender CHECK (((gender IS NULL) OR ((gender)::text = ANY ((ARRAY['female'::character varying, 'male'::character varying, 'unspecified'::character varying])::text[])))),
+    CONSTRAINT travelers_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT travelers_name_lengths CHECK ((((given_names IS NULL) OR ((btrim((given_names)::text) <> ''::text) AND (char_length((given_names)::text) <= 80))) AND ((middle_name IS NULL) OR ((btrim((middle_name)::text) <> ''::text) AND (char_length((middle_name)::text) <= 80))) AND ((surname IS NULL) OR ((btrim((surname)::text) <> ''::text) AND (char_length((surname)::text) <= 80))) AND ((suffix IS NULL) OR ((btrim((suffix)::text) <> ''::text) AND (char_length((suffix)::text) <= 20))) AND ((preferred_name IS NULL) OR ((btrim((preferred_name)::text) <> ''::text) AND (char_length((preferred_name)::text) <= 80))))),
+    CONSTRAINT travelers_some_name CHECK ((num_nonnulls(given_names, surname, preferred_name) >= 1))
 );
 
 
@@ -2299,6 +2393,14 @@ ALTER TABLE ONLY public.client_terms_versions
 
 
 --
+-- Name: client_trips client_trips_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_trips
+    ADD CONSTRAINT client_trips_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clients clients_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2555,11 +2657,27 @@ ALTER TABLE ONLY public.tasks
 
 
 --
+-- Name: traveler_links traveler_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.traveler_links
+    ADD CONSTRAINT traveler_links_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: traveler_types traveler_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.traveler_types
     ADD CONSTRAINT traveler_types_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: travelers travelers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.travelers
+    ADD CONSTRAINT travelers_pkey PRIMARY KEY (id);
 
 
 --
@@ -3200,6 +3318,34 @@ CREATE UNIQUE INDEX index_client_terms_versions_on_departure_and_number ON publi
 --
 
 CREATE UNIQUE INDEX index_client_terms_versions_on_id_and_agency_id ON public.client_terms_versions USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_trips_on_agency_and_reference; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_trips_on_agency_and_reference ON public.client_trips USING btree (agency_id, trip_reference);
+
+
+--
+-- Name: index_client_trips_on_client; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_trips_on_client ON public.client_trips USING btree (client_id);
+
+
+--
+-- Name: index_client_trips_on_departure; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_trips_on_departure ON public.client_trips USING btree (departure_id);
+
+
+--
+-- Name: index_client_trips_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_trips_on_id_and_agency_id ON public.client_trips USING btree (id, agency_id);
 
 
 --
@@ -4071,6 +4217,27 @@ CREATE UNIQUE INDEX index_tasks_one_per_supplier_deadline ON public.tasks USING 
 
 
 --
+-- Name: index_traveler_links_on_traveler; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_traveler_links_on_traveler ON public.traveler_links USING btree (traveler_id);
+
+
+--
+-- Name: index_traveler_links_one_per_client_and_traveler; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_traveler_links_one_per_client_and_traveler ON public.traveler_links USING btree (client_id, traveler_id);
+
+
+--
+-- Name: index_traveler_links_one_self_per_client; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_traveler_links_one_self_per_client ON public.traveler_links USING btree (client_id) WHERE ((relationship)::text = 'self'::text);
+
+
+--
 -- Name: index_traveler_types_on_agency_and_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4089,6 +4256,20 @@ CREATE INDEX index_traveler_types_on_agency_and_position ON public.traveler_type
 --
 
 CREATE UNIQUE INDEX index_traveler_types_on_id_and_agency_id ON public.traveler_types USING btree (id, agency_id);
+
+
+--
+-- Name: index_travelers_on_agency_and_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_travelers_on_agency_and_name ON public.travelers USING btree (agency_id, surname, given_names);
+
+
+--
+-- Name: index_travelers_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_travelers_on_id_and_agency_id ON public.travelers USING btree (id, agency_id);
 
 
 --
@@ -4302,6 +4483,13 @@ CREATE TRIGGER client_terms_versions_reject_locked_change BEFORE DELETE OR UPDAT
 
 
 --
+-- Name: client_trips client_trips_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_trips_reject_identity_change BEFORE UPDATE ON public.client_trips FOR EACH ROW EXECUTE FUNCTION public.reject_client_trip_identity_change();
+
+
+--
 -- Name: clients clients_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4418,6 +4606,20 @@ CREATE TRIGGER supplier_websites_reject_owner_change BEFORE UPDATE ON public.sup
 --
 
 CREATE TRIGGER suppliers_reject_identity_change BEFORE UPDATE ON public.suppliers FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_identity_change();
+
+
+--
+-- Name: traveler_links traveler_links_reject_self_organization; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER traveler_links_reject_self_organization BEFORE INSERT OR UPDATE ON public.traveler_links FOR EACH ROW EXECUTE FUNCTION public.reject_self_link_to_organization();
+
+
+--
+-- Name: travelers travelers_reject_agency_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER travelers_reject_agency_change BEFORE UPDATE ON public.travelers FOR EACH ROW EXECUTE FUNCTION public.reject_directory_agency_change();
 
 
 --
@@ -4816,6 +5018,30 @@ ALTER TABLE ONLY public.client_terms_versions
 
 ALTER TABLE ONLY public.client_terms_versions
     ADD CONSTRAINT fk_client_terms_versions_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
+
+
+--
+-- Name: client_trips fk_client_trips_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_trips
+    ADD CONSTRAINT fk_client_trips_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: client_trips fk_client_trips_client_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_trips
+    ADD CONSTRAINT fk_client_trips_client_same_agency FOREIGN KEY (client_id, agency_id) REFERENCES public.clients(id, agency_id);
+
+
+--
+-- Name: client_trips fk_client_trips_departure_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_trips
+    ADD CONSTRAINT fk_client_trips_departure_same_agency FOREIGN KEY (departure_id, agency_id) REFERENCES public.departures(id, agency_id);
 
 
 --
@@ -5491,6 +5717,38 @@ ALTER TABLE ONLY public.tasks
 
 
 --
+-- Name: traveler_links fk_traveler_links_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.traveler_links
+    ADD CONSTRAINT fk_traveler_links_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: traveler_links fk_traveler_links_client_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.traveler_links
+    ADD CONSTRAINT fk_traveler_links_client_same_agency FOREIGN KEY (client_id, agency_id) REFERENCES public.clients(id, agency_id);
+
+
+--
+-- Name: traveler_links fk_traveler_links_traveler_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.traveler_links
+    ADD CONSTRAINT fk_traveler_links_traveler_same_agency FOREIGN KEY (traveler_id, agency_id) REFERENCES public.travelers(id, agency_id);
+
+
+--
+-- Name: travelers fk_travelers_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.travelers
+    ADD CONSTRAINT fk_travelers_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
 -- Name: trigger_events fk_trigger_events_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5633,6 +5891,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261107130000'),
 ('20261107120000'),
 ('20261107110000'),
 ('20261107100000'),

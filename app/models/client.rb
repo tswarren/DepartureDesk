@@ -5,6 +5,9 @@ class Client < ApplicationRecord
   belongs_to :agency
   belongs_to :client_person, optional: true
   belongs_to :client_organization, optional: true
+  has_many :traveler_links, dependent: :restrict_with_exception
+  has_many :travelers, through: :traveler_links
+  has_many :client_trips, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "active"
 

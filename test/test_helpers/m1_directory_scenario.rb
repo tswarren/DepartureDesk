@@ -256,6 +256,9 @@ module M1DirectoryScenario
       ClientPersonEmailAddress.where(agency_id:).delete_all
       ClientPersonPhoneNumber.where(agency_id:).delete_all
       ClientPersonPostalAddress.where(agency_id:).delete_all
+      ClientTrip.where(agency_id:).delete_all
+      TravelerLink.where(agency_id:).delete_all
+      Traveler.where(agency_id:).delete_all
       Client.where(agency_id:).delete_all
       ClientOrganization.where(agency_id:).delete_all
       ClientPerson.where(agency_id:).delete_all

@@ -22,6 +22,9 @@ module AccessPermission
     view_client_directory: :baseline,
     view_client_contact_details: :baseline,
     manage_client_directory: :baseline,
+    # ACC-30: Client Trips and bookings are baseline work.
+    view_bookings: :baseline,
+    manage_bookings: :baseline,
     view_supplier_directory: :baseline,
     view_supplier_contact_details: :baseline,
     manage_supplier_directory: :baseline,

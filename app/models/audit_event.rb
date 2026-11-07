@@ -34,6 +34,12 @@ class AuditEvent < ApplicationRecord
     client_person.contact_updated
     client_person.duplicate_override
     client.created
+    client.traveler_linked
+    client.traveler_unlinked
+    traveler.created
+    traveler.updated
+    client_trip.created
+    client_trip.updated
     client.inactivated
     client.reactivated
     client_organization.created
@@ -129,7 +135,7 @@ class AuditEvent < ApplicationRecord
   ].freeze
 
   ACTOR_KINDS = %w[agency_user system].freeze
-  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement].freeze
+  SUBJECT_TYPES = %w[Agency AgencyUser Office ClientPerson Client ClientOrganization Supplier SupplierLocation SupplierContact Departure TravelerType SupplierArrangement Traveler ClientTrip].freeze
 
   belongs_to :agency
   belongs_to :actor_agency_user, class_name: "AgencyUser", optional: true

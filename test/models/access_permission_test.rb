@@ -7,6 +7,7 @@ class AccessPermissionTest < ActiveSupport::TestCase
     view_workspace select_office_context
     view_client_directory view_client_contact_details manage_client_directory
     view_supplier_directory view_supplier_contact_details manage_supplier_directory
+    view_bookings manage_bookings
     view_departures view_arrangements use_tasks
   ].freeze
   ADMIN_ONLY = %i[manage_agency_profile manage_offices manage_agency_users manage_user_permissions].freeze
