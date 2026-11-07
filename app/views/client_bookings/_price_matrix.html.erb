@@ -1,4 +1,4 @@
-<%# The price summary as services by travelers (BKG-16, BKG-21): each cell is one traveler's price on one service, with its occupancy position on a cabin or room. %>
+<%# The price summary as services by travelers (BKG-16, BKG-21): each cell is one traveler's price on one service, with its occupancy position on a cabin or room. A zero price reads No charge; a traveler not on the service gets a dash, and on narrow screens one line naming them. %>
 <%# locals: (booking:) -%>
 <% lines = booking.price_lines.to_a %>
 <% if lines.empty? %>
@@ -28,12 +28,20 @@
               <td class="num<%= " dd-price-matrix__empty" unless line %>">
                 <span class="dd-cabin-field-label dd-visually-hidden"><%= traveler.display_name %> </span>
                 <% if line %>
-                  <%= booking_money(line.amount_minor_units, currency) %>
+                  <% if line.amount_minor_units.zero? %>
+                    <span class="dd-price-matrix__no-charge">No charge</span>
+                  <% else %>
+                    <%= booking_money(line.amount_minor_units, currency) %>
+                  <% end %>
                   <% if selection.per_unit? && line.occupancy_position != "any" %><span class="dd-cell-subtext"><%= OfferingPrice::POSITION_LABELS.fetch(line.occupancy_position) %></span><% end %>
                 <% else %>
-                  <span aria-hidden="true">—</span><span class="dd-visually-hidden">not on this service</span>
+                  <span class="dd-price-matrix__dash" aria-hidden="true">—</span><span class="dd-visually-hidden">Not on this service</span>
                 <% end %>
               </td>
+            <% end %>
+            <% absent = travelers.reject { |traveler| by_cell.key?([ selection.id, traveler.id ]) } %>
+            <% if absent.any? %>
+              <td class="dd-price-matrix__absent" aria-hidden="true">Not on this service: <%= absent.map(&:display_name).to_sentence %></td>
             <% end %>
             <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Total </span><strong><%= booking_money(row_lines.sum(&:amount_minor_units), currency) %></strong></td>
           </tr>
@@ -50,4 +58,5 @@
       </tfoot>
     </table>
   </div>
+  <p class="dd-field-hint">No charge: on the service at no cost. <span aria-hidden="true">—</span><span class="dd-visually-hidden">A dash</span>: not on this service.</p>
 <% end %>

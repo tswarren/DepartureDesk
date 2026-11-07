@@ -36,6 +36,16 @@ class BookingsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#confirm a[href='#acceptance']", text: "Record the client's acceptance of the current price and terms."
   end
 
+  test "the price summary says No charge for a free place and marks a traveler not on a service" do
+    sign_in_as @staff
+    get client_booking_path(@alpha.bookings.fetch("BK-105"))
+    tour = css_select("#prices tbody tr").find { |row| row.text.include?("Private Miami tour") }
+    cells = tour.css("td.num").map { |cell| cell.text.squish }
+    assert_equal [ "Mateo Rivera $150.00", "Elena Rivera —Not on this service", "Luca Rivera No charge" ], cells.first(3)
+    assert_includes tour.text, "Not on this service: Elena Rivera"
+    assert_select "#prices p.dd-field-hint", text: /No charge: on the service at no cost/
+  end
+
   test "confirming lists what is missing with links, and staff hold, extend and release" do
     sign_in_as @staff
     post client_booking_confirmation_path(@booking)

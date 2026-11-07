@@ -1513,8 +1513,19 @@
   }
 
   .dd-price-matrix td.num .dd-cell-subtext,
-  .dd-price-matrix td.num .dd-cabin-field-label {
+  .dd-price-matrix td.num .dd-cabin-field-label,
+  .dd-price-matrix__no-charge {
     font-family: var(--font-sans);
+  }
+
+  .dd-price-matrix__no-charge,
+  .dd-price-matrix__dash,
+  .dd-price-matrix__absent {
+    color: var(--dd-text-muted);
+  }
+
+  .dd-table.dd-price-matrix td.dd-price-matrix__absent {
+    display: none;
   }
 
   @media (max-width: 767px) {
@@ -1549,6 +1560,11 @@
 
     .dd-table.dd-price-matrix td.dd-price-matrix__empty {
       display: none;
+    }
+
+    .dd-table.dd-price-matrix td.dd-price-matrix__absent {
+      display: block;
+      font-size: 13px;
     }
 
     .dd-price-matrix .dd-cabin-field-label {
