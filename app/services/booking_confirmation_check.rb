@@ -95,9 +95,18 @@ class BookingConfirmationCheck
     if needs.map { |need| need_signature(need) }.sort != active.map { |allocation| allocation_signature(allocation) }.sort
       blockers << Blocker.new(message: "The hold doesn't match the booking; hold space again.", anchor: "hold")
     end
-    if active.map(&:inventory_group).uniq.any? { |group| GroupCapacity.new(group:).conflict? }
-      blockers << Blocker.new(message: "The supplier reduced space below what this booking holds; resolve it before confirming.", anchor: "hold")
+    active.group_by(&:inventory_group).each do |group, allocations|
+      capacity = GroupCapacity.new(group:)
+      if capacity.conflict?
+        blockers << Blocker.new(message: "The supplier reduced space below what this booking holds; resolve it before confirming.", anchor: "hold")
+        next
+      end
+      # Confirmed space is kept for good, so it must fit every supply point ahead (INV-23).
+      reserved = allocations.select(&:state_held?).map { |allocation| GroupCapacity::Projected.from(allocation, state: "reserved") }
+      next unless capacity.shortfall(capacity.project(changed: reserved))
+
+      blockers << Blocker.new(message: "#{group.label} has a supply reduction scheduled that confirming this booking would exceed; resolve it before confirming.", anchor: "hold")
     end
-    blockers
+    blockers.uniq
   end
 end

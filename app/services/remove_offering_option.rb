@@ -17,6 +17,7 @@ class RemoveOfferingOption < AgencyCommand
       departure = lock_offering_context!
       offering = lock_offering!(departure)
       option = OfferingOption.joins(:choice).where(offering_choices: { offering_id: offering.id }).lock.find(@option.id)
+      raise Error.new("Bookings use #{option.label}, so it can't be removed.", code: :invalid_state) if option.choice_selections.exists?
       option.prices.delete_all(:delete_all)
       option.destroy!
       audit_departure!(departure, "departure.offering_option_removed", "offering_id" => offering.id, "offering_option_id" => option.id, "label" => option.label)

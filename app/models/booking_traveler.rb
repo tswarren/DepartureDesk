@@ -21,7 +21,8 @@ class BookingTraveler < ApplicationRecord
 
   def placeholder? = traveler_id.nil?
 
-  def display_name = traveler ? traveler.display_name : placeholder_label
+  # CLT-13: a confirmed booking shows the name as booked, not later profile edits.
+  def display_name = name_as_booked.presence || (traveler ? traveler.display_name : placeholder_label)
 
   # CLT-15: what confirmation needs from each traveler.
   def named_for_confirmation? = traveler.present? && traveler.legal_name_complete? && traveler.date_of_birth.present?
