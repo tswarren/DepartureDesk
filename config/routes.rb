@@ -49,6 +49,12 @@ Rails.application.routes.draw do
     resource :hold, only: %i[create update destroy], controller: "booking_holds"
     resource :discard, only: :create, controller: "booking_discards"
     resource :confirmation, only: :create, controller: "booking_confirmations"
+    # S-27: record acceptance (BKG-39, BKG-41), with its evidence (ADR 0019 amendment).
+    resources :acceptances, only: %i[new create], controller: "booking_acceptances" do
+      resource :evidence, only: :show, controller: "booking_acceptance_evidence"
+    end
+    resources :cost_lines, only: :update, controller: "booking_supplier_costs", defaults: { record: "cost_line" }
+    resources :commissions, only: :update, controller: "booking_supplier_costs", defaults: { record: "commission" }
   end
   resources :client_people, path: "clients/people", param: :client_person_id, only: %i[new create show edit update] do
     member do
@@ -182,6 +188,7 @@ Rails.application.routes.draw do
       resources :prices, only: %i[create destroy], controller: "offering_prices"
     end
     resource :client_terms, only: %i[show create update], controller: "departure_client_terms"
+    resource :client_terms_next_version, only: :create, controller: "departure_client_terms_next_versions"
     resources :client_cancellation_tiers, only: %i[new create edit update destroy]
     resources :client_schedule_lines, only: %i[new create edit update destroy]
     resources :arrangements, controller: "supplier_arrangements", only: %i[index new create show edit update] do

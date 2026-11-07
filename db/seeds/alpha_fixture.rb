@@ -12,13 +12,15 @@
 # the Alpha Omega cruise package with its client prices, the client terms
 # and the agency's terms defaults (step 5); and, with bookings: :trips, the
 # Slice 1 roster's clients, travelers and Client Trips (step 6a, D-94); and,
-# with bookings: :held, a held booking on each trip (step 6b, D-95). Each
+# with bookings: :held, a held booking on each trip (step 6b, D-95), and with
+# bookings: :confirmed, each accepted and confirmed at its roster date (step
+# 6c, D-94). Each
 # Slice 1 step extends this script with the records it builds.
 # Loading is idempotent: records already present in the agency are reused.
 # Pass confirm_cruise: false to stop with the Alpha arrangement in Draft (D1).
 module AlphaFixture
   Result = Data.define(:agency, :actor, :suppliers, :departure, :arrangements, :offering, :client_terms, :trips, :bookings)
-  BOOKING_LEVELS = %i[none trips held].freeze
+  BOOKING_LEVELS = %i[none trips held confirmed].freeze
 
   DEPARTURE_NAME = "Alpha Omega"
   DEPARTURE_DESCRIPTION = "Port Everglades round trip."
@@ -130,7 +132,7 @@ module AlphaFixture
     offering = package!(agency, actor, departure, arrangements)
     client_terms = client_terms!(agency, actor, departure)
     trips = bookings == :none ? {} : roster!(agency, actor, departure)
-    roster_bookings = bookings == :held ? roster_bookings!(agency, actor, trips) : {}
+    roster_bookings = bookings.in?(%i[held confirmed]) ? roster_bookings!(agency, actor, trips, confirm: bookings == :confirmed) : {}
     Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:, trips:, bookings: roster_bookings)
   end
 
@@ -485,13 +487,38 @@ module AlphaFixture
     "BK-105" => { cabin: "O01", room: "Garden Queen", rooms: [ %w[Mateo Elena Luca] ], nights: [], tour: %w[Mateo Luca] }
   }.freeze
 
-  # A Draft booking on each roster trip, with its travelers, choices and a
-  # hold placed at the current clock. Reused when the trip already has one.
-  def self.roster_bookings!(agency, actor, trips)
+  # D-94: each Slice 1 booking's acceptance, recorded and confirmed on its date.
+  ROSTER_CONFIRMATIONS = {
+    "BK-101" => { on: Time.utc(2027, 1, 12, 15), method: "email", evidence_reference: "Nadia Rowan's email of Jan 12, 2027, in the bookings mailbox" },
+    "BK-104" => { on: Time.utc(2027, 1, 19, 15), method: "phone", note: "Sofia Bennett accepted the price and terms by phone." },
+    "BK-105" => { on: Time.utc(2027, 2, 2, 15), method: "in_person", note: "Mateo Rivera accepted the price and terms in person." }
+  }.freeze
+
+  # A booking on each roster trip, with its travelers, choices and a hold
+  # placed at the current clock; with confirm:, each is held, accepted and
+  # confirmed at its roster date instead. Reused when the trip already has one.
+  def self.roster_bookings!(agency, actor, trips, confirm: false)
     trips.to_h do |label, trip|
-      booking = trip.client_bookings.where.not(status: "discarded").first || roster_booking!(agency, actor, trip, ROSTER_BOOKINGS.fetch(label))
+      booking = trip.client_bookings.where.not(status: "discarded").first
+      if confirm
+        Clock.use(Clock.fixed(ROSTER_CONFIRMATIONS.fetch(label).fetch(:on))) do
+          booking ||= roster_booking!(agency, actor, trip, ROSTER_BOOKINGS.fetch(label))
+          confirm_roster_booking!(agency, actor, booking.reload, ROSTER_CONFIRMATIONS.fetch(label)) if booking.status_draft?
+        end
+      else
+        booking ||= roster_booking!(agency, actor, trip, ROSTER_BOOKINGS.fetch(label))
+      end
       [ label, booking.reload ]
     end
+  end
+
+  def self.confirm_roster_booking!(agency, actor, booking, plan)
+    HoldBookingSpace.new(agency:, actor:, booking:).call if booking.hold_state.first != :held
+    RecordBookingAcceptance.new(agency:, actor:, booking: booking.reload, attributes: {
+      accepted_by: booking.client_trip.client.source.display_name, acceptance_method: plan.fetch(:method),
+      note: plan[:note], evidence_reference: plan[:evidence_reference]
+    }).call
+    ConfirmClientBooking.new(agency:, actor:, booking: booking.reload).call
   end
 
   def self.roster_booking!(agency, actor, trip, plan)
@@ -519,7 +546,7 @@ module AlphaFixture
     HoldBookingSpace.new(agency:, actor:, booking:).call
     booking
   end
-  private_class_method :roster_bookings!, :roster_booking!
+  private_class_method :roster_bookings!, :roster_booking!, :confirm_roster_booking!
 
   def self.created!(result, name)
     return result.record if result.status == :created && result.record

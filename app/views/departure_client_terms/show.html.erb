@@ -48,6 +48,12 @@
       <p><%= @terms_version.locked? ? status_badge("Locked: accepted by a booking", modifier: "info") : status_badge("Editable", modifier: "neutral") %></p>
     </header>
     <div class="dd-panel-body dd-stack">
+      <% if @terms_version.locked? %>
+        <p class="dd-page-description">A booking has accepted this version, so it can't change. To change the terms for new bookings, start the next version; bookings already made keep this one.</p>
+        <% if manage_package? %>
+          <%= button_to "Start version #{@terms_version.version_number + 1}", departure_client_terms_next_version_path(@departure), class: "dd-button dd-button--secondary" %>
+        <% end %>
+      <% end %>
       <% if @terms_version.copied_from_departure %><p class="dd-page-description">Copied from <%= @terms_version.copied_from_departure.name %>.</p><% end %>
       <section class="dd-stack" aria-labelledby="agency-wording-heading">
         <h3 class="dd-section-title" id="agency-wording-heading">Agency terms</h3>

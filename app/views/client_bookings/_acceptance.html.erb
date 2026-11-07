@@ -1,0 +1,40 @@
+<%# The client's acceptance (BKG-39, BKG-41): the latest record, and whether it still covers the current price and terms. %>
+<%# locals: (booking:, manage:) -%>
+<% latest = booking.latest_acceptance %>
+<% covering = booking.current_acceptance %>
+<article class="dd-panel" id="acceptance">
+  <header class="dd-panel-header dd-section-header">
+    <h2 class="dd-panel-title">Client acceptance</h2>
+    <% if manage && booking.price_lines.any? && covering.nil? %>
+      <%= link_to latest ? "Record acceptance again" : "Record acceptance", new_client_booking_acceptance_path(booking), class: "dd-button dd-button--secondary" %>
+    <% end %>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <% if latest.nil? %>
+      <p class="dd-empty-copy">Not recorded. Confirming needs the client's acceptance of the current price and terms.</p>
+    <% else %>
+      <% if covering %>
+        <p><%= status_badge("Covers the current price and terms", modifier: "success") %></p>
+      <% elsif booking.status_draft? %>
+        <p><%= status_badge("No longer covers the current price and terms", modifier: "warning") %></p>
+        <p class="dd-page-description">The price or terms changed after this acceptance. Record the client's acceptance again before confirming.</p>
+      <% end %>
+      <dl class="dd-definition-list">
+        <div><dt>Accepted by</dt><dd><%= latest.accepted_by %></dd></div>
+        <div><dt>Method</dt><dd><%= latest.method_label %></dd></div>
+        <div><dt>Date accepted</dt><dd><%= latest.accepted_on.to_fs(:long) %></dd></div>
+        <div><dt>Price accepted</dt><dd><%= booking_money(latest.accepted_total_minor_units, latest.currency) %></dd></div>
+        <div><dt>Client terms</dt><dd>Version <%= latest.client_terms_version.version_number %></dd></div>
+        <% if latest.evidence.attached? %>
+          <div><dt>Evidence</dt><dd><%= link_to latest.evidence.filename.to_s, client_booking_acceptance_evidence_path(booking, latest) %></dd></div>
+        <% end %>
+        <% if latest.evidence_reference %><div><dt>Evidence kept</dt><dd><%= latest.evidence_reference %></dd></div><% end %>
+        <% if latest.note %><div><dt>Note</dt><dd><%= latest.note %></dd></div><% end %>
+        <% if latest.by_designated_payment? %>
+          <div><dt>Payment</dt><dd><%= booking_money(latest.payment_amount_minor_units, latest.currency) %> on <%= latest.payment_on.to_fs(:long) %>, reference <%= latest.payment_reference %></dd></div>
+        <% end %>
+        <div><dt>Recorded by</dt><dd><%= latest.recorded_by.display_name %>, <%= booking_time(latest.recorded_at) %></dd></div>
+      </dl>
+    <% end %>
+  </div>
+</article>
