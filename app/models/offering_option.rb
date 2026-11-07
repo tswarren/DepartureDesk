@@ -4,6 +4,7 @@ class OfferingOption < ApplicationRecord
   belongs_to :agency
   belongs_to :choice, class_name: "OfferingChoice", foreign_key: :offering_choice_id, inverse_of: :options
   belongs_to :inventory_group
+  has_many :choice_selections, foreign_key: :offering_option_id, dependent: :restrict_with_exception
   has_many :prices, class_name: "OfferingPrice", inverse_of: :option, foreign_key: :offering_option_id, dependent: :restrict_with_exception
 
   attr_readonly :agency_id, :offering_choice_id

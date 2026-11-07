@@ -21,7 +21,7 @@ class TravelerType < ApplicationRecord
 
   def self.create_defaults!(agency)
     DEFAULT_NAMES.each_with_index do |name, position|
-      agency.traveler_types.create!(name:, position:)
+      agency.traveler_types.create!(name:, position:, counts_as_adult: name == "Adult")
     end
   end
 end

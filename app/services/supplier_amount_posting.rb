@@ -88,7 +88,7 @@ module SupplierAmountPosting
   def eligible_shells(arrangement, line)
     shells = UnitShell.joins(:inventory_group).where(inventory_groups: { supplier_arrangement_id: arrangement.id })
     shells = shells.where(inventory_group_id: line.inventory_group_id) if line.inventory_group_id
-    shells.includes(:capacity_events).order("inventory_groups.position", :position).select { |shell| shell.status == "available" }
+    shells.includes(:capacity_events).order("inventory_groups.position", :position).reject(&:returned_to_supplier?)
   end
 
   def create_amount!(arrangement, line, due_on, event, description, amount, facts)

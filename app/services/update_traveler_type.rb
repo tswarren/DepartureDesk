@@ -4,7 +4,7 @@ class UpdateTravelerType < AgencyCommand
   def initialize(traveler_type:, actor:, attributes:, lock_version:)
     @traveler_type = traveler_type
     @actor = actor
-    @attributes = attributes.to_h.stringify_keys.slice("name", "position", "status")
+    @attributes = attributes.to_h.stringify_keys.slice("name", "position", "status", "counts_as_adult")
     @lock_version = lock_version
   end
 

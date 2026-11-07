@@ -5,10 +5,12 @@ class SaveInventoryGroup < AgencyCommand
   include ArrangementCommandSupport
 
   FIELDS = %w[
-    label service_category representation availability_promise quantity positions_per_unit
+    label service_category representation availability_promise quantity positions_per_unit required_adults_per_unit
     starts_on starts_at_time ends_on ends_at_time time_zone position
   ].freeze
-  DESCRIPTIVE_FIELDS = %w[label].freeze
+  # INV-09: the required-adult rule is a supplier occupancy rule, not
+  # structure, so it can be recorded once the arrangement is confirmed.
+  DESCRIPTIVE_FIELDS = %w[label required_adults_per_unit].freeze
 
   def initialize(agency:, actor:, departure:, arrangement:, attributes:, group: nil, lock_version: nil)
     @agency = agency

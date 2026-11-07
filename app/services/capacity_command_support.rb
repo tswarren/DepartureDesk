@@ -25,7 +25,9 @@ module CapacityCommandSupport
 
   # Appends one event, refusing it if the replayed timeline would go below
   # zero, then refreshes the group's projection.
-  def append_capacity_event!(departure:, arrangement:, group:, event_type:, quantity:, effective_on:, evidence_note: nil, shell: nil, corrects: nil, key: nil)
+  # guard_allocations: true for an agency-initiated reduction, which may use
+  # only unallocated capacity (INV-26).
+  def append_capacity_event!(departure:, arrangement:, group:, event_type:, quantity:, effective_on:, evidence_note: nil, shell: nil, corrects: nil, key: nil, guard_allocations: false)
     recorded_at = Clock.current.now
     zone = @agency.default_timezone
     local_today = recorded_at.in_time_zone(zone).to_date
@@ -43,6 +45,10 @@ module CapacityCommandSupport
       CapacityTimelineReplay.new(existing + [ event ]).call
     rescue CapacityTimelineReplay::NegativeQuantity
       raise AgencyCommand::Error.new("That would take #{group.label} below zero.", code: :invalid)
+    end
+    if guard_allocations && (short = GroupCapacity.shortfall_after(group:, event:, at: recorded_at))
+      raise AgencyCommand::Error.new("That would take #{group.label} below what is held or reserved, by #{short}. " \
+        "Release or move those allocations first.", code: :invalid)
     end
     event.save!
     refresh_projection!(group)

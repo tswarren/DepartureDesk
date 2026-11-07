@@ -25,6 +25,55 @@ COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiS
 
 
 --
+-- Name: check_inventory_allocation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_inventory_allocation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM choice_selections s JOIN offering_options o ON o.id = s.offering_option_id
+      WHERE s.id = NEW.choice_selection_id AND s.client_booking_id = NEW.client_booking_id AND o.inventory_group_id = NEW.inventory_group_id
+    ) THEN
+      RAISE EXCEPTION 'inventory allocation % must draw on its selection''s group', NEW.id;
+    END IF;
+    IF NEW.unit_shell_id IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM unit_shells WHERE id = NEW.unit_shell_id AND inventory_group_id = NEW.inventory_group_id
+    ) THEN
+      RAISE EXCEPTION 'inventory allocation % names a shell of another group', NEW.id;
+    END IF;
+    IF NEW.state <> 'held' THEN
+      RAISE EXCEPTION 'inventory allocation % must start Held', NEW.id;
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'inventory allocations are never deleted';
+  END IF;
+  IF NEW.client_booking_id IS DISTINCT FROM OLD.client_booking_id OR NEW.choice_selection_id IS DISTINCT FROM OLD.choice_selection_id
+    OR NEW.inventory_group_id IS DISTINCT FROM OLD.inventory_group_id OR NEW.unit_shell_id IS DISTINCT FROM OLD.unit_shell_id
+    OR NEW.quantity IS DISTINCT FROM OLD.quantity OR NEW.agency_id IS DISTINCT FROM OLD.agency_id
+    OR NEW.held_at IS DISTINCT FROM OLD.held_at OR NEW.replaces_allocation_id IS DISTINCT FROM OLD.replaces_allocation_id THEN
+    RAISE EXCEPTION 'inventory allocation % may change only its state', OLD.id;
+  END IF;
+  IF OLD.state = 'released' AND NEW IS DISTINCT FROM OLD THEN
+    RAISE EXCEPTION 'released inventory allocation % never changes', OLD.id;
+  END IF;
+  IF OLD.state = 'reserved' AND NEW.state = 'held' THEN
+    RAISE EXCEPTION 'inventory allocation % cannot return to Held', OLD.id;
+  END IF;
+  IF (OLD.reserved_at IS NOT NULL AND NEW.reserved_at IS DISTINCT FROM OLD.reserved_at)
+    OR (OLD.hold_extended_at IS NOT NULL AND NEW.hold_extended_at IS DISTINCT FROM OLD.hold_extended_at) THEN
+    RAISE EXCEPTION 'inventory allocation % timestamps are set once', OLD.id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: dd_search_normalize(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -101,6 +150,64 @@ CREATE FUNCTION public.reject_capacity_owner_change() RETURNS trigger
 BEGIN
   IF NEW.agency_id IS DISTINCT FROM OLD.agency_id OR NEW.inventory_group_id IS DISTINCT FROM OLD.inventory_group_id THEN
     RAISE EXCEPTION 'capacity record ownership is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_choice_selection_other_offering(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_choice_selection_other_offering() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM client_bookings b
+      JOIN offering_choices c ON c.offering_id = b.offering_id
+      JOIN offering_options o ON o.offering_choice_id = c.id
+    WHERE b.id = NEW.client_booking_id AND o.id = NEW.offering_option_id
+  ) THEN
+    RAISE EXCEPTION 'choice selection % uses an option from another offering', NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_client_booking_identity_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_client_booking_identity_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agency_id IS DISTINCT FROM OLD.agency_id OR NEW.client_trip_id IS DISTINCT FROM OLD.client_trip_id
+    OR NEW.booking_reference IS DISTINCT FROM OLD.booking_reference OR NEW.sequence IS DISTINCT FROM OLD.sequence
+    OR NEW.offering_id IS DISTINCT FROM OLD.offering_id THEN
+    RAISE EXCEPTION 'client booking identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_client_booking_other_departure(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_client_booking_other_departure() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM client_trips t JOIN offerings o ON o.departure_id = t.departure_id
+    WHERE t.id = NEW.client_trip_id AND o.id = NEW.offering_id
+  ) THEN
+    RAISE EXCEPTION 'client booking % must buy an offering of its trip''s Departure', NEW.id;
   END IF;
   RETURN NEW;
 END;
@@ -779,6 +886,52 @@ CREATE TABLE public.audit_events (
 
 
 --
+-- Name: booking_price_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.booking_price_lines (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_booking_id uuid NOT NULL,
+    choice_selection_id uuid NOT NULL,
+    booking_traveler_id uuid,
+    offering_price_id uuid,
+    occupancy_position character varying NOT NULL,
+    traveler_type_id uuid,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT booking_price_lines_amount CHECK ((amount_minor_units >= 0)),
+    CONSTRAINT booking_price_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT booking_price_lines_occupancy_position CHECK (((occupancy_position)::text = ANY ((ARRAY['any'::character varying, 'single'::character varying, 'guest_1'::character varying, 'guest_2'::character varying, 'guest_3'::character varying, 'guest_4'::character varying, 'guest_5'::character varying, 'guest_6'::character varying, 'guest_7'::character varying, 'guest_8'::character varying, 'guest_9'::character varying])::text[])))
+);
+
+
+--
+-- Name: booking_travelers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.booking_travelers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_booking_id uuid NOT NULL,
+    traveler_id uuid,
+    placeholder_label character varying,
+    traveler_type_id uuid,
+    "position" integer NOT NULL,
+    name_as_booked character varying,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT booking_travelers_counters CHECK ((("position" >= 1) AND (lock_version >= 0))),
+    CONSTRAINT booking_travelers_name_as_booked CHECK (((name_as_booked IS NULL) OR (char_length((name_as_booked)::text) <= 300))),
+    CONSTRAINT booking_travelers_placeholder CHECK (((placeholder_label IS NULL) OR ((btrim((placeholder_label)::text) <> ''::text) AND (char_length((placeholder_label)::text) <= 40)))),
+    CONSTRAINT booking_travelers_traveler_or_placeholder CHECK ((num_nonnulls(traveler_id, placeholder_label) = 1))
+);
+
+
+--
 -- Name: capacity_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -863,6 +1016,53 @@ CREATE TABLE public.capacity_rules (
     uses_capacity boolean DEFAULT false NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
+-- Name: choice_selections; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.choice_selections (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_booking_id uuid NOT NULL,
+    offering_option_id uuid NOT NULL,
+    unit_number integer,
+    removed_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT choice_selections_counters CHECK ((((unit_number IS NULL) OR (unit_number >= 1)) AND (lock_version >= 0)))
+);
+
+
+--
+-- Name: client_bookings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_bookings (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_trip_id uuid NOT NULL,
+    offering_id uuid NOT NULL,
+    sequence integer NOT NULL,
+    booking_reference character varying NOT NULL,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    owner_kind character varying DEFAULT 'agency'::character varying NOT NULL,
+    created_by_id uuid NOT NULL,
+    client_terms_version_id uuid,
+    discarded_at timestamp(6) with time zone,
+    confirmed_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT client_bookings_confirmed_at CHECK ((((status)::text = ANY ((ARRAY['confirmed'::character varying, 'cancelled'::character varying])::text[])) = (confirmed_at IS NOT NULL))),
+    CONSTRAINT client_bookings_counters CHECK (((sequence >= 1) AND (lock_version >= 0))),
+    CONSTRAINT client_bookings_discarded_at CHECK ((((status)::text = 'discarded'::text) = (discarded_at IS NOT NULL))),
+    CONSTRAINT client_bookings_owner_kind CHECK (((owner_kind)::text = 'agency'::text)),
+    CONSTRAINT client_bookings_reference_format CHECK (((booking_reference)::text ~ '^T-[0-9]{5,}-[0-9]+$'::text)),
+    CONSTRAINT client_bookings_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'confirmed'::character varying, 'discarded'::character varying, 'cancelled'::character varying])::text[])))
 );
 
 
@@ -1361,6 +1561,35 @@ CREATE TABLE public.departures (
 
 
 --
+-- Name: inventory_allocations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.inventory_allocations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_booking_id uuid NOT NULL,
+    choice_selection_id uuid NOT NULL,
+    inventory_group_id uuid NOT NULL,
+    unit_shell_id uuid,
+    quantity integer NOT NULL,
+    state character varying DEFAULT 'held'::character varying NOT NULL,
+    held_at timestamp(6) with time zone NOT NULL,
+    hold_expires_at timestamp(6) with time zone,
+    hold_extended_at timestamp(6) with time zone,
+    reserved_at timestamp(6) with time zone,
+    released_at timestamp(6) with time zone,
+    replaces_allocation_id uuid,
+    created_by_id uuid NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT inventory_allocations_quantity CHECK ((quantity >= 1)),
+    CONSTRAINT inventory_allocations_replaces_other CHECK (((replaces_allocation_id IS NULL) OR (replaces_allocation_id <> id))),
+    CONSTRAINT inventory_allocations_state CHECK (((state)::text = ANY ((ARRAY['held'::character varying, 'reserved'::character varying, 'released'::character varying])::text[]))),
+    CONSTRAINT inventory_allocations_state_timestamps CHECK (((((state)::text <> 'held'::text) OR ((hold_expires_at IS NOT NULL) AND (reserved_at IS NULL) AND (released_at IS NULL))) AND (((state)::text <> 'reserved'::text) OR ((reserved_at IS NOT NULL) AND (released_at IS NULL))) AND (((state)::text <> 'released'::text) OR (released_at IS NOT NULL))))
+);
+
+
+--
 -- Name: inventory_groups; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1383,6 +1612,7 @@ CREATE TABLE public.inventory_groups (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    required_adults_per_unit integer,
     CONSTRAINT inventory_groups_availability_promise CHECK (((availability_promise)::text = ANY ((ARRAY['firm_block'::character varying, 'releasable_block'::character varying, 'courtesy_option'::character varying, 'on_request'::character varying, 'rate_only'::character varying])::text[]))),
     CONSTRAINT inventory_groups_counters CHECK ((("position" >= 0) AND (lock_version >= 0))),
     CONSTRAINT inventory_groups_dates CHECK ((((starts_on IS NULL) = (ends_on IS NULL)) AND ((starts_on IS NULL) OR (starts_on <= ends_on)))),
@@ -1391,6 +1621,7 @@ CREATE TABLE public.inventory_groups (
     CONSTRAINT inventory_groups_positions CHECK (((positions_per_unit IS NULL) OR ((positions_per_unit >= 1) AND ((representation)::text = 'unit_shells'::text)))),
     CONSTRAINT inventory_groups_quantity_only_when_numeric CHECK (((quantity IS NULL) OR ((quantity >= 1) AND ((representation)::text <> 'none'::text) AND ((availability_promise)::text <> ALL ((ARRAY['on_request'::character varying, 'rate_only'::character varying])::text[]))))),
     CONSTRAINT inventory_groups_representation CHECK (((representation)::text = ANY ((ARRAY['unit_shells'::character varying, 'capacity_pool'::character varying, 'none'::character varying])::text[]))),
+    CONSTRAINT inventory_groups_required_adults CHECK (((required_adults_per_unit IS NULL) OR ((required_adults_per_unit >= 1) AND ((positions_per_unit IS NULL) OR (required_adults_per_unit <= positions_per_unit))))),
     CONSTRAINT inventory_groups_service_category CHECK (((service_category)::text = ANY ((ARRAY['hotel'::character varying, 'all_inclusive_resort'::character varying, 'cruise'::character varying, 'air'::character varying, 'rail'::character varying, 'transportation'::character varying, 'activity'::character varying, 'meal'::character varying, 'insurance'::character varying])::text[]))),
     CONSTRAINT inventory_groups_start_time_needs_date CHECK (((starts_at_time IS NULL) OR (starts_on IS NOT NULL)))
 );
@@ -1599,6 +1830,22 @@ CREATE TABLE public.schedule_lines (
 
 CREATE TABLE public.schema_migrations (
     version character varying NOT NULL
+);
+
+
+--
+-- Name: selection_occupants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.selection_occupants (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    choice_selection_id uuid NOT NULL,
+    booking_traveler_id uuid NOT NULL,
+    "position" integer,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT selection_occupants_position CHECK ((("position" IS NULL) OR ("position" >= 1)))
 );
 
 
@@ -2066,6 +2313,7 @@ CREATE TABLE public.traveler_types (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    counts_as_adult boolean DEFAULT false NOT NULL,
     CONSTRAINT traveler_types_lock_version_nonnegative CHECK ((lock_version >= 0)),
     CONSTRAINT traveler_types_name CHECK (((btrim((name)::text) <> ''::text) AND (char_length((name)::text) <= 60))),
     CONSTRAINT traveler_types_position_nonnegative CHECK (("position" >= 0)),
@@ -2249,6 +2497,22 @@ ALTER TABLE ONLY public.audit_events
 
 
 --
+-- Name: booking_price_lines booking_price_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_price_lines
+    ADD CONSTRAINT booking_price_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: booking_travelers booking_travelers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_travelers
+    ADD CONSTRAINT booking_travelers_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: capacity_events capacity_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2278,6 +2542,22 @@ ALTER TABLE ONLY public.capacity_projections
 
 ALTER TABLE ONLY public.capacity_rules
     ADD CONSTRAINT capacity_rules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: choice_selections choice_selections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.choice_selections
+    ADD CONSTRAINT choice_selections_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_bookings client_bookings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_bookings
+    ADD CONSTRAINT client_bookings_pkey PRIMARY KEY (id);
 
 
 --
@@ -2449,6 +2729,14 @@ ALTER TABLE ONLY public.departures
 
 
 --
+-- Name: inventory_allocations inventory_allocations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_allocations
+    ADD CONSTRAINT inventory_allocations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: inventory_groups inventory_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2534,6 +2822,14 @@ ALTER TABLE ONLY public.schedule_lines
 
 ALTER TABLE ONLY public.schema_migrations
     ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: selection_occupants selection_occupants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.selection_occupants
+    ADD CONSTRAINT selection_occupants_pkey PRIMARY KEY (id);
 
 
 --
@@ -2852,6 +3148,55 @@ CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_even
 
 
 --
+-- Name: index_booking_price_lines_on_booking; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_booking_price_lines_on_booking ON public.booking_price_lines USING btree (client_booking_id);
+
+
+--
+-- Name: index_booking_price_lines_on_offering_price; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_booking_price_lines_on_offering_price ON public.booking_price_lines USING btree (offering_price_id);
+
+
+--
+-- Name: index_booking_price_lines_one_per_selection_and_traveler; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_booking_price_lines_one_per_selection_and_traveler ON public.booking_price_lines USING btree (choice_selection_id, booking_traveler_id) NULLS NOT DISTINCT;
+
+
+--
+-- Name: index_booking_travelers_on_booking_and_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_booking_travelers_on_booking_and_position ON public.booking_travelers USING btree (client_booking_id, "position");
+
+
+--
+-- Name: index_booking_travelers_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_booking_travelers_on_id_and_agency_id ON public.booking_travelers USING btree (id, agency_id);
+
+
+--
+-- Name: index_booking_travelers_on_traveler; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_booking_travelers_on_traveler ON public.booking_travelers USING btree (traveler_id);
+
+
+--
+-- Name: index_booking_travelers_one_per_traveler; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_booking_travelers_one_per_traveler ON public.booking_travelers USING btree (client_booking_id, traveler_id) WHERE (traveler_id IS NOT NULL);
+
+
+--
 -- Name: index_capacity_events_on_agency_and_idempotency_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2898,6 +3243,55 @@ CREATE UNIQUE INDEX index_capacity_projections_on_group ON public.capacity_proje
 --
 
 CREATE UNIQUE INDEX index_capacity_rules_on_group_and_traveler_type ON public.capacity_rules USING btree (inventory_group_id, traveler_type_id);
+
+
+--
+-- Name: index_choice_selections_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_choice_selections_on_id_and_agency_id ON public.choice_selections USING btree (id, agency_id);
+
+
+--
+-- Name: index_choice_selections_on_option; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_choice_selections_on_option ON public.choice_selections USING btree (offering_option_id);
+
+
+--
+-- Name: index_choice_selections_one_per_option_and_unit; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_choice_selections_one_per_option_and_unit ON public.choice_selections USING btree (client_booking_id, offering_option_id, unit_number) NULLS NOT DISTINCT WHERE (removed_at IS NULL);
+
+
+--
+-- Name: index_client_bookings_on_agency_and_reference; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_bookings_on_agency_and_reference ON public.client_bookings USING btree (agency_id, booking_reference);
+
+
+--
+-- Name: index_client_bookings_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_bookings_on_id_and_agency_id ON public.client_bookings USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_bookings_on_offering; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_client_bookings_on_offering ON public.client_bookings USING btree (offering_id);
+
+
+--
+-- Name: index_client_bookings_on_trip_and_sequence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_bookings_on_trip_and_sequence ON public.client_bookings USING btree (client_trip_id, sequence);
 
 
 --
@@ -3496,6 +3890,41 @@ CREATE UNIQUE INDEX index_departures_on_id_and_agency_id ON public.departures US
 
 
 --
+-- Name: index_inventory_allocations_on_booking_and_state; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_inventory_allocations_on_booking_and_state ON public.inventory_allocations USING btree (client_booking_id, state);
+
+
+--
+-- Name: index_inventory_allocations_on_group_and_state; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_inventory_allocations_on_group_and_state ON public.inventory_allocations USING btree (inventory_group_id, state);
+
+
+--
+-- Name: index_inventory_allocations_on_replaced; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_inventory_allocations_on_replaced ON public.inventory_allocations USING btree (replaces_allocation_id);
+
+
+--
+-- Name: index_inventory_allocations_on_selection; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_inventory_allocations_on_selection ON public.inventory_allocations USING btree (choice_selection_id);
+
+
+--
+-- Name: index_inventory_allocations_on_shell_and_state; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_inventory_allocations_on_shell_and_state ON public.inventory_allocations USING btree (unit_shell_id, state);
+
+
+--
 -- Name: index_inventory_groups_on_arrangement_and_position; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3661,6 +4090,27 @@ CREATE UNIQUE INDEX index_schedule_lines_on_id_and_agency_id ON public.schedule_
 --
 
 CREATE UNIQUE INDEX index_schedule_lines_on_id_and_arrangement ON public.schedule_lines USING btree (id, supplier_arrangement_id);
+
+
+--
+-- Name: index_selection_occupants_on_traveler; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_selection_occupants_on_traveler ON public.selection_occupants USING btree (booking_traveler_id);
+
+
+--
+-- Name: index_selection_occupants_one_per_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_selection_occupants_one_per_position ON public.selection_occupants USING btree (choice_selection_id, "position") WHERE ("position" IS NOT NULL);
+
+
+--
+-- Name: index_selection_occupants_one_per_traveler; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_selection_occupants_one_per_traveler ON public.selection_occupants USING btree (choice_selection_id, booking_traveler_id);
 
 
 --
@@ -4392,6 +4842,27 @@ CREATE TRIGGER capacity_projections_reject_owner_change BEFORE UPDATE ON public.
 
 
 --
+-- Name: choice_selections choice_selections_reject_other_offering; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER choice_selections_reject_other_offering BEFORE INSERT OR UPDATE ON public.choice_selections FOR EACH ROW EXECUTE FUNCTION public.reject_choice_selection_other_offering();
+
+
+--
+-- Name: client_bookings client_bookings_reject_identity_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_bookings_reject_identity_change BEFORE UPDATE ON public.client_bookings FOR EACH ROW EXECUTE FUNCTION public.reject_client_booking_identity_change();
+
+
+--
+-- Name: client_bookings client_bookings_reject_other_departure; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_bookings_reject_other_departure BEFORE INSERT ON public.client_bookings FOR EACH ROW EXECUTE FUNCTION public.reject_client_booking_other_departure();
+
+
+--
 -- Name: client_cancellation_tiers client_cancellation_tiers_reject_locked_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4508,6 +4979,13 @@ CREATE TRIGGER departure_decisions_reject_mutation BEFORE DELETE OR UPDATE ON pu
 --
 
 CREATE TRIGGER departures_reject_identity_change BEFORE UPDATE ON public.departures FOR EACH ROW EXECUTE FUNCTION public.reject_departure_identity_change();
+
+
+--
+-- Name: inventory_allocations inventory_allocations_check; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_allocations_check BEFORE INSERT OR DELETE OR UPDATE ON public.inventory_allocations FOR EACH ROW EXECUTE FUNCTION public.check_inventory_allocation();
 
 
 --
@@ -4837,6 +5315,86 @@ ALTER TABLE ONLY public.arrangement_documents
 
 
 --
+-- Name: booking_price_lines fk_booking_price_lines_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_price_lines
+    ADD CONSTRAINT fk_booking_price_lines_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: booking_price_lines fk_booking_price_lines_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_price_lines
+    ADD CONSTRAINT fk_booking_price_lines_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: booking_price_lines fk_booking_price_lines_offering_price; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_price_lines
+    ADD CONSTRAINT fk_booking_price_lines_offering_price FOREIGN KEY (offering_price_id) REFERENCES public.offering_prices(id) ON DELETE SET NULL;
+
+
+--
+-- Name: booking_price_lines fk_booking_price_lines_selection_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_price_lines
+    ADD CONSTRAINT fk_booking_price_lines_selection_same_agency FOREIGN KEY (choice_selection_id, agency_id) REFERENCES public.choice_selections(id, agency_id);
+
+
+--
+-- Name: booking_price_lines fk_booking_price_lines_traveler_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_price_lines
+    ADD CONSTRAINT fk_booking_price_lines_traveler_same_agency FOREIGN KEY (booking_traveler_id, agency_id) REFERENCES public.booking_travelers(id, agency_id);
+
+
+--
+-- Name: booking_price_lines fk_booking_price_lines_type_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_price_lines
+    ADD CONSTRAINT fk_booking_price_lines_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
+-- Name: booking_travelers fk_booking_travelers_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_travelers
+    ADD CONSTRAINT fk_booking_travelers_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: booking_travelers fk_booking_travelers_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_travelers
+    ADD CONSTRAINT fk_booking_travelers_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: booking_travelers fk_booking_travelers_traveler_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_travelers
+    ADD CONSTRAINT fk_booking_travelers_traveler_same_agency FOREIGN KEY (traveler_id, agency_id) REFERENCES public.travelers(id, agency_id);
+
+
+--
+-- Name: booking_travelers fk_booking_travelers_type_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_travelers
+    ADD CONSTRAINT fk_booking_travelers_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
 -- Name: capacity_events fk_capacity_events_actor_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4962,6 +5520,70 @@ ALTER TABLE ONLY public.capacity_rules
 
 ALTER TABLE ONLY public.capacity_rules
     ADD CONSTRAINT fk_capacity_rules_traveler_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
+-- Name: choice_selections fk_choice_selections_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.choice_selections
+    ADD CONSTRAINT fk_choice_selections_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: choice_selections fk_choice_selections_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.choice_selections
+    ADD CONSTRAINT fk_choice_selections_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: choice_selections fk_choice_selections_option_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.choice_selections
+    ADD CONSTRAINT fk_choice_selections_option_same_agency FOREIGN KEY (offering_option_id, agency_id) REFERENCES public.offering_options(id, agency_id);
+
+
+--
+-- Name: client_bookings fk_client_bookings_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_bookings
+    ADD CONSTRAINT fk_client_bookings_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: client_bookings fk_client_bookings_creator_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_bookings
+    ADD CONSTRAINT fk_client_bookings_creator_same_agency FOREIGN KEY (created_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: client_bookings fk_client_bookings_offering_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_bookings
+    ADD CONSTRAINT fk_client_bookings_offering_same_agency FOREIGN KEY (offering_id, agency_id) REFERENCES public.offerings(id, agency_id);
+
+
+--
+-- Name: client_bookings fk_client_bookings_terms_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_bookings
+    ADD CONSTRAINT fk_client_bookings_terms_same_agency FOREIGN KEY (client_terms_version_id, agency_id) REFERENCES public.client_terms_versions(id, agency_id);
+
+
+--
+-- Name: client_bookings fk_client_bookings_trip_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_bookings
+    ADD CONSTRAINT fk_client_bookings_trip_same_agency FOREIGN KEY (client_trip_id, agency_id) REFERENCES public.client_trips(id, agency_id);
 
 
 --
@@ -5154,6 +5776,62 @@ ALTER TABLE ONLY public.departure_team_members
 
 ALTER TABLE ONLY public.departure_team_members
     ADD CONSTRAINT fk_departure_team_members_user_same_agency FOREIGN KEY (agency_user_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: inventory_allocations fk_inventory_allocations_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_allocations
+    ADD CONSTRAINT fk_inventory_allocations_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: inventory_allocations fk_inventory_allocations_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_allocations
+    ADD CONSTRAINT fk_inventory_allocations_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: inventory_allocations fk_inventory_allocations_creator_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_allocations
+    ADD CONSTRAINT fk_inventory_allocations_creator_same_agency FOREIGN KEY (created_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: inventory_allocations fk_inventory_allocations_group_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_allocations
+    ADD CONSTRAINT fk_inventory_allocations_group_same_agency FOREIGN KEY (inventory_group_id, agency_id) REFERENCES public.inventory_groups(id, agency_id);
+
+
+--
+-- Name: inventory_allocations fk_inventory_allocations_replaces; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_allocations
+    ADD CONSTRAINT fk_inventory_allocations_replaces FOREIGN KEY (replaces_allocation_id) REFERENCES public.inventory_allocations(id);
+
+
+--
+-- Name: inventory_allocations fk_inventory_allocations_selection_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_allocations
+    ADD CONSTRAINT fk_inventory_allocations_selection_same_agency FOREIGN KEY (choice_selection_id, agency_id) REFERENCES public.choice_selections(id, agency_id);
+
+
+--
+-- Name: inventory_allocations fk_inventory_allocations_shell_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.inventory_allocations
+    ADD CONSTRAINT fk_inventory_allocations_shell_same_agency FOREIGN KEY (unit_shell_id, agency_id) REFERENCES public.unit_shells(id, agency_id);
 
 
 --
@@ -5573,6 +6251,30 @@ ALTER TABLE ONLY public.schedule_lines
 
 
 --
+-- Name: selection_occupants fk_selection_occupants_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.selection_occupants
+    ADD CONSTRAINT fk_selection_occupants_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: selection_occupants fk_selection_occupants_selection_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.selection_occupants
+    ADD CONSTRAINT fk_selection_occupants_selection_same_agency FOREIGN KEY (choice_selection_id, agency_id) REFERENCES public.choice_selections(id, agency_id);
+
+
+--
+-- Name: selection_occupants fk_selection_occupants_traveler_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.selection_occupants
+    ADD CONSTRAINT fk_selection_occupants_traveler_same_agency FOREIGN KEY (booking_traveler_id, agency_id) REFERENCES public.booking_travelers(id, agency_id);
+
+
+--
 -- Name: supplier_arrangements fk_supplier_arrangements_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5891,6 +6593,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261107140000'),
 ('20261107130000'),
 ('20261107120000'),
 ('20261107110000'),

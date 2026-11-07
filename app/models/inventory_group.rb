@@ -25,6 +25,7 @@ class InventoryGroup < ApplicationRecord
   has_many :cost_lines, dependent: :restrict_with_exception
   has_many :schedule_lines, dependent: :restrict_with_exception
   has_many :offering_options, dependent: :restrict_with_exception
+  has_many :inventory_allocations, dependent: :restrict_with_exception
 
   enum :service_category, SERVICE_CATEGORIES.index_by(&:itself), validate: true, prefix: :category
   enum :representation, REPRESENTATIONS.index_by(&:itself), validate: true, prefix: :represented_as
