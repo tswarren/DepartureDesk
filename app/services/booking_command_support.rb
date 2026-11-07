@@ -178,7 +178,6 @@ module BookingCommandSupport
     groups = lock_groups!(needs.map(&:group))
     capacities = groups.to_h { |group| [ group.id, GroupCapacity.new(group:) ] }
     taken_shells = []
-    taken_places = Hash.new(0)
     taken_positions = Hash.new(0)
     failures = []
     excluding = replacing.values.flatten.map(&:id)
@@ -203,7 +202,7 @@ module BookingCommandSupport
         shell = capacity.shell_with_positions(need.count + taken_positions[group.id], excluding:)
         shell && { shell:, quantity: need.count }
       when :places
-        capacity.available_places(excluding:) - taken_places[group.id] >= need.count ? { shell: nil, quantity: need.count } : nil
+        { shell: nil, quantity: need.count }
       end
       if plan.nil?
         failures << "#{need.selection.label}: no #{group.label} space is left."
@@ -212,9 +211,20 @@ module BookingCommandSupport
       case need.kind
       when :whole_shell then taken_shells << plan[:shell].id
       when :positions then taken_positions[group.id] += need.count
-      else taken_places[group.id] += need.count
       end
       [ need, plan ]
+    end
+    # D-88, INV-23: the group's supply must cover the new holds at every
+    # point until they expire, counting changes already scheduled.
+    plans.group_by { |need, _| need.group.id }.each do |group_id, group_plans|
+      capacity = capacities.fetch(group_id)
+      added = group_plans.map do |_, plan|
+        GroupCapacity::Projected.new(id: nil, unit_shell_id: plan[:shell]&.id, quantity: plan[:quantity], state: "held", hold_expires_at: expires_at)
+      end
+      next unless capacity.shortfall(capacity.project(removed: excluding, added:))
+
+      label = group_plans.first.first.group.label
+      failures << "#{group_plans.map { |need, _| need.selection.label }.join(", ")}: no #{label} space is left for the length of the hold, counting supply changes already scheduled."
     end
     raise AgencyCommand::Error.new("Space can't be held: #{failures.join(" ")}", code: :invalid) if failures.any?
 

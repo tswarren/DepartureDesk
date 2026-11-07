@@ -31,6 +31,9 @@ class SaveOfferingOption < AgencyCommand
         inventory_group: group(departure, option))
       changed = option.changed - %w[lock_version updated_at position]
       return Result.new(status: :noop, record: option) if !creating && changed.empty?
+      if !creating && option.inventory_group_id_changed? && option.choice_selections.exists?
+        raise Error.new("Bookings use this option, so it can't draw on another group. Add a new option instead.", code: :invalid_state)
+      end
       if !creating && option.inventory_group_id_changed? && option.prices.exists?
         raise Error.new("Remove this option's prices before it draws on another group.", code: :invalid_state)
       end

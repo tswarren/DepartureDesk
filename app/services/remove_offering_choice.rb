@@ -19,6 +19,7 @@ class RemoveOfferingChoice < AgencyCommand
       offering = lock_offering!(departure)
       choice = offering.choices.lock.find(@choice.id)
       option_ids = choice.options.pluck(:id)
+      raise Error.new("Bookings use #{choice.name}, so it can't be removed.", code: :invalid_state) if ChoiceSelection.where(offering_option_id: option_ids).exists?
       OfferingPrice.where(offering_option_id: option_ids).delete_all
       OfferingOption.where(id: option_ids).delete_all
       choice.destroy!

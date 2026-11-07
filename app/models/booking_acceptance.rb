@@ -28,14 +28,16 @@ class BookingAcceptance < ApplicationRecord
 
   def method_label = METHOD_LABELS.fetch(acceptance_method)
 
-  # BKG-39: covers the booking only while its price lines and terms are the ones accepted.
+  # BKG-39: covers the booking only while its price lines, the inventory
+  # each line's option draws on, and its terms are the ones accepted.
   def covers?(booking)
     client_terms_version_id == booking.client_terms_version_id && lines_fingerprint == BookingAcceptance.fingerprint(booking)
   end
 
   def self.fingerprint(booking)
     rows = booking.price_lines.map do |line|
-      [ line.choice_selection_id, line.booking_traveler_id, line.occupancy_position, line.traveler_type_id, line.amount_minor_units, line.currency ].join("|")
+      [ line.choice_selection_id, line.choice_selection.option.inventory_group_id, line.booking_traveler_id, line.occupancy_position,
+        line.traveler_type_id, line.amount_minor_units, line.currency ].join("|")
     end
     Digest::SHA256.hexdigest(([ booking.client_terms_version_id ] + rows.sort).join("\n"))
   end
