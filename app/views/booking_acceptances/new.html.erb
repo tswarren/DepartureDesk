@@ -1,0 +1,100 @@
+<% content_for :title, "Record acceptance · #{@booking.booking_reference} · DepartureDesk" %>
+<% departure = @booking.client_trip.departure %>
+<% terms = @booking.client_terms_version %>
+<% payment_line = terms&.acceptance_line %>
+<% payment = @payment || {} %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ departure.display_reference, departure_path(departure) ], [ "Bookings", departure_bookings_path(departure) ], [ @booking.booking_reference, client_booking_path(@booking) ], [ "Record acceptance", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Booking · <%= @booking.booking_reference %></p>
+    <h1 class="dd-page-title">Record acceptance</h1>
+    <p class="dd-page-description">The client accepts the current price, <%= booking_money(@booking.total_minor_units, @booking.currency) %>, and client terms version <%= terms&.version_number %>. If either changes later, this acceptance no longer covers the booking.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @acceptance, url: client_booking_acceptances_path(@booking), scope: :booking_acceptance, multipart: true, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <div class="dd-form-grid dd-form-grid--two-column">
+        <div class="dd-field-group">
+          <%= form.label :accepted_by, "Accepted by", class: "dd-label" %>
+          <%= form.text_field :accepted_by, maxlength: BookingAcceptance::ACCEPTED_BY_LIMIT, **dd_field_options(form, :accepted_by, aria_describedby_extra: "booking_acceptance_accepted_by_hint") %>
+          <p class="dd-field-hint" id="booking_acceptance_accepted_by_hint">The responsible client, or the named person acting for an organization.</p>
+          <%= dd_field_error(form, :accepted_by) %>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :accepted_on, "Date accepted", class: "dd-label" %>
+          <%= form.date_field :accepted_on, **dd_field_options(form, :accepted_on) %>
+          <%= dd_field_error(form, :accepted_on) %>
+        </div>
+      </div>
+      <fieldset class="dd-form-section" id="booking_acceptance_acceptance_method" aria-describedby="booking_acceptance_method_hint">
+        <legend class="dd-section-title">Method</legend>
+        <p class="dd-field-hint" id="booking_acceptance_method_hint">
+          <%= payment_line ? "These terms count #{payment_line.description} as acceptance." : "These terms count no payment as acceptance, so a payment can't be recorded as acceptance." %>
+        </p>
+        <div class="dd-choice-group">
+          <% BookingAcceptance::METHOD_LABELS.each do |value, label| %>
+            <% next if value == "designated_payment" && payment_line.nil? %>
+            <label class="dd-choice">
+              <%= form.radio_button :acceptance_method, value %>
+              <span><%= value == "designated_payment" ? "#{payment_line.description}, paid" : label %></span>
+            </label>
+          <% end %>
+        </div>
+        <%= dd_field_error(form, :acceptance_method) %>
+      </fieldset>
+      <fieldset class="dd-form-section">
+        <legend class="dd-section-title">Evidence</legend>
+        <p class="dd-field-hint" id="booking_acceptance_evidence_hint">For email or a signed form, attach the file, say where it is kept, or both. For phone or in person, write a note.</p>
+        <div class="dd-form-grid dd-form-grid--two-column">
+          <div class="dd-field-group">
+            <%= form.label :evidence, "File (optional)", class: "dd-label" %>
+            <%= form.file_field :evidence, accept: ".pdf,.png,.jpg,.jpeg,.docx,.xlsx", aria: { describedby: "booking_acceptance_evidence_hint booking_acceptance_evidence_types" }, class: "dd-field" %>
+            <p class="dd-field-hint" id="booking_acceptance_evidence_types">PDF, PNG, JPEG, Word or Excel, up to 20 MB.</p>
+          </div>
+          <div class="dd-field-group">
+            <%= form.label :evidence_reference, "Where it is kept (optional)", class: "dd-label" %>
+            <%= form.text_field :evidence_reference, maxlength: BookingAcceptance::EVIDENCE_REFERENCE_LIMIT, placeholder: "Email of Jan 12, bookings mailbox", **dd_field_options(form, :evidence_reference) %>
+            <%= dd_field_error(form, :evidence_reference) %>
+          </div>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :note, "Note", class: "dd-label" %>
+          <%= form.text_area :note, rows: 3, maxlength: BookingAcceptance::NOTE_LIMIT, **dd_field_options(form, :note) %>
+          <%= dd_field_error(form, :note) %>
+        </div>
+      </fieldset>
+      <% if payment_line %>
+        <fieldset class="dd-form-section">
+          <legend class="dd-section-title">The payment, for a payment that counts as acceptance</legend>
+          <p class="dd-field-hint">Recorded as notes on this acceptance. The payment itself is entered with client payments, which link to it later (D-94).</p>
+          <div class="dd-form-grid dd-form-grid--two-column">
+            <div class="dd-field-group">
+              <%= form.label :payment_on, "Payment date", class: "dd-label" %>
+              <%= form.date_field :payment_on, value: payment["payment_on"], **dd_field_options(form, :payment_on) %>
+              <%= dd_field_error(form, :payment_on) %>
+            </div>
+            <div class="dd-field-group">
+              <%= form.label :payment_amount, "Payment amount (#{@booking.currency})", class: "dd-label" %>
+              <%= form.text_field :payment_amount, value: payment["payment_amount"], inputmode: "decimal", **dd_field_options(form, :payment_amount, class: "dd-field--numeric") %>
+              <%= dd_field_error(form, :payment_amount) %>
+            </div>
+            <div class="dd-field-group">
+              <%= form.label :payment_reference, "Payment reference", class: "dd-label" %>
+              <%= form.text_field :payment_reference, maxlength: 120, **dd_field_options(form, :payment_reference) %>
+              <%= dd_field_error(form, :payment_reference) %>
+            </div>
+          </div>
+        </fieldset>
+      <% end %>
+      <div class="dd-form-actions">
+        <%= form.submit "Record acceptance", class: "dd-button" %>
+        <%= link_to "Cancel", client_booking_path(@booking, anchor: "acceptance"), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

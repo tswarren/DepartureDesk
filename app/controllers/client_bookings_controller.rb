@@ -11,7 +11,9 @@ class ClientBookingsController < ApplicationController
         booking_travelers: %i[traveler traveler_type],
         choice_selections: [ :occupants, { option: [ :choice, :inventory_group ] } ],
         inventory_allocations: %i[inventory_group unit_shell choice_selection],
-        price_lines: [ :booking_traveler, { choice_selection: { option: :choice } } ])
+        price_lines: [ :booking_traveler, { choice_selection: { option: :choice } } ],
+        acceptances: [ :recorded_by, :client_terms_version, { evidence_attachment: :blob } ], cost_lines: :schedule_lines,
+        expected_commissions: [ :overridden_by, { choice_selection: { option: :choice } } ])
       .find(@booking.id)
     @trip = @booking.client_trip
     @choices = @booking.offering.choices.includes(options: :inventory_group)

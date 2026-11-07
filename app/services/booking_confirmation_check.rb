@@ -1,6 +1,6 @@
-# What a booking still needs before it can be confirmed (BKG-45, CLT-15,
-# D16), each item with the place on the booking workspace that fixes it.
-# Acceptance arrives in build step 6c; until then every booking lists it.
+# What a booking still needs before it can be confirmed (BKG-45, BKG-39,
+# CLT-15, D16), each item with the place on the booking workspace that
+# fixes it.
 class BookingConfirmationCheck
   include BookingCommandSupport
 
@@ -13,7 +13,7 @@ class BookingConfirmationCheck
 
   def blockers
     list = []
-    list << Blocker.new(message: "Record the client's acceptance of the current price and terms.", anchor: "acceptance")
+    list.concat(acceptance_blockers)
     departure = @booking.departure
     list << Blocker.new(message: "#{departure.name} isn't on sale.", anchor: "status") unless departure.on_sale?
     @booking.offering.booking_blockers.each { |message| list << Blocker.new(message:, anchor: "choices") }
@@ -21,10 +21,40 @@ class BookingConfirmationCheck
     list.concat(choice_blockers)
     occupancy_problems(@booking).each { |message| list << Blocker.new(message:, anchor: "choices") }
     list.concat(hold_blockers)
+    list.concat(rate_blockers)
     list
   end
 
   private
+
+  # BKG-39, BKG-28: acceptance of the current price and terms.
+  def acceptance_blockers
+    terms = @booking.client_terms_version
+    return [ Blocker.new(message: "The Departure has no client terms for this booking yet.", anchor: "status") ] if terms.nil?
+
+    list = terms.booking_blockers.map { |message| Blocker.new(message: "Client terms: #{message}", anchor: "status") }
+    return list if @booking.current_acceptance
+
+    message = if @booking.latest_acceptance
+      "The recorded acceptance no longer covers the current price and terms; record the client's acceptance again."
+    else
+      "Record the client's acceptance of the current price and terms."
+    end
+    list << Blocker.new(message:, anchor: "acceptance")
+  end
+
+  # SUP-35: each unit drawn from a rate table needs a rate for its occupancy.
+  def rate_blockers
+    @booking.choice_selections.select(&:per_unit?).filter_map do |selection|
+      next if selection.inventory_group.rate_lines.empty? || selection.occupants.none?(&:position)
+
+      missing = supplier_proposal(@booking, selection).missing
+      next if missing.empty?
+
+      positions = missing.map { |position| OfferingPrice::POSITION_LABELS.fetch(position).downcase }.to_sentence
+      Blocker.new(message: "The supplier rate table has no #{positions} rate for #{selection.label}.", anchor: "choices")
+    end
+  end
 
   def traveler_blockers
     travelers = @booking.booking_travelers

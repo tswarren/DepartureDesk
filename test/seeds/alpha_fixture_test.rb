@@ -184,6 +184,24 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert_equal alpha.bookings.transform_values(&:id), again.bookings.transform_values(&:id)
   end
 
+  test "confirms each roster booking on its date, with its acceptance, charge, cost and commission (step 6c, D-94)" do
+    set_clock Time.utc(2026, 11, 10, 15)
+    alpha = AlphaFixture.load!(agency: @agency, actor: @actor, bookings: :confirmed)
+    dates = alpha.bookings.transform_values { |booking| booking.confirmed_at.in_time_zone(AlphaFixture::TIME_ZONE).to_date }
+    assert_equal({ "BK-101" => Date.new(2027, 1, 12), "BK-104" => Date.new(2027, 1, 19), "BK-105" => Date.new(2027, 2, 2) }, dates)
+    methods = alpha.bookings.transform_values { |booking| booking.current_acceptance.acceptance_method }
+    assert_equal({ "BK-101" => "email", "BK-104" => "phone", "BK-105" => "in_person" }, methods)
+    assert_equal 2_640_000, alpha.bookings.values.sum { |booking| booking.client_charge.lines.select { |line| line.description.start_with?("Cabin") }.sum(&:amount_minor_units) }
+    assert alpha.bookings.values.all? { |booking| booking.cost_lines.one? && booking.expected_commissions.one? }
+    assert alpha.client_terms.reload.locked?
+
+    again = AlphaFixture.load!(agency: @agency, actor: @actor, bookings: :confirmed)
+    assert_equal alpha.bookings.transform_values(&:id), again.bookings.transform_values(&:id)
+    assert_equal 3, ClientCharge.where(agency: @agency).count
+  ensure
+    Clock.reset!
+  end
+
   test "can stop with the Alpha arrangement in Draft, then confirm it on a later load (D1)" do
     draft = AlphaFixture.load!(agency: @agency, actor: @actor, confirm_cruise: false).arrangements.fetch(:cruise)
     assert draft.draft?

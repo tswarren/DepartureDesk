@@ -29,6 +29,9 @@ class SaveCostLine < AgencyCommand
       line = @cost_line ? locked_line(arrangement) : arrangement.cost_lines.new(agency: @agency, currency: arrangement.currency)
       creating = line.new_record?
       raise Error.new("An amount due has posted against this cost line, so it can't change.", code: :invalid_state) if !creating && line.posted?
+      if line.scoped_to_client_booking?
+        raise Error.new("This cost line came from booking #{line.client_booking.booking_reference}'s confirmation; change it from the booking.", code: :invalid_state)
+      end
 
       shells = assign!(arrangement, line)
       changed = line.changed - %w[lock_version updated_at]

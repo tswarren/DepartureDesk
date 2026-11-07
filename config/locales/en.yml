@@ -31,6 +31,12 @@ en:
   hello: "Hello world"
   activerecord:
     attributes:
+      booking_acceptance:
+        evidence_reference: "Evidence"
+        acceptance_method: "Method"
+        accepted_on: "Date accepted"
+        payment_on: "Payment date"
+        payment_amount: "Payment amount"
       agency:
         name: "Display name"
         legal_name: "Legal or business name"

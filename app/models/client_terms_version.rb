@@ -22,9 +22,14 @@ class ClientTermsVersion < ApplicationRecord
   def locked? = locked_at.present?
 
   # BKG-31: the override when there is one, else the agency's defaults.
+  # Once locked, the version's own rows, which hold the agency tiers in
+  # effect when it was first accepted (step 6 plan, question 9).
   def cancellation_tiers
-    overrides_cancellation_tiers? ? own_cancellation_tiers : agency.agency_cancellation_tiers.ordered
+    overrides_cancellation_tiers? || locked? ? own_cancellation_tiers : agency.agency_cancellation_tiers.ordered
   end
+
+  # BKG-41: the payment schedule line that counts as acceptance, if any.
+  def acceptance_line = schedule_lines.find(&:counts_as_acceptance?)
 
   # What the terms still need before step 6 will present them.
   def booking_blockers

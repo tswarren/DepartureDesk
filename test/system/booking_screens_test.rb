@@ -18,7 +18,9 @@ class BookingScreensTest < ApplicationSystemTestCase
       client_booking_path(@alpha.bookings.fetch("BK-104")),
       client_booking_path(@alpha.bookings.fetch("BK-101")),
       client_trip_path(@alpha.trips.fetch("BK-105")),
-      departure_inventory_path(@alpha.departure)
+      departure_inventory_path(@alpha.departure),
+      new_client_booking_acceptance_path(@alpha.bookings.fetch("BK-104")),
+      departure_client_terms_path(@alpha.departure)
     ]
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
     [ 1400, 375 ].each do |width|
@@ -30,6 +32,22 @@ class BookingScreensTest < ApplicationSystemTestCase
         assert_selector "nav[aria-label='Breadcrumb']"
         assert_no_page_overflow
       end
+    end
+  end
+
+  test "a confirmed booking with its acceptance and supplier cost reflows at 375px" do
+    booking = @alpha.bookings.fetch("BK-104")
+    RecordBookingAcceptance.new(agency: @scenario.agency, actor: @scenario.actor, booking:,
+      attributes: { accepted_by: "Sofia Bennett", acceptance_method: "phone", note: "Accepted by phone." }).call
+    ConfirmClientBooking.new(agency: @scenario.agency, actor: @scenario.actor, booking: booking.reload).call
+    sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
+    [ 1400, 375 ].each do |width|
+      resize_window(width)
+      visit client_booking_path(booking)
+      wait_for_turbo
+      assert_selector "#supplier-cost"
+      within("#acceptance") { assert_text "Covers the current price and terms" }
+      assert_no_page_overflow
     end
   end
 

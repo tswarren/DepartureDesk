@@ -1,6 +1,6 @@
 # Slice 1 step 6: Travelers, Client Trips and bookings; hold, accept and confirm
 
-**Status:** Accepted 2026-11-06, with D-94 logged; 6a built 2026-11-07. Amended 2026-11-07 with questions 17 to 21 from the review of 6b and 6c, before either is built; 6b built 2026-11-07, with the hotel rooming logged as D-95. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 6 and the decision log entries it cites.
+**Status:** Accepted 2026-11-06, with D-94 logged; 6a built 2026-11-07. Amended 2026-11-07 with questions 17 to 21 from the review of 6b and 6c, before either is built; 6b built 2026-11-07, with the hotel rooming logged as D-95; 6c built 2026-11-07, with acceptance evidence under an ADR 0019 amendment. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 6 and the decision log entries it cites.
 
 Charter build step 6 covers four things:
 - travelers, Client Trips and bookings;

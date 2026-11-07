@@ -128,6 +128,22 @@ $$;
 
 
 --
+-- Name: reject_booking_acceptance_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_booking_acceptance_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND (to_jsonb(NEW) - 'updated_at') = (to_jsonb(OLD) - 'updated_at') THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'booking_acceptances rows are append-only';
+END;
+$$;
+
+
+--
 -- Name: reject_capacity_event_mutation(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -297,6 +313,25 @@ BEGIN
     RAISE EXCEPTION 'client trip identity is immutable';
   END IF;
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: reject_confirmed_booking_contents_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_confirmed_booking_contents_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  booking_id uuid;
+BEGIN
+  booking_id := CASE WHEN TG_OP = 'INSERT' THEN NEW.client_booking_id ELSE OLD.client_booking_id END;
+  IF EXISTS (SELECT 1 FROM client_bookings WHERE id = booking_id AND status <> 'draft') THEN
+    RAISE EXCEPTION 'booking % is no longer a draft; its contents are fixed', booking_id;
+  END IF;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
 END;
 $$;
 
@@ -886,6 +921,43 @@ CREATE TABLE public.audit_events (
 
 
 --
+-- Name: booking_acceptances; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.booking_acceptances (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_booking_id uuid NOT NULL,
+    client_terms_version_id uuid NOT NULL,
+    accepted_by character varying NOT NULL,
+    acceptance_method character varying NOT NULL,
+    accepted_on date NOT NULL,
+    accepted_total_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    lines_fingerprint character varying NOT NULL,
+    note text,
+    evidence_reference character varying,
+    evidence_sha256 character varying,
+    payment_on date,
+    payment_amount_minor_units bigint,
+    payment_reference character varying,
+    recorded_by_id uuid NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT booking_acceptances_accepted_by CHECK (((btrim((accepted_by)::text) <> ''::text) AND (char_length((accepted_by)::text) <= 160))),
+    CONSTRAINT booking_acceptances_evidence CHECK (COALESCE(((((acceptance_method)::text = ANY ((ARRAY['email'::character varying, 'signed'::character varying])::text[])) AND ((evidence_sha256 IS NOT NULL) OR (evidence_reference IS NOT NULL))) OR (((acceptance_method)::text = ANY ((ARRAY['phone'::character varying, 'in_person'::character varying])::text[])) AND (note IS NOT NULL)) OR ((acceptance_method)::text = 'designated_payment'::text)), false)),
+    CONSTRAINT booking_acceptances_evidence_reference CHECK (((evidence_reference IS NULL) OR ((btrim((evidence_reference)::text) <> ''::text) AND (char_length((evidence_reference)::text) <= 300)))),
+    CONSTRAINT booking_acceptances_evidence_sha256 CHECK (((evidence_sha256 IS NULL) OR ((evidence_sha256)::text ~ '^[0-9a-f]{64}$'::text))),
+    CONSTRAINT booking_acceptances_fingerprint CHECK (((lines_fingerprint)::text ~ '^[0-9a-f]{64}$'::text)),
+    CONSTRAINT booking_acceptances_method CHECK (((acceptance_method)::text = ANY ((ARRAY['email'::character varying, 'signed'::character varying, 'phone'::character varying, 'in_person'::character varying, 'designated_payment'::character varying])::text[]))),
+    CONSTRAINT booking_acceptances_note CHECK (((note IS NULL) OR ((btrim(note) <> ''::text) AND (char_length(note) <= 2000)))),
+    CONSTRAINT booking_acceptances_payment CHECK (COALESCE(((((acceptance_method)::text = 'designated_payment'::text) AND (payment_on IS NOT NULL) AND (payment_amount_minor_units > 0) AND (payment_reference IS NOT NULL) AND (btrim((payment_reference)::text) <> ''::text) AND (char_length((payment_reference)::text) <= 120)) OR (((acceptance_method)::text <> 'designated_payment'::text) AND (payment_on IS NULL) AND (payment_amount_minor_units IS NULL) AND (payment_reference IS NULL))), false)),
+    CONSTRAINT booking_acceptances_total CHECK (((accepted_total_minor_units >= 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text)))
+);
+
+
+--
 -- Name: booking_price_lines; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1020,6 +1092,32 @@ CREATE TABLE public.capacity_rules (
 
 
 --
+-- Name: charge_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.charge_lines (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_charge_id uuid NOT NULL,
+    line_type character varying NOT NULL,
+    choice_selection_id uuid,
+    booking_traveler_id uuid,
+    traveler_type_id uuid,
+    occupancy_position character varying,
+    description character varying NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    creditor character varying DEFAULT 'agency'::character varying NOT NULL,
+    expected_route character varying DEFAULT 'agency'::character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT charge_lines_creditor_and_route CHECK ((((creditor)::text = ANY ((ARRAY['agency'::character varying, 'supplier'::character varying])::text[])) AND ((expected_route)::text = ANY ((ARRAY['agency'::character varying, 'supplier'::character varying])::text[])))),
+    CONSTRAINT charge_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT charge_lines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 300))),
+    CONSTRAINT charge_lines_type CHECK (((line_type)::text = ANY ((ARRAY['traveler_price'::character varying, 'add_on'::character varying])::text[])))
+);
+
+
+--
 -- Name: choice_selections; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1083,8 +1181,25 @@ CREATE TABLE public.client_cancellation_tiers (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    copied_from_agency_default boolean DEFAULT false NOT NULL,
     CONSTRAINT client_cancellation_tiers_charge CHECK (COALESCE(((((charge_kind)::text = 'percentage'::text) AND (percentage > (0)::numeric) AND (percentage <= (100)::numeric) AND (amount_minor_units IS NULL) AND (currency IS NULL) AND (service_category IS NULL)) OR (((charge_kind)::text = 'fixed_per_traveler'::text) AND (percentage IS NULL) AND (amount_minor_units >= 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (service_category IS NULL)) OR (((charge_kind)::text = 'fixed_per_unit'::text) AND (percentage IS NULL) AND (amount_minor_units >= 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND ((service_category)::text = ANY (ARRAY[('hotel'::character varying)::text, ('all_inclusive_resort'::character varying)::text, ('cruise'::character varying)::text, ('air'::character varying)::text, ('rail'::character varying)::text, ('transportation'::character varying)::text, ('activity'::character varying)::text, ('meal'::character varying)::text, ('insurance'::character varying)::text])))), false)),
     CONSTRAINT client_cancellation_tiers_counters CHECK (((min_days_before_departure >= 0) AND (lock_version >= 0)))
+);
+
+
+--
+-- Name: client_charges; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_charges (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    client_booking_id uuid NOT NULL,
+    client_terms_version_id uuid NOT NULL,
+    booking_acceptance_id uuid NOT NULL,
+    currency character varying NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT client_charges_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text))
 );
 
 
@@ -1473,14 +1588,16 @@ CREATE TABLE public.cost_lines (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) with time zone NOT NULL,
     updated_at timestamp(6) with time zone NOT NULL,
+    client_booking_id uuid,
     CONSTRAINT cost_lines_amounts CHECK (((amount_minor_units >= 0) AND ((rate_minor_units IS NULL) OR (rate_minor_units >= 0)))),
     CONSTRAINT cost_lines_base_not_self CHECK (((base_cost_line_id IS NULL) OR (base_cost_line_id <> id))),
     CONSTRAINT cost_lines_basis CHECK (COALESCE(((((basis)::text = 'fixed'::text) AND (rate_minor_units IS NOT NULL) AND (quantity IS NULL) AND (percentage IS NULL) AND (base_cost_line_id IS NULL)) OR (((basis)::text = ANY (ARRAY[('per_unit'::character varying)::text, ('per_person'::character varying)::text, ('per_night'::character varying)::text])) AND (rate_minor_units IS NOT NULL) AND (quantity >= 1) AND (percentage IS NULL) AND (base_cost_line_id IS NULL)) OR (((basis)::text = 'percentage'::text) AND (rate_minor_units IS NULL) AND (quantity IS NULL) AND (percentage > (0)::numeric) AND (percentage <= (100)::numeric) AND (base_cost_line_id IS NOT NULL))), false)),
+    CONSTRAINT cost_lines_booking_scope CHECK ((((scope)::text = 'client_booking'::text) = (client_booking_id IS NOT NULL))),
     CONSTRAINT cost_lines_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT cost_lines_description CHECK (((btrim((description)::text) <> ''::text) AND (char_length((description)::text) <= 200))),
     CONSTRAINT cost_lines_group_scope CHECK ((((scope)::text = 'inventory_group'::text) = (inventory_group_id IS NOT NULL))),
     CONSTRAINT cost_lines_lock_version CHECK ((lock_version >= 0)),
-    CONSTRAINT cost_lines_scope CHECK (((scope)::text = ANY ((ARRAY['arrangement'::character varying, 'inventory_group'::character varying, 'unit_shells'::character varying])::text[]))),
+    CONSTRAINT cost_lines_scope CHECK (((scope)::text = ANY ((ARRAY['arrangement'::character varying, 'inventory_group'::character varying, 'unit_shells'::character varying, 'client_booking'::character varying])::text[]))),
     CONSTRAINT cost_lines_stage CHECK (((stage)::text = ANY ((ARRAY['estimated'::character varying, 'committed'::character varying])::text[])))
 );
 
@@ -1557,6 +1674,31 @@ CREATE TABLE public.departures (
     CONSTRAINT departures_ready_to_sell_completeness CHECK ((((sales_status)::text = 'draft'::text) OR ((name IS NOT NULL) AND (btrim((name)::text) <> ''::text) AND (starts_on IS NOT NULL) AND (ends_on IS NOT NULL) AND (time_zone IS NOT NULL) AND (btrim((time_zone)::text) <> ''::text) AND (operating_currency IS NOT NULL)))),
     CONSTRAINT departures_reference_format CHECK (((departure_reference IS NULL) OR ((departure_reference)::text ~ '^DEP-[0-9]{4,}$'::text))),
     CONSTRAINT departures_sales_status CHECK (((sales_status)::text = ANY ((ARRAY['draft'::character varying, 'ready_to_sell'::character varying])::text[])))
+);
+
+
+--
+-- Name: expected_commissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.expected_commissions (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    supplier_arrangement_id uuid NOT NULL,
+    client_booking_id uuid NOT NULL,
+    choice_selection_id uuid NOT NULL,
+    proposed_amount_minor_units bigint NOT NULL,
+    amount_minor_units bigint NOT NULL,
+    currency character varying NOT NULL,
+    status character varying DEFAULT 'expected'::character varying NOT NULL,
+    overridden_by_id uuid,
+    overridden_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL,
+    updated_at timestamp(6) with time zone NOT NULL,
+    CONSTRAINT expected_commissions_amounts CHECK (((proposed_amount_minor_units >= 0) AND (amount_minor_units >= 0) AND ((currency)::text ~ '^[A-Z]{3}$'::text))),
+    CONSTRAINT expected_commissions_override CHECK ((((overridden_by_id IS NULL) = (overridden_at IS NULL)) AND (lock_version >= 0))),
+    CONSTRAINT expected_commissions_status CHECK (((status)::text = 'expected'::text))
 );
 
 
@@ -2350,6 +2492,19 @@ CREATE TABLE public.travelers (
 
 
 --
+-- Name: trigger_event_shells; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.trigger_event_shells (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    agency_id uuid NOT NULL,
+    trigger_event_id uuid NOT NULL,
+    unit_shell_id uuid NOT NULL,
+    created_at timestamp(6) with time zone NOT NULL
+);
+
+
+--
 -- Name: trigger_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2364,6 +2519,7 @@ CREATE TABLE public.trigger_events (
     recorded_by_id uuid,
     recorded_by_identifier character varying,
     recorded_at timestamp(6) with time zone NOT NULL,
+    client_booking_id uuid,
     CONSTRAINT trigger_events_count CHECK (((count IS NULL) OR (count >= 0))),
     CONSTRAINT trigger_events_recorded_by CHECK (((recorded_by_id IS NULL) <> (recorded_by_identifier IS NULL))),
     CONSTRAINT trigger_events_reference CHECK (((reference IS NULL) OR ((btrim((reference)::text) <> ''::text) AND (char_length((reference)::text) <= 120)))),
@@ -2497,6 +2653,14 @@ ALTER TABLE ONLY public.audit_events
 
 
 --
+-- Name: booking_acceptances booking_acceptances_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_acceptances
+    ADD CONSTRAINT booking_acceptances_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: booking_price_lines booking_price_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2545,6 +2709,14 @@ ALTER TABLE ONLY public.capacity_rules
 
 
 --
+-- Name: charge_lines charge_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.charge_lines
+    ADD CONSTRAINT charge_lines_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: choice_selections choice_selections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2566,6 +2738,14 @@ ALTER TABLE ONLY public.client_bookings
 
 ALTER TABLE ONLY public.client_cancellation_tiers
     ADD CONSTRAINT client_cancellation_tiers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: client_charges client_charges_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_charges
+    ADD CONSTRAINT client_charges_pkey PRIMARY KEY (id);
 
 
 --
@@ -2726,6 +2906,14 @@ ALTER TABLE ONLY public.departure_team_members
 
 ALTER TABLE ONLY public.departures
     ADD CONSTRAINT departures_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: expected_commissions expected_commissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.expected_commissions
+    ADD CONSTRAINT expected_commissions_pkey PRIMARY KEY (id);
 
 
 --
@@ -2977,6 +3165,14 @@ ALTER TABLE ONLY public.travelers
 
 
 --
+-- Name: trigger_event_shells trigger_event_shells_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trigger_event_shells
+    ADD CONSTRAINT trigger_event_shells_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: trigger_events trigger_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3148,6 +3344,20 @@ CREATE INDEX index_audit_events_on_agency_id_and_created_at ON public.audit_even
 
 
 --
+-- Name: index_booking_acceptances_on_booking_and_recorded_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_booking_acceptances_on_booking_and_recorded_at ON public.booking_acceptances USING btree (client_booking_id, recorded_at);
+
+
+--
+-- Name: index_booking_acceptances_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_booking_acceptances_on_id_and_agency_id ON public.booking_acceptances USING btree (id, agency_id);
+
+
+--
 -- Name: index_booking_price_lines_on_booking; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3246,6 +3456,13 @@ CREATE UNIQUE INDEX index_capacity_rules_on_group_and_traveler_type ON public.ca
 
 
 --
+-- Name: index_charge_lines_on_charge; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_charge_lines_on_charge ON public.charge_lines USING btree (client_charge_id);
+
+
+--
 -- Name: index_choice_selections_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3299,6 +3516,20 @@ CREATE UNIQUE INDEX index_client_bookings_on_trip_and_sequence ON public.client_
 --
 
 CREATE UNIQUE INDEX index_client_cancellation_tiers_one_per_day ON public.client_cancellation_tiers USING btree (client_terms_version_id, min_days_before_departure);
+
+
+--
+-- Name: index_client_charges_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_charges_on_id_and_agency_id ON public.client_charges USING btree (id, agency_id);
+
+
+--
+-- Name: index_client_charges_one_per_booking; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_client_charges_one_per_booking ON public.client_charges USING btree (client_booking_id);
 
 
 --
@@ -3799,6 +4030,13 @@ CREATE INDEX index_cost_lines_on_arrangement ON public.cost_lines USING btree (s
 
 
 --
+-- Name: index_cost_lines_on_client_booking; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_cost_lines_on_client_booking ON public.cost_lines USING btree (client_booking_id);
+
+
+--
 -- Name: index_cost_lines_on_id_and_agency_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3887,6 +4125,27 @@ CREATE INDEX index_departures_on_agency_statuses_starts_on_id ON public.departur
 --
 
 CREATE UNIQUE INDEX index_departures_on_id_and_agency_id ON public.departures USING btree (id, agency_id);
+
+
+--
+-- Name: index_expected_commissions_on_arrangement; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_expected_commissions_on_arrangement ON public.expected_commissions USING btree (supplier_arrangement_id);
+
+
+--
+-- Name: index_expected_commissions_on_booking; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_expected_commissions_on_booking ON public.expected_commissions USING btree (client_booking_id);
+
+
+--
+-- Name: index_expected_commissions_one_per_service; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_expected_commissions_one_per_service ON public.expected_commissions USING btree (choice_selection_id);
 
 
 --
@@ -4723,6 +4982,20 @@ CREATE UNIQUE INDEX index_travelers_on_id_and_agency_id ON public.travelers USIN
 
 
 --
+-- Name: index_trigger_event_shells_on_shell; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_trigger_event_shells_on_shell ON public.trigger_event_shells USING btree (unit_shell_id);
+
+
+--
+-- Name: index_trigger_event_shells_one_per_shell; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_trigger_event_shells_one_per_shell ON public.trigger_event_shells USING btree (trigger_event_id, unit_shell_id);
+
+
+--
 -- Name: index_trigger_events_on_arrangement_type_and_date; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4800,6 +5073,20 @@ CREATE TRIGGER audit_events_reject_update BEFORE DELETE OR UPDATE ON public.audi
 
 
 --
+-- Name: booking_acceptances booking_acceptances_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER booking_acceptances_reject_mutation BEFORE DELETE OR UPDATE ON public.booking_acceptances FOR EACH ROW EXECUTE FUNCTION public.reject_booking_acceptance_mutation();
+
+
+--
+-- Name: booking_price_lines booking_price_lines_reject_confirmed_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER booking_price_lines_reject_confirmed_change BEFORE INSERT OR DELETE OR UPDATE ON public.booking_price_lines FOR EACH ROW EXECUTE FUNCTION public.reject_confirmed_booking_contents_change();
+
+
+--
 -- Name: capacity_events capacity_events_reject_invalid_zone; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4842,6 +5129,13 @@ CREATE TRIGGER capacity_projections_reject_owner_change BEFORE UPDATE ON public.
 
 
 --
+-- Name: charge_lines charge_lines_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER charge_lines_reject_mutation BEFORE DELETE OR UPDATE ON public.charge_lines FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_money_mutation();
+
+
+--
 -- Name: choice_selections choice_selections_reject_other_offering; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4867,6 +5161,13 @@ CREATE TRIGGER client_bookings_reject_other_departure BEFORE INSERT ON public.cl
 --
 
 CREATE TRIGGER client_cancellation_tiers_reject_locked_change BEFORE INSERT OR DELETE OR UPDATE ON public.client_cancellation_tiers FOR EACH ROW EXECUTE FUNCTION public.reject_locked_client_terms_change();
+
+
+--
+-- Name: client_charges client_charges_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER client_charges_reject_mutation BEFORE DELETE OR UPDATE ON public.client_charges FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_money_mutation();
 
 
 --
@@ -5101,6 +5402,13 @@ CREATE TRIGGER travelers_reject_agency_change BEFORE UPDATE ON public.travelers 
 
 
 --
+-- Name: trigger_event_shells trigger_event_shells_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trigger_event_shells_reject_mutation BEFORE DELETE OR UPDATE ON public.trigger_event_shells FOR EACH ROW EXECUTE FUNCTION public.reject_supplier_money_mutation();
+
+
+--
 -- Name: trigger_events trigger_events_reject_mutation; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5315,6 +5623,38 @@ ALTER TABLE ONLY public.arrangement_documents
 
 
 --
+-- Name: booking_acceptances fk_booking_acceptances_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_acceptances
+    ADD CONSTRAINT fk_booking_acceptances_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: booking_acceptances fk_booking_acceptances_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_acceptances
+    ADD CONSTRAINT fk_booking_acceptances_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: booking_acceptances fk_booking_acceptances_recorder_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_acceptances
+    ADD CONSTRAINT fk_booking_acceptances_recorder_same_agency FOREIGN KEY (recorded_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: booking_acceptances fk_booking_acceptances_terms_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.booking_acceptances
+    ADD CONSTRAINT fk_booking_acceptances_terms_same_agency FOREIGN KEY (client_terms_version_id, agency_id) REFERENCES public.client_terms_versions(id, agency_id);
+
+
+--
 -- Name: booking_price_lines fk_booking_price_lines_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5523,6 +5863,46 @@ ALTER TABLE ONLY public.capacity_rules
 
 
 --
+-- Name: charge_lines fk_charge_lines_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.charge_lines
+    ADD CONSTRAINT fk_charge_lines_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: charge_lines fk_charge_lines_charge_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.charge_lines
+    ADD CONSTRAINT fk_charge_lines_charge_same_agency FOREIGN KEY (client_charge_id, agency_id) REFERENCES public.client_charges(id, agency_id);
+
+
+--
+-- Name: charge_lines fk_charge_lines_selection_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.charge_lines
+    ADD CONSTRAINT fk_charge_lines_selection_same_agency FOREIGN KEY (choice_selection_id, agency_id) REFERENCES public.choice_selections(id, agency_id);
+
+
+--
+-- Name: charge_lines fk_charge_lines_traveler_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.charge_lines
+    ADD CONSTRAINT fk_charge_lines_traveler_same_agency FOREIGN KEY (booking_traveler_id, agency_id) REFERENCES public.booking_travelers(id, agency_id);
+
+
+--
+-- Name: charge_lines fk_charge_lines_type_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.charge_lines
+    ADD CONSTRAINT fk_charge_lines_type_same_agency FOREIGN KEY (traveler_type_id, agency_id) REFERENCES public.traveler_types(id, agency_id);
+
+
+--
 -- Name: choice_selections fk_choice_selections_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5600,6 +5980,38 @@ ALTER TABLE ONLY public.client_cancellation_tiers
 
 ALTER TABLE ONLY public.client_cancellation_tiers
     ADD CONSTRAINT fk_client_cancellation_tiers_version_same_agency FOREIGN KEY (client_terms_version_id, agency_id) REFERENCES public.client_terms_versions(id, agency_id);
+
+
+--
+-- Name: client_charges fk_client_charges_acceptance_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_charges
+    ADD CONSTRAINT fk_client_charges_acceptance_same_agency FOREIGN KEY (booking_acceptance_id, agency_id) REFERENCES public.booking_acceptances(id, agency_id);
+
+
+--
+-- Name: client_charges fk_client_charges_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_charges
+    ADD CONSTRAINT fk_client_charges_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: client_charges fk_client_charges_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_charges
+    ADD CONSTRAINT fk_client_charges_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: client_charges fk_client_charges_terms_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_charges
+    ADD CONSTRAINT fk_client_charges_terms_same_agency FOREIGN KEY (client_terms_version_id, agency_id) REFERENCES public.client_terms_versions(id, agency_id);
 
 
 --
@@ -5723,6 +6135,14 @@ ALTER TABLE ONLY public.cost_lines
 
 
 --
+-- Name: cost_lines fk_cost_lines_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cost_lines
+    ADD CONSTRAINT fk_cost_lines_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
 -- Name: cost_lines fk_cost_lines_group_of_arrangement; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5776,6 +6196,46 @@ ALTER TABLE ONLY public.departure_team_members
 
 ALTER TABLE ONLY public.departure_team_members
     ADD CONSTRAINT fk_departure_team_members_user_same_agency FOREIGN KEY (agency_user_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: expected_commissions fk_expected_commissions_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.expected_commissions
+    ADD CONSTRAINT fk_expected_commissions_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: expected_commissions fk_expected_commissions_arrangement_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.expected_commissions
+    ADD CONSTRAINT fk_expected_commissions_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: expected_commissions fk_expected_commissions_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.expected_commissions
+    ADD CONSTRAINT fk_expected_commissions_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
+
+
+--
+-- Name: expected_commissions fk_expected_commissions_overrider_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.expected_commissions
+    ADD CONSTRAINT fk_expected_commissions_overrider_same_agency FOREIGN KEY (overridden_by_id, agency_id) REFERENCES public.agency_users(id, agency_id);
+
+
+--
+-- Name: expected_commissions fk_expected_commissions_selection_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.expected_commissions
+    ADD CONSTRAINT fk_expected_commissions_selection_same_agency FOREIGN KEY (choice_selection_id, agency_id) REFERENCES public.choice_selections(id, agency_id);
 
 
 --
@@ -6451,6 +6911,30 @@ ALTER TABLE ONLY public.travelers
 
 
 --
+-- Name: trigger_event_shells fk_trigger_event_shells_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trigger_event_shells
+    ADD CONSTRAINT fk_trigger_event_shells_agency FOREIGN KEY (agency_id) REFERENCES public.agencies(id);
+
+
+--
+-- Name: trigger_event_shells fk_trigger_event_shells_event_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trigger_event_shells
+    ADD CONSTRAINT fk_trigger_event_shells_event_same_agency FOREIGN KEY (trigger_event_id, agency_id) REFERENCES public.trigger_events(id, agency_id);
+
+
+--
+-- Name: trigger_event_shells fk_trigger_event_shells_shell_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trigger_event_shells
+    ADD CONSTRAINT fk_trigger_event_shells_shell_same_agency FOREIGN KEY (unit_shell_id, agency_id) REFERENCES public.unit_shells(id, agency_id);
+
+
+--
 -- Name: trigger_events fk_trigger_events_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6464,6 +6948,14 @@ ALTER TABLE ONLY public.trigger_events
 
 ALTER TABLE ONLY public.trigger_events
     ADD CONSTRAINT fk_trigger_events_arrangement_same_agency FOREIGN KEY (supplier_arrangement_id, agency_id) REFERENCES public.supplier_arrangements(id, agency_id);
+
+
+--
+-- Name: trigger_events fk_trigger_events_booking_same_agency; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trigger_events
+    ADD CONSTRAINT fk_trigger_events_booking_same_agency FOREIGN KEY (client_booking_id, agency_id) REFERENCES public.client_bookings(id, agency_id);
 
 
 --
@@ -6593,6 +7085,7 @@ ALTER TABLE ONLY public.supplier_websites
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261107150000'),
 ('20261107140000'),
 ('20261107130000'),
 ('20261107120000'),

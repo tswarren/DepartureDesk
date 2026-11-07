@@ -30,7 +30,7 @@ if Rails.env.development?
   puts "  Email: #{administrator.email_address}"
   puts "  ID: #{administrator.id}"
 
-  alpha = AlphaFixture.load!(agency:, actor: administrator, bookings: :held)
+  alpha = AlphaFixture.load!(agency:, actor: administrator, bookings: :confirmed)
   puts "Alpha fixture ready:"
   alpha.suppliers.each_value { |supplier| puts "  Supplier: #{supplier.display_name} (#{supplier.supplier_reference})" }
   puts "  Departure: #{alpha.departure.name} #{alpha.departure.departure_reference} (#{alpha.departure.summary_label_text})"

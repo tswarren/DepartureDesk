@@ -169,7 +169,8 @@
   </header>
   <div class="dd-panel-body dd-stack">
     <p class="dd-page-description">
-      <% if hold_state == :held %>Held until <%= booking_time(hold_at) %><%= " Extended once; it can't be extended again." if @booking.hold_extended? %>
+      <% if @booking.inventory_allocations.any?(&:state_reserved?) %>Reserved for this booking. The space stays reserved until the booking is cancelled.
+      <% elsif hold_state == :held %>Held until <%= booking_time(hold_at) %><%= " Extended once; it can't be extended again." if @booking.hold_extended? %>
       <% elsif hold_state == :expired %>The hold expired <%= booking_time(hold_at) %>, and its space was returned. Hold space again if any is left.
       <% else %>Nothing is held. Hold space takes every service the booking has chosen, or none, and lasts <%= pluralize(@trip.departure.effective_hold_duration_days, "day") %>.
       <% end %>
@@ -209,21 +210,18 @@
   </div>
 </article>
 
-<article class="dd-panel" id="acceptance">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Client acceptance</h2>
-  </header>
-  <div class="dd-panel-body">
-    <p class="dd-empty-copy">Not recorded. Confirming needs the client's acceptance of the current price and terms.</p>
-  </div>
-</article>
+<%= render "client_bookings/acceptance", booking: @booking, manage: %>
+
+<% if Current.agency_user.permitted?(:view_supplier_costs) && (@booking.cost_lines.any? || @booking.expected_commissions.any?) %>
+  <%= render "client_bookings/supplier_cost", booking: @booking %>
+<% end %>
 
 <article class="dd-panel" id="confirm">
   <header class="dd-panel-header">
     <h2 class="dd-panel-title">Confirm</h2>
   </header>
   <div class="dd-panel-body dd-stack">
-    <% if @blockers.any? %>
+    <% if @blockers.any? && @booking.status_draft? %>
       <p class="dd-page-description">Before this booking can be confirmed:</p>
       <ul class="dd-plain-list">
         <% @blockers.each do |blocker| %>
@@ -231,7 +229,9 @@
         <% end %>
       </ul>
     <% end %>
-    <% if manage %>
+    <% if @booking.status_confirmed? %>
+      <p class="dd-page-description">Confirmed <%= booking_time(@booking.confirmed_at) %>; the client charge, <%= booking_money(@booking.client_charge.total_minor_units, @booking.currency) %>, was made from the accepted prices; its lines never change.</p>
+    <% elsif manage %>
       <%= button_to "Confirm booking", client_booking_confirmation_path(@booking), class: "dd-button" %>
     <% end %>
   </div>
