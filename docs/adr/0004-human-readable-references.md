@@ -1,6 +1,6 @@
 # ADR 0004: Human-readable references and numbering
 
-- Status: Accepted; amended 2026-09-14 for Client and Supplier references; amended 2026-09-16 for Departure references; amended 2026-11-04 for the Slice 1 reference types (D-84, D-89); amended 2026-11-05 for Departure issuance at creation (D-91)
+- Status: Accepted; amended 2026-09-14 for Client and Supplier references; amended 2026-09-16 for Departure references; amended 2026-11-04 for the Slice 1 reference types (D-84, D-89); amended 2026-11-05 for Departure issuance at creation (D-91); amended 2026-11-06 for Client Trip issuance at creation (D-94)
 - Date: 2026-09-05
 - Decision owners: DepartureDesk maintainers
 
@@ -170,13 +170,12 @@ Slice 1 step 1 applies the specification's references table (REF-02, REF-03, REF
 | `supplier_payment` | `SPY-`, at least four digits | None; widens |
 | `confirmation`, `invoice`, `receipt` | `CNF-`, `INV-`, `RCP-`, at least five digits | None; widen |
 
-Invoice and receipt numbers run without gaps (REF-05). Issuance for those namespaces refuses to run outside a transaction, so the number is issued with its record and a rollback returns it. Other namespaces keep the accepted-gaps rule above. Booking references (REF-04), document version suffixes, starting numbers (REF-07) and the search rules (REF-11 to REF-17) are decided by the steps that build those records.
+Invoice and receipt numbers run without gaps (REF-05). Issuance for those namespaces refuses to run outside a transaction, so the number is issued with its record and a rollback returns it. Other namespaces keep the accepted-gaps rule above. **Amended 2026-11-06 (D-94):** a Client Trip receives its `trip` reference when it is created, as a Departure does (D-91); a discarded or abandoned trip keeps its number and the gap is accepted (REF-03, REF-05). A client booking's reference is its trip's reference followed by a sequence number within the trip (REF-04), issued when the booking is created and never reused (SC-REF-06). Document version suffixes, starting numbers (REF-07) and the search rules (REF-11 to REF-17) are decided by the steps that build those records.
 
 ### Domain decisions deferred
 
 This ADR deliberately does not decide the final formats or scopes of:
 
-- client-trip references;
 - receipt numbers;
 - supplier-payment references;
 - adjustment/reversal references;
@@ -192,7 +191,7 @@ Each is locked in the phase that introduces the record. Client, Supplier, and De
 | Client reference | DepartureDesk | Agency | Successful Client creation | M1 |
 | Supplier reference | DepartureDesk | Agency | Successful Supplier creation | M1 |
 | Departure reference | DepartureDesk | Agency; never Office | First successful activation | M2 |
-| Client-trip reference | DepartureDesk | Agency or office, decision deferred | Client trip becomes operational | No |
+| Client-trip reference | DepartureDesk | Agency | Client Trip creation (D-94) | Slice 1 step 6 |
 | Receipt number | DepartureDesk | Agency or office, decision deferred | Receipt posting | No |
 | Supplier-payment reference | DepartureDesk | Agency, decision deferred | Supplier payment posting | No |
 | Supplier confirmation number | Supplier | Supplier/arrangement context | Supplier confirmation | No |
