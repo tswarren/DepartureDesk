@@ -2,7 +2,9 @@ class CreateIndividualClient < AgencyCommand
   include ClientReferenceIssuance
   COMMAND = "CreateIndividualClient"
 
-  def initialize(agency:, actor:, names:, acknowledgement_token: nil, acknowledgement_reason: nil)
+  # also_traveling (CLT-11) creates a traveler with the same name, linked as Self.
+  def initialize(agency:, actor:, names:, acknowledgement_token: nil, acknowledgement_reason: nil, also_traveling: false)
+    @also_traveling = ActiveModel::Type::Boolean.new.cast(also_traveling)
     @agency = agency
     @actor = actor
     @names = names.to_h.symbolize_keys
@@ -31,6 +33,7 @@ class CreateIndividualClient < AgencyCommand
       audit!(agency: @agency, action: "client_person.created", subject: person, actor: @actor, details: { "client_person_id" => person.id })
       audit!(agency: @agency, action: "client.created", subject: client, actor: @actor, details: { "client_id" => client.id, "client_person_id" => person.id })
       audit_override!(person, client, decision) if decision
+      create_self_traveler!(person, client) if @also_traveling
       Result.new(status: :created, record: client)
     end
   rescue ActiveRecord::RecordInvalid => error
@@ -61,6 +64,14 @@ class CreateIndividualClient < AgencyCommand
 
   def name_fingerprint
     DuplicateAcknowledgement.fingerprint(normalized_names.transform_values { |value| SearchNormalizer.normalize(value) })
+  end
+
+  def create_self_traveler!(person, client)
+    traveler = @agency.travelers.create!(given_names: person.first_name, middle_name: person.middle_name, surname: person.last_name,
+      suffix: person.suffix, preferred_name: person.preferred_name)
+    audit!(agency: @agency, action: "traveler.created", subject: traveler, actor: @actor, details: { "traveler_id" => traveler.id, "self_of_client_id" => client.id })
+    @agency.traveler_links.create!(client:, traveler:, relationship: "self")
+    audit!(agency: @agency, action: "client.traveler_linked", subject: client, actor: @actor, details: { "traveler_id" => traveler.id, "relationship" => "self" })
   end
 
   def audit_override!(person, client, decision)

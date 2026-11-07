@@ -1,0 +1,24 @@
+<% content_for :title, "Edit #{@traveler.display_name} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Clients", clients_path ], [ @traveler.display_name, traveler_path(@traveler) ], [ "Edit", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Travelers</p>
+    <h1 class="dd-page-title">Edit traveler</h1>
+    <p class="dd-page-description">Bookings already confirmed keep the name they were booked under.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @traveler, url: traveler_path(@traveler), method: :patch, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= render "form", form: %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save traveler", class: "dd-button" %>
+        <%= link_to "Cancel", traveler_path(@traveler), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

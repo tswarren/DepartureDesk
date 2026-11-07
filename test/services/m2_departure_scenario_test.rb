@@ -28,7 +28,8 @@ class M2DepartureScenarioTest < ActiveSupport::TestCase
     assert_nil Rails.application.routes.named_routes.get("travel_programs")
     assert_not ActiveRecord::Base.connection.data_source_exists?("travel_programs")
     assert_not ActiveRecord::Base.connection.data_source_exists?("packages")
-    assert_not ActiveRecord::Base.connection.data_source_exists?("client_trips")
+    # Client Trips exist since Slice 1 step 6a; the Departure shells still have none.
+    assert_equal 0, ClientTrip.where(agency_id: [ celebrity.directory.agency.id, vineyard.directory.agency.id ]).count
   end
 
   test "activation return and reactivation keep a single D- reference" do

@@ -1,0 +1,54 @@
+<%# locals: (form:) -%>
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<fieldset class="dd-form-section">
+  <legend class="dd-section-title">Legal name, as on the passport</legend>
+  <p class="dd-field-hint" id="traveler_name_hint">A profile saves with details missing. Confirming a booking needs given names, surname and date of birth.</p>
+  <div class="dd-form-grid dd-form-grid--two-column">
+    <div class="dd-field-group">
+      <%= form.label :given_names, "Given names", class: "dd-label" %>
+      <%= form.text_field :given_names, maxlength: Traveler::NAME_LIMIT, autocomplete: "off", **dd_field_options(form, :given_names, aria_describedby_extra: "traveler_name_hint") %>
+      <%= dd_field_error(form, :given_names) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :middle_name, "Middle name", class: "dd-label" %>
+      <%= form.text_field :middle_name, maxlength: Traveler::NAME_LIMIT, autocomplete: "off", **dd_field_options(form, :middle_name) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :surname, "Surname", class: "dd-label" %>
+      <%= form.text_field :surname, maxlength: Traveler::NAME_LIMIT, autocomplete: "off", **dd_field_options(form, :surname) %>
+      <%= dd_field_error(form, :surname) %>
+    </div>
+    <div class="dd-field-group">
+      <%= form.label :suffix, "Suffix", class: "dd-label" %>
+      <%= form.text_field :suffix, maxlength: Traveler::SUFFIX_LIMIT, autocomplete: "off", **dd_field_options(form, :suffix) %>
+    </div>
+  </div>
+</fieldset>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :preferred_name, "Preferred name (optional)", class: "dd-label" %>
+    <%= form.text_field :preferred_name, maxlength: Traveler::NAME_LIMIT, autocomplete: "off", **dd_field_options(form, :preferred_name, aria_describedby_extra: "traveler_preferred_name_hint") %>
+    <p class="dd-field-hint" id="traveler_preferred_name_hint">Used in conversation and correspondence, never sent to suppliers.</p>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :date_of_birth, "Date of birth", class: "dd-label" %>
+    <%= form.date_field :date_of_birth, min: "1900-01-01", **dd_field_options(form, :date_of_birth) %>
+    <%= dd_field_error(form, :date_of_birth) %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :gender, "Gender or sex, where a supplier requires it", class: "dd-label" %>
+    <%= form.select :gender, TravelersHelper::GENDER_LABELS.invert, { include_blank: "Not recorded" }, **dd_field_options(form, :gender) %>
+  </div>
+</div>
+<div class="dd-form-grid dd-form-grid--two-column">
+  <div class="dd-field-group">
+    <%= form.label :email_address, "Email (optional)", class: "dd-label" %>
+    <%= form.email_field :email_address, maxlength: 254, autocomplete: "off", **dd_field_options(form, :email_address) %>
+    <%= dd_field_error(form, :email_address) %>
+  </div>
+  <div class="dd-field-group">
+    <%= form.label :phone, "Phone (optional)", class: "dd-label" %>
+    <%= form.telephone_field :phone, maxlength: 40, autocomplete: "off", **dd_field_options(form, :phone) %>
+    <%= dd_field_error(form, :phone) %>
+  </div>
+</div>

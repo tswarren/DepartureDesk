@@ -44,7 +44,8 @@ class M1DirectoryScenarioTest < ActiveSupport::TestCase
     assert_equal "ground_transportation", vineyard.motorcoach.category_assignments.sole.category_code
     assert_not_equal vineyard.vineyard_dmc.id, vineyard.motorcoach.id
 
-    assert_not Object.const_defined?(:Traveler)
+    # Travelers exist since Slice 1 step 6a; the directory datasets still create none.
+    assert_equal 0, Traveler.where(agency_id: [ vineyard.agency.id, celebrity.agency.id ]).count
     assert_equal 0, vineyard.agency.departures.count
     assert_equal 0, celebrity.agency.departures.count
   end

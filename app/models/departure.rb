@@ -23,6 +23,7 @@ class Departure < ApplicationRecord
     class_name: "DepartureDecision", inverse_of: :departure, dependent: :restrict_with_exception
   has_many :supplier_arrangements, -> { order(:created_at) }, inverse_of: :departure, dependent: :restrict_with_exception
   has_many :tasks, dependent: :restrict_with_exception
+  has_many :client_trips, dependent: :restrict_with_exception
   has_many :offerings, -> { order(:position, :created_at) }, inverse_of: :departure, dependent: :restrict_with_exception
   has_many :client_terms_versions, -> { order(:version_number) }, inverse_of: :departure, dependent: :restrict_with_exception
 

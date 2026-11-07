@@ -1,0 +1,9 @@
+<%# locals: (form:) -%>
+<%= form.hidden_field :lock_version if form.object.persisted? %>
+<%= form.hidden_field :client_id unless form.object.persisted? %>
+<div class="dd-field-group">
+  <%= form.label :departure_id, "Departure", class: "dd-label" %>
+  <%= form.select :departure_id, departure_options, { include_blank: "No Departure" }, **dd_field_options(form, :departure_id, aria_describedby_extra: "client_trip_departure_id_hint") %>
+  <p class="dd-field-hint" id="client_trip_departure_id_hint">A trip belongs to at most one Departure. Bookings on it draw on that Departure's package.</p>
+  <%= dd_field_error(form, :departure_id) %>
+</div>

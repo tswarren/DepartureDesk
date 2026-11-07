@@ -14,6 +14,9 @@ class Agency < ApplicationRecord
   has_many :client_people, dependent: :restrict_with_exception
   has_many :client_organizations, dependent: :restrict_with_exception
   has_many :clients, dependent: :restrict_with_exception
+  has_many :travelers, dependent: :restrict_with_exception
+  has_many :traveler_links, dependent: :restrict_with_exception
+  has_many :client_trips, dependent: :restrict_with_exception
   has_many :client_organization_contacts, dependent: :restrict_with_exception
   has_many :suppliers, dependent: :restrict_with_exception
   has_many :supplier_locations, class_name: "SupplierLocation", dependent: :restrict_with_exception

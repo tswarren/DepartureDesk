@@ -43,6 +43,8 @@
   </div>
 </article>
 
+<%= render "clients/travelers_and_trips", client: @client_person.client if @client_person.client %>
+
 <% if Current.agency_user.permitted?(:view_client_contact_details) %>
   <%= render "client_people/contact_channel", heading: "Email addresses", records: @email_addresses, new_path: new_client_person_email_address_path(@client_person), channel: :email %>
   <%= render "client_people/contact_channel", heading: "Phone numbers", records: @phone_numbers, new_path: new_client_person_phone_number_path(@client_person), channel: :phone %>

@@ -1,0 +1,86 @@
+<%# S-22: a client's linked travelers (CLT-09 to CLT-11) and its Client Trips (CLT-02). %>
+<%# locals: (client:) -%>
+<% links = client.traveler_links.includes(:traveler).sort_by { |link| [ link.related_as_self? ? 0 : 1, link.traveler.display_name.to_s ] } %>
+<% manage_directory = Current.agency_user.permitted?(:manage_client_directory) %>
+<article class="dd-panel" id="travelers">
+  <header class="dd-panel-header dd-section-header">
+    <h2 class="dd-panel-title">Travelers</h2>
+    <% if manage_directory && client.active? %>
+      <span class="dd-inline-actions">
+        <%= link_to "Add traveler", new_traveler_path(client_id: client.id), class: "dd-button dd-button--secondary" %>
+        <%= link_to "Link existing traveler", new_traveler_link_path(client_id: client.id), class: "dd-button dd-button--quiet" %>
+      </span>
+    <% end %>
+  </header>
+  <div class="dd-panel-body">
+    <% if links.empty? %>
+      <p class="dd-empty-copy">No travelers linked. Links let staff pick this client's usual travelers when booking; they grant no access.</p>
+    <% else %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <caption class="dd-visually-hidden">Travelers linked to <%= client.source.display_name %></caption>
+          <thead>
+            <tr>
+              <th scope="col">Traveler</th>
+              <th scope="col">Relationship</th>
+              <th scope="col">Date of birth</th>
+              <% if manage_directory %><th scope="col" class="dd-col-actions">Actions</th><% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% links.each do |link| %>
+              <tr>
+                <th scope="row"><%= link_to link.traveler.display_name, traveler_path(link.traveler) %></th>
+                <td><%= link.relationship_label %></td>
+                <td><%= traveler_date_of_birth(link.traveler) %></td>
+                <% if manage_directory %>
+                  <td class="dd-col-actions">
+                    <%= button_to "Unlink", traveler_link_path(link), method: :delete,
+                          class: "dd-row-action dd-row-action--text", form_class: "dd-inline-form",
+                          aria: { label: "Unlink #{link.traveler.display_name}" },
+                          form: { data: { turbo_confirm: "Unlink #{link.traveler.display_name}? The traveler and their bookings are unchanged." } } %>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </div>
+</article>
+
+<% if Current.agency_user.permitted?(:view_bookings) %>
+  <% trips = client.client_trips.includes(:departure).order(created_at: :desc) %>
+  <article class="dd-panel" id="trips">
+    <header class="dd-panel-header dd-section-header">
+      <h2 class="dd-panel-title">Trips</h2>
+      <% if Current.agency_user.permitted?(:manage_bookings) && client.active? %>
+        <%= link_to "New trip", new_client_trip_path(client_id: client.id), class: "dd-button dd-button--secondary" %>
+      <% end %>
+    </header>
+    <div class="dd-panel-body">
+      <% if trips.empty? %>
+        <p class="dd-empty-copy">No trips. A trip holds this client's bookings, and the client owes its balance.</p>
+      <% else %>
+        <div class="dd-table-wrap">
+          <table class="dd-table">
+            <caption class="dd-visually-hidden">Trips for <%= client.source.display_name %></caption>
+            <thead>
+              <tr><th scope="col">Trip</th><th scope="col">Departure</th><th scope="col">Status</th></tr>
+            </thead>
+            <tbody>
+              <% trips.each do |trip| %>
+                <tr>
+                  <th scope="row"><%= link_to trip.trip_reference, client_trip_path(trip), class: "dd-type-mono" %></th>
+                  <td><%= trip.departure ? "#{trip.departure.departure_reference} · #{trip.departure.name}" : "None" %></td>
+                  <td><%= status_badge(trip.status_label, modifier: "neutral") %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+  </article>
+<% end %>

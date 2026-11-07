@@ -51,7 +51,8 @@ class ClientsController < ApplicationController
       actor: Current.agency_user,
       names: person_params,
       acknowledgement_token: acknowledgement_params[:acknowledgement_token],
-      acknowledgement_reason: acknowledgement_params[:acknowledgement_reason]
+      acknowledgement_reason: acknowledgement_params[:acknowledgement_reason],
+      also_traveling: params[:also_traveling]
     ).call
     redirect_to client_person_path(result.record.client_person), notice: "Client created."
   rescue AgencyCommand::DuplicateReviewRequired => error

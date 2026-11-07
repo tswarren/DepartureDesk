@@ -28,6 +28,13 @@
       <%= form_with model: @client_person, url: clients_path, class: "dd-form" do |form| %>
         <%= hidden_field_tag :source, "individual" %>
         <%= render "client_people/form", form: form %>
+        <div class="dd-field-group">
+          <label class="dd-choice">
+            <%= check_box_tag :also_traveling, "1", params[:also_traveling] == "1", aria: { describedby: "also_traveling_hint" } %>
+            <span>This client is also traveling</span>
+          </label>
+          <p class="dd-field-hint" id="also_traveling_hint">Creates a traveler with the same name, linked as Self.</p>
+        </div>
         <div class="dd-form-actions">
           <%= form.submit "Create Client", class: "dd-button" %>
           <%= link_to "Cancel", clients_path, class: "dd-button dd-button--quiet" %>

@@ -1,0 +1,33 @@
+<% content_for :title, "New traveler · DepartureDesk" %>
+
+<% trail = [ [ "Clients", clients_path ] ] %>
+<% trail << [ @client.source.display_name, client_profile_path_for(@client) ] if @client %>
+<%= render "shared/breadcrumbs", trail: trail + [ [ "New traveler", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Travelers</p>
+    <h1 class="dd-page-title">New traveler</h1>
+    <p class="dd-page-description"><%= @client ? "Linked to #{@client.source.display_name}. A link lets staff pick their usual travelers; it grants no access." : "One person who travels. No passport details are recorded." %></p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @traveler, url: travelers_path, class: "dd-form", data: { controller: "unsaved-changes" } do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= hidden_field_tag :client_id, @client.id if @client %>
+      <%= render "form", form: %>
+      <% if @client %>
+        <div class="dd-field-group">
+          <%= label_tag :relationship, "Relationship to #{@client.source.display_name}", class: "dd-label" %>
+          <%= select_tag :relationship, options_for_select(TravelerLink::RELATIONSHIP_LABELS.except("self").invert, @relationship), class: "dd-field" %>
+        </div>
+      <% end %>
+      <div class="dd-form-actions">
+        <%= form.submit "Save traveler", class: "dd-button" %>
+        <%= link_to "Cancel", @client ? client_profile_path_for(@client) : clients_path, class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

@@ -1,0 +1,24 @@
+<% content_for :title, "New trip · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Clients", clients_path ], [ @client.source.display_name, client_profile_path_for(@client) ], [ "New trip", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client Trips</p>
+    <h1 class="dd-page-title">New trip</h1>
+    <p class="dd-page-description"><%= @client.source.display_name %> is the responsible client and owes the trip's balance.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <%= form_with model: @trip, url: client_trips_path, class: "dd-form" do |form| %>
+      <%= render "shared/form_errors", object: form.object %>
+      <%= render "form", form: %>
+      <div class="dd-form-actions">
+        <%= form.submit "Create trip", class: "dd-button" %>
+        <%= link_to "Cancel", client_profile_path_for(@client), class: "dd-button dd-button--quiet" %>
+      </div>
+    <% end %>
+  </div>
+</article>

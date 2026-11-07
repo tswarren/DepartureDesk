@@ -1,0 +1,55 @@
+<% content_for :title, "#{@trip.trip_reference} · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Clients", clients_path ], [ @trip.client.source.display_name, client_profile_path_for(@trip.client) ], [ @trip.trip_reference, nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client Trip</p>
+    <h1 class="dd-page-title"><span class="dd-type-mono"><%= @trip.trip_reference %></span></h1>
+    <p class="dd-page-description">For <%= @trip.client.source.display_name %><%= ", on #{@trip.departure.name}" if @trip.departure %>.</p>
+  </div>
+  <% if Current.agency_user.permitted?(:manage_bookings) %>
+    <div class="dd-page-actions">
+      <%= link_to "Edit trip", edit_client_trip_path(@trip), class: "dd-button dd-button--quiet" %>
+    </div>
+  <% end %>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body">
+    <dl class="dd-definition-list">
+      <div><dt>Status</dt><dd><%= status_badge(@trip.status_label, modifier: "neutral") %></dd></div>
+      <div><dt>Responsible client</dt><dd><%= link_to @trip.client.source.display_name, client_profile_path_for(@trip.client) %> <span class="dd-type-mono"><%= @trip.client.client_reference %></span></dd></div>
+      <div>
+        <dt>Departure</dt>
+        <dd><%= @trip.departure ? link_to("#{@trip.departure.departure_reference} · #{@trip.departure.name}", departure_path(@trip.departure)) : "None" %></dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<article class="dd-panel" id="bookings">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Bookings</h2>
+  </header>
+  <div class="dd-panel-body">
+    <p class="dd-empty-copy">No bookings yet.</p>
+  </div>
+</article>
+
+<article class="dd-panel" id="travelers">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">The client's usual travelers</h2>
+  </header>
+  <div class="dd-panel-body">
+    <% if @travelers.empty? %>
+      <p class="dd-empty-copy">None linked. Any traveler can still be booked on this trip.</p>
+    <% else %>
+      <ul class="dd-plain-list">
+        <% @travelers.each do |traveler| %>
+          <li><%= link_to traveler.display_name, traveler_path(traveler) %> · <%= traveler_date_of_birth(traveler) %></li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</article>

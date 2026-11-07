@@ -134,6 +134,29 @@ class AlphaFixtureTest < ActiveSupport::TestCase
     assert @agency.reload.client_terms_wording.present?
   end
 
+  test "loads the Slice 1 roster's clients, travelers and Client Trips (step 6a, D-94)" do
+    alpha = AlphaFixture.load!(agency: @agency, actor: @actor, bookings: :trips)
+    sailing = AlphaFixture::STARTS_ON
+
+    assert_equal %w[BK-101 BK-104 BK-105], alpha.trips.keys
+    roster = alpha.trips.transform_values do |trip|
+      travelers = trip.client.traveler_links.includes(:traveler).sort_by { |link| link.related_as_self? ? 0 : 1 }
+      assert_equal alpha.departure, trip.departure
+      assert_match ClientTrip::REFERENCE_FORMAT, trip.trip_reference
+      assert travelers.first.related_as_self?, "the responsible client travels"
+      travelers.map { |link| [ link.traveler.given_names, link.traveler.age_on(sailing) ] }.sort_by(&:last).reverse
+    end
+    assert_equal [ [ "Theo", 49 ], [ "Nadia", 47 ], [ "Iris", 9 ] ], roster.fetch("BK-101")
+    assert_equal [ [ "Marcus", 44 ], [ "Sofia", 42 ], [ "Ava", 11 ], [ "Milo", 2 ] ], roster.fetch("BK-104")
+    assert_equal [ [ "Mateo", 37 ], [ "Elena", 36 ], [ "Luca", 3 ] ], roster.fetch("BK-105")
+    assert_equal 10, @agency.travelers.count
+    assert @agency.travelers.all?(&:legal_name_complete?)
+
+    again = AlphaFixture.load!(agency: @agency, actor: @actor, bookings: :trips)
+    assert_equal alpha.trips.transform_values(&:id), again.trips.transform_values(&:id)
+    assert_equal [ 10, 3 ], [ @agency.travelers.count, @agency.client_trips.count ]
+  end
+
   test "can stop with the Alpha arrangement in Draft, then confirm it on a later load (D1)" do
     draft = AlphaFixture.load!(agency: @agency, actor: @actor, confirm_cruise: false).arrangements.fetch(:cruise)
     assert draft.draft?

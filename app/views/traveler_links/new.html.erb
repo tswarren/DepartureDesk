@@ -1,0 +1,59 @@
+<% content_for :title, "Link a traveler · DepartureDesk" %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Clients", clients_path ], [ @client.source.display_name, client_profile_path_for(@client) ], [ "Link a traveler", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Travelers</p>
+    <h1 class="dd-page-title">Link a traveler</h1>
+    <p class="dd-page-description">Find an existing traveler to list among <%= @client.source.display_name %>'s usual travelers. A link grants no access.</p>
+  </div>
+</header>
+
+<article class="dd-panel">
+  <div class="dd-panel-body dd-stack">
+    <%= form_with url: new_traveler_link_path, method: :get, class: "dd-form", role: "search" do |form| %>
+      <%= hidden_field_tag :client_id, @client.id %>
+      <div class="dd-field-group">
+        <%= form.label :q, "Traveler name", class: "dd-label" %>
+        <%= form.search_field :q, value: @query, class: "dd-field" %>
+      </div>
+      <div class="dd-form-actions">
+        <%= form.submit "Search", class: "dd-button dd-button--secondary", name: nil %>
+      </div>
+    <% end %>
+
+    <% if @query.present? %>
+      <% if @travelers.empty? %>
+        <p class="dd-empty-copy">No unlinked traveler matches “<%= @query %>”. <%= link_to "Add a new traveler", new_traveler_path(client_id: @client.id) %> instead.</p>
+      <% else %>
+        <div class="dd-table-wrap">
+          <table class="dd-table">
+            <caption class="dd-visually-hidden">Matching travelers</caption>
+            <thead>
+              <tr><th scope="col">Traveler</th><th scope="col">Date of birth</th><th scope="col" class="dd-col-actions">Link</th></tr>
+            </thead>
+            <tbody>
+              <% @travelers.each do |traveler| %>
+                <tr>
+                  <th scope="row"><%= link_to traveler.display_name, traveler_path(traveler) %></th>
+                  <td><%= traveler_date_of_birth(traveler) %></td>
+                  <td class="dd-col-actions">
+                    <%= form_with url: traveler_links_path, class: "dd-inline-form" do %>
+                      <%= hidden_field_tag :client_id, @client.id, id: nil %>
+                      <%= hidden_field_tag :traveler_id, traveler.id, id: nil %>
+                      <%= hidden_field_tag :q, @query, id: nil %>
+                      <%= label_tag "relationship_#{traveler.id}", "Relationship", class: "dd-visually-hidden" %>
+                      <%= select_tag :relationship, options_for_select(TravelerLink::RELATIONSHIP_LABELS.invert, "family_member"), id: "relationship_#{traveler.id}", class: "dd-field" %>
+                      <%= submit_tag "Link", class: "dd-button dd-button--secondary", name: nil, aria: { label: "Link #{traveler.display_name}" } %>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</article>
