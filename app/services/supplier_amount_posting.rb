@@ -27,13 +27,15 @@ module SupplierAmountPosting
     return [] unless arrangement.confirmed?
 
     today = Clock.current.today_in(@agency.default_timezone)
-    events = arrangement.trigger_events.to_a
+    events = arrangement.trigger_events.includes(:event_shells).to_a
     posted = arrangement.schedule_lines.includes(:cost_line, :amounts_due, :task).flat_map do |line|
-      due_on, event = posting_date(line, events)
-      next [] if due_on.nil? || due_on > today
-
-      amounts = post_line!(arrangement, line, due_on, event)
-      create_line_task!(departure, line, due_on) if amounts.any?
+      amounts = if line.per_shell?
+        post_shells!(arrangement, line, events, today)
+      else
+        due_on, event = posting_date(line, events)
+        due_on.nil? || due_on > today ? [] : post_line!(arrangement, line, due_on, event)
+      end
+      create_line_task!(departure, line, amounts.map(&:due_on).min) if amounts.any?
       amounts
     end
     if posted.any?
@@ -45,9 +47,14 @@ module SupplierAmountPosting
     posted
   end
 
-  # [date, event] for a line, or [nil, nil] while it isn't due.
-  def posting_date(line, events)
-    event = events.select { |candidate| candidate.event_type == line.trigger_type }.min_by(&:occurred_on) if line.trigger_type
+  # [date, event] for a line, or [nil, nil] while it isn't due. For a
+  # per-shell line, only events that apply to that shell count: an event
+  # naming shells, such as Client booking confirmed, makes the line due for
+  # those shells only (D-81; step 6 plan, question 11).
+  def posting_date(line, events, shell = nil)
+    candidates = events.select { |candidate| candidate.event_type == line.trigger_type }
+    candidates = candidates.select { |candidate| candidate.applies_to_shell?(shell) } if shell
+    event = candidates.min_by(&:occurred_on) if line.trigger_type
     case line.due_rule
     when "fixed_date" then [ line.due_on, nil ]
     when "event" then [ event&.occurred_on, event ]
@@ -56,18 +63,23 @@ module SupplierAmountPosting
     end
   end
 
-  def post_line!(arrangement, line, due_on, event)
-    if line.per_shell?
-      taken = line.amounts_due.map(&:unit_shell_id)
-      eligible_shells(arrangement, line).reject { |shell| taken.include?(shell.id) }.map do |shell|
-        create_amount!(arrangement, line, due_on, event, "#{line.description} · #{shell.label}",
-          line.rate_minor_units, unit_shell: shell, quantity: 1, rate_minor_units: line.rate_minor_units)
-      end
-    else
-      return [] if line.amounts_due.any?
+  # One amount per shell that isn't returned to the supplier and has none
+  # yet, each dated by the events that apply to it (SMN-10, D-81).
+  def post_shells!(arrangement, line, events, today)
+    taken = line.amounts_due.map(&:unit_shell_id)
+    eligible_shells(arrangement, line).reject { |shell| taken.include?(shell.id) }.filter_map do |shell|
+      due_on, event = posting_date(line, events, shell)
+      next if due_on.nil? || due_on > today
 
-      [ create_amount!(arrangement, line, due_on, event, line.description, *calculate(arrangement, line, event)) ]
+      create_amount!(arrangement, line, due_on, event, "#{line.description} · #{shell.label}",
+        line.rate_minor_units, unit_shell: shell, quantity: 1, rate_minor_units: line.rate_minor_units)
     end
+  end
+
+  def post_line!(arrangement, line, due_on, event)
+    return [] if line.amounts_due.any?
+
+    [ create_amount!(arrangement, line, due_on, event, line.description, *calculate(arrangement, line, event)) ]
   end
 
   # [amount, facts] for a line that posts once (SMN-06, SMN-14).

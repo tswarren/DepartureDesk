@@ -1,10 +1,11 @@
 # What a supplier commitment will cost in total (SMN-01, SMN-02). Scope is
-# the arrangement, one inventory group, or named unit shells (D-75); the
+# the arrangement, one inventory group, named unit shells (D-75), or a client
+# booking, proposed at its confirmation from the rate table (SUP-35); the
 # basis is a fixed amount, a fixed amount per unit, person or night, or a
 # percentage of another cost line. Committed lines make up committed cost
 # exposure (SUP-13); estimated lines stay separate as forecasts.
 class CostLine < ApplicationRecord
-  SCOPES = %w[arrangement inventory_group unit_shells].freeze
+  SCOPES = %w[arrangement inventory_group unit_shells client_booking].freeze
   BASES = %w[fixed per_unit per_person per_night percentage].freeze
   QUANTITY_BASES = %w[per_unit per_person per_night].freeze
   STAGES = %w[estimated committed].freeze
@@ -14,6 +15,7 @@ class CostLine < ApplicationRecord
   belongs_to :supplier_arrangement
   belongs_to :inventory_group, optional: true
   belongs_to :base_cost_line, class_name: "CostLine", optional: true
+  belongs_to :client_booking, optional: true
   has_many :cost_line_shells, dependent: :restrict_with_exception
   has_many :unit_shells, through: :cost_line_shells
   has_many :schedule_lines, dependent: :restrict_with_exception

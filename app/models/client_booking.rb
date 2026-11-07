@@ -14,6 +14,10 @@ class ClientBooking < ApplicationRecord
   has_many :choice_selections, -> { where(removed_at: nil).order(:unit_number, :created_at) }, inverse_of: :client_booking, dependent: :restrict_with_exception
   has_many :inventory_allocations, inverse_of: :client_booking, dependent: :restrict_with_exception
   has_many :price_lines, class_name: "BookingPriceLine", inverse_of: :client_booking, dependent: :restrict_with_exception
+  has_many :acceptances, -> { order(:recorded_at) }, class_name: "BookingAcceptance", dependent: :restrict_with_exception
+  has_one :client_charge, dependent: :restrict_with_exception
+  has_many :cost_lines, dependent: :restrict_with_exception
+  has_many :expected_commissions, dependent: :restrict_with_exception
 
   enum :status, STATUSES.index_by(&:itself), validate: true, default: "draft", prefix: :status
 
@@ -44,4 +48,12 @@ class ClientBooking < ApplicationRecord
   def total_minor_units = price_lines.sum(&:amount_minor_units)
 
   def currency = offering.currency
+
+  def latest_acceptance = acceptances.max_by(&:recorded_at)
+
+  # BKG-39: the latest acceptance, if it still covers the current price and terms.
+  def current_acceptance
+    acceptance = latest_acceptance
+    acceptance if acceptance&.covers?(self)
+  end
 end

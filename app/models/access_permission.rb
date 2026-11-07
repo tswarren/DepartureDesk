@@ -39,7 +39,9 @@ module AccessPermission
     use_tasks: :baseline,
     reassign_tasks: "departure_management",
     # SMN-05: a supplier obligation recorded directly as an amount due.
-    record_amounts_due: %w[supplier_arrangements financial_records]
+    record_amounts_due: %w[supplier_arrangements financial_records],
+    # SUP-35, SMN-32: overriding a confirmed booking's proposed cost or commission.
+    override_booking_supplier_cost: %w[supplier_arrangements financial_records]
   }.freeze
 
   def self.allowed?(user_type, granted_permissions, action)

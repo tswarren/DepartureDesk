@@ -15,6 +15,11 @@ class TriggerEvent < ApplicationRecord
   belongs_to :agency
   belongs_to :supplier_arrangement
   belongs_to :recorded_by, class_name: "AgencyUser", optional: true
+  belongs_to :client_booking, optional: true
+  has_many :event_shells, class_name: "TriggerEventShell", dependent: :restrict_with_exception
+
+  # An event that names shells applies to those only; one that names none, to every shell (D-81).
+  def applies_to_shell?(shell) = event_shells.empty? || event_shells.any? { |row| row.unit_shell_id == shell.id }
 
   enum :event_type, TYPES.index_by(&:itself), validate: true
 

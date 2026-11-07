@@ -258,6 +258,15 @@ module BookingCommandSupport
     allocate!(booking, missing, expires_at: active.map(&:hold_expires_at).min, extended_at: active.filter_map(&:hold_extended_at).min, replacing:)
   end
 
+  # SUP-35: a unit's supplier cost and commission from its group's rate
+  # table, for its occupants who use positions, in guest order.
+  def supplier_proposal(booking, selection)
+    guests = selection.occupants.select(&:position).sort_by(&:position).map do |occupant|
+      booking.booking_travelers.find { |row| row.id == occupant.booking_traveler_id }&.traveler_type
+    end
+    ProposeBookingSupplierCost.new(group: selection.inventory_group, guests:).call
+  end
+
   # Re-proposes prices and re-holds after a change to travelers or selections.
   def after_contents_change!(booking)
     refresh_price_lines!(booking)

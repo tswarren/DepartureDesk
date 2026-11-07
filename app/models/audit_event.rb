@@ -51,6 +51,10 @@ class AuditEvent < ApplicationRecord
     client_booking.hold_extended
     client_booking.hold_released
     client_booking.discarded
+    client_booking.acceptance_recorded
+    client_booking.confirmed
+    client_booking.supplier_cost_overridden
+    departure.client_terms_locked
     client.inactivated
     client.reactivated
     client_organization.created
