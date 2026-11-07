@@ -42,7 +42,7 @@
                 <% if kind == "supplier_release" && group.represented_as_unit_shells? %>
                   <div class="dd-field-group">
                     <%= label_tag "#{kind}_unit_shell_id", "Shell returned to the supplier", class: "dd-label" %>
-                    <%= select_tag :unit_shell_id, options_for_select(group.unit_shells.reject { |shell| shell.status == "returned" }.map { |shell| [ shell.label, shell.id ] }), id: "#{kind}_unit_shell_id", class: "dd-field" %>
+                    <%= select_tag :unit_shell_id, options_for_select(group.unit_shells.reject(&:returned_to_supplier?).map { |shell| [ shell.label, shell.id ] }), id: "#{kind}_unit_shell_id", class: "dd-field" %>
                   </div>
                 <% else %>
                   <div class="dd-field-group">

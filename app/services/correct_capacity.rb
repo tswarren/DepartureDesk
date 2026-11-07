@@ -1,8 +1,8 @@
 # Corrects a pool's capacity up or down, naming the event it corrects
 # (ADR 0018: corrections reference, never edit). Agency-initiated, so a
-# downward correction may use only unallocated capacity (INV-26); before
-# step 6 there are no allocations, and the replay keeps supply at zero or
-# more.
+# downward correction may use only unallocated capacity (INV-26): it is
+# refused if supply would fall below the allocations consuming capacity at
+# the instant it applies or after. A hold that lapses first doesn't block it.
 class CorrectCapacity < AgencyCommand
   include CapacityCommandSupport
 
@@ -38,7 +38,8 @@ class CorrectCapacity < AgencyCommand
       corrects = group.capacity_events.find_by(id: parse_optional_uuid(@corrects_event_id, "Event"))
       raise Error.new("Choose the event this corrects.", code: :invalid) if corrects.nil?
 
-      event = append_capacity_event!(departure:, arrangement:, group:, event_type:, quantity:, effective_on:, evidence_note: @evidence_note, corrects:, key: @key)
+      event = append_capacity_event!(departure:, arrangement:, group:, event_type:, quantity:, effective_on:, evidence_note: @evidence_note, corrects:, key: @key,
+        guard_allocations: event_type == "corrected_down")
       audit_capacity!(arrangement, group, event)
       Result.new(status: :created, record: event)
     end

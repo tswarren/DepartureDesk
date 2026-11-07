@@ -1,0 +1,62 @@
+<%# The price summary as services by travelers (BKG-16, BKG-21): each cell is one traveler's price on one service, with its occupancy position on a cabin or room. A zero price reads No charge; a traveler not on the service gets a dash, and on narrow screens one line naming them. %>
+<%# locals: (booking:) -%>
+<% lines = booking.price_lines.to_a %>
+<% if lines.empty? %>
+  <p class="dd-empty-copy">No prices yet. Choose options and place travelers to see them.</p>
+<% else %>
+  <% travelers = booking.booking_travelers.to_a %>
+  <% selections = lines.map(&:choice_selection).uniq.sort_by { |selection| [ selection.option.choice.position, selection.option.position, selection.unit_number.to_i ] } %>
+  <% by_cell = lines.index_by { |line| [ line.choice_selection_id, line.booking_traveler_id ] } %>
+  <% currency = booking.currency %>
+  <div class="dd-table-wrap">
+    <table class="dd-table dd-stacked-table dd-price-matrix">
+      <caption class="dd-visually-hidden">Proposed prices by service and traveler</caption>
+      <thead>
+        <tr>
+          <th scope="col">Service</th>
+          <% travelers.each do |traveler| %><th scope="col" class="num"><%= traveler.display_name %></th><% end %>
+          <th scope="col" class="num">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% selections.each do |selection| %>
+          <% row_lines = lines.select { |line| line.choice_selection_id == selection.id } %>
+          <tr>
+            <th scope="row"><%= selection.label %><span class="dd-cell-subtext"><%= selection.option.choice.included? ? "Included" : "Add-on" %></span></th>
+            <% travelers.each do |traveler| %>
+              <% line = by_cell[[ selection.id, traveler.id ]] %>
+              <td class="num<%= " dd-price-matrix__empty" unless line %>">
+                <span class="dd-cabin-field-label dd-visually-hidden"><%= traveler.display_name %> </span>
+                <% if line %>
+                  <% if line.amount_minor_units.zero? %>
+                    <span class="dd-price-matrix__no-charge">No charge</span>
+                  <% else %>
+                    <%= booking_money(line.amount_minor_units, currency) %>
+                  <% end %>
+                  <% if selection.per_unit? && line.occupancy_position != "any" %><span class="dd-cell-subtext"><%= OfferingPrice::POSITION_LABELS.fetch(line.occupancy_position) %></span><% end %>
+                <% else %>
+                  <span class="dd-price-matrix__dash" aria-hidden="true">—</span><span class="dd-visually-hidden">Not on this service</span>
+                <% end %>
+              </td>
+            <% end %>
+            <% absent = travelers.reject { |traveler| by_cell.key?([ selection.id, traveler.id ]) } %>
+            <% if absent.any? %>
+              <td class="dd-price-matrix__absent" aria-hidden="true">Not on this service: <%= absent.map(&:display_name).to_sentence %></td>
+            <% end %>
+            <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Total </span><strong><%= booking_money(row_lines.sum(&:amount_minor_units), currency) %></strong></td>
+          </tr>
+        <% end %>
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">Traveler total</th>
+          <% travelers.each do |traveler| %>
+            <td class="num"><span class="dd-cabin-field-label dd-visually-hidden"><%= traveler.display_name %> </span><%= booking_money(lines.select { |line| line.booking_traveler_id == traveler.id }.sum(&:amount_minor_units), currency) %></td>
+          <% end %>
+          <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Booking total </span><strong><%= booking_money(booking.total_minor_units, currency) %></strong></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <p class="dd-field-hint">No charge: on the service at no cost. <span aria-hidden="true">—</span><span class="dd-visually-hidden">A dash</span>: not on this service.</p>
+<% end %>

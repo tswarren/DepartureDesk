@@ -1,0 +1,31 @@
+<%# Choose an option, and who it is for: a unit's occupants in booking order, or an add-on's participants. %>
+<%# locals: (booking:, choice:, selection:) -%>
+<% form_id = selection ? "selection-#{selection.id}" : "new-selection-#{choice.id}" %>
+<% chosen = selection ? selection.occupants.map(&:booking_traveler_id) : (choice.included? ? booking.booking_travelers.map(&:id) : []) %>
+<%= form_with url: (selection ? client_booking_selection_path(booking, selection) : client_booking_selections_path(booking)), method: (selection ? :patch : :post),
+      scope: :choice_selection, class: "dd-form", id: form_id do |form| %>
+  <%= hidden_field_tag :choice_id, choice.id, id: nil %>
+  <%= form.hidden_field :lock_version, value: selection.lock_version, id: nil if selection %>
+  <% unless selection %>
+    <div class="dd-field-group">
+      <%= form.label :offering_option_id, "Option to add", class: "dd-label", for: "#{form_id}-option" %>
+      <%= form.select :offering_option_id, choice.options.map { |option| [ option.label, option.id ] }, {}, id: "#{form_id}-option", class: "dd-field" %>
+    </div>
+  <% end %>
+  <% unless choice.made_per_trip? || booking.booking_travelers.empty? %>
+    <fieldset class="dd-form-section">
+      <legend class="dd-section-title"><%= choice.made_per_unit? ? "Who is in it, in guest order" : "Who takes part" %></legend>
+      <div class="dd-choice-group">
+        <% booking.booking_travelers.each do |row| %>
+          <label class="dd-choice">
+            <%= check_box_tag "choice_selection[occupant_ids][]", row.id, chosen.include?(row.id), id: "#{form_id}-traveler-#{row.id}" %>
+            <span><%= row.display_name %></span>
+          </label>
+        <% end %>
+      </div>
+    </fieldset>
+  <% end %>
+  <div class="dd-form-actions">
+    <%= form.submit selection ? "Save" : "Add", class: "dd-button dd-button--secondary", name: nil %>
+  </div>
+<% end %>

@@ -1,11 +1,11 @@
-<% content_for :title, "Rename traveler type · DepartureDesk" %>
+<% content_for :title, "Edit traveler type · DepartureDesk" %>
 
-<%= render "shared/breadcrumbs", trail: [ [ "Administration", administration_agency_path ], [ "Agency profile", administration_agency_path ], [ "Traveler types", administration_agency_path(anchor: "traveler-types") ], [ "Rename", nil ] ] %>
+<%= render "shared/breadcrumbs", trail: [ [ "Administration", administration_agency_path ], [ "Agency profile", administration_agency_path ], [ "Traveler types", administration_agency_path(anchor: "traveler-types") ], [ "Edit", nil ] ] %>
 
 <header class="dd-page-header">
   <div class="dd-page-heading">
     <p class="dd-eyebrow">Administration</p>
-    <h1 class="dd-page-title">Rename traveler type</h1>
+    <h1 class="dd-page-title">Edit traveler type</h1>
     <p class="dd-page-description">Each name is used once in the agency.</p>
   </div>
 </header>
@@ -22,8 +22,16 @@
         <%= form.text_field :name, required: true, maxlength: TravelerType::NAME_LIMIT, **dd_field_options(form, :name) %>
         <%= dd_field_error(form, :name) %>
       </div>
+      <div class="dd-field-group">
+        <%= form.hidden_field :counts_as_adult, value: "0", id: nil %>
+        <label class="dd-choice">
+          <%= form.check_box :counts_as_adult, { aria: { describedby: "traveler_type_counts_as_adult_hint" } }, "1", nil %>
+          <span>Counts as an adult</span>
+        </label>
+        <p class="dd-field-hint" id="traveler_type_counts_as_adult_hint">Travelers of this type count toward a supplier's required adults per cabin or room.</p>
+      </div>
       <div class="dd-form-actions">
-        <%= form.submit "Save name", class: "dd-button" %>
+        <%= form.submit "Save traveler type", class: "dd-button" %>
         <%= link_to "Cancel", administration_agency_path(anchor: "traveler-types"), class: "dd-button dd-button--quiet" %>
       </div>
     <% end %>

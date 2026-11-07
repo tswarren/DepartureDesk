@@ -29,11 +29,36 @@
 </article>
 
 <article class="dd-panel" id="bookings">
-  <header class="dd-panel-header">
+  <header class="dd-panel-header dd-section-header">
     <h2 class="dd-panel-title">Bookings</h2>
+    <% if Current.agency_user.permitted?(:manage_bookings) && @trip.departure %>
+      <%= button_to "New booking", client_trip_bookings_path(@trip), class: "dd-button dd-button--secondary" %>
+    <% end %>
   </header>
   <div class="dd-panel-body">
-    <p class="dd-empty-copy">No bookings yet.</p>
+    <% bookings = @trip.client_bookings.includes(:price_lines, :inventory_allocations, :booking_travelers, :offering) %>
+    <% if bookings.empty? %>
+      <p class="dd-empty-copy"><%= @trip.departure ? "No bookings yet. A new booking takes the Departure's package." : "Link the trip to a Departure to book its package." %></p>
+    <% else %>
+      <div class="dd-table-wrap">
+        <table class="dd-table">
+          <caption class="dd-visually-hidden">Bookings on <%= @trip.trip_reference %></caption>
+          <thead>
+            <tr><th scope="col">Booking</th><th scope="col">Status</th><th scope="col">Space</th><th scope="col" class="num">Subtotal</th></tr>
+          </thead>
+          <tbody>
+            <% bookings.each do |booking| %>
+              <tr>
+                <th scope="row"><%= link_to booking.booking_reference, client_booking_path(booking), class: "dd-type-mono" %></th>
+                <td><%= booking_status_badge(booking) %></td>
+                <td><%= booking_hold_badge(booking) %></td>
+                <td class="num"><%= booking_money(booking.total_minor_units, booking.currency) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
   </div>
 </article>
 

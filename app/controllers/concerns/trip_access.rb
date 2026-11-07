@@ -21,7 +21,7 @@ module TripAccess
     render template, status: :unprocessable_entity
   end
 
-  def client_profile_path_for(client)
-    client.client_person ? client_person_path(client.client_person) : client_organization_path(client.client_organization)
+  def client_profile_path_for(client, **options)
+    client.client_person ? client_person_path(client.client_person, **options) : client_organization_path(client.client_organization, **options)
   end
 end

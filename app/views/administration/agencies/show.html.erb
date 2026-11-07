@@ -194,10 +194,13 @@
           <% @traveler_types.each_with_index do |traveler_type, index| %>
             <tr>
               <th scope="row"><%= traveler_type.name %></th>
-              <td><%= status_badge(traveler_type.status.titleize, modifier: traveler_type.active? ? "success" : "neutral") %></td>
+              <td>
+                <%= status_badge(traveler_type.status.titleize, modifier: traveler_type.active? ? "success" : "neutral") %>
+                <% if traveler_type.counts_as_adult? %><span class="dd-cell-subtext">Counts as an adult</span><% end %>
+              </td>
               <td class="dd-col-actions">
                 <div class="dd-inline-actions">
-                  <%= link_to "Rename", edit_administration_traveler_type_path(traveler_type), class: "dd-row-action dd-row-action--text", aria: { label: "Rename #{traveler_type.name}" } %>
+                  <%= link_to "Edit", edit_administration_traveler_type_path(traveler_type), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{traveler_type.name}" } %>
                   <% unless index.zero? %>
                     <%= button_to "Move up", administration_traveler_type_position_path(traveler_type), method: :patch, params: { direction: "up" }, class: "dd-row-action dd-row-action--text", form_class: "dd-inline-form", aria: { label: "Move #{traveler_type.name} up" } %>
                   <% end %>

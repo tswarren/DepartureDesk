@@ -1,7 +1,7 @@
 # Records the supplier taking back capacity: pool places, or one shell
 # returned to the supplier (INV-26). A supplier-driven reduction is recorded
-# even below active allocations; step 6 derives the capacity conflict
-# (INV-27).
+# even below active allocations; GroupCapacity then derives the capacity
+# conflict, which blocks new holds and confirmation (INV-19, INV-27).
 class RecordSupplierRelease < AgencyCommand
   include CapacityCommandSupport
 

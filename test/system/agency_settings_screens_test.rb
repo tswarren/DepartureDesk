@@ -84,10 +84,11 @@ class AgencySettingsScreensTest < ApplicationSystemTestCase
       within("tr", text: /\AChild\b(?! 0)/) { click_button "Inactivate" }
     end
     within("#traveler-types") { assert_selector "tr", text: /Child\s+Inactive/ }
-    within("#traveler-types tr", text: "Senior") { click_link "Rename" }
+    within("#traveler-types tr", text: "Senior") { click_link "Edit" }
     fill_in "Name", with: "Senior 65+"
-    click_button "Save name"
-    within("#traveler-types") { assert_text "Senior 65+" }
+    check "Counts as an adult"
+    click_button "Save traveler type"
+    within("#traveler-types tr", text: "Senior 65+") { assert_text "Counts as an adult" }
   end
 
   test "S-03: an agency admin grants a staff user a permission" do

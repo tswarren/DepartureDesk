@@ -44,6 +44,7 @@ class RecordAdministrativeAudit
     return if @subject.is_a?(SupplierArrangement) && @subject.agency_id == @agency.id
     return if @subject.is_a?(Traveler) && @subject.agency_id == @agency.id
     return if @subject.is_a?(ClientTrip) && @subject.agency_id == @agency.id
+    return if @subject.is_a?(ClientBooking) && @subject.agency_id == @agency.id
 
     raise AgencyCommand::Error.new("Unknown audit subject type.", code: :invalid)
   end

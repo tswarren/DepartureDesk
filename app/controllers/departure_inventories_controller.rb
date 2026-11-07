@@ -7,6 +7,7 @@ class DepartureInventoriesController < ApplicationController
 
   def show
     @arrangements = @departure.supplier_arrangements.live
-      .includes(:supplier, inventory_groups: [ :capacity_projection, { unit_shells: :capacity_events } ])
+      .includes(:supplier, inventory_groups: [ :capacity_projection, :capacity_rules, :capacity_events, { inventory_allocations: { choice_selection: [ { option: :choice }, { occupants: { booking_traveler: :traveler } } ] } },
+        { unit_shells: %i[capacity_events inventory_allocations] } ])
   end
 end

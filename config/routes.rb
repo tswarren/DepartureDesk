@@ -39,7 +39,17 @@ Rails.application.routes.draw do
   # S-22 to S-24: travelers, their links to clients, and Client Trips (CLT-02, CLT-05 to CLT-11, OVR-02).
   resources :travelers, only: %i[show new create edit update]
   resources :traveler_links, only: %i[new create destroy]
-  resources :client_trips, path: "trips", only: %i[show new create edit update]
+  resources :client_trips, path: "trips", only: %i[show new create edit update] do
+    resources :bookings, only: :create, controller: "client_bookings"
+  end
+  # S-26: the booking workspace (BKG-05 to BKG-11, BKG-14 to BKG-16, BKG-45, CLT-13, CLT-15, INV-17 to INV-23).
+  resources :client_bookings, path: "bookings", only: :show do
+    resources :travelers, only: %i[create update destroy], controller: "booking_travelers"
+    resources :selections, only: %i[create update destroy], controller: "choice_selections"
+    resource :hold, only: %i[create update destroy], controller: "booking_holds"
+    resource :discard, only: :create, controller: "booking_discards"
+    resource :confirmation, only: :create, controller: "booking_confirmations"
+  end
   resources :client_people, path: "clients/people", param: :client_person_id, only: %i[new create show edit update] do
     member do
       get "status/edit", action: :edit_status
@@ -160,6 +170,8 @@ Rails.application.routes.draw do
     resource :ready_to_sell, only: %i[show create], controller: "departure_ready_to_sells"
     resources :decisions, only: :create, controller: "departure_decisions"
     resource :inventory, only: :show, controller: "departure_inventories"
+    # S-25: the Departure roster (BKG-06).
+    resources :bookings, only: :index, controller: "departure_bookings"
     resources :tasks, only: :index, controller: "departure_tasks"
     resource :supplier_money, only: :show, controller: "departure_supplier_money"
     # S-20 and S-21: the package and its client terms (BKG-13 to BKG-16, BKG-21, BKG-28, BKG-31, CMN-09).

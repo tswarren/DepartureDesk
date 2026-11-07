@@ -11,13 +11,14 @@
 # each arrangement is confirmed, its supplier cost and schedule (step 4); and
 # the Alpha Omega cruise package with its client prices, the client terms
 # and the agency's terms defaults (step 5); and, with bookings: :trips, the
-# Slice 1 roster's clients, travelers and Client Trips (step 6a, D-94). Each
+# Slice 1 roster's clients, travelers and Client Trips (step 6a, D-94); and,
+# with bookings: :held, a held booking on each trip (step 6b, D-95). Each
 # Slice 1 step extends this script with the records it builds.
 # Loading is idempotent: records already present in the agency are reused.
 # Pass confirm_cruise: false to stop with the Alpha arrangement in Draft (D1).
 module AlphaFixture
-  Result = Data.define(:agency, :actor, :suppliers, :departure, :arrangements, :offering, :client_terms, :trips)
-  BOOKING_LEVELS = %i[none trips].freeze
+  Result = Data.define(:agency, :actor, :suppliers, :departure, :arrangements, :offering, :client_terms, :trips, :bookings)
+  BOOKING_LEVELS = %i[none trips held].freeze
 
   DEPARTURE_NAME = "Alpha Omega"
   DEPARTURE_DESCRIPTION = "Port Everglades round trip."
@@ -129,7 +130,8 @@ module AlphaFixture
     offering = package!(agency, actor, departure, arrangements)
     client_terms = client_terms!(agency, actor, departure)
     trips = bookings == :none ? {} : roster!(agency, actor, departure)
-    Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:, trips:)
+    roster_bookings = bookings == :held ? roster_bookings!(agency, actor, trips) : {}
+    Result.new(agency:, actor:, suppliers:, departure:, arrangements:, offering:, client_terms:, trips:, bookings: roster_bookings)
   end
 
   # Creates the Draft arrangement and its inventory once; later loads reuse it.
@@ -192,7 +194,10 @@ module AlphaFixture
           else { representation: "capacity_pool", availability_promise: "on_request" }
           end
         )
-        group!(agency, actor, departure, arrangement, **attributes)
+        group = group!(agency, actor, departure, arrangement, **attributes)
+        # D-95: Child 0–4 shares a room without using one of its places.
+        SetCapacityRule.new(agency:, actor:, departure:, arrangement:, group:,
+          traveler_type_id: agency.traveler_types.find_by!(name: "Child 0–4").id, uses_capacity: false).call
       end
     end
   end
@@ -470,6 +475,51 @@ module AlphaFixture
     client
   end
   private_class_method :roster!, :roster_client!
+
+  # D-94 and D-95: each Slice 1 roster booking's cabin, hotel rooms (each a
+  # list of given names, guest order), extension nights and tour
+  # participants. Children 0–4 share a room without using a place.
+  ROSTER_BOOKINGS = {
+    "BK-101" => { cabin: "V01", room: "Garden Queen", rooms: [ %w[Nadia Iris], %w[Theo] ], nights: [ 4 ], tour: %w[Nadia Theo Iris] },
+    "BK-104" => { cabin: "S01", room: "Harbor Double", rooms: [ %w[Sofia Marcus Ava Milo] ], nights: [ 2, 3, 4 ], tour: %w[Sofia Marcus Ava Milo] },
+    "BK-105" => { cabin: "O01", room: "Garden Queen", rooms: [ %w[Mateo Elena Luca] ], nights: [], tour: %w[Mateo Luca] }
+  }.freeze
+
+  # A Draft booking on each roster trip, with its travelers, choices and a
+  # hold placed at the current clock. Reused when the trip already has one.
+  def self.roster_bookings!(agency, actor, trips)
+    trips.to_h do |label, trip|
+      booking = trip.client_bookings.where.not(status: "discarded").first || roster_booking!(agency, actor, trip, ROSTER_BOOKINGS.fetch(label))
+      [ label, booking.reload ]
+    end
+  end
+
+  def self.roster_booking!(agency, actor, trip, plan)
+    booking = created!(CreateClientBooking.new(agency:, actor:, trip:).call, "the #{trip.trip_reference} booking")
+    sailing = STARTS_ON
+    types = agency.traveler_types.index_by(&:name)
+    travelers = trip.client.traveler_links.includes(:traveler).sort_by { |link| [ link.related_as_self? ? 0 : 1, -link.traveler.age_on(sailing).to_i ] }.to_h do |link|
+      age = link.traveler.age_on(sailing)
+      type = age < 5 ? types.fetch("Child 0–4") : (age < 18 ? types.fetch("Child") : types.fetch("Adult"))
+      row = created!(SaveBookingTraveler.new(agency:, actor:, booking:, attributes: { traveler_id: link.traveler.id, traveler_type_id: type.id }).call, link.traveler.given_names)
+      [ link.traveler.given_names, row ]
+    end
+    choices = booking.offering.choices.includes(:options).index_by(&:name)
+    select = lambda do |choice, label, names|
+      option = choices.fetch(choice).options.find { |candidate| candidate.label == label }
+      SaveChoiceSelection.new(agency:, actor:, booking:, attributes: { offering_option_id: option.id, occupant_ids: names.map { |name| travelers.fetch(name).id } }).call
+    end
+    order = travelers.keys
+    select.call("Cabin", plan[:cabin], order)
+    plan[:rooms].each do |names|
+      select.call("Nov 5 hotel room", plan[:room], names.sort_by { |name| order.index(name) })
+      plan[:nights].each { |day| select.call("Extension nights", "Nov #{day} #{plan[:room]}", names.sort_by { |name| order.index(name) }) }
+    end
+    select.call("Private Miami tour", "Private Miami tour, Nov 5", plan[:tour])
+    HoldBookingSpace.new(agency:, actor:, booking:).call
+    booking
+  end
+  private_class_method :roster_bookings!, :roster_booking!
 
   def self.created!(result, name)
     return result.record if result.status == :created && result.record

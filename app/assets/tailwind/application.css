@@ -332,6 +332,8 @@
 
   .dd-shell--available { border-left-color: var(--dd-teal); }
   .dd-shell--returned { border-left-color: var(--dd-border-strong); color: var(--dd-text-muted); }
+  .dd-shell--partly_allocated { border-left-color: var(--dd-info); background: var(--dd-info-surface); }
+  .dd-shell--fully_allocated { border-left-color: var(--dd-navy); background: var(--dd-surface-emphasis); }
   .dd-shell-label { font-weight: 600; font-family: var(--font-mono); }
   .dd-shell-meta, .dd-shell-status { color: var(--dd-text-muted); }
 
@@ -1510,6 +1512,71 @@
     text-transform: none;
   }
 
+  .dd-price-matrix td.num .dd-cell-subtext,
+  .dd-price-matrix td.num .dd-cabin-field-label,
+  .dd-price-matrix__no-charge {
+    font-family: var(--font-sans);
+  }
+
+  .dd-price-matrix__no-charge,
+  .dd-price-matrix__dash,
+  .dd-price-matrix__absent {
+    color: var(--dd-text-muted);
+  }
+
+  .dd-table.dd-price-matrix td.dd-price-matrix__absent {
+    display: none;
+  }
+
+  @media (max-width: 767px) {
+    .dd-price-matrix tfoot,
+    .dd-price-matrix tfoot tr,
+    .dd-price-matrix tfoot th,
+    .dd-price-matrix tfoot td {
+      display: block;
+      width: auto;
+    }
+
+    .dd-price-matrix tfoot tr {
+      border: 1px solid var(--dd-border);
+      border-radius: var(--dd-radius-md);
+      background: var(--dd-surface-subtle);
+      padding: 0.75rem;
+    }
+
+    .dd-price-matrix tfoot th,
+    .dd-price-matrix tfoot td {
+      border: 0;
+      padding: 0.35rem 0;
+    }
+
+    .dd-table.dd-price-matrix td.num {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0 1rem;
+    }
+
+    .dd-table.dd-price-matrix td.dd-price-matrix__empty {
+      display: none;
+    }
+
+    .dd-table.dd-price-matrix td.dd-price-matrix__absent {
+      display: block;
+      font-size: 13px;
+    }
+
+    .dd-price-matrix .dd-cabin-field-label {
+      margin: 0;
+    }
+
+    .dd-price-matrix td.num .dd-cell-subtext {
+      flex-basis: 100%;
+      text-align: right;
+    }
+  }
+
   .dd-cabin-table .dd-field {
     min-width: 0;
     width: 100%;
@@ -2337,6 +2404,8 @@
     padding: 9px 11px;
     font-size: 11.5px;
   }
+
+  .dd-subpanel { display: grid; gap: 0.5rem; border-top: 1px solid var(--dd-border); padding-top: 0.75rem; }
 
   .dd-disclosure {
     border: 1px solid var(--dd-border);

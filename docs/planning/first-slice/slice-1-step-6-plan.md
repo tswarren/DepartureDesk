@@ -1,6 +1,6 @@
 # Slice 1 step 6: Travelers, Client Trips and bookings; hold, accept and confirm
 
-**Status:** Accepted 2026-11-06, with D-94 logged; 6a built 2026-11-07. Amended 2026-11-07 with questions 17 to 21 from the review of 6b and 6c, before either is built. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 6 and the decision log entries it cites.
+**Status:** Accepted 2026-11-06, with D-94 logged; 6a built 2026-11-07. Amended 2026-11-07 with questions 17 to 21 from the review of 6b and 6c, before either is built; 6b built 2026-11-07, with the hotel rooming logged as D-95. Not implementation authority beyond the [first-slice charter](first-slice-charter.md) build step 6 and the decision log entries it cites.
 
 Charter build step 6 covers four things:
 - travelers, Client Trips and bookings;
@@ -60,6 +60,12 @@ The charter takes those from the decision log (D-87, D-92), so they are logged t
 ### D-94 as logged
 
 > | D-94 | 2026-11-06 | Amend the first-slice charter for build step 6. (1) Staff confirm BK-105 in build step 6, so D4 closes with all three Slice 1 bookings; in build step 9 the fixture assigns BK-105 to the reseller, which holds and confirms it, checked by D15. (2) Booking confirmation creates the client charge and its charge lines from the accepted price snapshot in build step 6 (BKG-25, CMN-01 to CMN-03); installments, payments and receipts stay in build step 8, which creates installments for bookings already confirmed. (3) D5 closes in build step 6. Acceptance by a designated payment is offered only when the terms say so. As a temporary exception to BKG-41, until build step 8 such an acceptance records the payment's date, amount and reference as notes that post, settle and count toward nothing, instead of linking a separate financial record; build step 8 links each one to its payment record and ends the exception. (4) Build step 6 is delivered as three pull requests, an exception to the one-per-step-or-case working rule for this step only: clients, travelers and Client Trips, closing no case; bookings and holds, closing D6 and D16; acceptance and confirmation, closing D4 and D5. The step is done when the third merges. (5) A Client Trip's reference is issued when the trip is created (REF-04, ADR 0004). (6) Settle the Slice 1 roster's placeholder travelers, responsible clients, dates of birth and booking dates as the step 6 plan lists them; fixture values are test inputs only. Amends D-87 and D-92. | BKG-41, REF-04 |
+
+### D-95 as logged
+
+Found while building 6b: the Garden Queen holds 2 (step 3), but BK-101 and BK-105 each put 3 travelers in a Garden Queen.
+
+> | D-95 | 2026-11-07 | Settle the first-slice fixture's hotel rooming. BK-101 takes two Garden Queen rooms on Nov 4 and Nov 5 (Nadia and Iris; Theo). Each hotel group has a capacity rule that Child 0–4 takes part without using a place (INV-39), so BK-105's three travelers share one Garden Queen, with Luca using no place. Each room's 1st guest pays the room price (B5). Fixture values are test inputs only; no rule changes. Amends the first-slice charter's fixture. | None |
 
 ### Authority updates applied with D-94
 
