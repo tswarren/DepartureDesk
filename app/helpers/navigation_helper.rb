@@ -1,7 +1,7 @@
 module NavigationHelper
   # Arrangement screens live under a Departure, whatever their controller name.
   DEPARTURE_AREA = %w[
-    supplier_arrangements supplier_arrangement_confirmations supplier_arrangement_discards supplier_rate_lines
+    supplier_arrangements supplier_arrangement_confirmations supplier_arrangement_discards supplier_rates supplier_rate_patterns supplier_rate_bands supplier_rate_copies
     supplier_deadlines arrangement_documents inventory_groups capacity_rules capacity_events
     cost_lines schedule_lines trigger_events direct_amounts_due
     offerings offering_choices offering_options offering_prices client_cancellation_tiers client_schedule_lines

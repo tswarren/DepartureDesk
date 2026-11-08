@@ -2405,6 +2405,28 @@
     font-size: 11.5px;
   }
 
+  .dd-segmented { display: inline-flex; flex-wrap: wrap; }
+  .dd-segmented-option { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 40px; padding: 0 0.85rem; border: 1px solid var(--dd-border-strong); background: var(--dd-surface); font-size: 14px; cursor: pointer; }
+  .dd-segmented-option + .dd-segmented-option { margin-left: -1px; }
+  .dd-segmented-option:first-child { border-radius: var(--dd-radius-md) 0 0 var(--dd-radius-md); }
+  .dd-segmented-option:last-child { border-radius: 0 var(--dd-radius-md) var(--dd-radius-md) 0; }
+  .dd-segmented-option:has(input:checked) { border-color: var(--dd-teal); background: var(--dd-selection); color: var(--dd-selection-text); font-weight: 600; position: relative; }
+  .dd-rate-methods { border: 0; margin: 0; padding: 0; }
+  .dd-rate-inline, .dd-rate-shared { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: flex-end; }
+  .dd-rate-patterns { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; }
+  .dd-rate-pattern { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.75rem 0.9rem; border: 1px solid var(--dd-border-strong); border-radius: var(--dd-radius-md); background: var(--dd-surface); cursor: pointer; }
+  .dd-rate-pattern:has(input:checked) { border: 2px solid var(--dd-teal); background: var(--dd-selection); }
+  .dd-rate-grid td { vertical-align: top; }
+  .dd-rate-grid tbody th { min-width: 6.5rem; vertical-align: top; }
+  .dd-rate-cell { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; }
+  .dd-rate-pair { display: flex; align-items: center; gap: 0.4rem; }
+  .dd-rate-fare { width: 6.5rem; }
+  .dd-rate-discount { width: 5.5rem; }
+  .dd-rate-override { font-size: 12px; color: var(--dd-amber-text); background: var(--dd-amber-surface); border-radius: 4px; padding: 0 0.4rem; }
+  .dd-rate-grid td.dd-rate-cell--gap { background: var(--dd-amber-surface); }
+  .dd-rate-details > summary { font-size: 13px; }
+  .dd-rate-details[open] { min-width: min(30rem, 80vw); }
+
   .dd-subpanel { display: grid; gap: 0.5rem; border-top: 1px solid var(--dd-border); padding-top: 0.75rem; }
 
   .dd-disclosure {

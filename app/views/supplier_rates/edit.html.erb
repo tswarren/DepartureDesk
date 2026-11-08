@@ -1,0 +1,189 @@
+<% content_for :title, "Supplier rates · #{@arrangement.arrangement_reference} · DepartureDesk" %>
+<% currency = @grid.currency %>
+<% defaults = @grid.defaults %>
+<% shared_summary = defaults["commission_method"] == "amount" ? "Uses #{currency} #{defaults["commission_amount"].presence || "—"} per guest, as set for every fare." : "Uses #{defaults["commission_rate"].presence || "—"}% of the #{ArrangementsHelper::COMMISSION_BASE_LABELS.fetch(defaults["commission_base"].presence || "base_fare").downcase}, as set for every fare." %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Suppliers", departure_arrangements_path(@departure) ], [ @arrangement.arrangement_reference, departure_arrangement_path(@departure, @arrangement) ], [ "Supplier rates", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow"><%= @arrangement.supplier.display_name_for_directory %> · <%= @arrangement.arrangement_reference %></p>
+    <h1 class="dd-page-title">Supplier rates</h1>
+    <p class="dd-page-description">Start from another arrangement's rates or a pattern, set what applies to every fare once, then fill in the fares. Confirming a booking works out its supplier cost and commission from this table.</p>
+  </div>
+</header>
+
+<article class="dd-panel" id="pattern">
+  <header class="dd-panel-header"><h2 class="dd-panel-title">1. Start from</h2></header>
+  <div class="dd-panel-body dd-stack">
+    <% if @sources.any? %>
+      <%= form_with url: departure_arrangement_rate_copy_path(@departure, @arrangement), class: "dd-form dd-rate-copy",
+            data: { turbo_confirm: "Copy rates over this arrangement's own? Its current rates are replaced." } do |form| %>
+        <div class="dd-field-group">
+          <%= form.label :source_id, "Copy another arrangement's rates", class: "dd-label" %>
+          <%= form.select :source_id, @sources.map { |source| [ "#{source.arrangement_reference} · #{source.departure.name}", source.id ] }, {}, class: "dd-field", aria: { describedby: "rate_copy_hint" } %>
+          <p class="dd-field-hint" id="rate_copy_hint">The same supplier and currency. Groups are matched by name; check each fare against the current rate sheet afterwards.</p>
+        </div>
+        <div class="dd-form-actions"><%= form.submit "Copy rates", class: "dd-button dd-button--secondary", name: nil %></div>
+      <% end %>
+    <% end %>
+
+    <%= form_with url: departure_arrangement_rate_pattern_path(@departure, @arrangement), method: :patch, class: "dd-form" do |form| %>
+      <fieldset class="dd-form-section">
+        <legend class="dd-section-title">Pricing pattern</legend>
+        <p class="dd-field-hint">Fares follow the berth a guest takes. Use custom bands only when the supplier prices a traveler type differently in the same berth.</p>
+        <div class="dd-rate-patterns">
+          <% SupplierRatePatterns::PATTERNS.each do |pattern| %>
+            <label class="dd-rate-pattern">
+              <%= radio_button_tag :pattern, pattern, @grid.pattern == pattern, id: "pattern_#{pattern}" %>
+              <span><strong><%= SupplierRatePatterns::LABELS.fetch(pattern) %></strong><span class="dd-cell-subtext"><%= SupplierRatePatterns::HINTS.fetch(pattern) %></span></span>
+            </label>
+          <% end %>
+        </div>
+      </fieldset>
+      <div class="dd-form-actions">
+        <%= form.submit @grid.pattern ? "Change pattern" : "Use this pattern", class: "dd-button dd-button--secondary", name: nil %>
+        <% if @grid.pattern %><span class="dd-field-hint">Changing it keeps each position's fare.</span><% end %>
+      </div>
+    <% end %>
+
+    <% if @grid.pattern == "custom" %>
+      <section class="dd-stack" aria-labelledby="bands-heading">
+        <h3 class="dd-section-title" id="bands-heading">Bands</h3>
+        <ul class="dd-plain-list">
+          <% @grid.bands.each do |band| %>
+            <li class="dd-section-header">
+              <span><strong><%= band.label %></strong> · <%= band.positions.map { |position| @grid.position_label(position) }.to_sentence %> · <%= band.traveler_type&.name || "any traveler" %></span>
+              <%= button_to "Remove", departure_arrangement_rate_band_path(@departure, @arrangement, band), method: :delete,
+                    class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form", aria: { label: "Remove the #{band.label} band" },
+                    form: { data: { turbo_confirm: "Remove the #{band.label} band and its fares?" } } %>
+            </li>
+          <% end %>
+        </ul>
+        <%= form_with url: departure_arrangement_rate_bands_path(@departure, @arrangement), scope: :rate_band, class: "dd-form" do |form| %>
+          <fieldset class="dd-form-section">
+            <legend class="dd-section-title">Add a band</legend>
+            <div class="dd-form-grid dd-form-grid--two-column">
+              <div class="dd-field-group">
+                <%= form.label :label, "Name (optional)", class: "dd-label" %>
+                <%= form.text_field :label, maxlength: SupplierRateBand::LABEL_LIMIT, placeholder: "Child 0–4, 3rd and 4th", class: "dd-field" %>
+              </div>
+              <div class="dd-field-group">
+                <%= form.label :traveler_type_id, "For", class: "dd-label" %>
+                <%= form.select :traveler_type_id, Current.agency.traveler_types.active.ordered.map { |type| [ type.name, type.id ] }, { include_blank: "Any traveler" }, class: "dd-field" %>
+              </div>
+            </div>
+            <span class="dd-label">Positions</span>
+            <div class="dd-choice-group">
+              <% SupplierRateLine::OCCUPANCY_POSITIONS.first(SupplierRatePatterns.largest_unit(@arrangement) + 1).each do |position| %>
+                <label class="dd-choice">
+                  <%= check_box_tag "rate_band[positions][]", position, false, id: "rate_band_positions_#{position}" %>
+                  <span><%= @grid.position_label(position).capitalize %></span>
+                </label>
+              <% end %>
+            </div>
+          </fieldset>
+          <div class="dd-form-actions"><%= form.submit "Add band", class: "dd-button dd-button--secondary", name: nil %></div>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</article>
+
+<% if @grid.bands.any? %>
+  <%= form_with url: departure_arrangement_rates_path(@departure, @arrangement), method: :patch, scope: :rates, class: "dd-stack", id: "rates", data: { controller: "unsaved-changes" } do %>
+    <article class="dd-panel" id="shared">
+      <header class="dd-panel-header"><h2 class="dd-panel-title">2. Applies to every fare</h2></header>
+      <div class="dd-panel-body dd-stack">
+        <p class="dd-field-hint">Per guest, in <%= currency %>. Any fare can override these in its details.</p>
+        <div class="dd-rate-shared">
+          <div class="dd-field-group">
+            <%= label_tag "rates_defaults_non_commissionable_fees", "Non-commissionable fare", class: "dd-label" %>
+            <%= text_field_tag "rates[defaults][non_commissionable_fees]", defaults["non_commissionable_fees"], inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-field--narrow", aria: { describedby: "nccf_hint" } %>
+            <p class="dd-field-hint" id="nccf_hint">Port charges and other amounts no commission is paid on</p>
+          </div>
+          <div class="dd-field-group">
+            <%= label_tag "rates_defaults_taxes", "Taxes and fees", class: "dd-label" %>
+            <%= text_field_tag "rates[defaults][taxes]", defaults["taxes"], inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-field--narrow" %>
+          </div>
+          <%= render "supplier_rates/commission_fields", name: "rates[defaults]", id: "rates_defaults", values: defaults, currency: %>
+        </div>
+      </div>
+    </article>
+
+    <article class="dd-panel" id="fares">
+      <header class="dd-panel-header"><h2 class="dd-panel-title">3. Fares</h2></header>
+      <div class="dd-panel-body dd-stack">
+        <p class="dd-field-hint">The commissionable fare per guest and the supplier's discount. Leave a fare blank if the supplier doesn't offer it; a highlighted cell has no fare yet.</p>
+        <div class="dd-table-wrap">
+          <table class="dd-table dd-stacked-table dd-rate-grid">
+            <caption class="dd-visually-hidden">Fares per guest by inventory group and band</caption>
+            <thead>
+              <tr>
+                <th scope="col">Group</th>
+                <% @grid.bands.each do |band| %>
+                  <th scope="col"><%= band.label %><% if band.traveler_type %><span class="dd-cell-subtext"><%= band.traveler_type.name %> only</span><% end %></th>
+                <% end %>
+              </tr>
+            </thead>
+            <tbody>
+              <% @grid.groups.each do |group| %>
+                <tr>
+                  <th scope="row"><%= group.label %><span class="dd-cell-subtext"><%= group.positions_per_unit ? "Up to #{group.positions_per_unit}" : service_category_label(group.service_category) %></span></th>
+                  <% @grid.cells_for(group).each do |cell| %>
+                    <% name = "rates[cells][#{cell.key}]" %>
+                    <% id = "cell_#{group.id}_#{cell.band.id}" %>
+                    <td class="<%= "dd-rate-cell--gap" if cell.gap? %>">
+                      <span class="dd-cabin-field-label dd-visually-hidden"><%= cell.band.label %></span>
+                      <% if cell.available %>
+                        <div class="dd-rate-cell">
+                          <div class="dd-rate-pair">
+                            <%= label_tag "#{id}_fare", "#{group.label}, #{cell.band.label}: fare", class: "dd-visually-hidden" %>
+                            <%= text_field_tag "#{name}[fare]", cell.fare, id: "#{id}_fare", inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-rate-fare" %>
+                            <span class="dd-cell-subtext" aria-hidden="true">less</span>
+                            <%= label_tag "#{id}_discount", "#{group.label}, #{cell.band.label}: discount", class: "dd-visually-hidden" %>
+                            <%= text_field_tag "#{name}[discount]", cell.discount, id: "#{id}_discount", inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-rate-discount" %>
+                          </div>
+                          <% if cell.note %><span class="dd-cell-subtext"><%= cell.note %></span><% end %>
+                          <% if cell.gap? %><span class="dd-cell-subtext">No fare yet</span><% end %>
+                          <% cell.overrides.except("commission_method", "commission_rate", "commission_base", "commission_amount").each do |field, value| %>
+                            <span class="dd-rate-override"><%= field == "taxes" ? "Taxes and fees" : "Non-commissionable" %> <%= value %> here</span>
+                          <% end %>
+                          <% if cell.overridden?("commission_method") %><span class="dd-rate-override">Own commission</span><% end %>
+                          <details class="dd-disclosure dd-rate-details">
+                            <summary>Details</summary>
+                            <div class="dd-stack">
+                              <div class="dd-rate-shared">
+                                <div class="dd-field-group">
+                                  <%= label_tag "#{id}_nccf", "Non-commissionable fare", class: "dd-label" %>
+                                  <%= text_field_tag "#{name}[override][non_commissionable_fees]", cell.overrides["non_commissionable_fees"], id: "#{id}_nccf", placeholder: defaults["non_commissionable_fees"], inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-field--narrow" %>
+                                </div>
+                                <div class="dd-field-group">
+                                  <%= label_tag "#{id}_taxes", "Taxes and fees", class: "dd-label" %>
+                                  <%= text_field_tag "#{name}[override][taxes]", cell.overrides["taxes"], id: "#{id}_taxes", placeholder: defaults["taxes"], inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-field--narrow" %>
+                                </div>
+                              </div>
+                              <p class="dd-field-hint">Leave a field blank to use the value every fare shares.</p>
+                              <%= render "supplier_rates/commission_fields", name: "#{name}[override]", id: "#{id}_commission", values: cell.overrides, currency:, inherit: shared_summary %>
+                            </div>
+                          </details>
+                        </div>
+                      <% else %>
+                        <span class="dd-cell-subtext">Not in a <%= group.positions_per_unit %>-guest unit</span>
+                      <% end %>
+                    </td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </article>
+
+    <div class="dd-form-actions">
+      <%= submit_tag "Save rates", class: "dd-button", name: nil %>
+      <%= link_to "Cancel", departure_arrangement_path(@departure, @arrangement, anchor: "rate-table"), class: "dd-button dd-button--quiet" %>
+    </div>
+  <% end %>
+<% end %>

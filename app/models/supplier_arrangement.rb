@@ -16,6 +16,7 @@ class SupplierArrangement < ApplicationRecord
   has_many :inventory_groups, -> { ordered }, inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
   has_many :documents, -> { order(created_at: :desc) }, class_name: "ArrangementDocument", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
   has_many :rate_lines, class_name: "SupplierRateLine", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
+  has_many :rate_bands, -> { ordered }, class_name: "SupplierRateBand", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
   has_many :deadlines, -> { ordered }, class_name: "SupplierDeadline", inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
   has_many :cost_lines, -> { order(:created_at) }, inverse_of: :supplier_arrangement, dependent: :restrict_with_exception
   has_many :schedule_lines, -> { order(:created_at) }, inverse_of: :supplier_arrangement, dependent: :restrict_with_exception

@@ -16,15 +16,13 @@ class ArrangementScreensTest < ApplicationSystemTestCase
     departure = @alpha.departure
     cruise = @alpha.arrangements.fetch(:cruise)
     hotel = @alpha.arrangements.fetch(:hotel)
-    rate_line = cruise.rate_lines.first
     paths = [
       departure_arrangements_path(departure),
       departure_arrangement_path(departure, cruise),
       edit_departure_arrangement_path(departure, cruise),
       new_departure_arrangement_path(departure),
       departure_arrangement_confirmation_path(departure, cruise),
-      new_departure_arrangement_rate_line_path(departure, cruise),
-      edit_departure_arrangement_rate_line_path(departure, cruise, rate_line),
+      edit_departure_arrangement_rates_path(departure, cruise),
       departure_arrangement_path(departure, hotel),
       departure_inventory_path(departure),
       departure_arrangement_group_path(departure, hotel, hotel.inventory_groups.find_by!(label: "Nov 5 Harbor Double")),
@@ -57,15 +55,43 @@ class ArrangementScreensTest < ApplicationSystemTestCase
     end
   end
 
-  test "at 375px the rate table stacks each rate with its labels" do
+  test "at 375px the rate grid stacks each group with its bands" do
     sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
     resize_window(375)
     visit departure_arrangement_path(@alpha.departure, @alpha.arrangements.fetch(:cruise))
     wait_for_turbo
     within("#rate-table") do
       row = find("tbody tr", text: "S01", match: :first)
-      assert_includes row.text, "Base fare"
-      assert_includes row.text, "Commission"
+      assert_includes row.text, "1st and 2nd guest"
+      assert_includes row.text, "Single"
     end
+  end
+
+  test "the rate page shows only the commission fields the method needs, and saves the grid" do
+    cruise = @alpha.arrangements.fetch(:cruise)
+    sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
+    visit edit_departure_arrangement_rates_path(@alpha.departure, cruise)
+    wait_for_turbo
+    within("#shared") do
+      assert_field "Rate (%)", with: "14"
+      assert_no_field "Amount per guest (USD)"
+      choose "Dollar amount"
+      assert_field "Amount per guest (USD)"
+      assert_no_field "Rate (%)"
+      choose "Percentage"
+      fill_in "Taxes and fees", with: "150"
+    end
+    first("details.dd-rate-details summary").click
+    within(first("details.dd-rate-details")) do
+      assert_text "Uses 14% of the commissionable fare, as set for every fare."
+      assert_no_field "Rate (%)"
+      choose "Dollar amount"
+      fill_in "Amount per guest (USD)", with: "400"
+    end
+    click_button "Save rates"
+    assert_text "Supplier rates saved."
+    assert cruise.rate_lines.reload.all? { |line| line.taxes_minor_units == 15_000 }
+    assert_equal %w[guest_1 guest_2], cruise.rate_lines.select { |line| line.commission_minor_units == 40_000 }.map(&:occupancy_position).sort,
+      "one fare's own dollar commission, stored for both guests it covers"
   end
 end

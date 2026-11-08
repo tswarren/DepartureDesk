@@ -1,0 +1,35 @@
+<%# Commission as a percentage with what it applies to, or a dollar amount; only the chosen method's fields show. %>
+<%# locals: (name:, id:, values:, currency:, inherit: nil) -%>
+<% method = values["commission_method"].presence || (inherit ? "inherit" : "percent") %>
+<div data-controller="conditional-fields" style="display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end">
+  <fieldset class="dd-rate-methods">
+    <legend class="dd-label"><%= inherit ? "Commission for this fare" : "Commission" %></legend>
+    <div class="dd-segmented">
+      <% options = (inherit ? [ [ "inherit", "As every fare" ] ] : []) + [ [ "percent", "Percentage" ], [ "amount", "Dollar amount" ] ] %>
+      <% options.each do |value, label| %>
+        <label class="dd-segmented-option">
+          <%= radio_button_tag "#{name}[commission_method]", value, method == value, id: "#{id}_method_#{value}",
+                data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+          <span><%= label %></span>
+        </label>
+      <% end %>
+    </div>
+  </fieldset>
+  <% if inherit %>
+    <p class="dd-field-hint" data-conditional-fields-target="option" data-show-for="inherit"><%= inherit %></p>
+  <% end %>
+  <div class="dd-rate-inline" data-conditional-fields-target="option" data-show-for="percent">
+    <div class="dd-field-group">
+      <%= label_tag "#{id}_rate", "Rate (%)", class: "dd-label" %>
+      <%= text_field_tag "#{name}[commission_rate]", values["commission_rate"], id: "#{id}_rate", inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-field--narrow" %>
+    </div>
+    <div class="dd-field-group">
+      <%= label_tag "#{id}_base", "Of", class: "dd-label" %>
+      <%= select_tag "#{name}[commission_base]", options_for_select(ArrangementsHelper::COMMISSION_BASE_LABELS.invert, values["commission_base"] || "base_fare"), id: "#{id}_base", class: "dd-field" %>
+    </div>
+  </div>
+  <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="amount">
+    <%= label_tag "#{id}_amount", "Amount per guest (#{currency})", class: "dd-label" %>
+    <%= text_field_tag "#{name}[commission_amount]", values["commission_amount"], id: "#{id}_amount", inputmode: "decimal", autocomplete: "off", class: "dd-field dd-field--numeric dd-field--narrow" %>
+  </div>
+</div>

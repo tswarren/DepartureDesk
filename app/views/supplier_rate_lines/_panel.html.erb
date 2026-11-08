@@ -1,62 +1,52 @@
-<%# The supplier rate table (S-14, SUP-35). Shown only with view_supplier_costs (ACC-31). %>
+<%# The supplier rate table as a grid (S-14, SUP-35). Shown only with view_supplier_costs (ACC-31). %>
 <%# locals: (departure:, arrangement:, manage:) -%>
 <% editable = manage && arrangement.draft? %>
+<% grid = SupplierRateGrid.new(arrangement) %>
 <article class="dd-panel" id="rate-table">
-  <header class="dd-panel-header">
-    <h2 class="dd-panel-title">Supplier rate table</h2>
+  <header class="dd-panel-header dd-section-header">
+    <h2 class="dd-panel-title">Supplier rates</h2>
     <% if editable && arrangement.inventory_groups.any? %>
-      <%= link_to "Add rate", new_departure_arrangement_rate_line_path(departure, arrangement), class: "dd-button dd-button--quiet" %>
+      <%= link_to grid.bands.any? ? "Edit rates" : "Set up rates", edit_departure_arrangement_rates_path(departure, arrangement), class: "dd-button dd-button--secondary" %>
     <% end %>
   </header>
   <div class="dd-panel-body dd-stack">
-    <% lines = arrangement.rate_lines.ordered.includes(:inventory_group, :traveler_type) %>
-    <% if lines.empty? %>
+    <% if grid.bands.empty? && arrangement.rate_lines.empty? %>
       <p class="dd-empty-copy">
-        <% if arrangement.inventory_groups.empty? %>
-          No rates yet. Add an inventory group first, then enter the supplier's rates for each occupancy position.
-        <% else %>
-          No rates yet. Enter the supplier's rate for each inventory group and occupancy position, as the supplier states it.
-        <% end %>
+        <%= arrangement.inventory_groups.empty? ? "No rates yet. Add an inventory group first, then set up the supplier's rates." : "No rates yet. Set them up from a pattern or another arrangement's rates." %>
       </p>
+    <% elsif grid.bands.empty? %>
+      <p class="dd-page-description"><%= pluralize(arrangement.rate_lines.size, "rate") %> entered before rate patterns. <%= "Set up rates to see and edit them as a grid." if editable %></p>
     <% else %>
+      <% defaults = grid.defaults %>
       <p class="dd-page-description">
-        Amounts in <%= arrangement.currency %>, as the supplier states them. Confirming a booking proposes its supplier cost and commission from these rates.
+        Per guest in <%= grid.currency %>: non-commissionable fare <%= defaults["non_commissionable_fees"] || "0" %>, taxes and fees <%= defaults["taxes"] || "0" %>,
+        commission <%= defaults["commission_method"] == "amount" ? "#{defaults["commission_amount"]} per guest" : "#{defaults["commission_rate"]}% of the #{ArrangementsHelper::COMMISSION_BASE_LABELS.fetch(defaults["commission_base"] || "base_fare").downcase}" %>.
         <%= "Frozen when the arrangement was confirmed." unless arrangement.draft? %>
       </p>
       <div class="dd-table-wrap">
         <table class="dd-table dd-stacked-table">
-          <caption class="dd-visually-hidden">Supplier rates by inventory group and occupancy position</caption>
+          <caption class="dd-visually-hidden">Supplier fares per guest by inventory group and band</caption>
           <thead>
             <tr>
               <th scope="col">Group</th>
-              <th scope="col">Occupancy</th>
-              <th scope="col">Traveler type</th>
-              <th scope="col" class="num">Base fare</th>
-              <th scope="col" class="num">Non-commissionable fees</th>
-              <th scope="col" class="num">Taxes</th>
-              <th scope="col" class="num">Discount</th>
-              <th scope="col" class="num">Commission</th>
-              <% if editable %><th scope="col" class="dd-col-actions">Actions</th><% end %>
+              <% grid.bands.each do |band| %><th scope="col" class="num"><%= band.label %></th><% end %>
             </tr>
           </thead>
           <tbody>
-            <% lines.each do |line| %>
-              <% name = "#{line.inventory_group.label}, #{occupancy_position_label(line.occupancy_position).downcase}#{", #{line.traveler_type.name}" if line.traveler_type}" %>
+            <% grid.groups.each do |group| %>
               <tr>
-                <th scope="row"><span class="dd-cabin-field-label dd-visually-hidden">Group</span><%= line.inventory_group.label %></th>
-                <td><span class="dd-cabin-field-label dd-visually-hidden">Occupancy</span><%= occupancy_position_label(line.occupancy_position) %></td>
-                <td><span class="dd-cabin-field-label dd-visually-hidden">Traveler type</span><%= line.traveler_type&.name || "Any" %></td>
-                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Base fare</span><%= rate_amount(line.base_fare_minor_units, line.currency) %></td>
-                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Non-commissionable fees</span><%= rate_amount(line.non_commissionable_fees_minor_units, line.currency) %></td>
-                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Taxes</span><%= rate_amount(line.taxes_minor_units, line.currency) %></td>
-                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Discount</span><%= rate_amount(line.discount_minor_units, line.currency) %></td>
-                <td class="num"><span class="dd-cabin-field-label dd-visually-hidden">Commission</span><%= rate_commission(line) %></td>
-                <% if editable %>
-                  <td class="dd-col-actions">
-                    <%= link_to "Edit", edit_departure_arrangement_rate_line_path(departure, arrangement, line), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{name}" } %>
-                    <%= button_to "Remove", departure_arrangement_rate_line_path(departure, arrangement, line), method: :delete,
-                          class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form",
-                          aria: { label: "Remove #{name}" }, form: { data: { turbo_confirm: "Remove the rate for #{name}?" } } %>
+                <th scope="row"><%= group.label %></th>
+                <% grid.cells_for(group).each do |cell| %>
+                  <td class="num">
+                    <span class="dd-cabin-field-label dd-visually-hidden"><%= cell.band.label %></span>
+                    <% if !cell.available %>
+                      <span class="dd-cell-subtext">—</span>
+                    <% elsif cell.fare.blank? %>
+                      <span class="dd-cell-subtext">No fare</span>
+                    <% else %>
+                      <%= rate_amount(MoneyInput.minor_units(cell.fare, grid.currency), grid.currency) %>
+                      <span class="dd-cell-subtext">less <%= rate_amount(MoneyInput.minor_units(cell.discount.presence || "0", grid.currency), grid.currency) %><%= " · own values" if cell.overrides.any? %></span>
+                    <% end %>
                   </td>
                 <% end %>
               </tr>
