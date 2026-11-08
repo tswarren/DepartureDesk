@@ -5,43 +5,51 @@
   <p class="dd-field-hint" id="schedule_description_hint">For example: Deposit, or Balance.</p>
   <%= dd_field_error(form, :description) %>
 </div>
-<div class="dd-form-grid dd-form-grid--two-column">
-  <div class="dd-field-group">
-    <%= form.label :basis, "Amount", class: "dd-label" %>
-    <%= form.select :basis, PackageHelper::SCHEDULE_BASIS_LABELS.invert, {}, class: "dd-field" %>
+<fieldset class="dd-form-section" data-controller="conditional-fields">
+  <legend class="dd-section-title">How much</legend>
+  <div class="dd-rate-inline">
+    <div class="dd-field-group">
+      <%= form.label :basis, "Amount", class: "dd-label" %>
+      <%= form.select :basis, PackageHelper::SCHEDULE_BASIS_LABELS.invert, {}, class: "dd-field", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+    </div>
+    <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="per_traveler per_unit per_booking">
+      <%= form.label :amount, "Fixed amount in #{currency}", class: "dd-label" %>
+      <%= form.text_field :amount, value: values["amount"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :amount, class: "dd-field--numeric dd-field--narrow") %>
+      <%= dd_field_error(form, :amount) %>
+    </div>
+    <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="per_unit">
+      <%= form.label :service_category, "For each", class: "dd-label" %>
+      <%= form.select :service_category, ArrangementsHelper::SERVICE_CATEGORY_LABELS.transform_values { |label| "#{label.downcase} unit" }.invert, { selected: values["service_category"] },
+            **dd_field_options(form, :service_category, aria_describedby_extra: "schedule_category_hint") %>
+      <p class="dd-field-hint" id="schedule_category_hint">Counts each cabin or room of this category the booking holds, once however many share it.</p>
+      <%= dd_field_error(form, :service_category) %>
+    </div>
+    <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="percentage">
+      <%= form.label :percentage, "Percentage", class: "dd-label" %>
+      <%= form.text_field :percentage, value: values["percentage"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :percentage, class: "dd-field--numeric dd-field--narrow") %>
+      <%= dd_field_error(form, :percentage) %>
+    </div>
   </div>
-  <div class="dd-field-group">
-    <%= form.label :amount, "Fixed amount in #{currency}", class: "dd-label" %>
-    <%= form.text_field :amount, value: values["amount"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :amount, class: "dd-field--numeric dd-field--narrow") %>
-    <%= dd_field_error(form, :amount) %>
+</fieldset>
+<fieldset class="dd-form-section" data-controller="conditional-fields">
+  <legend class="dd-section-title">When it is due</legend>
+  <div class="dd-rate-inline">
+    <div class="dd-field-group">
+      <%= form.label :due_rule, "Due", class: "dd-label" %>
+      <%= form.select :due_rule, PackageHelper::SCHEDULE_DUE_LABELS.invert, {}, class: "dd-field", data: { conditional_fields_source: true, action: "conditional-fields#update" } %>
+    </div>
+    <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="days_before_departure">
+      <%= form.label :days_before_departure, "Days before departure", class: "dd-label" %>
+      <%= form.number_field :days_before_departure, value: values["days_before_departure"], min: 0, step: 1, **dd_field_options(form, :days_before_departure, class: "dd-field--numeric dd-field--narrow") %>
+      <%= dd_field_error(form, :days_before_departure) %>
+    </div>
+    <div class="dd-field-group" data-conditional-fields-target="option" data-show-for="fixed_date">
+      <%= form.label :due_on, "Due date", class: "dd-label" %>
+      <%= form.date_field :due_on, value: values["due_on"], **dd_field_options(form, :due_on) %>
+      <%= dd_field_error(form, :due_on) %>
+    </div>
   </div>
-  <div class="dd-field-group">
-    <%= form.label :service_category, "Unit of", class: "dd-label" %>
-    <%= form.select :service_category, ArrangementsHelper::SERVICE_CATEGORY_LABELS.invert, { include_blank: "Not per unit", selected: values["service_category"] },
-          **dd_field_options(form, :service_category, aria_describedby_extra: "schedule_category_hint") %>
-    <p class="dd-field-hint" id="schedule_category_hint">Per unit counts each cabin or room of this category the booking holds, once however many share it.</p>
-    <%= dd_field_error(form, :service_category) %>
-  </div>
-  <div class="dd-field-group">
-    <%= form.label :percentage, "Percentage", class: "dd-label" %>
-    <%= form.text_field :percentage, value: values["percentage"], inputmode: "decimal", autocomplete: "off", **dd_field_options(form, :percentage, class: "dd-field--numeric dd-field--narrow") %>
-    <%= dd_field_error(form, :percentage) %>
-  </div>
-  <div class="dd-field-group">
-    <%= form.label :due_rule, "Due", class: "dd-label" %>
-    <%= form.select :due_rule, PackageHelper::SCHEDULE_DUE_LABELS.invert, {}, class: "dd-field" %>
-  </div>
-  <div class="dd-field-group">
-    <%= form.label :days_before_departure, "Days before departure", class: "dd-label" %>
-    <%= form.number_field :days_before_departure, value: values["days_before_departure"], min: 0, step: 1, **dd_field_options(form, :days_before_departure, class: "dd-field--numeric dd-field--narrow") %>
-    <%= dd_field_error(form, :days_before_departure) %>
-  </div>
-  <div class="dd-field-group">
-    <%= form.label :due_on, "Due date", class: "dd-label" %>
-    <%= form.date_field :due_on, value: values["due_on"], **dd_field_options(form, :due_on) %>
-    <%= dd_field_error(form, :due_on) %>
-  </div>
-</div>
+</fieldset>
 <div class="dd-field-group">
   <label class="dd-choice">
     <%= form.check_box :counts_as_acceptance, { checked: ActiveModel::Type::Boolean.new.cast(values["counts_as_acceptance"]) }, "1", "0" %>

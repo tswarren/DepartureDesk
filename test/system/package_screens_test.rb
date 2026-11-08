@@ -115,4 +115,25 @@ class PackageScreensTest < ApplicationSystemTestCase
       assert_no_page_overflow
     end
   end
+
+  test "the payment schedule and tier forms show only the fields each choice uses" do
+    departure = @alpha.departure
+    sign_in_from_browser(@scenario.actor, password: M1DirectoryScenario::PASSWORD)
+    visit new_departure_client_schedule_line_path(departure)
+    select "Fixed amount per unit", from: "Amount"
+    assert_field "For each"
+    assert_no_field "Percentage"
+    select "Percentage of the booking total", from: "Amount"
+    assert_field "Percentage"
+    assert_no_field "For each"
+    select "On a date", from: "Due"
+    assert_field "Due date"
+    assert_no_field "Days before departure"
+
+    visit new_departure_client_cancellation_tier_path(departure)
+    select "Fixed amount per traveler", from: "Charge"
+    assert_field "Amount in USD"
+    assert_no_field "Percentage"
+    assert_no_field "For each"
+  end
 end

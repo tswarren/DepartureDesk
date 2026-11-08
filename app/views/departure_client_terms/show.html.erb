@@ -90,7 +90,7 @@
         <%= @terms_version.overrides_cancellation_tiers? ? "This departure's own tiers, replacing the agency's." : "The agency's default tiers." %>
         Each tier's charge is proposed from the affected service's accepted client charge, for staff to review.
       </p>
-      <%= render "shared/cancellation_tiers_table", tiers: @terms_version.cancellation_tiers,
+      <%= render "shared/cancellation_tiers_table", tiers: @terms_version.cancellation_tiers, starts_on: @departure.starts_on,
             edit_path: (editable && @terms_version.overrides_cancellation_tiers? ? ->(tier) { edit_departure_client_cancellation_tier_path(@departure, tier) } : nil),
             remove_path: ->(tier) { departure_client_cancellation_tier_path(@departure, tier) } %>
       <% if editable %>
@@ -116,29 +116,23 @@
       <% end %>
       <% lines = @terms_version.schedule_lines %>
       <% if lines.any? %>
-        <div class="dd-table-wrap">
-          <table class="dd-table dd-stacked-table">
-            <caption class="dd-visually-hidden">Payment schedule lines</caption>
-            <thead><tr><th scope="col">Payment</th><th scope="col">Amount</th><th scope="col">Due</th><th scope="col">Counts as acceptance</th><% if editable %><th scope="col" class="dd-col-actions">Actions</th><% end %></tr></thead>
-            <tbody>
-              <% lines.each do |line| %>
-                <tr>
-                  <th scope="row"><%= line.description %></th>
-                  <td><span class="dd-cabin-field-label dd-visually-hidden">Amount</span><%= schedule_line_amount_label(line) %></td>
-                  <td><span class="dd-cabin-field-label dd-visually-hidden">Due</span><%= schedule_line_due_label(line) %></td>
-                  <td><span class="dd-cabin-field-label dd-visually-hidden">Counts as acceptance</span><%= line.counts_as_acceptance ? "Yes" : "No" %></td>
-                  <% if editable %>
-                    <td class="dd-col-actions">
-                      <%= link_to "Edit", edit_departure_client_schedule_line_path(@departure, line), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{line.description}" } %>
-                      <%= button_to "Remove", departure_client_schedule_line_path(@departure, line), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger",
-                            form_class: "dd-inline-form", aria: { label: "Remove #{line.description}" } %>
-                    </td>
-                  <% end %>
-                </tr>
+        <ol class="dd-plain-list dd-payment-list" aria-label="Payment schedule">
+          <% lines.each do |line| %>
+            <li class="dd-payment-item">
+              <div>
+                <strong><%= line.description %></strong>
+                <p class="dd-payment-sentence"><%= client_schedule_sentence(line, @departure.starts_on) %></p>
+              </div>
+              <% if editable %>
+                <span class="dd-section-header">
+                  <%= link_to "Edit", edit_departure_client_schedule_line_path(@departure, line), class: "dd-row-action dd-row-action--text", aria: { label: "Edit #{line.description}" } %>
+                  <%= button_to "Remove", departure_client_schedule_line_path(@departure, line), method: :delete, class: "dd-row-action dd-row-action--text dd-row-action--danger",
+                        form_class: "dd-inline-form", aria: { label: "Remove #{line.description}" } %>
+                </span>
               <% end %>
-            </tbody>
-          </table>
-        </div>
+            </li>
+          <% end %>
+        </ol>
       <% end %>
     </div>
   </article>
