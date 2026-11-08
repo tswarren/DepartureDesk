@@ -1,0 +1,28 @@
+<%# Step 4: the client's acceptance, then confirmation (BKG-39, BKG-41, BKG-45). %>
+<%# locals: (booking:, manage:, blockers:) -%>
+<%= render "client_bookings/acceptance", booking: booking, manage: %>
+
+<% if Current.agency_user.permitted?(:view_supplier_costs) && (booking.cost_lines.any? || booking.expected_commissions.any?) %>
+  <%= render "client_bookings/supplier_cost", booking: booking %>
+<% end %>
+
+<article class="dd-panel" id="confirm">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Confirm</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <% if blockers.any? && booking.status_draft? %>
+      <p class="dd-page-description">Before this booking can be confirmed:</p>
+      <ul class="dd-plain-list">
+        <% blockers.each do |blocker| %>
+          <li><%= link_to blocker.message, booking_section_path(booking, blocker.anchor) %></li>
+        <% end %>
+      </ul>
+    <% end %>
+    <% if booking.status_confirmed? %>
+      <p class="dd-page-description">Confirmed <%= booking_time(booking.confirmed_at) %>; the client charge, <%= booking_money(booking.client_charge.total_minor_units, booking.currency) %>, was made from the accepted prices; its lines never change.</p>
+    <% elsif manage %>
+      <%= button_to "Confirm booking", client_booking_confirmation_path(booking), class: "dd-button" %>
+    <% end %>
+  </div>
+</article>

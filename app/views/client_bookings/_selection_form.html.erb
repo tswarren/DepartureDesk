@@ -1,7 +1,8 @@
 <%# Choose an option, and who it is for: a unit's occupants in booking order, or an add-on's participants. %>
-<%# locals: (booking:, choice:, selection:) -%>
+<%# locals: (booking:, choice:, selection:, choices: []) -%>
 <% form_id = selection ? "selection-#{selection.id}" : "new-selection-#{choice.id}" %>
-<% chosen = selection ? selection.occupants.map(&:booking_traveler_id) : (choice.included? ? booking.booking_travelers.map(&:id) : []) %>
+<% defaults = selection ? nil : default_occupants(booking, choice, choices) %>
+<% chosen = selection ? selection.occupants.map(&:booking_traveler_id) : defaults.ids %>
 <%= form_with url: (selection ? client_booking_selection_path(booking, selection) : client_booking_selections_path(booking)), method: (selection ? :patch : :post),
       scope: :choice_selection, class: "dd-form", id: form_id do |form| %>
   <%= hidden_field_tag :choice_id, choice.id, id: nil %>
@@ -15,6 +16,7 @@
   <% unless choice.made_per_trip? || booking.booking_travelers.empty? %>
     <fieldset class="dd-form-section">
       <legend class="dd-section-title"><%= choice.made_per_unit? ? "Who is in it, in guest order" : "Who takes part" %></legend>
+      <% if defaults&.note %><p class="dd-field-hint"><%= defaults.note %> Change it if they split up.</p><% end %>
       <div class="dd-choice-group">
         <% booking.booking_travelers.each do |row| %>
           <label class="dd-choice">

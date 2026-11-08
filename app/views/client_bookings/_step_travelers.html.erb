@@ -1,0 +1,206 @@
+<%# Step 1: who is going, in guest order (CLT-13, CLT-15, BKG-21). %>
+<%# locals: (booking:, trip:, manage:, linked_travelers:, traveler_types:, traveler_query: "", found_travelers: []) -%>
+<% client_name = trip.client.source.display_name %>
+<article class="dd-panel" id="travelers">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Travelers</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <p class="dd-page-description">In this order, which sets guest order in each cabin and room. A hold may use placeholders such as Guest 2; confirming needs each traveler's legal name and date of birth.</p>
+    <% if booking.booking_travelers.empty? %>
+      <p class="dd-empty-copy">No travelers yet.</p>
+    <% else %>
+      <div class="dd-table-wrap">
+        <table class="dd-table dd-stacked-table">
+          <caption class="dd-visually-hidden">Travelers on <%= booking.booking_reference %></caption>
+          <thead>
+            <tr>
+              <th scope="col">Order</th>
+              <th scope="col">Traveler</th>
+              <th scope="col">Type</th>
+              <th scope="col">Date of birth</th>
+              <% if manage %><th scope="col" class="dd-col-actions">Actions</th><% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% booking.booking_travelers.each do |row| %>
+              <tr id="booking-traveler-<%= row.id %>">
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Order </span><%= row.position %></td>
+                <th scope="row">
+                  <% if row.traveler %>
+                    <%= link_to row.display_name, traveler_path(row.traveler) %>
+                    <% unless row.named_for_confirmation? %><span class="dd-cell-subtext"><%= link_to "Add legal name and date of birth", edit_traveler_path(row.traveler) %></span><% end %>
+                  <% else %>
+                    <%= row.placeholder_label %> <span class="dd-cell-subtext">Placeholder</span>
+                    <% if manage %>
+                      <% if linked_travelers.any? %>
+                        <%= form_with model: row, url: client_booking_traveler_path(booking, row), method: :patch, scope: :booking_traveler, class: "dd-inline-form dd-rate-inline dd-replace-form" do |form| %>
+                          <%= form.hidden_field :lock_version, id: nil %>
+                          <%= form.label :traveler_id, "Replace #{row.placeholder_label} with", class: "dd-visually-hidden", for: "replace_#{row.id}" %>
+                          <%= form.select :traveler_id, linked_travelers.map { |link| [ link.traveler.display_name, link.traveler_id ] }, { include_blank: "Replace with…" }, id: "replace_#{row.id}", class: "dd-field", required: true %>
+                          <%= form.submit "Replace", class: "dd-button dd-button--quiet", name: nil, aria: { label: "Replace #{row.placeholder_label}" } %>
+                        <% end %>
+                      <% end %>
+                      <% if Current.agency_user.permitted?(:manage_client_directory) %>
+                        <span class="dd-cell-subtext"><%= link_to "Or someone new or found in the agency", "#someone-else" %></span>
+                      <% end %>
+                    <% end %>
+                  <% end %>
+                </th>
+                <td>
+                  <span class="dd-cabin-field-label dd-visually-hidden">Type </span>
+                  <% if manage %>
+                    <%= form_with model: row, url: client_booking_traveler_path(booking, row), method: :patch, scope: :booking_traveler, class: "dd-inline-form" do |form| %>
+                      <%= form.hidden_field :lock_version, id: nil %>
+                      <%= form.label :traveler_type_id, "Type for #{row.display_name}", class: "dd-visually-hidden", for: "booking_traveler_type_#{row.id}" %>
+                      <%= form.select :traveler_type_id, traveler_types.map { |type| [ type.name, type.id ] }, { include_blank: "Choose a type" }, id: "booking_traveler_type_#{row.id}", class: "dd-field" %>
+                      <%= form.submit "Save type", class: "dd-button dd-button--quiet", name: nil, aria: { label: "Save type for #{row.display_name}" } %>
+                    <% end %>
+                  <% else %>
+                    <%= row.traveler_type&.name || "Not chosen" %>
+                  <% end %>
+                </td>
+                <td><span class="dd-cabin-field-label dd-visually-hidden">Date of birth </span><%= row.traveler ? traveler_date_of_birth(row.traveler) : "Not recorded" %></td>
+                <% if manage %>
+                  <td class="dd-col-actions">
+                    <% unless row == booking.booking_travelers.first %>
+                      <%= button_to "Up", client_booking_traveler_move_path(booking, row), params: { direction: "up" }, class: "dd-row-action dd-row-action--text",
+                            form_class: "dd-inline-form", aria: { label: "Move #{row.display_name} up" } %>
+                    <% end %>
+                    <% unless row == booking.booking_travelers.last %>
+                      <%= button_to "Down", client_booking_traveler_move_path(booking, row), params: { direction: "down" }, class: "dd-row-action dd-row-action--text",
+                            form_class: "dd-inline-form", aria: { label: "Move #{row.display_name} down" } %>
+                    <% end %>
+                    <%= button_to "Remove", client_booking_traveler_path(booking, row), method: :delete,
+                          class: "dd-row-action dd-row-action--text dd-row-action--danger", form_class: "dd-inline-form",
+                          aria: { label: "Remove #{row.display_name} from the booking" } %>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+    <% if manage %>
+      <% starts_on = trip.departure.starts_on %>
+      <% if linked_travelers.any? %>
+        <%= form_with url: client_booking_traveler_batch_path(booking), class: "dd-form", id: "add-travelers" do |form| %>
+          <fieldset class="dd-form-section">
+            <legend class="dd-section-title"><%= client_name %>'s travelers</legend>
+            <p class="dd-field-hint">Tick who is going and choose each traveler's type. Age<%= " at departure" if starts_on %> is shown to help; it never sets the type.</p>
+            <ul class="dd-plain-list dd-payment-list">
+              <% linked_travelers.each do |link| %>
+                <% traveler = link.traveler %>
+                <% age = starts_on && traveler.age_on(starts_on) %>
+                <li class="dd-payment-item">
+                  <label class="dd-choice">
+                    <%= check_box_tag "travelers[#{traveler.id}][add]", "1", true, id: "add_traveler_#{traveler.id}" %>
+                    <span><strong><%= traveler.display_name %></strong>
+                      <span class="dd-cell-subtext"><%= link.relationship_label %> · <%= age ? "#{age} at departure" : "No date of birth" %></span></span>
+                  </label>
+                  <div class="dd-field-group">
+                    <%= label_tag "traveler_type_#{traveler.id}", "Type for #{traveler.display_name}", class: "dd-visually-hidden" %>
+                    <%= select_tag "travelers[#{traveler.id}][traveler_type_id]", options_from_collection_for_select(traveler_types, :id, :name),
+                          include_blank: "Choose a type", id: "traveler_type_#{traveler.id}", class: "dd-field" %>
+                  </div>
+                </li>
+              <% end %>
+            </ul>
+          </fieldset>
+          <div class="dd-form-actions"><%= form.submit "Add ticked travelers", class: "dd-button", name: nil %></div>
+        <% end %>
+      <% end %>
+      <% if Current.agency_user.permitted?(:manage_client_directory) %>
+<% placeholders = booking.booking_travelers.select(&:placeholder_label) %>
+        <section class="dd-stack dd-subpanel" id="someone-else" aria-labelledby="someone-else-heading">
+          <h3 class="dd-section-title" id="someone-else-heading">Someone else</h3>
+          <p class="dd-field-hint">They are linked to <%= client_name %> as they are added, so they are listed next time.</p>
+          <%= form_with url: client_booking_traveler_additions_path(booking), class: "dd-form", id: "new-traveler" do |form| %>
+            <h4 class="dd-section-title">A new traveler</h4>
+            <div class="dd-form-grid dd-form-grid--two-column">
+              <div class="dd-field-group">
+                <%= label_tag "new_traveler_given_names", "Given names", class: "dd-label" %>
+                <%= text_field_tag "traveler[given_names]", nil, id: "new_traveler_given_names", maxlength: Traveler::NAME_LIMIT, autocomplete: "off", class: "dd-field" %>
+              </div>
+              <div class="dd-field-group">
+                <%= label_tag "new_traveler_surname", "Surname", class: "dd-label" %>
+                <%= text_field_tag "traveler[surname]", trip.client.client_person&.last_name, id: "new_traveler_surname", maxlength: Traveler::NAME_LIMIT, autocomplete: "off", class: "dd-field" %>
+              </div>
+              <div class="dd-field-group">
+                <%= label_tag "new_traveler_date_of_birth", "Date of birth (optional)", class: "dd-label" %>
+                <%= date_field_tag "traveler[date_of_birth]", nil, id: "new_traveler_date_of_birth", class: "dd-field", aria: { describedby: "new_traveler_dob_hint" } %>
+                <p class="dd-field-hint" id="new_traveler_dob_hint">Needed to confirm; it can be added later.</p>
+              </div>
+              <div class="dd-field-group">
+                <%= label_tag "new_traveler_relationship", "Relationship to #{client_name}", class: "dd-label" %>
+                <%= select_tag :relationship, options_for_select(TravelerLink::RELATIONSHIP_LABELS.invert, "family_member"), id: "new_traveler_relationship", class: "dd-field" %>
+              </div>
+              <% if placeholders.any? %>
+                <div class="dd-field-group">
+                  <%= label_tag "new_traveler_replacing", "Add as", class: "dd-label" %>
+                  <%= select_tag :replacing_id, options_for_select(placeholders.map { |row| [ "In place of #{row.placeholder_label}", row.id ] }),
+                        include_blank: "Another traveler", id: "new_traveler_replacing", class: "dd-field", aria: { describedby: "new_traveler_replacing_hint" } %>
+                  <p class="dd-field-hint" id="new_traveler_replacing_hint">In a placeholder's place, they keep its order, cabin and room, and its type unless you choose one.</p>
+                </div>
+              <% end %>
+              <div class="dd-field-group">
+                <%= label_tag "new_traveler_type", "Traveler type", class: "dd-label" %>
+                <%= select_tag :traveler_type_id, options_from_collection_for_select(traveler_types, :id, :name), include_blank: placeholders.any? ? "Keep the placeholder's, or choose later" : "Choose later", id: "new_traveler_type", class: "dd-field" %>
+              </div>
+            </div>
+            <div class="dd-form-actions"><%= form.submit "Add new traveler", class: "dd-button dd-button--secondary", name: nil %></div>
+          <% end %>
+
+          <%= form_with url: client_booking_path(booking, anchor: "someone-else"), method: :get, class: "dd-form dd-rate-inline", role: "search" do |form| %>
+            <%= hidden_field_tag :step, "travelers", id: nil %>
+            <div class="dd-field-group">
+              <%= label_tag "traveler_q", "Or find a traveler in the agency", class: "dd-label" %>
+              <%= search_field_tag :traveler_q, traveler_query, class: "dd-field", autocomplete: "off" %>
+            </div>
+            <%= form.submit "Find", class: "dd-button dd-button--quiet", name: nil %>
+          <% end %>
+          <% if traveler_query.length >= 2 %>
+            <% if found_travelers.empty? %>
+              <p class="dd-empty-copy">No traveler matches “<%= traveler_query %>” who isn't already <%= client_name %>'s. Add them as a new traveler above.</p>
+            <% else %>
+              <ul class="dd-plain-list dd-payment-list" aria-label="Matching travelers">
+                <% found_travelers.each do |traveler| %>
+                  <li class="dd-payment-item">
+                    <span><strong><%= traveler.display_name %></strong>
+                      <span class="dd-cell-subtext"><%= traveler.date_of_birth ? "Born #{traveler_date_of_birth(traveler)}" : "No date of birth" %></span></span>
+                    <%= form_with url: client_booking_traveler_additions_path(booking), class: "dd-inline-form dd-rate-inline" do |form| %>
+                      <%= hidden_field_tag :traveler_id, traveler.id, id: nil %>
+                      <%= label_tag "found_relationship_#{traveler.id}", "Relationship for #{traveler.display_name}", class: "dd-visually-hidden" %>
+                      <%= select_tag :relationship, options_for_select(TravelerLink::RELATIONSHIP_LABELS.invert, "other"), id: "found_relationship_#{traveler.id}", class: "dd-field" %>
+                      <%= label_tag "found_type_#{traveler.id}", "Type for #{traveler.display_name}", class: "dd-visually-hidden" %>
+                      <%= select_tag :traveler_type_id, options_from_collection_for_select(traveler_types, :id, :name), include_blank: "Choose a type", id: "found_type_#{traveler.id}", class: "dd-field" %>
+                      <% if placeholders.any? %>
+                        <%= label_tag "found_replacing_#{traveler.id}", "Add #{traveler.display_name} as", class: "dd-visually-hidden" %>
+                        <%= select_tag :replacing_id, options_for_select(placeholders.map { |row| [ "In place of #{row.placeholder_label}", row.id ] }),
+                              include_blank: "Another traveler", id: "found_replacing_#{traveler.id}", class: "dd-field" %>
+                      <% end %>
+                      <%= form.submit "Link and add", class: "dd-button dd-button--secondary", name: nil, aria: { label: "Link and add #{traveler.display_name}" } %>
+                    <% end %>
+                  </li>
+                <% end %>
+              </ul>
+            <% end %>
+          <% end %>
+        </section>
+      <% end %>
+      <%= form_with url: client_booking_travelers_path(booking), scope: :booking_traveler, class: "dd-form dd-rate-inline", id: "add-placeholder" do |form| %>
+        <div class="dd-field-group">
+          <%= form.label :placeholder_label, "Placeholder", class: "dd-label" %>
+          <%= form.text_field :placeholder_label, value: "Guest #{booking.booking_travelers.size + 1}", maxlength: BookingTraveler::PLACEHOLDER_LIMIT, class: "dd-field", aria: { describedby: "booking_traveler_placeholder_hint" } %>
+          <p class="dd-field-hint" id="booking_traveler_placeholder_hint">Holds a place until you know who it is.</p>
+        </div>
+        <div class="dd-field-group">
+          <%= form.label :traveler_type_id, "Placeholder type", class: "dd-label" %>
+          <%= form.select :traveler_type_id, traveler_types.map { |type| [ type.name, type.id ] }, { include_blank: "Choose later" }, class: "dd-field" %>
+        </div>
+        <%= form.submit "Add placeholder", class: "dd-button dd-button--secondary", name: nil %>
+      <% end %>
+    <% end %>
+  </div>
+</article>

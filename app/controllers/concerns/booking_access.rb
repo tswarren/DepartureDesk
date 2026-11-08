@@ -6,6 +6,7 @@ module BookingAccess
   extend ActiveSupport::Concern
 
   included do
+    helper_method :booking_step_path
     before_action -> { require_permission!(:view_bookings) }
     before_action -> { require_permission!(:manage_bookings) }, unless: -> { action_name.in?(%w[show index]) }
   end
@@ -16,12 +17,17 @@ module BookingAccess
     @booking = Current.agency.client_bookings.find(params[:client_booking_id] || params[:id])
   end
 
-  def run_booking_command(anchor, notice)
+  # The workspace step that shows a section, opened at that section.
+  def booking_step_path(booking, anchor = nil, step: nil)
+    client_booking_path(booking, step: step || BookingProgress.step_for(anchor), anchor:)
+  end
+
+  def run_booking_command(anchor, notice, step: nil)
     yield
-    redirect_to client_booking_path(@booking, anchor:), notice:
+    redirect_to booking_step_path(@booking, anchor, step:), notice:
   rescue AgencyCommand::Error => error
     raise ActiveRecord::RecordNotFound if error.code == :not_found
 
-    redirect_to client_booking_path(@booking, anchor:), alert: error.message
+    redirect_to booking_step_path(@booking, anchor, step:), alert: error.message
   end
 end

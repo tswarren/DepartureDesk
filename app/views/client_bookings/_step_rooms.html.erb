@@ -1,0 +1,33 @@
+<%# Step 2: each choice's options, with each unit's occupants (BKG-14 to BKG-16). %>
+<%# locals: (booking:, manage:, choices:) -%>
+<article class="dd-panel" id="choices">
+  <header class="dd-panel-header">
+    <h2 class="dd-panel-title">Choices</h2>
+  </header>
+  <div class="dd-panel-body dd-stack">
+    <% choices.each do |choice| %>
+      <% selections = booking.choice_selections.select { |selection| selection.option.offering_choice_id == choice.id } %>
+      <section class="dd-stack" id="choice-<%= choice.id %>" aria-labelledby="choice-heading-<%= choice.id %>">
+        <h3 class="dd-section-title" id="choice-heading-<%= choice.id %>"><%= choice.name %></h3>
+        <p class="dd-page-description"><%= choice_summary(choice) %></p>
+        <% if selections.empty? %>
+          <p class="dd-empty-copy"><%= choice.required_single? ? "Not chosen yet; confirming needs one." : "None chosen." %></p>
+        <% end %>
+        <% selections.each do |selection| %>
+          <%= render "client_bookings/selection", booking: booking, selection:, choice:, manage: %>
+        <% end %>
+        <% if manage && choice.options.any? %>
+          <% if choice.made_per_unit? && choice.optional_multiple? && choice.options.count(&:night_kind) >= 2 %>
+            <%= render "client_bookings/nights_form", booking:, choice:, choices: %>
+            <details class="dd-disclosure">
+              <summary>Add one option instead</summary>
+              <%= render "client_bookings/selection_form", booking: booking, choice:, selection: nil, choices: %>
+            </details>
+          <% else %>
+            <%= render "client_bookings/selection_form", booking: booking, choice:, selection: nil, choices: %>
+          <% end %>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</article>

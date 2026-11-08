@@ -23,7 +23,7 @@ class BookingAcceptanceControllerTest < ActionDispatch::IntegrationTest
 
     file = Rack::Test::UploadedFile.new(StringIO.new(PDF), "application/pdf", original_filename: "nadia-acceptance.pdf")
     post client_booking_acceptances_path(@booking), params: { booking_acceptance: { accepted_by: "Nadia Rowan", acceptance_method: "email", accepted_on: "2027-01-12", evidence: file } }
-    assert_redirected_to client_booking_path(@booking, anchor: "acceptance")
+    assert_redirected_to client_booking_path(@booking, step: "confirm", anchor: "acceptance")
     acceptance = @booking.acceptances.sole
 
     get client_booking_acceptance_evidence_path(@booking, acceptance)
@@ -32,7 +32,7 @@ class BookingAcceptanceControllerTest < ActionDispatch::IntegrationTest
     assert_match(/sandbox/, response.headers["Content-Security-Policy"])
 
     post client_booking_confirmation_path(@booking)
-    assert_redirected_to client_booking_path(@booking)
+    assert_redirected_to client_booking_path(@booking, step: "confirm", anchor: "confirm")
     assert @booking.reload.status_confirmed?
     get client_booking_path(@booking)
     assert_select "#supplier-cost", count: 0, text: nil

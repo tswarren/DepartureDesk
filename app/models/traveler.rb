@@ -28,6 +28,13 @@ class Traveler < ApplicationRecord
 
   scope :ordered, -> { order(:surname, :given_names, :id) }
 
+  # Travelers whose names contain the query, not yet linked to the client.
+  def self.matching(query, unlinked_from:, limit: 20)
+    pattern = "%#{sanitize_sql_like(query.to_s.squish)}%"
+    where("concat_ws(' ', given_names, middle_name, surname, preferred_name) ILIKE ?", pattern)
+      .where.not(id: unlinked_from.traveler_links.select(:traveler_id)).ordered.limit(limit)
+  end
+
   def legal_name
     [ given_names, middle_name, surname, suffix ].compact.join(" ").presence
   end

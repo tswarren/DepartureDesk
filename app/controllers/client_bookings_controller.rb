@@ -18,9 +18,15 @@ class ClientBookingsController < ApplicationController
     @trip = @booking.client_trip
     @choices = @booking.offering.choices.includes(options: :inventory_group)
     @blockers = BookingConfirmationCheck.new(@booking).blockers
-    @linked_travelers = @trip.client.travelers.ordered.reject { |traveler| @booking.booking_travelers.any? { |row| row.traveler_id == traveler.id } }
+    on_booking = @booking.booking_travelers.map(&:traveler_id)
+    @linked_travelers = @trip.client.traveler_links.includes(:traveler).sort_by { |link| [ link.related_as_self? ? 0 : 1, link.created_at ] }
+      .reject { |link| on_booking.include?(link.traveler_id) }
     @traveler_types = Current.agency.traveler_types.active.ordered
+    @traveler_query = params[:traveler_q].to_s.squish
+    @found_travelers = @traveler_query.length >= 2 ? Current.agency.travelers.matching(@traveler_query, unlinked_from: @trip.client, limit: 10).to_a : []
     @blocked = flash[:blockers]
+    @progress = BookingProgress.new(@booking, @blockers)
+    @step = params[:step].presence_in(BookingProgress::STEPS) || @progress.current
   end
 
   def create

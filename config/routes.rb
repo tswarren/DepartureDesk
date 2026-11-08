@@ -44,7 +44,12 @@ Rails.application.routes.draw do
   end
   # S-26: the booking workspace (BKG-05 to BKG-11, BKG-14 to BKG-16, BKG-45, CLT-13, CLT-15, INV-17 to INV-23).
   resources :client_bookings, path: "bookings", only: :show do
-    resources :travelers, only: %i[create update destroy], controller: "booking_travelers"
+    resources :travelers, only: %i[create update destroy], controller: "booking_travelers" do
+      resource :move, only: :create, controller: "booking_traveler_moves"
+    end
+    resource :traveler_batch, only: :create, controller: "booking_traveler_batches"
+    resources :traveler_additions, only: :create, controller: "booking_traveler_additions"
+    resource :selection_range, only: :create, controller: "choice_selection_ranges"
     resources :selections, only: %i[create update destroy], controller: "choice_selections"
     resource :hold, only: %i[create update destroy], controller: "booking_holds"
     resource :discard, only: :create, controller: "booking_discards"
@@ -177,7 +182,7 @@ Rails.application.routes.draw do
     resources :decisions, only: :create, controller: "departure_decisions"
     resource :inventory, only: :show, controller: "departure_inventories"
     # S-25: the Departure roster (BKG-06).
-    resources :bookings, only: :index, controller: "departure_bookings"
+    resources :bookings, only: %i[index new create], controller: "departure_bookings"
     resources :tasks, only: :index, controller: "departure_tasks"
     resource :supplier_money, only: :show, controller: "departure_supplier_money"
     # S-20 and S-21: the package and its client terms (BKG-13 to BKG-16, BKG-21, BKG-28, BKG-31, CMN-09).

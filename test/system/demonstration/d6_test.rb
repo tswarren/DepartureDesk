@@ -34,7 +34,7 @@ class DemonstrationD6Test < ApplicationSystemTestCase
       assert_text "Partly allocated"
     end
 
-    visit client_booking_path(@alpha.bookings.fetch("BK-105"))
+    visit client_booking_path(@alpha.bookings.fetch("BK-105"), step: "rooms")
     within("#choices") do
       assert_text "Luca Rivera · takes part without a position"
       assert_no_text "Elena Rivera · takes part"
