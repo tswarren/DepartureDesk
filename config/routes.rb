@@ -184,6 +184,7 @@ Rails.application.routes.draw do
     resources :offerings, only: %i[index new create edit update] do
       resources :choices, only: %i[new create edit update destroy], controller: "offering_choices" do
         resources :options, only: %i[new create edit update destroy], controller: "offering_options"
+        resource :prices, only: %i[edit update], controller: "offering_choice_prices"
       end
       resources :prices, only: %i[create destroy], controller: "offering_prices"
     end

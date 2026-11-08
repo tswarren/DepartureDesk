@@ -23,6 +23,22 @@ class OfferingOption < ApplicationRecord
     [ "single", *(1..inventory_group.positions_per_unit).map { |n| "guest_#{n}" } ]
   end
 
+  # The stored positions a band of positions sets on this option: those its
+  # group holds. In a group with no stated size the 1st guest has a price
+  # and every guest after takes the any-position price.
+  def stored_positions_for(positions)
+    return positions & [ "any" ] unless choice.made_per_unit?
+    return [ "any" ] if positions == [ "any" ]
+
+    if inventory_group.positions_per_unit.nil?
+      first = positions & [ "guest_1" ]
+      return first if first.any?
+
+      return positions.any? { |position| position.start_with?("guest_") } ? [ "any" ] : []
+    end
+    positions & priced_positions
+  end
+
   # Positions no price row covers for a traveler of no particular type.
   def missing_prices
     lookup = OfferingPriceLookup.new(option: self)

@@ -1,0 +1,112 @@
+<% content_for :title, "#{@choice.name} prices · DepartureDesk" %>
+<% currency = @grid.currency %>
+
+<%= render "shared/breadcrumbs", trail: [ [ "Departures", departures_path ], [ @departure.display_reference, departure_path(@departure) ], [ "Package", departure_offerings_path(@departure) ], [ "#{@choice.name} prices", nil ] ] %>
+
+<header class="dd-page-header">
+  <div class="dd-page-heading">
+    <p class="dd-eyebrow">Client prices · <%= @offering.name %></p>
+    <h1 class="dd-page-title"><%= @choice.name %></h1>
+    <p class="dd-page-description"><%= choice_summary(@choice) %>.
+      <% if @grid.per_unit? %>
+        What each guest pays, in <%= currency %>, by their place in the <%= @grid.columns.any? { |column| column.label.include?("guest") } ? "unit" : "group" %>. A guest alone pays the single price, or the 1st-guest price if there is none.
+      <% else %>
+        What each <%= @choice.made_per_traveler? ? "traveler" : "trip" %> pays, in <%= currency %>.
+      <% end %>
+      Changing a price never changes a booking.
+    </p>
+  </div>
+</header>
+
+<% if @error %>
+  <div class="dd-alert dd-alert--error" role="alert" id="form-error-summary" tabindex="-1">
+    <p class="dd-alert-title">The prices weren't saved</p>
+    <p><%= @error %></p>
+  </div>
+<% end %>
+
+<% if @grid.options.empty? %>
+  <article class="dd-panel">
+    <div class="dd-panel-body">
+      <p class="dd-empty-copy">This choice has no options yet. <%= link_to "Add an option", new_departure_offering_choice_option_path(@departure, @offering, @choice) %> first.</p>
+    </div>
+  </article>
+<% else %>
+  <%= form_with url: departure_offering_choice_prices_path(@departure, @offering, @choice), method: :patch, class: "dd-stack", id: "client-prices", data: { controller: "unsaved-changes" } do %>
+    <%= hidden_field_tag :traveler_type_id, params[:traveler_type_id] if params[:traveler_type_id].present? %>
+    <article class="dd-panel">
+      <div class="dd-panel-body dd-stack">
+        <p class="dd-field-hint">Leave a price blank where the option isn't sold<%= " to that traveler type; it then pays the price for any traveler" if @grid.columns.any?(&:traveler_type) %>. Enter 0 for no charge.<% if @grid.show_cost? %> The net supplier cost per guest is under each price.<% end %></p>
+        <div class="dd-table-wrap">
+          <table class="dd-table dd-stacked-table dd-rate-grid dd-price-grid">
+            <caption class="dd-visually-hidden">Client price per guest by option and position<%= ", with net supplier cost" if @grid.show_cost? %></caption>
+            <thead>
+              <tr>
+                <th scope="col">Option</th>
+                <% @grid.columns.each do |column| %>
+                  <th scope="col"><%= column.label %></th>
+                <% end %>
+              </tr>
+            </thead>
+            <tbody>
+              <% @grid.options.each do |option| %>
+                <tr>
+                  <th scope="row"><%= option.label %><span class="dd-cell-subtext"><%= option.inventory_group.label %><%= " · up to #{option.inventory_group.positions_per_unit}" if @grid.per_unit? && option.inventory_group.positions_per_unit %></span></th>
+                  <% @grid.cells_for(option).each do |cell| %>
+                    <% id = "price_#{option.id}_#{cell.column.key.parameterize(separator: "_")}" %>
+                    <td>
+                      <span class="dd-cabin-field-label dd-visually-hidden"><%= cell.column.label %></span>
+                      <% if cell.available? %>
+                        <div class="dd-rate-cell">
+                          <%= label_tag id, "#{option.label}, #{cell.column.label}: price", class: "dd-visually-hidden" %>
+                          <%= text_field_tag "prices[#{option.id}][#{cell.column.key}]", cell.value, id:, inputmode: "decimal", autocomplete: "off",
+                                placeholder: (cell.varies ? "Varies" : cell.inherited ? "Same as any" : nil), class: "dd-field dd-field--numeric dd-rate-fare",
+                                aria: { describedby: ("#{id}_hint" if cell.varies || cell.inherited || cell.cost) } %>
+                          <%= hidden_field_tag "original[#{option.id}][#{cell.column.key}]", cell.original, id: nil %>
+                          <% hints = [] %>
+                          <% hints << "Differs by position; a price here sets them all" if cell.varies %>
+                          <% hints << "Pays #{cell.inherited} when blank" if cell.inherited %>
+                          <% hints << "Net supplier cost #{cell.cost}" if cell.cost %>
+                          <% if hints.any? %><span class="dd-cell-subtext" id="<%= id %>_hint"><%= hints.join(". ") %></span><% end %>
+                        </div>
+                      <% else %>
+                        <span class="dd-cell-subtext">Holds <%= pluralize(option.inventory_group.positions_per_unit, "guest") %></span>
+                      <% end %>
+                    </td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+        <% missing = @grid.options.filter_map { |option| (gaps = option.missing_prices).any? ? "#{option.label}: #{gaps.to_sentence}" : nil } %>
+        <% if missing.any? && !@error %>
+          <div class="dd-alert dd-alert--warning" role="status">
+            <p class="dd-alert-title">Still needed before booking</p>
+            <ul class="dd-error-list"><% missing.each do |line| %><li><%= line %></li><% end %></ul>
+          </div>
+        <% end %>
+        <div class="dd-form-actions">
+          <%= submit_tag "Save prices", class: "dd-button", name: nil %>
+          <%= link_to "Back to the package", departure_offerings_path(@departure, anchor: "choice-#{@choice.id}"), class: "dd-button dd-button--quiet" %>
+        </div>
+      </div>
+    </article>
+  <% end %>
+
+  <% if (types = @grid.addable_types).any? %>
+    <article class="dd-panel">
+      <header class="dd-panel-header"><h2 class="dd-panel-title">A different price for a traveler type</h2></header>
+      <div class="dd-panel-body">
+        <%= form_with url: edit_departure_offering_choice_prices_path(@departure, @offering, @choice), method: :get, class: "dd-form dd-rate-inline" do |form| %>
+          <div class="dd-field-group">
+            <%= form.label :traveler_type_id, "Traveler type", class: "dd-label" %>
+            <%= form.select :traveler_type_id, types.map { |type| [ type.name, type.id ] }, {}, class: "dd-field", aria: { describedby: "price_type_hint" } %>
+            <p class="dd-field-hint" id="price_type_hint">Adds a column, such as $0 for Child 0–4. Unsaved prices above are lost.</p>
+          </div>
+          <%= form.submit "Add a column", class: "dd-button dd-button--secondary", name: nil %>
+        <% end %>
+      </div>
+    </article>
+  <% end %>
+<% end %>

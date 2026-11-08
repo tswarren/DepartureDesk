@@ -48,7 +48,7 @@ class ProposeBookingSupplierCost
   end
 
   def line_for(position, traveler_type, rate)
-    gross = rate.base_fare_minor_units + rate.non_commissionable_fees_minor_units + rate.taxes_minor_units - rate.discount_minor_units
+    gross = self.class.gross_for(rate)
     Line.new(
       occupancy_position: position, traveler_type:, rate_line: rate,
       base_fare: rate.base_fare_minor_units, non_commissionable_fees: rate.non_commissionable_fees_minor_units,
@@ -56,7 +56,17 @@ class ProposeBookingSupplierCost
     )
   end
 
-  def commission_for(rate)
+  def commission_for(rate) = self.class.commission_for(rate)
+
+  # What one guest's rate costs, before commission.
+  def self.gross_for(rate)
+    rate.base_fare_minor_units + rate.non_commissionable_fees_minor_units + rate.taxes_minor_units - rate.discount_minor_units
+  end
+
+  # What one guest's rate costs once the commission is taken off.
+  def self.net_for(rate) = gross_for(rate) - commission_for(rate)
+
+  def self.commission_for(rate)
     return rate.commission_minor_units.to_i if rate.commission_rate.nil?
 
     base = rate.base_fare_minor_units
